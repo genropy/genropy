@@ -1915,6 +1915,10 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         if('top' in closablePars){
             closablePars['margin_top'] = closablePars['margin_top'] || 0;
         }
+        if('bottom' in closablePars){
+            closablePars.top = 'unset';
+            closablePars['margin_bottom'] = closablePars['margin_bottom'] || 0;
+        }
         if('left' in closablePars){
             closablePars['margin_left'] = closablePars['margin_left'] || 0;
         }
