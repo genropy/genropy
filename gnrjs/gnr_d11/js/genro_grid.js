@@ -796,7 +796,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
             if(searchBoxNode.getRelativeData('.menu_auto')){
-                _this = this;
+                var _this = this;
                 var cb = function(){
                     genro.publish(searchBoxCode+'_updmenu',
                                   _this._getFilterAutoValues(widget,searchBoxNode.getRelativeData('.menu_dtypes')));
@@ -954,6 +954,17 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         menu.setItem('#id',null,{caption:_T('Copy cell'),action:copycell});
     },
+
+   //cm_plugin_o:function(sourceNode,menu){
+   //    var copycell = function(){
+   //        let ot = this.widget.getParent().originalContextTarget;
+   //        if(ot){
+   //            genro.dom.copyInClipboard(ot);
+   //        }
+   //    }
+   //    menu.setItem('#id',null,{caption:_T('Change store'),action:copycell});
+   //},
+
 
     cm_plugin_copyRows:function(sourceNode,menu){
         var that = sourceNode;
@@ -2494,13 +2505,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         if(fields){
             cb = function(c){
                 if (fields.indexOf(c.field_getter || c.field)>=0){
-                    result.push(c.get(rowIdx,ignoreFilter));
+                    result.push(_F(c.get(rowIdx,ignoreFilter)));
                 }
             }
         }else{
             cb = function(c){
                 if(!c.classes || c.classes.indexOf('hiddenColumn')<0){
-                    result.push(c.get(rowIdx,ignoreFilter));
+                    result.push(_F(c.get(rowIdx,ignoreFilter)));
                 }
             }
         }
@@ -3141,6 +3152,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         return result;
     },
+    nodemixin_rebuild:function(){
+        var rebuildNode = this._wrapperNode || this;
+        var parentSrc = rebuildNode.getParentNode().getValue();
+        parentSrc.popNode(rebuildNode.label);
+        parentSrc.setItem(rebuildNode.label,rebuildNode);
+    },
+
     nodemixin_updateGridCellAttr: function(kw) { // update node attributes (for cell display) from new field values
         var grid = this.widget;
         var storebag = grid.storebag();
@@ -3971,11 +3989,14 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
 
 dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_rowByIndex:function(inRowIndex,bagFields,ignoreFilter){
-        var store = this.collectionStore();
-        if(ignoreFilter){
-            return this.rowFromBagNode(store.getItems()[inRowIndex],bagFields);
-        }
-        return store.rowByIndex(inRowIndex,bagFields);
+        console.log('ignoreFilter',ignoreFilter)
+        return this.collectionStore().gridRowByIndex(inRowIndex,bagFields,ignoreFilter);
+
+        //var store = this.collectionStore();
+        //if(ignoreFilter){
+        //    return this.rowFromBagNode(store.getItems()[inRowIndex],bagFields);
+        //}
+        //return store.rowByIndex(inRowIndex,bagFields);
     },
 
     mixin_absIndex:function(idx,reverse){
