@@ -512,6 +512,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     onDragStart:function(dragInfo) {
         var event = dragInfo.event;
         var sourceNode = dragInfo.sourceNode;
+        var value;
         if ('dragValue' in sourceNode.attr) {
             value = sourceNode.currentFromDatasource(sourceNode.attr['dragValue']);
         }
@@ -584,7 +585,8 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
                     genro.dom.resetAutoSizer(sourceNode);
                 },50);
             });
-        }if(sourceNode.attr.autoScale){
+        }
+        if(sourceNode.attr.autoScale){
             dojo.connect(newobj, 'onload', function(){
                 var scalables = newobj.contentWindow.document.getElementsByClassName('gnrAutoScale');
                 for (var i = scalables.length - 1; i >= 0; i--) {
@@ -688,7 +690,7 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
         if (attributes.src) {
             return sourceNode.getAttributeFromDatasource('src');
         } else if (attributes.rpcCall) {
-            params = sourceNode.evaluateOnNode(objectExtract(sourceNode.savedAttrs, 'rpc_*', true));
+            let params = sourceNode.evaluateOnNode(objectExtract(sourceNode.savedAttrs, 'rpc_*', true));
             var httpMethod = objectPop(params,'httpMethod');
             if(httpMethod=='POST'){
                 params._sourceNode = sourceNode;
@@ -2440,7 +2442,7 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
             action = ctxSourceNode.attr.action;
             actionScope = ctxSourceNode;
         }
-        f = funcCreate(action);
+        var f = funcCreate(action);
         if (f) {
             f.call(actionScope, menuAttr, ctxSourceNode, evt);
         }
@@ -3016,7 +3018,7 @@ dojo.declare("gnr.widgets.Calendar", gnr.widgets.baseDojo, {
     },
     created: function(widget, savedAttrs, sourceNode) {
         var bagnodes = widget.getStorebag().getNodes();
-        for (i = 0; i < bagnodes.length; i++) {
+        for (let i = 0; i < bagnodes.length; i++) {
             widget.setCalendarEventFromBagNode(bagnodes[i]);
         }
     },
@@ -3027,7 +3029,7 @@ dojo.declare("gnr.widgets.Calendar", gnr.widgets.baseDojo, {
         else if (kw.evt == 'upd') {
             var bagnodes = this.getStorebag().getNodes();
             this.emptyCalendar();
-            for (i = 0; i < bagnodes.length; i++) {
+            for (let i = 0; i < bagnodes.length; i++) {
                 this.setCalendarEventFromBagNode(bagnodes[i]);
             }
         }
@@ -3055,7 +3057,7 @@ dojo.declare("gnr.widgets.Calendar", gnr.widgets.baseDojo, {
     },
     patch_onValueChanged: function(date, mode) {
         var bagnodes = this.getStorebag().getNodes();
-        for (i = 0; i < bagnodes.length; i++) {
+        for (let i = 0; i < bagnodes.length; i++) {
             this.setCalendarEventFromBagNode(bagnodes[i]);
         }
     },
@@ -3066,13 +3068,13 @@ dojo.declare("gnr.widgets.Calendar", gnr.widgets.baseDojo, {
     },
     patch_onChangeEventTime: function(item, newDate) {
         var bagnodes = this.getStorebag().getNodes();
-        for (i = 0; i < bagnodes.length; i++) {
+        for (let i = 0; i < bagnodes.length; i++) {
             this.setCalendarEventFromBagNode(bagnodes[i]);
         }
     },
     patch_onChangeEventDateTime: function(item, newDate, newTime) {
         var bagnodes = this.getStorebag().getNodes();
-        for (i = 0; i < bagnodes.length; i++) {
+        for (let i = 0; i < bagnodes.length; i++) {
             this.setCalendarEventFromBagNode(bagnodes[i]);
         }
     }
@@ -3649,8 +3651,8 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             values = values.split(ch);  
         }
         for (var i = 0; i < values.length; i++) {
-            val = values[i];
-            xval = {};
+            var val = values[i];
+            var xval = {};
             if (val.indexOf(':') > 0) {
                 val = val.split(':');
                 xval['id'] = val[0];
@@ -3950,7 +3952,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         this.store.mainbag=new gnr.GnrBag();
          if (status == google.maps.GeocoderStatus.OK) {
              for (var i = 0; i < results.length; i++){
-                 formatted_address=results[i].formatted_address;
+                 var formatted_address = results[i].formatted_address;
                  var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
                  var address_components=results[i].address_components;
                  for (var a in address_components){
@@ -5081,9 +5083,9 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
         }
         if (v.indexOf(',')){
             var c=v.split(',');
-            c0=parseFloat(c[0]);
+            var c0=parseFloat(c[0]);
             if (c0){
-                c1=parseFloat(c[1]);
+                var c1=parseFloat(c[1]);
                 if(c1){
                     result= new google.maps.LatLng(c0, c1);
                     cb(result);

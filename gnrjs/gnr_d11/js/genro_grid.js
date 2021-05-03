@@ -1196,7 +1196,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.model.store._identifier;
     },
     mixin_rowItemByIndex: function(idx) {
-        identifier = this.rowIdentity(this.rowByIndex(idx));
+        let identifier = this.rowIdentity(this.rowByIndex(idx));
         return this.model.store.fetchItemByIdentity({identity:identifier});
     },
     mixin_rowItemByIdentity: function(identifier) {
@@ -1310,6 +1310,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     mixin_hasRow:function(attr, value) {
+        var cb;
         if (typeof(attr) == 'function') {
             cb = attr;
         } else {
@@ -2997,7 +2998,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
     mixin__setScale(v){
         var scaleX = this.sourceNode.getAttributeFromDatasource('scaleX') || 1;
         var scaleY = this.sourceNode.getAttributeFromDatasource('scaleY') || 1;
-        scalecb = function(domNode){
+        var scalecb = function(domNode){
             domNode.style.transform = "scale("+scaleX+","+scaleY+")";   
             domNode.style.transformOrigin = '0 0';
         }
@@ -3236,7 +3237,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         var dataproviderNode = this.storebag().getParentNode();
         if ('newBagRow' in dataproviderNode) {
             if (defaultArgs instanceof Array) {
-                result = [];
+                let result = [];
                 for (var i = 0; i < defaultArgs.length; i++) {
                     result.push(this.newBagRow(defaultArgs[i]));
                 }
@@ -3248,7 +3249,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             }
         } else {
             if (defaultArgs instanceof Array) {
-                result = [];
+                let result = [];
                 for (var i = 0; i < defaultArgs.length; i++) {
                     result.push(this.newBagRow(defaultArgs[i]));
                 }
