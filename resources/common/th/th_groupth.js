@@ -1,4 +1,18 @@
 var genro_plugin_groupth = {
+    toggleCounterColumn:function(kw){
+        var sourceNode = kw.sourceNode;
+        var cb = function(){
+            let structrow = sourceNode.getRelativeData('.struct.view_0.rows_0')
+            let cell = structrow.getAttr('_grp_count');
+            if(!cell){
+                structrow.setItem('_grp_count',null,{field:'_grp_count',name:'Cnt',width:'5em',group_aggr:'sum',dtype:'L'});
+            }else{
+                structrow.popNode('_grp_count');
+            }
+        }  
+        kw.menu.setItem('#id',null,{caption:_T('Toggle counter column'),action:cb});
+    },
+
     buildGroupTree:function(pane,structBag,treekw){
         pane.getValue().popNode('treeroot');
         var root = pane._('div','treeroot').getParentNode();

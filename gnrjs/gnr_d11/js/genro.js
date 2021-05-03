@@ -1012,7 +1012,6 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     standardEventConnection:function(pane){
-        pane = pane || genro.domById('mainWindow');
         if(this.isDeveloper){
             dojo.connect(dojo.body(),'onmouseover',function(e){
                 if(e.shiftKey && e.altKey){

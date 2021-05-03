@@ -718,7 +718,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var menuNode = gridContent.getNodeByAttr('tag', 'menu',true);
         if(!menuNode && sourceNode.attr.gridplugins!==false){
-            sourceNode.setRelativeData('.contextMenu',this.pluginContextMenuBag(sourceNode));
+            let controllerData = sourceNode.getRelativeData();
+            var contextMenuBag = sourceNode.getRelativeData('.contextMenu');
+            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{sourceNode:sourceNode,contextMenuBag:contextMenuBag});
             sourceNode._('menu','contextMenu',{storepath:'.contextMenu',_class:'smallmenu'},{doTrigger:false});
             gridContent = sourceNode.getValue();
             menuNode = gridContent.getNode('contextMenu');
@@ -1033,8 +1035,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             action:"$2.publish('pluginCommand',{plugin:'statspane',command:'openGridStats',pkey:$1.pkey,caption:$1.caption});"});
     },
 
-    pluginContextMenuBag:function(sourceNode){
-        var gridplugins = sourceNode.attr.gridplugins;
+    pluginContextMenuBag:function(kw){
+        var sourceNode = kw.sourceNode;
+        var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
             gridplugins = 'chartjs,export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
@@ -1042,13 +1045,21 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
         }
         gridplugins+=',copyCell,copyRows,pasteRows';
-        var contextMenuBag = sourceNode.getRelativeData('.contextMenu') || new gnr.GnrBag();
+        var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
-        var that = this;
+        var widget = sourceNode.widget;
         if(gridplugins){
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){
-                that['cm_plugin_'+cm_plugin](sourceNode,contextMenuBag);
+                let keyplugin = 'cm_plugin_'+cm_plugin;
+                if (keyplugin in widget.gnr){
+                    widget.gnr[keyplugin](sourceNode,contextMenuBag);
+                }else{
+                    let cm_plugin_list = cm_plugin.split(':');
+                    genro.pluginCommand({'plugin':cm_plugin_list[0],'command':cm_plugin_list[1],
+                                        'sourceNode':sourceNode,'menu':contextMenuBag});
+                }
+                
             });
         }
         contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:_T('Toggle line number'),
@@ -3990,14 +4001,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
 
 dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_rowByIndex:function(inRowIndex,bagFields,ignoreFilter){
-        console.log('ignoreFilter',ignoreFilter)
         return this.collectionStore().gridRowByIndex(inRowIndex,bagFields,ignoreFilter);
-
-        //var store = this.collectionStore();
-        //if(ignoreFilter){
-        //    return this.rowFromBagNode(store.getItems()[inRowIndex],bagFields);
-        //}
-        //return store.rowByIndex(inRowIndex,bagFields);
     },
 
     mixin_absIndex:function(idx,reverse){

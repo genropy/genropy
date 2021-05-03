@@ -2171,7 +2171,7 @@ dojo.declare("gnr.GnrBag", null, {
     },
     setCallBackItem: function(path, callback, parameters, kwargs) {
         if (!kwargs) {
-            var kwargs = {};
+            kwargs = {};
         }
         kwargs.method = callback;
         kwargs.parameters = parameters;
