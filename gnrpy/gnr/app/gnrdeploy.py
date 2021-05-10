@@ -1124,6 +1124,8 @@ class GunicornDeployBuilder(object):
         self.supervisord_monitor_parameters = self.path_resolver.gnr_config.getAttr('gnr.environment_xml.supervisord')
         self.bin_folder = os.path.join(os.environ.get('VIRTUAL_ENV'),'bin') if 'VIRTUAL_ENV' in  os.environ else ''
         self.socket_path = os.path.join(self.site_path, 'sockets')
+        if len(self.socket_path)>90:
+            self.socket_path = os.path.join('/tmp', os.path.basename(self.site_path), 'gnr_sock')
         self.logs_path = os.path.join(self.site_path, 'logs')
         self.pidfile_path = os.path.join(self.site_path, '%s_pid' % site_name)
         self.gunicorn_conf_path = os.path.join(self.config_folder,'gunicorn.py')
