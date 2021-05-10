@@ -31,7 +31,11 @@ Sandbox is your first Genropy application.
 
 Inside folder genropy_projects 
 
-	git clone https://github.com/genropy/sandbox.git
+	git clone https://bitbucket.org/genropy/sandbox.git
+
+Run a db setup
+
+    gnrdbsetup sandbox
 
 Genropy webapplications needs a daemon
 
