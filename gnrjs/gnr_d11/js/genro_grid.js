@@ -797,31 +797,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var searchBoxCode =(sourceNode.attr.frameCode || nodeId)+'_searchbox';
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
-            if(searchBoxNode.getRelativeData('.menu_auto')){
-                var _this = this;
-                var cb = function(){
-                    genro.publish(searchBoxCode+'_updmenu',
-                                  _this._getFilterAutoValues(widget,searchBoxNode.getRelativeData('.menu_dtypes')));
-                };
-                dojo.connect(widget,'onSetStructpath',widget,cb);
-                dojo.connect(widget,'newDataStore',function(){
-                    searchBoxNode.setRelativeData('.currentValue','');
-                    searchBoxNode.setRelativeData('.value','');
-                });
-                setTimeout(function(){cb.call(widget);},1);
-            }
-            sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
-                this.applyFilter(v,null,field);
-                genro.dom.setClass(this.domNode,'filteredGrid',v);
-                this.updateTotalsCount();
-                
-            });
-            sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
-                kw.finalize();
-            });
-            sourceNode.subscribe('command',function(){
-                widget[arguments[0]](arguments.slice(1));
-            });
+            this.enableSearchBox(searchBoxNode,widget);
         }
         if (widget.sourceNode.attr.filteringGrid){
             widget.filteringMode = widget.sourceNode.currentFromDatasource(sourceNode.attr.filteringMode) || 'exclude';
@@ -939,6 +915,39 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         setTimeout(function(){widget.updateRowCount('*');},1);
     },
 
+    enableSearchBox:function(searchBoxNode,widget){
+        if(searchBoxNode._enabled){
+            return;
+        }
+        var searchBoxCode = searchBoxNode.attr.nodeId;
+        var sourceNode = widget.sourceNode;
+        if(searchBoxNode.getRelativeData('.menu_auto')){
+            var _this = this;
+            var cb = function(){
+                genro.publish(searchBoxCode+'_updmenu',
+                              _this._getFilterAutoValues(widget,searchBoxNode.getRelativeData('.menu_dtypes')));
+            };
+            dojo.connect(widget,'onSetStructpath',widget,cb);
+            dojo.connect(widget,'newDataStore',function(){
+                searchBoxNode.setRelativeData('.currentValue','');
+                searchBoxNode.setRelativeData('.value','');
+            });
+            setTimeout(function(){cb.call(widget);},1);
+        }
+        sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
+            this.applyFilter(v,null,field);
+            genro.dom.setClass(this.domNode,'filteredGrid',v);
+            this.updateTotalsCount();
+        });
+        sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
+            kw.finalize();
+        });
+        sourceNode.subscribe('command',function(){
+            widget[arguments[0]](arguments.slice(1));
+        });
+        searchBoxNode._enabled = true;
+    },
+
     cm_plugin_configurator:function(sourceNode,menu){
         menu.setItem('#id',null,{caption:_T('Configure grid'),action:"$2.widget.configuratorPalette();"});
     },
@@ -957,15 +966,30 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         menu.setItem('#id',null,{caption:_T('Copy cell'),action:copycell});
     },
 
-   //cm_plugin_o:function(sourceNode,menu){
-   //    var copycell = function(){
-   //        let ot = this.widget.getParent().originalContextTarget;
-   //        if(ot){
-   //            genro.dom.copyInClipboard(ot);
-   //        }
-   //    }
-   //    menu.setItem('#id',null,{caption:_T('Change store'),action:copycell});
-   //},
+    cm_plugin_dynamicSearchOn:function(sourceNode,menu){
+        var that = this;
+        var frameCode = sourceNode.getInheritedAttributes().frameCode;
+        var searchId =frameCode+'_searchbox';
+        var searchBoxNode = genro.nodeById(searchId);
+        if(searchBoxNode){
+            return;
+        }
+        var addSearch = function(){
+            var headerHeight = sourceNode.widget.views.views[0].headerNode.clientHeight;
+            var box = sourceNode.getValue()._('div','dynamicSearch',{position:'absolute',
+                                                top:headerHeight+'px',right:'18px',font_size:'.9em',
+                                                background:'#ececec',padding:'1px',
+                                                rounded_left:4,border:'1px solid silver'})
+    
+            box._('SearchBox', {nodeId:searchId,datapath:'.searchbox',parentForm:false,
+                               search_kw:{font_size:'.9em'}});
+            setTimeout(function(){
+                that.enableSearchBox(genro.nodeById(searchId),sourceNode.widget);
+            },1);
+            
+        }
+        menu.setItem('#id',null,{caption:_T('Search'),action:addSearch});
+    },
 
 
     cm_plugin_copyRows:function(sourceNode,menu){
@@ -984,6 +1008,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
     cm_plugin_pasteRows:function(sourceNode,menu){
         var grid = sourceNode.widget;
+        if(!grid.gridEditor){
+            return;
+        }
         var pasterows = function(){
             navigator.clipboard.readText().then(function(txt){
                 if(!txt || txt[0]!='<'){
@@ -1039,12 +1066,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var sourceNode = kw.sourceNode;
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
-            gridplugins = 'chartjs,export_xls,print';
+            gridplugins = 'export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
                 gridplugins = 'configurator,'+gridplugins;
             }
         }
-        gridplugins+=',copyCell,copyRows,pasteRows';
+        gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
         var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
         var widget = sourceNode.widget;
