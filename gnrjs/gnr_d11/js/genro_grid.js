@@ -1013,10 +1013,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var pasterows = function(){
             navigator.clipboard.readText().then(function(txt){
+                if(!grid.gridEditor){
+                    return;
+                }
                 if(!txt || txt[0]!='<'){
                     return;
                 }
                 var rows = new gnr.GnrBag(txt);
+                if(!rows.len()){
+                    return;
+                }
                 rows._nodes.forEach(function(n){
                     let r = {};
                     let label = '#id';
@@ -1030,7 +1036,6 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     }
                     grid.addBagRow(label, '*', grid.newBagRow(r));
                 });
-                //grid.gridEditor.callRemoteControllerBatch('*');
             });
         }
         menu.setItem('#id',null,{caption:_T('Paste rows from clipboard'),action:pasterows});

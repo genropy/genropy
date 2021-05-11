@@ -487,14 +487,33 @@ class FrameGrid(BaseComponent):
         return frame
 
     @public_method
-    def remoteRowControllerBatch(self,handlerName=None,rows=None,**kwargs):
+    def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,**kwargs):
         handler = self.getPublicMethod('rpc',handlerName)
         result = Bag()
-        if not handler:
+        if not (handler or selectedQueries):
             return
         for r in self.utils.quickThermo(rows,maxidx=len(rows)):
-            result.setItem(r.label,handler(row=r.value,row_attr=r.attr,**kwargs))
+            value = r.value
+            if selectedQueries:
+                self.handleSelectedParsQueries(value,selectedQueries)
+            value = value if not handler else handler(row=value,row_attr=r.attr,**kwargs)
+            result.setItem(r.label,value)
         return result
+
+    def handleSelectedParsQueries(self,value,selectedQueries):
+        queries = Bag()
+        for field,queryattr,selected in selectedQueries.digest('#k,#a,#v'):
+            if not value[field]:
+                continue
+            queryattr['pkey'] = value[field]
+            queries.addItem(field,selected,_attributes=queryattr)
+        if queries:
+            res = self.app.getMultiFetch(queries)
+            for field,selectedpaths in queries.items():
+                kw = res[field].getAttr(value[field])
+                for column,path in selectedpaths.items():
+                    if path.startswith('.'):
+                        value[path[1:]] = kw.get(column)
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
