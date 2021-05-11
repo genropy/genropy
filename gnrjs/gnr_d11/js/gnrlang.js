@@ -1764,12 +1764,14 @@ function highlightLinks(text) {
 }
 
 function funcApply(fnc, parsobj, scope,argNames,argValues,showError) {
-    var parsobj = parsobj || {};
-    var argNames = argNames || [];
-    var argValues = argValues || [];
+    parsobj = parsobj || {};
+    argNames = argNames || [];
+    argValues = argValues || [];
     for (var attr in parsobj) {
-        argNames.push(attr);
-        argValues.push(parsobj[attr]);
+        if(!argNames.includes(attr)){
+            argNames.push(attr);
+            argValues.push(parsobj[attr]);
+        }
     }
     argNames.forEach(function(arg,idx){
         if(!(arg in parsobj)){

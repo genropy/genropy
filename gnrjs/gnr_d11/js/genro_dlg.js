@@ -486,6 +486,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     askParameters:function(cb,ask_params,parameters,sourceNode,argnames,argvalues){
         var promptkw = objectUpdate({},ask_params);
+        parameters = objectUpdate({},parameters);
         if(promptkw.fields){
             promptkw.fields = promptkw.fields.map(function(kw){
                 kw = objectUpdate({},kw);
@@ -503,7 +504,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                 objectUpdate(parameters,result);
                 parameters._askResult = result;
             }
-            funcApply(cb, objectUpdate(parameters, {}), sourceNode,argnames,argvalues);
+            funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
         genro.dlg.prompt(objectPop(promptkw,'title','Parameters'),promptkw,sourceNode);
     },
