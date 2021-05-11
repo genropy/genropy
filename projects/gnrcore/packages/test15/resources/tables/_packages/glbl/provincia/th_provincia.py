@@ -39,7 +39,8 @@ class ViewTestSections(BaseComponent):
 
 
     def th_sections_zone(self):
-        return [dict(code='nord',caption='!!Nord',condition='@regione.zona=:zona',condition_zona='Nord'),
+        return [dict(code='nord',caption='!!Nord',condition='@regione.zona=:zona_ovest OR @regione.zona=:zona_est',
+                                condition_zona_ovest='Nord-ovest', condition_zona_est='Nord-est'),
                 dict(code='centro',caption='!!Centro',condition='@regione.zona=:zona',condition_zona='Centro'),
                 dict(code='sud',caption='!!Sud',condition='@regione.zona=:zona',condition_zona='Sud'),
                 dict(code='isole',caption='!!Isole',condition='@regione.zona=:zona',condition_zona='Isole')
