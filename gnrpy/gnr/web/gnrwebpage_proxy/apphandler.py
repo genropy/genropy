@@ -29,6 +29,7 @@ import os
 import re
 import time
 from datetime import datetime
+from gnr.core.gnrdict import dictExtract
 
 from gnr.core.gnrlang import gnrImport
 
@@ -1852,7 +1853,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             table = query.attr.pop('table')
             tblobj = self.db.table(table)
             columns = ','.join(tblobj.columnsFromString(columns))
-            result[query.label] = tblobj.query(columns=columns,**query.attr).fetchAsBag('pkey')
+            qattr = dict(query.attr)
+            dbenv_kw = dictExtract(qattr,'dbenv_',True)
+            with self.db.tempEnv(**dbenv_kw):
+                result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
     @public_method
