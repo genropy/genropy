@@ -495,8 +495,9 @@ class FrameGrid(BaseComponent):
             for field,selectedpaths in queries.items():
                 kw = res[field].getAttr(value[field])
                 for column,path in selectedpaths.items():
-                    if path.startswith('.'):
-                        value[path[1:]] = kw.get(column)
+                    resvalue = kw.get(column)
+                    if path.startswith('.') and (resvalue is not None or resvalue!=''):
+                        value[path[1:]] = resvalue
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
