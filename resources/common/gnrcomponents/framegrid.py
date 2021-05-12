@@ -496,7 +496,7 @@ class FrameGrid(BaseComponent):
                 kw = res[field].getAttr(value[field])
                 for column,path in selectedpaths.items():
                     resvalue = kw.get(column)
-                    if path.startswith('.') and (resvalue is not None or resvalue!=''):
+                    if path.startswith('.') and (resvalue is not None and resvalue!=''):
                         value[path[1:]] = resvalue
 
 class TemplateGrid(BaseComponent):
