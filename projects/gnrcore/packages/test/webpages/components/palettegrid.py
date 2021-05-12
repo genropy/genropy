@@ -4,7 +4,6 @@
 
 from gnr.core.gnrbag import Bag
 
-"Palettes"
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
