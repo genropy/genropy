@@ -1184,7 +1184,9 @@ dojo.declare("gnr.GridEditor", null, {
             if(objectNotEmpty(selectedKw)){
                 hcols = hcols.concat(objectKeys(selectedKw));
             }
-            queries.setItem(k,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:'{'+k+'}',where:'$pkey =:pkey'},dbenvKw));
+            if(hcols.length){
+                queries.setItem(k,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:'{'+k+'}',where:'$pkey =:pkey'},dbenvKw));
+            }
         }
         return queries;
     },
