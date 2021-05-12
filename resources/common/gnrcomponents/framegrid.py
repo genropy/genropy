@@ -471,7 +471,7 @@ class FrameGrid(BaseComponent):
 
     @public_method
     def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,**kwargs):
-        handler = self.getPublicMethod('rpc',handlerName)
+        handler = self.getPublicMethod('rpc',handlerName) if handlerName else None
         result = Bag()
         if not (handler or selectedQueries):
             return
