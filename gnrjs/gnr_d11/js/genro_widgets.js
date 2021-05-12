@@ -2643,6 +2643,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                     });
                     gnr.menuFromBag(result, menubag, sourceNode.attr._class, sourceNode.attr.fullpath);
                     sourceNode.setValue(menubag);
+                    sourceNode.widget.originalContextTarget = this.originalContextTarget;
                     var new_bindings = [];
                     dojo.forEach(sourceNode.widget._bindings, function(k) {
                         new_bindings.push(k[0][0]);
