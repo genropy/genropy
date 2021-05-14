@@ -7,6 +7,7 @@ var genro_plugin_groupth = {
         }
         root.freeze();
         treekw = treekw || {};
+        console.log('treekw',treekw)
         var tr = root._('treeGrid',objectUpdate(treekw,{storepath:'.treestore',
                                     autoCollapse:false,
                                     headers:true,_class:'groupby_tree'}));
@@ -113,6 +114,9 @@ var genro_plugin_groupth = {
                 that.updateBranchTotals(n,formulalist);
             }
             for(k in n.attr){
+                if(k=='_pkeylist'){
+                    currAttr[k] = currAttr[k]?currAttr[k]+','+n.attr[k]:n.attr[k];
+                }
                 if(k.endsWith('_sum')){
                     currAttr[k] = (currAttr[k] || 0)+n.attr[k];
                 }else if(k.endsWith('_avg')){
