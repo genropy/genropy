@@ -478,26 +478,36 @@ class FrameGrid(BaseComponent):
         for r in self.utils.quickThermo(rows,maxidx=len(rows)):
             value = r.value
             if selectedQueries:
-                self.handleSelectedParsQueries(value,selectedQueries)
+                for queryNode in selectedQueries:
+                    self.handleSelectedParsQuery(value,queryNode)
             value = value if not handler else handler(row=value,row_attr=r.attr,**kwargs)
             result.setItem(r.label,value)
         return result
 
-    def handleSelectedParsQueries(self,value,selectedQueries):
-        queries = Bag()
-        for field,queryattr,selected in selectedQueries.digest('#k,#a,#v'):
-            if not value[field]:
+    def handleSelectedParsQuery(self,value,queryNode):
+        qattr = dict(queryNode.attr)
+        columns = qattr.pop('columns')
+        table = qattr.pop('table')
+        if not columns:
+            return
+        pkey = value[qattr.pop('pkey')]
+        if not pkey:
+            return
+        tblobj = self.db.table(table)
+        columns = ','.join(tblobj.columnsFromString(columns))
+        dbenv_kw = dictExtract(qattr,'dbenv_',True)
+        qattr['pkey'] = pkey
+        with self.db.tempEnv(**dbenv_kw):
+            f = tblobj.query(columns=columns,where='${}=:pk'.format(tblobj.pkey),pk=pkey).fetch()
+        if not f:
+            return
+        kw = f[0]
+        for column,path in queryNode.value.items():
+            if not path.startswith('.'):
                 continue
-            queryattr['pkey'] = value[field]
-            queries.addItem(field,selected,_attributes=queryattr)
-        if queries:
-            res = self.app.getMultiFetch(queries)
-            for field,selectedpaths in queries.items():
-                kw = res[field].getAttr(value[field])
-                for column,path in selectedpaths.items():
-                    resvalue = kw.get(column)
-                    if path.startswith('.') and (resvalue is not None and resvalue!=''):
-                        value[path[1:]] = resvalue
+            resvalue = kw.get(column)
+            if resvalue is not None and resvalue!='':
+                value[path[1:]] = resvalue
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'

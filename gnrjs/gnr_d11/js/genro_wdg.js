@@ -1169,12 +1169,12 @@ dojo.declare("gnr.GridEditor", null, {
         for(var k in cellmap){
             var cmap = cellmap[k];
             let editkw = cmap.edit;
-            if(!editkw || !editkw.dbtable){
+            if(!editkw){
                 continue;
             }
-            let tbl = editkw.dbtable;
+            let tbl = editkw.dbtable || cmap.related_table;
             hcols = [];
-            rcol = cmap.relating_column;
+            rcol = cmap.relating_column || k;
             if(rcol && rcol!=k){
                 hcols.push(rcol)
             }
@@ -1185,7 +1185,7 @@ dojo.declare("gnr.GridEditor", null, {
                 hcols = hcols.concat(objectKeys(selectedKw));
             }
             if(hcols.length){
-                queries.setItem(k,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:'{'+k+'}',where:'$pkey =:pkey'},dbenvKw));
+                queries.setItem(k,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:k,where:'$pkey =:pkey'},dbenvKw));
             }
         }
         return queries;
