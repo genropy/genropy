@@ -76,7 +76,7 @@ var genro_plugin_groupth = {
             row = objectUpdate({},n.attr);
             group_by_cols.forEach(function(cell){
                 let k = cell.field_getter;
-                value = objectPop(row,k) || '-';
+                value = objectPop(row,k) || '[NP]';
                 description = value;
                 if(typeof(value)!='string'){
                     description = _F(description);
