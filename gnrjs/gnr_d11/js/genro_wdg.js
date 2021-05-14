@@ -1175,9 +1175,6 @@ dojo.declare("gnr.GridEditor", null, {
             let tbl = editkw.dbtable || cmap.related_table;
             let hcols = [];
             let rcol = cmap.relating_column || field;
-            if(rcol && rcol!=field){
-                hcols.push(rcol)
-            }
             let selectedKw = objectExtract(editkw,'selected_*',true);
             let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
             if(objectNotEmpty(selectedKw)){
