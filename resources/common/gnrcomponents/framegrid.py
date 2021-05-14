@@ -472,14 +472,44 @@ class FrameGrid(BaseComponent):
         return frame
 
     @public_method
-    def remoteRowControllerBatch(self,handlerName=None,rows=None,**kwargs):
-        handler = self.getPublicMethod('rpc',handlerName)
+    def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,**kwargs):
+        handler = self.getPublicMethod('rpc',handlerName) if handlerName else None
         result = Bag()
-        if not handler:
+        if not (handler or selectedQueries):
             return
         for r in self.utils.quickThermo(rows,maxidx=len(rows)):
-            result.setItem(r.label,handler(row=r.value,row_attr=r.attr,**kwargs))
+            value = r.value
+            if selectedQueries:
+                for queryNode in selectedQueries:
+                    self.handleSelectedParsQuery(value,queryNode)
+            value = value if not handler else handler(row=value,row_attr=r.attr,**kwargs)
+            result.setItem(r.label,value)
         return result
+
+    def handleSelectedParsQuery(self,value,queryNode):
+        qattr = dict(queryNode.attr)
+        columns = qattr.pop('columns')
+        table = qattr.pop('table')
+        if not columns:
+            return
+        pkey = value[qattr.pop('pkey')]
+        if not pkey:
+            return
+        tblobj = self.db.table(table)
+        columns = ','.join(tblobj.columnsFromString(columns))
+        dbenv_kw = dictExtract(qattr,'dbenv_',True)
+        qattr['pkey'] = pkey
+        with self.db.tempEnv(**dbenv_kw):
+            f = tblobj.query(columns=columns,where='${}=:pk'.format(tblobj.pkey),pk=pkey).fetch()
+        if not f:
+            return
+        kw = f[0]
+        for column,path in queryNode.value.items():
+            if not path.startswith('.'):
+                continue
+            resvalue = kw.get(column)
+            if resvalue is not None and resvalue!='':
+                value[path[1:]] = resvalue
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'

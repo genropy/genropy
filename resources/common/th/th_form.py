@@ -385,8 +385,10 @@ class TableHandlerForm(BaseComponent):
                             if (menuattr.onCalling) {
                                 onCalling = funcCreate(menuattr.onCalling, 'kwargs', this);
                             }
-                            var finalize = function(){
-                                
+                            var finalize = function(_askResult){
+                                if(_askResult){
+                                    objectUpdate(kw,_askResult);
+                                }
                                 if(menuattr.rpcmethod){
                                     objectUpdate(kw,objectExtract($1,'rpc_*',true));
                                     kw._sourceNode = sourceNode;

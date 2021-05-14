@@ -1162,6 +1162,31 @@ dojo.declare("gnr.GridEditor", null, {
         this.updateStatus();
     },
 
+    rowSelectedQueries:function(){
+        var cellmap = this.grid.cellmap;
+        var queries = new gnr.GnrBag();
+        this.grid.getColumnInfo().forEach(function(colNode){
+            let field = colNode.label;
+            let cmap = cellmap[field];
+            let editkw = cmap.edit;
+            if(!editkw){
+                return;
+            }
+            let tbl = editkw.dbtable || cmap.related_table;
+            let hcols = [];
+            let rcol = cmap.relating_column || field;
+            let selectedKw = objectExtract(editkw,'selected_*',true);
+            let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
+            if(objectNotEmpty(selectedKw)){
+                hcols = hcols.concat(objectKeys(selectedKw));
+            }
+            if(hcols.length){
+                queries.setItem(field,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:rcol,where:'$pkey =:pkey'},dbenvKw));
+            }
+        });
+        return queries;
+    },
+
     getNewRowDefaults:function(externalDefaults){
         var editorDefaults = this.editorPars.default_kwargs;
         if(typeof(editorDefaults)=='function'){
@@ -1289,6 +1314,9 @@ dojo.declare("gnr.GridEditor", null, {
         if(rows=='*'){
             rows = this.grid.storebag().deepCopy();
         }
+        if(!(rows && rows.len())){
+            return;
+        }
         var grid = this.grid;
         let reason = 'callRemoteControllerBatch_' +grid.sourceNode.attr.nodeId;
         genro.lockScreen(true,reason,{thermo:true});
@@ -1302,6 +1330,7 @@ dojo.declare("gnr.GridEditor", null, {
             return result;
         }
         kw.timeout = 0;
+        kw.selectedQueries = this.rowSelectedQueries();
         return genro.serverCall('remoteRowControllerBatch',
                                     objectUpdate(kw,{handlerName:this.remoteRowController,
                                     rows:rows,_sourceNode:this.grid.sourceNode}),
@@ -2163,7 +2192,7 @@ dojo.declare("gnr.GridChangeManager", null, {
             var rowEditor = this.grid.getRowEditor({rowId:kw.node.label});
             if(!rowEditor){
                 rowEditor = gridEditor.newRowEditor(kw.node);
-                if(gridEditor.remoteRowController && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
+                if((gridEditor.remoteRowController || gridEditor.rowSelectedQueries().len()>0) && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
                     gridEditor.callRemoteController(kw.node,null,null,true);
                 }
             }
