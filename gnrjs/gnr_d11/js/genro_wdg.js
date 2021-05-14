@@ -1165,29 +1165,28 @@ dojo.declare("gnr.GridEditor", null, {
     rowSelectedQueries:function(){
         var cellmap = this.grid.cellmap;
         var queries = new gnr.GnrBag();
-        var rcol,hcols;
-        for(var k in cellmap){
-            var cmap = cellmap[k];
+        this.grid.getColumnInfo().forEach(function(colNode){
+            let field = colNode.label;
+            let cmap = cellmap[field];
             let editkw = cmap.edit;
             if(!editkw){
-                continue;
+                return;
             }
             let tbl = editkw.dbtable || cmap.related_table;
-            hcols = [];
-            rcol = cmap.relating_column || k;
-            if(rcol && rcol!=k){
+            let hcols = [];
+            let rcol = cmap.relating_column || field;
+            if(rcol && rcol!=field){
                 hcols.push(rcol)
             }
-            var selectedKw = objectExtract(editkw,'selected_*',true);
-            var dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
-
+            let selectedKw = objectExtract(editkw,'selected_*',true);
+            let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
             if(objectNotEmpty(selectedKw)){
                 hcols = hcols.concat(objectKeys(selectedKw));
             }
             if(hcols.length){
-                queries.setItem(k,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:k,where:'$pkey =:pkey'},dbenvKw));
+                queries.setItem(field,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:rcol,where:'$pkey =:pkey'},dbenvKw));
             }
-        }
+        });
         return queries;
     },
 
