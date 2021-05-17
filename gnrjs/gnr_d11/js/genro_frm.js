@@ -1539,7 +1539,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         }
         if (kw.reason == 'resolver' || kw.node.getFullpath().indexOf('$') > 0 || kw.node.attr.virtual_column) {
             var invalidFields = this.getInvalidFields();
-            var invalidDojo = this.getInvalidDojo();
             var ck = this.getChangeKey(kw.node);
             if(invalidFields && invalidFields.len()){
                 invalidFields._nodes.forEach(function(n){
@@ -1840,7 +1839,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
             objectKeys(node_identifiers).forEach(function(idx){
                 sourceNode = genro.src.nodeBySourceNodeId(node_identifiers[idx]);
-                result = genro.vld.validate(sourceNode, sourceNode.getAttributeFromDatasource('value'));
+                let result = genro.vld.validate(sourceNode, sourceNode.getAttributeFromDatasource('value'));
                 if (result['modified']) {
                     sourceNode.widget.setValue(result['value']);
                 }

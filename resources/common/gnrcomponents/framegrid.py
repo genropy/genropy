@@ -221,6 +221,14 @@ class FrameGridTools(BaseComponent):
         bc = view.grid_envelope.borderContainer(region='left',
                                         width=width or '300px',
                                         closable=closable,
+                                        closable_background='rgba(222, 255, 0, 1)',
+                                        closable_bottom='2px',
+                                        closable_width='14px',
+                                        closable_right='-20px',
+                                        closable_height='14px',
+                                        closable_padding='2px',
+                                        closable_opacity='1',
+                                        closable_iconClass='smalliconbox statistica_tools',
                                         splitter=True,border_right='1px solid silver',
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **kwargs)
@@ -235,28 +243,15 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
-        onTreeNodeSelected = """var item = p_0.item;
-                                var grouper_cols = [];
-                                var currItem = item;
-                                var row = {{}};
-                                while(currItem.label != 'treestore'){{
-                                    let cell = currItem.attr._cell;
-                                    grouper_cols.push(cell)
-                                    row[cell.field_getter] = currItem.attr.value;
-                                    currItem = currItem.getParentNode();
-                                }}
-                                var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                                groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
-        """.format(groupedTh=groupedTh)
         gth = pane.groupByTableHandler(table=table,frameCode='{groupedTh}_grouper'.format(groupedTh=groupedTh),
-                            #grid_autoSelect=True,
                             configurable=False,
                             grid_configurable=True,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__thgroup_pkey='.currentGrouperPkey',
+                            grid_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
+                            tree_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
                             linkedTo=groupedTh,
                             pbl_classes=True,margin='2px',
-                            tree_selfsubscribe_onSelected=onTreeNodeSelected,
+                            tree_details=False,
                             **kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
@@ -267,26 +262,31 @@ class FrameGridTools(BaseComponent):
         """,struct='^.grid.struct')
         if self.application.checkResourcePermission('admin', self.userTags):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable=False)
-        gth.grid.dataController("""
-                            if(!currentGrouperPkey){{
+        pane.dataController("""
+                            if(!grouperPkeyList){{
+                                groupedStore.store.empty();
                                 return;
                             }}
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                            var row = grid.rowByIndex(selectedIndex);
-                            var cols = grid.getColumnInfo().getNodes();
-                            var grouper_cols = cols.map(n=>objectExtract(n.attr.cell,'field,original_field,group_aggr,field_getter,dtype,queryfield',true));
-                            groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
+                            var queryvars = {{}};
+                            queryvars.condition = '$pkey IN :currpkeylist';
+                            queryvars.currpkeylist = grouperPkeyList.split(',');
+                            queryvars.query_reason = 'grouper';
+                            groupedStore.store.loadData(queryvars);
                             """.format(groupedTh=groupedTh),
-                            selectedIndex='^.selectedIndex',
-                            currentGrouperPkey='^.currentGrouperPkey',
-                            _if='currentGrouperPkey',_delay=1,grid=gth.grid.js_widget)
+                            grouperPkeyList='^#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
+                            _if='grouperPkeyList')
 
-        bar = gth.top.bar.replaceSlots('#','2,viewsSelect,*,configuratorPalette,2,searchOn,confMenu,2')
-        fcode = gth.attributes.get('frameCode')
-        self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
+        downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
+        downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+        #fcode = gth.attributes.get('frameCode')
+        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
-        bar = gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,confMenu,2')
-        self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
+        tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
+        tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
 
     def _grouperConfMenu(self,pane,frameCode=None):
@@ -322,15 +322,20 @@ class FrameGridTools(BaseComponent):
         gridId = grid.attributes.get('nodeId')
         if toolbar:
             confBar = right.contentPane(region='top')
-            confBar = confBar.slotToolbar('viewsMenu,currviewCaption,*,defView,saveView,deleteView',background='whitesmoke',height='20px')
+            confBar = confBar.slotToolbar('2,viewsMenu,currviewCaption,*,optionMenu,2',background='whitesmoke',height='20px')
             confBar.currviewCaption.div('^.grid.currViewAttrs.caption',font_size='.9em',color='#666',line_height='16px')
-            confBar.defView.slotButton('!!Favorite View',iconClass='th_favoriteIcon iconbox star',
-                                            action='genro.grid_configurator.setCurrentAsDefault(gridId);',gridId=gridId)
-            confBar.saveView.slotButton('!!Save View',iconClass='iconbox save',
-                                            action='genro.grid_configurator.saveGridView(gridId);',gridId=gridId)
-            confBar.deleteView.slotButton('!!Delete View',iconClass='iconbox trash',
-                                        action='genro.grid_configurator.deleteGridView(gridId);',
+            menu = confBar.optionMenu.menudiv(iconClass='iconbox menubox gear',
+                                        tip='!![en]Commands')
+            menu.menuline('!!Favorite View',iconClass='th_favoriteIcon iconbox star',
+                                            action='genro.grid_configurator.setCurrentAsDefault(this.attr.gridId);',gridId=gridId)
+            menu.menuline('!!Save View',iconClass='iconbox save',
+                                            action='genro.grid_configurator.saveGridView(this.attr.gridId);',gridId=gridId)
+            menu.menuline('!!Delete View',iconClass='iconbox trash',
+                                        action='genro.grid_configurator.deleteGridView(this.attr.gridId);',
                                         gridId=gridId,disabled='^.grid.currViewAttrs.pkey?=!#v')
+            menu.menuline('!!Full configurator',iconClass='iconbox spanner',
+                                        action='genro.nodeById(this.attr.gridId).publish("configuratorPalette");',
+                                        gridId=gridId)
         if queryLimit is not False and (table==getattr(self,'maintable',None) or configurable=='*'):
             footer = right.contentPane(region='bottom',height='25px',border_top='1px solid silver',overflow='hidden').formbuilder(cols=1,font_size='.8em',
                                                 fld_color='#555',fld_font_weight='bold')
