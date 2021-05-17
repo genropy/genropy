@@ -136,15 +136,15 @@ var genro_plugin_groupth = {
     updateTotalsAttr:function(currAttr,attr){
         for(let k in attr){
             if(k.endsWith('_sum')){
-                currAttr[k] = (currAttr[k] || 0)+n.attr[k];
+                currAttr[k] = (currAttr[k] || 0)+attr[k];
             }else if(k.endsWith('_avg')){
-                currAttr[k+'_avg_cnt'] = (currAttr[k+'_avg_cnt'] || 0)+n.attr._grp_count_sum;
-                currAttr[k+'_avg_s'] = (currAttr[k+'_avg_s'] || 0)+n.attr[k]*n.attr._grp_count_sum;
+                currAttr[k+'_avg_cnt'] = (currAttr[k+'_avg_cnt'] || 0)+attr._grp_count_sum;
+                currAttr[k+'_avg_s'] = (currAttr[k+'_avg_s'] || 0)+attr[k]*attr._grp_count_sum;
                 currAttr[k] = currAttr[k+'_avg_s']/currAttr[k+'_avg_cnt'];
             }else if(k.endsWith('_min')){
-                currAttr[k] = Math.min(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
+                currAttr[k] = Math.min(k in currAttr? currAttr[k]:attr[k],attr[k]);
             }else if(k.endsWith('_max')){
-                currAttr[k] = Math.max(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
+                currAttr[k] = Math.max(k in currAttr? currAttr[k]:attr[k],attr[k]);
             }
         }
     },
