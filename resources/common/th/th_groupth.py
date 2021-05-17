@@ -287,7 +287,7 @@ class TableHandlerGroupBy(BaseComponent):
             groupMode='^.groupMode',
             output='^.output',
             treeRoot='^.treeRootName',**tree_kwargs)
-        if tree_kwargs.pop('details',None) is not False:
+        if not tree_kwargs.get('tree_selected__pkeylist'): #not called as grouper
             self._thg_treeview_details(frame,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
         return frame
     

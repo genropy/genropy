@@ -251,7 +251,6 @@ class FrameGridTools(BaseComponent):
                             tree_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
                             linkedTo=groupedTh,
                             pbl_classes=True,margin='2px',
-                            tree_details=False,
                             **kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
