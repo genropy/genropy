@@ -173,11 +173,17 @@ class TableHandlerGroupBy(BaseComponent):
         if linkedTo:
             frame.dataController("""
                 var groupbystore = grid.collectionStore();
-                if(!groupbystore){
+                if(!groupbystore){{
                     return;
-                }
-                groupbystore.loadData();""",
+                }}
+                if(use_grouper){{
+                    PUT #{linkedTo}_grid.grouperPkeyList = null;
+                    genro.nodeById('{linkedTo}_grid_store').store.clear();
+                }}
+                groupbystore.loadData();
+                """.format(linkedTo=linkedTo),
             grid = frame.grid.js_widget,
+             use_grouper='=.use_grouper',
             datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
             _runQuery='^.runQueryDo',_sections_changed='^.sections_changed',
            linkedTo=linkedTo,_delay=200,
@@ -253,6 +259,7 @@ class TableHandlerGroupBy(BaseComponent):
         inhattr = frame.getInheritedAttributes()
 
         treeNodeId = tree_kwargs.setdefault('tree_nodeId','{frameCode}_tree'.format(frameCode=inhattr['frameCode']))
+        tree_kwargs['tree_selectedPath'] = '.currentGroupPath'
         frame.dataController("""
             var nodeLabel = _node.label;
             var v = _node.getValue();
@@ -273,9 +280,11 @@ class TableHandlerGroupBy(BaseComponent):
                     genro.groupth.buildGroupTree(pane,struct,treekw);
                 }
                 SET .treestore = genro.groupth.groupTreeData(store,struct,treeRoot,treekw);
+                genro.wdgById(treekw.nodeId).setSelectedPath(null,{value:previousSelectedPath});
             }
             """,
             pane=pane,
+            previousSelectedPath='=.currentGroupPath',
             storepath='.treestore',
             flatStruct='=.grid.struct',
             flatStore='=.store',

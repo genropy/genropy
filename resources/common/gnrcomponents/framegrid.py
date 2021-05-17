@@ -262,11 +262,11 @@ class FrameGridTools(BaseComponent):
         if self.application.checkResourcePermission('admin', self.userTags):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable=False)
         pane.dataController("""
+                            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
                             if(!grouperPkeyList){{
-                                groupedStore.store.empty();
+                                groupedStore.store.clear();
                                 return;
                             }}
-                            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
                             var queryvars = {{}};
                             queryvars.condition = '$pkey IN :currpkeylist';
                             queryvars.currpkeylist = grouperPkeyList.split(',');
