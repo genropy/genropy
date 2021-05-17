@@ -2559,7 +2559,6 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
         }
 
         dojo.connect(widget, 'onOpen', function() {
-            console.log('opening')
             genro.dom.addClass(document.body, 'openingMenu');
             if(this.originalContextTarget){
                 genro.dom.addClass(this.originalContextTarget,'currentContextTarget');
