@@ -147,8 +147,12 @@ var th_grouper_manager = {
         cols.forEach(function(cell,idx){
             let sqlcol = th_grouper_manager.prepareSqlCol(cell);
             if(sqlcol){
-                condition.push(`${sqlcol} = :grouper_cnd_${idx}`);
-                kwargs[`grouper_cnd_${idx}`] = row[cell.field_getter];
+                if(isNullOrBlank(row[cell.field_getter]) || row[cell.field_getter]=='[NP]'){
+                    condition.push(`${sqlcol} IS NULL`);
+                }else{
+                    condition.push(`${sqlcol} = :grouper_cnd_${idx}`);
+                    kwargs[`grouper_cnd_${idx}`] = row[cell.field_getter];
+                }
             }
         });
         kwargs._current_grouper = row._thgroup_pkey;

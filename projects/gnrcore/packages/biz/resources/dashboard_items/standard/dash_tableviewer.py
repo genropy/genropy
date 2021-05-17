@@ -65,7 +65,7 @@ class Main(BaseDashboardItem):
         extraPars = data.pop('extraPars')
         where = data['where']
         struct = data['struct']
-        frame = pane.frameGrid(struct=struct,_newGrid=True,frameCode=self.itemIdentifier,**kwargs)
+        frame = pane.frameGrid(struct=struct,_newGrid=True,table=table,configurable=True,frameCode=self.itemIdentifier,**kwargs)
         frame.data('.query.limit',limit)
         frame.data('.query.where',where)
         frame.data('.query.extraPars',extraPars)
@@ -131,7 +131,6 @@ class Main(BaseDashboardItem):
             r = struct.view().rows()
             r.fieldcell(tblobj.attributes.get('caption_field') or tblobj.pkey, name=tblobj.name_long, width='20em')
         th = pane.plainTableHandler(table=table,viewResource='_viewUOEdit',view_structCb=struct,
-        
                                     virtualStore=True,extendedQuery=True)
 
         view = th.view

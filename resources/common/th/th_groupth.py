@@ -252,6 +252,9 @@ class TableHandlerGroupBy(BaseComponent):
         fb.textbox(value='^.treeRootName',lbl='!!Root',width='7em')
         bar.data('.treeRootName',treeRoot)
         pane = frame.center.contentPane()
+        inhattr = frame.getInheritedAttributes()
+
+        treeNodeId = tree_kwargs.setdefault('tree_nodeId','{frameCode}_tree'.format(frameCode=inhattr['frameCode']))
         frame.dataController("""
             var nodeLabel = _node.label;
             var v = _node.getValue();
@@ -286,11 +289,36 @@ class TableHandlerGroupBy(BaseComponent):
             groupMode='^.groupMode',
             output='^.output',
             treeRoot='^.treeRootName',**tree_kwargs)
+        self._thg_treeview_details(frame,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
+
         return frame
+    
+    def _thg_treeview_details(self,frame,table=None,treeNodeId=None,linkedTo=None):
+        frame.bottom.attributes['closable'] = 'close'
+        frame.bottom.attributes['height'] = '200px'
+        frame.bottom.attributes['splitter'] = True
+        pane = frame.bottom
+        tblobj = self.db.table(table)
+        def struct(struct):
+            r = struct.view().rows()
+            r.fieldcell(tblobj.attributes.get('caption_field') or tblobj.pkey, name=tblobj.name_long, width='30em')
+        th = pane.plainTableHandler(table=table,pbl_classes=True,datapath='.tree_details',
+                                        viewResource='THGViewTreeDetail',
+                                        view_structCb=struct,
+                                        view_store_limit=5000,
+                                        count=True,
+                                        nodeId='{treeNodeId}_details'.format(treeNodeId=treeNodeId))
+
+        pane.dataController("""
+                            var queryvars = {};
+                            queryvars.condition = '$pkey IN :currpkeylist';
+                            queryvars.currpkeylist = item.attr._pkeylist.split(',');
+                            grid.collectionStore().loadData(queryvars);
+                            """,grid=th.view.grid.js_widget,**{'subscribe_{treeNodeId}_onSelected'.format(treeNodeId=treeNodeId):True})
 
 
     @public_method
-    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,**kwargs):
+    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,keep_pkeys=True,table=None,**kwargs):
         columns_list = list()
         group_list = list()
         having_list = list()
@@ -356,6 +384,8 @@ class TableHandlerGroupBy(BaseComponent):
         columns_list.append('count(*) AS _grp_count_sum')
         if not group_list:
             return False
+        if keep_pkeys:
+            columns_list.append("string_agg(${},',') AS _pkeylist".format(self.db.table(table).pkey))
         kwargs['columns'] = ','.join(columns_list)
         kwargs['group_by'] = ','.join(group_list)
         kwargs['order_by'] = custom_order_by or kwargs['group_by']
