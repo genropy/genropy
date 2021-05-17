@@ -3158,6 +3158,10 @@ body *{
     display: none;
 }
 
+.tundra .hideInnerToolbars .showInnerToolbar .slotbar_toolbar{
+    display: block;
+}
+
 .slotbar_toolbar .gnrfieldlabel {
     /*vertical-align: middle;*/
     color: #555;

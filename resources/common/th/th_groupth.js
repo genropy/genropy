@@ -21,7 +21,6 @@ var genro_plugin_groupth = {
         }
         root.freeze();
         treekw = treekw || {};
-        console.log('treekw',treekw)
         var tr = root._('treeGrid',objectUpdate(treekw,{storepath:'.treestore',
                                     autoCollapse:false,
                                     headers:true,_class:'groupby_tree'}));
@@ -127,10 +126,8 @@ var genro_plugin_groupth = {
             if(n.getValue()){
                 that.updateBranchTotals(n,formulalist);
             }
+            currAttr._pkeylist = currAttr._pkeylist?currAttr._pkeylist+','+n.attr._pkeylist:n.attr._pkeylist;
             for(k in n.attr){
-                if(k=='_pkeylist'){
-                    currAttr[k] = currAttr[k]?currAttr[k]+','+n.attr[k]:n.attr[k];
-                }
                 if(k.endsWith('_sum')){
                     currAttr[k] = (currAttr[k] || 0)+n.attr[k];
                 }else if(k.endsWith('_avg')){
@@ -223,7 +220,7 @@ var genro_plugin_groupth = {
         });
         var colname,row,keylist,cskey,key,nodeToUpdate,newkey;
         sourceStore.getNodes().forEach(function(n,idx){
-            row = {};
+            row = {_pkeylist:n.attr._pkeylist};
             keylist = [];
             attr = n.attr;
             cskey = colsetDict[attr[lastGrpcolField]];
@@ -250,7 +247,9 @@ var genro_plugin_groupth = {
             if(!nodeToUpdate){
                 resultStore.setItem(key,null,objectUpdate(objectUpdate({},emptyrow),row));
             }else{
+                let current_pkeylist = nodeToUpdate.attr._pkeylist;
                 nodeToUpdate.updAttributes(row);
+                nodeToUpdate.attr._pkeylist = current_pkeylist?current_pkeylist+','+row._pkeylist:row._pkeylist;
             }
         });
         resultStruct.setItem('info.columnsets',columnsets);

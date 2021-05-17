@@ -255,11 +255,11 @@ class TableHandlerGroupBy(BaseComponent):
         fb = bar.addTreeRoot.div(_class='iconbox tag').tooltipPane().formbuilder(cols=1,border_spacing='2px',color='#666')
         fb.textbox(value='^.treeRootName',lbl='!!Root',width='7em')
         bar.data('.treeRootName',treeRoot)
-        pane = frame.center.contentPane()
+        bc = frame.center.borderContainer()
         inhattr = frame.getInheritedAttributes()
 
         treeNodeId = tree_kwargs.setdefault('tree_nodeId','{frameCode}_tree'.format(frameCode=inhattr['frameCode']))
-        tree_kwargs['tree_selectedPath'] = '.currentGroupPath'
+        tree_kwargs['tree_selectedPath'] = '#{treeNodeId}.currentGroupPath'.format(treeNodeId=treeNodeId)
         frame.dataController("""
             var nodeLabel = _node.label;
             var v = _node.getValue();
@@ -283,7 +283,7 @@ class TableHandlerGroupBy(BaseComponent):
                 genro.wdgById(treekw.nodeId).setSelectedPath(null,{value:previousSelectedPath});
             }
             """,
-            pane=pane,
+            pane=bc.contentPane(region='center'),
             previousSelectedPath='=.currentGroupPath',
             storepath='.treestore',
             flatStruct='=.grid.struct',
@@ -297,22 +297,19 @@ class TableHandlerGroupBy(BaseComponent):
             output='^.output',
             treeRoot='^.treeRootName',**tree_kwargs)
         if not tree_kwargs.get('tree_selected__pkeylist'): #not called as grouper
-            self._thg_treeview_details(frame,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
+            frame.bottom.attributes['closable'] = 'close'
+            frame.bottom.attributes['height'] = '250px'
+            frame.bottom.attributes['splitter'] = True
+            frame.bottom.contentPane(_class='showInnerToolbar'
+                                    ).remote(self._thg_treeview_details,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
         return frame
-    
-    def _thg_treeview_details(self,frame,table=None,treeNodeId=None,linkedTo=None):
-        frame.bottom.attributes['closable'] = 'close'
-        frame.bottom.attributes['height'] = '200px'
-        frame.bottom.attributes['splitter'] = True
-        pane = frame.bottom
-        tblobj = self.db.table(table)
-        def struct(struct):
-            r = struct.view().rows()
-            r.fieldcell(tblobj.attributes.get('caption_field') or tblobj.pkey, name=tblobj.name_long, width='30em')
-        th = pane.plainTableHandler(table=table,pbl_classes=True,datapath='.tree_details',
+
+    @public_method
+    def _thg_treeview_details(self,pane,table=None,treeNodeId=None,linkedTo=None):
+        view = self.site.virtualPage(table=table,table_resources='th_{}:View'.format(table.split('.')[1]))
+        th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
                                         viewResource='THGViewTreeDetail',
-                                        view_structCb=struct,
-                                        view_store_limit=5000,
+                                        view_structCb=view.th_struct,
                                         count=True,
                                         nodeId='{treeNodeId}_details'.format(treeNodeId=treeNodeId))
 
