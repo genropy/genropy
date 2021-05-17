@@ -12,7 +12,7 @@ class GnrCustomWebPage(object):
                         message='=.message')
     
     def test_1_buttonSet(self,pane):
-        "Copy value into other field"
+        """Copy value into other field"""
         fb = pane.formbuilder()
         fb.textbox('^.sorgente',lbl='Sorgente')
         fb.button('Copia',action='SET .destinazione = v;',
