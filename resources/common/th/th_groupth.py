@@ -176,15 +176,13 @@ class TableHandlerGroupBy(BaseComponent):
                 if(!groupbystore){
                     return;
                 }
-                if(genro.nodeById(linkedTo+'_grid').widget.collectionStore().storeNode._currentGrouper){
-                    return;
-                }
                 groupbystore.loadData();""",
             grid = frame.grid.js_widget,
             datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
             _runQuery='^.runQueryDo',_sections_changed='^.sections_changed',
            linkedTo=linkedTo,_delay=200,
-           **{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True})
+           #**{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True}
+           )
 
 
     def _thg_defaultstruct(self,struct):
@@ -289,8 +287,8 @@ class TableHandlerGroupBy(BaseComponent):
             groupMode='^.groupMode',
             output='^.output',
             treeRoot='^.treeRootName',**tree_kwargs)
-        self._thg_treeview_details(frame,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
-
+        if tree_kwargs.pop('details',None) is not False:
+            self._thg_treeview_details(frame,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
         return frame
     
     def _thg_treeview_details(self,frame,table=None,treeNodeId=None,linkedTo=None):

@@ -243,28 +243,15 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
-        onTreeNodeSelected = """var item = p_0.item;
-                                var grouper_cols = [];
-                                var currItem = item;
-                                var row = {{}};
-                                while(currItem.label != 'treestore'){{
-                                    let cell = currItem.attr._cell;
-                                    grouper_cols.push(cell)
-                                    row[cell.field_getter] = currItem.attr.value;
-                                    currItem = currItem.getParentNode();
-                                }}
-                                var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                                groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
-        """.format(groupedTh=groupedTh)
         gth = pane.groupByTableHandler(table=table,frameCode='{groupedTh}_grouper'.format(groupedTh=groupedTh),
-                            #grid_autoSelect=True,
                             configurable=False,
                             grid_configurable=True,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__thgroup_pkey='.currentGrouperPkey',
+                            grid_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
+                            tree_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
                             linkedTo=groupedTh,
                             pbl_classes=True,margin='2px',
-                            tree_selfsubscribe_onSelected=onTreeNodeSelected,
+                            tree_details=False,
                             **kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
@@ -274,20 +261,21 @@ class FrameGridTools(BaseComponent):
         }
         """,struct='^.grid.struct')
         if self.application.checkResourcePermission('admin', self.userTags):
-            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
-        gth.grid.dataController("""
-                            if(!currentGrouperPkey){{
+            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable=False)
+        pane.dataController("""
+                            if(!grouperPkeyList){{
+                                groupedStore.store.empty();
                                 return;
                             }}
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                            var row = grid.rowByIndex(selectedIndex);
-                            var cols = grid.getColumnInfo().getNodes();
-                            var grouper_cols = cols.map(n=>objectExtract(n.attr.cell,'field,original_field,group_aggr,field_getter,dtype,queryfield',true));
-                            groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
+                            var queryvars = {{}};
+                            queryvars.condition = '$pkey IN :currpkeylist';
+                            queryvars.currpkeylist = grouperPkeyList.split(',');
+                            queryvars.query_reason = 'grouper';
+                            groupedStore.store.loadData(queryvars);
                             """.format(groupedTh=groupedTh),
-                            selectedIndex='^.selectedIndex',
-                            currentGrouperPkey='^.currentGrouperPkey',
-                            _if='currentGrouperPkey',_delay=1,grid=gth.grid.js_widget)
+                            grouperPkeyList='^#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
+                            _if='grouperPkeyList')
 
         gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
         downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
