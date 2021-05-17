@@ -1,4 +1,18 @@
 var genro_plugin_groupth = {
+    toggleCounterColumn:function(kw){
+        var sourceNode = kw.sourceNode;
+        var cb = function(){
+            let structrow = sourceNode.getRelativeData('.struct.view_0.rows_0')
+            let cell = structrow.getAttr('_grp_count');
+            if(!cell){
+                structrow.setItem('_grp_count',null,{field:'_grp_count',name:'Cnt',width:'5em',group_aggr:'sum',dtype:'L'});
+            }else{
+                structrow.popNode('_grp_count');
+            }
+        }  
+        kw.menu.setItem('#id',null,{caption:_T('Toggle counter column'),action:cb});
+    },
+
     buildGroupTree:function(pane,structBag,treekw){
         pane.getValue().popNode('treeroot');
         var root = pane._('div','treeroot').getParentNode();
@@ -7,6 +21,7 @@ var genro_plugin_groupth = {
         }
         root.freeze();
         treekw = treekw || {};
+        console.log('treekw',treekw)
         var tr = root._('treeGrid',objectUpdate(treekw,{storepath:'.treestore',
                                     autoCollapse:false,
                                     headers:true,_class:'groupby_tree'}));
@@ -76,7 +91,7 @@ var genro_plugin_groupth = {
             row = objectUpdate({},n.attr);
             group_by_cols.forEach(function(cell){
                 let k = cell.field_getter;
-                value = objectPop(row,k) || '-';
+                value = objectPop(row,k) || '[NP]';
                 description = value;
                 if(typeof(value)!='string'){
                     description = _F(description);
@@ -113,6 +128,9 @@ var genro_plugin_groupth = {
                 that.updateBranchTotals(n,formulalist);
             }
             for(k in n.attr){
+                if(k=='_pkeylist'){
+                    currAttr[k] = currAttr[k]?currAttr[k]+','+n.attr[k]:n.attr[k];
+                }
                 if(k.endsWith('_sum')){
                     currAttr[k] = (currAttr[k] || 0)+n.attr[k];
                 }else if(k.endsWith('_avg')){

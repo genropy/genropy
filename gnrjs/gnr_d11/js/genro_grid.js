@@ -718,7 +718,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var menuNode = gridContent.getNodeByAttr('tag', 'menu',true);
         if(!menuNode && sourceNode.attr.gridplugins!==false){
-            sourceNode.setRelativeData('.contextMenu',this.pluginContextMenuBag(sourceNode));
+            let controllerData = sourceNode.getRelativeData();
+            var contextMenuBag = sourceNode.getRelativeData('.contextMenu');
+            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{sourceNode:sourceNode,contextMenuBag:contextMenuBag});
             sourceNode._('menu','contextMenu',{storepath:'.contextMenu',_class:'smallmenu'},{doTrigger:false});
             gridContent = sourceNode.getValue();
             menuNode = gridContent.getNode('contextMenu');
@@ -795,31 +797,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var searchBoxCode =(sourceNode.attr.frameCode || nodeId)+'_searchbox';
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
-            if(searchBoxNode.getRelativeData('.menu_auto')){
-                _this = this;
-                var cb = function(){
-                    genro.publish(searchBoxCode+'_updmenu',
-                                  _this._getFilterAutoValues(widget,searchBoxNode.getRelativeData('.menu_dtypes')));
-                };
-                dojo.connect(widget,'onSetStructpath',widget,cb);
-                dojo.connect(widget,'newDataStore',function(){
-                    searchBoxNode.setRelativeData('.currentValue','');
-                    searchBoxNode.setRelativeData('.value','');
-                });
-                setTimeout(function(){cb.call(widget);},1);
-            }
-            sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
-                this.applyFilter(v,null,field);
-                genro.dom.setClass(this.domNode,'filteredGrid',v);
-                this.updateTotalsCount();
-                
-            });
-            sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
-                kw.finalize();
-            });
-            sourceNode.subscribe('command',function(){
-                widget[arguments[0]](arguments.slice(1));
-            });
+            this.enableSearchBox(searchBoxNode,widget);
         }
         if (widget.sourceNode.attr.filteringGrid){
             widget.filteringMode = widget.sourceNode.currentFromDatasource(sourceNode.attr.filteringMode) || 'exclude';
@@ -937,6 +915,39 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         setTimeout(function(){widget.updateRowCount('*');},1);
     },
 
+    enableSearchBox:function(searchBoxNode,widget){
+        if(searchBoxNode._enabled){
+            return;
+        }
+        var searchBoxCode = searchBoxNode.attr.nodeId;
+        var sourceNode = widget.sourceNode;
+        if(searchBoxNode.getRelativeData('.menu_auto')){
+            var _this = this;
+            var cb = function(){
+                genro.publish(searchBoxCode+'_updmenu',
+                              _this._getFilterAutoValues(widget,searchBoxNode.getRelativeData('.menu_dtypes')));
+            };
+            dojo.connect(widget,'onSetStructpath',widget,cb);
+            dojo.connect(widget,'newDataStore',function(){
+                searchBoxNode.setRelativeData('.currentValue','');
+                searchBoxNode.setRelativeData('.value','');
+            });
+            setTimeout(function(){cb.call(widget);},1);
+        }
+        sourceNode.registerSubscription(searchBoxCode+'_changedValue',widget,function(v,field){
+            this.applyFilter(v,null,field);
+            genro.dom.setClass(this.domNode,'filteredGrid',v);
+            this.updateTotalsCount();
+        });
+        sourceNode.registerSubscription(searchBoxCode+'_stopSearch',widget,function(kw){
+            kw.finalize();
+        });
+        sourceNode.subscribe('command',function(){
+            widget[arguments[0]](arguments.slice(1));
+        });
+        searchBoxNode._enabled = true;
+    },
+
     cm_plugin_configurator:function(sourceNode,menu){
         menu.setItem('#id',null,{caption:_T('Configure grid'),action:"$2.widget.configuratorPalette();"});
     },
@@ -955,6 +966,32 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         menu.setItem('#id',null,{caption:_T('Copy cell'),action:copycell});
     },
 
+    cm_plugin_dynamicSearchOn:function(sourceNode,menu){
+        var that = this;
+        var frameCode = sourceNode.getInheritedAttributes().frameCode;
+        var searchId =frameCode+'_searchbox';
+        var searchBoxNode = genro.nodeById(searchId);
+        if(searchBoxNode){
+            return;
+        }
+        var addSearch = function(){
+            var headerHeight = sourceNode.widget.views.views[0].headerNode.clientHeight;
+            var box = sourceNode.getValue()._('div','dynamicSearch',{position:'absolute',
+                                                top:headerHeight+'px',right:'18px',font_size:'.9em',
+                                                background:'#ececec',padding:'1px',
+                                                rounded_left:4,border:'1px solid silver'})
+    
+            box._('SearchBox', {nodeId:searchId,datapath:'.searchbox',parentForm:false,
+                               search_kw:{font_size:'.9em'}});
+            setTimeout(function(){
+                that.enableSearchBox(genro.nodeById(searchId),sourceNode.widget);
+            },1);
+            
+        }
+        menu.setItem('#id',null,{caption:_T('Search'),action:addSearch});
+    },
+
+
     cm_plugin_copyRows:function(sourceNode,menu){
         var that = sourceNode;
         var copyrows = function(){
@@ -971,6 +1008,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
     cm_plugin_pasteRows:function(sourceNode,menu){
         var grid = sourceNode.widget;
+        if(!grid.gridEditor){
+            return;
+        }
         var pasterows = function(){
             navigator.clipboard.readText().then(function(txt){
                 if(!grid.gridEditor){
@@ -1027,22 +1067,31 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             action:"$2.publish('pluginCommand',{plugin:'statspane',command:'openGridStats',pkey:$1.pkey,caption:$1.caption});"});
     },
 
-    pluginContextMenuBag:function(sourceNode){
-        var gridplugins = sourceNode.attr.gridplugins;
+    pluginContextMenuBag:function(kw){
+        var sourceNode = kw.sourceNode;
+        var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
-            gridplugins = 'chartjs,export_xls,print';
+            gridplugins = 'export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
                 gridplugins = 'configurator,'+gridplugins;
             }
         }
-        gridplugins+=',copyCell,copyRows,pasteRows';
-        var contextMenuBag = sourceNode.getRelativeData('.contextMenu') || new gnr.GnrBag();
+        gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
+        var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
-        var that = this;
+        var widget = sourceNode.widget;
         if(gridplugins){
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){
-                that['cm_plugin_'+cm_plugin](sourceNode,contextMenuBag);
+                let keyplugin = 'cm_plugin_'+cm_plugin;
+                if (keyplugin in widget.gnr){
+                    widget.gnr[keyplugin](sourceNode,contextMenuBag);
+                }else{
+                    let cm_plugin_list = cm_plugin.split(':');
+                    genro.pluginCommand({'plugin':cm_plugin_list[0],'command':cm_plugin_list[1],
+                                        'sourceNode':sourceNode,'menu':contextMenuBag});
+                }
+                
             });
         }
         contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:_T('Toggle line number'),
@@ -1190,7 +1239,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.model.store._identifier;
     },
     mixin_rowItemByIndex: function(idx) {
-        identifier = this.rowIdentity(this.rowByIndex(idx));
+        let identifier = this.rowIdentity(this.rowByIndex(idx));
         return this.model.store.fetchItemByIdentity({identity:identifier});
     },
     mixin_rowItemByIdentity: function(identifier) {
@@ -1304,6 +1353,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     mixin_hasRow:function(attr, value) {
+        var cb;
         if (typeof(attr) == 'function') {
             cb = attr;
         } else {
@@ -2499,13 +2549,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         if(fields){
             cb = function(c){
                 if (fields.indexOf(c.field_getter || c.field)>=0){
-                    result.push(c.get(rowIdx,ignoreFilter));
+                    result.push(_F(c.get(rowIdx,ignoreFilter)));
                 }
             }
         }else{
             cb = function(c){
                 if(!c.classes || c.classes.indexOf('hiddenColumn')<0){
-                    result.push(c.get(rowIdx,ignoreFilter));
+                    result.push(_F(c.get(rowIdx,ignoreFilter)));
                 }
             }
         }
@@ -2991,7 +3041,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
     mixin__setScale(v){
         var scaleX = this.sourceNode.getAttributeFromDatasource('scaleX') || 1;
         var scaleY = this.sourceNode.getAttributeFromDatasource('scaleY') || 1;
-        scalecb = function(domNode){
+        var scalecb = function(domNode){
             domNode.style.transform = "scale("+scaleX+","+scaleY+")";   
             domNode.style.transformOrigin = '0 0';
         }
@@ -3146,6 +3196,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         return result;
     },
+    nodemixin_rebuild:function(){
+        var rebuildNode = this._wrapperNode || this;
+        var parentSrc = rebuildNode.getParentNode().getValue();
+        parentSrc.popNode(rebuildNode.label);
+        parentSrc.setItem(rebuildNode.label,rebuildNode);
+    },
+
     nodemixin_updateGridCellAttr: function(kw) { // update node attributes (for cell display) from new field values
         var grid = this.widget;
         var storebag = grid.storebag();
@@ -3223,7 +3280,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         var dataproviderNode = this.storebag().getParentNode();
         if ('newBagRow' in dataproviderNode) {
             if (defaultArgs instanceof Array) {
-                result = [];
+                let result = [];
                 for (var i = 0; i < defaultArgs.length; i++) {
                     result.push(this.newBagRow(defaultArgs[i]));
                 }
@@ -3235,7 +3292,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             }
         } else {
             if (defaultArgs instanceof Array) {
-                result = [];
+                let result = [];
                 for (var i = 0; i < defaultArgs.length; i++) {
                     result.push(this.newBagRow(defaultArgs[i]));
                 }
@@ -3976,11 +4033,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
 
 dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_rowByIndex:function(inRowIndex,bagFields,ignoreFilter){
-        var store = this.collectionStore();
-        if(ignoreFilter){
-            return this.rowFromBagNode(store.getItems()[inRowIndex],bagFields);
-        }
-        return store.rowByIndex(inRowIndex,bagFields);
+        return this.collectionStore().gridRowByIndex(inRowIndex,bagFields,ignoreFilter);
     },
 
     mixin_absIndex:function(idx,reverse){

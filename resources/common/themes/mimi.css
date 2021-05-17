@@ -1561,6 +1561,9 @@ background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat c
 .mimi .iconbox.spanner, .mimi .toolbox{
     background: url(/_rsrc/common/css_icons/svg/16/toolbox.svg) no-repeat center center;
 }
+.mimi .iconbox.case, .mimi .mover{
+    background: url(/_rsrc/common/css_icons/svg/16/case.svg) no-repeat center center;
+}
 
 .mimi .iconbox.pencil, .mimi .edit{
     background: url(/_rsrc/common/css_icons/svg/16/edit.svg) no-repeat center center;

@@ -558,7 +558,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
 
 
-        genro.setData('gnr.debugger.rpccall_grid.struct.view_0.row_0', rowstruct);
+        genro.setData('gnr.debugger.rpccall_grid.struct.view_0.rows_0', rowstruct);
         var rpcgrid = top._('includedView',{nodeId:'sql_debugger_grid_rpccall',storepath:'gnr.debugger.main',
                                     structpath:'gnr.debugger.rpccall_grid.struct',datapath:'gnr.debugger.rpccall_grid',
                                     selectedIndex:'gnr.debugger.rpccall_grid.currentRowIndex',relativeWorkspace:true});

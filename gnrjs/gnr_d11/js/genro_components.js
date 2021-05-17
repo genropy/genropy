@@ -1273,7 +1273,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         var frame = bc._('FramePane',{frameCode:this.uploaderId+'_matchframe',_anchor:true,
                                         region:'left',_class:'pbl_roundedGroup',margin:'2px',
                                         drawer:'close',width:'320px',splitter:true})
-        bar = frame._('slotBar',{slots:'2,matchtitle,*',side:'top',_class:'pbl_roundedGroupLabel'});
+        let bar = frame._('slotBar',{slots:'2,matchtitle,*',side:'top',_class:'pbl_roundedGroupLabel'});
         bar._('div','matchtitle',{innerHTML:'Match columns'});
        //bar._('div','lbl_action',{innerHTML:'Action'});
        //bar._('filteringSelect','action_filter',{values:'insert,update',
@@ -2687,7 +2687,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
         }
 
         if(showcase){
-            bar = bc._('ContentPane',{region:'bottom',_class:'showcase_bar'})._('slotBar',{slots:'5,toggle,15,prev,5,next,*,slide_cnt,2',side:'bottom'});
+            let bar = bc._('ContentPane',{region:'bottom',_class:'showcase_bar'})._('slotBar',{slots:'5,toggle,15,prev,5,next,*,slide_cnt,2',side:'bottom'});
             bar._('lightbutton','toggle',{tip:_T('!!Toggle'),action:function(){
                 rootnode.publish('toggle_grid');
             },_class:'showcase_button showcase_toggle'});
@@ -2796,7 +2796,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
        //if(showcase){
        //    vtop._('div',{position:'absolute',top:'5px',right:'5px',_class:'iconbox comment',hidden:'^.comment?=!#v'})._('tooltipPane')._('div',{innerHTML:'^.comment',min_height:'150px',width:'200px'});
        //}
-        centerframe = viewer._('ContentPane',{region:'center',overflow:'hidden'});
+        let centerframe = viewer._('ContentPane',{region:'center',overflow:'hidden'});
         var iframecontainer = centerframe._('div',{_class:'gallery_iframe_container',hidden:'^.iframe_src?=!#v'});
         var iframe = iframecontainer._('iframe',{src:'^.iframe_src',height:'100%',width:'100%',border:0,
                                                 onLoad:function(){
@@ -2830,7 +2830,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
 
     createContent:function(sourceNode, kw,children,subTagItems) {
-        value = objectPop(kw,'value')        
+        let value = objectPop(kw,'value')        
         var valuepath = value?sourceNode.absDatapath(value):null;
         kw.remote_field = objectPop(kw,'field') || valuepath.split('.').slice(-1)[0];
         kw.remote_resource = objectPop(kw,'resource');
@@ -4752,7 +4752,7 @@ dojo.declare("gnr.widgets.UserObjectLayout", gnr.widgets.gnrwdg, {
         var instanceCode = this.sourceNode.getRelativeData('#WORKSPACE.metadata.code');
         var data = this.userObjectData();
         var that = this;
-        saveCb = function(dlg,event,counter,modifiers) {
+        var saveCb = function(dlg,event,counter,modifiers) {
             var metadata = genro.getData(datapath);
             metadata.setItem('flags',that.userObjectPars.flags);
             genro.serverCall('_table.adm.userobject.saveUserObject',
@@ -5782,7 +5782,7 @@ dojo.declare("gnr.widgets.SelectionStore", gnr.widgets.gnrwdg, {
                }
            }
         }
-        if(!'_POST' in kw){
+        if(!('_POST' in kw)){
             kw['_POST'] = true;
         }
         var selectionStore = sourceNode._('dataRpc',kw);
@@ -6217,6 +6217,13 @@ dojo.declare("gnr.stores._Collection",null,{
     isFiltered:function(){
         return this._filtered !==null;
     },
+
+    gridRowByIndex:function(inRowIndex,bagFields,ignoreFilter){
+        if(ignoreFilter){
+            return this.rowFromItem(this.getItems()[inRowIndex],bagFields);
+        }
+        return this.rowByIndex(inRowIndex,bagFields);
+    },
     
     compileFilter:function(grid,value,filterColumn,colType){
         var cbsearch;
@@ -6241,7 +6248,7 @@ dojo.declare("gnr.stores._Collection",null,{
                     } else if (colType == 'DH') {
                         val = dojo.date.locale.parse(toSearch[4], {formatLength: "short"});
                     }                
-                    cbsearch = function(rowdata, index, array) {
+                    cbsearch = function(rowdata, index) {
                         return genro.compare(op,rowdata[filterColumn],val);
                     };
                 }
@@ -6273,27 +6280,33 @@ dojo.declare("gnr.stores._Collection",null,{
         var that = this;
         var sn = grid.sourceNode
         sn.__evaluated_attrs = sn.evaluateOnNode(sn.attr)
-        dojo.forEach(this.getItems(), 
-                    function(n,index,array){
-                        var rowdata = that.rowFromItem(n);
-                        var result = cb? cb.apply(sn, [rowdata,index,array]):true; 
-                        var include;
-                        if(result){
-                            if(filteringMode=='exclude'){
-                                include =  ((!filteringList)||(dojo.indexOf(filteringList, rowdata[grid.excludeCol]) == -1));
-                            }else if(filteringMode=='disabled'){
-                                include = true;
-                            }else{
-                                include =filteringList && (dojo.indexOf(filteringList, rowdata[grid.excludeCol]) >= 0);
-                            }
-                            if(include){
-                                filtered.push(index);
-                            }
-                        }
-                    });
+        var filterCb = function(n,index){
+            var rowidx = 'rowidx' in n.attr? n.attr.rowidx:index;
+            var rowdata = that.rowFromItem(n);
+            var result = cb? cb.apply(sn, [rowdata,rowidx]):true; 
+            var include;
+            if(result){
+                if(filteringMode=='exclude'){
+                    include =  ((!filteringList)||(dojo.indexOf(filteringList, rowdata[grid.excludeCol]) == -1));
+                }else if(filteringMode=='disabled'){
+                    include = true;
+                }else{
+                    include =filteringList && (dojo.indexOf(filteringList, rowdata[grid.excludeCol]) >= 0);
+                }
+                if(include){
+                    filtered.push(rowidx);
+                }
+            }
+        };
+        this.iterfilterCb(filterCb);
         this._filtered=filtered;
         this._filterToRebuild=false;
     },
+
+    iterfilterCb:function(filterCb){
+        this.getItems().forEach(filterCb);
+    },
+
     linkedGrids:function(){
         if(this._linkedGrids){
             return this._linkedGrids;
@@ -6347,10 +6360,6 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
 
     getRowByIdx:function(idx){
         return ;
-    },
-    getItems:function(){
-        var data=this.getData();
-        return data?data.getNodes():[];
     },
 
     deleteRows:function(pkeys,protectPkeys){
@@ -7042,6 +7051,9 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         return;
     },
     len:function(filtered){
+        if(filtered && this._filtered){
+            return this._filtered.length;
+        }
         var data = this.getData();
         if(!data){
             return 0;
@@ -7090,7 +7102,24 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         }
         return result;
     },
-    
+
+    iterfilterCb:function(filterCb){
+        this.getItems().forEach(function(pageNode,pageidx,pagesarray){
+            if(!pageNode._value){
+                return;
+            }
+            pageNode._value.getNodes().forEach(filterCb);
+        });
+    },
+
+
+    gridRowByIndex:function(inRowIndex,bagFields,ignoreFilter){
+        if(ignoreFilter){
+            return this.rowFromItem(this.getData().getNodeByAttr('rowidx',inRowIndex));
+        }
+        return this.rowByIndex(inRowIndex,bagFields);
+    },
+
     onExternalChangeResult:function(changelist){
         if(changelist.length>0){
             var that = this;
@@ -7178,18 +7207,20 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         this.currCachedPage = null;
     },
 
+
     itemByIdx:function(idx,sync) {
+        idx = this.absIndex(idx);
         var delta = idx-this.lastIdx;
         this.lastIdx = idx;
         var dataPage;
         var rowIdx = idx % this.chunkSize;
         var pageIdx = (idx - rowIdx) / this.chunkSize;
         if (this.currCachedPageIdx != pageIdx) {
-            if(!sync){
+            if(!sync && !this._filtered){
                 dataPage=this.getDataChunk(pageIdx);
             }else{
                 dataPage=this.getData().getItem('P_' + pageIdx);
-                if (!dataPage){
+                if (!dataPage && !this._filtered){
                     dataPage = this.loadBagPageFromServer(pageIdx,sync);
                 }
             }
@@ -7232,7 +7263,7 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
     },
 
     getDataChunk:function(pageIdx){
-        if (pageIdx in this.pendingPages){
+        if ((pageIdx in this.pendingPages) || this._filtered){
             return;
         }else{
             var pageData=this.getData().getItem('P_' + pageIdx);
