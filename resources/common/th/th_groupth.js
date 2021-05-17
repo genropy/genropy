@@ -127,23 +127,26 @@ var genro_plugin_groupth = {
                 that.updateBranchTotals(n,formulalist);
             }
             currAttr._pkeylist = currAttr._pkeylist?currAttr._pkeylist+','+n.attr._pkeylist:n.attr._pkeylist;
-            for(k in n.attr){
-                if(k.endsWith('_sum')){
-                    currAttr[k] = (currAttr[k] || 0)+n.attr[k];
-                }else if(k.endsWith('_avg')){
-                    currAttr[k+'_avg_cnt'] = (currAttr[k+'_avg_cnt'] || 0)+n.attr._grp_count_sum;
-                    currAttr[k+'_avg_s'] = (currAttr[k+'_avg_s'] || 0)+n.attr[k]*n.attr._grp_count_sum;
-                    currAttr[k] = currAttr[k+'_avg_s']/currAttr[k+'_avg_cnt'];
-                }else if(k.endsWith('_min')){
-                    currAttr[k] = Math.min(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
-                }else if(k.endsWith('_max')){
-                    currAttr[k] = Math.max(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
-                }
-            }
+            that.updateTotalsAttr(currAttr,n.attr);
             formulalist.forEach(function(felem){
                 currAttr[felem[0]] = funcApply("return "+felem[1],currAttr);
             });
         });
+    },
+    updateTotalsAttr:function(currAttr,attr){
+        for(let k in attr){
+            if(k.endsWith('_sum')){
+                currAttr[k] = (currAttr[k] || 0)+n.attr[k];
+            }else if(k.endsWith('_avg')){
+                currAttr[k+'_avg_cnt'] = (currAttr[k+'_avg_cnt'] || 0)+n.attr._grp_count_sum;
+                currAttr[k+'_avg_s'] = (currAttr[k+'_avg_s'] || 0)+n.attr[k]*n.attr._grp_count_sum;
+                currAttr[k] = currAttr[k+'_avg_s']/currAttr[k+'_avg_cnt'];
+            }else if(k.endsWith('_min')){
+                currAttr[k] = Math.min(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
+            }else if(k.endsWith('_max')){
+                currAttr[k] = Math.max(k in currAttr? currAttr[k]:n.attr[k],n.attr[k]);
+            }
+        }
     },
 
     getPivotGrid:function(sourceStore,sourceStruct){

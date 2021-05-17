@@ -310,7 +310,7 @@ class TableHandlerGroupBy(BaseComponent):
         th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
                                         viewResource='THGViewTreeDetail',
                                         view_structCb=view.th_struct,
-                                        count=True,
+                                        count=True,liveUpdate=False,
                                         nodeId='{treeNodeId}_details'.format(treeNodeId=treeNodeId))
 
         pane.dataController("""
