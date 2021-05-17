@@ -262,7 +262,7 @@ class FrameGridTools(BaseComponent):
         }
         """,struct='^.grid.struct')
         if self.application.checkResourcePermission('admin', self.userTags):
-            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable=False)
+            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         pane.dataController("""
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
                             if(!grouperPkeyList){{
