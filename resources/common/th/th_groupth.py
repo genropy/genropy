@@ -160,7 +160,7 @@ class TableHandlerGroupBy(BaseComponent):
         store_kwargs['_forcedReload'] = '^.reloadMain'
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
-                                groupByStore=True,liveUpdate=True if not linkedTo else 'NO',
+                                groupByStore=True,liveUpdate='NO',
                                 _linkedTo=linkedTo,
                                 _onCalling="""
                                 if(!_linkedTo){
@@ -317,7 +317,7 @@ class TableHandlerGroupBy(BaseComponent):
         th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
                                         viewResource='THGViewTreeDetail',
                                         view_structCb=view.th_struct,
-                                        count=True,liveUpdate=False,
+                                        count=True,view_store_liveUpdate='NO',
                                         nodeId='{rootNodeId}_details'.format(rootNodeId=rootNodeId))
 
         pane.dataController("""
