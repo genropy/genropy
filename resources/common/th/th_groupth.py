@@ -146,7 +146,7 @@ class TableHandlerGroupBy(BaseComponent):
         if configurable:
             frame.viewConfigurator(table,queryLimit=False,toolbar=False)
         else:
-            frame.grid.attributes['gridplugins'] = 'groupth:toggleCounterColumn'
+            frame.grid.attributes['gridplugins'] = 'groupth:toggleCounterColumn,dynamicSearchOn'
         self._thg_groupByStore(frame,table=table,where=where,condition=condition,linkedTo=linkedTo,
                                 condition_kwargs=condition_kwargs,grouper=grouper,**store_kwargs)
         return frame
