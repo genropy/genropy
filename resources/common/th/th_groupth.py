@@ -35,7 +35,7 @@ class TableHandlerGroupBy(BaseComponent):
                                 condition=None,condition_kwargs=None,store_kwargs=None,datapath=None,
                                 treeRoot=None,configurable=True,
                                 dashboardIdentifier=None,static=False,pbl_classes=None,
-                                grid_kwargs=None,tree_kwargs=None,groupMode=None,**kwargs):
+                                grid_kwargs=None,tree_kwargs=None,groupMode=None,grouper=False,**kwargs):
         inattr = pane.getInheritedAttributes()
         table = table or inattr.get('table')
         if not (dashboardIdentifier or where or condition):
@@ -54,9 +54,18 @@ class TableHandlerGroupBy(BaseComponent):
             self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
             struct = self._th_hook('groupedStruct',mangler=frameCode)
             store_kwargs['applymethod'] = store_kwargs.get('applymethod') or self._th_hook('groupedApplymethod',mangler=frameCode)
-        sc = pane.stackContainer(datapath=datapath,_class='group_by_th',selectedPage='^.output',_anchor=True,
-                                nodeId=rootNodeId,_forcedGroupMode=groupMode,
-                                _linkedTo = linkedTo,table=table,
+        bc = pane.borderContainer(datapath=datapath,_class='group_by_th',_anchor=True,**kwargs)
+        stack_kwargs = {}
+        if not grouper: #not called as grouper
+            grid_kwargs.setdefault('selected__pkeylist','#ANCHOR.details_pkeylist')
+            tree_kwargs.setdefault('tree_selected__pkeylist','#ANCHOR.details_pkeylist')
+            stack_kwargs.setdefault('grid_selected__pkeylist','#ANCHOR.details_pkeylist')
+            bc.contentPane(closable='close',height='250px',region='bottom',
+                            splitter=True,_class='showInnerToolbar'
+                            ).remote(self._thg_details_rows,table=table,
+                                        rootNodeId=rootNodeId,linkedTo=linkedTo)
+        sc = bc.stackContainer(selectedPage='^.output',region='center',
+                                nodeId=rootNodeId,_forcedGroupMode=groupMode,_linkedTo =linkedTo,table=table,
                                 selfsubscribe_viewMode="""
                                     var viewMode = $1.split('_');
                                     SET .groupMode = viewMode[0];
@@ -65,8 +74,7 @@ class TableHandlerGroupBy(BaseComponent):
                                 selfsubscribe_saveDashboard="genro.groupth.saveAsDashboard(this,$1);",
                                 selfsubscribe_loadDashboard="genro.groupth.loadDashboard(this,$1)",
                                 selfsubscribe_deleteCurrentDashboard="genro.groupth.deleteCurrentDashboard(this,$1)",
-
-                                _dashboardRoot=True,**kwargs)  
+                                _dashboardRoot=True)  
         gridstack = sc.stackContainer(pageName='grid',title='!!Grid View',selectedPage='^.groupMode')
 
         #gridstack.dataFormula('.currentTitle','',defaultTitle='!!Group by')
@@ -74,7 +82,8 @@ class TableHandlerGroupBy(BaseComponent):
                                     genro.groupth.addColumnCb(this,{data:data, column:column,fieldcellattr:fieldcellattr,treeNode:treeNode});
                                     """,
                                     datamode='attr',
-                                struct=struct or self._thg_defaultstruct,_newGrid=True,pageName='flatview',title='!!Flat',
+                                struct=struct or self._thg_defaultstruct,
+                                _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
 
         
@@ -116,7 +125,9 @@ class TableHandlerGroupBy(BaseComponent):
                 structrow.popNode('_grp_count');
             }
             """,structrow='=.struct.#0.#0',showCounterCol='^.showCounterCol',_if='structrow')
-            frame.stackedView = self._thg_stackedView(gridstack,title=title,grid=frame.grid,frameCode=frameCode,linkedTo=linkedTo,table=table)
+            frame.stackedView = self._thg_stackedView(gridstack,title=title,grid=frame.grid,
+                                            frameCode=frameCode,linkedTo=linkedTo,table=table,
+                                            stack_kwargs=stack_kwargs)
             frame.treeView = self._thg_treeview(sc,title=title,grid=frame.grid,treeRoot=treeRoot,linkedTo=linkedTo,tree_kwargs=tree_kwargs)
             frame.dataController("""
                 grid.collectionStore().loadInvisible = always || genro.dom.isVisible(sc);
@@ -137,12 +148,12 @@ class TableHandlerGroupBy(BaseComponent):
         else:
             frame.grid.attributes['gridplugins'] = 'groupth:toggleCounterColumn'
         self._thg_groupByStore(frame,table=table,where=where,condition=condition,linkedTo=linkedTo,
-                                condition_kwargs=condition_kwargs,**store_kwargs)
+                                condition_kwargs=condition_kwargs,grouper=grouper,**store_kwargs)
         return frame
 
     
     def _thg_groupByStore(self,frame,table=None,where=None,linkedTo=None,
-                            condition=None,condition_kwargs=None,**store_kwargs):
+                            condition=None,condition_kwargs=None,grouper=None,**store_kwargs):
         frame.grid.attributes.setdefault('selfsubscribe_loadingData',
                                             "this.setRelativeData('.loadingData',$1.loading);if(this.attr.loadingHider!==false){this.setHiderLayer($1.loading,{message:'%s'});}" %self._th_waitingElement())
         store_kwargs.update(condition_kwargs)
@@ -179,11 +190,13 @@ class TableHandlerGroupBy(BaseComponent):
                 if(use_grouper){{
                     PUT #{linkedTo}_grid.grouperPkeyList = null;
                     genro.nodeById('{linkedTo}_grid_store').store.clear();
+                }}else if(!grouper){{
+                    SET #ANCHOR.details_pkeylist = null;
                 }}
                 groupbystore.loadData();
                 """.format(linkedTo=linkedTo),
             grid = frame.grid.js_widget,
-             use_grouper='=.use_grouper',
+             use_grouper='=.use_grouper',grouper=grouper,
             datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
             _runQuery='^.runQueryDo',_sections_changed='^.sections_changed',
            linkedTo=linkedTo,_delay=200,
@@ -219,11 +232,11 @@ class TableHandlerGroupBy(BaseComponent):
 
 
 
-    def _thg_stackedView(self,parentStack,title=None, grid=None,frameCode=None,linkedTo=None,table=None,**kwargs):
+    def _thg_stackedView(self,parentStack,title=None, grid=None,frameCode=None,linkedTo=None,table=None,stack_kwargs=None,**kwargs):
         frame = parentStack.bagGrid(frameCode='%s_stacked' %frameCode,title='!!Stacked',pageName='stackedview',
                                     datapath='.stacked',table=table,
                                     storepath='.store',addrow=False,delrow=False,
-                                    datamode='attr')
+                                    datamode='attr',**stack_kwargs)
         bar = frame.top.bar.replaceSlots('#','5,ctitle,stackButtons,10,groupByModeSelector,*,searchOn,export,5,dashboardsMenu',
                                         stackButtons_stackNodeId=frameCode,dashboardsMenu_linkedTo=linkedTo)
         bar.ctitle.div(title,color='#444',font_weight='bold')
@@ -296,29 +309,27 @@ class TableHandlerGroupBy(BaseComponent):
             groupMode='^.groupMode',
             output='^.output',
             treeRoot='^.treeRootName',**tree_kwargs)
-        if not tree_kwargs.get('tree_selected__pkeylist'): #not called as grouper
-            frame.bottom.attributes['closable'] = 'close'
-            frame.bottom.attributes['height'] = '250px'
-            frame.bottom.attributes['splitter'] = True
-            frame.bottom.contentPane(_class='showInnerToolbar'
-                                    ).remote(self._thg_treeview_details,table=inhattr['table'],treeNodeId=treeNodeId,linkedTo=linkedTo)
         return frame
 
     @public_method
-    def _thg_treeview_details(self,pane,table=None,treeNodeId=None,linkedTo=None):
+    def _thg_details_rows(self,pane,table=None,rootNodeId=None,linkedTo=None):
         view = self.site.virtualPage(table=table,table_resources='th_{}:View'.format(table.split('.')[1]))
         th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
                                         viewResource='THGViewTreeDetail',
                                         view_structCb=view.th_struct,
                                         count=True,liveUpdate=False,
-                                        nodeId='{treeNodeId}_details'.format(treeNodeId=treeNodeId))
+                                        nodeId='{rootNodeId}_details'.format(rootNodeId=rootNodeId))
 
         pane.dataController("""
-                            var queryvars = {};
-                            queryvars.condition = '$pkey IN :currpkeylist';
-                            queryvars.currpkeylist = item.attr._pkeylist.split(',');
-                            grid.collectionStore().loadData(queryvars);
-                            """,grid=th.view.grid.js_widget,**{'subscribe_{treeNodeId}_onSelected'.format(treeNodeId=treeNodeId):True})
+                            if(pkeylist){
+                                var queryvars = {};
+                                queryvars.condition = '$pkey IN :currpkeylist';
+                                queryvars.currpkeylist = pkeylist.split(',');
+                                grid.collectionStore().loadData(queryvars);
+                            }else{
+                                grid.collectionStore().clear();
+                            }
+                            """,grid=th.view.grid.js_widget,pkeylist='^#ANCHOR.details_pkeylist')
 
 
     @public_method
