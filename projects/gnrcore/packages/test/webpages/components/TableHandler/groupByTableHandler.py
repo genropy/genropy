@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""genrodlg"""
+"""groupByTableHandler"""
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
