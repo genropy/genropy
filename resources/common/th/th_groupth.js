@@ -163,9 +163,8 @@ var genro_plugin_groupth = {
         var grpcol = [];
         var valuecols = [];
         var nobreak = [];
-        var attr;
         struct_row.forEach(function(n){
-            attr = objectUpdate({},n.attr);
+            let attr = objectUpdate({},n.attr);
             attr.col_getter = attr.field.replace(/\W/g, '_');
             if (attr.group_aggr){
                 attr.col_getter+='_'+attr.group_aggr.replace(/\W/g, '_').toLowerCase();
@@ -185,19 +184,25 @@ var genro_plugin_groupth = {
         }
         var lastGrpcolField = lastGrpcol.col_getter;
         var colset = Array.from(new Set(sourceStore.columns('#a.'+lastGrpcolField)[0])).sort();
+        colset.push('TOTALS')
         var colsetDict = {};
-        var emptyrow = {};
+        var emptyrow = {_pkeylist:null};
         var formuladict,formulalist,newname,k,structNode;
-
+        var that = this;
         grpcol.concat(nobreak).forEach(function(kw,idx){
             resultStructRow.setItem('cell_'+resultStructRow.len(),null,objectUpdate({},kw));
         });
         colset.forEach(function(f,colsetidx){
+            let csname = f;
+            if(f=='TOTALS'){
+                colsetidx = 'TT';
+                csname = _T('Totals')
+            }
             colsetDict[f]=colsetidx;
             formuladict = {};
             formulalist = [];
             valuecols.forEach(function(kw){
-                attr = objectUpdate({},kw);
+                let attr = objectUpdate({},kw);
                 newname = attr.field+'_'+colsetidx;
                 if(attr.group_aggr){
                     newname+= '_'+attr.group_aggr.replace(/\W/g, '_').toLowerCase();
@@ -205,10 +210,15 @@ var genro_plugin_groupth = {
                 emptyrow[newname] = null;
                 formuladict[attr.col_getter] = newname;
                 attr.field = attr.field+'_'+colsetidx;
-                attr.tree_name = f+'<br/>'+attr.name;
+                attr.tree_name = csname+'<br/>'+attr.name;
                 attr.columnset = 'grp_'+colsetidx;
                 if(!columnsets.getNode(attr.columnset)){
-                    columnsets.setItem(attr.columnset,null,{code:'grp_'+colsetidx,name:f});
+                    let csattr = {code:'grp_'+colsetidx,name:csname};
+                    if(colsetidx=='TT'){
+                        csattr.cells_background='rgba(173, 202, 170, 0.20)'
+                        csattr.background='rgba(38, 88, 32, 1.00)'
+                    }
+                    columnsets.setItem(attr.columnset,null,csattr);
                 }
                 structNode = resultStructRow.setItem('cell_'+resultStructRow.len(),null,attr);
                 if(attr.formula){
@@ -221,41 +231,57 @@ var genro_plugin_groupth = {
                 }
             });
         });
-        var colname,row,keylist,cskey,key,nodeToUpdate,newkey;
         sourceStore.getNodes().forEach(function(n,idx){
-            row = {_pkeylist:n.attr._pkeylist};
-            keylist = [];
-            attr = n.attr;
-            cskey = colsetDict[attr[lastGrpcolField]];
+            var attr = n.attr;
+            let grprow = {};
+            let keylist = [];
+            let pkeylist = attr._pkeylist;
+            let st_row;
+            let cskey = colsetDict[attr[lastGrpcolField]];
             grpcol.forEach(function(f){
-                colname = f.col_getter;
+                let colname = f.col_getter;
                 keylist.push(attr[colname]);
-                row[colname] = attr[colname];
+                grprow[colname] = attr[colname];
             });
+            let key = keylist.join('_').replace(/\W/g, '_');
+            let st_node = resultStore.getNode(key);
+            if(!st_node){
+                st_row = objectUpdate(objectUpdate({},emptyrow),grprow);
+                st_row._totals = {}
+                st_node = resultStore.setItem(key,null,st_row);
+            }else{
+                st_row = st_node.attr;
+            }
             nobreak.forEach(function(f){
-                colname = f.col_getter;
-                row[colname] = attr[colname];
+                let colname = f.col_getter;
+                st_row[colname] = attr[colname];
             });
+            that.updateTotalsAttr(st_row._totals,attr);
             valuecols.forEach(function(f){
-                colname = f.field.replace(/\W/g, '_');
-                newkey = colname+'_'+cskey;
+                let value = attr[f.col_getter];
+                let colname = f.field.replace(/\W/g, '_');
+                let newkey = colname+'_'+cskey;
                 if(f.group_aggr){
                     newkey+='_'+f.group_aggr.replace(/\W/g, '_').toLowerCase();
                 }
-                row[newkey] = attr[f.col_getter];
+                st_row[newkey] = value;
             });
-
-            key = keylist.join('_').replace(/\W/g, '_');
-            nodeToUpdate = resultStore.getNode(key);
-            if(!nodeToUpdate){
-                resultStore.setItem(key,null,objectUpdate(objectUpdate({},emptyrow),row));
-            }else{
-                let current_pkeylist = nodeToUpdate.attr._pkeylist;
-                nodeToUpdate.updAttributes(row);
-                nodeToUpdate.attr._pkeylist = current_pkeylist?current_pkeylist+','+row._pkeylist:row._pkeylist;
-            }
+            let prev_pkeylist = st_row._pkeylist;
+            st_row._pkeylist = prev_pkeylist?prev_pkeylist+','+pkeylist:pkeylist;
+            st_node.updAttributes(st_row);
         });
         resultStruct.setItem('info.columnsets',columnsets);
+        resultStore.forEach(function(n){
+            let attr = n.attr;
+            let totals = objectPop(attr,'_totals');
+            for (let keytot in totals){
+                let klist = keytot.split('_');
+                klist.splice(klist.length-1,null,'TT');
+                attr[klist.join('_')] = totals[keytot]
+            }
+            console.log('attr',attr);
+            n.updAttributes(attr);
+        });
         return {'struct':resultStruct,'store':resultStore};
     },
     addColumnCb:function(grid,kw){
