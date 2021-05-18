@@ -1095,7 +1095,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             });
         }
         contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:_T('Toggle line number'),
-                                checked:'^'+sourceNode.attr.structpath+'.info.showLineNumber',
+                                checked:'^'+sourceNode.absDatapath(sourceNode.attr.structpath+'.info.showLineNumber'),
                                 action:function(line,gridNode){gridNode.widget.toggleLineNumberColumn()}})
         return contextMenuBag;
     },
@@ -1753,13 +1753,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             sourceNode._serverTotalizeColumns = {};
             var bagnodes = struct.getNodes();
             var columnsets = struct.getItem('info.columnsets') || new gnr.GnrBag();
-            var formats, dtype, editor;
-            var view, viewnode, rows, rowsnodes, i, k, j, cellsnodes, row, cell, rowattrs, rowBag;
+            var view, rows, rowsnodes, row, cell, rowBag;
             var editorPars = sourceNode.attr.gridEditorPars;
             var cellsort = [];
-
-            for (let i = 0; i < bagnodes.length; i++) {
-                viewnode = bagnodes[i];
+            for(var viewnode of bagnodes) {
                 if(viewnode.label=='info'){
                     continue;
                 }
@@ -1767,13 +1764,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 delete view.tag;
                 rows = [];
                 rowsnodes = viewnode.getValue().getNodes();
-                for (var k = 0; k < rowsnodes.length; k++) {
+                for (let rowNode of rowsnodes) {
 
-                    rowBag = rowsnodes[k].getValue();
+                    rowBag = rowNode.getValue();
 
                     if (!(rowBag instanceof gnr.GnrBag)) {
                         rowBag = new gnr.GnrBag();
-                        rowsnodes[k].setValue(rowBag, false);
+                        rowNode.setValue(rowBag, false);
                     }
                     if(rowBag.getNode('_rowEditorStatus')){
                         rowBag.popNode('_rowEditorStatus',false);
@@ -1791,7 +1788,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
                     //cellsnodes = rowBag.getNodes();
                     row = [];
-                    var showLineNumber = sourceNode.getRelativeData(sourceNode.attr.structpath+'.info.showLineNumber');
+                    var showLineNumber = sourceNode.getRelativeData(sourceNode.absDatapath(sourceNode.attr.structpath+'.info.showLineNumber'));
                     if (isNullOrBlank(showLineNumber)){
                         showLineNumber = sourceNode.attr.showLineNumber;
                     }
@@ -4183,9 +4180,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         }
         var colinfo = this.getColumnInfo();
         var colnodes = colinfo.getNodes()
-        var item,n;
-        for(var i=0; i<colnodes.length; i++){
-            item = colnodes[i].attr;
+        var item;
+        for(var n of colnodes){
+            item = n.attr;
             if(!item.isHidden && item.cell.edit){
                 return item.cell.field;
             }
@@ -4217,8 +4214,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
 
     mixin_toggleLineNumberColumn:function(kw) {
-        let currShow = this.sourceNode.getRelativeData(this.sourceNode.attr.structpath+'.info.showLineNumber');
-        this.sourceNode.setRelativeData(this.sourceNode.attr.structpath+'.info.showLineNumber',!currShow);
+        let path = this.sourceNode.absDatapath(this.sourceNode.attr.structpath+'.info.showLineNumber');
+        let currShow = this.sourceNode.getRelativeData(path);
+        this.sourceNode.setRelativeData(path,!currShow);
     },
 
     mixin_addNewSetColumn:function(kw) {
