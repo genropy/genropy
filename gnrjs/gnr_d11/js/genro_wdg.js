@@ -1945,8 +1945,10 @@ dojo.declare("gnr.GridChangeManager", null, {
             }
         }
         for(let k in totalizeColumns){
-            //this.updateTotalizer(k);
-            var totvalue = filteredStore.sum(this.grid.datamode=='bag'?k:'#a.'+k);
+            let totvalue = filteredStore.sum(this.grid.datamode=='bag'?k:'#a.'+k,this.grid.cellmap[k].totalize_strict);
+            if(!isNullOrBlank(totvalue)){
+                totvalue = Math.round10(totvalue);
+            }
             filtered_totalize.setItem(k,totvalue);
         }
         this.sourceNode.setRelativeData('.filtered_totalize',filtered_totalize);
@@ -1960,8 +1962,10 @@ dojo.declare("gnr.GridChangeManager", null, {
             //already set from server values
             return;
         }
-        var totvalue = this.grid.storebag().sum(this.grid.datamode=='bag'?k:'#a.'+k);
-        totvalue = Math.round10(totvalue);
+        var totvalue = this.grid.storebag().sum(this.grid.datamode=='bag'?k:'#a.'+k,this.grid.cellmap[k].totalize_strict);
+        if(!isNullOrBlank(totvalue)){
+            totvalue = Math.round10(totvalue);
+        }
         this.sourceNode.setRelativeData(this.grid.cellmap[k].totalize,totvalue);
         this.sourceNode.publish('onUpdateTotalize',{'column':k,'value':totvalue});
     },

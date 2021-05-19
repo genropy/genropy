@@ -869,14 +869,18 @@ dojo.declare("gnr.GnrBag", null, {
         }
     },
 
-    sum: function(path) {
+    sum: function(path,strictmode) {
         var result = 0;
         var n;
         path = path || '#v';
         if (path) {
             var l = this.digest(path);
-            for (var i = 0; i < l.length; i++) {
-                n = l[i][0];
+            console.log('strictmode',strictmode);
+            if(strictmode && l.some(values=>isNullOrBlank(values[0]))){
+                return;
+            }
+            for (let values of l) {
+                n = values[0];
                 if (typeof n == 'number') {
                     result = result + n;
                 }
