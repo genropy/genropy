@@ -49,7 +49,7 @@ class GnrCustomWebPage(object):
         grid.column('quantita', width='10em', dtype='L', name='Quantità', edit=True)
 
     def test_3_columns_editable(self,pane):
-        "Quick grid with editable columns and default value. Insert province to test it"
+        "Quick grid with editable columns and default value. Insert city to test it"
         t = pane.table().tbody()
         r = t.tr()
         self.quickGridEditable(r.td(border='1px solid silver',padding='4px'),pos='TL')
@@ -126,4 +126,5 @@ class GnrCustomWebPage(object):
 
     def test_video(self, pane):
         "This quickGrid test was explained in this LearnGenropy video"
-        pane.iframe(src='https://www.youtube.com/embed/MnqfBy6Q2Ns', width='240px', height='180px')
+        pane.iframe(src='https://www.youtube.com/embed/MnqfBy6Q2Ns', width='240px', height='180px',
+                        allow="autoplay; fullscreen")
