@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 "NumberTextBox"
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
@@ -26,3 +28,24 @@ class GnrCustomWebPage(object):
         fb=pane.formbuilder(cols=1)
         fb.numberTextBox(value='^.longdec',lbl='Long decimal',format='#,###.000000')
         fb.div('^.longdec')
+
+    def test_3_dataRpc(self, pane):
+        "You can fill fields even in readOnly and manage attributes in different ways"
+        fb = pane.formbuilder(cols=2,datapath='.data')
+        fb.button('TEST',fire='.colors', colspan=2)
+        fb.numberTextBox(value='^.number.color', readOnly=True)
+        fb.numberTextBox(value='^.number.inattr?val', readOnly=True)
+        
+        fb.dataRpc('.number',self.testblu,_fired='^.colors')
+
+    @public_method
+    def testblu(self):
+        a = Bag()
+        a.setItem('color',3,wdg_color='green')
+        a.setItem('inattr',None,val=44,wdg_val_color='red')
+        return a
+
+    def test_4_autoselect(self, pane):
+        "With autoselect you can automatically select field content"
+        fb = pane.formbuilder(cols=2,datapath='.data')
+        fb.numberTextBox('^.number',lbl='Number',format='#.00', _autoselect=True)

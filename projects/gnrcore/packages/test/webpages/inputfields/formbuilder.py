@@ -8,7 +8,7 @@ class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
     
     def test_0_htmltable(self, pane):
-        "Formbuilder is basically and HTML table"
+        "Formbuilder is basically an HTML table"
         t = pane.table(style='border-collapse:collapse',border='1px solid silver').tbody()
         r = t.tr()
         r.td(width='100%')
@@ -55,3 +55,58 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.val_7',lbl='Val 7')
         fb.textbox(value='^.val_6',lbl='Val 6')
         fb.textbox(value='^.val_8',lbl='Val 8', disabled=True)
+
+    def test_4_widgets(self,pane):
+        "Here you can see many widgets in action. By pressing shift you will see a tip on mouseover"
+        weekdays='1:Monday,2:Tuesday,3:Wednesday,4:Thursday,5:Friday,6:Saturday,7:Sunday'
+        colors='DeepSkyBlue,Fuchsia,Coral,Crimson,GoldenRod,Gray,Navy,Maroon,Teal'
+
+        fb = pane.formbuilder(cols=2,lbl_font_weight='bold', lbl_color='^.lblcolor',
+                                                 fld_width='100%', colswidth='auto',
+                                                 margin='5px', datapath='widgets')
+        
+        fb.textBox(value='^.name',lbl='Name',placeholder='John', tooltip="This is a textBox")
+
+        fb.numberTextBox('^.age',lbl='Age', placeholder='33',
+                     tooltip="This is a NumberTextBox")
+        
+        fb.numberTextBox('^.weight',lbl='Weight', format='#.00',
+                     tooltip="Weight Kg.")
+            
+        fb.dateTextBox('^.birthday',lbl='Birthday',
+                     tooltip="This is a DateTextBox and you can click on icon")
+        
+        fb.checkBox('^.specialstuff',label='Special',
+                                   tooltip="This is a checkBox")
+                
+        fb.filteringSelect('^.dayofweek',lbl='Day of week', 
+                       tooltip="""FilteringSelect: you can select only an existing value.<br/>
+                                  You see the description but in the store we will have the value.""",
+                       values=weekdays)
+        fb.radioButtonText('^.dayofweek',values=weekdays,
+                        lbl='One Day',colspan=2,cols=4,
+                        tooltip="""radioButtonText.Select your preferred day.""")
+
+        fb.checkBoxText('^.preferred_days',values=weekdays,
+                        lbl='Preferred days',colspan=2,
+                        cols=4,
+                    tooltip="""CheckBoxText.Select your preferred days.""")
+
+        fb.checkBoxText('^.preferred_days',values=weekdays,cols=4,
+                        lbl='Preferred days',popup=True,colspan=2,
+                        tooltip="""CheckBoxText.Select your preferred days in popup or type them.""")
+    
+        fb.comboBox('^.lblcolor',lbl='Labels Color', default_value='Gray',
+                    values=colors,
+                    tooltip="""This is a comboBox. <br/>
+                               Select a default color for labels or type a new one.""" )
+       
+        fb.horizontalSlider('^.rounded',lbl='Rounded',minimum=0,maximum=59,
+                               discreteValues=60,width='160px',
+                             intermediateChanges=True,
+                                tooltip="""HorizontaSlider.Change the box rounded border radius.""")
+        
+        fb.button('Submit',action="alert(data.toXml())",
+                  tooltip="""Button.Click to get the xml of the data.""",
+                  data='=widgets')
+

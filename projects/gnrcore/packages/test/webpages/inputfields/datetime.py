@@ -2,16 +2,17 @@
 
 "DateTextBox and TimeTextBox"
 
+from datetime import datetime
+
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
     
     def test_0_dateTextBox(self, pane):
         "DateTextBox without popup, press button to set current date and time"
         fb=pane.formbuilder(cols=2)
-        fb.datetextbox(lbl='Full',value='^.date_2', popup=False, format='full')
-        fb.div('^.tttt',format='short',dtype='DH')
-        fb.button('Now',fire='.newdate')
-        fb.dataController('SET .tttt = new Date();',_fired='^.newdate')
+        fb.button('Set Now',fire='newdate')
+        fb.datetimeTextbox(value='^.datetime', lbl='Datetime', seconds=True)
+        fb.dataController('SET .datetime = new Date();', _fired='^newdate')
         
     def test_1_timeTextBox(self, pane):
         "Default timetextbox to define timestamp"
@@ -33,3 +34,10 @@ class GnrCustomWebPage(object):
                         d='^.end_date',t='^.end_time',_if='d&&t')
         fb.dataFormula('^.end', 'end_ts.toISOString()', end_ts='^.end_ts')
         fb.div('^.end')
+
+    def test_3_period_to(self, pane):
+        """With period_to user can insert a starting week/month/year, and get ending period compiled automatically.
+        E.g. Try using "last week", "may", "ten years ago"."""
+        fb = pane.formbuilder(cols=2)
+        fb.dateTextBox(value='^.date_from',lbl='Date from',period_to='.date_to')
+        fb.dateTextBox(value='^.date_to',lbl='Date to')
