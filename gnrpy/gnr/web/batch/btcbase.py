@@ -227,7 +227,7 @@ class BaseResourceBatch(object):
         self.selectionFilterCb = selectionFilterCb
         self.sortBy=sortBy
 
-    def get_selection(self, columns=None):
+    def get_selection(self, columns=None,limit=None):
         """TODO
         
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
@@ -240,6 +240,8 @@ class BaseResourceBatch(object):
         selection_kwargs.setdefault('sortBy',self.sortBy)
         if self.batch_selection_kwargs:
             selection_kwargs.update(self.batch_selection_kwargs) 
+        if limit is not None:
+            selection_kwargs['limit'] = limit
         if columns:
             selection_kwargs['columns'] = columns
         if self.batch_selection_savedQuery:

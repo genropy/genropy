@@ -932,10 +932,6 @@ class SqlQuery(object):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
         columns = columns or '*'
-        self.querypars = dict(columns=columns, where=where, order_by=order_by,
-                              distinct=distinct, group_by=group_by,
-                              limit=limit, offset=offset,for_update=for_update,
-                              having=having)
         self.subtable = subtable
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
@@ -950,7 +946,6 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
-        
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
@@ -961,6 +956,17 @@ class SqlQuery(object):
                         self.relationDict[r] = self.sqlparams.pop(r)
                         
         self.bagFields = bagFields or for_update
+        self.querypars = dict(columns=columns, where=where, order_by=order_by,
+                              distinct=distinct, group_by=group_by,
+                              limit=limit, offset=offset,for_update=for_update,
+                              having=having,bagFields=self.bagFields,
+                            excludeLogicalDeleted=self.excludeLogicalDeleted,
+                            excludeDraft=self.excludeDraft,
+                            addPkeyColumn=self.addPkeyColumn,
+                            ignorePartition=self.ignorePartition,
+                            ignoreTableOrderBy=self.ignoreTableOrderBy,
+                            storename=self.storename,
+                            subtable=self.subtable)
         self.db = self.dbtable.db
         self._compiled = None
         
@@ -1002,16 +1008,8 @@ class SqlQuery(object):
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(relationDict=self.relationDict,
-                                                                  count=count,
-                                                                  bagFields=self.bagFields,
-                                                                  excludeLogicalDeleted=self.excludeLogicalDeleted,
-                                                                  excludeDraft=self.excludeDraft,
-                                                                  addPkeyColumn=self.addPkeyColumn,
-                                                                  ignorePartition=self.ignorePartition,
-                                                                  ignoreTableOrderBy=self.ignoreTableOrderBy,
-                                                                  storename=self.storename,
-                                                                  subtable=self.subtable,
+                                locale=self.locale).compiledQuery(count=count,
+                                                                  relationDict=self.relationDict,
                                                                   **self.querypars)
                                                                   
     def cursor(self):
@@ -1152,8 +1150,11 @@ class SqlQuery(object):
         :param sortedBy: TODO
         :param _aggregateRows: boolean. TODO"""
         index, data = self._dofetch(pyWhere=pyWhere)
+        querypars = dict(self.querypars)
+        querypars.update(self.sqlparams)
         return SqlSelection(self.dbtable, data,
                             index=index,
+                            querypars=querypars,
                             colAttrs=self._prepColAttrs(index),
                             joinConditions=self.joinConditions,
                             sqlContextName=self.sqlContextName,
@@ -1243,10 +1244,12 @@ class SqlSelection(object):
     can :meth:`freeze()` it into a file. You can also use the :meth:`sort()` and the :meth:`filter()` methods
     on a SqlSelection."""
     def __init__(self, dbtable, data, index=None, colAttrs=None, key=None, sortedBy=None,
-                 joinConditions=None, sqlContextName=None, explodingColumns=None, checkPermissions=None,_aggregateRows=False,_aggregateDict=None):
+                 joinConditions=None, sqlContextName=None, explodingColumns=None, checkPermissions=None,
+                 querypars=None,_aggregateRows=False,_aggregateDict=None):
         self._frz_data = None
         self._frz_filtered_data = None
         self.dbtable = dbtable
+        self.querypars = querypars
         self.tablename = dbtable.fullname
         self.colAttrs = colAttrs or {}
         self.explodingColumns = explodingColumns

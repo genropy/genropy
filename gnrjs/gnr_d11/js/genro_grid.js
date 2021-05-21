@@ -1070,10 +1070,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     pluginContextMenuBag:function(kw){
         var sourceNode = kw.sourceNode;
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
-        if(isNullOrBlank(gridplugins)){
-            gridplugins = true;
-        }
-        if(gridplugins===true){
+        if(!gridplugins){
             gridplugins = 'export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
                 gridplugins = 'configurator,'+gridplugins;
@@ -4578,12 +4575,16 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var kwargs = objectUpdate({},options);
         var useRawData = options['rawData']===true;
         kwargs['action'] = objectPop(kw,'command');
+        kwargs.timeout = 0;
         var sourceNode = this.sourceNode;
-        genro.lockScreen(true,sourceNode.getStringId());
+        genro.lockScreen(true,sourceNode.getStringId(),{thermo:true});
 
         if (this.collectionStore().storeType=='VirtualSelection'){
             kwargs['selectionName'] = this.collectionStore().selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
+            if(allRows){
+                kwargs.limit = 0;
+            }
         }else{
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }
