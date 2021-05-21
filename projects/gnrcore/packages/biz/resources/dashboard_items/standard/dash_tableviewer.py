@@ -77,7 +77,7 @@ class Main(BaseDashboardItem):
         frame.grid.selectionStore(table=table,childname='store',where='=.query.where',
                                 customOrderBy='=.query.customOrderBy',
                                 joinConditions='=.query.joinConditions',
-                                limit='=.query.limit',
+                                limit='=.query.limit',chunkSize=100,
                                 _fired='^%s.runItem' %self.workpath)
         return frame
 
