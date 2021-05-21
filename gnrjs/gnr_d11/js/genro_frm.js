@@ -489,9 +489,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         //this.updateInvalidField(sourceNode, sourceNode.attrDatapath('value'));
     },
 
-    forceIgnoreReadOnly:function(evt){
+    forceIgnoreReadOnly:function(evt,reloadcb){
         if(genro.dom.getEventModifiers(evt)=='Shift'){
-            this.reload({ignoreReadOnly:true});
+            let kw = {ignoreReadOnly:true};
+            if(reloadcb){
+                kw.onReload = reloadcb;
+            }
+            return this.reload(kw);
         }
     },
     
@@ -502,7 +506,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.newrecord(this.last_default_kw);
             return;
         }
-        this.load(objectUpdate({destPkey:destPkey},kw));
+        return this.load(objectUpdate({destPkey:destPkey},kw));
     },
     
     goToRecord:function(pkey,ts){

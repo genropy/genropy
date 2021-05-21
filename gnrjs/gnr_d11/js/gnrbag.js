@@ -875,7 +875,6 @@ dojo.declare("gnr.GnrBag", null, {
         path = path || '#v';
         if (path) {
             var l = this.digest(path);
-            console.log('strictmode',strictmode);
             if(strictmode && l.some(values=>isNullOrBlank(values[0]))){
                 return;
             }

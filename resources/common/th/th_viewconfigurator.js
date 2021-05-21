@@ -153,7 +153,7 @@ var genro_plugin_grid_configurator = {
     },
 
     _colParametersFields:function(){
-       var fields = [
+       return [
             {'field':'name','dtype':'T','widget':{'tag':'Textbox','width':'15em','lbl':_T('Name')}},
             {'field':'columnset','dtype':'T','widget':{'tag':'ComboBox','width':'15em','lbl':_T('Columnset')}}, //to complete
             {'field':'formula','dtype':'T','widget':{'tag':'Textbox','lbl':_T('Formula'),'width':'15em','hidden':'^.?calculated?=!#v'}},//to complete
@@ -161,8 +161,6 @@ var genro_plugin_grid_configurator = {
             {'field':'totalize','dtype':'B','widget':{'tag':'checkbox','label':_T('Totalize'),'hidden':'^.?dtype?="NRFLI".indexOf(#v)<0'}},
             {'field':'subtotal','dtype':'B','widget':{'tag':'checkbox','label':_T('Subtotal'),'hidden':'^.?dtype?="NRFLI".indexOf(#v)>=0'}},
         ];
-        return fields;
-
     },
     configuratorColsetTooltip:function(gridId,colset,event){
         if(!colset){
@@ -282,7 +280,7 @@ var genro_plugin_grid_configurator = {
     _columnsetsGrid:function(tc,gridNode){
         var pane = tc._('contentPane',{title:'Columnsets',datapath:'.colseteditor',margin:'2px'});
         var structpath = gridNode.absDatapath(gridNode.attr.structpath);
-        var grid_pars = {value:'^.columnsets_edit',nodeId:(gridNode.attr.nodeId || gridNode._id)+'_columnsetsGrid'};
+        var grid_pars = {value:'^.columnsets_edit',nodeId:(gridNode.attr.nodeId || gridNode._id)+'_columnsetsGrid',gridplugins:true};
         grid_pars.selfsubscribe_addrow = function(addkw){
             var rowDefaults = objectUpdate({},addkw._askResult);
             rowDefaults.code = objectPop(rowDefaults,'columnset');
@@ -369,7 +367,8 @@ var genro_plugin_grid_configurator = {
         var pane = tc._('contentPane',{title:_T('Columns'),margin:'2px',datapath:'.cellseditor'});
         var structpath = gridNode.absDatapath(gridNode.attr.structpath);
 
-        var grid_pars = {value:'^.cells_edit',nodeId:(gridNode.attr.nodeId || gridNode._id)+'_cellsEditorGrid'};
+        var grid_pars = {value:'^.cells_edit',nodeId:(gridNode.attr.nodeId || gridNode._id)+'_cellsEditorGrid',
+                        gridplugins:true};
         grid_pars.selfDragRows = true;
         grid_pars.selfsubscribe_addrow = function(addkw){
             var rowDefaults = objectUpdate({},addkw._askResult);

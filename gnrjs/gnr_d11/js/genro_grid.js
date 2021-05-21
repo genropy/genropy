@@ -1070,7 +1070,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     pluginContextMenuBag:function(kw){
         var sourceNode = kw.sourceNode;
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
-        if(!gridplugins){
+        if(isNullOrBlank(gridplugins)){
+            gridplugins = true;
+        }
+        if(gridplugins===true){
             gridplugins = 'export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
                 gridplugins = 'configurator,'+gridplugins;
