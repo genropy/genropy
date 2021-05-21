@@ -3195,7 +3195,7 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         var actionScope = this.sourceNode.attributeOwnerNode('action');
         if(actionScope){
             var action = actionScope.attr.action;
-            if (action && actionScope.attr.tag!='button') {
+            if (action && actionScope.attr.tag.toLowerCase().includes('button')) {
                 dojo.hitch(this, funcCreate(action))(this.sourceNode.attr, this.sourceNode, e);
             }
         }
