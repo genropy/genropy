@@ -1092,6 +1092,7 @@ class TableHandlerView(BaseComponent):
                                    if(kwargs.query_reason=='grouper'){
                                        return
                                    }else{
+                                       this.fireEvent('.reloadGrouper',true);
                                        return false;
                                    }
                                }

@@ -198,7 +198,8 @@ class TableHandlerGroupBy(BaseComponent):
             grid = frame.grid.js_widget,
              use_grouper='=.use_grouper',grouper=grouper,
             datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
-            _runQuery='^.runQueryDo',_sections_changed='^.sections_changed',
+            _runQuery='^.runQueryDo',
+            _reloadGrouper='^.reloadGrouper',_sections_changed='^.sections_changed',
            linkedTo=linkedTo,_delay=200,
            #**{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True}
            )
