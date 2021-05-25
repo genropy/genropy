@@ -114,7 +114,7 @@ def install():
 @task
 @needs(['generate_setup', 'setuptools.command.develop'])
 def develop(options):
-    call(['pip3', 'install','pyPdf','--allow-external','pyPdf'])
+    call(['pip3', 'install','pyPdf','pyPdf'])
     call(['pip3', 'install','-r', 'requirements.txt'])
 
 @task
