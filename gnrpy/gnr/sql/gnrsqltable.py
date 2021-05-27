@@ -976,7 +976,7 @@ class SqlTable(GnrObject):
         :param record: a bag, a dict or a string (i.e. the record's pkey)
         :param mode: 'dict' or 'bag' or 'pkey'
         :param virtual_columns: TODO"""
-        if isinstance(record, basestring):
+        if not hasattr(record,'items'): #ducktyping
             if mode == 'pkey':
                 return record
             else:

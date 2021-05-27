@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# test_iframe_inside.py
-# Created by Francesco Porcari on 2011-02-14.
-# Copyright (c) 2011 Softwell. All rights reserved.
-
-from builtins import object
 from gnr.web.gnrwebstruct import struct_method
 
 "iframe_inside"

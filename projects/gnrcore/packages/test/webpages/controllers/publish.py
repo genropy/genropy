@@ -15,8 +15,8 @@ class GnrCustomWebPage(object):
                                console.log('second par was:'+pressed[1]);""",
                             subscribe_pressed=True)
         pane.div(subscribe_test_pressed='var args =arguments; genro.bp(args);')
-        # the data controlller is triggered by subscribe_pressed and receives an array 'pressed' that
-        # contains the published parameters
+        #the data controller is triggered by subscribe_pressed and receives an array 'pressed' that
+        #contains the published parameters
         
 
     def test_1_publish_subscribe_button(self, pane):

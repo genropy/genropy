@@ -40,4 +40,5 @@ class GnrCustomWebPage(object):
 
     def test_video(self, pane):
         "This ftp service test was explained in this LearnGenropy video"
-        pane.iframe(src='https://www.youtube.com/embed/DPgcQoD0KZ0', width='240px', height='180px')
+        pane.iframe(src='https://www.youtube.com/embed/DPgcQoD0KZ0', width='240px', height='180px',
+                        allow="autoplay; fullscreen")
