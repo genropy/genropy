@@ -137,7 +137,7 @@ class Table(object):
         if tbl:
             where.append('$tbl = :val_tbl')
         if flags:
-            where.append(' ($flags LIKE :_flags)  ')
+            where.append(' ($flags IS NULL OR $flags LIKE :_flags)  ')
             _flags = '%%'+flags+'%%'
         where = ' AND '.join(where)
         sel = self.query(columns='$id, $code, $objtype, $pkg, $tbl, $userid, $description, $authtags, $private, $quicklist, $flags',

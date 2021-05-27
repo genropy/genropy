@@ -236,7 +236,7 @@ class GnrBaseWebPage(GnrObject):
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None, filterCb=None, columns=None,
-                         sortBy=None,condition=None, table=None, condition_args=None):
+                         sortBy=None,condition=None, table=None, condition_args=None,limit=None):
         """TODO
         
         :param selectionName: TODO
@@ -258,6 +258,12 @@ class GnrBaseWebPage(GnrObject):
             table = self.db.table(table)
         selection = self.unfreezeSelection(dbtable=table, name=selectionName,page_id=page_id)
         table = table or selection.dbtable
+        if not columns and limit is not None:
+            qpars = dict(selection.querypars)
+            selection_limit = qpars.get('limit')
+            if selection_limit!=limit:
+                qpars['limit'] = limit
+                selection = table.query(**qpars).selection()
         if filterCb:
             filterCb = self.getPublicMethod('rpc',filterCb)
             selection.filter(filterCb)
@@ -279,7 +285,7 @@ class GnrBaseWebPage(GnrObject):
             where = '%s AND %s' % (where, condition)
         selection = table.query(columns=columns, where=where,
                                 pkeys=pkeys, addPkeyColumn=False,
-                                excludeDraft=False,
+                                excludeDraft=False,limit=limit,
                                 **condition_args).selection()
         if sortBy:
             selection.sort(sortBy)

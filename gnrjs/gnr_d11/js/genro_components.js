@@ -2944,7 +2944,9 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         var tools = subTagItems.tools;
         var gridRoot= tools.len()? this.toolsGridRoot(sourceNode,kw,tools.getAttr('#0')) : sourceNode;
         kw.datapath = kw.controllerPath;
-        kw.gridplugins = false;
+        if(!('gridplugins' in kw)){
+            kw.gridplugins = false;
+        }
         var grid = gridRoot._('newIncludedView',kw);
         gnrwdg.gridNode = grid.getParentNode();
         gnrwdg.setColumns(sourceNode.getRelativeData(columns));

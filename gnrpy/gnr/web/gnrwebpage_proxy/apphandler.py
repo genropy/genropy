@@ -2041,7 +2041,7 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,
                                selectionName=None, struct=None,datamode=None,localized_data=None, downloadAs=None,
-                               selectedRowidx=None, **kwargs):
+                               selectedRowidx=None,limit=None, **kwargs):
         """TODO
         
         :param action: TODO
@@ -2066,7 +2066,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             respath = 'action/_common/%s' % action
         res_obj = self.page.site.loadTableScript(page=self.page, table=table,respath=respath, class_name='Main')
         if selectionName:
-            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx).output('grid')
+            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit).output('grid')
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
                                     selectedRowidx=selectedRowidx,filename=downloadAs,table=table)

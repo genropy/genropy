@@ -161,7 +161,7 @@ class TableHandlerGroupBy(BaseComponent):
         store_kwargs['_forcedReload'] = '^.reloadMain'
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
-                                groupByStore=True,liveUpdate=True if not linkedTo else 'NO',
+                                groupByStore=True,liveUpdate='PAGE',
                                 _linkedTo=linkedTo,
                                 _onCalling="""
                                 if(!_linkedTo){
@@ -199,7 +199,8 @@ class TableHandlerGroupBy(BaseComponent):
             grid = frame.grid.js_widget,
              use_grouper='=.use_grouper',grouper=grouper,
             datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
-            _runQuery='^.runQueryDo',_sections_changed='^.sections_changed',
+            _runQuery='^.runQueryDo',
+            _reloadGrouper='^.reloadGrouper',_sections_changed='^.sections_changed',
            linkedTo=linkedTo,_delay=200,
            #**{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True}
            )
@@ -318,7 +319,7 @@ class TableHandlerGroupBy(BaseComponent):
         th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
                                         viewResource='THGViewTreeDetail',
                                         view_structCb=view.th_struct,
-                                        count=True,liveUpdate=False,
+                                        count=True,view_store_liveUpdate='PAGE',
                                         nodeId='{rootNodeId}_details'.format(rootNodeId=rootNodeId))
 
         pane.dataController("""

@@ -77,7 +77,7 @@ class Main(BaseDashboardItem):
         frame.grid.selectionStore(table=table,childname='store',where='=.query.where',
                                 customOrderBy='=.query.customOrderBy',
                                 joinConditions='=.query.joinConditions',
-                                limit='=.query.limit',
+                                limit='=.query.limit',chunkSize=100,
                                 _fired='^%s.runItem' %self.workpath)
         return frame
 
@@ -109,7 +109,7 @@ class Main(BaseDashboardItem):
                         action="""
                         var opt = objectExtract(_kwargs,'opt_*');
                         var kw = {command:'export',opt:opt};
-                        var gridId = 'temIdentifier+'_grid';
+                        var gridId = itemIdentifier+'_grid';
                         genro.nodeById(gridId).publish('serverAction',kw)""",
                         groupMode='=.groupMode' ,datapath=self.workpath,
                         itemIdentifier=self.itemIdentifier,height='16px',width='16px',

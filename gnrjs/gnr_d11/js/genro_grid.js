@@ -4575,12 +4575,16 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var kwargs = objectUpdate({},options);
         var useRawData = options['rawData']===true;
         kwargs['action'] = objectPop(kw,'command');
+        kwargs.timeout = 0;
         var sourceNode = this.sourceNode;
-        genro.lockScreen(true,sourceNode.getStringId());
+        genro.lockScreen(true,sourceNode.getStringId(),{thermo:true});
 
         if (this.collectionStore().storeType=='VirtualSelection'){
             kwargs['selectionName'] = this.collectionStore().selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
+            if(allRows){
+                kwargs.limit = 0;
+            }
         }else{
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }
