@@ -4625,9 +4625,10 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         if(this.sourceNode.currentFromDatasource(cell.editDisabled)){
             return;
         }
-        if (cell.customClasses.indexOf('cell_disabled')>=0){
-            return;
-        }
+        //ridondante
+        // if (cell.customClasses.indexOf('cell_disabled')>=0){
+        //     return; 
+        // }
         let remoteEdit = cell.remoteEdit;
         let store = this.collectionStore();
         if (store.locked){
