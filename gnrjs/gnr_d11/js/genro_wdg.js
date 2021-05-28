@@ -889,6 +889,7 @@ dojo.declare("gnr.GridEditor", null, {
                 if(c.attr.batch_assign=='delta'){
                     wdgkw.tag = 'textbox';
                     wdgkw.placeholder = 'f(x)';
+                    wdgkw.validate_call = "return {value:value?value.replace(',','.'):value}";
                 }
                 fields.push(wdgkw);
             }
