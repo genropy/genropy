@@ -5,6 +5,7 @@
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from time import sleep
+from imdb import IMDb
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
@@ -80,24 +81,24 @@ class GnrCustomWebPage(object):
         """Use remote select to connect with service and get results.
         Run pip install imdbpy first to retrieve movie data"""
         fb = pane.formbuilder(cols=1)
-        fb.remoteSelect(value='^.movie_rec',lbl='Movie title', method=self.getMovie, 
+        fb.remoteSelect(value='^.movie_id',lbl='Movie title', method=self.getMovieId, 
                             auxColumns='title,kind,year', selected_cover='.cover')
         fb.img(src='^.cover', hidden='^.cover?=!#v', width='200px', height='266px')
+        fb.div('^.movie_id', lbl='Movie ID: ')
 
     @public_method
-    def getMovie(self,_querystring=None,**kwargs):
-        from imdb import IMDb
+    def getMovieId(self,_querystring=None,**kwargs):
         ia = IMDb()
         result = Bag()
         movies = ia.search_movie(_querystring)
         for movie in movies:
             movie_id = movie.movieID
             title=movie.get('title')
-            year=movie.get('year')
+            year=str(movie.get('year'))
             result.addItem(movie_id, None, title=title, year=year,
                                 kind=movie.get('kind'), cover=movie.get('full-size cover url'), 
-                                pkey=movie.get('title'), caption=f'{title} ({year})')
-        return result,dict(columns='title,kind,year', headers='Title,Kind,Year')   
+                                _pkey=movie_id, caption='{title} ({year})'.format(title=title, year=year))
+        return result,dict(columns='title,kind,year', headers='Title,Kind,Year')  
 
     def test_5_packageSelect(self,pane):
         "Select package (packageSelect) and table (tableSelect)"
