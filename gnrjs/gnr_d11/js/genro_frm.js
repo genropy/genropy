@@ -631,12 +631,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     insertAndLoad:function(default_kw){
         var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
-        this.waitingStatus(true);
+        genro.lockScreen(true,this.formId,{thermo:true});
         genro.serverCall('app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
                                 that.doload_store({destPkey:resultPkey});
-                                that.waitingStatus(false);
+                                genro.lockScreen(false,that.formId);
                             });
     },
 
