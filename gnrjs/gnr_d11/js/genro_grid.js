@@ -1681,6 +1681,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                             genro.dom.getStyleDict(cell, [ 'width'])));
             var formats = objectExtract(cell, 'format_*');
             var format = objectPop(cell, 'format');
+            format = sourceNode.currentFromDatasource(format);
             var template = objectPop(cell, 'template');
             var js = objectPop(cell, 'js');
             if (template) {
