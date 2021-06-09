@@ -5,6 +5,7 @@
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from time import sleep
+from imdb import IMDb
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
@@ -57,7 +58,7 @@ class GnrCustomWebPage(object):
             }""",auxColumns='addr,state',lbl='Callback select',hasDownArrow=True,nodeId='cbsel')
 
 
-    def test_3_dbselectrpc(self,pane):
+    def test_3_remoteselect(self,pane):
         "Define a Rpc method and use it in remoteSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.remoteSelect(value='^.user',width='25em',lbl='User',auxColumns='status,auth_tags',
@@ -76,13 +77,36 @@ class GnrCustomWebPage(object):
                 status=r['status'],auth_tags=r['auth_tags'],_pkey=r['id'],username=r['username'])
         return result,dict(columns='username,status,auth_tags',headers='Name,Status,Tags')
 
-    def test_4_packageSelect(self,pane):
+    def test_4_remote_with_api(self, pane, **kwargs):
+        """Use remote select to connect with service and get results.
+        Run pip install imdbpy first to retrieve movie data"""
+        fb = pane.formbuilder(cols=1)
+        fb.remoteSelect(value='^.movie_id',lbl='Movie title', method=self.getMovieId, 
+                            auxColumns='title,kind,year', selected_cover='.cover')
+        fb.img(src='^.cover', hidden='^.cover?=!#v', width='200px', height='266px')
+        fb.div('^.movie_id', lbl='Movie ID: ')
+
+    @public_method
+    def getMovieId(self,_querystring=None,**kwargs):
+        ia = IMDb()
+        result = Bag()
+        movies = ia.search_movie(_querystring)
+        for movie in movies:
+            movie_id = movie.movieID
+            title=movie.get('title')
+            year=str(movie.get('year'))
+            result.addItem(movie_id, None, title=title, year=year,
+                                kind=movie.get('kind'), cover=movie.get('full-size cover url'), 
+                                _pkey=movie_id, caption='{title} ({year})'.format(title=title, year=year))
+        return result,dict(columns='title,kind,year', headers='Title,Kind,Year')  
+
+    def test_5_packageSelect(self,pane):
         "Select package (packageSelect) and table (tableSelect)"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.packageSelect(value='^.pkg',lbl='Pkg')
         fb.tableSelect(value='^.tbl',lbl='Table',pkg='=.pkg',auxColumns='tbl')
 
-    def test_5_invaliditemCondition(self,pane):
+    def test_6_invaliditemCondition(self,pane):
         "Set invalid items cryteria: in this case, only names shorter than 10 characters are availables"
         form = pane.frameForm(frameCode='pippo',store='memory',height='50px',store_startKey='*newrcord*')
         fb = form.record.formbuilder(cols=1, border_spacing='4px')
