@@ -1681,6 +1681,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                             genro.dom.getStyleDict(cell, [ 'width'])));
             var formats = objectExtract(cell, 'format_*');
             var format = objectPop(cell, 'format');
+            format = sourceNode.currentFromDatasource(format);
             var template = objectPop(cell, 'template');
             var js = objectPop(cell, 'js');
             if (template) {
@@ -4625,9 +4626,10 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         if(this.sourceNode.currentFromDatasource(cell.editDisabled)){
             return;
         }
-        if (cell.customClasses.indexOf('cell_disabled')>=0){
-            return;
-        }
+        // same condition of this.sourceNode.currentFromDatasource(cell.editDisabled)
+        // if (cell.customClasses.indexOf('cell_disabled')>=0){
+        //     return; 
+        // }
         let remoteEdit = cell.remoteEdit;
         let store = this.collectionStore();
         if (store.locked){

@@ -597,7 +597,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var that = this;
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.default_kw),'default_*',true)); 
-            console.log(' kw.default_kw', kw.default_kw)
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
                 dflt:new gnr.GnrBag(kw.default_kw),
@@ -632,10 +631,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     insertAndLoad:function(default_kw){
         var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
+        this.waitingStatus(true);
         genro.serverCall('app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
                                 that.doload_store({destPkey:resultPkey});
+                                that.waitingStatus(false);
                             });
     },
 

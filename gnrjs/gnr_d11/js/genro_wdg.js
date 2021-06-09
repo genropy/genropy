@@ -889,6 +889,7 @@ dojo.declare("gnr.GridEditor", null, {
                 if(c.attr.batch_assign=='delta'){
                     wdgkw.tag = 'textbox';
                     wdgkw.placeholder = 'f(x)';
+                    wdgkw.validate_call = "return {value:value?value.replace(',','.'):value}";
                 }
                 fields.push(wdgkw);
             }
@@ -1436,6 +1437,10 @@ dojo.declare("gnr.GridEditor", null, {
             }
         }
         if(cell.edit || cell.counter || cell.isCheckBoxCell){
+            if(cell.dtype=='N' && cell._formats && cell._formats.format){
+                let roundDec = cell._formats.format.split('.')[1].length;
+                value = Math.round10(value,-roundDec);
+            }
             var n = rowEditor.data.setItem(cellname,value);
             delete n.attr._validationError //trust the programmatical value
             this.updateStatus();
