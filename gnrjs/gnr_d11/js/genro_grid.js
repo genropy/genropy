@@ -4579,24 +4579,27 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         kwargs.timeout = 0;
         var sourceNode = this.sourceNode;
         genro.lockScreen(true,sourceNode.getStringId(),{thermo:true});
-        kwargs.table =this.sourceNode.attr.table;
+
+        
+        kwargs['table'] =this.sourceNode.attr.table;
+        kwargs['datamode'] = useRawData?this.datamode:'attr';
+        if(kwargs.columns){
+            kwargs.selectedPkeys = this.getSelectedPkeys();
+            if(kwargs.selectedPkeys.length===0){
+                kwargs.selectedPkeys = this.getAllPkeys();
+            }
+        }else{
+            kwargs.struct =  this.getExportStruct();
+        }
         if (this.collectionStore().storeType=='VirtualSelection'){
             kwargs['selectionName'] = this.collectionStore().selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
             if(allRows){
                 kwargs.limit = 0;
             }
-        }else if(kwargs.columns){
-            kwargs.selectedPkeys = this.getSelectedPkeys();
-            if(kwargs.selectedPkeys.length===0){
-                kwargs.selectedPkeys = this.getAllPkeys();
-            }
-        }else{
+        }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
-            kwargs['datamode'] = useRawData?this.datamode:'attr';
-            kwargs['struct'] =  this.getExportStruct();
         }
-        
         kwargs['_sourceNode'] = sourceNode;
         var cb = function(result){
             genro.lockScreen(false,sourceNode.getStringId());
@@ -4605,6 +4608,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         kwargs['meta'] = objectExtract(this.sourceNode.attr, 'meta_*', true);
         genro.rpc.remoteCall(method, kwargs, null, 'POST', null,cb);
     },
+
     mixin_getExportStruct:function(){
         var struct = this.structbag().deepCopy();
         var cells = struct.getItem('#0.#0');

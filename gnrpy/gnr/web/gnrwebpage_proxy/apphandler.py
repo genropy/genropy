@@ -2063,11 +2063,17 @@ class GnrWebAppHandler(GnrBaseProxy):
             respath = 'action/_common/%s' % action
         res_obj = self.page.site.loadTableScript(page=self.page, table=table,respath=respath, class_name='Main')
         if selectionName:
-            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit).output('grid')
+            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit)
+        elif selectedPkeys and columns:
+            query_columns = [columns]
+            if hiddencolumns:
+                query_columns.append(hiddencolumns)
+                res_obj.hiddencolumns = hiddencolumns.split(',')
+            res_obj.selectedPkeys = selectedPkeys
+            data = res_obj.get_selection(columns=','.join(query_columns))
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
-                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table,
-                                    columns=columns,selectedPkeys=selectedPkeys,hiddencolumns=hiddencolumns)
+                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table)
 
 
 class BatchExecutor(object):
