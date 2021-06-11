@@ -4579,19 +4579,24 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         kwargs.timeout = 0;
         var sourceNode = this.sourceNode;
         genro.lockScreen(true,sourceNode.getStringId(),{thermo:true});
-
+        kwargs.table =this.sourceNode.attr.table;
         if (this.collectionStore().storeType=='VirtualSelection'){
             kwargs['selectionName'] = this.collectionStore().selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
             if(allRows){
                 kwargs.limit = 0;
             }
+        }else if(kwargs.columns){
+            kwargs.selectedPkeys = this.getSelectedPkeys();
+            if(kwargs.selectedPkeys.length===0){
+                kwargs.selectedPkeys = this.getAllPkeys();
+            }
         }else{
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
+            kwargs['datamode'] = useRawData?this.datamode:'attr';
+            kwargs['struct'] =  this.getExportStruct();
         }
-        kwargs['table'] =this.sourceNode.attr.table;
-        kwargs['datamode'] = useRawData?this.datamode:'attr';
-        kwargs['struct'] =  this.getExportStruct();
+        
         kwargs['_sourceNode'] = sourceNode;
         var cb = function(result){
             genro.lockScreen(false,sourceNode.getStringId());

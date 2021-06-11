@@ -57,16 +57,26 @@ class BaseResourceExport(BaseResourceBatch):
         super(BaseResourceExport, self).__init__(*args, **kwargs)
         self.locale = self.page.locale
         self.columns = []
+        self.hiddencolumns = []
         self.headers = []
         self.coltypes = {}
         self.groups = []
         self.data = None
 
     def gridcall(self, data=None, struct=None, export_mode=None, datamode=None,selectedRowidx=None,filename=None,
-                    localized_data=None,**kwargs):
+                    localized_data=None,columns=None,hiddencolumns=None,selectedPkeys=None,**kwargs):
         self.batch_parameters = dict(export_mode=export_mode, filename=filename,localized_data=localized_data)
-        self.prepareFromStruct(struct)
-        self.data = self.rowFromValue(data) if datamode == 'bag' else self.rowFromAttr(data)
+        if struct and data:
+            self.prepareFromStruct(struct)
+            self.data = self.rowFromValue(data) if datamode == 'bag' else self.rowFromAttr(data)
+        else:
+            self.selectedPkeys = selectedPkeys
+            if hiddencolumns:
+                self.hiddencolumns = hiddencolumns.split(',')
+                columns = ','.join([columns,hiddencolumns])
+            self.data = self.get_selection(columns=columns)
+            self.prepareFromSelection(self.data)
+
         self._pre_process()
         self.do()
         return self.fileurl
@@ -115,6 +125,14 @@ class BaseResourceExport(BaseResourceBatch):
     def getFileName(self):
         return 'export'
 
+    def prepareFromSelection(self,selection):
+        self.columns = selection.columns
+        hiddencolumns = [c.replace('$','').replace('@','_').replace('.','_') for c in self.hiddencolumns]+['pkey', 'rowidx']
+        print('hiddencolumns',hiddencolumns)
+        self.columns = [c for c in self.columns if c not in hiddencolumns]
+        self.coltypes = dict([(k, v['dataType']) for k, v in selection.colAttrs.items()])
+        self.headers = self.columns
+
     def _pre_process(self):
         self.pre_process()
         self.fileurl = None
@@ -126,10 +144,7 @@ class BaseResourceExport(BaseResourceBatch):
             struct = self.batch_parameters.get('struct')
             self.data = self.btc.thermo_wrapper(selection.data, message=self.tblobj.name_plural, tblobj=self.tblobj)
             if not struct:
-                self.columns = selection.columns
-                self.columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
-                self.coltypes = dict([(k, v['dataType']) for k, v in selection.colAttrs.items()])
-                self.headers = self.columns
+                self.prepareFromSelection(selection)
             else:
                 self.prepareFromStruct(struct)
         writerPars = dict(columns=self.columns, coltypes=self.coltypes, headers=self.headers,

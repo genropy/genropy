@@ -2035,7 +2035,8 @@ class GnrWebAppHandler(GnrBaseProxy):
         return self.page.rmlTemplate(path=template, record=record)
 
     @public_method
-    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,
+    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,columns=None,
+                                selectedPkeys=None,hiddencolumns=None,
                                selectionName=None, struct=None,datamode=None,localized_data=None, downloadAs=None,
                                selectedRowidx=None,limit=None, **kwargs):
         """TODO
@@ -2065,7 +2066,8 @@ class GnrWebAppHandler(GnrBaseProxy):
             data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit).output('grid')
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
-                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table)
+                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table,
+                                    columns=columns,selectedPkeys=selectedPkeys,hiddencolumns=hiddencolumns)
 
 
 class BatchExecutor(object):
