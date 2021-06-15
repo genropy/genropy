@@ -326,7 +326,7 @@ class GnrWebUtils(GnrBaseProxy):
                     return 'ER'
         elif import_method:
             handler = getattr(tblobj,'importer_%s' %import_method)
-            return handler(reader)
+            return handler(reader,  **constant_kwargs)
         
         if match_index:
             return self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
