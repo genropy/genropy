@@ -56,7 +56,8 @@ class TemplateEditorBase(BaseComponent):
             result['template_data'] = data
             return result,dataInfo
         tplbuilder = self.te_getTemplateBuilder(compiled=compiled, templates=templates)
-        result['rendered'] = self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)),contentOnly=True)
+        rendered = self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)),contentOnly=True)
+        result['rendered'] = rendered
         result['template_data'] = data
         return result,dataInfo
     
