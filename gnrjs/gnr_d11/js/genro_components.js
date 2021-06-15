@@ -1154,7 +1154,9 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         sourceNode._registerNodeId();
         gnrwdg.matchColumns = objectPop(kw,'matchColumns');
         gnrwdg.importButtonKw = objectExtract(kw,'importButton_*');
-        gnrwdg.importMethod = objectPop(kw,'rpcmethod');
+        gnrwdg.rpcMethod = objectPop(kw,'rpcmethod');
+        gnrwdg.importerCb = objectPop(kw,'importerCb')
+
         var errorCb = objectPop(kw,'errorCb');
         gnrwdg.errorCb = errorCb? funcCreate(errorCb,'error',sourceNode):null;
         gnrwdg.batchParameters = objectExtract(kw,'batch_*');
@@ -1175,7 +1177,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         var bar = frame._('SlotBar',{'side':'top',slots:slots,searchOn:true,_class:'pbl_roundedGroupLabel'});
         bar._('div','prevtitle',{innerHTML:"==_current_title || 'Import'",_current_title:'^.current_title',color:'#666'});
         if(!filetype){
-            bar._('filteringSelect','importselector',{value:'^.filetype',width:'4em',values:'excel,csv,tab,xml',margin_top:'2px'});
+            bar._('filteringSelect','importselector',{value:'^.filetype',width:'4em',values:'excel,csv,csv_auto,tab,xml',margin_top:'2px'});
         }else{
             bar._('div','importseletor')
         }
@@ -1281,14 +1283,17 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         bar = frame._('slotBar',{slots:'2,fbbottom,*',side:'bottom',_class:'slotbar_dialog_footer'});
 
         var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{border_spacing:'1px'});
-        fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
-                                        lbl_text_align:'right',
-                                        lbl_class:'gnrfieldlabel',
-                                        lbl:_T('Method'),
-                                        values:'^.methodlist',
-                                        lbl_hidden:'^.methodlist?=!#v',
-                                        hidden:'^.methodlist?=!#v',
-                                        parentForm:false});
+        if(!gnrwdg.importerMethod){
+            fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
+                lbl_text_align:'right',
+                lbl_class:'gnrfieldlabel',
+                lbl:_T('Method'),
+                values:'^.methodlist',
+                lbl_hidden:'^.methodlist?=!#v',
+                hidden:'^.methodlist?=!#v',
+                parentForm:false});
+        }
+
         fb.addField('filteringSelect',{value:'^.import_mode',width:'7em',
                     lbl_text_align:'right',
                     lbl_class:'gnrfieldlabel',
@@ -1403,7 +1408,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         genro.lockScreen(true,'import_data',{thermo:true});
         var importerKw = {table:this.table,file_path:'=.imported_file_path',
             match_index:match_index,
-            import_method:'=.import_method',
+            import_method:this.importerMethod || '=.import_method',
             import_mode:'=.import_mode',
             filetype:'=.filetype',
             sql_mode:this.sql_mode || '=.sql_mode',
@@ -1413,7 +1418,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
             objectUpdate(importerKw,this.constant_kwargs);
         }
 
-        genro.serverCall(this.importMethod || 'utils.tableImporterRun',importerKw,function(result){
+        genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
             
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
@@ -3571,6 +3576,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         tplpars.table = tplpars.table || '';
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+
+        var safeMode = objectPop(kw,'safeMode');
+        if(safeMode){
+            kw.overflow = 'hidden';
+        }
         if(typeof(showLetterhead)=='string'){
             showLetterhead = sourceNode.absDatapath(showLetterhead);
         }
@@ -3593,6 +3603,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         kw._tplpars.editable = kw._tplpars.editable || (genro.isDeveloper? 'developer':false);
         kw._tplpars.showAlways = kw._tplpars.editable===true;
         kw._tplpars.asSource =  kw._tplpars.editable!=null;
+        
         kw._class = (kw._class || '') + ' selectable'
         var dataProvider = objectPop(kw,'dataProvider');
         if(dataProvider){
@@ -3615,7 +3626,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var templateHandler=this._templateHandler
             templateHandler.showAlways = showAlways;
             if(record_id){
-                handler.createServerChunk(this,record_id,tplpars);
+                handler.createServerChunk(this,record_id,tplpars,safeMode);
             }
             else{
                 handler.createClientChunk(this,dataProvider,tplpars);
@@ -3669,24 +3680,40 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         sourceNode.attr.template = templateHandler;
         sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
     },
+    
 
-    createServerChunk:function(sourceNode,record_id,tplpars){
+    createServerChunk:function(sourceNode,record_id,tplpars,safeMode){
         var templateHandler = sourceNode._templateHandler;
+
+        var setter = function(html){
+            sourceNode.domNode.innerHTML = html;
+        };
+        if(safeMode){
+            setter = function(html){
+                let iframe = sourceNode._('htmliframe','safeIframe',{height:'100%',width:'100%',border:0})
+                iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
+            };
+        }
+        var onResult = function(resultNode){
+            var r = resultNode.getValue();
+            templateHandler.dataInfo = resultNode.attr;
+            if(r instanceof gnr.GnrBag){
+                let rendered = r.getItem('rendered');
+                setter(rendered);
+                templateHandler.data = rendered;
+            }else{
+                setter(r);
+                templateHandler.data = new gnr.GnrBag();
+            }
+        };
         sourceNode.updateTemplate = function(pkey){
-            var that = this;
+            let nodeVal = sourceNode.getValue();
+            if(nodeVal){
+                nodeVal.popNode('safeIframe');
+            }
             if(pkey){
-                genro.serverCall('te_renderChunk',{record_id:pkey,template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},function(resultNode){
-                    var r = resultNode.getValue();
-                    templateHandler.dataInfo = resultNode.attr;
-                    if(r instanceof gnr.GnrBag){
-                        that.domNode.innerHTML = r.getItem('rendered');
-                        templateHandler.data = r.popNode('template_data').getValue();
-                    }else{
-                        that.domNode.innerHTML = r;
-                        templateHandler.data = new gnr.GnrBag();
-                    }
-                    
-                },null,'POST');
+                genro.serverCall('te_renderChunk',{record_id:pkey,
+                    template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};
