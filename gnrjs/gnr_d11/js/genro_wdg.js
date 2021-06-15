@@ -1437,7 +1437,7 @@ dojo.declare("gnr.GridEditor", null, {
             }
         }
         if(cell.edit || cell.counter || cell.isCheckBoxCell){
-            if(cell.dtype=='N' && cell._formats && cell._formats.format){
+            if(cell.dtype=='N' && cell._formats && cell._formats.format && cell._formats.format.includes('.')){
                 let roundDec = cell._formats.format.split('.')[1].length;
                 value = Math.round10(value,-roundDec);
             }
