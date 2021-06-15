@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-gnrautotable : an helper utility for handling tables
+gnrdbshell : an helper utility for handling tables
 
-Usage: gnrautotable instance_name
+Usage: gnrdbshell instance_name
 """
 
 
@@ -33,7 +33,7 @@ class AutoTable(object):
         self._package_name = pkg_name
 
     def __getattr__(self, name):
-        # cachato da genropy?
+        # cached in genropy?
         if name=='__wrapped__':  # jedi fix ?
             return self.__dir__()
         return db.table('%s.%s' % (self._package_name, name))
