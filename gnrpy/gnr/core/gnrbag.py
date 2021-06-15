@@ -3226,7 +3226,6 @@ class TraceBackResolver(BagResolver):
         if limit is None:
             if hasattr(sys, 'tracebacklimit'):
                 limit = sys.tracebacklimit
-        list = []
         n = 0
         tb = sys.exc_info()[2]
         while tb is not None and (limit is None or n < limit):
