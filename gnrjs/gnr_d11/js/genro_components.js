@@ -1152,7 +1152,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.matchColumns = objectPop(kw,'matchColumns');
         gnrwdg.importButtonKw = objectExtract(kw,'importButton_*');
         gnrwdg.rpcMethod = objectPop(kw,'rpcmethod');
-        gnrwdg.importerCb = objectPop(kw,'importerCb')
+        gnrwdg.importerMethod = objectPop(kw,'importerMethod')
 
         var errorCb = objectPop(kw,'errorCb');
         gnrwdg.errorCb = errorCb? funcCreate(errorCb,'error',sourceNode):null;
@@ -1419,8 +1419,11 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
             
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
-                genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
-
+                if(result.warning_mode=='alert'){
+                    genro.dlg.alert(result.warnings, 'Warning');
+                }else{
+                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
+                }
             }
             that.resetImporter();
             genro.lockScreen(false,'import_data');
