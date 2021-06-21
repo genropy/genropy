@@ -1475,13 +1475,18 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
             var renderedRow = this.grid.currRenderedRow;
+            var cellContentStyles = objectAsStyle((objectExtract(cell,'content_*',true)));
+            if(cellContentStyles){
+                cellContentStyles = `style="${cellContentStyles}"`;
+            }
             if(!objectNotEmpty(renderedRow)){
-                return '<div class="cellContent">' + '&nbsp;' + '</div>';
+                return `<div class="cellContent" ${cellContentStyles} >&nbsp;</div>`;
             }
             var baseStyleDict = objectUpdate(objectFromStyle(this.cellStyles),
                                                      sourceNode.evaluateOnNode(genro.dom.getStyleDict(objectUpdate({},this), [ 'width'])))
             var ranges = objectExtract(cell,'range_*',true);
-            
+     
+
             if(objectNotEmpty(ranges)){
                 var rangepars = {}; 
                 for (let k in sourceNode.widget.cellmap){
@@ -1567,10 +1572,11 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
             var zoomAttr = objectExtract(opt,'zoom_*',true);
             var draggable = this.draggable ? ' draggable=true ' : '';
+
             if (objectNotEmpty(zoomAttr)) {
-                return "<div "+draggable+" class='cellContent gnrzoomcell' onclick='if(event.shiftKey){dojo.stopEvent(event); genro.dlg.zoomFromCell(event);}'>" + v + "</div>";
+                return `<div ${draggable} class='cellContent gnrzoomcell' ${cellContentStyles} onclick='if(event.shiftKey){dojo.stopEvent(event); genro.dlg.zoomFromCell(event);}'>${v}</div>`;
             }else{
-                return '<div ' + draggable + 'class="cellContent">' + v + '</div>';
+                return `<div ${draggable} class="cellContent" ${cellContentStyles}>${v}</div>`;
             }
             
         };
