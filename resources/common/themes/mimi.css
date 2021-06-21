@@ -1556,6 +1556,11 @@ background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat c
     background: url(/_rsrc/common/css_icons/svg/16/folder.svg) no-repeat center center;
 }
 
+.mimi .calendar{
+    background: url(/_rsrc/common/css_icons/svg/16/calendar.svg) no-repeat center center;
+}
+
+
 
 
 .mimi .ping_semaphore{
