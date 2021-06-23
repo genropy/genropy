@@ -2616,7 +2616,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         this.selection.unselectAll();
         this.selectionKeeper('load');
         if (this.autoSelect && (this.selection.selectedIndex < 0)) {
-            var sel = this.autoSelect == true ? 0 : this.autoSelect();
+            var sel = this.autoSelect === true ? 0 : this.autoSelect();
             this.selection.select(sel);
         }
     },

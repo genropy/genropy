@@ -66,14 +66,20 @@ function _T(str,lazy){
 
 function _F(val,format,dtype){
     return gnrformatter.asText(val,{format:format,dtype:dtype});
-};
+}
+
+function _PREF(path){
+    let pref = genro.getData('gnr.app_preference');
+    return path?pref.getItem(path):pref;
+}
+
 function _IN(val,str){
     var l = str.split(',');
     return l.indexOf(val)>=0;
-};
+}
 function isBag(value){
     return value &&(value.htraverse!=null);
-};
+}
 
 function isNumericType(dtype){
     return dtype in  {'R':null,'L':null,'I':null,'N':null};
