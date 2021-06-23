@@ -108,7 +108,7 @@ class RMS(object):
             os.mkdir(rmsfolder)
         rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=name))
         siteattr = siteconfig.getAttr('rms')
-        if not siteattr.get('domain'):
+        if siteattr or not siteattr.get('domain'):
             return
         if not os.path.exists(rmspath):
             rmsbag = self.buildRmsService(name,siteattr,rmspath)
