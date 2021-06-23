@@ -115,48 +115,6 @@ var th_dash_tableviewer = {
     }
 };
 
-var th_grouper_manager = {
-    prepareSqlCol:function(cell){
-        let f;
-        if(cell.queryfield){
-            f = cell.queryfield.split(' AS ')[0];
-        }else{
-            f = cell.original_field;
-        }
-        f = f.startsWith('@')?f : '$'+f;
-        let group_aggr = cell.group_aggr;
-        if(!group_aggr){
-            return f;
-        }
-        if(['D','DH','DHZ'].indexOf(cell.dtype)>=0){
-            f = ` (to_char(${f},'${group_aggr}')) `;
-            return f;
-        }
-    },
-
-    onCalling:function(kwargs){
-        if(isNullOrBlank(kwargs.grouper_row)){
-            return;
-        }
-        let row = kwargs.grouper_row;
-        let cols = kwargs._grouper_cols;
-        let condition = [];
-        if(kwargs.condition){
-            condition.push(kwargs.condition);
-        }
-        cols.forEach(function(cell,idx){
-            let sqlcol = th_grouper_manager.prepareSqlCol(cell);
-            if(sqlcol){
-                condition.push(`${sqlcol} = :grouper_cnd_${idx}`);
-                kwargs[`grouper_cnd_${idx}`] = row[cell.field_getter];
-            }
-        });
-        kwargs._current_grouper = row._thgroup_pkey;
-        kwargs.condition = condition.join(' AND ');
-        return kwargs.grouper_row;
-    }
-};
-
 var th_sections_manager = {
     updateSectionsStatus:function(sections,viewNode){
         var viewDomNode = viewNode.getDomNode();

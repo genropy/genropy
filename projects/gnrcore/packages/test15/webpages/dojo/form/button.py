@@ -18,7 +18,11 @@ class GnrCustomWebPage(object):
                      style='color:red;font-size:44px;')
                     
     def test_3_params(self, pane):
-        """Button with action and action parameters"""
+        """Button with action and action parameters
+        bla bla bla
+        bla bla bla
+        Nel mezzo del cammin di nostra vita
+        """
         pane.textbox(value='^msg')
         pane.button('i am a button', action='alert(msg)', msg='=msg',ask=dict(title='TEst',fields=[dict(name='msg',lbl='Message')]))
 

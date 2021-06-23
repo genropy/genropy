@@ -52,7 +52,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
     dialog:function(msg, cb, buttons) {
         var root = genro.getNode()._('div', '_dlg');
-        dlg = root._('dialog', 'dialogbox', {gnrId:'dialogbox', toggle:"fade", toggleDuration:250});
+        var dlg = root._('dialog', 'dialogbox', {gnrId:'dialogbox', toggle:"fade", toggleDuration:250});
         dlg._('layoutcontainer', {height:'100%'});
         dlg._('contentpane', {'_class':'dojoDialogInner',layoutAling:'client'})._('span', {content:msg});
         var bottom = dlg._('contentpane', {layoutAling:'bottom'})._('div', {'align':'right'});
@@ -60,7 +60,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             {'caption':'OK', result:'OK'},
             {'caption':'cancel', result:'cancel'}
         ];
-        for (btn in buttons) {
+        for (let btn in buttons) {
             btn.action = function() {
                 genro.dialogbox.hide();
                 cb(btn.result);
@@ -74,7 +74,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         //alert(nodeId);
         var root = genro.nodeById(nodeId);
         root.freeze();
-        var mc = root._('contentPane', {'_class':'menucontainer','background_color':'red',
+        root._('contentPane', {'_class':'menucontainer','background_color':'red',
             'height':'3em',margin_left:'1em',margin_right:'1em',layoutAlign:'top'});
         /*var menunodes = genro.getData('gnr.pagemenu').getNodes();
          for (var i=0; i < menunodes.length; i++) {
@@ -486,6 +486,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     askParameters:function(cb,ask_params,parameters,sourceNode,argnames,argvalues){
         var promptkw = objectUpdate({},ask_params);
+        parameters = objectUpdate({},parameters);
         if(promptkw.fields){
             promptkw.fields = promptkw.fields.map(function(kw){
                 kw = objectUpdate({},kw);
@@ -503,7 +504,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                 objectUpdate(parameters,result);
                 parameters._askResult = result;
             }
-            funcApply(cb, objectUpdate(parameters, {}), sourceNode,argnames,argvalues);
+            funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
         genro.dlg.prompt(objectPop(promptkw,'title','Parameters'),promptkw,sourceNode);
     },

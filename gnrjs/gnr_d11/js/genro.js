@@ -1017,7 +1017,6 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     standardEventConnection:function(pane){
-        pane = pane || genro.domById('mainWindow');
         if(this.isDeveloper){
             dojo.connect(dojo.body(),'onmouseover',function(e){
                 if(e.shiftKey && e.altKey){
@@ -1416,7 +1415,7 @@ dojo.declare('gnr.GenroClient', null, {
             params['connect_onload'] = onload_cb;
         }
         ;
-        frm = node._('htmliframe', params);
+        let frm = node._('htmliframe', params);
         node.unfreeze();
 
 
@@ -2106,7 +2105,7 @@ dojo.declare('gnr.GenroClient', null, {
             if (objectNotEmpty(params)) {
                 params['_no_cache_'] = genro.getCounter();
                 var plist = [];
-                for (k in params) {
+                for (let k in params) {
                     plist.push(k + '=' + encodeURIComponent(params[k]));
                 }
                 window.location.search = plist.join('&');

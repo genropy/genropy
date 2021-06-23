@@ -47,11 +47,15 @@ class TestHandler(BaseComponent):
                                rounded=5, shadow='3px 3px 5px gray',
                                datapath='test.%s' % test_name)
             h = element.div()
-            h.a('Show Source',href='',float='right',onclick='alert("ggg")',style='cursor:pointer',
-                 color='white',font_size='11px',margin_right='5px',margin_top='3px')
-            h.div(test_handler.__doc__ or test_name, background_color='#ACACAC',
+            doc = test_handler.__doc__ or ''
+            doctitle = doc.split('\n')[0]
+            if doctitle:
+                box = h.div()
+                box.div(doctitle,href='',float='right',style='cursor:pointer',
+                    color='white',font_size='11px',margin_right='5px',margin_top='3px')
+                box.tooltipPane(padding='4px').pre(doc)
+            h.div(test_name , background_color='#ACACAC',
                   color='white', padding='3px')
-                  
             element = element.div(padding='5px')
             test_handler(element)
             

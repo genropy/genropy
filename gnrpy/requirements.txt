@@ -25,7 +25,7 @@ lxml
 psutil
 simpleeval
 webob
-werkzeug
+werkzeug<2.0
 webob
 six
 sphinx

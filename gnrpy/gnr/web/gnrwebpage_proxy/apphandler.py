@@ -33,6 +33,7 @@ import os
 import re
 import time
 from datetime import datetime
+from gnr.core.gnrdict import dictExtract
 
 from gnr.core.gnrlang import gnrImport
 
@@ -1856,7 +1857,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             table = query.attr.pop('table')
             tblobj = self.db.table(table)
             columns = ','.join(tblobj.columnsFromString(columns))
-            result[query.label] = tblobj.query(columns=columns,**query.attr).fetchAsBag('pkey')
+            qattr = dict(query.attr)
+            dbenv_kw = dictExtract(qattr,'dbenv_',True)
+            with self.db.tempEnv(**dbenv_kw):
+                result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
     @public_method
@@ -2035,9 +2039,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         return self.page.rmlTemplate(path=template, record=record)
 
     @public_method
-    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,
+    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,columns=None,
+                                selectedPkeys=None,hiddencolumns=None,
                                selectionName=None, struct=None,datamode=None,localized_data=None, downloadAs=None,
-                               selectedRowidx=None, **kwargs):
+                               selectedRowidx=None,limit=None, **kwargs):
         """TODO
         
         :param action: TODO
@@ -2062,7 +2067,14 @@ class GnrWebAppHandler(GnrBaseProxy):
             respath = 'action/_common/%s' % action
         res_obj = self.page.site.loadTableScript(page=self.page, table=table,respath=respath, class_name='Main')
         if selectionName:
-            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx).output('grid')
+            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit)
+        elif selectedPkeys and columns:
+            query_columns = [columns]
+            if hiddencolumns:
+                query_columns.append(hiddencolumns)
+                res_obj.hiddencolumns = hiddencolumns.split(',')
+            res_obj.selectedPkeys = selectedPkeys
+            data = res_obj.get_selection(columns=','.join(query_columns))
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
                                     selectedRowidx=selectedRowidx,filename=downloadAs,table=table)

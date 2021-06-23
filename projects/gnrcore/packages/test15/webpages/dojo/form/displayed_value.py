@@ -79,3 +79,11 @@ class GnrCustomWebPage(object):
         fb=pane.formbuilder(cols=1)
         fb.numberTextBox(value='^.longdec',lbl='Long decimal',format='#,###.000000')
         fb.div('^.longdec')
+
+
+
+    def test_10_numberTextBox_variable_places(self, pane):
+        fb=pane.formbuilder(cols=1)
+        fb.textbox(value='^.format',lbl='Format',default='#,###.00')
+        fb.numberTextBox(value='^.longdec',lbl='Long decimal',format='^.format')
+        fb.div('^.longdec')

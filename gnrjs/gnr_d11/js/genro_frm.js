@@ -489,9 +489,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         //this.updateInvalidField(sourceNode, sourceNode.attrDatapath('value'));
     },
 
-    forceIgnoreReadOnly:function(evt){
+    forceIgnoreReadOnly:function(evt,reloadcb){
         if(genro.dom.getEventModifiers(evt)=='Shift'){
-            this.reload({ignoreReadOnly:true});
+            let kw = {ignoreReadOnly:true};
+            if(reloadcb){
+                kw.onReload = reloadcb;
+            }
+            return this.reload(kw);
         }
     },
     
@@ -502,7 +506,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.newrecord(this.last_default_kw);
             return;
         }
-        this.load(objectUpdate({destPkey:destPkey},kw));
+        return this.load(objectUpdate({destPkey:destPkey},kw));
     },
     
     goToRecord:function(pkey,ts){
@@ -593,7 +597,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var that = this;
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.default_kw),'default_*',true)); 
-            console.log(' kw.default_kw', kw.default_kw)
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
                 dflt:new gnr.GnrBag(kw.default_kw),
@@ -628,10 +631,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     insertAndLoad:function(default_kw){
         var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
+        genro.lockScreen(true,this.formId,{thermo:true});
         genro.serverCall('app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
                                 that.doload_store({destPkey:resultPkey});
+                                genro.lockScreen(false,that.formId);
                             });
     },
 
@@ -1539,7 +1544,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         }
         if (kw.reason == 'resolver' || kw.node.getFullpath().indexOf('$') > 0 || kw.node.attr.virtual_column) {
             var invalidFields = this.getInvalidFields();
-            var invalidDojo = this.getInvalidDojo();
             var ck = this.getChangeKey(kw.node);
             if(invalidFields && invalidFields.len()){
                 invalidFields._nodes.forEach(function(n){
@@ -1840,7 +1844,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
             objectKeys(node_identifiers).forEach(function(idx){
                 sourceNode = genro.src.nodeBySourceNodeId(node_identifiers[idx]);
-                result = genro.vld.validate(sourceNode, sourceNode.getAttributeFromDatasource('value'));
+                let result = genro.vld.validate(sourceNode, sourceNode.getAttributeFromDatasource('value'));
                 if (result['modified']) {
                     sourceNode.widget.setValue(result['value']);
                 }

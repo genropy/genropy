@@ -8,7 +8,7 @@
 
 #from builtins import object
 from gnr.web.batch.btcbase import BaseResourceBatch
-
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrxls import XlsWriter
 from gnr.lib.services.storage import StorageNode
 from gnr.core.gnrstring import toText
@@ -58,6 +58,7 @@ class BaseResourceExport(BaseResourceBatch):
         super(BaseResourceExport, self).__init__(*args, **kwargs)
         self.locale = self.page.locale
         self.columns = []
+        self.hiddencolumns = []
         self.headers = []
         self.coltypes = {}
         self.groups = []
@@ -66,7 +67,9 @@ class BaseResourceExport(BaseResourceBatch):
     def gridcall(self, data=None, struct=None, export_mode=None, datamode=None,selectedRowidx=None,filename=None,
                     localized_data=None,**kwargs):
         self.batch_parameters = dict(export_mode=export_mode, filename=filename,localized_data=localized_data)
-        self.prepareFromStruct(struct)
+        self.prepareExportCols(data,struct=struct)
+        if not isinstance(data,Bag):
+            data = data.output('grid')
         self.data = self.rowFromValue(data) if datamode == 'bag' else self.rowFromAttr(data)
         self._pre_process()
         self.do()
@@ -82,7 +85,7 @@ class BaseResourceExport(BaseResourceBatch):
             for r in data:
                 yield r.getValue()
 
-    def prepareFromStruct(self, struct=None):
+    def _prepareExportCols_struct(self, struct=None):
         info = struct.pop('info')
         columnsets = {}
         if info:
@@ -116,6 +119,19 @@ class BaseResourceExport(BaseResourceBatch):
     def getFileName(self):
         return 'export'
 
+    def _prepareExportCols_selection(self,selection):
+        self.columns = selection.columns
+        hiddencolumns = [c.replace('$','').replace('@','_').replace('.','_') for c in self.hiddencolumns]+['pkey', 'rowidx']
+        self.columns = [c for c in self.columns if c not in hiddencolumns]
+        self.coltypes = dict([(k, v['dataType']) for k, v in selection.colAttrs.items()])
+        self.headers = self.columns
+
+    def prepareExportCols(self,selection,struct=None):
+        if not struct:
+            self._prepareExportCols_selection(selection)
+        else:
+            self._prepareExportCols_struct(struct)
+
     def _pre_process(self):
         self.pre_process()
         self.fileurl = None
@@ -126,13 +142,7 @@ class BaseResourceExport(BaseResourceBatch):
             selection = self.get_selection()
             struct = self.batch_parameters.get('struct')
             self.data = self.btc.thermo_wrapper(selection.data, message=self.tblobj.name_plural, tblobj=self.tblobj)
-            if not struct:
-                self.columns = selection.columns
-                self.columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
-                self.coltypes = dict([(k, v['dataType']) for k, v in list(selection.colAttrs.items())])
-                self.headers = self.columns
-            else:
-                self.prepareFromStruct(struct)
+            self.prepareExportCols(selection,struct)
         writerPars = dict(columns=self.columns, coltypes=self.coltypes, headers=self.headers,
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)

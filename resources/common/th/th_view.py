@@ -656,13 +656,14 @@ class TableHandlerView(BaseComponent):
             _delay=1,
             th_root=th_root)
 
-    def th_distinctSections(self,table,field=None,allPosition=True,**kwargs):
+    def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
         allsection = [dict(code='all',caption='!!All')]
         sections = []
         f = self.db.table(table).query(columns='$%s' %field,addPkeyColumn=True,distinct=True,**kwargs).fetch()
         for i,r in enumerate(f):
             if r[field]:
-                sections.append(dict(code='c_%i' %i,caption=r[field],condition="$%s=:v" %field,condition_v=r[field]))
+                sections.append(dict(code='c_%i' %i,caption=r[field],
+                                condition="$%s=:v" %field,condition_v=r[field],isDefault=r[field]==defaultValue))
         if allPosition:
             return allsection+sections if allPosition!='last' else sections+allsection
         return sections
@@ -1088,7 +1089,14 @@ class TableHandlerView(BaseComponent):
                                httpMethod='WSK' if self.extraFeatures['wsk_grid'] else None,
                                _onCalling="""
                                %s
-                               delete this._currentGrouper;
+                               if( _use_grouper){
+                                   if(kwargs.query_reason=='grouper'){
+                                       return
+                                   }else{
+                                       this.fireEvent('.reloadGrouper',true);
+                                       return false;
+                                   }
+                               }
                                if(kwargs.fkey && this.form && this.form.isLogicalDeleted()){
                                    kwargs.excludeLogicalDeleted = 'mark';
                                }
@@ -1111,9 +1119,7 @@ class TableHandlerView(BaseComponent):
                                     });
                                     kwargs['where'] = newwhere;
                                }
-                               if( _use_grouper){
-                                   this._currentGrouper = th_grouper_manager.onCalling(kwargs);
-                               }
+                               
                                """
                                %self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
                                **store_kwargs)

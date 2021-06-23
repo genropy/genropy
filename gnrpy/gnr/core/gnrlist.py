@@ -565,6 +565,10 @@ def getReader(file_path,filetype=None,delimiter=None,**kwargs):
         dialect = None
         if filetype=='tab' or ext=='.tab':
             dialect = 'excel-tab'
-        reader = CsvReader(file_path,dialect=dialect,delimiter=delimiter,**kwargs)
-        reader.index = {slugify(k):v for k,v in list(reader.index.items())}
+        elif filetype == 'csv_auto':
+            with open(file_path) as csv_test:
+                dialect = csv.Sniffer().sniff(csv_test.read(1024))
+
+        reader = CsvReader(file_path,dialect=dialect,**kwargs)
+        reader.index = {slugify(k):v for k,v in reader.index.items()}
     return reader

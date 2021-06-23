@@ -65,7 +65,7 @@ class Main(BaseDashboardItem):
         extraPars = data.pop('extraPars')
         where = data['where']
         struct = data['struct']
-        frame = pane.frameGrid(struct=struct,_newGrid=True,frameCode=self.itemIdentifier,**kwargs)
+        frame = pane.frameGrid(struct=struct,_newGrid=True,table=table,configurable=True,frameCode=self.itemIdentifier,**kwargs)
         frame.data('.query.limit',limit)
         frame.data('.query.where',where)
         frame.data('.query.extraPars',extraPars)
@@ -77,7 +77,7 @@ class Main(BaseDashboardItem):
         frame.grid.selectionStore(table=table,childname='store',where='=.query.where',
                                 customOrderBy='=.query.customOrderBy',
                                 joinConditions='=.query.joinConditions',
-                                limit='=.query.limit',
+                                limit='=.query.limit',chunkSize=100,
                                 _fired='^%s.runItem' %self.workpath)
         return frame
 
@@ -109,7 +109,7 @@ class Main(BaseDashboardItem):
                         action="""
                         var opt = objectExtract(_kwargs,'opt_*');
                         var kw = {command:'export',opt:opt};
-                        var gridId = 'temIdentifier+'_grid';
+                        var gridId = itemIdentifier+'_grid';
                         genro.nodeById(gridId).publish('serverAction',kw)""",
                         groupMode='=.groupMode' ,datapath=self.workpath,
                         itemIdentifier=self.itemIdentifier,height='16px',width='16px',
@@ -131,7 +131,6 @@ class Main(BaseDashboardItem):
             r = struct.view().rows()
             r.fieldcell(tblobj.attributes.get('caption_field') or tblobj.pkey, name=tblobj.name_long, width='20em')
         th = pane.plainTableHandler(table=table,viewResource='_viewUOEdit',view_structCb=struct,
-        
                                     virtualStore=True,extendedQuery=True)
 
         view = th.view

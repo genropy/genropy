@@ -46,11 +46,11 @@ class MoverPlugin(BaseComponent):
         return self.db.table(table).query(where=where,code=code).selection().output('pkeylist')
        
 
-    def btn_datamover(self,pane,**kwargs):
-        pane.div(_class='button_block iframetab').div(_class='case',tip='!!Mover plug-in',
-                    connect_onclick="""SET left.selected='datamover';PUBLISH gnrdatamover_loadCurrent;genro.nodeById('standard_index').publish('showLeft');""",
-                    nodeId='plugin_block_datamover')
-                     
+    def btn_datamover(self,pane,**kwargs):  
+        pane.pluginButton('datamover',caption='!!Datamover',
+                            iconClass='mover')
+
+
     def mainLeft_datamover(self, pane):
         """!!Mover"""
         frame = pane.framePane(datapath='gnr.datamover')
