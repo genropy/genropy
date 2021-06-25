@@ -131,11 +131,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
-        dsn = kwargs.get('dsn') or kwargs.get('database')
+        if kwargs.get('database','').startswith('dsn:'):
+            kwargs['dsn'] = kwargs.get('dsn') or kwargs['database'].replace('dsn:','')
         try:
-            conn = pyodbc.connect(dsn=dsn)
+            conn = pyodbc.connect(**kwargs)
         except Exception as e:
-            raise GnrNonExistingDbException(dsn)
+            raise GnrNonExistingDbException(kwargs.get('dsn') or kwargs['database'].replace('dsn:',''))
         return DictConnectionWrapper(connection=conn)
 
     def adaptSqlName(self,name):
