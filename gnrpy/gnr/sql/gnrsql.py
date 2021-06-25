@@ -1093,10 +1093,11 @@ class DbStoresHandler(object):
         self.db = db
         if db.application:
             self.config_folder = os.path.join(db.application.instanceFolder, 'dbstores')
+            instance_dbstores = db.application.config['dbstores']
         else:
             self.config_folder = None
+            instance_dbstores = None
         self.dbstores = {}
-        instance_dbstores = db.application.config['dbstores']
         if instance_dbstores:
             self.dbstores = {n.label:n.attr for n in instance_dbstores}
         self.create_stores()
