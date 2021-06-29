@@ -369,8 +369,6 @@ class GnrWebSocketHandler(websocket.WebSocketHandler,GnrBaseHandler):
             if isinstance(v, basestring):
                 try:
                     v = catalog.fromTypedText(v)
-                    if isinstance(v, basestring):
-                        v = v.decode('utf-8')
                     result[k] = v
                 except Exception:
                     raise
@@ -658,8 +656,8 @@ class SharedStatus(SharedObject):
             conndata=userdata['connections'][page.connection_id]
             pagedata=conndata['pages'][page_id]
             pagedata['lastEventAge']=lastEventAge
-            conndata['lastEventAge']=min(conndata['pages'].digest('#v.lastEventAge'))
-            userdata['lastEventAge']=min(userdata['connections'].digest('#v.lastEventAge'))
+            conndata['lastEventAge']=min(conndata['pages'].digest('#v.lastEventAge'), key = lambda i:i or 0 )
+            userdata['lastEventAge']=min(userdata['connections'].digest('#v.lastEventAge'),key = lambda i:i or 0 )
   
             
     def onUserEvent(self, page_id, event):
