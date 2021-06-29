@@ -924,7 +924,7 @@ class GnrBaseAsyncServer(object):
         io_loop = self.io_loop
         def stop_loop():
             now = time.time()
-            if now < deadline and (io_loop._callbacks or io_loop._timeouts):
+            if now < deadline:
                 io_loop.add_timeout(now + 1, stop_loop)
             else:
                 io_loop.stop()
