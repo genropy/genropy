@@ -229,7 +229,7 @@ class TableHandlerForm(BaseComponent):
             bar.cancel.button('!!Cancel',action='this.form.abort();')
             bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})',hidden=readOnly)
         elif showtoolbar:
-            default_slots = '*,semaphore,5' if readOnly else '*,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
+            default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
                 default_slots = default_slots.replace('form_archive','annotationTool,10,form_archive')
             if form_add is False:
@@ -268,7 +268,7 @@ class TableHandlerForm(BaseComponent):
                 #default_slots = default_slots.replace('locker','') 
             table = form.getInheritedAttributes()['table']  
             if extra_slots:
-                default_slots = default_slots.replace('form_delete','%s,10,form_delete' %(','.join(extra_slots)))
+                default_slots = default_slots.replace('right_placeholder','right_placeholder,%s' %(','.join(extra_slots)))
             slots = options.pop('slots',default_slots)
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
