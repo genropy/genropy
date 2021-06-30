@@ -8,7 +8,7 @@
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrxls import XlsWriter
+from gnr.core.gnrxls import XlsWriter, XlsxWriter
 from gnr.lib.services.storage import StorageNode
 from gnr.core.gnrstring import toText
 import re
@@ -147,6 +147,8 @@ class BaseResourceExport(BaseResourceBatch):
                         locale= self.locale if self.localized_data else None)
         if self.export_mode == 'xls':
             self.writer = XlsWriter(**writerPars)
+        if self.export_mode == 'xlsx':
+            self.writer = XlsxWriter(**writerPars)
         elif self.export_mode == 'csv':
             self.writer = CsvWriter(**writerPars)
 

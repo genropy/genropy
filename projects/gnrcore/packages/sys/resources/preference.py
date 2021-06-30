@@ -19,6 +19,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from builtins import object
 from gnr.core.gnrdecorator import public_method
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
@@ -42,6 +43,7 @@ class AppPref(object):
         fb.comboBox(value='^.body.font_family',values=FONTFAMILIES,lbl='Font family',width='20em',livePreference=True)        
         fb.textbox(value='^.palette_colors',lbl='Default color palette')
         fb.textbox(value='^.palette_steps',lbl='Default color steps')
+        fb.checkbox(value='^.xlsx',label='Export in xlsx')
 
 
         pdfpane = tc.borderContainer(title='Print')

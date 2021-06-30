@@ -4,6 +4,8 @@
 # Created by Francesco Porcari on 2011-04-16.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
+from builtins import str
+from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -16,12 +18,14 @@ class FrameGridTools(BaseComponent):
     def fgr_slotbar_export(self,pane,_class='iconbox export',mode='xls',enable=None,rawData=True,parameters=None,**kwargs):
         kwargs.setdefault('visible',enable)
         parameters = parameters or dict()
-        mode = parameters.get('mode','xls')
+        # FIX l'argomento "mode" non viene mai usato
+        xls_or_xlsx = 'xlsx' if self.getPreference('theme.xlsx', pkg='sys') else 'xls'
+        mode = parameters.get('mode', xls_or_xlsx)
         gridattr = pane.frame.grid.attributes
         table = gridattr.get('table')
         placeholder = table.replace('.','_') if table else None
         return pane.slotButton(label='!!Export',publish='serverAction',
-                                command='export',opt_export_mode=mode or 'xls',
+                                command='export',opt_export_mode=mode or xls_or_xlsx,
                                 opt_downloadAs=parameters.get('downloadAs'),
                                 opt_rawData=rawData, iconClass=_class,
                                 opt_localized_data=True,
@@ -29,7 +33,7 @@ class FrameGridTools(BaseComponent):
                                                         permissions='export'),
                                 ask=dict(title='Export selection',skipOn='Shift',
                                         fields=[dict(name='opt_downloadAs',lbl='Download as',placeholder=placeholder),
-                                                dict(name='opt_export_mode',wdg='filteringSelect',values='xls:Excel,csv:CSV',lbl='Mode'),
+                                                dict(name='opt_export_mode',wdg='filteringSelect',values='%s:Excel,csv:CSV'%xls_or_xlsx,lbl='Mode'),
                                                 dict(name='opt_allRows',label='All rows',wdg='checkbox'),
                                                 dict(name='opt_localized_data',wdg='checkbox',label='Localized data')]),
                                 **kwargs) 
@@ -535,8 +539,3 @@ class TemplateGrid(BaseComponent):
                             editable=True,hidden=True,
                             **{'subscribe_%s_editRowTemplate' %frame.grid.attributes['nodeId']:"this.publish('openTemplatePalette');"})
         return frame
-
-
-
-
-        
