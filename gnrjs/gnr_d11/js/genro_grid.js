@@ -1912,7 +1912,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var that = this;
         setTimeout(function(){
             that.restoreSelectedRows();
-        },1);
+        },1)
 
     },
     mixin_addColumn:function(col, toPos,kw) {
@@ -2603,10 +2603,16 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
 
     },
 
-    mixin_refreshContent:function(){
-        this.selectionKeeper('save');
-        this.updateRowCount('*');
-        this.restoreSelectedRows();
+    mixin_refreshContent:function(delay){
+        var that = this;
+        delay = delay || 1;
+        this.sourceNode.delayedCall(
+            function(){
+                that.selectionKeeper('save');
+                that.updateRowCount('*');
+                that.restoreSelectedRows();
+            },delay,'refreshContent'
+        )
     },
 
     mixin_newDataStore:function() {
