@@ -1,5 +1,6 @@
 from __future__ import print_function
 import xlwt
+import six
 try:
     import openpyxl
 except:
