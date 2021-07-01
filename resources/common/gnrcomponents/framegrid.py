@@ -17,13 +17,18 @@ class FrameGridTools(BaseComponent):
         kwargs.setdefault('visible',enable)
         parameters = parameters or dict()
         # FIX l'argomento "mode" non viene mai usato
-        xls_or_xlsx = 'xlsx' if self.getPreference('theme.xlsx', pkg='sys') else 'xls'
+
+        values='xls:Excel,csv:CSV'
+        xlsx_flag = self.getPreference('theme.xlsx', pkg='sys')
+        if xlsx_flag:
+            values='xlsx:Excel 2007+,xls:Excel,csv:CSV'
+        xls_or_xlsx = 'xlsx' if xlsx_flag else 'xls'
         mode = parameters.get('mode', xls_or_xlsx)
         gridattr = pane.frame.grid.attributes
         table = gridattr.get('table')
         placeholder = table.replace('.','_') if table else None
         return pane.slotButton(label='!!Export',publish='serverAction',
-                                command='export',opt_export_mode=mode or xls_or_xlsx,
+                                command='export',opt_export_mode=mode or xls_or_xlsx, # mode can be '' ?
                                 opt_downloadAs=parameters.get('downloadAs'),
                                 opt_rawData=rawData, iconClass=_class,
                                 opt_localized_data=True,
@@ -31,7 +36,7 @@ class FrameGridTools(BaseComponent):
                                                         permissions='export'),
                                 ask=dict(title='Export selection',skipOn='Shift',
                                         fields=[dict(name='opt_downloadAs',lbl='Download as',placeholder=placeholder),
-                                                dict(name='opt_export_mode',wdg='filteringSelect',values='%s:Excel,csv:CSV'%xls_or_xlsx,lbl='Mode'),
+                                                dict(name='opt_export_mode',wdg='filteringSelect',values=values,lbl='Mode'),
                                                 dict(name='opt_allRows',label='All rows',wdg='checkbox'),
                                                 dict(name='opt_localized_data',wdg='checkbox',label='Localized data')]),
                                 **kwargs) 
