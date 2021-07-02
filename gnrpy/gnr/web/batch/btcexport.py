@@ -171,7 +171,7 @@ class BaseResourceExport(BaseResourceBatch):
             zipNode = self.page.site.storageNode('page:output',export_mode,'%s.%s' % (self.filename, export_mode), autocreate=-1)
             self.page.site.zipFiles(file_list=[self.filepath],zipPath=zipNode)
             self.filepath = zipNode.fullpath
-        # errore con zip
+
         filename = self.filename
         if not self.filename.endswith('.%s' %self.writer.extension):
             filename = '%s.%s' % (self.filename, self.writer.extension)
