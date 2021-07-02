@@ -8,13 +8,20 @@
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrxls import XlsWriter
 from gnr.lib.services.storage import StorageNode
 from gnr.core.gnrstring import toText
 import re
+try:
+    import openpyxl
+    from gnr.core.gnrxls import XlsxWriter as ExcelWriter
+except:
+    from gnr.core.gnrxls import XlsWriter as ExcelWriter
+
 
 class CsvWriter(object):
     """docstring for CsVWriter"""
+
+    extension = 'csv'
 
     def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, **kwargs):
         self.headers = headers or []
@@ -47,7 +54,7 @@ class CsvWriter(object):
         with csv_open(mode='w') as f:
             result = '\n'.join(self.result)
             f.write(result.encode('utf-8'))
-            
+
 class BaseResourceExport(BaseResourceBatch):
     batch_immediate = True
     export_zip = False
@@ -114,7 +121,7 @@ class BaseResourceExport(BaseResourceBatch):
                 curr_columnset['end']=curr_column
                 if curr_columnset.get('name'):
                     self.groups.append(curr_columnset)
-        
+
     def getFileName(self):
         return 'export'
 
@@ -146,7 +153,7 @@ class BaseResourceExport(BaseResourceBatch):
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
         if self.export_mode == 'xls':
-            self.writer = XlsWriter(**writerPars)
+            self.writer = ExcelWriter(**writerPars)
         elif self.export_mode == 'csv':
             self.writer = CsvWriter(**writerPars)
 
@@ -164,10 +171,11 @@ class BaseResourceExport(BaseResourceBatch):
             zipNode = self.page.site.storageNode('page:output',export_mode,'%s.%s' % (self.filename, export_mode), autocreate=-1)
             self.page.site.zipFiles(file_list=[self.filepath],zipPath=zipNode)
             self.filepath = zipNode.fullpath
+
         filename = self.filename
-        if not self.filename.endswith('.%s' %self.export_mode):
-            filename = '%s.%s' % (self.filename, export_mode)
-        self.fileurl = self.page.site.storageNode('page:output', export_mode,filename).url()
+        if not self.filename.endswith('.%s' %self.writer.extension):
+            filename = '%s.%s' % (self.filename, self.writer.extension)
+        self.fileurl = self.page.site.storageNode('page:output', export_mode, filename).url()
 
     def prepareFilePath(self, filename=None):
         if not filename:
