@@ -8,10 +8,15 @@
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrxls import XlsWriter, XlsxWriter
 from gnr.lib.services.storage import StorageNode
 from gnr.core.gnrstring import toText
 import re
+try:
+    import openpyxl
+    from gnr.core.gnrxls import XlsxWriter as ExcelWriter
+except:
+    from gnr.core.gnrxls import XlsWriter as ExcelWriter
+
 
 class CsvWriter(object):
     """docstring for CsVWriter"""
@@ -47,7 +52,7 @@ class CsvWriter(object):
         with csv_open(mode='w') as f:
             result = '\n'.join(self.result)
             f.write(result.encode('utf-8'))
-            
+
 class BaseResourceExport(BaseResourceBatch):
     batch_immediate = True
     export_zip = False
@@ -114,7 +119,7 @@ class BaseResourceExport(BaseResourceBatch):
                 curr_columnset['end']=curr_column
                 if curr_columnset.get('name'):
                     self.groups.append(curr_columnset)
-        
+
     def getFileName(self):
         return 'export'
 
@@ -146,9 +151,7 @@ class BaseResourceExport(BaseResourceBatch):
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
         if self.export_mode == 'xls':
-            self.writer = XlsWriter(**writerPars)
-        if self.export_mode == 'xlsx':
-            self.writer = XlsxWriter(**writerPars)
+            self.writer = ExcelWriter(**writerPars)
         elif self.export_mode == 'csv':
             self.writer = CsvWriter(**writerPars)
 

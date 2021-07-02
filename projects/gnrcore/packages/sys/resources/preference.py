@@ -42,7 +42,6 @@ class AppPref(object):
         fb.comboBox(value='^.body.font_family',values=FONTFAMILIES,lbl='Font family',width='20em',livePreference=True)        
         fb.textbox(value='^.palette_colors',lbl='Default color palette')
         fb.textbox(value='^.palette_steps',lbl='Default color steps')
-        fb.checkbox(value='^.xlsx',label='Export in xlsx')
 
 
         pdfpane = tc.borderContainer(title='Print')
