@@ -33,6 +33,8 @@ from gnr.core.gnrdict import dictExtract
 #from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
+from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
+
 from gnr.sql.gnrsql import GnrSqlException
 from datetime import datetime
 import logging
@@ -221,6 +223,8 @@ class SqlTable(GnrObject):
         self._lock = threading.RLock()
         if tblobj.attributes.get('hierarchical'):
             self.hierarchicalHandler = HierarchicalHandler(self)
+        if tblobj.attributes.get('xtdtable'):
+            self.xtd = XTDHandler(self)
         
     def use_dbstores(self,**kwargs):
         pass
