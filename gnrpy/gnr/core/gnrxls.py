@@ -12,6 +12,9 @@ from gnr.lib.services.storage import StorageNode
 
 class XlsWriter(object):
     """TODO"""
+
+    extension = 'xls'
+
     def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
                  font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
        #self.headers = headers
@@ -196,6 +199,9 @@ class XlsReader(object):
 
 class XlsxWriter(object):
     """TODO"""
+
+    extension = 'xlsx'
+
     def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
                  font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
        #self.headers = headers

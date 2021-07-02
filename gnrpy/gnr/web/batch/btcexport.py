@@ -21,6 +21,8 @@ except:
 class CsvWriter(object):
     """docstring for CsVWriter"""
 
+    extension = 'csv'
+
     def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, **kwargs):
         self.headers = headers or []
         self.columns = columns
@@ -169,10 +171,11 @@ class BaseResourceExport(BaseResourceBatch):
             zipNode = self.page.site.storageNode('page:output',export_mode,'%s.%s' % (self.filename, export_mode), autocreate=-1)
             self.page.site.zipFiles(file_list=[self.filepath],zipPath=zipNode)
             self.filepath = zipNode.fullpath
+        # errore con zip
         filename = self.filename
-        if not self.filename.endswith('.%s' %self.export_mode):
-            filename = '%s.%s' % (self.filename, export_mode)
-        self.fileurl = self.page.site.storageNode('page:output', export_mode,filename).url()
+        if not self.filename.endswith('.%s' %self.writer.extension):
+            filename = '%s.%s' % (self.filename, self.writer.extension)
+        self.fileurl = self.page.site.storageNode('page:output', export_mode, filename).url()
 
     def prepareFilePath(self, filename=None):
         if not filename:
