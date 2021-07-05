@@ -255,7 +255,15 @@ class XlsxWriter(object):
                                 number_format="D MMM YYYY, H:MM:SS",
                                 alignment=openpyxl.styles.Alignment(vertical="top"),
         ))
-
+        self.workbook.add_named_style(openpyxl.styles.NamedStyle("group",
+                                font=openpyxl.styles.Font(name=font, bold=True),  # italic=True 
+                                alignment=openpyxl.styles.Alignment(
+                                    vertical="center", 
+                                    wrap_text=True,                                        
+                                    horizontal='center'
+                                )
+        ))
+        'align: wrap on, vert centre, horiz center'
 
     @property
     def sheet(self):
@@ -316,16 +324,16 @@ class XlsxWriter(object):
         colsizes = self.sheets[sheet_name]['colsizes']
         groups = self.sheets[sheet_name]['groups']
         current_row = 0
-        # if groups:
-        #     group_style = xlwt.easyxf('align: wrap on, vert centre, horiz center')
-        #     current_col = 0
-        #     for g in groups:
-        #         name = g.get('name')
-        #         start = g.get('start')
-        #         end = g.get('end')
-        #         sheet.write_merge(current_row, current_row,
-        #             start, end, name, group_style)
-        #     current_row +=1
+        if groups:
+            current_col = 0
+            for g in groups:
+                name = g.get('name')
+                start = g.get('start')
+                end = g.get('end')
+                self.writeCell(sheet, current_row, current_row+start,
+                               name, style='group',
+                               end_column=current_row+end)
+            current_row +=1
         max_height = 0
         for c, header in enumerate(headers):
             self.writeCell(sheet, current_row, c, header, style="header")
@@ -350,10 +358,13 @@ class XlsxWriter(object):
         else:
             self.workbook.save(filename=self.filepath)
 
-    def writeCell(self, sheet, row, column, value, style=None):
+    def writeCell(self, sheet, row, column, value, style=None, end_column=None):
         cell = sheet.cell(row=row+1, column=column+1, value=value)
         if style:
             cell.style = style
+        if end_column:  # merging cells
+            sheet.merge_cells(start_row=row+1, start_column=column+1,
+                              end_row=row+1, end_column=end_column+1)
         return cell
 
     def writeRow(self, row, sheet_name=None):
