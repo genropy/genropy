@@ -896,9 +896,9 @@ class TableBase(object):
         if not chlog:
             return
         if chlog is True:
-            self.xtd.checkChangelog(record=record,old_record=old_record)
+            self.xtd.mainChangelog(record=record,old_record=old_record)
         else:
-            return
+            self.xtd.relatedChangelog(self,record=record,old_record=old_record)
 
     def dbo_onDeleting(self,record,**kwargs):
         self.checkChangelog(None,old_record=record)
