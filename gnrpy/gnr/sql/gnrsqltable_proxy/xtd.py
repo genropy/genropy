@@ -52,6 +52,8 @@ class XTDHandler(object):
                 deleted_record[k] = v
             xtd['deleted_record'] = deleted_record
 
-    def checkChangelog(self,*args,**kwargs):
+    def mainChangelog(self,*args,**kwargs):
         pass
     
+    def relatedChangelog(self,*args,**kwargs):
+        pass
