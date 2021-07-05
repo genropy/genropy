@@ -27,17 +27,21 @@ from gnr.core.gnrdecorator import extract_kwargs
 
 
 class XTDHandler(object):
-    """docstring for HierarchicalHandler"""
+    """docstring for XTDHandler"""
     def __init__(self, tblobj):
         self.tblobj = tblobj
         self.db = self.tblobj.db
     
+
+    def __getattr__(self, fname): 
+        return getattr(self.xtdtable, fname,None)
+
     @property
     def xtdtable(self):
         return self.db.table(self.tblobj.attributes['xtdtable'])
 
     def onDeletedMain(self,mainrecord):
-        if not self.tblobj.attributes.get('xtd_copy_deleted_record'):
+        if not self.tblobj.attributes.get('copy_deleted_record'):
             self.xtdtable.delete(mainrecord[self.tblobj.pkey])
             return
         with self.xtdtable.recordToUpdate(mainrecord[self.tblobj.pkey],insertMissing=True) as xtd:
@@ -47,3 +51,7 @@ class XTDHandler(object):
             for k,v in mainrecord.items():
                 deleted_record[k] = v
             xtd['deleted_record'] = deleted_record
+
+    def checkChangelog(self,*args,**kwargs):
+        pass
+    
