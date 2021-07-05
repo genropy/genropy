@@ -263,7 +263,6 @@ class XlsxWriter(object):
                                     horizontal='center'
                                 )
         ))
-        'align: wrap on, vert centre, horiz center'
 
     @property
     def sheet(self):
