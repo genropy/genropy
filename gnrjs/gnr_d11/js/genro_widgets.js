@@ -2880,6 +2880,13 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
         var modifiers = genro.dom.getEventModifiers(e);
         var argnames = ['event','_counter','modifiers'];
         var argvalues = [e,count,modifiers];
+        var content = sourceNode.getValue();
+        if(content && content.len()==1){
+            let firstTag = content.getNode('#0').attr.tag.toLowerCase();
+            if(firstTag=='datacontroller' || firstTag=='datarpc'){
+                content.getNode('#0').fireNode({_modifiers:modifiers,_evt:e},{},'node');
+            }
+        }
         if (action) {
             var action_attributes = sourceNode.currentAttributes();
             var ask_params = sourceNode._ask_params;
@@ -2899,16 +2906,17 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
                 funcApply(action, objectUpdate(action_attributes, {}), sourceNode,argnames,argvalues);
             }
         }
-        if (sourceNode.attr.fire) {
+        else if (sourceNode.attr.fire) {
             var s = eventToString(e) || true;
             sourceNode.setRelativeData(sourceNode.attr.fire, s, {modifier:modifier,_counter:count}, true);
         }
-        if(sourceNode.attr.publish){
+        else if(sourceNode.attr.publish){
             genro.publish(sourceNode.attr.publish,true);
-        }
-        var fire_list = objectExtract(sourceNode.attr, 'fire_*', true);
-        for (var fire in fire_list) {
-            sourceNode.setRelativeData(fire_list[fire], fire, {modifier:modifier,_counter:count}, true);
+        }else{
+            var fire_list = objectExtract(sourceNode.attr, 'fire_*', true);
+            for (var fire in fire_list) {
+                sourceNode.setRelativeData(fire_list[fire], fire, {modifier:modifier,_counter:count}, true);
+            }
         }
     }
 });
