@@ -33,8 +33,9 @@ class Service(AdmMailService):
                 if not kwargs.get(k,None):
                     kwargs[k]=v
         if scheduler:
-            return db.table('email.message').newMessage(attachments=attachments,
-                                                        headers_kwargs=headers_kwargs,**kwargs)
+            new_message = db.table('email.message').newMessage(attachments=attachments,
+                                                    headers_kwargs=headers_kwargs,doCommit=True,**kwargs)
+            return new_message
         else:
             kwargs['headers_kwargs'] = headers_kwargs
             return super(Service, self).sendmail(attachments=attachments,**kwargs)

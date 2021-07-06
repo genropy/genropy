@@ -10,3 +10,4 @@ def config(root,application=None):
     test.branch("Layout", pkg="test", dir='layout')
     test.branch("Path", pkg="test", dir='path')
     test.branch("Services", pkg="test", dir='services')
+    test.branch("Websocket", pkg="test", dir='websocket')
