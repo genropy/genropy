@@ -1048,7 +1048,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         return self.child('dataController', script=script, **kwargs)
         
-    def dataRpc(self, path, method, **kwargs):
+    def dataRpc(self, pathOrMethod, method=None, **kwargs):
         """Create a :ref:`datarpc` and returns it. dataRpc allows the client to make a call
         to the server to perform an action and returns it.
         
@@ -1059,6 +1059,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
+        if not method and callable(pathOrMethod):
+            method = pathOrMethod
+            path = None
+        else:
+            path = pathOrMethod
         return self.child('dataRpc', path=path, method=method, **kwargs)
         
     def selectionstore_addcallback(self, *args, **kwargs):
