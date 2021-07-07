@@ -205,10 +205,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
             }else{
                 var runKwargs = (nodeOrRunKwargs instanceof gnr.GnrBagNode)?{}:nodeOrRunKwargs;
+                var currAttr = this.currentAttributes();
                 genro.dlg.askParameters(function(_askResult){
-                    objectUpdate(runKwargs,_askResult)
+                    objectUpdate(runKwargs,_askResult);
+                    runKwargs._askResult = _askResult;        
                     this.setDataNodeValueDo(runKwargs, kw, trigger_reason, subscription_args);
-                },this.attr._ask,this.attr,this);
+                },this.attr._ask,currAttr,this);
             }
         }
         else{
@@ -301,15 +303,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 kwargs['_subscription_kwargs'] = subscription_args[0];
             }
         }
-        if(runKwargs){
-            for (let k in runKwargs) {
-                argNames.push(k);
-                argValues.push(runKwargs[k]);
-                kwargs[k] = runKwargs[k];
-            }
-            argNames.push('_runKwargs');
-            argValues.push(runKwargs);
-        }
         var val;
         if (_trace && (_trace_level > 0)) {
             console.log('Arguments:');
@@ -323,6 +316,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 console.log("--- " + attrname + " ---");
                 console.log(val);
             }
+        }
+        if(runKwargs){
+            for (let k in runKwargs) {
+                argNames.push(k);
+                argValues.push(runKwargs[k]);
+                kwargs[k] = runKwargs[k];
+            }
+            argNames.push('_runKwargs');
+            argValues.push(runKwargs);
         }
         //objectUpdate(kwargs,runKwargs);
         var if_result = true;

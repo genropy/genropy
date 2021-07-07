@@ -486,17 +486,30 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     askParameters:function(cb,ask_params,parameters,sourceNode,argnames,argvalues){
         var promptkw = objectUpdate({},ask_params);
+        let doAsk = true;
+        if(ask_params._if){
+            doAsk = funcApply('return '+ask_params._if,parameters,sourceNode);
+        }
+        var default_result = {};
         parameters = objectUpdate({},parameters);
         if(promptkw.fields){
             promptkw.fields = promptkw.fields.map(function(kw){
                 kw = objectUpdate({},kw);
                 if(kw['name'] in parameters){
                     kw['default_value'] = parameters[kw['name']];
+                    default_result[kw['name']] = parameters[kw['name']];
                 }
                 kw['value'] = '^.'+kw['name'];
                 return kw;
             })
             promptkw.widget = objectPop(promptkw,'fields');
+        }
+        if(!doAsk){
+            if(default_result && objectNotEmpty(default_result)){
+                parameters._askResult = default_result;
+            }
+            funcApply(cb, parameters, sourceNode,argnames,argvalues);
+            return;
         }
         promptkw.action = function(result){
             if(result && result.len()){

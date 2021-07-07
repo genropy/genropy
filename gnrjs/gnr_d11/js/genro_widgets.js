@@ -2459,7 +2459,8 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
         }
         let childController = this.gnr.getChildController(sourceNode);
         if(childController){
-            return childController.fireNode({_ctxSourceNode:ctxSourceNode,_evt:evt},{},'node');
+            let modifiers = genro.dom.getEventModifiers(e);
+            return childController.fireNode({_ctxSourceNode:ctxSourceNode,_evt:evt,_modifiers:modifiers},{},'node');
         }
         var selattr = objectExtract(inAttr, 'selected_*', true);
         if (ctxSourceNode) {
