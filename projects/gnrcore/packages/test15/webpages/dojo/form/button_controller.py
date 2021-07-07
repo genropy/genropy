@@ -12,9 +12,10 @@ class GnrCustomWebPage(object):
         pane.button('Hello again').dataController('alert(message);',message='Hello')
 
     def test_2_ask(self,pane):
+        pane.textbox(value='^.cognome',lbl='Cognome',default='Bianchi')
         pane.button('Hello again').dataController('alert(message + cognome)',message='Hello ',
-                                                cognome='Bianchi',
-                                                _ask=dict(title='Complete parameters',
+                                                cognome='=.cognome',
+                                                _ask=dict(title='Complete parameters',_if='!cognome',
                                                             fields=[dict(name='cognome',lbl='Cognome')]))
 
 
