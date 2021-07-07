@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
+
 "Test Button"
 
 class GnrCustomWebPage(object):
@@ -11,6 +13,7 @@ class GnrCustomWebPage(object):
         pane.button('Launch', action="""alert(message); 
                                         console.log("you clicked me ",event,_counter)""", 
                                 _delay=50, message='=.message')
+
     def test_1_styled(self, pane):
         "Simple button alert but styled: insert text and launch alert"
         pane.button('Click me',
@@ -25,13 +28,8 @@ class GnrCustomWebPage(object):
         fb.button('Copia',action='SET .destinazione = v;',
                     v='=.sorgente')
         fb.textbox('^.destinazione',lbl='Destinazione')
-    
-    def test_3_divbutton(self, pane):
-        "Lightbutton: different lighter style"
-        pane.lightbutton("Even if you don't think so, I am a button", action='alert(msg)', msg='=msg',
-                        ask=dict(title='Test',fields=[dict(name='msg',lbl='Message')]))
 
-    def test_4_buttonAsk(self,pane):
+    def test_3_buttonAsk(self,pane):
         "Button with ask: press button and insert fields into dialog"
         pane.button('Set value',
                     action="""SET .myvalue = myvalue;
@@ -45,7 +43,7 @@ class GnrCustomWebPage(object):
                                 )
         pane.div('^.myvalue',color='^.mycolor')
         
-    def test_5_shortcut(self, pane):
+    def test_4_shortcut(self, pane):
         """Just messing with buttons... Try using shortcuts (F1, F2) inside and outside dialog"""
         tc = pane.contentPane(height='150px',width='400px')
         tc.button('Quit', action='alert("Quit")',_shortcut='f1',nodeId='qtbtn')
@@ -66,7 +64,7 @@ class GnrCustomWebPage(object):
         tc.button('Shortcut', action='alert("underdialog")',_shortcut='f2')
         dlg.button('Inside dialog', action='alert("Inside dialog")',_shortcut='f2')
 
-    def test_6_slotButton(self, pane):
+    def test_5_slotButton(self, pane):
         """slotButton vs standard button"""
         fb = pane.formbuilder(cols=3)
         fb.slotButton('I\'m the label, but I work as a tooltip', iconClass="icnBuilding", action='alert("Hello!")',colspan=2)
@@ -79,3 +77,16 @@ class GnrCustomWebPage(object):
         fb.button('button', action='alert("fb.button(\'button\')")')
         fb.slotButton('slotButton', action='alert("fb.slotButton(\'slotButton\')")')
         fb.div('Here we have a button and a slotButton set equal (without the "iconclass" attribute)')
+
+    def test_6_lightbutton(self, pane):
+        "Lightbutton: different lighter style"
+        pane.lightbutton("Even if you don't think so, I am a button", action='alert(msg)', msg='=msg',
+                        ask=dict(title='Test',fields=[dict(name='msg',lbl='Message')]))
+
+    def test_7_lightbutton_controller(self, pane):
+        """Use of lightbutton (no style) to attach dataController
+        Lightbutton differs in style from normal button, but it works in the same way.
+        Here we attach a dataController directly to the button"""
+        btn = pane.lightbutton('What time is it?')
+        btn.dataController('var now = new Date().toISOString(); SET .time=now;')
+        pane.div('^.time')

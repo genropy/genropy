@@ -56,6 +56,7 @@ class GnrCustomWebPage(object):
                     action='this.setRelativeData(".menudata.r6",12,{"code":"PP","caption":"Palau port"})',
                     disabled='^.disabled')
 
+    @public_method
     def menudata(self):
         result = Bag()
         result.setItem('r1', None, code='CA', caption='California')
@@ -80,3 +81,9 @@ class GnrCustomWebPage(object):
         ddm = pane.div(height='50px', width='50px', background='lime')
         ddm.menu(action='console.log($1)', modifiers='*', storepath='.store', _class='smallmenu',
                         id='test99menu')
+    
+    def test_7_controller(self, pane):
+        "Attach controller directly to menuline"
+        menu = pane.menudiv(iconClass='iconbox menu_icon')
+        line = menu.menuline('Alert')
+        line.dataController('alert("Be careful")')
