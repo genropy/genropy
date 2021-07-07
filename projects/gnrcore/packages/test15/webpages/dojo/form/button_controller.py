@@ -12,11 +12,18 @@ class GnrCustomWebPage(object):
         pane.button('Hello again').dataController('alert(message);',message='Hello')
 
     def test_2_ask(self,pane):
+        pane.data('.pars.color','red')
+        pane.data('.pars.size','18px')
+
         pane.textbox(value='^.cognome',lbl='Cognome',default='Bianchi')
-        pane.button('Hello again').dataController('alert(message + cognome)',message='Hello ',
+        
+        pane.button('Hello again').dataController('genro.dlg.alert(message + cognome + color + size,"Pippo")',message='Hello ',
                                                 cognome='=.cognome',
-                                                _ask=dict(title='Complete parameters',_if='!cognome',
-                                                            fields=[dict(name='cognome',lbl='Cognome')]))
+                                                color='=.pars.color',
+                                                size='=.pars.size',
+                                                _ask=dict(title='Complete parameters',_if='!color || !size || _filterEvent("Shift")',
+                                                            fields=[dict(name='color',lbl='Color'),
+                                                                    dict(name='size',lbl='Size')]))
 
 
     def test_3_dataRpc(self,pane):

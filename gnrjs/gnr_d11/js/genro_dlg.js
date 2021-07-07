@@ -499,6 +499,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                     kw['default_value'] = parameters[kw['name']];
                     default_result[kw['name']] = parameters[kw['name']];
                 }
+                if(!('_autoselect' in kw)){
+                    kw._autoselect = true;
+                }
                 kw['value'] = '^.'+kw['name'];
                 return kw;
             })

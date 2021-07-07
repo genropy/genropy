@@ -206,6 +206,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }else{
                 var runKwargs = (nodeOrRunKwargs instanceof gnr.GnrBagNode)?{}:nodeOrRunKwargs;
                 var currAttr = this.currentAttributes();
+                objectUpdate(currAttr,runKwargs);
                 genro.dlg.askParameters(function(_askResult){
                     objectUpdate(runKwargs,_askResult);
                     runKwargs._askResult = _askResult;        
