@@ -2460,8 +2460,10 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
         }
         let childController = this.gnr.getChildController(sourceNode);
         if(childController){
-            let modifiers = genro.dom.getEventModifiers(e);
-            return childController.fireNode({_ctxSourceNode:ctxSourceNode,_evt:evt,_modifiers:modifiers},{},'node');
+            let filterEvent = function(mod,cls){
+                return genro.wdg.filterEvent(e,mod,cls);
+            }
+            return childController.fireNode({_ctxSourceNode:ctxSourceNode,_evt:evt,_filterEvent:filterEvent},{},'node');
         }
         var selattr = objectExtract(inAttr, 'selected_*', true);
         if (ctxSourceNode) {
@@ -2901,7 +2903,10 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
         if(content && content.len()==1){
             let firstTag = content.getNode('#0').attr.tag.toLowerCase();
             if(firstTag=='datacontroller' || firstTag=='datarpc'){
-                content.getNode('#0').fireNode({_modifiers:modifiers,_evt:e},{},'node');
+                let filterEvent = function(mod,cls){
+                    return genro.wdg.filterEvent(e,mod,cls);
+                }
+                content.getNode('#0').fireNode({_filterEvent:filterEvent,_evt:e},{},'node');
             }
         }
         if (action) {
