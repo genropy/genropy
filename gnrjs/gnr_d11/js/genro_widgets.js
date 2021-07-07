@@ -106,6 +106,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         if(sourceNode.attr.rejectInvalid && !sourceNode.widget.isValid()){
             return;
         }
+        genro.setInStorage('session',path,value,true);
         genro._data.setItem(path, value, valueAttr, {'doTrigger':sourceNode,lazySet:true});
         sourceNode.publish('onSetValueInData',value);
     },

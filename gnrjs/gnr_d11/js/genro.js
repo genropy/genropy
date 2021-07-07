@@ -74,6 +74,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.baseUrl = kwargs.baseUrl;
         this.serverTime =objectPop(kwargs.startArgs,'servertime');
         var start_ts = new Date();
+        this.pageHash = stringHash(parseURL(window.location)['path']);
         this.serverTimeDelta = this.serverTime - start_ts;
         this.debugRpc = false;
         this.polling_enabled = false;
@@ -671,11 +672,18 @@ dojo.declare('gnr.GenroClient', null, {
             var sn = wdg.sourceNode;
             if(sn.grid){
                 sn.grid.gridEditor.copyFromCellAbove(sn);
+                return;
             }
             if('_lastSavedValue' in sn){
                 if(sn.form && sn.form.isNewRecord() && isNullOrBlank(sn.widget.getValue())){
                     sn.widget.setValue(sn._lastSavedValue,false);
                 }
+                return;
+            }
+            let valuepath = sn.absDatapath(sn.attr.value);
+            let stored_value = genro.getFromStorage('session',valuepath,true);
+            if(!isNullOrBlank(stored_value)){
+                sn.widget.setValue(stored_value,false)
             }
         });
         dojo.subscribe("setWindowTitle",function(title){genro.dom.windowTitle(title);});
@@ -1827,14 +1835,20 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
 
-    setInStorage:function(sessionType, key, value) {
-        var sessionType = sessionType || 'session';
+    setInStorage:function(sessionType, key, value,relativeKey) {
+        sessionType = sessionType || 'session';
+        if(relativeKey){
+            key = this.pageHash+key;
+        }
         var storage = (sessionType == 'local') ? localStorage : sessionStorage;
         storage.setItem(key, asTypedTxt(value));
         //console.log('Stored in ' + sessionType + 'Storage at key:' + key + '  value:' + value);
     },
-    getFromStorage:function(sessionType, key) {
-        var sessionType = sessionType || 'session';
+    getFromStorage:function(sessionType, key,relativeKey) {
+        sessionType = sessionType || 'session';
+        if(relativeKey){
+            key = this.pageHash+key;
+        }
         var storage = (sessionType == 'local') ? localStorage : sessionStorage;
         var value = storage.getItem(key);
         /*if (value) {
