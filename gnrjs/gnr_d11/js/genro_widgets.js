@@ -40,8 +40,7 @@ gnr.setOrConnectCb = function(widget, name, cb) {
 gnr.menuFromBag = function (bag, appendTo, menuclass, basepath) {
     var menuline,attributes,newmenu,valuelabel;
     var bagnodes = bag.getNodes();
-    for (var i = 0; i < bagnodes.length; i++) {
-        var bagnode = bagnodes[i];
+    for (let bagnode of bagnodes) {
         attributes = objectUpdate({}, bagnode.attr);
         valuelabel = null;
         if(typeof(bagnode._value)=='string'){
@@ -2393,7 +2392,8 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
             }
             else {
                 var content = sourceNode.getValue();
-                if (content instanceof gnr.GnrBag && content.len() > 0) {
+                let childController = this.getChildController(sourceNode);
+                if (!childController && content instanceof gnr.GnrBag && content.len() > 0) {
                     this._dojotag = 'PopupMenuItem';
                 } else {
                     this._dojotag = 'MenuItem';
@@ -2411,6 +2411,15 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
     created: function(widget, savedAttrs, sourceNode) {
         if(savedAttrs.draggable){
             widget.focusNode.setAttribute('draggable',true);
+        }
+    },
+    getChildController:function(sourceNode){
+        let content = sourceNode.getValue();
+        if(content && content.len()==1){
+            let firstTag = content.getNode('#0').attr.tag.toLowerCase();
+            if(firstTag=='datacontroller' || firstTag=='datarpc'){
+                return content.getNode('#0');
+            }
         }
     },
 
@@ -2442,9 +2451,15 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
             action = ctxSourceNode.attr.action;
             actionScope = ctxSourceNode;
         }
-        var f = funcCreate(action);
-        if (f) {
-            f.call(actionScope, menuAttr, ctxSourceNode, evt);
+        if(action){
+            var f = funcCreate(action);
+            if (f) {
+                f.call(actionScope, menuAttr, ctxSourceNode, evt);
+            }
+        }
+        let childController = this.gnr.getChildController(sourceNode);
+        if(childController){
+            return childController.fireNode({_ctxSourceNode:ctxSourceNode,_evt:evt},{},'node');
         }
         var selattr = objectExtract(inAttr, 'selected_*', true);
         if (ctxSourceNode) {
@@ -2880,6 +2895,13 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
         var modifiers = genro.dom.getEventModifiers(e);
         var argnames = ['event','_counter','modifiers'];
         var argvalues = [e,count,modifiers];
+        var content = sourceNode.getValue();
+        if(content && content.len()==1){
+            let firstTag = content.getNode('#0').attr.tag.toLowerCase();
+            if(firstTag=='datacontroller' || firstTag=='datarpc'){
+                content.getNode('#0').fireNode({_modifiers:modifiers,_evt:e},{},'node');
+            }
+        }
         if (action) {
             var action_attributes = sourceNode.currentAttributes();
             var ask_params = sourceNode._ask_params;
@@ -2899,16 +2921,17 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
                 funcApply(action, objectUpdate(action_attributes, {}), sourceNode,argnames,argvalues);
             }
         }
-        if (sourceNode.attr.fire) {
+        else if (sourceNode.attr.fire) {
             var s = eventToString(e) || true;
             sourceNode.setRelativeData(sourceNode.attr.fire, s, {modifier:modifier,_counter:count}, true);
         }
-        if(sourceNode.attr.publish){
+        else if(sourceNode.attr.publish){
             genro.publish(sourceNode.attr.publish,true);
-        }
-        var fire_list = objectExtract(sourceNode.attr, 'fire_*', true);
-        for (var fire in fire_list) {
-            sourceNode.setRelativeData(fire_list[fire], fire, {modifier:modifier,_counter:count}, true);
+        }else{
+            var fire_list = objectExtract(sourceNode.attr, 'fire_*', true);
+            for (var fire in fire_list) {
+                sourceNode.setRelativeData(fire_list[fire], fire, {modifier:modifier,_counter:count}, true);
+            }
         }
     }
 });

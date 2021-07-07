@@ -60,6 +60,7 @@ class DbModel(object):
     def __init__(self, db):
         #self._db = weakref.ref(db)
         self.db = db
+        self.onBuildingCb = []
         self.src = DbModelSrc.makeRoot()
         self.src._dbmodel = self
         self.obj = None
@@ -71,7 +72,17 @@ class DbModel(object):
     def debug(self):
         """TODO"""
         return self.db.debug
-        
+
+
+    def runOnBuildingCb(self):
+        while self.onBuildingCb:
+            cbpars = self.onBuildingCb.pop()
+            cbpars['handler'](*cbpars['args'],**cbpars['kwargs'])
+    
+    def deferOnBuilding(self,cb,*args,**kwargs):
+        self.onBuildingCb.append({'handler':cb,'args':args,'kwargs':kwargs})
+
+
     def build(self):
         """Database startup operations:
         
@@ -120,12 +131,16 @@ class DbModel(object):
         sqldict = moduleDict('gnr.sql.gnrsqlmodel', 'sqlclass,sqlresolver')
         for cb in onBuildingCalls:
             cb()
+        #bag sorgente pronta
+        self.runOnBuildingCb()
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in list(self._columnsWithRelations.items()):
             oneCol = relation.pop('related_column')
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
             
+            
+
     def resolveAlias(self, name):
         """TODO
         

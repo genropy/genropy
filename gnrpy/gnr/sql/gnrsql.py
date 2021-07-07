@@ -594,6 +594,7 @@ class GnrSqlDb(GnrObject):
         tblobj._doExternalPkgTriggers('onUpdating', record, old_record=old_record)
         if hasattr(tblobj,'dbo_onUpdating'):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
+
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
         self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
@@ -618,6 +619,9 @@ class GnrSqlDb(GnrObject):
         tblobj.trigger_onDeleting(record)
         tblobj._doExternalPkgTriggers('onDeleting', record)
         tblobj.deleteRelated(record)
+        if hasattr(tblobj,'dbo_onDeleting'):
+            tblobj.dbo_onDeleting(record,**kwargs)
+            
         self.adapter.delete(tblobj, record,**kwargs)
         self._onDbChange(tblobj,'D',record=record,**kwargs)
         tblobj._doFieldTriggers('onDeleted', record)

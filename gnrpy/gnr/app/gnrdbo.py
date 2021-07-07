@@ -271,7 +271,7 @@ class TableBase(object):
     @extract_kwargs(counter=True)
     def sysFields(self, tbl, id=True, ins=True, upd=True, full_upd=False, ldel=True, user_ins=None, user_upd=None, 
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
-                  counter=None,hierarchical=None,hierarchical_virtual_roots=False,
+                  counter=None,relidx=None,hierarchical=None,hierarchical_virtual_roots=False,
                     hierarchical_root_id=False,hdepth=None,useProtectionTag=None,
                   group='zzz', group_name='!![en]System',
                   df=None,counter_kwargs=None,**kwargs):
@@ -394,6 +394,13 @@ class TableBase(object):
             else:
                 self.sysFields_counter(tbl,'_row_count',counter=counter,group=group,name_long='!![en]Counter')
                 tbl.attributes.setdefault('order_by','$_row_count')
+    
+        if relidx:
+            tbl.attributes['relidx'] = relidx
+            self.sysFields_relidx(tbl,'_relidx',relidx=relidx,group=group,name_long='!![en]Rel.Idx')
+            self.db.model.deferOnBuilding(self.addRelXtdRelidxColumn,
+                        reltbl='{}.{}'.format(tbl.parentNode.parentNode.parentNode.label,
+                                                tbl.parentNode.label),relidx=relidx)
         if counter_kwargs:
             for k,v in counter_kwargs.items():
                 self.sysFields_counter(tbl,'_row_count_%s' %k,counter=v,group=group,name_long='!![en]Counter %s' %k)
@@ -450,6 +457,7 @@ class TableBase(object):
                                 group=group)
         self.sysFields_extra(tbl,_sysfield=True,group=group)
         
+        
 
     def _sysFields_defaults(self,user_ins=None,user_upd=None):
         if user_ins is None:
@@ -478,6 +486,26 @@ class TableBase(object):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRowCounter',counter=True,
                             _counter_fkey=counter,group=group,_sysfield=True)
     
+    def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
+        tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
+                            _relidx_fkey=relidx,group=group,_sysfield=True)
+
+    def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
+        model = self.db.model
+        pkg,tblname = reltbl.split('.')
+        masterpkg = pkg
+        c = model.src['packages.{}.tables.{}.columns.{}.relation'.format(pkg,tblname,relidx)]
+        master_table_link = c.attributes['related_column'].split('.')
+        if len(master_table_link)==2:
+            mastertbl,masterpkey = master_table_link
+        else:
+            masterpkg,mastertbl,masterpkey = master_table_link
+        rel_tbl_src = model.src['packages.{}.tables.{}'.format(pkg,tblname)]
+        xtd_tbl_src = model.src['packages.{}.tables.{}_xtd'.format(masterpkg,mastertbl)]
+        xtd_tbl_src.column('{}_relidx'.format(reltbl.replace('.','_')),dtype='L',
+                            name_long='{name_long} relidx count'.format(**rel_tbl_src.attributes))
+
+
     def sysFields_extra(self,tbl,**kwargs):
         for m in [k for k in dir(self) if k.startswith('sysFields_extra_') and not k[-1]=='_']:
             getattr(self,m)(tbl,**kwargs)
@@ -791,7 +819,22 @@ class TableBase(object):
                                     **wherekw).fetch()
         last_counter = last_counter_fetch[0].get(fldname) or 1 if last_counter_fetch else 0
         record[fldname] = last_counter +1
-        
+    
+    def trigger_xtdDeletedRecord(self,record,fldname,**kwargs):
+        return self.xtd.onDeletedMain(record)
+
+    def trigger_setRelidx(self,record,fldname,**kwargs):
+        """field trigger used for manage rowCounter field"""
+        if record.get(fldname) is not None:
+            return
+        relidx_fkey = self.column(fldname).attributes.get('_relidx_fkey')
+        mastertable = self.column(relidx_fkey).relatedTable().dbtable
+        keyrelidx = '{}_relidx'.format(self.fullname.replace('.','_'))
+        with mastertable.xtd.recordToUpdate(record[relidx_fkey],insertMissing=True) as xtd:
+            xtd['main_id'] = record[relidx_fkey]
+            xtd[keyrelidx] = (xtd[keyrelidx] or 0) + 1
+        record[fldname] = xtd[keyrelidx]
+
     def trigger_setTSNow(self, record, fldname,**kwargs):
         """This method is triggered during the insertion (or a change) of a record. It returns
         the insertion date as a value of the dict with the key equal to ``record[fldname]``,
@@ -872,9 +915,12 @@ class TableBase(object):
 
     def dbo_onInserting(self,record=None,**kwargs):
         self.checkDiagnostic(record)
+        self.checkChangelog(record)
 
     def dbo_onUpdating(self,record=None,old_record=None,pkey=None,**kwargs):
         self.checkDiagnostic(record)
+        self.checkChangelog(record,old_record=old_record)
+
         if self.draftField:
             if hasattr(self,'protect_draft'):
                 record[self.draftField] = self.protect_draft(record)
@@ -883,6 +929,18 @@ class TableBase(object):
             self.onArchivingRecord(record,record.get(logicalDeletionField))
             if not record.get(logicalDeletionField) and record.get('__moved_related'):
                 self.restoreUnifiedRecord(record)
+    
+    def checkChangelog(self,record=None,old_record=None,**kwargs):
+        chlog = self.attributes.get('chlog')
+        if not chlog:
+            return
+        if chlog is True:
+            self.xtd.mainChangelog(record=record,old_record=old_record)
+        else:
+            self.xtd.relatedChangelog(self,record=record,old_record=old_record)
+
+    def dbo_onDeleting(self,record,**kwargs):
+        self.checkChangelog(None,old_record=record)
 
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
@@ -1244,6 +1302,50 @@ class HostedTable(GnrDboTable):
     def hosting_config(self,tbl,mode=None):
         if mode=='slave' and self.db.application.hostedBy:
             tbl.attributes['readOnly'] = True
+
+class XTDTable(GnrDboTable):
+    """XTDTable"""
+    def xtd_options(self):
+        return dict(onDelete='cascade')
+
+    def use_dbstores(self, **kwargs):
+        return self.db.table(tblname=self.fullname[0:-4]).use_dbstores()
+
+    def config_db(self,pkg):
+        tblname = self._tblname
+        tbl = pkg.table(tblname,pkey='main_id')
+        mastertbl = '%s.%s' %(pkg.parentNode.label,tblname.replace('_xtd',''))
+        pkgname,mastertblname = mastertbl.split('.')
+        tblname = '%s_xtd' %mastertblname
+        assert tbl.parentNode.label == tblname,'table name must be %s' %tblname
+        model = self.db.model
+        mastertbl =  model.src['packages.%s.tables.%s' %(pkgname,mastertblname)]
+        master_attr = mastertbl.attributes
+        master_attr['xtdtable'] = '%s.%s' %(pkgname,tblname)
+        mastertbl_name_long = master_attr.get('name_long')        
+        tbl.attributes.setdefault('caption_field','description')
+        tbl.attributes.setdefault('rowcaption','$description')
+        tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
+        tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
+        self.sysFields(tbl,id=False, ins=False, upd=False)
+        masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
+        tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
+            relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),
+                        onDelete=self.xtd_options().get('onDelete'),
+                        one_one=True,relation_name='xtd',
+                        one_name='!![en]Main',
+                        many_name='!![en]XTD')
+        if master_attr.get('copy_deleted_record'):
+            tbl.column('deleted_record',dtype='X',name_long='!![it]Deleted record')
+        if master_attr.get('chlog'):
+            tbl.column('chlog_sessions',dtype='X',name_long='!![it]Changelog')
+            tbl.column('chlog_owner_user')
+
+        self.onTableConfig(tbl)
+    
+    def onTableConfig(self,tbl):
+        pass
+
 
 class AttachmentTable(GnrDboTable):
     """AttachmentTable"""

@@ -1904,10 +1904,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
     },
     mixin_moveRow:function(row, toPos) {
+        this.selectionKeeper('save');
         if (toPos!=null && toPos>=0 && toPos!= row) {
             var storebag = this.storebag();
             storebag.moveNode(row, toPos,'movingRows');
         }
+        var that = this;
+        setTimeout(function(){
+            that.restoreSelectedRows();
+        },1)
 
     },
     mixin_addColumn:function(col, toPos,kw) {
@@ -2598,6 +2603,18 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
 
     },
 
+    mixin_refreshContent:function(delay){
+        var that = this;
+        delay = delay || 1;
+        this.sourceNode.delayedCall(
+            function(){
+                that.selectionKeeper('save');
+                that.updateRowCount('*');
+                that.restoreSelectedRows();
+            },delay,'refreshContent'
+        )
+    },
+
     mixin_newDataStore:function() {
         this.updateRowCount(0);
         this.resetFilter();
@@ -2616,7 +2633,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         this.selection.unselectAll();
         this.selectionKeeper('load');
         if (this.autoSelect && (this.selection.selectedIndex < 0)) {
-            var sel = this.autoSelect == true ? 0 : this.autoSelect();
+            var sel = this.autoSelect === true ? 0 : this.autoSelect();
             this.selection.select(sel);
         }
     },
@@ -2698,9 +2715,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                         this.filterToRebuild(true);
                         this.updateRowCount();
                         var that = this;
-                        if(lastSelectable>=0){
+                        if(currSelectedIdx>=0){
                             setTimeout(function(){
-                                that.setSelectedIndex(lastSelectable);
+                                that.setSelectedIndex(currSelectedIdx);
                             },1);
                         }
                         

@@ -721,6 +721,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             genro.src.getNode()._('div',quickRoot);
             node = genro.src.getNode(quickRoot).clearValue();
         }else{
+            let roottag = rootNode.attr.tag.toLowerCase();
+            while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc'){
+                rootNode = rootNode.getParentNode();
+                roottag = rootNode.attr.tag.toLowerCase();
+            }
             rootNode._('div',quickRoot,{_attachTo:'mainWindow',parentForm:false});
             node = rootNode.getValue().getNode(quickRoot).clearValue();
         }
@@ -745,9 +750,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         dlg.close_action = function() {
             dlg.getParentNode().widget.hide(); 
             setTimeout(function(){
-                var ndlg =dlg.getParentNode();
-                if(ndlg){
-                    ndlg.getParentNode()._value.popNode(ndlg.label);
+                if(rootNode){
+                    rootNode.getValue().popNode(quickRoot);
+                }else{
+                    var ndlg =dlg.getParentNode();
+                    if(ndlg){
+                        ndlg.getParentNode()._value.popNode(ndlg.label);
+                    }
                 }
             },genro.dlg._quickDialogDestroyTimeout);
             

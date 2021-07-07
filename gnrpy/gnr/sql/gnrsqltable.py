@@ -41,6 +41,8 @@ from gnr.core.gnrdict import dictExtract
 #from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
+from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
+
 from gnr.sql.gnrsql import GnrSqlException
 from datetime import datetime
 import logging
@@ -229,6 +231,8 @@ class SqlTable(GnrObject):
         self._lock = threading.RLock()
         if tblobj.attributes.get('hierarchical'):
             self.hierarchicalHandler = HierarchicalHandler(self)
+        if tblobj.attributes.get('xtdtable'):
+            self.xtd = XTDHandler(self)
         
     def use_dbstores(self,**kwargs):
         pass
@@ -933,8 +937,6 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('unique') or obj.attributes.get('_sysfield'):
                 record[colname] = None
-        if hasattr(self,'onDuplicating'):
-            self.onDuplicating(record)
         if howmany.isdigit():
             labels = [str(k) for k in range(int(howmany))]
         else:
@@ -960,7 +962,10 @@ class SqlTable(GnrObject):
                 fkey = rellist[-1]
                 subtable ='.'.join(rellist[:-1])
                 manytable = self.db.table(subtable)
-                rows = manytable.query(where="$%s=:p" %fkey,p=pkey,addPkeyColumn=False,bagFields=True).fetch()
+                if hasattr(manytable,'getRowsForDuplication'):
+                    rows = manytable.getRowsForDuplication(pkey)
+                else:
+                    rows = manytable.query(where="$%s=:p" %fkey,p=pkey,addPkeyColumn=False,bagFields=True).fetch()
                 for dupRec in duplicatedRecords:
                     for r in rows:
                         r = dict(r)
