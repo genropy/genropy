@@ -37,7 +37,17 @@ class GnrCustomWebPage(object):
                                                 cognome='Pippone',
                                                 _ask=dict(title='Complete parameters',
                                                             fields=[dict(name='cognome',lbl='Cognome')]))
-        m.menuline('Azione 2')
+        m.menuline('Azione 2').dataRpc(self.db.table('fatt.fattura').testRpc,
+                    _ask=dict(title='Confirm',
+                              fields=[
+                                dict(name='pkey', lbl='Shipment', validate_notnull=True),
+                                dict(name='codice', lbl='Proforma Type', hasDownArrow=True, validate_notnull=True)
+                              ]
+                             ),
+                    _onResult="""
+                        alert('Creata la fatt. proforma '+result.getItem('protocollo'));
+                    """
+            )
         m.menuline('Azione 3')
 
 

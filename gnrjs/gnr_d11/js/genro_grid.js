@@ -4678,7 +4678,16 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         promptkw.dflt = new gnr.GnrBag(row);
         promptkw.widget = remoteEdit;
         var pkey = this.rowIdentity(row);
+        var cellmap = this.cellmap;
         promptkw.action = function(result){
+            for(let n of result.getNodes()){
+                let cellkw = cellmap[n.label] || {}
+                let dtype = cellkw.dtype;
+                let val = n.getValue();
+                if(val && (dtype==='DHZ' || dtype=='DH' || dtype=='H' || dtype=='D')){
+                    val._gnrdtype = dtype;
+                }
+            }
             genro.serverCall('app.updateRecord',{'pkey':pkey,'table':table,
                                                 'record':result},
                                                 function(){});

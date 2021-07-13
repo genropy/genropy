@@ -3355,13 +3355,14 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
     constructor: function() {
         this._domtag = 'input';
         this._dojotag = 'DateTextBox';
+        this._dtype = 'D';
     },
     
     onChanged:function(widget, value) {
         //genro.debug('onChanged:'+value);
         //widget.sourceNode.setAttributeInDatasource('value',value);
         if (value) {
-            this._doChangeInData(widget.domNode, widget.sourceNode, value, {dtype:'D'});
+            this._doChangeInData(widget.domNode, widget.sourceNode, value, {dtype:this._dtype});
         }
         else {
             this._doChangeInData(widget.domNode, widget.sourceNode, null);
@@ -3374,7 +3375,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     creating: function(attributes, sourceNode) {
         attributes.constraints = objectExtract(attributes, 'formatLength,datePattern,fullYear,min,max,strict,locale');
-        if ('popup' in attributes && (objectPop(attributes, 'popup') == false)) {
+        if ('popup' in attributes && (objectPop(attributes, 'popup') === false)) {
             attributes.popupClass = null;
         }
         if(this.dojo__selector=='datetime'){
@@ -3403,19 +3404,21 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     patch_parse:function(value,constraints){
         if(value && !this._focused){
-            var r,d1,d2,y;
+            var r,y;
             var info = dojo.date.locale._parseInfo(constraints);
             var tokens = info.tokens;
             var datesplit = value.split(' ');
             var match = datesplit[0].match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/);
             var doSetValue = false;
+            var that = this;
+
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
                 doSetValue = true;
             }
             if(constraints.selector=='datetime'){
                 doSetValue = true;
-                var timestr = datesplit[1];
+                var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
                 if (!timematch){
                     timematch =timestr.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
@@ -3433,7 +3436,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
             var re = new RegExp("^" + info.regexp + "$");
             match = re.exec(value);
             if(match){
-                var d,m,y,hours,minutes,seconds;
+                var d,m,hours,minutes,seconds;
                 if(tokens[0][0]=='d'){
                     d = match[1];
                     m = match[2];
@@ -3458,28 +3461,30 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     var year = '' + new Date().getFullYear();
                     var century = year.substring(0, 2) * 100;
                     var cutoff = Math.min(Number(year.substring(2, 4)) + pivotYear, 99);
-                    var y = (y < cutoff) ? century + y : century - 100 + y;
+                    y = (y < cutoff) ? century + y : century - 100 + y;
                 }
                 r = new Date(y,m,d,hours,minutes,seconds);  
-                
-                if(doSetValue){
-                    var that = this;
+                if(doSetValue && !isEqual(r,this.sourceNode.getRelativeData(this.sourceNode.attr.value))){
                     setTimeout(function(){
+                        r._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
                         that.setValue(r,true);
-                    });
+                    },1);
                 }
                 return r;
             }else{
-                var that = this;
                 this.setValue(null);
                 var sn = this.sourceNode;
                 sn._waiting_rpc = true;
                 genro.serverCall('decodeDatePeriod',{datestr:value},function(v){
                     if(v.getItem('from')){
-                        that.setValue(v.getItem('from'),true);
+                        let from =  v.getItem('from');
+                        from._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
+                        that.setValue(from,true);
                     }
                     if(that.sourceNode.attr.period_to){
-                        that.sourceNode.setRelativeData(that.sourceNode.attr.period_to,v.getItem('to'));
+                        let period_to = v.getItem('to');
+                        period_to._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
+                        that.sourceNode.setRelativeData(that.sourceNode.attr.period_to,period_to);
                     }
                     sn._waiting_rpc = false;
                 });
@@ -3491,7 +3496,13 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 });
 
 dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
-    dojo__selector:'datetime'
+    dojo__selector:'datetime',
+    constructor: function() {
+        this._domtag = 'input';
+        this._dojotag = 'DateTextBox';
+        this._dtype = 'DHZ';
+    }
+
     //attributes_mixin__selector:'datetime'
 });    
 

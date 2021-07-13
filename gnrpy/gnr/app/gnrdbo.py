@@ -451,7 +451,8 @@ class TableBase(object):
     
     def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
-                            _relidx_fkey=relidx,group=group,_sysfield=True)
+                        _relidx_fkey=relidx,group=group,_sysfield=True,
+                        format='0000')
 
     def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
         model = self.db.model
@@ -903,6 +904,39 @@ class TableBase(object):
     def dbo_onDeleting(self,record,**kwargs):
         self.checkChangelog(None,old_record=record)
 
+#    @public_method(topic='xtd_actions', caption='!![it]Avvia sessione modiche',
+#                    tip="""Viene creata una sessione di modifiche per l'utente corrente.
+#Fino a quando la sessione resta aperta gli altri utenti non potranno modificare il record.""",
+#                    disabled='=#FORM.record.curr_change_owner',
+#                    askParameters=dict(title='Avvio sessione modifiche',
+#                                       fields=[dict(name='reason',tag='simpleTextArea',lbl_vertical_align='top',
+#                                        validate_notnull=True, lbl='Motivo modifiche', height='100px', width='300px')]),
+#                    lockScreen=True,
+#                    onResult='this.form.reload()')
+#    def actionMenu_xtdOpenChangeset(self, pkey=None, reason=None, **kwargs):
+#        self.xtd.openChangeset(pkey=pkey, reason=reason, **kwargs)
+#        self.db.commit()
+#
+#    def openChangeset(self, pkey, reason, **kwargs):
+#        user = self.db.currentEnv.get('user')
+#        ts = datetime.now()
+#        change_key = '{user}_{tskey}'.format(user=user.replace('.','_'), tskey=ts.strftime("%Y%m%d_%H%M%S"))
+#        with self.recordToUpdate(pkey) as record:
+#            record['curr_change_owner'] = user
+#            changelog_bag = record['changelog'] or Bag()
+#            changelog_bag.setItem(change_key, Bag(), user=user, open_ts=ts, reason=reason)
+#            record['changelog'] = changelog_bag
+#
+    @public_method(topic='odp_actions', caption='!![it]Chiudi sessione modiche',
+                    tip="""!![it]La sessione modifiche viene chiusa e il record torna bloccato.""",
+                    disabled='=#FORM.record.curr_change_owner?=!#v',
+                    onResult='this.form.reload()')
+
+    def actionMenu_closeChangeset(self, pkey=None, **kwargs):
+        self.closeChangeset(pkey, **kwargs)
+        self.db.commit()
+
+
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
         df_field = column.attributes['subfields']
@@ -1288,7 +1322,7 @@ class XTDTable(GnrDboTable):
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
-        self.sysFields(tbl,id=False, ins=False, upd=False)
+        #self.sysFields(tbl,id=False, ins=False, upd=False)
         masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
         tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
             relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),
