@@ -488,7 +488,8 @@ class TableBase(object):
     
     def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
-                            _relidx_fkey=relidx,group=group,_sysfield=True)
+                        _relidx_fkey=relidx,group=group,_sysfield=True,
+                        format='0000')
 
     def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
         model = self.db.model
@@ -1327,7 +1328,7 @@ class XTDTable(GnrDboTable):
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
-        self.sysFields(tbl,id=False, ins=False, upd=False)
+        #self.sysFields(tbl,id=False, ins=False, upd=False)
         masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
         tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
             relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),

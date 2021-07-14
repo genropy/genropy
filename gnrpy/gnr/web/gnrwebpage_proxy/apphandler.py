@@ -1845,7 +1845,8 @@ class GnrWebAppHandler(GnrBaseProxy):
     def updateRecord(self,table=None,pkey=None,record=None,**kwargs):
         tblobj = self.db.table(table)
         with tblobj.recordToUpdate(pkey) as recToUpd:
-            recToUpd.update(record)
+            for k,v in record.items():
+                recToUpd[k] = v
         self.db.commit()
 
 

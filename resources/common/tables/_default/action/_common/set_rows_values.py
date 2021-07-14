@@ -47,11 +47,12 @@ class Main(BaseResourceAction):
             #if attr.get('_sysfield') and not (k=='__syscode' and self.isDeveloper()):
             #    continue
             kw = {}
-            if attr.get('dtype')=='DH':
-                kw['tag'] = 'dateTextBox'
+            if attr.get('dtype')=='DH' or attr.get('dtype')=='DHZ':
+                kw['tag'] = 'dateTimeTextBox'
+                kw['dtype'] = attr.get('dtype')
             f = fb.field(k,validate_notnull=False,html_label=True,zoom=False,lbl_fieldname=k,
-                        validate_onAccept='SET .%s?forced_null=false;' %k,
-                        lbl_color='^.%s?forced_null?=#v?"red":null' %k,
+                        validate_onAccept='SET .{}?forced_null=false;'.format(k),
+                        lbl_color='^.{}?forced_null?=#v?"red":null'.format(k),
                         **kw)
             f.attributes.pop('disabled',None)
             f.attributes.pop('unmodifiable',None)

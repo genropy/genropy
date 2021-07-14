@@ -1873,7 +1873,7 @@ function combineDateAndTime(date, time) {
     let day = date.getDate();
     let dateString = '' + year + '-' + month + '-' + day;
     let combined = new Date(dateString + ' ' + timeString);
-
+    combined._gnrdtype = 'DHZ';
     return combined;
 }
 

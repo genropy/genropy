@@ -52,8 +52,54 @@ class XTDHandler(object):
                 deleted_record[k] = v
             xtd['deleted_record'] = deleted_record
 
-    def mainChangelog(self,*args,**kwargs):
+    def realignRelatedRelIdxAll(self):
+        f = self.tblobj.query(columns='${}'.format(self.tblobj.pkey), 
+                            subtable='*',ignorePartition=True,
+                            excludeDraft=False,
+                            excludeLogicalDeleted=False,
+                            order_by='$__ins_ts').fetch()
+        for r in f:
+            self.realignRelatedRelIdx(r['id'])
+
+    def realignRelatedRelIdx(self,pkey):
+        relidx_dict = {}
+        for rel in self.tblobj.relations_many:
+            mpkg, mtbl, fkey = rel.attr['many_relation'].split('.')
+            reltbl = '{mpkg}.{mtbl}'.format(mpkg=mpkg,mtbl=mtbl)
+            relatedTable = self.db.table(reltbl)
+            relidx = relatedTable.attributes.get('relidx')
+            if relidx==fkey:
+                keyrelidx = '{}_relidx'.format(reltbl.replace('.','_'))
+                cnt = self._realignRelatedRelIdx_one(relatedTable,pkey,fkey)
+                if cnt:
+                    relidx_dict[keyrelidx] = cnt
+        if not relidx_dict:
+            return
+        with self.xtdtable.recordToUpdate(pkey,insertMissing=True) as xtd:
+            xtd['main_id'] = pkey
+            xtd.update(relidx_dict)
+
+    def _realignRelatedRelIdx_one(self,manytable,pkey,fkey):
+        rows = manytable.query(columns='*', where='${} = :pid'.format(fkey),
+                            pid=pkey, for_update=True,
+                            subtable='*',ignorePartition=True,
+                            excludeDraft=False,
+                            excludeLogicalDeleted=False,
+                            order_by='$__ins_ts').fetch()
+        if not rows:
+            return
+        for idx,r in enumerate(rows):
+            idx+=1
+            ur = dict(r)
+            ur['_relidx'] = idx
+            manytable.raw_update(ur,r)
+        return idx
+        
+
+
+
+    def mainChangelog(self,record=None,old_record=None,**kwargs):
         pass
     
-    def relatedChangelog(self,*args,**kwargs):
+    def relatedChangelog(self,tblobj,record=None,old_record=None,**kwargs):
         pass

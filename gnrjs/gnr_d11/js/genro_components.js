@@ -5400,6 +5400,7 @@ dojo.declare("gnr.widgets.RadioButtonText", gnr.widgets.CheckBoxText, {
     }
 });
 
+
 dojo.declare("gnr.widgets.FieldsTree", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
         return attributes;
@@ -5428,7 +5429,7 @@ dojo.declare("gnr.widgets.FieldsTree", gnr.widgets.gnrwdg, {
         genro.dev.fieldsTree(box,table,kw);
         return box;
     }
-})
+});
 
 dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
