@@ -898,6 +898,7 @@ dojo.declare("gnr.GridEditor", null, {
 
         var promptkw = {widget:fields,
             action:function(result){
+                var remoteControllerRows = new gnr.GnrBag();
                 grid.getSelectedRowidx().forEach(function(idx){
                     result.forEach(function(node){
                         let val = node.getValue();
@@ -918,8 +919,17 @@ dojo.declare("gnr.GridEditor", null, {
                             }
                         }
                         grid.gridEditor.setCellValue(idx,node.label,val);
+                        if(editable_cols[node.label].attr.remoteRowController){
+                            let rowNode = grid.storebag().getNode('#'+idx);
+                            remoteControllerRows.addItem(rowNode.label,rowNode);
+                        }
                     });
                 });
+                if(remoteControllerRows.len()>0){
+                    console.log('callRemoteControllerBatch')
+                    grid.gridEditor.callRemoteControllerBatch(remoteControllerRows);
+                }
+                
             }
         };
         genro.dlg.prompt(_T('Multi assigment'),promptkw);
@@ -1332,6 +1342,9 @@ dojo.declare("gnr.GridEditor", null, {
         }
         kw.timeout = 0;
         kw.selectedQueries = this.rowSelectedQueries();
+        if(grid.sourceNode._dc_callingRemoteRowController){
+            clearTimeout(grid.sourceNode._dc_callingRemoteRowController);
+        }
         return genro.serverCall('remoteRowControllerBatch',
                                     objectUpdate(kw,{handlerName:this.remoteRowController,
                                     rows:rows,_sourceNode:this.grid.sourceNode}),
@@ -2186,7 +2199,7 @@ dojo.declare("gnr.GridChangeManager", null, {
                     gridEditor.callRemoteController(kw.node.getParentNode(),kw.node.label,kw.oldvalue);
                     that.resolveCalculatedColumns();
                     that.resolveTotalizeColumns();
-                },1,'afterRemoteController')
+                },1,'callingRemoteRowController')
             }
         }
     },
