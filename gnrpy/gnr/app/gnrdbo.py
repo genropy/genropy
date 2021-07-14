@@ -904,39 +904,6 @@ class TableBase(object):
     def dbo_onDeleting(self,record,**kwargs):
         self.checkChangelog(None,old_record=record)
 
-#    @public_method(topic='xtd_actions', caption='!![it]Avvia sessione modiche',
-#                    tip="""Viene creata una sessione di modifiche per l'utente corrente.
-#Fino a quando la sessione resta aperta gli altri utenti non potranno modificare il record.""",
-#                    disabled='=#FORM.record.curr_change_owner',
-#                    askParameters=dict(title='Avvio sessione modifiche',
-#                                       fields=[dict(name='reason',tag='simpleTextArea',lbl_vertical_align='top',
-#                                        validate_notnull=True, lbl='Motivo modifiche', height='100px', width='300px')]),
-#                    lockScreen=True,
-#                    onResult='this.form.reload()')
-#    def actionMenu_xtdOpenChangeset(self, pkey=None, reason=None, **kwargs):
-#        self.xtd.openChangeset(pkey=pkey, reason=reason, **kwargs)
-#        self.db.commit()
-#
-#    def openChangeset(self, pkey, reason, **kwargs):
-#        user = self.db.currentEnv.get('user')
-#        ts = datetime.now()
-#        change_key = '{user}_{tskey}'.format(user=user.replace('.','_'), tskey=ts.strftime("%Y%m%d_%H%M%S"))
-#        with self.recordToUpdate(pkey) as record:
-#            record['curr_change_owner'] = user
-#            changelog_bag = record['changelog'] or Bag()
-#            changelog_bag.setItem(change_key, Bag(), user=user, open_ts=ts, reason=reason)
-#            record['changelog'] = changelog_bag
-#
-    @public_method(topic='odp_actions', caption='!![it]Chiudi sessione modiche',
-                    tip="""!![it]La sessione modifiche viene chiusa e il record torna bloccato.""",
-                    disabled='=#FORM.record.curr_change_owner?=!#v',
-                    onResult='this.form.reload()')
-
-    def actionMenu_closeChangeset(self, pkey=None, **kwargs):
-        self.closeChangeset(pkey, **kwargs)
-        self.db.commit()
-
-
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
         df_field = column.attributes['subfields']
