@@ -928,6 +928,8 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('unique') or obj.attributes.get('_sysfield'):
                 record[colname] = None
+        if hasattr(self,'onDuplicating'):
+            self.onDuplicating(record)
         if howmany.isdigit():
             labels = [str(k) for k in range(int(howmany))]
         else:
@@ -966,6 +968,7 @@ class SqlTable(GnrObject):
             self.onDuplicated(duplicated_records=duplicatedRecords,original_record=original_record)
         return duplicatedRecords[0]
             
+
     def recordAs(self, record, mode='bag', virtual_columns=None,ignoreMissing=True):
         """Accept and return a record as a bag, dict or primary pkey (as a string)
         

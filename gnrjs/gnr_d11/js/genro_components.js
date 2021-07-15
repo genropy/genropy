@@ -4,9 +4,9 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
         this._domtag = 'div';
     },
 
-    _beforeCreation: function(attributes, sourceNode) {
+    _beforeCreation: function(original_attr, sourceNode) {
         sourceNode.gnrwdg = objectUpdate({'gnr':this,'sourceNode':sourceNode},objectExtract(this,'gnrwdg_*',true));
-        attributes = sourceNode.attr;
+        var attributes = sourceNode.attr;
         sourceNode._saved_attributes = objectUpdate({},attributes);
         sourceNode.attr = {};
         sourceNode.attr.tag = objectPop(attributes,'tag');
