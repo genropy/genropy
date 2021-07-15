@@ -3466,7 +3466,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 r = new Date(y,m,d,hours,minutes,seconds);  
                 if(doSetValue && !isEqual(r,this.sourceNode.getRelativeData(this.sourceNode.attr.value))){
                     setTimeout(function(){
-                        r._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
+                        r._gnrdtype = that.gnr._dtype;
                         that.setValue(r,true);
                     },1);
                 }
@@ -3477,14 +3477,10 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 sn._waiting_rpc = true;
                 genro.serverCall('decodeDatePeriod',{datestr:value},function(v){
                     if(v.getItem('from')){
-                        let from =  v.getItem('from');
-                        from._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
-                        that.setValue(from,true);
+                        that.setValue(v.getItem('from'),true);
                     }
                     if(that.sourceNode.attr.period_to){
-                        let period_to = v.getItem('to');
-                        period_to._gnrdtype = that.sourceNode.attr.dtype || 'DHZ';
-                        that.sourceNode.setRelativeData(that.sourceNode.attr.period_to,period_to);
+                        that.sourceNode.setRelativeData(that.sourceNode.attr.period_to,v.getItem('to'));
                     }
                     sn._waiting_rpc = false;
                 });
