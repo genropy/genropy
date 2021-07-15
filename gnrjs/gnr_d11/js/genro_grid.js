@@ -2624,8 +2624,10 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         this.sortStore();
         this.sourceNode.publish('onNewDatastore');
         this.updateRowCount('*');
+        if(this.filterManager && this.filterManager.hasActiveFilter()){
+            this.applyFilter();
+        }
         this.restoreSelectedRows();
-
         this.fillServerTotalize();
     },
 
