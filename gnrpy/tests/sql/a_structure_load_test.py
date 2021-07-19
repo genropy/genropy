@@ -129,9 +129,9 @@ def configurePackage(pkg):
                       rowcaption='title', pkey='id')
     movie.column('id', 'L')
     movie.column('title', name_short='Ttl.', name_long='Title',
-                 validate_case='capitalize', validate_len='3,40')
+                 validate_case='capitalize', validate_len='3:40')
     movie.column('genre', name_short='Gnr', name_long='Genre',
-                 validate_case='upper', validate_len='3,10', indexed='y')
+                 validate_case='upper', validate_len='3:10', indexed='y')
     movie.column('year', 'L', name_short='Yr', name_long='Year', indexed='y')
     movie.column('nationality', name_short='Ntl', name_long='Nationality')
     movie.column('description', name_short='Dsc', name_long='Movie description')

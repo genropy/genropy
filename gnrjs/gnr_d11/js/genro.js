@@ -1374,21 +1374,18 @@ dojo.declare('gnr.GenroClient', null, {
         var bag = genro.getData(kwargs.path);
         var result = new gnr.GnrBag();
         var columns = [];
-        for (var i = 0; i < kwargs.columns.length; i++) {
-            var col = kwargs.columns[i].split(':');
+        for (let column of kwargs.columns) {
+            let col = column.split(':');
             result.setItem('headers.' + col[0], null, {label:col[1]});
             columns.push(col[0]);
         }
-        var node;
-        var tblId;
-        for (var i = 0; i < bag.len(); i++) {
-            node = bag.getNodes()[i];
-            for (var j = 0; j < columns.length; j++) {
-                if (columns[j] == kwargs.key) {
-                    result.setItem('rows.' + node.label + '.' + columns[j], node.label);
+        for (let node of bag.getNodes()) {
+            for (let column of columns) {
+                if (column == kwargs.key) {
+                    result.setItem('rows.' + node.label + '.' + column, node.label);
                 }
                 else {
-                    result.setItem('rows.' + node.label + '.' + columns[j], node.getAttr(columns[j]));
+                    result.setItem('rows.' + node.label + '.' + column, node.getAttr(column));
                 }
             }
         }

@@ -19,7 +19,7 @@ class Table(object):
         tbl.column('site_path', dtype='T', name_long='!!Site Path')
         tbl.column('slot_configuration', 'X', name_long='!!Slot configuration', _sendback=True)
         tbl.column('hosted_data', 'X', name_long='!!Hosted data', _sendback=True)
-        tbl.column('client_id', size=':22', name_long='!!Client id').relation('hosting.client.id', mode='foreignkey',
+        tbl.column('client_id', size='22', name_long='!!Client id').relation('hosting.client.id', mode='foreignkey',
                                                                             relation_name='instances')
         tbl.column('active','B',name_long='Active')
         tbl.column('last_update_log',name_long='!!Last update log')

@@ -1868,7 +1868,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         fldattr =  dict(fieldobj.attributes or dict())
         result['format'] = fldattr.pop('format',None)
         if dtype in ('A', 'C'):
-            size = fldattr.get('size', '20')
+            size = fldattr.get('size')
+            if size:
+                result.setdefault('validate_len', size)
+            else:
+                size = '20'
             if ':' in size:
                 size = size.split(':')[1]
             size = int(size)
@@ -1971,6 +1975,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['_guess_width'] = '7em'
         elif dtype == 'L' or dtype == 'I':
             result['tag'] = 'numberTextBox'
+            result['places'] = 0
+            result.setdefault('format','#,###')
             result['_guess_width'] = '7em'
         elif dtype == 'D':
             result['tag'] = 'dateTextBox'
@@ -1978,8 +1984,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         elif dtype == 'H':
             result['tag'] = 'timeTextBox'
             result['_guess_width'] = '7em'
-        elif dtype == 'DH':
-            result['tag'] = result.get('tag') or 'div'
+        elif dtype == 'DH' or dtype=='DHZ':
+            result['tag'] = result.get('tag') or 'dateTimeTextBox'
             result['_guess_width'] = '9em'
         elif dtype =='X':
             result['tag'] = 'tree'         

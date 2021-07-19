@@ -2165,17 +2165,17 @@ dojo.declare("gnr.GnrValidator", null, {
                 var sl = param.split(':');
                 if (sl[1]) {
                     if (value.length > parseInt(sl[1])) {
-                        return 'too long';
+                        return _T('too long');
                     }
                 }
                 if (sl[0]) {
                     if (value.length < parseInt(sl[0])) {
-                        return 'too short';
+                        return _T('too short');
                     }
                 }
             } else {
                 if (value.length != parseInt(param)) {
-                    return 'wrong lenght';
+                    return _T('wrong length');
                 }
             }
         }

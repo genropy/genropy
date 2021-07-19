@@ -121,8 +121,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp', 'script',
             'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
             'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress'];
-        for (var i = 0; i < htmlspace.length; i++) {
-            tag = htmlspace[i];
+        for (let tag of htmlspace) {
             this.namespace[tag.toLowerCase()] = ['html',tag];
         }
         this.widgetcatalog = {'CheckBox':'dijit.form.CheckBox',
@@ -972,7 +971,7 @@ dojo.declare("gnr.GridEditor", null, {
     },
 
     addEditColumn:function(colname,colattr){
-        colattr['parentForm'] = false;
+        colattr.parentForm = false;
         var edit = objectPop(colattr,'edit');
         objectPop(colattr,'width');
         if(edit!==true){
@@ -980,20 +979,29 @@ dojo.declare("gnr.GridEditor", null, {
         }
         if(!('tag' in colattr)){
             var dt = colattr['dtype'];
-            var widgets = {'L':'NumberTextBox','I':'NumberTextBox','D':'DateTextbox','DH':'DatetimeTextbox','R':'NumberTextBox','N':'NumberTextBox','H':'TimeTextBox','B':'CheckBox'};
+            var widgets = {'L':'NumberTextBox','I':'NumberTextBox','D':'DateTextbox',
+                            'DH':'DatetimeTextbox','R':'NumberTextBox',
+                            'N':'NumberTextBox','H':'TimeTextBox','B':'CheckBox'};
             colattr['tag'] = widgets[dt] || 'Textbox';
             if('related_table' in colattr){
-                colattr['tag'] = 'dbselect';
-                colattr['dbtable'] = colattr['related_table'];
-                if(colattr['related_table_lookup']){
-                    colattr['hasDownArrow'] = true;
+                colattr.tag = 'dbselect';
+                colattr.dbtable = colattr.related_table;
+                if(colattr.related_table_lookup){
+                    colattr.hasDownArrow = true;
                 }
-            }if('values' in colattr){
-                colattr['tag'] = colattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            }
+            if('values' in colattr){
+                colattr.tag = colattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            }
+            if('size' in colattr && tag=='Textbox'){
+                colattr.validate_len = colattr.size;
+            }
+            if(dt == 'L' || dt == 'I'){
+                colattr.places = 0;
+                colattr.format = colattr.format || '#,###';
             }
         }
-        var lowertag = colattr['tag'].toLowerCase();
-        var wdghandler = genro.wdg.getHandler(colattr['tag']);
+        var wdghandler = genro.wdg.getHandler(colattr.tag);
         wdghandler.cell_onCreating(this,colname,colattr);
         this.columns[colname.replace(/\W/g, '_')] = {'tag':colattr.tag,'attr':colattr};
     },
@@ -1625,7 +1633,7 @@ dojo.declare("gnr.GridEditor", null, {
             attr['value'] = '^.' + gridcell;
         }
         if (this.viewId) {
-            if (attr.exclude == true) {
+            if (attr.exclude === true) {
                 attr.exclude = '==genro.wdgById("' + this.viewId + '").getColumnValues("' + attr['value'] + '")';
             }
         }
