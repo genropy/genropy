@@ -7,7 +7,7 @@ class Table(object):
         tbl=pkg.table('dashboard_config', pkey='id', name_long='!!Dash configurations', name_plural='!!Dash configurations')
         self.sysFields(tbl)
         tbl.column('username',size=':40',indexed=True)
-        tbl.column('dashboard_key',size=':40', group='_', name_long='!!Dashboard'
+        tbl.column('dashboard_key',size=':100', group='_', name_long='!!Dashboard'
                     ).relation('dashboard.dashboard_key', relation_name='user_configurations', mode='foreignkey', onDelete='cascade')
         tbl.column('data', dtype='X', name_long='!!Data')
 

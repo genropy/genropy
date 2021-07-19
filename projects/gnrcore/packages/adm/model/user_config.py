@@ -14,7 +14,7 @@ class Table(object):
         tbl.column('username',size=':32' ,group='_',name_long='!!User').relation('user.username',relation_name='custom_info',
                                                                               onDelete='cascade')
         tbl.column('pkgid' ,size=':30',name_long='!!Pkg').relation('pkginfo.pkgid',relation_name='rules',mode='foreignkey')
-        tbl.column('tblid' ,size=':30',name_long='!!Tbl').relation('tblinfo.tblid',relation_name='rules',mode='foreignkey')
+        tbl.column('tblid' ,size=':50',name_long='!!Tbl').relation('tblinfo.tblid',relation_name='rules',mode='foreignkey')
         
         tbl.column('data',dtype='X',name_long='!!Data',_sendback=True) #configuration data (tbl_permission,qtree,ftree,forbidden_cols,readonly_cols)
         
