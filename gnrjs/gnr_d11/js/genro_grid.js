@@ -4616,11 +4616,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         }else{
             kwargs.struct =  this.getExportStruct();
         }
-        if (this.collectionStore().storeType=='VirtualSelection'){
-            kwargs['selectionName'] = this.collectionStore().selectionName;
+        var store = this.collectionStore();
+        if (store.storeType=='VirtualSelection'){
+            kwargs['selectionName'] = store.selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
             if(allRows){
                 kwargs.limit = 0;
+                kwargs.sortBy = store.sortedBy;
             }
         }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
@@ -4630,6 +4632,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             genro.lockScreen(false,sourceNode.getStringId());
             genro.download(result);
         };
+        
         kwargs['meta'] = objectExtract(this.sourceNode.attr, 'meta_*', true);
         genro.rpc.remoteCall(method, kwargs, null, 'POST', null,cb);
     },

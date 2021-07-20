@@ -2039,9 +2039,8 @@ class GnrWebAppHandler(GnrBaseProxy):
     def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,columns=None,
                                 selectedPkeys=None,hiddencolumns=None,
                                selectionName=None, struct=None,datamode=None,localized_data=None, downloadAs=None,
-                               selectedRowidx=None,limit=None, **kwargs):
+                               selectedRowidx=None,limit=None, sortBy=None,**kwargs):
         """TODO
-        
         :param action: TODO
         :param export_mode: TODO
         :param respath: TODO
@@ -2064,7 +2063,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             respath = 'action/_common/%s' % action
         res_obj = self.page.site.loadTableScript(page=self.page, table=table,respath=respath, class_name='Main')
         if selectionName:
-            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit)
+            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit,sortBy=sortBy)
         elif selectedPkeys and columns:
             query_columns = [columns]
             if hiddencolumns:
