@@ -1867,11 +1867,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         dtype = result['dtype'] = fieldobj.dtype
         fldattr =  dict(fieldobj.attributes or dict())
         result['format'] = fldattr.pop('format',None)
+        col_size = fldattr.get('size')
         if dtype in ('A', 'C'):
-            size = fldattr.get('size')
-            if size:
-                result.setdefault('validate_len', size)
-            else:
+            size = col_size
+            if not size:
                 size = '20'
             if ':' in size:
                 size = size.split(':')[1]
@@ -1966,6 +1965,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 del kwargs['autospan']
         elif dtype == 'T':
             result['tag'] = 'textBox'
+            if col_size:
+                result.setdefault('validate_len',col_size)
             result['_guess_width'] = '%iem' % int(size * .5)
         elif dtype == 'R':
             result['tag'] = 'numberTextBox'
