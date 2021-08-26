@@ -1994,7 +1994,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController('if(url){genro.download(url)};', url='^gnr.downloadurl')
         page.dataController("""if(url){
                                 genro.download(url,null,"print")
-                                };""", url='^gnr.printurl', _delay=1000)
+                                };""", url='^gnr.printurl')
         page.dataController("""
                 genro.playUrl(url);
             """,url='^gnr.playUrl')
