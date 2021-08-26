@@ -1051,6 +1051,7 @@ class TableHandlerView(BaseComponent):
         store_kwargs.setdefault('weakLogicalDeleted',options.get('weakLogicalDeleted'))
         multiStores = store_kwargs.pop('multiStores',None)
         frame.data('.query.limit',store_kwargs.pop('limit',None))
+        sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
         store = frame.grid.selectionStore(table=table,
                                chunkSize=chunkSize,childname='store',
                                where='=.query.where',
@@ -1063,7 +1064,8 @@ class TableHandlerView(BaseComponent):
                                _cleared='^.clearStore',
                                _onError="""return error;""", 
                                selectionName=selectionName, recordResolver=False, condition=condition,
-                               sqlContextName='standard_list', totalRowCount='=.tableRecordCount',
+                               sqlContextName=sqlContextName, 
+                               totalRowCount='=.tableRecordCount',
                                row_start='0',
                                allowLogicalDelete=allowLogicalDelete,
                                excludeLogicalDeleted='=.excludeLogicalDeleted',
