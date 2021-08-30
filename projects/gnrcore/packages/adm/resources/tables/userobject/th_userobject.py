@@ -123,7 +123,8 @@ class FormCustomColumn(BaseComponent):
         return dict(#newTitleTemplate='!!New custom column',titleTemplate='Column:$code-$description',modal=True,
                     default_objtype='formulacolumn',
                     default_tbl='=current.tbl',
-                    default_pkg='=current.pkg',dialog_height='210px',dialog_width='500px')
+                    default_pkg='=current.pkg',dialog_height='210px',dialog_width='500px',
+                    duplicate=True)
 
 
 
