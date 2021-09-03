@@ -88,3 +88,17 @@ class GnrCustomWebPage(object):
         for elem in self.utils.quickThermo(lista,labelfield='prova'):
             self.log(elem)
             sleep(pausa)
+
+    def test_5_ask(self, pane):
+        "Parameters can be asked during rpc call and parameters are automatically sent to rpc method"
+        fb = pane.formbuilder(cols=1)
+        btn = fb.button('How many days left to your birthday?')
+        btn.dataRpc('.days_left', self.getTime, _ask=dict(title='When is your next birthday?', 
+                                    fields=[dict(name='birthday', tag='datetextbox', lbl='Date')]))
+        fb.div('^.days_left', lbl='Days left')
+
+    @public_method
+    def getTime(self, birthday=None):
+        today = datetime.today().date()
+        days_left = birthday - today
+        return str(days_left)

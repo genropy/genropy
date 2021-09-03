@@ -87,3 +87,18 @@ class GnrCustomWebPage(object):
         menu = pane.menudiv(iconClass='iconbox menu_icon')
         line = menu.menuline('Alert')
         line.dataController('alert("Be careful")')
+
+    def test_8_datarpc(self, pane):
+        "Download a file from menuline with dataRpc. Please insert your OpenWeatherMap API key first"
+        pane.textbox('^.APPID', lbl='OWM API key')
+        menu = pane.menudiv(iconClass='iconbox menu_icon')
+        line = menu.menuline('Download Bag')
+        line.dataRpc(self.buildBag, APPID='^.APPID')
+
+    @public_method
+    def buildBag(self, APPID=None):
+        #APPID = self.site.getApiKeys('openweathermap')['APPID']
+        #DP Alternatively, it is possible to store api keys in instanceconfig.xml file and retrieve them with getApiKeys
+        b = Bag()
+        b.fromXml(f'http://api.openweathermap.org/data/2.5/weather?q=Milano,IT&APPID={APPID}&mode=xml&units=metric')
+        b.toXml('/Users/dgpaci/Downloads/weather.xml') 

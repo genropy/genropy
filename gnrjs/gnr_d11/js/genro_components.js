@@ -2851,19 +2851,20 @@ dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
         kw.remote_valuepath = valuepath;
         kw.overflow = 'hidden';
         kw.remote = 'bagFieldDispatcher'
+        kw.enableEdit = genro.isDeveloper && false
         kw.min_height= kw.min_height || '1px';
         kw.min_width = kw.min_width || '1px';
         kw.remote_async = true;
         kw.remote__waitingMessage = true;
         var root = sourceNode;
-        if(genro.isDeveloper){
+        if(kw.enableEdit){
             root = sourceNode._('tabContainer');
             kw.pageName = 'view';
             kw.title = 'View';
             kw.remote__onRemote = "this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule)"
         }
         var result = root._('contentPane','bagFieldRemote',kw);
-        if(genro.isDeveloper){
+        if(kw.enableEdit){
             root._('contentPane',{pageName:'edit',title:'Edit',overflow:'hidden'}
                     )._('codeEditor',{'value':'^.$_source',height:'100%',readOnly:false});
         }
