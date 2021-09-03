@@ -60,6 +60,9 @@ class Table(object):
             raise self.exception('protect_update',record=record,
                                  msg='!!Username is not modifiable %(username)s')
         self.passwordTrigger(record)
+        if old_record.get('md5pwd') and not record['md5pwd']:
+            raise self.exception('business_logic',msg='Missing password')
+
 
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('preferences',record,old_record):
@@ -79,7 +82,7 @@ class Table(object):
             password = record['md5pwd']
             if len(password) < 32 and record['status']=='conf':
                 record['md5pwd'] = self.db.application.changePassword(None, None, password, userid=record['username'])
-
+                
     def populate(self, fromDump=None):
         if fromDump:
             dump_folder = os.path.join(self.db.application.instanceFolder, 'dumps')
