@@ -774,7 +774,9 @@ dojo.declare("gnr.GridEditor", null, {
         });
         this.viewId = sourceNode.attr.nodeId;
         this.table= sourceNode.attr.table;
+        let editorPars = objectExtract(sourceNode.attr,'editor_*',true);
         this.editorPars = objectUpdate({},sourceNode.attr.gridEditorPars);
+        objectUpdate(this.editorPars,editorPars);
         this.autoSave =this.editorPars.autoSave || false;
         if(this.autoSave===true){
             this.autoSave = 3000;
@@ -938,7 +940,9 @@ dojo.declare("gnr.GridEditor", null, {
         if (this.invalidCell(cell, inRowIndex)) {
             cell.customClasses.push('invalidCell');
         }
-        if(renderedRow._newrecord && this.grid.sourceNode.attr.table && this.grid.sourceNode.form && this.grid.sourceNode.form.store && !this.grid.sourceNode.form.store.autoSave){
+        if(renderedRow._newrecord && this.grid.sourceNode.attr.table 
+            && this.grid.sourceNode.form && this.grid.sourceNode.form.store 
+            && !this.grid.sourceNode.form.store.autoSave){
             cell.customClasses.push('newRowCell');
         }
     },
@@ -1071,8 +1075,7 @@ dojo.declare("gnr.GridEditor", null, {
                 }
             });
         }
-
-        var insertedRows = result.getItem('insertedRecords');
+        var insertedRows = result?result.getItem('insertedRecords'):null;
         if(insertedRows){
             insertedRows.forEach(function(n){
                 var r = that.grid.storebag().getNode(n.attr.rowId);
@@ -1092,7 +1095,10 @@ dojo.declare("gnr.GridEditor", null, {
         var sourceNode = this.grid.sourceNode;
         if(changeset.len()>0){
             that.grid.updateRowCount();
-            genro.serverCall(that.editorPars.saveMethod,{table:that.table,changeset:changeset,_sourceNode:sourceNode},
+            let savekw = {table:that.table,changeset:changeset,_sourceNode:sourceNode};
+            let extra_savekw = objectExtract(this.editorPars,'save_*',true);
+            objectUpdate(savekw,extra_savekw);
+            genro.serverCall(that.editorPars.saveMethod,savekw,
                             function(result){that.onSavedChangedRows(changeset,result);});
         }
     },
@@ -1148,7 +1154,6 @@ dojo.declare("gnr.GridEditor", null, {
         });
         if(existingPkeys.length>0){
             if(this.autoSave){
-                var that = this;
                 this.grid.collectionStore().deleteAsk(existingPkeys,protectPkeys,function(){that.markDeleted(pkeys)});
             }else{
                 this.markDeleted(existingPkeys);
