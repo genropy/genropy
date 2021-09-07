@@ -745,8 +745,8 @@ dojo.declare("gnr.RowEditor", null, {
         var rowNode = this.data.getParentNode();
         if(this.grid.datamode!='bag' && rowNode){
             rowNode.clearValue(); //deleting data because dbevents remove changes
-            delete rowNode._rowEditor;
         }
+        delete rowNode._rowEditor;
     },
 
     checkRowEditor:function(){
