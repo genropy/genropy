@@ -2327,3 +2327,4 @@ dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
         }
     }
 });
+
