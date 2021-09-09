@@ -1444,7 +1444,7 @@ dojo.declare('gnr.GenroClient', null, {
         return genro.addKwargs(url, kwargs);
     },
     addKwargs: function(url, kwargs) {
-        if (kwargs) {
+        if (objectNotEmpty(kwargs)) {
             var currParams = {};
             var parameters = [];
             currParams['page_id'] = genro.page_id;
