@@ -32,6 +32,8 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile('\W+')
+NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
+
 
 try:
     from string import Template
