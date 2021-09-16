@@ -989,7 +989,6 @@ def weightedLength(str, light_weight=None, capital_weight=None):
 
     capital_chars_in_string = sum(1 for char in str if char.isupper())
     capital_chars_length = capital_chars_in_string*capital_weight
-    print(capital_chars_in_string)
 
     full_width_chars_length = len(str) - half_width_chars_in_string - capital_chars_in_string
     weighted_length = full_width_chars_length + half_width_chars_length + capital_chars_length
