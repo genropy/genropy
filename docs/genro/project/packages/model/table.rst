@@ -274,7 +274,7 @@ relation method
     
     **Example**::
     
-        tbl.column('registry_id',size=':22',name_long='!!Registry id').relation('sw_base.registry.id',mode='foreignkey')
+        tbl.column('registry_id',size='22',name_long='!!Registry id').relation('sw_base.registry.id',mode='foreignkey')
         
         TODO example explanation!
         

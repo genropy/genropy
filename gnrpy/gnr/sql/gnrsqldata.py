@@ -2102,16 +2102,26 @@ class SqlSelection(object):
                     '\t'.join([r[col].replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') for col in columns]))
         return '\n'.join(result)
         
-    def out_xls(self, outsource, filepath=None):
+    def out_xls(self, outsource, filepath=None,headers=None):
         """TODO
         
         :param outsource: TODO
-        :param filePath: boolean. TODO. """
-        from gnr.core.gnrxls import XlsWriter
-        
+        :param filePath: boolean. TODO. """        
+        try:
+            import openpyxl
+            from gnr.core.gnrxls import XlsxWriter as ExcelWriter
+        except ImportError:
+            from gnr.core.gnrxls import XlsWriter as ExcelWriter
+
         columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
-        coltypes = dict([(k, v['dataType']) for k, v in list(self.colAttrs.items())])
-        writer = XlsWriter(columns=columns, coltypes=coltypes, headers=self.colHeaders, filepath=filepath,
+        coltypes = dict([(k, v['dataType']) for k, v in self.colAttrs.items()])
+        if headers is None:
+            headers = self.colHeaders
+        elif headers is False:
+            headers = columns
+        writer = ExcelWriter(columns=columns, coltypes=coltypes, 
+                            headers=headers, 
+                            filepath=filepath,
                            font='Times New Roman',
                            format_float='#,##0.00', format_int='#,##0')
         writer(data=outsource)

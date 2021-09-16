@@ -232,6 +232,14 @@ class DbModel(object):
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
             self.checkRelationIndex(many_pkg, many_table, many_field)
             self.checkRelationIndex(one_pkg, one_table, one_field)
+            col_one_size = self.table(one_table,pkg=one_pkg).column(one_field).attributes.get('size')
+            col_many_size = self.table(many_table,pkg=many_pkg).column(many_field).attributes.get('size')
+
+            if col_one_size != col_many_size:
+                message = 'Different size in relation {fkey}:{many_size} - {pkey}:{one_size} '.format(fkey=str('.'.join(many_relation_tuple)),
+                        many_size=col_many_size, pkey=str(oneColumn),one_size=col_one_size)
+                logger.error(message)
+
             if (onDelete=='cascade' and self.db.auto_static_enabled) or meta_kwargs.get('childmode'):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)

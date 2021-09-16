@@ -212,7 +212,7 @@ class PublicSlots(BaseComponent):
         partition_path = kw['path']
         table = kw['table']
         related_tblobj = self.db.table(table)
-        default_partition_value = self.rootenv[partition_path]
+        default_partition_value = self.db.currentEnv.get('current_{}'.format(partition_path)) or self.rootenv[partition_path]
         fb = box.formbuilder(cols=1,border_spacing='0')
         if hasattr(related_tblobj,'partitionioning_pkeys'):
             #to avoid this query use login onUserSelected instead of use partitionioning_pkeys

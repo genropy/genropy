@@ -121,8 +121,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp', 'script',
             'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
             'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'var','embed','audio','video','canvas','progress'];
-        for (var i = 0; i < htmlspace.length; i++) {
-            tag = htmlspace[i];
+        for (let tag of htmlspace) {
             this.namespace[tag.toLowerCase()] = ['html',tag];
         }
         this.widgetcatalog = {'CheckBox':'dijit.form.CheckBox',
@@ -746,8 +745,8 @@ dojo.declare("gnr.RowEditor", null, {
         var rowNode = this.data.getParentNode();
         if(this.grid.datamode!='bag' && rowNode){
             rowNode.clearValue(); //deleting data because dbevents remove changes
-            delete rowNode._rowEditor;
         }
+        delete rowNode._rowEditor;
     },
 
     checkRowEditor:function(){
@@ -775,7 +774,9 @@ dojo.declare("gnr.GridEditor", null, {
         });
         this.viewId = sourceNode.attr.nodeId;
         this.table= sourceNode.attr.table;
+        let editorPars = objectExtract(sourceNode.attr,'editor_*',true);
         this.editorPars = objectUpdate({},sourceNode.attr.gridEditorPars);
+        objectUpdate(this.editorPars,editorPars);
         this.autoSave =this.editorPars.autoSave || false;
         if(this.autoSave===true){
             this.autoSave = 3000;
@@ -939,7 +940,9 @@ dojo.declare("gnr.GridEditor", null, {
         if (this.invalidCell(cell, inRowIndex)) {
             cell.customClasses.push('invalidCell');
         }
-        if(renderedRow._newrecord && this.grid.sourceNode.attr.table && this.grid.sourceNode.form && this.grid.sourceNode.form.store && !this.grid.sourceNode.form.store.autoSave){
+        if(renderedRow._newrecord && this.grid.sourceNode.attr.table 
+            && this.grid.sourceNode.form && this.grid.sourceNode.form.store 
+            && !this.grid.sourceNode.form.store.autoSave){
             cell.customClasses.push('newRowCell');
         }
     },
@@ -972,7 +975,7 @@ dojo.declare("gnr.GridEditor", null, {
     },
 
     addEditColumn:function(colname,colattr){
-        colattr['parentForm'] = false;
+        colattr.parentForm = false;
         var edit = objectPop(colattr,'edit');
         objectPop(colattr,'width');
         if(edit!==true){
@@ -980,20 +983,29 @@ dojo.declare("gnr.GridEditor", null, {
         }
         if(!('tag' in colattr)){
             var dt = colattr['dtype'];
-            var widgets = {'L':'NumberTextBox','I':'NumberTextBox','D':'DateTextbox','DH':'DatetimeTextbox','R':'NumberTextBox','N':'NumberTextBox','H':'TimeTextBox','B':'CheckBox'};
+            var widgets = {'L':'NumberTextBox','I':'NumberTextBox','D':'DateTextbox',
+                            'DH':'DatetimeTextbox','R':'NumberTextBox',
+                            'N':'NumberTextBox','H':'TimeTextBox','B':'CheckBox'};
             colattr['tag'] = widgets[dt] || 'Textbox';
             if('related_table' in colattr){
-                colattr['tag'] = 'dbselect';
-                colattr['dbtable'] = colattr['related_table'];
-                if(colattr['related_table_lookup']){
-                    colattr['hasDownArrow'] = true;
+                colattr.tag = 'dbselect';
+                colattr.dbtable = colattr.related_table;
+                if(colattr.related_table_lookup){
+                    colattr.hasDownArrow = true;
                 }
-            }if('values' in colattr){
-                colattr['tag'] = colattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            }
+            if('values' in colattr){
+                colattr.tag = colattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            }
+            if('size' in colattr && tag=='Textbox'){
+                colattr.validate_len = colattr.size;
+            }
+            if(dt == 'L' || dt == 'I'){
+                colattr.places = 0;
+                colattr.format = colattr.format || '#,###';
             }
         }
-        var lowertag = colattr['tag'].toLowerCase();
-        var wdghandler = genro.wdg.getHandler(colattr['tag']);
+        var wdghandler = genro.wdg.getHandler(colattr.tag);
         wdghandler.cell_onCreating(this,colname,colattr);
         this.columns[colname.replace(/\W/g, '_')] = {'tag':colattr.tag,'attr':colattr};
     },
@@ -1063,8 +1075,7 @@ dojo.declare("gnr.GridEditor", null, {
                 }
             });
         }
-
-        var insertedRows = result.getItem('insertedRecords');
+        var insertedRows = result?result.getItem('insertedRecords'):null;
         if(insertedRows){
             insertedRows.forEach(function(n){
                 var r = that.grid.storebag().getNode(n.attr.rowId);
@@ -1084,7 +1095,10 @@ dojo.declare("gnr.GridEditor", null, {
         var sourceNode = this.grid.sourceNode;
         if(changeset.len()>0){
             that.grid.updateRowCount();
-            genro.serverCall(that.editorPars.saveMethod,{table:that.table,changeset:changeset,_sourceNode:sourceNode},
+            let savekw = {table:that.table,changeset:changeset,_sourceNode:sourceNode};
+            let extra_savekw = objectExtract(this.editorPars,'save_*',true);
+            objectUpdate(savekw,extra_savekw);
+            genro.serverCall(that.editorPars.saveMethod,savekw,
                             function(result){that.onSavedChangedRows(changeset,result);});
         }
     },
@@ -1140,7 +1154,6 @@ dojo.declare("gnr.GridEditor", null, {
         });
         if(existingPkeys.length>0){
             if(this.autoSave){
-                var that = this;
                 this.grid.collectionStore().deleteAsk(existingPkeys,protectPkeys,function(){that.markDeleted(pkeys)});
             }else{
                 this.markDeleted(existingPkeys);
@@ -1625,7 +1638,7 @@ dojo.declare("gnr.GridEditor", null, {
             attr['value'] = '^.' + gridcell;
         }
         if (this.viewId) {
-            if (attr.exclude == true) {
+            if (attr.exclude === true) {
                 attr.exclude = '==genro.wdgById("' + this.viewId + '").getColumnValues("' + attr['value'] + '")';
             }
         }

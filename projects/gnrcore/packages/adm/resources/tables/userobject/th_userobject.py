@@ -74,7 +74,7 @@ class Form(BaseComponent):
 
 
     def th_options(self):
-        return dict(dialog_height='400px', dialog_width='600px')
+        return dict(dialog_height='400px', dialog_width='600px',duplicate=True)
 
 class ViewCustomColumn(BaseComponent):
     def th_struct(self,struct):
@@ -123,7 +123,8 @@ class FormCustomColumn(BaseComponent):
         return dict(#newTitleTemplate='!!New custom column',titleTemplate='Column:$code-$description',modal=True,
                     default_objtype='formulacolumn',
                     default_tbl='=current.tbl',
-                    default_pkg='=current.pkg',dialog_height='210px',dialog_width='500px')
+                    default_pkg='=current.pkg',dialog_height='210px',dialog_width='500px',
+                    duplicate=True)
 
 
 

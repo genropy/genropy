@@ -352,12 +352,14 @@ class FrameGridTools(BaseComponent):
 
 class FrameGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGridTools'
-    @extract_kwargs(top=True,grid=True,columnset=dict(slice_prefix=False,pop=True),footer=dict(slice_prefix=False,pop=True))
+    @extract_kwargs(top=True,grid=True,columnset=dict(slice_prefix=False,pop=True),footer=dict(slice_prefix=False,pop=True),editor=dict(slice_prefix=False))
     @struct_method
     def fgr_frameGrid(self,pane,frameCode=None,struct=None,storepath=None,dynamicStorepath=None,structpath=None,
                     datamode=None,table=None,viewResource=None,grid_kwargs=True,top_kwargs=None,iconSize=16,
                     footer_kwargs=None,columnset_kwargs=None,footer=None,columnset=None,fillDown=None,
-                    _newGrid=None,selectedPage=None,configurable=None,printRows=None,groupable=False,extendedLayout=True,**kwargs):
+                    _newGrid=None,selectedPage=None,configurable=None,printRows=None,
+                    groupable=False,extendedLayout=True,
+                    editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
         frame.center.stackContainer(selectedPage=selectedPage)
@@ -377,6 +379,7 @@ class FrameGrid(BaseComponent):
         grid_kwargs['selfsubscribe_archive'] = grid_kwargs.get('selfsubscribe_archive','this.widget.archiveSelectedRows();')
         #grid_kwargs['selfsubscribe_setSortedBy'] = """console.log($1.event);"""
         grid_kwargs.setdefault('selectedId','.selectedId')
+        grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
                                             title=grid_kwargs.pop('title','!!Grid'))
         grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,

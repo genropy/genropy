@@ -12,7 +12,7 @@ class Table(object):
         tbl.column('identifier',size=':120',indexed=True,sql_value="COALESCE(:tbl,:pkg,'')||:objtype||:code|| CASE WHEN :private THEN :userid ELSE '' END",unique=True)
         tbl.column('code', size=':40',name_long='!![en]Code', indexed='y') # a code unique for the same type / pkg / tbl
         tbl.column('objtype',size=':20', name_long='!![en]Object Type', indexed='y')
-        tbl.column('pkg', size=':50',name_long='!![en]Package').relation('pkginfo.pkgid',relation_name='objects') # package code
+        tbl.column('pkg', size=':30',name_long='!![en]Package').relation('pkginfo.pkgid',relation_name='objects') # package code
         tbl.column('tbl', size=':50',name_long='!![en]Table').relation('tblinfo.tblid',relation_name='objects') # full table name: package.table
         tbl.column('userid',size=':50', name_long='!![en]User ID', indexed='y')
         tbl.column('description',size=':50', name_long='!![en]Description', indexed='y')

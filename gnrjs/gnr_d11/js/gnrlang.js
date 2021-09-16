@@ -421,8 +421,8 @@ function stringStrip(s) {
     return s.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '');
 }
 function splitStrip(s, sp) {
-    r = [];
-    var sp = sp || ',';
+    var r = [];
+    sp = sp || ',';
     dojo.forEach(s.split(sp), function(v) {
         r.push(stringStrip(v));
     });
