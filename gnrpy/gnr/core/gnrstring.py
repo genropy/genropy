@@ -45,6 +45,7 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile('\W+')
+NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
 
 try:
     from string import Template
@@ -972,28 +973,46 @@ def jsquote(str_or_unicode):
     'pippo'"""
     return json.dumps(str_or_unicode)
 
-def weightedLength(str, light_weight=None, capital_weight=None):
-    """Since characters width depends on which characters are used in a string, this method allows to approximate length
-    
-    :param str_or_unicode: the string to be quoted
-    :param light_weight: the weight of lighter characters (0.5 if not specified)
-    :param capital_weight: the weight of capital characters (1.2 if not specified)
-    :returns: lenght (int)"""
+#def weightedLength(str, light_weight=None, capital_weight=None):
+#    """Since characters width depends on which characters are used in a string, this method allows to approximate length
+#    
+#    :param str_or_unicode: the string to be quoted
+#    :param light_weight: the weight of lighter characters (0.5 if not specified)
+#    :param capital_weight: the weight of capital characters (1.2 if not specified)
+#    :returns: lenght (int)"""
+#
+#    light_weight = light_weight or 0.5
+#    capital_weight = capital_weight or 1.2
+#
+#    half_width_chars = ['i', 'I', 'l', 't', ',', '.', ' ', '!', '1', '[', ']', '-', ';', ':']
+#    half_width_chars_in_string = sum(str.count(char) for char in half_width_chars if str.count(char))
+#    half_width_chars_length = half_width_chars_in_string*light_weight
+#
+#    capital_chars_in_string = sum(1 for char in str if char.isupper())
+#    capital_chars_length = capital_chars_in_string*capital_weight
+#
+#    full_width_chars_length = len(str) - half_width_chars_in_string - capital_chars_in_string
+#    weighted_length = full_width_chars_length + half_width_chars_length + capital_chars_length
+#    return weighted_length
 
-    light_weight = light_weight or 0.5
-    capital_weight = capital_weight or 1.2
+def weightedLen(mystring, narrow_coeff=None):
+    """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
+    :param mystring: string to measure
+    :param narrow_coeff: the coefficent for narrow characters (default 0.5 -> narrow char is considered half)
+    :returns: weightedLen (int)"""
 
-    half_width_chars = ['i', 'I', 'l', 't', ',', '.', ' ', '!', '1', '[', ']', '-', ';', ':']
-    half_width_chars_in_string = sum(str.count(char) for char in half_width_chars if str.count(char))
-    half_width_chars_length = half_width_chars_in_string*light_weight
+    narrow_coeff = narrow_coeff or 0.5
+    normal=0
+    narrow=0
+    from math import ceil
+    for c in mystring:
+        if c in NARROW_CHARACTERS:
+            narrow=narrow+1
+        else:
+            normal=normal+1
+    return int(ceil(narrow * narrow_coeff) + normal)
 
-    capital_chars_in_string = sum(1 for char in str if char.isupper())
-    capital_chars_length = capital_chars_in_string*capital_weight
 
-    full_width_chars_length = len(str) - half_width_chars_in_string - capital_chars_in_string
-    weighted_length = full_width_chars_length + half_width_chars_length + capital_chars_length
-    return weighted_length
-        
 if __name__ == '__main__':
     incl = '%.py,%.css'
     excl = '_%,.%'
