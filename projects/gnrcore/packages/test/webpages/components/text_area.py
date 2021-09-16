@@ -15,7 +15,6 @@ class GnrCustomWebPage(object):
                                                         var remaining = 30 - my_text.length
                                                         SET .rem = remaining
                                                         SET .clr = (remaining<10)?'red':'grey'
-                                                        console.log(tgt)
                                                         if(remaining<3){
                                                             genro.playSound('ping')
                                                         }
