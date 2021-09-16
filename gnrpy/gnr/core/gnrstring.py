@@ -973,44 +973,28 @@ def jsquote(str_or_unicode):
     'pippo'"""
     return json.dumps(str_or_unicode)
 
-#def weightedLength(str, light_weight=None, capital_weight=None):
-#    """Since characters width depends on which characters are used in a string, this method allows to approximate length
-#    
-#    :param str_or_unicode: the string to be quoted
-#    :param light_weight: the weight of lighter characters (0.5 if not specified)
-#    :param capital_weight: the weight of capital characters (1.2 if not specified)
-#    :returns: lenght (int)"""
-#
-#    light_weight = light_weight or 0.5
-#    capital_weight = capital_weight or 1.2
-#
-#    half_width_chars = ['i', 'I', 'l', 't', ',', '.', ' ', '!', '1', '[', ']', '-', ';', ':']
-#    half_width_chars_in_string = sum(str.count(char) for char in half_width_chars if str.count(char))
-#    half_width_chars_length = half_width_chars_in_string*light_weight
-#
-#    capital_chars_in_string = sum(1 for char in str if char.isupper())
-#    capital_chars_length = capital_chars_in_string*capital_weight
-#
-#    full_width_chars_length = len(str) - half_width_chars_in_string - capital_chars_in_string
-#    weighted_length = full_width_chars_length + half_width_chars_length + capital_chars_length
-#    return weighted_length
-
-def weightedLen(mystring, narrow_coeff=None):
+def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
     """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
     :param mystring: string to measure
     :param narrow_coeff: the coefficent for narrow characters (default 0.5 -> narrow char is considered half)
+    :param upper_coeff: the coefficent for uppercase characters that aren't narrow 
+        (default 1-> upper char aren't weighted by default)
     :returns: weightedLen (int)"""
 
     narrow_coeff = narrow_coeff or 0.5
+    upper_coeff = upper_coeff or 1
     normal=0
     narrow=0
+    upper=0
     from math import ceil
     for c in mystring:
         if c in NARROW_CHARACTERS:
             narrow=narrow+1
+        elif c.isupper():
+            upper=upper+1
         else:
             normal=normal+1
-    return int(ceil(narrow * narrow_coeff) + normal)
+    return ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
 
 
 if __name__ == '__main__':
