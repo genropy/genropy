@@ -1155,7 +1155,10 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.importerMethod = objectPop(kw,'importerMethod')
 
         var errorCb = objectPop(kw,'errorCb');
+        var resultCb = objectPop(kw,'resultCb');
         gnrwdg.errorCb = errorCb? funcCreate(errorCb,'error',sourceNode):null;
+        gnrwdg.resultCb = resultCb? funcCreate(resultCb,'result_data,kw',sourceNode):null;
+
         gnrwdg.batchParameters = objectExtract(kw,'batch_*');
         gnrwdg.uploaderId = sourceNode.attr.nodeId +'_uploader';
         gnrwdg.constant_kwargs = objectExtract(kw,'constant_*',false,true);
@@ -1237,6 +1240,12 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.rootNode = bcnode;
 
         sourceNode.subscribe('onResult',function(kw){
+            var result_data = null;
+            if(kw instanceof gnr.GnrBagNode){
+                result_data = kw.getValue();
+                kw = kw.attr;
+            }
+
             if(kw instanceof gnr.GnrBag){
                 kw = {
                     error:kw.pop('error'),
@@ -1252,6 +1261,9 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                 }
             }
             else{
+                if(gnrwdg.resultCb){
+                    gnrwdg.resultCb(result_data,kw);
+                }
                 this.gnrwdg.resetImporter();
                 var closeCb = function(){
                     genro.wdgById(frameCode+'_floating').hide()
