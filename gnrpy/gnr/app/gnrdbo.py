@@ -1576,7 +1576,9 @@ class TotalizeTable(GnrDboTable):
         addFromCurrent = (record is not None) and (self.totalize_exclude(record) is not True)
         subtractFromOld = (old_record is not None) and (self.totalize_exclude(old_record) is not True)
         self.tt_totalize_allowed(record,old_record=old_record)
-        with self.recordToUpdate(self.pkeyValue(tot_record),insertMissing=True,**tot_record) as tot:
+        totkey = self.pkeyValue(tot_record)
+        with self.recordToUpdate(totkey,insertMissing=True,**tot_record) as tot:
+            tot_before_changes = dict(tot)
             for totalizer_field,pars in tot_fields.items():
                 if addFromCurrent:
                     value = self.tt_getvalue(record,pars) or 0
@@ -1586,6 +1588,11 @@ class TotalizeTable(GnrDboTable):
                     tot[totalizer_field] = (tot[totalizer_field] or old_value.__class__(0)) - old_value
             if tot['_refcount']<=0:
                 tot[self.pkey] = False
+        if (addFromCurrent or subtractFromOld) and hasattr(self,'onCommit_totalize'):
+            deferkw = self.db.deferToCommit(self.onCommit_totalize,_deferredId=totkey)
+            if 'record_before_changes' not in deferkw:
+                deferkw['record_before_changes'] = tot_before_changes
+            deferkw['record_after_changes'] = tot
     
     def tt_totalize_allowed(self,record=None,old_record=None):
         pass
