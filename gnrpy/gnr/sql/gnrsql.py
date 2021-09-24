@@ -632,35 +632,31 @@ class GnrSqlDb(GnrObject):
             connection.committed = True
         self.onDbCommitted()
 
+
     def onCommitting(self):
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
-        deferreds_blocks.sort()
+        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
         with self.tempEnv(onCommittingStep=True):
-            for deferreds in deferreds_blocks.values():
-                while deferreds:
-                    node =  deferreds.popNode('#0')
-                    cb,args,kwargs = node.value
-                    cb(*args,**kwargs)
-                    allowRecursion = getattr(cb,'deferredCommitRecursion',False)
-                    if not allowRecursion:
-                        deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
-        deferreds_blocks.clear()
+            while deferreds:
+                node =  deferreds.popNode('#0')
+                cb,args,kwargs = node.value
+                cb(*args,**kwargs)
+                allowRecursion = getattr(cb,'deferredCommitRecursion',False)
+                if not allowRecursion:
+                    deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
 
     def deferToCommit(self,cb,*args,**kwargs):
-        deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
-        deferreds = deferreds_blocks[deferredBlock] or Bag()
-        deferreds_blocks[deferredBlock] = deferreds
+        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
         deferredId = kwargs.pop('_deferredId',None)
         if not deferredId:
             deferredId = getUuid()
         deferkw = kwargs
         deferredKey = '{}/{}'.format(id(cb),deferredId)
         if deferredKey not in deferreds:
-            deferreds.setItem(deferredKey,(cb,args,deferkw),deferredBlock=deferredBlock)
+            deferreds.setItem(deferredKey,(cb,args,deferkw))
         else:
             cb,args,deferkw = deferreds[deferredKey]
         return deferkw
+        
         
 
     def systemDbEvent(self):
