@@ -1589,7 +1589,8 @@ class TotalizeTable(GnrDboTable):
             if tot['_refcount']<=0:
                 tot[self.pkey] = False
         if (addFromCurrent or subtractFromOld) and hasattr(self,'onCommit_totalize'):
-            deferkw = self.db.deferToCommit(self.onCommit_totalize,_deferredId=totkey)
+            deferkw = self.db.deferToCommit(self.onCommit_totalize,_deferredId=totkey,
+                                        _deferredBlock='_totalizeDeferreds')
             if 'record_before_changes' not in deferkw:
                 deferkw['record_before_changes'] = tot_before_changes
             deferkw['record_after_changes'] = tot
