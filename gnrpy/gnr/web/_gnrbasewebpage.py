@@ -259,7 +259,7 @@ class GnrBaseWebPage(GnrObject):
             selection_limit = qpars.get('limit')
             if selection_limit!=limit:
                 qpars['limit'] = limit
-                selection = table.query(**qpars).selection()
+                selection = table.query(**qpars).selection(_aggregateRows=True)
         if filterCb:
             filterCb = self.getPublicMethod('rpc',filterCb)
             selection.filter(filterCb)
@@ -282,7 +282,7 @@ class GnrBaseWebPage(GnrObject):
         selection = table.query(columns=columns, where=where,
                                 pkeys=pkeys, addPkeyColumn=False,
                                 excludeDraft=False,limit=limit,
-                                **condition_args).selection()
+                                **condition_args).selection(_aggregateRows=True)
         if sortBy:
             selection.sort(sortBy)
         return selection
