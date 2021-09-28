@@ -662,8 +662,16 @@ class GnrWhereTranslator(object):
             return 'Not %s' % getattr(self, 'op_%s' % op[4:].lower()).__doc__
         result = h.__doc__
         if localize and self.db.localizer:
-            result = self.db.localizer.translateText(result)
+            result = self.db.localizer.translate(result,language=self.db.currentEnv.get('locale'))
         return result
+
+    def _relPathToCaption(self, table, relpath):
+        if not relpath: return ''
+        tbltree = self.db.relationExplorer(table, dosort=False, pyresolver=True)
+        localize = self.db.localizer.translate
+        locale = self.db.currentEnv.get('locale')
+        fullcaption = tbltree.cbtraverse(relpath, lambda node: localize(node.getAttr('name_long'),language=locale))
+        return ':'.join(fullcaption)
 
     def toText(self, tblobj, wherebag, level=0, decodeDate=False):
         result = []
@@ -681,6 +689,10 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op_caption')
                 column = attr.get('column_caption')
+                if not op and attr.get('op'):
+                    op = self.opCaption(attr['op'],localize=True)
+                if not column and attr.get('column'):
+                    column = self._relPathToCaption(tblobj.fullname, attr.get('column'))
                 if not op or not column:
                     continue
                 if decodeDate:
@@ -710,6 +722,10 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op_caption')
                 column = attr.get('column_caption')
+                if not op and attr.get('op'):
+                    op = self.opCaption(attr['op'],localize=True)
+                if not column and attr.get('column'):
+                    column = self._relPathToCaption(tblobj.fullname, attr.get('column'))
                 if not op or not column:
                     continue
                 if decodeDate:

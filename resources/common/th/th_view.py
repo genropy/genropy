@@ -121,7 +121,7 @@ class TableHandlerView(BaseComponent):
                 if(typeof(value)!='string'){
                     op = n.attr.op  || 'equal';
                 }
-                if(typeof(value)=='string' && value.indexOf(',')>=0){
+                if(typeof(value)=='string' && value.indexOf(',')>=0 && op!='in'){
                     var subwhere = new gnr.GnrBag();
                     value.split(',').forEach(function(chunk,idx){
                         if(chunk){
