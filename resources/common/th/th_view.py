@@ -117,8 +117,13 @@ class TableHandlerView(BaseComponent):
                 if(!value){
                     return;
                 }
+                var value_caption;
+                if(value && typeof(value)=='string' && value.startsWith('?')){
+                    value_caption = value;
+                    value = null;
+                }
                 op = n.attr.op || 'contains';
-                if(typeof(value)!='string'){
+                if(!value_caption && typeof(value)!='string'){
                     op = n.attr.op  || 'equal';
                 }
                 if(typeof(value)=='string' && value.indexOf(',')>=0 && op!='in'){
@@ -126,14 +131,15 @@ class TableHandlerView(BaseComponent):
                     value.split(',').forEach(function(chunk,idx){
                         if(chunk){
                             subwhere.setItem('c_'+idx,chunk.trim(),{column_dtype:n.attr.column_dtype,
-                                                                    op:op,jc:'or',column:n.attr.column});
+                                                                    op:op,jc:'or',column:n.attr.column,
+                                                                    value_caption:value_caption});
                         }
                     })
                     if(subwhere.len()){
                         where.setItem('c_'+mainIdx,subwhere,{jc:'and'});
                     }
                 }else{
-                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column})
+                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption})
                 }
                 mainIdx++;
             });

@@ -1214,7 +1214,7 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None, **kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,**kwargs):
         """TODO
         
         :param path: TODO
