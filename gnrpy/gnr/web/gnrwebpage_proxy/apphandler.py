@@ -837,9 +837,11 @@ class GnrWebAppHandler(GnrBaseProxy):
             
             if queryTokenPars:
                 with self.db.tempEnv(connectionName='system'):
+
                     external_url = self.page.externalUrlToken('/sys/execute_query_token',
                                                         query_pars = Bag(kwargs),
                                                         query_where = where,
+                                                        query_columns=columns,
                                                         query_condition = condition,
                                                         query_table=tblobj.fullname,
                                                         name = queryTokenPars['name'],

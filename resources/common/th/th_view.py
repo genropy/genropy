@@ -1064,8 +1064,7 @@ class TableHandlerView(BaseComponent):
         sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
         frame.dataController("FIRE .getQueryToken=new gnr.GnrBag({name:save_as,output:output});",_fired='^.queryTokenPars',
                             _ask=dict(title='Get query url',fields=[dict(name='save_as',lbl='Save as',validate_notnull=True),
-                                                                        dict(name='output',lbl='Out',validate_notnull=True,
-                                                                        tag='filteringSelect',values='excel,csv,html')
+                                                                        dict(name='output',lbl='Out',tag='filteringSelect',values='excel,csv,html')
                                                                         ]))
         store = frame.grid.selectionStore(table=table,
                                queryTokenPars='^.getQueryToken',
