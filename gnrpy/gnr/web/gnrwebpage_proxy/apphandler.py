@@ -838,6 +838,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                                                         query_pars = Bag(kwargs),
                                                         query_where = where,
                                                         query_columns=columns,
+                                                        query_envpars=Bag(self.db.currentEnv),
                                                         query_condition = condition,
                                                         query_table=tblobj.fullname,
                                                         name = queryTokenPars['name'],
