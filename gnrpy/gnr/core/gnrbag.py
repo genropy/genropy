@@ -1970,7 +1970,8 @@ class Bag(GnrObject):
         if len(source) > 300:
             #if source is longer than 300 chars it cannot be a path or an URI
             return source, False, 'unknown' #it is a long not xml string
-        if sys.platform == "win32" and ":\\" in source:
+        if sys.platform == "win32" and ((isinstance(source,bytes) and b":\\" in source) or\
+            (isinstance(source,str) and ":\\" in source)):
             urlparsed = ('file', None, source)
         else:
             urlparsed = urllib.parse.urlparse(source)
