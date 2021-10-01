@@ -463,7 +463,7 @@ class SqlQueryCompiler(object):
                 elif v.startswith('$'):
                     doreplace = v[1:] in self.tblobj.columns.keys() + self.tblobj.virtual_columns.keys()
                 if doreplace:
-                    sql = re.sub('(:%s)(\W|$)' % k, lambda m: '%s%s' %(v,m.group(2)), sql)
+                    sql = re.sub(r'(:%s)(\W|$)' % k, lambda m: '%s%s' %(v,m.group(2)), sql)
                 #else:
                 #    print(x)
         return sql
