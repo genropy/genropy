@@ -768,6 +768,20 @@ class GnrWebAppHandler(GnrBaseProxy):
             kwargs.update(queryExtraPars.asDict(ascii=True))
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
+        if queryTokenPars:
+            with self.db.tempEnv(connectionName='system'):
+                external_url = self.page.externalUrlToken('/sys/execute_query_token',
+                                                    query_pars = Bag(kwargs),
+                                                    query_where = where,
+                                                    query_columns=queryTokenPars['visible_columns'],
+                                                    query_envpars=Bag(self.db.currentEnv),
+                                                    query_condition = condition,
+                                                    query_table=tblobj.fullname,
+                                                    name = queryTokenPars['name'],
+                                                    output = queryTokenPars['output'],
+                                                    method='execute')
+                self.db.commit()
+            return Bag(),dict(external_url=external_url)
         wherebag = where if isinstance(where,Bag) else None
         resultAttributes = {}
         if checkPermissions is True:
@@ -830,25 +844,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
                                       excludeDraft=excludeDraft,checkPermissions=checkPermissions,
                                       filteringPkeys=filteringPkeys,**kwargs)
-            
-            if queryTokenPars:
-                with self.db.tempEnv(connectionName='system'):
-
-                    external_url = self.page.externalUrlToken('/sys/execute_query_token',
-                                                        query_pars = Bag(kwargs),
-                                                        query_where = where,
-                                                        query_columns=columns,
-                                                        query_envpars=Bag(self.db.currentEnv),
-                                                        query_condition = condition,
-                                                        query_table=tblobj.fullname,
-                                                        name = queryTokenPars['name'],
-                                                        output = queryTokenPars['output'],
-                                                        method='execute')
-                    self.db.commit()
-                return Bag(),dict(external_url=external_url)
-
             selection = selecthandler(**selection_pars)
-
             if selection is False:
                 return Bag(),dict(table=table,selectionName=selectionName)
             elif selectmethod and isinstance(selection,list):

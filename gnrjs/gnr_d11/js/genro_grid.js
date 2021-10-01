@@ -4646,7 +4646,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         const totalWidth =headerTable? headerTable.clientWidth:0;
 
         cells._nodes.forEach(function(n,idx){
-            if((n.attr.hidden && (n.attr.hidden==true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
+            if((n.attr.hidden && (n.attr.hidden===true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
                 cells.popNode(n.label);
                 return;
             }
@@ -4654,6 +4654,33 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         });
         return struct;
     },
+
+    mixin_getSqlVisibleColumns:function(){
+        var struct = this.structbag()
+        var cells = struct.getItem('#0.#0');
+        var sourceNode = this.sourceNode;
+        var headerList = dojo.query('th',this.viewsHeaderNode);
+        var visibleColumns = cells._nodes.map(function(n,idx){
+            if((n.attr.hidden && (n.attr.hidden===true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
+                return;
+            }
+            let sqlcolumn =  n.attr.sqlcolumn;
+            let field_getter = n.attr.field_getter || n.attr.queryfield || n.attr.field;
+            if (!sqlcolumn){
+                sqlcolumn = field_getter.startsWith('@')?field_getter:`$${field_getter}`;
+            }
+            let name = n.attr.name;
+            if(name){
+                if(sqlcolumn.includes(' AS ')){
+                    sqlcolumn = sqlcolumn.split(' AS ')[0]
+                }
+                sqlcolumn = `${sqlcolumn} AS "${name}"`;
+            }
+            return sqlcolumn
+        });
+        return visibleColumns.join(',');
+    },
+
     mixin_remoteCellEdit:function(cell,rowIndex){
         const table = this.sourceNode.attr.table; 
         if(!table){
