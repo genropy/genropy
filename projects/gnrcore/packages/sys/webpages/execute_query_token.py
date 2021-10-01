@@ -22,7 +22,7 @@ class GnrCustomWebPage(object):
         if isinstance(query_where, Bag):
             query_pars.pop('where_attr',None)
             query_where, query_pars = self.app._decodeWhereBag(tblobj, query_where, query_pars)
-        query_where = '{} AND {}'.format(query_where,query_condition)
+        query_where = '{} AND {}'.format(query_where,query_condition) if query_condition else query_where
         with self.db.tempEnv(**env_pars):
             q = tblobj.query(where=query_where,columns=query_columns,**query_pars)
             s = q.selection()
