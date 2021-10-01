@@ -36,3 +36,9 @@ class GnrCustomWebPage(object):
         """tooltipPane"""
         fb = pane.formbuilder(cols=2)
         tooltip = fb.multilineTextbox(value='^.test', lbl='Multiline content')
+
+    def test_4_TextBoxMenu(self,pane):
+        """TextBoxMenu"""
+        fb = pane.formbuilder(cols=2)
+        fb.textboxMenu(value='^.val', lbl='Choose Value',separator='|',position='relative',values='Pippo,Pluto,Paperino')
+    
