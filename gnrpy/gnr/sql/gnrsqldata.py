@@ -2074,7 +2074,20 @@ class SqlSelection(object):
             colattr = self.colAttrs.get(colname, dict())
             headers.append(translate(colattr.get('label', colname)))
         return headers
-            
+
+    def out_html(self, outsource):
+        """TODO
+        
+        :param outsource: TODO"""
+        
+        columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
+        result = ['<table><thead>',''.join(['<th>{}<th>'.format(h) for h in self.colHeaders]),'</thead>','<tbody>']
+        for row in outsource:
+            row = dict(row)
+            result.append('<tr>{}</tr>'.format(''.join(['<td>{}<td>'.format(row[col]) for col in columns])))
+        result.append('</tbody></table>')
+        return '\n'.join(result)
+
     def out_tabtext(self, outsource):
         """TODO
         
