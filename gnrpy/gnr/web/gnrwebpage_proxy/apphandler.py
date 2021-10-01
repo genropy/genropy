@@ -768,20 +768,6 @@ class GnrWebAppHandler(GnrBaseProxy):
             kwargs.update(queryExtraPars.asDict(ascii=True))
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
-        if queryTokenPars:
-            with self.db.tempEnv(connectionName='system'):
-                external_url = self.page.externalUrlToken('/sys/execute_query_token',
-                                                    query_pars = Bag(kwargs),
-                                                    query_where = where,
-                                                    query_columns=queryTokenPars['visible_columns'] or columns,
-                                                    query_envpars=Bag(self.db.currentEnv),
-                                                    query_condition = condition,
-                                                    query_table=tblobj.fullname,
-                                                    name = queryTokenPars['name'],
-                                                    output = queryTokenPars['output'],
-                                                    method='execute')
-                self.db.commit()
-            return Bag(),dict(external_url=external_url)
         wherebag = where if isinstance(where,Bag) else None
         resultAttributes = {}
         if checkPermissions is True:
@@ -789,6 +775,29 @@ class GnrWebAppHandler(GnrBaseProxy):
         for k in kwargs.keys():
             if k.startswith('format_'):
                 formats[7:] = kwargs.pop(k)
+
+        if queryTokenPars:
+            with self.db.tempEnv(connectionName='system'):
+                query_pars = dict(distinct=distinct, 
+                                columns=queryTokenPars['visible_columns'] or columns, 
+                                order_by=order_by, limit=limit, 
+                                group_by=group_by, 
+                                having=having,
+                                excludeLogicalDeleted=excludeLogicalDeleted,
+                                excludeDraft=excludeDraft,**kwargs)
+                external_url = self.page.externalUrlToken('/sys/execute_query_token',
+                                                    table=table,
+                                                    query_where = where,
+                                                    query_condition = condition,
+                                                    query_envpars = Bag(self.db.currentEnv),
+                                                    query_pars = Bag(query_pars),
+                                                    selection_sortedBy=sortedBy,
+                                                    output_formats = formats,
+                                                    name = queryTokenPars['name'],
+                                                    output = queryTokenPars['output'],
+                                                    method='execute')
+                self.db.commit()
+            return Bag(),dict(external_url=external_url)
         if selectionName.startswith('*'):
             if selectionName == '*':
                 selectionName = self.page.page_id
