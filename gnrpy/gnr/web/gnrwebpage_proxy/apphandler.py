@@ -715,7 +715,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                          sortedBy=None, excludeLogicalDeleted=True,excludeDraft=True,hardQueryLimit=None,
                          savedQuery=None,savedView=None, externalChanges=None,prevSelectedDict=None,
                          checkPermissions=None,queryBySample=False,weakLogicalDeleted=False,
-                         customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,**kwargs):
+                         customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,
+                         queryTokenPars=False,**kwargs):
         """TODO
         
         ``getSelection()`` method is decorated with the :meth:`public_method
@@ -824,17 +825,33 @@ class GnrWebAppHandler(GnrBaseProxy):
             if joinConditions:
                 joinConditions = self._decodeJoinConditions(tblobj,joinConditions,kwargs)
                 kwargs['joinConditions'] = joinConditions
+            
             selection_pars = dict(tblobj=tblobj, table=table, distinct=distinct, columns=columns, where=where,
                                       condition=condition,queryMode=queryMode,
                                       order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                                       relationDict=relationDict, sqlparams=sqlparams,
                                       recordResolver=recordResolver, selectionName=selectionName, 
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
-                                      excludeDraft=excludeDraft,checkPermissions=checkPermissions ,filteringPkeys=filteringPkeys,**kwargs)
+                                      excludeDraft=excludeDraft,checkPermissions=checkPermissions,
+                                      filteringPkeys=filteringPkeys,**kwargs)
+            
+            if queryTokenPars:
+                with self.db.tempEnv(connectionName='system'):
+                    external_url = self.page.externalUrlToken('/sys/execute_query_token',
+                                                        query_pars = Bag(kwargs),
+                                                        query_where = where,
+                                                        query_condition = condition,
+                                                        query_table=tblobj.fullname,
+                                                        name = queryTokenPars['name'],
+                                                        output = queryTokenPars['output'],
+                                                        method='execute')
+                    self.db.commit()
+                return Bag(),dict(external_url=external_url)
 
             selection = selecthandler(**selection_pars)
+
             if selection is False:
-                return Bag()
+                return Bag(),dict(table=table,selectionName=selectionName)
             elif selectmethod and isinstance(selection,list):
                 self._default_getSelection()
 
@@ -1011,8 +1028,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                               relationDict=None, sqlparams=None,recordResolver=None, selectionName=None,
                                pkeys=None,filteringPkeys=None, queryMode=None,
                               sortedBy=None, sqlContextName=None,
-                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,
-                              **kwargs):
+                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,**kwargs):
         sqlContextBag = None
         _qmpkeys = None
         if sqlContextName:

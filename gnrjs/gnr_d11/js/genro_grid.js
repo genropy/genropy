@@ -62,8 +62,7 @@ gnr.columnsFromStruct = function(struct, columns) {
         return '';
     }
     var nodes = struct.getNodes();
-    for (var i = 0; i < nodes.length; i++) {
-        var node = nodes[i];
+    for (var node of nodes) {
         var fld = node.attr.queryfield || node.attr.field;
         if(node.attr.group_aggr){
             fld = fld+'_'+node.attr.group_aggr.toLowerCase().replace(/\W/g, '_');
@@ -3086,7 +3085,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             this.setEditableColumns();
         }
         this.setChangeManager();
-        kw = kw || {};
+        kw || {};
         if(this.sourceNode._useStore){
             var store = this.collectionStore();
             if(store){

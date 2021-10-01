@@ -118,23 +118,29 @@ class TableHandlerView(BaseComponent):
                 if(!value){
                     return;
                 }
+                var value_caption;
+                if(value && typeof(value)=='string' && value.startsWith('?')){
+                    value_caption = value;
+                    value = null;
+                }
                 op = n.attr.op || 'contains';
-                if(typeof(value)!='string'){
+                if(!value_caption && typeof(value)!='string'){
                     op = n.attr.op  || 'equal';
                 }
-                if(typeof(value)=='string' && value.indexOf(',')>=0){
+                if(typeof(value)=='string' && value.indexOf(',')>=0 && op!='in'){
                     var subwhere = new gnr.GnrBag();
                     value.split(',').forEach(function(chunk,idx){
                         if(chunk){
                             subwhere.setItem('c_'+idx,chunk.trim(),{column_dtype:n.attr.column_dtype,
-                                                                    op:op,jc:'or',column:n.attr.column});
+                                                                    op:op,jc:'or',column:n.attr.column,
+                                                                    value_caption:value_caption});
                         }
                     })
                     if(subwhere.len()){
                         where.setItem('c_'+mainIdx,subwhere,{jc:'and'});
                     }
                 }else{
-                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column})
+                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption})
                 }
                 mainIdx++;
             });
@@ -334,11 +340,14 @@ class TableHandlerView(BaseComponent):
                                            genro.nodeById('{rootNodeId}').widget.reload();""".format(rootNodeId=rootNodeId))
         b.rowchild(label='!!Totals count',action='SET #{rootNodeId}.#parent.tableRecordCount= !GET #{rootNodeId}.#parent.tableRecordCount;'.format(rootNodeId=rootNodeId),
                             checked='^#{rootNodeId}.#parent.tableRecordCount'.format(rootNodeId=rootNodeId))
+        b.rowchild(label='!![en]Get query token',
+                    action="FIRE #{rootNodeId}.#parent.queryTokenPars;".format(rootNodeId=rootNodeId))
         if statsEnabled:
             b.rowchild(label='-')
             b.rowchild(label='!!Group by',action='SET .statsTools.selectedPage = "groupby"; SET .viewPage= "statsTools";')
             if self.ths_pandas_available():
                 b.rowchild(label='!!Pivot table',action='SET .statsTools.selectedPage = "pandas"; SET .viewPage= "statsTools";')
+        
         if self.db.package('biz'):
             self._th_addDashboardCommands(b,rootNodeId,table)
         return b
@@ -1053,7 +1062,13 @@ class TableHandlerView(BaseComponent):
         multiStores = store_kwargs.pop('multiStores',None)
         frame.data('.query.limit',store_kwargs.pop('limit',None))
         sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
+        frame.dataController("FIRE .getQueryToken=new gnr.GnrBag({name:save_as,output:output});",_fired='^.queryTokenPars',
+                            _ask=dict(title='Get query url',fields=[dict(name='save_as',lbl='Save as',validate_notnull=True),
+                                                                        dict(name='output',lbl='Out',validate_notnull=True,
+                                                                        tag='filteringSelect',values='excel,csv,html')
+                                                                        ]))
         store = frame.grid.selectionStore(table=table,
+                               queryTokenPars='^.getQueryToken',
                                chunkSize=chunkSize,childname='store',
                                where='=.query.where',
                                queryMode='=.query.queryMode', 
@@ -1128,6 +1143,11 @@ class TableHandlerView(BaseComponent):
         store.addCallback("""FIRE .queryEnd=true; 
                             return result;
                             """) 
+        store.addCallback("""if(result.attr.external_url){
+            genro.dlg.alert(result.attr.external_url,'External token')
+        }; 
+        return result;
+        """) 
         frame.dataController("""
             var reason,caption,tooltip;
             if(pkeys){
@@ -1508,7 +1528,6 @@ class THViewUtils(BaseComponent):
         frame.data('.linkedSelectionPars',None,serverpath='linkedSelectionPars.%s' %frame.store.attributes['selectionName'].replace('*',''))
         gridattr['selfsubscribe_refreshLinkedSelection'] = """SET .#parent.linkedSelectionPars.pkeys = null;
                                                                FIRE .#parent.runQueryDo;"""
-
 
 
 

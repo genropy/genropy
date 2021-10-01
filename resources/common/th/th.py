@@ -34,7 +34,8 @@ class TableHandler(BaseComponent):
                     th/th_stats:TableHandlerStats,th/th_groupth:TableHandlerGroupBy,
                   th/th_form:TableHandlerForm,th/th_lib:TableHandlerCommon,th/th:ThLinker,
                   th/th:MultiButtonForm,th/th:THBusinessIntelligence,
-                  gnrcomponents/userobject/userobject_editor:PrintGridEditor
+                  gnrcomponents/userobject/userobject_editor:PrintGridEditor,
+                  gnrcomponents/userobject/userobject_editor:RpcQueryEditor
                   """
     
     @extract_kwargs(condition=True,grid=True,view=True,picker=True,export=True,addrowmenu=True,hider=True,preview=True,relation=True)

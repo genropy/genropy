@@ -1158,7 +1158,10 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.importerMethod = objectPop(kw,'importerMethod')
 
         var errorCb = objectPop(kw,'errorCb');
+        var resultCb = objectPop(kw,'resultCb');
         gnrwdg.errorCb = errorCb? funcCreate(errorCb,'error',sourceNode):null;
+        gnrwdg.resultCb = resultCb? funcCreate(resultCb,'result_data,kw',sourceNode):null;
+
         gnrwdg.batchParameters = objectExtract(kw,'batch_*');
         gnrwdg.uploaderId = sourceNode.attr.nodeId +'_uploader';
         gnrwdg.constant_kwargs = objectExtract(kw,'constant_*',false,true);
@@ -1240,6 +1243,12 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.rootNode = bcnode;
 
         sourceNode.subscribe('onResult',function(kw){
+            var result_data = null;
+            if(kw instanceof gnr.GnrBagNode){
+                result_data = kw.getValue();
+                kw = kw.attr;
+            }
+
             if(kw instanceof gnr.GnrBag){
                 kw = {
                     error:kw.pop('error'),
@@ -1255,6 +1264,9 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                 }
             }
             else{
+                if(gnrwdg.resultCb){
+                    gnrwdg.resultCb(result_data,kw);
+                }
                 this.gnrwdg.resetImporter();
                 var closeCb = function(){
                     genro.wdgById(frameCode+'_floating').hide()
@@ -4959,18 +4971,36 @@ dojo.declare("gnr.widgets.ComboMenu", gnr.widgets.gnrwdg, {
     }
 });
 
+dojo.declare("gnr.widgets.TextboxMenu", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode,kw,childSourceNode){
+        var menupars = objectExtract(kw,'values,storepath');
+        menupars._class = 'smallmenu'
+        var separator = objectPop(kw,'separator',',')
+        var valuekey = objectPop(kw,'valuekey','fullpath')
+        var tb = sourceNode._('textbox',kw);
+        menupars.action = function(linekw,ctx){
+            var cv = this.attr.attachTo.widget.getValue();
+            this.attr.attachTo.widget.setValue(cv?cv+separator+linekw[valuekey]:linekw[valuekey],true);
+        }
+        tb._('comboMenu',menupars);
+        return tb;
+    }
+});
+
+
 dojo.declare("gnr.widgets.MultiLineTextbox", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         var tb = sourceNode._('textbox',kw);
         var tbNode = tb.getParentNode();
         var valuepath = tbNode.absDatapath(kw.value);
+        var separator = objectPop(kw,'separator',',')
         tb._('comboArrow',{connect_onclick:function(){
             var curval = tbNode.widget.getValue();
             var dflt = curval?curval.replace(/\,/g,'\n'):null
             genro.dlg.prompt(_T('Multiline value'),{
                 widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
                 action:function(value){
-                    tbNode.setRelativeData(valuepath,value.replace(/\n/g,','));
+                    tbNode.setRelativeData(valuepath,value.replace(/\n/g,separator));
                 },dflt:dflt,onEnter:null});
         }});
         return tb;

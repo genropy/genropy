@@ -2093,7 +2093,7 @@ class SqlSelection(object):
         
         :param outsource: TODO"""
         
-        headers = self.colHeaders()
+        headers = self.colHeaders
         columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
         result = ['\t'.join(headers)]
         for row in outsource:

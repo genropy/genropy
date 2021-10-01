@@ -645,25 +645,32 @@ class GnrSqlDb(GnrObject):
         self.onDbCommitted()
 
     def onCommitting(self):
-        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
+        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
+        deferreds_blocks.sort()
         with self.tempEnv(onCommittingStep=True):
-            while deferreds:
-                node =  deferreds.popNode('#0')
-                cb,args,kwargs = node.value
-                cb(*args,**kwargs)
-                allowRecursion = getattr(cb,'deferredCommitRecursion',False)
-                if not allowRecursion:
-                    deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
+            for deferreds in deferreds_blocks.values():
+                while deferreds:
+                    node =  deferreds.popNode('#0')
+                    cb,args,kwargs = node.value
+                    cb(*args,**kwargs)
+                    allowRecursion = getattr(cb,'deferredCommitRecursion',False)
+                    if not allowRecursion:
+                        deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
+        deferreds_blocks.clear()
 
     def deferToCommit(self,cb,*args,**kwargs):
-        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
+        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        if deferredBlock not in deferreds_blocks:
+            deferreds_blocks[deferredBlock] = Bag()
+        deferreds = deferreds_blocks[deferredBlock]
         deferredId = kwargs.pop('_deferredId',None)
         if not deferredId:
             deferredId = getUuid()
         deferkw = kwargs
         deferredKey = '{}/{}'.format(id(cb),deferredId)
         if deferredKey not in deferreds:
-            deferreds.setItem(deferredKey,(cb,args,deferkw))
+            deferreds.setItem(deferredKey,(cb,args,deferkw),deferredBlock=deferredBlock)
         else:
             cb,args,deferkw = deferreds[deferredKey]
         return deferkw
