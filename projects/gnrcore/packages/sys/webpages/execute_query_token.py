@@ -14,14 +14,17 @@ class GnrCustomWebPage(object):
 
     def execute(self,query_table=None,query_where=None,
                     query_condition=None,query_columns=None,query_pars=None,
+                    query_envpars=None,
                     name=None,output=None,**kwargs):
         tblobj = self.db.table(query_table)
         query_pars = query_pars.asDict()
+        env_pars = query_envpars.asDict()
         if isinstance(query_where, Bag):
             query_pars.pop('where_attr',None)
             query_where, query_pars = self.app._decodeWhereBag(tblobj, query_where, query_pars)
         query_where = '{} AND {}'.format(query_where,query_condition)
-        q = tblobj.query(where=query_where,columns=query_columns,**query_pars)
-        s = q.selection()
+        with self.db.tempEnv(**env_pars):
+            q = tblobj.query(where=query_where,columns=query_columns,**query_pars)
+            s = q.selection()
         return s.output(output)
     
