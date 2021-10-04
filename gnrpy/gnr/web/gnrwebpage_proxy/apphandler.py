@@ -1291,7 +1291,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                             row[n.label] = n.value
         if updated:
             pkeys = [pkey for pkey in updated.keys() if pkey]
-            tblobj.batchUpdate(cb,where='$%s IN :pkeys' %pkeyfield,pkeys=pkeys,bagFields=True)
+            tblobj.batchUpdate(cb,_pkeys=pkeys,bagFields=True)
         if inserted:
             for k,r in inserted.items():
                 tblobj.insert(r)
