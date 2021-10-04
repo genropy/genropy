@@ -1062,7 +1062,11 @@ class TableHandlerView(BaseComponent):
         multiStores = store_kwargs.pop('multiStores',None)
         frame.data('.query.limit',store_kwargs.pop('limit',None))
         sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
-        frame.dataController("FIRE .getQueryToken=new gnr.GnrBag({name:save_as,output:output});",_fired='^.queryTokenPars',
+        frame.dataController("""
+                            var visible_columns = genro.nodeById(gridId).widget.getSqlVisibleColumns()
+                            FIRE .getQueryToken=new gnr.GnrBag({name:save_as,output:output,visible_columns:visible_columns});""",
+                            gridId=gridattr['nodeId'],
+                            _fired='^.queryTokenPars',
                             _ask=dict(title='Get query url',fields=[dict(name='save_as',lbl='Save as',validate_notnull=True),
                                                                         dict(name='output',lbl='Out',tag='filteringSelect',values='excel,csv,html')
                                                                         ]))

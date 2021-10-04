@@ -12,11 +12,11 @@ class GnrCustomWebPage(object):
         return getattr(self,method)(**tokekwargs)
 
 
-    def execute(self,query_table=None,query_where=None,
-                    query_condition=None,query_columns=None,query_pars=None,
-                    query_envpars=None,
+    def execute(self,table=None,query_where=None,
+                    query_condition=None,query_pars=None,
+                    query_envpars=None,output_formats=None,selection_sortedBy=None,
                     name=None,output=None,**kwargs):
-        tblobj = self.db.table(query_table)
+        tblobj = self.db.table(table)
         query_pars = query_pars.asDict()
         env_pars = query_envpars.asDict()
         if isinstance(query_where, Bag):
@@ -24,7 +24,9 @@ class GnrCustomWebPage(object):
             query_where, query_pars = self.app._decodeWhereBag(tblobj, query_where, query_pars)
         query_where = '{} AND {}'.format(query_where,query_condition) if query_condition else query_where
         with self.db.tempEnv(**env_pars):
-            q = tblobj.query(where=query_where,columns=query_columns,**query_pars)
-            s = q.selection()
-        return s.output(output)
+            q = tblobj.query(where=query_where,**query_pars)
+            s = q.selection(_aggregateRows=True)
+        if selection_sortedBy:
+            s.sort(selection_sortedBy)
+        return s.output(output,formats=output_formats)
     

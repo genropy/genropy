@@ -779,6 +779,29 @@ class GnrWebAppHandler(GnrBaseProxy):
         for k in list(kwargs.keys()):
             if k.startswith('format_'):
                 formats[7:] = kwargs.pop(k)
+
+        if queryTokenPars:
+            with self.db.tempEnv(connectionName='system'):
+                query_pars = dict(distinct=distinct, 
+                                columns=queryTokenPars['visible_columns'] or columns, 
+                                order_by=order_by, limit=limit, 
+                                group_by=group_by, 
+                                having=having,
+                                excludeLogicalDeleted=excludeLogicalDeleted,
+                                excludeDraft=excludeDraft,**kwargs)
+                external_url = self.page.externalUrlToken('/sys/execute_query_token',
+                                                    table=table,
+                                                    query_where = where,
+                                                    query_condition = condition,
+                                                    query_envpars = Bag(self.db.currentEnv),
+                                                    query_pars = Bag(query_pars),
+                                                    selection_sortedBy=sortedBy,
+                                                    output_formats = formats,
+                                                    name = queryTokenPars['name'],
+                                                    output = queryTokenPars['output'],
+                                                    method='execute')
+                self.db.commit()
+            return Bag(),dict(external_url=external_url)
         if selectionName.startswith('*'):
             if selectionName == '*':
                 selectionName = self.page.page_id
@@ -834,25 +857,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
                                       excludeDraft=excludeDraft,checkPermissions=checkPermissions,
                                       filteringPkeys=filteringPkeys,**kwargs)
-            
-            if queryTokenPars:
-                with self.db.tempEnv(connectionName='system'):
-
-                    external_url = self.page.externalUrlToken('/sys/execute_query_token',
-                                                        query_pars = Bag(kwargs),
-                                                        query_where = where,
-                                                        query_columns=columns,
-                                                        query_envpars=Bag(self.db.currentEnv),
-                                                        query_condition = condition,
-                                                        query_table=tblobj.fullname,
-                                                        name = queryTokenPars['name'],
-                                                        output = queryTokenPars['output'],
-                                                        method='execute')
-                    self.db.commit()
-                return Bag(),dict(external_url=external_url)
-
             selection = selecthandler(**selection_pars)
-
             if selection is False:
                 return Bag(),dict(table=table,selectionName=selectionName)
             elif selectmethod and isinstance(selection,list):
@@ -1289,8 +1294,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                         if '_loadedValue' in n.attr:
                             row[n.label] = n.value
         if updated:
-            pkeys = [pkey for pkey in list(updated.keys()) if pkey]
-            tblobj.batchUpdate(cb,where='$%s IN :pkeys' %pkeyfield,pkeys=pkeys,bagFields=True)
+            pkeys = [pkey for pkey in updated.keys() if pkey]
+            tblobj.batchUpdate(cb,_pkeys=pkeys,bagFields=True)
         if inserted:
             for k,r in list(inserted.items()):
                 tblobj.insert(r)

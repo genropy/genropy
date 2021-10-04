@@ -2097,7 +2097,7 @@ class SqlSelection(object):
         result = ['<table><thead>',''.join(['<th>{}<th>'.format(h) for h in self.colHeaders]),'</thead>','<tbody>']
         for row in outsource:
             row = dict(row)
-            result.append('<tr>{}</tr>'.format(''.join(['<td>{}<td>'.format(row[col]) for col in columns])))
+            result.append('<tr>{}</tr>'.format(''.join(['<td>{}<td>'.format('&nbsp;' if row[col] is None else row[col]) for col in columns])))
         result.append('</tbody></table>')
         return '\n'.join(result)
 
