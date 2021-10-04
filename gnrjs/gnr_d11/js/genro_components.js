@@ -1727,6 +1727,8 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw) {
         var gnrwdg = sourceNode.gnrwdg;
         var path = objectPop(kw,'path');
+        var nodeField = objectPop(kw,'nodeField') || 'field';
+
         var toolskw = objectExtract(kw,'addrow,delrow');
 
         var multiValuePars = objectExtract(kw,'origin,exclude');
@@ -1760,7 +1762,7 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
         };
         objectUpdate(grid_attr,objectExtract(kw,'grid_*'));
         var g = left._('quickGrid','nodeListGrid',grid_attr);
-        g._('column',{field:'field',name:'Cells',width:'100%'});
+        g._('column',{field:nodeField,name:'Cells',width:'100%'});
         var t = [];
         if(toolskw.delrow){
             t.push('delrow');
@@ -1780,6 +1782,7 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
         }
         //multiValuePars.tools_position = 'BL';
         multiValuePars.tools_title = _T('Attributes');
+        multiValuePars.exclude = nodeField;
         var mve = bc._('ContentPane',{region:'center',margin:'2px',overflow:'hidden'
                                         })._('MultiValueEditor','mve',multiValuePars);
         gnrwdg.mveNode = mve.getParentNode();
@@ -5015,6 +5018,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         gnrwdg.remoteValuesRpc = objectPop(kw,'remoteValues');
         gnrwdg.valuesCb = objectPop(kw,'valuesCb');
         gnrwdg.tree_extrakw = objectExtract(kw,'tree_*');
+        
         var onOpening;
         if(codeSeparator!==false){
             codeSeparator =  codeSeparator || ':'
@@ -5175,7 +5179,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
                         checked_pkey:valuepath,
                         checkedPaths:this.checkedpath,
                         checked_caption:valuepath+'?_displayedValue',
-                        onChecked:true};
+                        onChecked:true,
+                        _valuelabel:this._valuelabel};
         objectUpdate(treekw,this.tree_extrakw);
         var tree = this.rootNode._('tree',treekw);
         this.treeNode = tree.getParentNode();

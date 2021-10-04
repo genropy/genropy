@@ -17,11 +17,18 @@ class Table(object):
         tbl.column('method', name_long='!!Method')
         tbl.column('parameters', dtype='X', name_long='!!Parameters')
         tbl.column('exec_user', size=':32', name_long='!!Execute as user').relation('adm.user.username')
+        tbl.column('userobject_id',size='22', group='_', name_long='Userbject'
+                    ).relation('adm.userobject.id', relation_name='tokens', mode='foreignkey', onDelete='cascade')
+        tbl.pyColumn('external_url',)
 
+    def pyColumn_external_url(self,record=None,**kwargs):
+        return self.db.currentPage.externalUrl(record['page_path'], gnrtoken=record['id'])
 
-    def create_token(self, page_path=None, expiry=None, allowed_host=None, allowed_user=None,
-                     connection_id=None, max_usages=None, method=None, parameters=None, exec_user=None):
-        record = dict(
+    def create_token(self, page_path=None, expiry=None, allowed_host=None, 
+                        allowed_user=None,connection_id=None, 
+                        max_usages=None, method=None, 
+                        parameters=None, exec_user=None,userobject_id=None):
+        record = self.newrecord(
                 page_path=page_path,
                 expiry=expiry,
                 allowed_host=allowed_host,
@@ -30,6 +37,7 @@ class Table(object):
                 max_usages=max_usages,
                 method=method,
                 exec_user=exec_user,
+                userobject_id=userobject_id,
                 parameters=Bag(parameters))
         self.insert(record)
         return record['id']

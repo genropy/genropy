@@ -25,7 +25,22 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='datetime', op='contains', val='')
 
+class ViewFromUserobject(BaseComponent):
+    def th_hiddencolumns(self):
+        return '$id,$page_path'
 
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('external_url',width='30em')
+        r.fieldcell('expiry')
+        r.fieldcell('allowed_user')
+        r.fieldcell('exec_user')
+
+    def th_order(self):
+        return 'datetime'
+
+    def th_query(self):
+        return dict(column='datetime', op='contains', val='')
 
 class Form(BaseComponent):
 

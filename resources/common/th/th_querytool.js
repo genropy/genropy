@@ -765,7 +765,8 @@ dojo.declare("gnr.QueryManager", null, {
             var params = objectExtract(currAttrs,'parameter_*');
             var dflt = objectExtract(currAttrs,'default_*');
             for(var k in params){
-                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]), relpath:'parameter_'+k});
+                parslist.push({value_caption:'?'+(k in dflt? params[k]+'|'+dflt[k] : params[k]), 
+                                relpath:'parameter_'+k});
             }
         }else if(querybag.getItem("#0?column")){
             this.cleanQueryPane(querybag); 
@@ -826,15 +827,11 @@ dojo.declare("gnr.QueryManager", null, {
         var cancel = function(){
             dlg.close_action();
         };
-        var count = function(){
-            sourceNode.fireEvent('.showQueryCountDlg');
-        };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm'});
         genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
-        //bottom._('button', 'countbtn',{label:'Count',baseClass:'bottom_btn',action:count});
         dlg.show_action();
     }
 });
