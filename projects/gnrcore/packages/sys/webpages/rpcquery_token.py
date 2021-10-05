@@ -21,17 +21,16 @@ class GnrCustomWebPage(object):
         table = userobject['tbl']
         tblobj = self.db.table(table)
         query_pars = data['query_pars'].asDict()
-        editable_pars = data['editable_pars']
-        query_pars.update(editable_pars.getAttr('where_pars'))
-        query_pars.update(editable_pars.getAttr('condition_pars'))
-        query_pars.update(editable_pars.getAttr('other_pars'))
+        query_pars.update(data['where_pars'].asDict())
+        query_pars.update(data['condition_pars'].asDict())
+        query_pars.update(data['other_pars'].asDict())
         query_pars.update(kwargs)
-        env_pars = editable_pars['env_pars'] or {}
+        env_pars = data['env_pars'] or {}
         query_where = data['query_where']
         def fillWherePars(n):
             parname = n.attr.get('parname')
             if parname and parname in query_pars:
-                n.value = query_pars[parname]
+                n.value = query_pars.pop(parname)
         query_where.walk(fillWherePars)
         query_condition = data['query_condition']
         query_where, query_pars = self.app._decodeWhereBag(tblobj, query_where, query_pars)
@@ -39,5 +38,10 @@ class GnrCustomWebPage(object):
         with self.db.tempEnv(**env_pars):
             q = tblobj.query(where=query_where,**query_pars)
             s = q.selection(_aggregateRows=True)
+        if output=='xls':
+            sn = self.site.storageNode('page:{}'.format(userobject['description']))
+            s.output(output,filepath=sn)
+            self.download_name = sn.basename
+            return sn.open('rb')
         return s.output(output)
     

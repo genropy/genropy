@@ -105,9 +105,11 @@ class TableHandlerView(BaseComponent):
         gridattr = view.grid.attributes
         gridattr['selfsubscribe_open_userobject_editor'] = """
                                                         var dlg = genro.nodeById("{dlgId}");
+                                                        var userobject_id = $1.userobject_id;
+                                                        dlg.setRelativeData('.start_userobject_id',userobject_id);
                                                         dlg.setRelativeData('.objtype',$1.objtype);
-                                                        dlg.widget.setTitle('Edit '+$1.objtype);
                                                         dlg.widget.show();
+                                                        dlg.widget.setTitle('Edit '+$1.objtype);
                                                         """.format(dlgId=dlgId)
         gridattr['selfsubscribe_close_userobject_editor'] = 'genro.wdgById("{dlgId}").hide()'.format(dlgId=dlgId)
 
@@ -122,16 +124,20 @@ class TableHandlerView(BaseComponent):
 
     @public_method
     def _th_remoteUserObjectEditor(self,pane,table=None,th_root=None,objtype=None):
-        pane.borderTableHandler(table='adm.userobject',
+        th = pane.borderTableHandler(table='adm.userobject',
                             nodeId='{th_root}_userobject_editor'.format(th_root=th_root),
                             condition='$objtype=:ob',
                             condition_ob=objtype,
                             condition_tbl=table,
                             view_store__onBuilt=True,
                             vpane_region='left',
+                            vpane_width='450px',
                             addrow=False,
                             viewResource='View_{}'.format(objtype),
                             formResource='Form_{}'.format(objtype))
+        pane.dataController("myform.goToRecord(start_userobject_id)",
+                            start_userobject_id='^.start_userobject_id',_if='start_userobject_id',
+                            _onBuilt=True,myform=th.form.js_form)
 
 
 
@@ -1179,9 +1185,14 @@ class TableHandlerView(BaseComponent):
                                     var where = kwargs['where'];
                                     where.walk(function(n){
                                         var p = n.getFullpath(null,where);
+                                        var newNode = newwhere.getNode(p);
                                         var value_caption = newwhere.getNode(p).attr.value_caption;
-                                        if(saveRpcQuery && value_caption && value_caption.startsWith('?')){
-                                            n.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s]/g,'_').toLowerCase();
+                                        if(saveRpcQuery && !newNode.attr.parname){
+                                            if(value_caption && value_caption.startsWith('?')){
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s]/g,'_').toLowerCase();
+                                            }else{
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s]/g,'_').toLowerCase();
+                                            }
                                         }
                                         if(p.indexOf('parameter_')==0){
                                             newwhere.popNode(p);
@@ -1217,12 +1228,14 @@ class TableHandlerView(BaseComponent):
                 {'objtype':'rpcquery','table':table,'data':data,metadata:metadata},
                 function(result) {
                     dlg.close_action();
+                    let userobject_id = result.attr.id;
+                    genro.nodeById(rootNodeId).publish('open_userobject_editor',{objtype:'rpcquery',userobject_id:userobject_id})
                 });
             };
             genro.dev.userObjectDialog('Save New External Query',datapath,saveCb);
         }; 
         return result;
-        """) 
+        """,rootNodeId=gridattr['nodeId']) 
         frame.dataController("""
             var reason,caption,tooltip;
             if(pkeys){

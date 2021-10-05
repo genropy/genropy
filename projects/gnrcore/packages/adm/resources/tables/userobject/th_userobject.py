@@ -84,7 +84,11 @@ class Form_query(BaseComponent):
 
 
 class View_rpcquery(View_query):
-    pass
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('code',width='8em')
+        r.fieldcell('description',width='25em')
+        r.fieldcell('userid',width='6em')
 
 class Form_rpcquery(BaseComponent):
     def th_form(self, form):
@@ -94,11 +98,16 @@ class Form_rpcquery(BaseComponent):
         fb.field('code')
         fb.field('description')
         fb.field('notes',colspan=2,width='100%')
-        fb.field('authtags')
-        fb.field('private',html_label=True)
+        fb.div('^.data.where_as_html',height='80px',width='100%',overflow='auto',
+                    colspan=2,_class='fakeTextBox',lbl='Where')
         center = bc.tabContainer(region='center',margin='2px')
-        center.contentPane(title='Parameters').FlatBagEditor(path='#FORM.record.data.editable_pars',nodeField='_editable_pars_label')
-        th = center.contentPane(title='Tokens').plainTableHandler(relation='@tokens',delrow=True,
+        self.tokenManagement(center.borderContainer(title='Tokens'))
+        center.contentPane(title='Extended parameters').tree(storepath='#FORM.record.data')
+
+
+    def tokenManagement(self,bc):
+        th = bc.contentPane(region='center').plainTableHandler(relation='@tokens',delrow=True,
+                                                                grid_selected_external_url='#FORM.current_external_url',
                                                                     viewResource='ViewFromUserobject')
         bar = th.view.top.bar.replaceSlots('delrow','delrow,addtoken')
         bar.addtoken.slotButton('Add token').dataRpc(self.addRpcQueryToken,
@@ -116,6 +125,7 @@ class Form_rpcquery(BaseComponent):
         self.db.table('sys.external_token').create_token(
             page_path='/sys/rpcquery_token',
             method='execute',
+
             userobject_id=userobject_id,
             max_usages=max_usages,
             expiry=expiry,

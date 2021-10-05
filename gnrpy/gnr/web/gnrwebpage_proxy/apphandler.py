@@ -967,7 +967,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         def findPars(n):
             if n.attr.get('parname'):
                 where_pars[n.attr.get('parname')] = n.getValue()
-        textwhere, decoded_query_pars = self.app._decodeWhereBag(tblobj, where, query_pars)
+        textwhere, decoded_query_pars = self.app._decodeWhereBag(tblobj, where, decoded_query_pars)
         where.walk(findPars)
         if condition:
             textwhere = '({}) AND ({})'.format(textwhere,condition)
@@ -984,27 +984,22 @@ class GnrWebAppHandler(GnrBaseProxy):
             for par,chunk in allpars:
                 if par in decoded_query_pars and  par not in env_pars and par not in condition_pars:
                     where_pars[par] = decoded_query_pars[par]
-        editable_pars = Bag()
         other_pars = {}
         for k,v in query_pars.items():
             if k not in where_pars and\
                 k not in condition_pars and \
                 k not in env_pars:
                 other_pars[k] = v
-        editable_pars.addItem('where_pars',None,_editable_pars_label='Where pars',**where_pars)
-        editable_pars.addItem('condition_pars',None,_editable_pars_label='Condition pars',**condition_pars)
-        editable_pars.addItem('other_pars',None,_editable_pars_label='Other pars' ,limit=limit,
-                                            excludeLogicalDeleted=excludeLogicalDeleted,
-                                            excludeDraft=excludeDraft,order_by=order_by)
-        editable_pars.addItem('env_pars',None,_editable_pars_label='Env',**env_pars)
-
-        #editable_pars.addItem('other_pars',None,**other_pars)
         rpcquery = Bag()
         rpcquery['columns'] = columns
         rpcquery['query_where'] = where
         rpcquery['query_condition'] = condition
         rpcquery['query_pars'] = Bag(query_pars)
-        rpcquery['editable_pars'] = Bag(editable_pars)
+        rpcquery['where_pars'] = Bag(where_pars)
+        rpcquery['condition_pars'] = Bag(condition_pars)
+        rpcquery['env_pars'] = Bag(env_pars)
+        rpcquery['other_pars'] = Bag(other_pars)
+        rpcquery['where_as_html'] = self.db.whereTranslator.toHtml(tblobj,where)
         rpcquery['sqlquery'] = sqltext
         return rpcquery
 
