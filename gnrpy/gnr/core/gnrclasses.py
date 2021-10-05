@@ -403,9 +403,10 @@ class GnrClassCatalog(object):
     def serialize_datetime(self,ts):
         if not ts.tzinfo:
             tz = tzlocal.get_localzone()
-            
-            ts = tz.localize(ts)
-            #ts = ts.replace(tzinfo=tz)
+            if hasattr(tz,'localize'):
+                ts = tz.localize(ts)
+            else:
+                ts = ts.replace(tzinfo=tz)
         return ts.isoformat()
         
     def parse_timedelta(self, txt, workdate=None):
