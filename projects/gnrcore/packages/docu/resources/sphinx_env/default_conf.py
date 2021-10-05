@@ -20,6 +20,8 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+from datetime import datetime
+
 def setup(app):
     app.add_css_file("custom.css")
     app.add_js_file("custom.js")
@@ -54,7 +56,8 @@ master_doc = 'index'
 # General information about the project.
 # Change project_name and author in the handbook to get them published.
 project = 'project_name'
-copyright = '2020'
+current_year = datetime.today().year
+copyright = str(current_year)
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
