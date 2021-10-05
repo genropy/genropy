@@ -787,7 +787,9 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op')
                 column = attr.get('column')
-                parname = attr.get('parname') or column.replace('@','_').replace('.','_')
+                parname = attr.get('parname')
+                if not parname:
+                    parname = column.replace('@','_').replace('.','_') if column else node.label
                 if parname in self.parnames:
                     self.parnames[parname]+=1
                     parname = '{}_{}'.format(parname,self.parnames[parname])
