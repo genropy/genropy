@@ -716,7 +716,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                          savedQuery=None,savedView=None, externalChanges=None,prevSelectedDict=None,
                          checkPermissions=None,queryBySample=False,weakLogicalDeleted=False,
                          customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,
-                         queryTokenPars=False,**kwargs):
+                         saveRpcQuery=None,gridVisibleColumns=None,**kwargs):
         """TODO
         
         ``getSelection()`` method is decorated with the :meth:`public_method
@@ -773,35 +773,20 @@ class GnrWebAppHandler(GnrBaseProxy):
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
         wherebag = where if isinstance(where,Bag) else None
+        if saveRpcQuery:
+            rpcquery = self._prepareRpcQuery(tblobj=tblobj, distinct=distinct, 
+                                            columns=gridVisibleColumns or columns, 
+                                             where=where, condition=condition,
+                              order_by=order_by, limit=limit,group_by=group_by, having=having,
+                              excludeLogicalDeleted=excludeLogicalDeleted,
+                              excludeDraft=excludeDraft,**kwargs)
+            return Bag(),dict(rpcquery=rpcquery.toXml())
         resultAttributes = {}
         if checkPermissions is True:
             checkPermissions = self.page.permissionPars
         for k in list(kwargs.keys()):
             if k.startswith('format_'):
                 formats[7:] = kwargs.pop(k)
-
-        if queryTokenPars:
-            with self.db.tempEnv(connectionName='system'):
-                query_pars = dict(distinct=distinct, 
-                                columns=queryTokenPars['visible_columns'] or columns, 
-                                order_by=order_by, limit=limit, 
-                                group_by=group_by, 
-                                having=having,
-                                excludeLogicalDeleted=excludeLogicalDeleted,
-                                excludeDraft=excludeDraft,**kwargs)
-                external_url = self.page.externalUrlToken('/sys/execute_query_token',
-                                                    table=table,
-                                                    query_where = where,
-                                                    query_condition = condition,
-                                                    query_envpars = Bag(self.db.currentEnv),
-                                                    query_pars = Bag(query_pars),
-                                                    selection_sortedBy=sortedBy,
-                                                    output_formats = formats,
-                                                    name = queryTokenPars['name'],
-                                                    output = queryTokenPars['output'],
-                                                    method='execute')
-                self.db.commit()
-            return Bag(),dict(external_url=external_url)
         if selectionName.startswith('*'):
             if selectionName == '*':
                 selectionName = self.page.page_id
@@ -970,6 +955,59 @@ class GnrWebAppHandler(GnrBaseProxy):
 
         return columns,external_queries
     
+    def _prepareRpcQuery(self,tblobj=None, distinct=None, columns=None, where=None, condition=None,
+                              order_by=None, limit=None,group_by=None, having=None,
+                              excludeLogicalDeleted=True,excludeDraft=True,**kwargs):
+        query_pars = dict(distinct=distinct, condition=condition,
+                            columns=columns, 
+                            order_by=order_by, limit=limit, 
+                            group_by=group_by, 
+                            having=having,
+                            excludeLogicalDeleted=excludeLogicalDeleted,
+                            excludeDraft=excludeDraft,**kwargs)
+        decoded_query_pars = dict(query_pars)
+        where_pars = {}
+        condition_pars = {}
+        def findPars(n):
+            if n.attr.get('parname'):
+                where_pars[n.attr.get('parname')] = n.getValue()
+        textwhere, decoded_query_pars = self.app._decodeWhereBag(tblobj, where, decoded_query_pars)
+        where.walk(findPars)
+        if condition:
+            textwhere = '({}) AND ({})'.format(textwhere,condition)
+
+        q = tblobj.query(where=textwhere,**decoded_query_pars)
+        currenv = dict(self.db.currentEnv)
+        sqltext = q.sqltext
+        allpars = re.findall(r':(\S\w*)(\W|$)', q.sqltext)
+        env_pars = {k[4:]:currenv[k[4:]] for k,chunk in allpars if k[4:] in currenv}
+        if condition:
+            for par,chunk in re.findall(r':(\S\w*)(\W|$)', condition):
+                condition_pars[par] = query_pars[par]
+        if not where_pars:
+            for par,chunk in allpars:
+                if par in decoded_query_pars and  par not in env_pars and par not in condition_pars:
+                    where_pars[par] = decoded_query_pars[par]
+        other_pars = {}
+        for k,v in query_pars.items():
+            if k not in where_pars and\
+                k not in condition_pars and \
+                k not in env_pars:
+                other_pars[k] = v
+        rpcquery = Bag()
+        rpcquery['columns'] = columns
+        rpcquery['query_where'] = where
+        rpcquery['query_condition'] = condition
+        rpcquery['query_pars'] = Bag(query_pars)
+        rpcquery['where_pars'] = Bag(where_pars)
+        rpcquery['condition_pars'] = Bag(condition_pars)
+        rpcquery['env_pars'] = Bag(env_pars)
+        rpcquery['other_pars'] = Bag(other_pars)
+        rpcquery['where_as_html'] = self.db.whereTranslator.toHtml(tblobj,where)
+        rpcquery['sqlquery'] = sqltext
+        return rpcquery
+
+
     def _externalQueries(self,selection=None,external_queries=None):
         storedict = dict()
         for r in selection.data:

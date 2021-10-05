@@ -56,25 +56,82 @@ class View(BaseComponent):
                 dict(code='system',caption='System',
                     condition="$system_userobject IS TRUE")]
 
-class Form(BaseComponent):
+class View_query(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('code',width='10em')
+        r.fieldcell('userid',width='6em')
+        r.fieldcell('description',width='20em')
+        r.fieldcell('authtags',width='6em')
+        r.fieldcell('private',width='6em')
+        r.fieldcell('flags',width='6em')
+
+    def th_options(self):
+        return dict(virtualStore=False,addrow=False)
+
+class Form_query(BaseComponent):
     def th_form(self, form):
         pane = form.record
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.field('code')
-        fb.field('objtype')
-        fb.field('pkg')
-        fb.field('tbl')
-        fb.field('userid')
         fb.field('description')
         fb.field('notes')
         fb.field('authtags')
         fb.field('private')
         fb.field('quicklist')
         fb.field('flags')
+        
 
+
+class View_rpcquery(View_query):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('code',width='8em')
+        r.fieldcell('description',width='25em')
+        r.fieldcell('userid',width='6em')
+
+class Form_rpcquery(BaseComponent):
+    def th_form(self, form):
+        bc = form.center.borderContainer()
+        fb = bc.contentPane(region='top').formbuilder(cols=2, border_spacing='4px',
+                                                    datapath='.record')
+        fb.field('code')
+        fb.field('description')
+        fb.field('notes',colspan=2,width='100%')
+        fb.div('^.data.where_as_html',height='80px',width='100%',overflow='auto',
+                    colspan=2,_class='fakeTextBox',lbl='Where')
+        center = bc.tabContainer(region='center',margin='2px')
+        self.tokenManagement(center.borderContainer(title='Tokens'))
+        center.contentPane(title='Extended parameters').tree(storepath='#FORM.record.data')
+
+
+    def tokenManagement(self,bc):
+        th = bc.contentPane(region='center').plainTableHandler(relation='@tokens',delrow=True,
+                                                                grid_selected_external_url='#FORM.current_external_url',
+                                                                    viewResource='ViewFromUserobject')
+        bar = th.view.top.bar.replaceSlots('delrow','delrow,addtoken')
+        bar.addtoken.slotButton('Add token').dataRpc(self.addRpcQueryToken,
+                                        _ask=dict(title='Get token',
+                                                    fields=[dict(name='max_usages',tag='numberTextBox',lbl='Max usages'),
+                                                            dict(name='expiry',tag='dateTimeTextBox',lbl='Expiry'),
+                                                            dict(name='allowed_user',lbl='Allowed user')]),
+                                        userobject_id='=#FORM.record.id')
 
     def th_options(self):
         return dict(dialog_height='400px', dialog_width='600px',duplicate=True)
+    
+    @public_method
+    def addRpcQueryToken(self,userobject_id=None,max_usages=None,expiry=None,allowed_user=None):
+        self.db.table('sys.external_token').create_token(
+            page_path='/sys/rpcquery_token',
+            method='execute',
+
+            userobject_id=userobject_id,
+            max_usages=max_usages,
+            expiry=expiry,
+            allowed_user=allowed_user
+        )
+        self.db.commit()
 
 class ViewCustomColumn(BaseComponent):
     def th_struct(self,struct):

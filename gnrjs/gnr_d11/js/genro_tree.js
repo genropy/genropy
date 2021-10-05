@@ -592,7 +592,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         var checked_attr = objectExtract(this.sourceNode.attr,'checked_*',true)
         var checked_attr_joiners = {};
         var p;
-        for (var k in checked_attr){
+        for (let k in checked_attr){
             p = checked_attr[k];
             if(p.indexOf(':')>=0){
                 p = p.split(':');
@@ -608,8 +608,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
              var store = this.sourceNode.getRelativeData(this.sourceNode.attr.storepath);
              var result = {};
              var cp = [];
-             var p;
-             for(var k in checked_attr){
+             for(let k in checked_attr){
                  result[k] = [];
              }
 
@@ -618,7 +617,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                 if(propagate && (v instanceof gnr.GnrBag )&& (v.len()>0)){
                     return;
                 }else if(n.attr.checked===true){
-                    for(var k in checked_attr){
+                    for(let k in checked_attr){
                         var av = n.attr[k];
                         if(result[k].indexOf(av)<0){
                             result[k].push(av)
@@ -632,11 +631,12 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     }
                 }
             },walkmode);
-            for(var k in checked_attr){
-                this.sourceNode.setRelativeData(checked_attr[k],result[k].join(checked_attr_joiners[k] || ','),null,null,this);
+            var valuelabel_kw = this.sourceNode.attr._valuelabel?{_valuelabel:this.sourceNode.attr._valuelabel}:null;
+            for(let k in checked_attr){
+                this.sourceNode.setRelativeData(checked_attr[k],result[k].join(checked_attr_joiners[k] || ','),valuelabel_kw,null,this);
             }
             if(checkedPaths){
-                this.sourceNode.setRelativeData(checkedPaths,cp.join(checkedPaths_joiner || ','),null,null,this);
+                this.sourceNode.setRelativeData(checkedPaths,cp.join(checkedPaths_joiner || ','),valuelabel_kw,null,this);
             }
              
          }

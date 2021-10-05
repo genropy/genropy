@@ -69,6 +69,7 @@ class TableHandlerView(BaseComponent):
         if viewhook:
             viewhook(view)
         self._th_view_printEditorDialog(view)
+        self._th_userObjectEditorDialog(view)
 
         if structure_field:
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
@@ -96,6 +97,51 @@ class TableHandlerView(BaseComponent):
                                     table=gridattr['table'],
                                     th_root=th_root)
 
+
+
+
+    def _th_userObjectEditorDialog(self,view):
+        th_root = view.attributes['th_root']
+        dlgId = '{th_root}_userobject_editor_dlg'.format(th_root=th_root)
+        gridattr = view.grid.attributes
+        gridattr['selfsubscribe_open_userobject_editor'] = """
+                                                        var dlg = genro.nodeById("{dlgId}");
+                                                        var userobject_id = $1.userobject_id;
+                                                        dlg.setRelativeData('.start_userobject_id',userobject_id);
+                                                        dlg.setRelativeData('.objtype',$1.objtype);
+                                                        dlg.widget.show();
+                                                        dlg.widget.setTitle('Edit '+$1.objtype);
+                                                        """.format(dlgId=dlgId)
+        gridattr['selfsubscribe_close_userobject_editor'] = 'genro.wdgById("{dlgId}").hide()'.format(dlgId=dlgId)
+
+        dlg = view.dialog(title='!!Userobject Editor',nodeId=dlgId,datapath='.dynamic_userobject_editor',
+                            closable=True,windowRatio=.9,noModal=True)
+
+        dlg.contentPane().remote(self._th_remoteUserObjectEditor,
+                                    table=gridattr['table'],
+                                    objtype='=.objtype',
+                                    th_root=th_root)
+
+
+    @public_method
+    def _th_remoteUserObjectEditor(self,pane,table=None,th_root=None,objtype=None):
+        th = pane.borderTableHandler(table='adm.userobject',
+                            nodeId='{th_root}_userobject_editor'.format(th_root=th_root),
+                            condition='$objtype=:ob',
+                            condition_ob=objtype,
+                            condition_tbl=table,
+                            view_store__onBuilt=True,
+                            vpane_region='left',
+                            vpane_width='450px',
+                            addrow=False,
+                            viewResource='View_{}'.format(objtype),
+                            formResource='Form_{}'.format(objtype))
+        pane.dataController("myform.goToRecord(start_userobject_id)",
+                            start_userobject_id='^.start_userobject_id',_if='start_userobject_id',
+                            _onBuilt=True,myform=th.form.js_form)
+
+
+
     @public_method
     def _th_buildPrintEditor(self,pane,table=None,th_root=None):
         pane.printGridEditor(frameCode='{th_root}_print_editor'.format(th_root=th_root),
@@ -111,12 +157,26 @@ class TableHandlerView(BaseComponent):
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')
         bar.dataController("""
             var where = new gnr.GnrBag();
-            var mainIdx = 0;
+            var parnames = {};
             var op;
-            queryBySample.forEach(function(n){
+            queryBySample.getNodes().forEach(function(n,mainIdx){
                 var value = n.getValue();
                 if(!value){
                     return;
+                }
+                var parname;
+                if(n.attr._valuelabel){
+                    parname =  n.attr._valuelabel.replace(/[\/.\s]/g,'_').toLowerCase();
+                }else{
+                    parname = n.attr.column;
+                }
+                if(parname in parnames){
+                    var parcount = parnames[parname];
+                    parcount+=1;
+                    parnames[parname] = parcount;
+                    parnames[`${parname}_${parcount}`] = 1;
+                }else{
+                    parnames[parname] = 1;
                 }
                 var value_caption;
                 if(value && typeof(value)=='string' && value.startsWith('?')){
@@ -133,16 +193,16 @@ class TableHandlerView(BaseComponent):
                         if(chunk){
                             subwhere.setItem('c_'+idx,chunk.trim(),{column_dtype:n.attr.column_dtype,
                                                                     op:op,jc:'or',column:n.attr.column,
-                                                                    value_caption:value_caption});
+                                                                    value_caption:value_caption,
+                                                                    parname:`${parname}_${idx}`});
                         }
                     })
                     if(subwhere.len()){
                         where.setItem('c_'+mainIdx,subwhere,{jc:'and'});
                     }
                 }else{
-                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption})
+                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption,parname:parname})
                 }
-                mainIdx++;
             });
             SET .query.where = where;
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
@@ -340,8 +400,11 @@ class TableHandlerView(BaseComponent):
                                            genro.nodeById('{rootNodeId}').widget.reload();""".format(rootNodeId=rootNodeId))
         b.rowchild(label='!!Totals count',action='SET #{rootNodeId}.#parent.tableRecordCount= !GET #{rootNodeId}.#parent.tableRecordCount;'.format(rootNodeId=rootNodeId),
                             checked='^#{rootNodeId}.#parent.tableRecordCount'.format(rootNodeId=rootNodeId))
-        b.rowchild(label='!![en]Get query token',
-                    action="FIRE #{rootNodeId}.#parent.queryTokenPars;".format(rootNodeId=rootNodeId))
+        b.rowchild(label='!![en]Save external query',
+                    action="FIRE #{rootNodeId}.#parent.saveRpcQuery;".format(rootNodeId=rootNodeId))
+
+        b.rowchild(label='!![en]External query editor',
+                    action="genro.nodeById('{rootNodeId}').publish('open_userobject_editor',{{objtype:'rpcquery'}})".format(rootNodeId=rootNodeId))
         if statsEnabled:
             b.rowchild(label='-')
             b.rowchild(label='!!Group by',action='SET .statsTools.selectedPage = "groupby"; SET .viewPage= "statsTools";')
@@ -1062,16 +1125,9 @@ class TableHandlerView(BaseComponent):
         multiStores = store_kwargs.pop('multiStores',None)
         frame.data('.query.limit',store_kwargs.pop('limit',None))
         sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
-        frame.dataController("""
-                            var visible_columns = genro.nodeById(gridId).widget.getSqlVisibleColumns()
-                            FIRE .getQueryToken=new gnr.GnrBag({name:save_as,output:output,visible_columns:visible_columns});""",
-                            gridId=gridattr['nodeId'],
-                            _fired='^.queryTokenPars',
-                            _ask=dict(title='Get query url',fields=[dict(name='save_as',lbl='Save as',validate_notnull=True),
-                                                                        dict(name='output',lbl='Out',tag='filteringSelect',values='excel,csv,html')
-                                                                        ]))
+
         store = frame.grid.selectionStore(table=table,
-                               queryTokenPars='^.getQueryToken',
+                               saveRpcQuery='^.saveRpcQuery',
                                chunkSize=chunkSize,childname='store',
                                where='=.query.where',
                                queryMode='=.query.queryMode', 
@@ -1130,6 +1186,15 @@ class TableHandlerView(BaseComponent):
                                     var where = kwargs['where'];
                                     where.walk(function(n){
                                         var p = n.getFullpath(null,where);
+                                        var newNode = newwhere.getNode(p);
+                                        var value_caption = newwhere.getNode(p).attr.value_caption;
+                                        if(saveRpcQuery && !newNode.attr.parname){
+                                            if(value_caption && value_caption.startsWith('?')){
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s]/g,'_').toLowerCase();
+                                            }else{
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s]/g,'_').toLowerCase();
+                                            }
+                                        }
                                         if(p.indexOf('parameter_')==0){
                                             newwhere.popNode(p);
                                             kwargs[n.label.replace('parameter_','')] = n._value;
@@ -1139,18 +1204,39 @@ class TableHandlerView(BaseComponent):
                                     });
                                     kwargs['where'] = newwhere;
                                }
-                               
+                               if(saveRpcQuery){
+                                   kwargs.gridVisibleColumns = genro.nodeById("%s").widget.getSqlVisibleColumns();
+                               }
                                """
-                               %self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
+                               %(self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
+                                    gridattr['nodeId']),
                                **store_kwargs)
         store.addCallback("""FIRE .queryEnd=true; 
                             return result;
                             """) 
-        store.addCallback("""if(result.attr.external_url){
-            genro.dlg.alert(result.attr.external_url,'External token')
+        store.addCallback("""if(result.attr.rpcquery){
+            SET .lastRpcQuery = new gnr.GnrBag();
+            var datapath = this.absDatapath('.lastRpcQuery');
+            var table = this.attr.table;
+            var data = new gnr.GnrBag(result.attr.rpcquery);
+            var saveCb = function(dlg) {
+                var metadata = genro.getData(datapath);
+                if (!metadata.getItem('code')){
+                    genro.publish('floating_message',{message:_T('Missing code'),messageType:'error'});
+                    return;
+                }
+                genro.serverCall('_table.adm.userobject.saveUserObject',
+                {'objtype':'rpcquery','table':table,'data':data,metadata:metadata},
+                function(result) {
+                    dlg.close_action();
+                    let userobject_id = result.attr.id;
+                    genro.nodeById(rootNodeId).publish('open_userobject_editor',{objtype:'rpcquery',userobject_id:userobject_id})
+                });
+            };
+            genro.dev.userObjectDialog('Save New External Query',datapath,saveCb);
         }; 
         return result;
-        """) 
+        """,rootNodeId=gridattr['nodeId']) 
         frame.dataController("""
             var reason,caption,tooltip;
             if(pkeys){

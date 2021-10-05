@@ -1,6 +1,8 @@
 # encoding: utf-8
 from builtins import object
-from datetime import datetime
+
+import pytz
+from datetime import datetime as dt
 from gnr.core.gnrbag import Bag
 
 class Table(object):
@@ -8,8 +10,8 @@ class Table(object):
         tbl = pkg.table('external_token', pkey='id', name_long='!!Messages',
                         name_plural='!!Messages')
         tbl.column('id', size='22', name_long='!!id')
-        tbl.column('datetime', 'DH', name_long='!!Date and Time')
-        tbl.column('expiry', 'DH', name_long='!!Expiry')
+        tbl.column('datetime', 'DHZ', name_long='!!Date and Time')
+        tbl.column('expiry', 'DHZ', name_long='!!Expiry')
         tbl.column('allowed_user', size=':32', name_long='!!Destination user')
         tbl.column('connection_id', size='22', name_long='!!Connection Id', indexed=True).relation('adm.connection.id')
         tbl.column('max_usages', 'I', name_long='!!Max uses')
@@ -18,12 +20,20 @@ class Table(object):
         tbl.column('method', name_long='!!Method')
         tbl.column('parameters', dtype='X', name_long='!!Parameters')
         tbl.column('exec_user', size=':32', name_long='!!Execute as user').relation('adm.user.username')
+        tbl.column('userobject_id',size='22', group='_', name_long='Userbject'
+                    ).relation('adm.userobject.id', relation_name='tokens', mode='foreignkey', onDelete='cascade')
+        tbl.pyColumn('external_url',)
 
+    def pyColumn_external_url(self,record=None,**kwargs):
+        return self.db.currentPage.externalUrl(record['page_path'], gnrtoken=record['id'])
 
-    def create_token(self, page_path=None, expiry=None, allowed_host=None, allowed_user=None,
-                     connection_id=None, max_usages=None, method=None, parameters=None, exec_user=None):
-        record = dict(
+    def create_token(self, page_path=None, expiry=None, allowed_host=None, 
+                        allowed_user=None,connection_id=None, 
+                        max_usages=None, method=None, datetime=None,
+                        parameters=None, exec_user=None,userobject_id=None):
+        record = self.newrecord(
                 page_path=page_path,
+                datetime= datetime or dt.now(pytz.utc),
                 expiry=expiry,
                 allowed_host=allowed_host,
                 allowed_user=allowed_user,
@@ -31,6 +41,7 @@ class Table(object):
                 max_usages=max_usages,
                 method=method,
                 exec_user=exec_user,
+                userobject_id=userobject_id,
                 parameters=Bag(parameters))
         self.insert(record)
         return record['id']
@@ -41,7 +52,7 @@ class Table(object):
         if record:
             if record['max_usages']:
                 self.db.table('sys.external_token_use').insert(
-                        dict(external_token_id=record['id'], host=host, datetime=datetime.now()))
+                        dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
                 if commit:
                     self.db.commit()
             user = record['exec_user']
@@ -54,7 +65,7 @@ class Table(object):
             return False
         if host:
             pass
-        if record['expiry'] and record['expiry'] >= datetime.now():
+        if record['expiry'] and record['expiry'] >= dt.now(pytz.utc):
             return False
         if record['max_usages']:
             uses = self.db.table('sys.external_token_use').query(where='external_token_id =:cid',
