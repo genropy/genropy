@@ -165,7 +165,7 @@ class TableHandlerView(BaseComponent):
                 }
                 var parname;
                 if(n.attr._valuelabel){
-                    parname =  n.attr._valuelabel.replace(/[\/.\s]/g,'_').toLowerCase();
+                    parname =  n.attr._valuelabel.replace(/[\/.\s#]/g,'_').toLowerCase();
                 }else{
                     parname = n.attr.column;
                 }
@@ -1189,9 +1189,9 @@ class TableHandlerView(BaseComponent):
                                         var value_caption = newwhere.getNode(p).attr.value_caption;
                                         if(saveRpcQuery && !newNode.attr.parname){
                                             if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s]/g,'_').toLowerCase();
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#]/g,'_').toLowerCase();
                                             }else{
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s]/g,'_').toLowerCase();
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#]/g,'_').toLowerCase();
                                             }
                                         }
                                         if(p.indexOf('parameter_')==0){
