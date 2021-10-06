@@ -2269,7 +2269,7 @@ dojo.declare("gnr.widgets.FloatingPane", gnr.widgets.baseDojo, {
         var rect;
         if (this.sourceNode.attr.nodeId){
             var storeKey = 'palette_rect_' + genro.getData('gnr.pagename') + '_' + this.sourceNode.attr.nodeId;
-            rect = genro.getFromStorage("local", storeKey, dojo.coords(this.domNode));
+            rect = genro.getFromStorage("local", storeKey);
             if(rect){
                 this._size_from_cache = true;
             }
@@ -2305,7 +2305,7 @@ dojo.declare("gnr.widgets.FloatingPane", gnr.widgets.baseDojo, {
         }     
     },
     mixin_onShowing:function(){
-        if(this.sourceNode.attr.autoSize!=false &&(this.sourceNode.attr._lazyBuild || this.sourceNode._value._nodes.length==0)){
+        if(this.sourceNode.attr.autoSize!==false &&(this.sourceNode.attr._lazyBuild || this.sourceNode._value._nodes.length==0)){
             var domNode = this.domNode;
             var oldwidth = domNode.style.width;
             var oldleft = domNode.style.left;
