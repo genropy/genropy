@@ -2269,7 +2269,7 @@ dojo.declare("gnr.widgets.FloatingPane", gnr.widgets.baseDojo, {
         var rect;
         if (this.sourceNode.attr.nodeId){
             var storeKey = 'palette_rect_' + genro.getData('gnr.pagename') + '_' + this.sourceNode.attr.nodeId;
-            rect = genro.getFromStorage("local", storeKey, dojo.coords(this.domNode));
+            rect = genro.getFromStorage("local", storeKey);
             if(rect){
                 this._size_from_cache = true;
             }
