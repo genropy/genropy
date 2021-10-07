@@ -952,7 +952,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     cm_plugin_export_xls:function(sourceNode,menu){
-        menu.setItem('#id',null,{caption:_T('Export XLS'),action:"$2.widget.serverAction({command:'export',allRows:true,opt:{export_mode:'xls',downloadAs:$2.attr.nodeId+'_export'}});"});
+        menu.setItem('#id',null,{caption:_T('Export XLS'),action:"$2.widget.serverAction({command:'export',allRows:true,opt:{export_mode:'xls',rawData:true,localized_data:true,downloadAs:$2.attr.nodeId+'_export'}});"});
     },
 
     cm_plugin_copyCell:function(sourceNode,menu){
