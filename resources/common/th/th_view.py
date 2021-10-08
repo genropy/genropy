@@ -126,9 +126,9 @@ class TableHandlerView(BaseComponent):
     def _th_remoteUserObjectEditor(self,pane,table=None,th_root=None,objtype=None):
         th = pane.borderTableHandler(table='adm.userobject',
                             nodeId='{th_root}_userobject_editor'.format(th_root=th_root),
-                            condition='$objtype=:ob',
+                            condition='$objtype=:ob AND $tbl=:tb',
                             condition_ob=objtype,
-                            condition_tbl=table,
+                            condition_tb=table,
                             view_store__onBuilt=True,
                             vpane_region='left',
                             vpane_width='450px',

@@ -4661,6 +4661,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var sourceNode = this.sourceNode;
         var headerList = dojo.query('th',this.viewsHeaderNode);
         var visibleColumns = cells._nodes.map(function(n,idx){
+            if(n.attr.calculated){
+                return;
+            }
             if((n.attr.hidden && (n.attr.hidden===true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
                 return;
             }
