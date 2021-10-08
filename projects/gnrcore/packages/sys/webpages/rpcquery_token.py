@@ -34,7 +34,7 @@ class GnrCustomWebPage(object):
         query_where.walk(fillWherePars)
         query_condition = data['query_condition']
         query_where, query_pars = self.app._decodeWhereBag(tblobj, query_where, query_pars)
-        query_where = '{} AND {}'.format(query_where,query_condition) if query_condition else query_where
+        query_where = ' AND '.join([w for w in (query_where,query_condition) if w])
         with self.db.tempEnv(**env_pars):
             q = tblobj.query(where=query_where,**query_pars)
             s = q.selection(_aggregateRows=True)

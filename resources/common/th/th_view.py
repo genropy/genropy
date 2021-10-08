@@ -1187,18 +1187,18 @@ class TableHandlerView(BaseComponent):
                                         var p = n.getFullpath(null,where);
                                         var newNode = newwhere.getNode(p);
                                         var value_caption = newwhere.getNode(p).attr.value_caption;
-                                        if(saveRpcQuery && !newNode.attr.parname){
-                                            if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#]/g,'_').toLowerCase();
-                                            }else{
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#]/g,'_').toLowerCase();
-                                            }
-                                        }
                                         if(p.indexOf('parameter_')==0){
                                             newwhere.popNode(p);
                                             kwargs[n.label.replace('parameter_','')] = n._value;
                                         }else{
                                             objectPop(newwhere.getNode(p).attr,'value_caption');
+                                        }
+                                        if(saveRpcQuery && !newNode.attr.parname){
+                                            if(value_caption && value_caption.startsWith('?')){
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#]/g,'_').toLowerCase();
+                                            }else if(newNode.attr.column_caption){
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#]/g,'_').toLowerCase();
+                                            }
                                         }
                                     });
                                     kwargs['where'] = newwhere;
