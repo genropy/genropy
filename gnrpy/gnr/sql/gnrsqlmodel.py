@@ -22,6 +22,8 @@
 
 #import weakref
 import logging
+import copy
+
 from datetime import datetime,timedelta
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
@@ -956,6 +958,25 @@ class DbTableObj(DbModelObj):
             if foreignkey and reltbl!=self.fullname:
                 r.append((reltbl,deferred or onDelete=='setnull'))
         return r
+
+    def getVirtualColumn(self,fld,sqlparams=None):
+
+        result = self.virtual_columns[fld]
+        if result is not None:
+            return result
+        if '_v_' in fld:
+            fld,variant = fld.split('_v_')
+            col = self.getVirtualColumn(fld)
+            if col is not None:
+                print('aaa')
+                sn = copy.deepcopy(col._GnrStructObj__structnode)
+                pars = dictExtract(sqlparams,'_v_{}_'.format(variant))
+                sn.label = fld
+                snattr = sn.attr
+                for p,v in pars.items():
+                    snattr['var_{}'.format(p)] = v
+                result = DbVirtualColumnObj(structnode=sn,parent=self['virtual_columns'])
+                return result
 
     @property  
     def virtual_columns(self):
