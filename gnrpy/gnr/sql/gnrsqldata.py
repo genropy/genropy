@@ -201,7 +201,7 @@ class SqlQueryCompiler(object):
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
         if not fld in curr.keys():
-            fldalias = curr_tblobj.model.virtual_columns[fld]
+            fldalias = curr_tblobj.model.getVirtualColumn(fld,sqlparams=self.sqlparams)
             if fldalias == None:
                 raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
@@ -953,6 +953,10 @@ class SqlQuery(object):
             if r not in params:                    # if name is also present as :name skip
                 if r in self.sqlparams:            # if name is present in kwargs
                     if r not in self.relationDict: # if name is not yet defined in relationDict
+                        parval = self.sqlparams.get(r)
+                        if isinstance(parval,dict):
+                            continue
+                        print('setting in relation dict',r)
                         self.relationDict[r] = self.sqlparams.pop(r)
                         
         self.bagFields = bagFields or for_update

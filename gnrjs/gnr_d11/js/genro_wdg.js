@@ -205,6 +205,19 @@ dojo.declare("gnr.GnrWdgHandler", null, {
         };
         this.updateWidgetCatalog();
     },
+    wdgByDtype:function(dtype){
+        let typeMap = {'A':'TextBox','T':'TextBox',
+                        'L':'NumberTextBox',
+                        'I':'NumberTextBox',
+                        'D':'DateTextbox',
+                        'R':'NumberTextBox',
+                        'N':'NumberTextBox',
+                        'H':'TimeTextBox',
+                        'DH':'DatetimeTextBox',
+                        'DHZ':'DatetimeTextBox',
+                        'B':'CheckBox'};
+        return typeMap[dtype] || 'TextBox';
+    },
     updateWidgetCatalog:function(){
         var tag;
         for (tag in this.widgetcatalog) {

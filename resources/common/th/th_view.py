@@ -1164,6 +1164,7 @@ class TableHandlerView(BaseComponent):
                                httpMethod='WSK' if self.extraFeatures['wsk_grid'] else None,
                                _onCalling="""
                                %s
+                               var gridNode = genro.nodeById("%s");
                                if( _use_grouper){
                                    if(kwargs.query_reason=='grouper'){
                                        return
@@ -1204,8 +1205,9 @@ class TableHandlerView(BaseComponent):
                                     kwargs['where'] = newwhere;
                                }
                                if(saveRpcQuery){
-                                   kwargs.gridVisibleColumns = genro.nodeById("%s").widget.getSqlVisibleColumns();
+                                   kwargs.gridVisibleColumns = gridNode.getSqlVisibleColumns();
                                }
+                               kwargs.formulaVariants = gridNode.widget.getFormulaVariants();
                                """
                                %(self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
                                     gridattr['nodeId']),
