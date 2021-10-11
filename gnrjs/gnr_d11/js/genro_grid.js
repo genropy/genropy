@@ -54,6 +54,7 @@ gnr.getGridColumns = function(storeNode) {
     }
     return result;
 };
+
 gnr.columnsFromStruct = function(struct, columns) {
     if (isNullOrBlank(columns)) {
         columns = [];
@@ -1875,8 +1876,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             grouppable = [];
         }
         var nodes = struct.getNodes();
-        for (var i = 0; i < nodes.length; i++) {
-            var node = nodes[i];
+        for (let node of nodes) {
             if (node.attr.group_by) {
                 var fld = node.attr.field;
                 if ((!stringStartsWith(fld, '$')) && (!stringStartsWith(fld, '@'))) {
@@ -1916,11 +1916,27 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
     mixin_addColumn:function(col, toPos,kw) {
         //if(!('column' in drop_event.dragDropInfo)){ return }
+        if(col.ask){
+            let variantCol = objectUpdate({},col);
+            let ask = objectPop(variantCol,'ask');
+            ask.fields = [{name:'fieldname',validate_notnull:true,lbl:'!![en]Fieldname'},
+                          {name:'header',validate_notnull:true,lbl:'!![en]Header'}].concat(ask.fields);
+            genro.dlg.askParameters(function(_askResult){
+                variantCol.fieldpath = objectPop(_askResult,'fieldname');
+                variantCol.fullcaption = objectPop(_askResult,'header');
+                variantCol.formulaVariant = {field:col.fieldpath};
+                for(let k in _askResult){
+                    variantCol.formulaVariant['var_'+k] = _askResult[k];
+                }
+                this.widget.addColumn(variantCol,toPos,kw);
+            },col.ask,{},this.sourceNode);
+            return;
+        }
         var colsBag = this.structBag.getItem('#0.#0');
         if(!kw){
             kw = {'width':'8em','name':col.fullcaption,
             'dtype':col.dtype, 'field':col.fieldpath,
-            'tag':'cell'};
+            'tag':'cell',formulaVariant:col.formulaVariant};
             if (col._owner_package){
                 kw._owner_package = col._owner_package;
             }
@@ -4653,6 +4669,15 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             n.attr.q_width = Math.round10(headerList[idx].clientWidth/totalWidth)
         });
         return struct;
+    },
+    mixin_getFormulaVariants:function(){
+        var result = new gnr.GnrBag();
+        for(let cell in this.cellmap){
+            if (this.cellmap[cell].formulaVariant){
+                result.setItem(cell,new gnr.GnrBag(this.cellmap[cell].formulaVariant));
+            }
+        }
+        return result.len()?result:null;
     },
 
     mixin_getSqlVisibleColumns:function(){

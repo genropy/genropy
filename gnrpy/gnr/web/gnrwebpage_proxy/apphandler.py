@@ -712,7 +712,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                          savedQuery=None,savedView=None, externalChanges=None,prevSelectedDict=None,
                          checkPermissions=None,queryBySample=False,weakLogicalDeleted=False,
                          customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,
-                         saveRpcQuery=None,gridVisibleColumns=None,**kwargs):
+                         saveRpcQuery=None,gridVisibleColumns=None,formulaVariants=None,**kwargs):
         """TODO
         
         ``getSelection()`` method is decorated with the :meth:`public_method
@@ -769,6 +769,9 @@ class GnrWebAppHandler(GnrBaseProxy):
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
         wherebag = where if isinstance(where,Bag) else None
+        if formulaVariants:
+            for k,v in formulaVariants.items():
+                kwargs[k] = v.asDict()
         if saveRpcQuery:
             rpcquery = self._prepareRpcQuery(tblobj=tblobj, distinct=distinct, 
                                             columns=gridVisibleColumns or columns, 

@@ -960,23 +960,23 @@ class DbTableObj(DbModelObj):
         return r
 
     def getVirtualColumn(self,fld,sqlparams=None):
-
         result = self.virtual_columns[fld]
         if result is not None:
             return result
-        if '_v_' in fld:
-            fld,variant = fld.split('_v_')
-            col = self.getVirtualColumn(fld)
-            if col is not None:
-                print('aaa')
-                sn = copy.deepcopy(col._GnrStructObj__structnode)
-                pars = dictExtract(sqlparams,'_v_{}_'.format(variant))
-                sn.label = fld
-                snattr = sn.attr
-                for p,v in pars.items():
-                    snattr['var_{}'.format(p)] = v
-                result = DbVirtualColumnObj(structnode=sn,parent=self['virtual_columns'])
-                return result
+        vc_pars = sqlparams.get(fld,None)
+        if vc_pars is None:
+            return
+        pars = dict(vc_pars)
+        fld = pars.pop('field')
+        col = self.getVirtualColumn(fld,sqlparams=sqlparams)
+        if col is None:
+            return
+        sn = copy.deepcopy(col._GnrStructObj__structnode)
+        sn.label = fld
+        snattr = sn.attr
+        snattr.update(pars)
+        result = DbVirtualColumnObj(structnode=sn,parent=self['virtual_columns'])
+        return result
 
     @property  
     def virtual_columns(self):
