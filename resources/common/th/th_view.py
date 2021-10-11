@@ -127,9 +127,9 @@ class TableHandlerView(BaseComponent):
     def _th_remoteUserObjectEditor(self,pane,table=None,th_root=None,objtype=None):
         th = pane.borderTableHandler(table='adm.userobject',
                             nodeId='{th_root}_userobject_editor'.format(th_root=th_root),
-                            condition='$objtype=:ob',
+                            condition='$objtype=:ob AND $tbl=:tb',
                             condition_ob=objtype,
-                            condition_tbl=table,
+                            condition_tb=table,
                             view_store__onBuilt=True,
                             vpane_region='left',
                             vpane_width='450px',
@@ -166,7 +166,7 @@ class TableHandlerView(BaseComponent):
                 }
                 var parname;
                 if(n.attr._valuelabel){
-                    parname =  n.attr._valuelabel.replace(/[\/.\s]/g,'_').toLowerCase();
+                    parname =  n.attr._valuelabel.replace(/[\/.\s#]/g,'_').toLowerCase();
                 }else{
                     parname = n.attr.column;
                 }
@@ -1165,6 +1165,7 @@ class TableHandlerView(BaseComponent):
                                httpMethod='WSK' if self.extraFeatures['wsk_grid'] else None,
                                _onCalling="""
                                %s
+                               var gridNode = genro.nodeById("%s");
                                if( _use_grouper){
                                    if(kwargs.query_reason=='grouper'){
                                        return
@@ -1188,25 +1189,26 @@ class TableHandlerView(BaseComponent):
                                         var p = n.getFullpath(null,where);
                                         var newNode = newwhere.getNode(p);
                                         var value_caption = newwhere.getNode(p).attr.value_caption;
-                                        if(saveRpcQuery && !newNode.attr.parname){
-                                            if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s]/g,'_').toLowerCase();
-                                            }else{
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s]/g,'_').toLowerCase();
-                                            }
-                                        }
                                         if(p.indexOf('parameter_')==0){
                                             newwhere.popNode(p);
                                             kwargs[n.label.replace('parameter_','')] = n._value;
                                         }else{
                                             objectPop(newwhere.getNode(p).attr,'value_caption');
                                         }
+                                        if(saveRpcQuery && !newNode.attr.parname){
+                                            if(value_caption && value_caption.startsWith('?')){
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#]/g,'_').toLowerCase();
+                                            }else if(newNode.attr.column_caption){
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#]/g,'_').toLowerCase();
+                                            }
+                                        }
                                     });
                                     kwargs['where'] = newwhere;
                                }
                                if(saveRpcQuery){
-                                   kwargs.gridVisibleColumns = genro.nodeById("%s").widget.getSqlVisibleColumns();
+                                   kwargs.gridVisibleColumns = gridNode.getSqlVisibleColumns();
                                }
+                               kwargs.formulaVariants = gridNode.widget.getFormulaVariants();
                                """
                                %(self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
                                     gridattr['nodeId']),

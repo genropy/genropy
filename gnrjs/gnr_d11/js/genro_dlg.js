@@ -495,6 +495,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         if(promptkw.fields){
             promptkw.fields = promptkw.fields.map(function(kw){
                 kw = objectUpdate({},kw);
+                if(kw.dtype && !kw.tag){
+                    kw.tag = genro.wdg.wdgByDtype(kw.dtype);
+                }
                 if(kw['name'] in parameters){
                     kw['default_value'] = parameters[kw['name']];
                     default_result[kw['name']] = parameters[kw['name']];

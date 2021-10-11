@@ -26,6 +26,8 @@ from builtins import str
 from builtins import range
 #from builtins import object
 import logging
+import copy
+
 from datetime import datetime,timedelta
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
@@ -963,6 +965,25 @@ class DbTableObj(DbModelObj):
             if foreignkey and reltbl!=self.fullname:
                 r.append((reltbl,deferred or onDelete=='setnull'))
         return r
+
+    def getVirtualColumn(self,fld,sqlparams=None):
+        result = self.virtual_columns[fld]
+        if result is not None:
+            return result
+        vc_pars = sqlparams.get(fld,None)
+        if vc_pars is None:
+            return
+        pars = dict(vc_pars)
+        fld = pars.pop('field')
+        col = self.getVirtualColumn(fld,sqlparams=sqlparams)
+        if col is None:
+            return
+        sn = copy.deepcopy(col._GnrStructObj__structnode)
+        sn.label = fld
+        snattr = sn.attr
+        snattr.update(pars)
+        result = DbVirtualColumnObj(structnode=sn,parent=self['virtual_columns'])
+        return result
 
     @property  
     def virtual_columns(self):

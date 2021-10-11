@@ -1229,17 +1229,16 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,token_name=None,token_type=None,allowed_user=None,**kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,allowed_user=None,**kwargs):
         """TODO
         
         :param path: TODO
         :param method: TODO
         """
         assert 'sys' in self.site.gnrapp.packages
-        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,token_name=token_name,
+        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,
                                                                           method=method, parameters=kwargs,max_usages=max_usages,
-                                                                          allowed_user=allowed_user,token_type=token_type,
-                                                                          exec_user=self.user)
+                                                                          allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
         
     def get_bodyclasses(self):   #  is still necessary _common_d11?

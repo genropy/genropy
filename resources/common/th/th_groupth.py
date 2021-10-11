@@ -381,7 +381,7 @@ class TableHandlerGroupBy(BaseComponent):
                     having_list.append(' AND '.join(having_chunk))
             else:
                 if group_aggr:
-                    if dtype in ('D','DH'):
+                    if dtype in ('D','DH','DHZ'):
                         col =  "to_char(%s,'%s')" %(col,group_aggr)
                         group_list.append(col)
                         col = '%s AS %s' %(col, asName(v['field'],group_aggr))

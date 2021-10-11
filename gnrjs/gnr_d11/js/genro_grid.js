@@ -54,6 +54,7 @@ gnr.getGridColumns = function(storeNode) {
     }
     return result;
 };
+
 gnr.columnsFromStruct = function(struct, columns) {
     if (isNullOrBlank(columns)) {
         columns = [];
@@ -952,7 +953,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     cm_plugin_export_xls:function(sourceNode,menu){
-        menu.setItem('#id',null,{caption:_T('Export XLS'),action:"$2.widget.serverAction({command:'export',allRows:true,opt:{export_mode:'xls',downloadAs:$2.attr.nodeId+'_export'}});"});
+        menu.setItem('#id',null,{caption:_T('Export XLS'),action:"$2.widget.serverAction({command:'export',allRows:true,opt:{export_mode:'xls',rawData:true,localized_data:true,downloadAs:$2.attr.nodeId+'_export'}});"});
     },
 
     cm_plugin_copyCell:function(sourceNode,menu){
@@ -1875,8 +1876,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             grouppable = [];
         }
         var nodes = struct.getNodes();
-        for (var i = 0; i < nodes.length; i++) {
-            var node = nodes[i];
+        for (let node of nodes) {
             if (node.attr.group_by) {
                 var fld = node.attr.field;
                 if ((!stringStartsWith(fld, '$')) && (!stringStartsWith(fld, '@'))) {
@@ -1916,11 +1916,39 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
     mixin_addColumn:function(col, toPos,kw) {
         //if(!('column' in drop_event.dragDropInfo)){ return }
+        if(col.ask){
+            let variantCol = objectUpdate({},col);
+            let ask = objectPop(variantCol,'ask');
+            let ask_fields = []
+            if(!col.fieldname){
+                ask_fields.push({name:'fieldname',validate_notnull:true,lbl:'!![en]Fieldname'})
+            }
+            if(!col.header){
+                ask_fields.push({name:'header',validate_notnull:true,lbl:'!![en]Header'})
+            }
+            ask.fields = ask_fields.concat(ask.fields);
+            genro.dlg.askParameters(function(_askResult){
+                variantCol.fieldpath = objectPop(_askResult,'fieldname');
+                if(!variantCol.fieldpath){
+                    variantCol.fieldpath = dataTemplate(col.fieldname,_askResult)
+                }
+                variantCol.fullcaption = objectPop(_askResult,'header');
+                if(!variantCol.fullcaption){
+                    variantCol.fullcaption = dataTemplate(col.header,_askResult)
+                }
+                variantCol.formulaVariant = {field:col.fieldpath};
+                for(let k in _askResult){
+                    variantCol.formulaVariant['var_'+k] = _askResult[k];
+                }
+                this.widget.addColumn(variantCol,toPos,kw);
+            },col.ask,{},this.sourceNode);
+            return;
+        }
         var colsBag = this.structBag.getItem('#0.#0');
         if(!kw){
             kw = {'width':'8em','name':col.fullcaption,
             'dtype':col.dtype, 'field':col.fieldpath,
-            'tag':'cell'};
+            'tag':'cell',formulaVariant:col.formulaVariant};
             if (col._owner_package){
                 kw._owner_package = col._owner_package;
             }
@@ -4654,6 +4682,15 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         });
         return struct;
     },
+    mixin_getFormulaVariants:function(){
+        var result = new gnr.GnrBag();
+        for(let cell in this.cellmap){
+            if (this.cellmap[cell].formulaVariant){
+                result.setItem(cell,new gnr.GnrBag(this.cellmap[cell].formulaVariant));
+            }
+        }
+        return result.len()?result:null;
+    },
 
     mixin_getSqlVisibleColumns:function(){
         var struct = this.structbag()
@@ -4661,6 +4698,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var sourceNode = this.sourceNode;
         var headerList = dojo.query('th',this.viewsHeaderNode);
         var visibleColumns = cells._nodes.map(function(n,idx){
+            if(n.attr.calculated){
+                return;
+            }
             if((n.attr.hidden && (n.attr.hidden===true || sourceNode.getRelativeData(n.attr.hidden))) || !genro.dom.isVisible(headerList[idx])){
                 return;
             }
