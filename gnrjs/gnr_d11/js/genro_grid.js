@@ -1919,11 +1919,23 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if(col.ask){
             let variantCol = objectUpdate({},col);
             let ask = objectPop(variantCol,'ask');
-            ask.fields = [{name:'fieldname',validate_notnull:true,lbl:'!![en]Fieldname'},
-                          {name:'header',validate_notnull:true,lbl:'!![en]Header'}].concat(ask.fields);
+            let ask_fields = []
+            if(!col.fieldname){
+                ask_fields.push({name:'fieldname',validate_notnull:true,lbl:'!![en]Fieldname'})
+            }
+            if(!col.header){
+                ask_fields.push({name:'header',validate_notnull:true,lbl:'!![en]Header'})
+            }
+            ask.fields = ask_fields.concat(ask.fields);
             genro.dlg.askParameters(function(_askResult){
                 variantCol.fieldpath = objectPop(_askResult,'fieldname');
+                if(!variantCol.fieldpath){
+                    variantCol.fieldpath = dataTemplate(col.fieldname,_askResult)
+                }
                 variantCol.fullcaption = objectPop(_askResult,'header');
+                if(!variantCol.fullcaption){
+                    variantCol.fullcaption = dataTemplate(col.header,_askResult)
+                }
                 variantCol.formulaVariant = {field:col.fieldpath};
                 for(let k in _askResult){
                     variantCol.formulaVariant['var_'+k] = _askResult[k];
