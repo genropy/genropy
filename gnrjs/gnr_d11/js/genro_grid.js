@@ -1930,7 +1930,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             genro.dlg.askParameters(function(_askResult){
                 variantCol.fieldpath = objectPop(_askResult,'fieldname');
                 if(!variantCol.fieldpath){
-                    variantCol.fieldpath = dataTemplate(col.fieldname,_askResult)
+                    variantCol.fieldpath = dataTemplate(col.fieldname,_askResult).replace(/[\/.\s#]/g,'_')
                 }
                 variantCol.fullcaption = objectPop(_askResult,'header');
                 if(!variantCol.fullcaption){
