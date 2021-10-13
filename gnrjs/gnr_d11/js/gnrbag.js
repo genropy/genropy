@@ -2016,8 +2016,7 @@ dojo.declare("gnr.GnrBag", null, {
         if (root.nodeType == 9) {
             root = root.lastChild;
         }
-        for (var i = 0; i < root.childNodes.length; i++) {
-            node = root.childNodes[i];
+        for (node of root.childNodes) {
             convertAs = 'T';
             if (node.nodeType == 1) {
                 var tagName = node.tagName || node.nodeName;
@@ -2044,10 +2043,10 @@ dojo.declare("gnr.GnrBag", null, {
                         convertAs = node.attributes[j].value;
                     }
                     else {
-                        if (attrvalue.indexOf('::') >= 0) {
+                        if (attrvalue.includes('::')) {
                             attrvalue = convertFromText(attrvalue);
                         }
-                        attributes[attrname] = attrvalue;
+                        attributes[attrname] = mapConvertFromText(attrvalue);
                     }
                 }
                 var newcls = objectPop(attributes, '__cls');

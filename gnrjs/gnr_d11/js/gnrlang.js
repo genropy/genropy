@@ -977,10 +977,10 @@ function convertFromText(value, t, fromLocale) {
         return result;
     }
     else if (t == 'JS') {
-        if(window.genro){
-            return genro.evaluate(value);
-        }else{
-            return dojo.fromJson(value);
+        try {
+            return mapConvertFromText(JSON.parse(value));
+        } catch (e) {
+            genro.evaluate(value)
         }
     }
     else if (t == 'BAG' || t=='X') {
@@ -1412,7 +1412,7 @@ function convertToText(value, params) {
         result = ['bag',value.toXml({mode:'static'})];
     }
     else if (t == 'object') {
-        result = ['JS',dojo.toJson(value)];
+        result = ['JS',JSON.stringify(value)];
     }
     if (mask) {
         result[1] = mask.replace(/%s/g, result[1]);
@@ -2104,7 +2104,7 @@ function getRandomColor() {
 
 function flattenString(str,forbidden,replacer){
     replacer = replacer || '_';
-    var forbidden = forbidden || ['.'];
+    forbidden = forbidden || ['.'];
     var result = str;
     var pattern;
     forbidden.forEach(function(c){
