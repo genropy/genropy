@@ -601,6 +601,9 @@ function mapConvertFromText(value){
     if(isNullOrBlank(value)){
         return value;
     }
+    if(value instanceof gnr.GnrBag){
+        return value;
+    }
     if (value instanceof Array){
         return value.map(mapConvertFromText);
     }
