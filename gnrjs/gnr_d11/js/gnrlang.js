@@ -980,7 +980,7 @@ function convertFromText(value, t, fromLocale) {
         try {
             return mapConvertFromText(JSON.parse(value));
         } catch (e) {
-            genro.evaluate(value)
+            return genro.evaluate(value)
         }
     }
     else if (t == 'BAG' || t=='X') {
