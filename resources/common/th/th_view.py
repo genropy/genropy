@@ -1205,7 +1205,7 @@ class TableHandlerView(BaseComponent):
                                     kwargs['where'] = newwhere;
                                }
                                if(saveRpcQuery){
-                                   kwargs.gridVisibleColumns = gridNode.getSqlVisibleColumns();
+                                   kwargs.gridVisibleColumns = gridNode.widget.getSqlVisibleColumns();
                                }
                                kwargs.formulaVariants = gridNode.widget.getFormulaVariants();
                                """
