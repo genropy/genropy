@@ -1358,7 +1358,7 @@ function convertToText(value, params) {
     params = objectUpdate({}, params);
     var mask = objectPop(params, 'mask');
     var format = objectPop(params, 'format');
-    var dtype = objectPop(params, 'dtype');
+    var dtype = objectPop(params, 'dtype') || value._gnrdtype;
     var forXml = objectPop(params, 'xml');
     var t = typeof(value);
     if (t == 'string') {
@@ -1391,7 +1391,7 @@ function convertToText(value, params) {
             }
         }
     }
-    else if (value instanceof Date) {
+    else if (value instanceof Date || (dtype && 'DHZ'.includes(dtype))) {
         var selectors = {'D':'date','H':'time','DH':null};
         if (!dtype) {
             dtype = value._gnrdtype || (value.toString().indexOf('Thu Dec 31 1970') == 0 ? 'H' : 'D');
