@@ -166,9 +166,9 @@ class TableHandlerView(BaseComponent):
                 }
                 var parname;
                 if(n.attr._valuelabel){
-                    parname =  n.attr._valuelabel.replace(/[\/.\s#]/g,'_').toLowerCase();
+                    parname =  n.attr._valuelabel.replace(/[\/.\s#@]/g,'_').toLowerCase();
                 }else{
-                    parname = n.attr.column;
+                    parname = n.attr.column.replace(/[\/.\s#@]/g,'_').toLowerCase();
                 }
                 if(parname in parnames){
                     var parcount = parnames[parname];
@@ -1197,16 +1197,16 @@ class TableHandlerView(BaseComponent):
                                         }
                                         if(saveRpcQuery && !newNode.attr.parname){
                                             if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#]/g,'_').toLowerCase();
+                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#@]/g,'_').toLowerCase();
                                             }else if(newNode.attr.column_caption){
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#]/g,'_').toLowerCase();
+                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#@]/g,'_').toLowerCase();
                                             }
                                         }
                                     });
                                     kwargs['where'] = newwhere;
                                }
                                if(saveRpcQuery){
-                                   kwargs.gridVisibleColumns = gridNode.getSqlVisibleColumns();
+                                   kwargs.gridVisibleColumns = gridNode.widget.getSqlVisibleColumns();
                                }
                                kwargs.formulaVariants = gridNode.widget.getFormulaVariants();
                                """
