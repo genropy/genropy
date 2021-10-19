@@ -1163,7 +1163,7 @@ dojo.declare('gnr.GenroClient', null, {
         if( f.dtype=='P'){
             return genro.formatter.asText(v,f);
         }
-        if (v instanceof Date && !f.format) {
+        if (isDate(v) && !f.format) {
             var opt = objectUpdate({}, f);
             if (opt['time']) {
                 opt.selector = 'time';
@@ -1200,7 +1200,7 @@ dojo.declare('gnr.GenroClient', null, {
             {
                 v = stringStrip(dojo.currency.format(v, f));
             }
-        }else if(v instanceof Array){
+        }else if(Array.isArray(v)){
             v = genro.formatter.asText(v,f.joiner);
    
         }else if(v instanceof gnr.GnrBag){
