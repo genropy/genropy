@@ -1311,6 +1311,12 @@ var gnrformatter = {
         return result.join(format || '\n');
     }
 }
+function isDate(obj){
+    if(!obj){
+        return false;
+    }
+    return obj instanceof Date || obj._gnrdtype == 'D' || obj._gnrdtype=='DH' || obj._gnrdtype=='DHZ';
+}
 
 function guessDtype(value){
     if (value instanceof File){
@@ -1337,7 +1343,7 @@ function guessDtype(value){
     }if(t=='function'){
         return 'FUNC';
     }
-    if(value instanceof Date){
+    if(isDate(value)){
         if(( value.getFullYear()==1970) && (value.getMonth()==11) && (value.getDate()==31)){
             return 'H';
         }
@@ -1394,7 +1400,7 @@ function convertToText(value, params) {
             }
         }
     }
-    else if (value instanceof Date || (dtype && 'DHZ'.includes(dtype))) {
+    else if (isDate(value) || (dtype && (dtype =='D' || dtype=='DH' || dtype=='DHZ') )) {
         var selectors = {'D':'date','H':'time','DH':null};
         if (!dtype) {
             dtype = value._gnrdtype || (value.toString().indexOf('Thu Dec 31 1970') == 0 ? 'H' : 'D');
@@ -1410,8 +1416,7 @@ function convertToText(value, params) {
             opt = objectUpdate(opt, params);
             opt.formatLength = format;
         }
-        var result = [dtype || 'D',v = dojo.date.locale.format(value, opt)];
-
+        result = [dtype || 'D',v = dojo.date.locale.format(value, opt)];
     }
 
     else if (value.toXml) {
