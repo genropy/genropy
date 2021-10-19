@@ -277,7 +277,7 @@ class GnrClassCatalog(object):
             result = self.quoted(result)
         return result
         
-    def asTextAndType(self, o, translate_cb=None): 
+    def asTextAndType(self, o, translate_cb=None,jsmode=False): 
         """Add???
             
         :param o: TODO
@@ -286,8 +286,8 @@ class GnrClassCatalog(object):
         """
         c = self.getType(o)
         if c:
-            return (self.asText(o, translate_cb=translate_cb), c)
-        return self.asTextAndType(repr(o))
+            return (self.asText(o, translate_cb=translate_cb,jsmode=jsmode), c)
+        return self.asTextAndType(repr(o),jsmode=jsmode)
         
     def getType(self, o, fallback=None):
         """Add???

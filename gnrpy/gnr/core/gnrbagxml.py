@@ -390,7 +390,7 @@ class BagToXml(object):
                 else:
                     if self.mode4d and isinstance(value, Decimal):
                         value = float(value)
-                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None)
+                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,jsmode=True)
                 if isinstance(value, BagAsXml):
                     print(x)
                 try:
