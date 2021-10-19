@@ -49,13 +49,14 @@ class GnrSqliteConnection(pysqlite.Connection):
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'charactervarying': 'A','nvarchar':'A', 'character varying': 'A', 'character': 'C','char': 'C', 'text': 'T','varchar':'A', 'blob': 'X',
-                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H', 'datetime':'DH','timestamp': 'DH', 'numeric': 'N',
+                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
+                 'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
                  'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
                  'integer unsigned':'L',
                  'decimal':'N','serial8': 'L'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
-                    'X': 'blob', 'P': 'text', 'Z': 'text',
+                    'X': 'blob', 'P': 'text', 'Z': 'text','DHZ':'timestamp with time zone',
                     'B': 'boolean', 'D': 'date', 'H': 'time', 'DH': 'timestamp',
                     'I': 'integer', 'L': 'bigint', 'R': 'real', 'N': 'numeric',
                     'serial': 'serial8'}
