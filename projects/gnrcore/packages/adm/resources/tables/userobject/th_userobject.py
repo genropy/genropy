@@ -69,7 +69,19 @@ class View_query(BaseComponent):
     def th_options(self):
         return dict(virtualStore=False,addrow=False)
 
-class Form_query(BaseComponent):
+class Form(BaseComponent):
+    def th_form(self, form):
+        pane = form.record
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.field('code')
+        fb.field('description')
+        fb.field('notes')
+        fb.field('authtags')
+        fb.field('private')
+        fb.field('quicklist')
+        fb.field('flags')
+        
+class Form_query(Form):
     def th_form(self, form):
         pane = form.record
         fb = pane.formbuilder(cols=2, border_spacing='4px')
