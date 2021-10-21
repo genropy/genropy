@@ -98,10 +98,13 @@ class Main(BaseResourceMail):
                                     masks=self.compiledTemplate.getItem('main?masks'),
                                     localizer=self.page.localizer)
                                     
-        result = self.htmlMaker(htmlContent=htmlContent,
-                                filename='%s.html' %record['id'],
-                                record=record, thermo=thermo, pdf=as_pdf,
-                                **self.batch_parameters)
+        result = htmlContent
+        if self.batch_parameters.get('letterhead_id'):                   
+            result = self.htmlMaker(htmlContent=htmlContent,
+                                    filename='%s.html' %record['id'],
+                                    record=record, thermo=thermo, pdf=as_pdf,
+                                    **self.batch_parameters)            
+
         if result:
             attachments = templateReplace(self.mail_pars.getItem('attachments',''),record)
             attachments = attachments.split(',') if attachments else []
