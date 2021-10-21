@@ -139,7 +139,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     patch__textSizeChanged:function(){
         if(dojo.getComputedStyle(this.domNode)){
             //if is inside hidden iframe this method must not be called
-            this._textSizeChanged_replaced();
+
+            //try to comment avoiding lost scroll in different window
+            //this._textSizeChanged_replaced();
+
         }
     },
     
@@ -148,7 +151,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         this.structBag = genro.getData(this.sourceNode.attrDatapath('structpath')) || new gnr.GnrBag();
         this.cellmap = {};
         try {
+            let currentScroll = this.scrollTop;
             this.setStructure(this.gnr.structFromBag(this.sourceNode, this.structBag, this.cellmap));
+            this.scrollTop = currentScroll;
             this.onSetStructpath(this.structBag,kw);
             this.sourceNode.publish('onSetStructpath');
         } catch (error) {
