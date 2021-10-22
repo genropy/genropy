@@ -402,7 +402,8 @@ class TableHandlerGroupBy(BaseComponent):
         if not group_list:
             return False
         if keep_pkeys:
-            columns_list.append("string_agg(CAST(${} AS TEXT),',') AS _pkeylist".format(self.db.table(table).pkey))
+            pkeylist_column = self.db.adapter.string_agg(f'CAST(${self.db.table(table).pkey} AS TEXT)',',')
+            columns_list.append(f"{pkeylist_column} AS _pkeylist")
         kwargs['columns'] = ','.join(columns_list)
         kwargs['group_by'] = ','.join(group_list)
         kwargs['order_by'] = custom_order_by or kwargs['group_by']
