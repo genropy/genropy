@@ -55,11 +55,11 @@ class Form(BaseComponent):
         pane = form.record
         fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px', width='100%', fld_width='100%')
         fb.field('lg_table_id', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
-        fb.field('name', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
-        fb.field('data_type', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
+        fb.field('name')
+        fb.field('data_type')
         fb.field('old_type')
         fb.field('group')
-        fb.field('description', colspan=2, readOnly=True, background='rgba(128, 128, 128, 0.125)' )
+        fb.field('description', colspan=2)
         fb.field('notes', tag='simpleTextArea', height='90px')
 
     def th_options(self):
