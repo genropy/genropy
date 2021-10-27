@@ -345,7 +345,10 @@ class XlsReader(object):
                 row_types = sheet.row_types(lineno)
                 for i,c in enumerate(line):
                     if row_types[i] == self.XL_CELL_DATE:
-                        line[i] = datetime.datetime(*self.xldate_as_tuple(c,sheet.book.datemode))
+                        try:
+                            line[i] = datetime.datetime(*self.xldate_as_tuple(c,sheet.book.datemode))
+                        except:
+                            line[i] = None
                     if line[i]=='':
                         line[i] = None
                 last_line_empty = False
