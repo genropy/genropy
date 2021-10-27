@@ -4,6 +4,7 @@ from collections import OrderedDict
 from gnr.core.gnrstring import flatten
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
+from past.builtins import basestring
 
 START_SOURCE = """# encoding: utf-8
 
@@ -23,7 +24,9 @@ class Main(BaseResourceAction):
         self.zipNode= self.page.site.storageNode('page:{}.zip'.format(pkg))
         self.tables_records = self.db.table('lgdb.lg_table').query(where='$lg_pkg=:pkg',pkg=pkg).fetch()
         self.columns_records = self.db.table('lgdb.lg_column'
-                                ).query(where='@lg_table_id.lg_pkg=:pkg',pkg=pkg).fetchGrouped('lg_table_id')
+                                ).query(where='@lg_table_id.lg_pkg=:pkg',
+                                        pkg=pkg,
+                                        bagFields=True).fetchGrouped('lg_table_id')
         self.relations_records = self.db.table('lgdb.lg_relation'
                                 ).query(where='@relation_column.@lg_table_id.lg_pkg=:pkg',pkg=pkg).fetchGrouped('relation_column')
     
@@ -158,9 +161,6 @@ class Main(BaseResourceAction):
                     v = "'%s'" %v
             atlst.append("%s=%s" %(k,v))
         return """relation('%s',%s)"""  %(relpath,', '.join(atlst))
-
-
-
 
     def post_process(self):
         self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)

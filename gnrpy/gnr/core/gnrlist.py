@@ -390,9 +390,8 @@ class XlsxReader(object):
         sheet = self.book[sheetname]
         linegen = self._sheetlines(sheet)
         firstline = next(linegen)
-        headers = [slugify(firstline[c],sep='_') for c in range(sheet.max_column)]
+        headers = [slugify(header, sep='_') for header in firstline if header]
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
-        headers = [h for h in headers if h]
         index = dict()
         errors = None
         for i,k in enumerate(headers):
@@ -405,7 +404,7 @@ class XlsxReader(object):
                                    'colindex':colindex,
                                    'index':index,
                                     'ncols':len(headers),
-                                    'nrows':sheet.max_row - 1,
+                                    'nrows':0, #we dont pre-allocate sheet size
                                     'errors':errors,
                                     'linegen':linegen}
 

@@ -18,6 +18,8 @@ from gnr.core.gnrlist import getReader
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport, objectExtract
 from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrlang import GnrException
+
 
 EXPORT_PDF_TEMPLATE = """
 <html lang="en">
@@ -232,8 +234,7 @@ class GnrWebUtils(GnrBaseProxy):
         try:
             reader = self.getReader(file_path,filetype=filetype)
         except Exception as e:
-            self.page.clientPublish('floating_message',message='Reader error %s' %str(e),messageType='error')
-
+            raise GnrException('Reader error %s' %str(e),messageType='error')
         
         importerStructure = importerStructure or dict()
         mainsheet = importerStructure.get('mainsheet')
