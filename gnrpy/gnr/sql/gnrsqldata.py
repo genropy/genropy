@@ -961,15 +961,16 @@ class SqlQuery(object):
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
-        for r in rels:                             # for each $name in the query
-            if r not in params:                    # if name is also present as :name skip
-                if r in self.sqlparams:            # if name is present in kwargs
-                    if r not in self.relationDict: # if name is not yet defined in relationDict
-                        parval = self.sqlparams.get(r)
-                        if isinstance(parval,dict):
-                            continue
-                        print('setting in relation dict',r)
-                        self.relationDict[r] = self.sqlparams.pop(r)
+        #removed old features for setting fieldpath in relationDict
+       #for r in rels:                             # for each $name in the query
+       #    if r not in params:                    # if name is also present as :name skip
+       #        if r in self.sqlparams:            # if name is present in kwargs
+       #            if r not in self.relationDict: # if name is not yet defined in relationDict
+       #                parval = self.sqlparams.get(r)
+       #                if isinstance(parval,dict):
+       #                    continue
+       #                print('setting in relation dict',r)
+       #                self.relationDict[r] = self.sqlparams.pop(r)
                         
         self.bagFields = bagFields or for_update
         self.querypars = dict(columns=columns, where=where, order_by=order_by,

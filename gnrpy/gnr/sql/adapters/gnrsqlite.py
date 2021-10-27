@@ -326,6 +326,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """We use sqlite just for tests, so we don't care about locking at the moment."""
         pass
 
+    def string_agg(self,fieldpath,separator):
+        return f"group_concat({fieldpath},'{separator}')"
+
 
 class GnrSqliteCursor(pysqlite.Cursor):
     def _get_index(self):
