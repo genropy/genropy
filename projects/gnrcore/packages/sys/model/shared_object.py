@@ -27,7 +27,7 @@ class Table(object):
                 if len (record['backup']) > backup:
                     record['backup'].popNode('#0')
             record['data'] = shared_data
-            print 'UPDATED DATA WITH', shared_data
+            print ('UPDATED DATA WITH', shared_data)
 
     def loadSharedObject(self, shared_id, version=None):
         record = self.record(shared_id).output('bag')
