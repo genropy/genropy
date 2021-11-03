@@ -742,7 +742,7 @@ class GnrWsgiSite(object):
 
     @property
     def dummyPage(self):
-        environ_builder = EnvironBuilder(method='GET',path='/sys/headless')
+        environ_builder = EnvironBuilder(method='GET',base_url=self.external_host,path='/sys/headless')
         request = Request(environ_builder.get_environ())
         response = Response()
         page = self.resource_loader(['sys', 'headless'], request, response)
