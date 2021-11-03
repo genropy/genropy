@@ -1220,11 +1220,10 @@ class GnrWebPage(GnrBaseWebPage):
         return path
 
     @property
-    @callers()
     def external_host(self):
         external_host = self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
         return external_host
-        
+
     def externalUrl(self, path, **kwargs):
         """TODO
         
