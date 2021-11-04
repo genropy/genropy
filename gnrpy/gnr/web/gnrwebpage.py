@@ -56,7 +56,7 @@ from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
 from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated
+from gnr.core.gnrdecorator import public_method,deprecated,callers
 from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
@@ -1218,10 +1218,11 @@ class GnrWebPage(GnrBaseWebPage):
         if params:
             path = '%s?%s' % (path, params)
         return path
-        
+
     @property
     def external_host(self):
-        return self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
+        external_host = self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
+        return external_host
 
     def externalUrl(self, path, **kwargs):
         """TODO
