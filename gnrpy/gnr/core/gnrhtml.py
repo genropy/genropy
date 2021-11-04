@@ -372,9 +372,17 @@ class GnrHtmlBuilder(object):
             regions = self.letterhead_layer(letterhead_root,b,height=height,width=width,count=i)
         return regions['center_center']
 
+    @property
+    def current_page_number(self):
+        if self.parent:
+            return self.parent.current_page_number +1
+        return len(self.body)
+
+
     def letterhead_layer(self,letterhead_root,letterheadBag,width=None,height=None,count=None):
         layout = letterhead_root.layout(top=0,left=0,border=0,width=width,height=height,z_index=count)
         regions = dict(center_center=layout)
+        curpage = str(self.current_page_number)
         if letterheadBag['main.design'] == 'headline':
             for region in ('top', 'center', 'bottom'):
                 height = float(letterheadBag['layout.%s?height' % region] or 0)
@@ -385,6 +393,8 @@ class GnrHtmlBuilder(object):
                         if subregion == 'center' or width:
                             innerHTML = letterheadBag['layout.%s.%s.html' % (region, subregion)] or None
                             if innerHTML:
+                                innerHTML = innerHTML.replace('#pp','#TOTPAGE')
+                                innerHTML = innerHTML.replace('#p',curpage)
                                 innerHTML = "%s::HTML" % innerHTML
                             regions['%s_%s' % (region, subregion)] = row.cell(content=innerHTML, width=width, border=0,
                                                                                 overflow='hidden')
@@ -400,6 +410,8 @@ class GnrHtmlBuilder(object):
                             row = col.row(height=height)
                             innerHTML = letterheadBag['layout.%s.%s.html' % (region, subregion)] or None
                             if innerHTML:
+                                innerHTML = innerHTML.replace('#pp','#TOTPAGE')
+                                innerHTML = innerHTML.replace('#p',curpage)
                                 innerHTML = "%s::HTML" % innerHTML
                             regions['%s_%s' % (region, subregion)] = row.cell(content=innerHTML, border=0,overflow='hidden')
         return regions
@@ -412,7 +424,7 @@ class GnrHtmlBuilder(object):
             
     def newPage(self):
         """Create a new page"""
-        firstpage = (len(self.body) == 0)
+        firstpage = self.current_page_number == 1
         border_color = 'white'
         extra_style= ''
         if self.page_debug:

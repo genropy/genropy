@@ -206,6 +206,7 @@ class BagToHtml(object):
 
         if self.splittedPages:
             self.pages_folder = os.path.splitext(self.filepath)[0]
+            self.splittedPages_data = []
         self.showTemplate(hideTemplate is not True)
         self.htmlTemplate = None
         self.prepareTemplates()
@@ -285,17 +286,22 @@ class BagToHtml(object):
 
     def createHtml(self, filepath=None, body_attributes=None):
         """TODO
-
         :param filepath: the path where html will be saved"""
-        #filepath = filepath or self.filepath
         self.main()
-        if not self.splittedPages:
-            self.builder.toHtml(filepath=filepath)
-            return self.builder.html
-        else:
-            pages = [os.path.join(self.pages_folder,p) for p in sorted(os.listdir(self.pages_folder))]
-            self.builder = None
-            return pages
+        if self.splittedPages:
+            result = []
+            for fpath,html in self.splittedPages_data:
+                html = html.replace('#TOTPAGE',str(self.current_page_number+1))
+                with open(fpath,'w') as f:
+                    f.write(html)
+                result.append(fpath)
+            return result
+        self.builder.toHtml()
+        self.builder.html = self.builder.html.replace('#TOTPAGE',str(self.current_page_number+1))
+        with open(filepath,'w') as f:
+            f.write(self.builder.html)
+        return self.builder.html
+
 
     def showTemplate(self, value):
         """TODO
@@ -969,7 +975,7 @@ class BagToHtml(object):
             currPage = self.current_page_number +1
             if lastPage or currPage % self.splittedPages == 0:
                 pages_path = os.path.join(self.pages_folder,'pages_%04i.html'%currPage)
-                self.builder.toHtml(filepath=pages_path)
+                self.splittedPages_data.append((pages_path,self.builder.toHtml()))
                 self.newBuilder()
 
 
