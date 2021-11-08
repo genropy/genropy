@@ -298,6 +298,9 @@ class BagToHtml(object):
             return result
         self.builder.toHtml()
         self.builder.html = self.builder.html.replace('#TOTPAGE',str(self.current_page_number+1))
+        dirname = os.path.dirname(filepath)
+        if dirname and not os.path.exists(dirname):
+            os.makedirs(dirname)
         with open(filepath,'w') as f:
             f.write(self.builder.html)
         return self.builder.html
