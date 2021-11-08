@@ -797,7 +797,7 @@ dojo.declare("gnr.GridEditor", null, {
         this.remoteRowController = sourceNode.attr.remoteRowController;
         this.remoteRowController_default = sourceNode.attr.remoteRowController_default;
         if(this.remoteRowController_default){
-            var caller_kw = {'script':"this.getParentNode().widget.gridEditor.callRemoteControllerBatch('*')",'_delay':500,
+            var caller_kw = {'script':"this.getParentNode().widget.gridEditor.callRemoteControllerBatch('*',null,true)",'_delay':500,
                             '_userChanges':true};
             objectUpdate(caller_kw,this.remoteRowController_default);
             sourceNode._('dataController','remoteRowController_default_caller',caller_kw);
@@ -940,7 +940,6 @@ dojo.declare("gnr.GridEditor", null, {
                     });
                 });
                 if(remoteControllerRows.len()>0){
-                    console.log('callRemoteControllerBatch')
                     grid.gridEditor.callRemoteControllerBatch(remoteControllerRows);
                 }
                 
@@ -1345,9 +1344,10 @@ dojo.declare("gnr.GridEditor", null, {
         rowEditor.checkRowEditor();
     },
 
-    callRemoteControllerBatch:function(rows,kw){
+    callRemoteControllerBatch:function(rows,kw,updatedDefaults){
         var that = this;
         kw = kw || objectUpdate({},this.remoteRowController_default);
+        kw._updatedDefaults = updatedDefaults;
         if(rows=='*'){
             rows = this.grid.storebag().deepCopy();
         }
@@ -1367,7 +1367,10 @@ dojo.declare("gnr.GridEditor", null, {
             return result;
         }
         kw.timeout = 0;
-        kw.selectedQueries = this.rowSelectedQueries();
+        if(!updatedDefaults){
+            //inserting new rows getting selected value queries
+            kw.selectedQueries = this.rowSelectedQueries();
+        }
         if(grid.sourceNode._dc_callingRemoteRowController){
             clearTimeout(grid.sourceNode._dc_callingRemoteRowController);
         }
