@@ -541,7 +541,6 @@ class SqlQueryCompiler(object):
                 else:
                     new_col_list.append(col)
             columns = ','.join(new_col_list)
-            
         # translate @relname.fldname in $_relname_fldname and add them to the relationDict
         currentEnv = self.db.currentEnv
         context_subtables = currentEnv.get('context_subtables',Bag()).getItem(self.tblobj.fullname)
@@ -596,16 +595,15 @@ class SqlQueryCompiler(object):
             else:
                 colbody, as_ = col.split(' AS ', 1)
                 # leave the col as is, but save the AS name to recover the db column original name from selection result
-                as_ = as_.strip()
+                as_ = self.db.adapter.asTranslator(as_.strip())
                 self.cpl.aliasDict[as_] = colbody.strip()
             col_dict[as_] = col
         # build the clean and complete sql string for the columns, but still all fields are expressed as $fieldname
         as_col_values = col_dict.values()
         columns = ',\n'.join(as_col_values)
-        
         # translate all fields and related fields from $fldname to t0.fldname, t1.fldname... and prepare the JOINs
         colPars = {}
-        for key, value in list(self.cpl.relationDict.items()):
+        for key, value in self.cpl.relationDict.items():
             # self._currColKey manage exploding columns in recursive getFieldAlias without add too much parameters
             self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
@@ -725,7 +723,7 @@ class SqlQueryCompiler(object):
     def _handle_virtual_columns(self, virtual_columns):
         if isinstance(virtual_columns, basestring):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
-        virtual_columns = (virtual_columns or []) + self.tblobj.static_virtual_columns.keys()
+        virtual_columns = (virtual_columns or []) + list(self.tblobj.static_virtual_columns.keys())
         if not virtual_columns:
             return
         virtual_columns = uniquify([v[1:] if v.startswith('$') else v for v in virtual_columns])
