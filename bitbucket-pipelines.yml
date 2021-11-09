@@ -16,7 +16,7 @@ pipelines:
             - pip
           script:
             - pip3 install awscli
-            - IMAGE="594669497470.dkr.ecr.eu-central-1.amazonaws.com/genropy"
+            - IMAGE="public.ecr.aws/x2x6r1v6/genropy"
             - TAG=${BITBUCKET_BRANCH:-$BITBUCKET_TAG}
             - aws configure set aws_access_key_id "${AWS_KEY}"
             - aws configure set aws_secret_access_key "${AWS_SECRET}"
