@@ -1,3 +1,4 @@
+image: python:3.7.4-alpine3.10
 clone:
   depth: full
 pipelines:
@@ -5,3 +6,20 @@ pipelines:
     - step:
         script:
           - git push git@github.com:genropy/genropy.git
+
+  tags:
+    ecr-release-*:
+      - step:
+          services:
+            - docker
+          caches:
+            - pip
+          script:
+            - pip3 install awscli
+            - IMAGE="594669497470.dkr.ecr.eu-central-1.amazonaws.com/genropy"
+            - TAG=${BITBUCKET_BRANCH:-$BITBUCKET_TAG}
+            - aws configure set aws_access_key_id "${AWS_KEY}"
+            - aws configure set aws_secret_access_key "${AWS_SECRET}"
+            - eval $(aws ecr get-login --no-include-email --region eu-central-1 | sed 's;https://;;g')
+            - docker build -t $IMAGE:$TAG .
+            - docker push $IMAGE:$TAG
