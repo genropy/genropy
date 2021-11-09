@@ -5,6 +5,7 @@ pipelines:
   default:
     - step:
         script:
+          - apk add git
           - git push git@github.com:genropy/genropy.git
 
   tags:
@@ -20,6 +21,6 @@ pipelines:
             - TAG=${BITBUCKET_BRANCH:-$BITBUCKET_TAG}
             - aws configure set aws_access_key_id "${AWS_KEY}"
             - aws configure set aws_secret_access_key "${AWS_SECRET}"
-            - eval $(aws ecr get-login --no-include-email --region eu-central-1 | sed 's;https://;;g')
+            - eval $(aws ecr-public get-login-password --region eu-central-1 | docker login --username AWS --password-stdin public.ecr.aws/genropy)
             - docker build -t $IMAGE:$TAG .
             - docker push $IMAGE:$TAG
