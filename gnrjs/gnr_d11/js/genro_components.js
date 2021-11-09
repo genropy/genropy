@@ -7147,7 +7147,6 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             return;
         }
         this.clearBagCache();
-        var selection = result.getValue(); 
         var data = new gnr.GnrBag();
         var resultattr = result.attr;
         data.setItem('P_0',result.getValue(),{pageIdx:0}); 
@@ -7164,10 +7163,6 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             for(var page in pagetoload){
                 this.loadBagPageFromServer(page,true,data);
             }
-            this.gridBroadcast(function(grid){
-                grid.selection.select(resultattr.prevSelectedIdx);
-                grid.scrollToRow(resultattr.prevSelectedIdx);
-            });
         }
         return result;
     },

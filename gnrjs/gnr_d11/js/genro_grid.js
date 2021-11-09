@@ -3118,7 +3118,6 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             this.setEditableColumns();
         }
         this.setChangeManager();
-        kw || {};
         if(this.sourceNode._useStore){
             var store = this.collectionStore();
             if(store){
