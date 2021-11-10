@@ -5,7 +5,7 @@ pipelines:
   default:
     - step:
         script:
-          - apk add git
+          - apk add --update --no-cache openssh git
           - git push git@github.com:genropy/genropy.git
 
   tags:
