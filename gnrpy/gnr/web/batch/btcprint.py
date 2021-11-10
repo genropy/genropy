@@ -62,8 +62,6 @@ class BaseResourcePrint(BaseResourceBatch):
             thermo_s['message'] = getattr(self, thermo_s['message'])
         if isinstance(thermo_r['message'], basestring) and hasattr(self.htmlMaker, thermo_r['message']):
             thermo_r['message'] = getattr(self.htmlMaker, thermo_r['message'])
-        if not 'templates' in self.batch_parameters:
-            self.batch_parameters['templates'] = self.templates  #CONTROLLARE
         records = self.get_records()
         pkeyfield = self.tblobj.pkey
         if not self.get_selection():
@@ -107,6 +105,8 @@ class BaseResourcePrint(BaseResourceBatch):
         return
         
     def do(self):
+        if not 'templates' in self.batch_parameters:
+            self.batch_parameters['templates'] = self.templates  #CONTROLLARE
         if self.htmlMaker and self.htmlMaker.maintable == self.htmlMaker.row_table:
             self.htmlMaker.row_table = self.tblobj.fullname
             self.print_record(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())),
