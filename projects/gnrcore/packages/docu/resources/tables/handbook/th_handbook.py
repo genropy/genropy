@@ -5,6 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.web.gnrbaseclasses import BaseComponent
+import os
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -26,25 +27,25 @@ class View(BaseComponent):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        bc = form.center.borderContainer()
-        top = bc.contentPane(region='top',datapath='.record')
-        fb = top.div(margin='10px',margin_right='20px').formbuilder(cols=2,border_spacing='6px',
+        bc = form.center.borderContainer(datapath='#FORM.record')
+        left = bc.contentPane(region='left', width='70%')
+        fb = left.formbuilder(cols=2,border_spacing='6px',
                                                     fld_width='100%',
-                                                    max_width='1000px',
-                                                    width='100%',colswidth='auto')
-        fb.field('name')
+                                                    max_width='800px',
+                                                    width='100%', colswidth='auto')
+        fb.field('name', validate_notnull=True)
         fb.dataController("SET .sphinx_path=current_path+'/'+handbook_name;", 
                             current_path=self.db.application.getPreference('.sphinx_path',pkg='docu'),
                             handbook_name='^.name', _userChanges=True)
         fb.a('^.handbook_url', lbl='Doc url:', href='^.handbook_url', target='_blank', hidden='^.handbook_url?=!#v')
-        fb.field('title')
+        fb.field('title', validate_notnull=True)
         fb.field('docroot_id', hasDownArrow=True, validate_notnull=True, tag='hdbselect', folderSelectable=True)
         fb.checkBoxText(value='^.toc_roots',
                         table='docu.documentation', popup=True, cols=4,lbl='TOC roots',
                         condition='$parent_id = :docroot_id', condition_docroot_id='^.docroot_id' )
 
 
-        fb.field('language')
+        fb.field('language', validate_notnull=True)
         fb.field('version')
         fb.field('author')
         themesSn = self.site.storageNode('rsrc:pkg_docu','sphinx_env','themes')
@@ -56,18 +57,39 @@ class Form(BaseComponent):
         fb.field('sphinx_path')
         fb.field('examples_site')
         fb.field('examples_directory')
-        fb.field('custom_styles',tag='simpleTextArea',colspan=2,height='250px')
-        example_pars_fb = top.div(margin='10px',margin_right='20px').formbuilder(cols=2,border_spacing='6px',
+        fb.field('custom_styles',tag='simpleTextArea',colspan=2,height='150px')
+
+        right = bc.contentPane(region='center', width='360px', padding='20px')
+        right.img(src='^.ogp_image',
+                max_width='300px', width='300px',
+                max_height='158px', height='158px',
+                crop_border='2px dotted silver',
+                crop_rounded=6,
+                placeholder=True,
+                edit=True, 
+                upload_folder='site:handbooks_images',
+                upload_filename='=#FORM.record.name')
+        right.span('Recommended file size: 1200x628', font_size='10px', font_style='italic', margin='5px')
+        right.button('Remove', hidden='^.image?=!#v', margin='5px').dataController('SET .image = null;')
+
+        
+        
+        bottom = left.borderContainer(region='center', margin='10px', margin_right='20px')
+        example_pars_fb = bottom.formbuilder(cols=2,border_spacing='6px',
                                                     fld_width='100%',
-                                                    max_width='700px',
+                                                    max_width='500px',
                                                     width='100%',colswidth='auto',
                                                     datapath='.examples_pars',hidden='^#FORM.record.examples_site?=!#v')
     
-        example_pars_fb.numberTextBox('^.default_height',width='4em',lbl='Default height')
-        example_pars_fb.numberTextBox('^.default_width',width='4em',lbl='Default width')
-        example_pars_fb.filteringSelect('^.source_region',width='6em',lbl='Source position',
+        example_pars_fb.numberTextBox('^.default_height',width='6em',lbl='Default height')
+        example_pars_fb.numberTextBox('^.default_width',width='6em',lbl='Default width')
+        example_pars_fb.filteringSelect('^.source_region',width='8em',lbl='Source position',
                     values='stack:Stack Demo/Source,stack_f:Stack Source/Demo,top:Top,left:Left,bottom:Bottom,right:Right')
-        example_pars_fb.textbox('^.source_theme',width='6em',lbl='Source theme')
+
+        examples_themesSn = self.site.storageNode('rsrc:js_libs', 'codemirror', 'theme')
+        examples_themes = ','.join([s.cleanbasename for s in examples_themesSn.children() if s.basename.endswith('.css')])
+        #DP202108 In this way we build the list of available themes which will be shown in the filteringSelect
+        example_pars_fb.filteringSelect(value='^.source_theme',values=examples_themes, width='8em',lbl='Source theme')
 
     def th_top_exportButton(self, top):
         bar = top.bar.replaceSlots('*','*,export_button')

@@ -82,7 +82,7 @@ class Table(object):
                     tutorial_record_node.delete()
         if record['sourcebag']:
             for source_version in record['sourcebag'].values():
-                with tutorial_record_node.child('%(version)s.py' %source_version).open('wb') as f:
+                with tutorial_record_node.child('%(version)s.py' %source_version).open('w') as f:
                     f.write(source_version['source'])
 
     @public_method
@@ -93,7 +93,7 @@ class Table(object):
         for source_version in record['sourcebag'].values():
             n = tutorial_record_node.child('%(version)s.py' %source_version)
             if not n.exists:
-                with n.open('wb') as f:
+                with n.open('w') as f:
                     f.write(source_version['source'])
 
     def applyOnTreeNodeAttr(self,_record=None,**kwargs):

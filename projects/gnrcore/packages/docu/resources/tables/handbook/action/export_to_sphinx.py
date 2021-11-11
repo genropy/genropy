@@ -10,7 +10,6 @@ from datetime import datetime
 import re
 import os
 import sys
-from datetime import datetime
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -23,7 +22,6 @@ else:
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
 tags = '_DEV_'
-
 
 class Main(BaseResourceBatch):
     dialog_height = '450px'
@@ -68,7 +66,7 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        self.handbook_url = html_baseurl + self.handbook_record['name']
+        self.handbook_url = html_baseurl + self.handbook_record['name'] if html_baseurl.endswith('/') else self.handbook_url = html_baseurl + '/' + self.handbook_record['name']
 
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
@@ -110,12 +108,12 @@ class Main(BaseResourceBatch):
     def step_buildHtmlDocs(self):
         "Build HTML docs"
         self.resultNode = self.sphinxNode.child('build')
+        ogp_image = self.page.path_url[:-1] + self.handbook_record['image'].split('?',1)[0] if self.handbook_record['image'] else None
         build_args = dict(project=self.handbook_record['title'],
                           version=self.handbook_record['version'],
-                          #author=self.handbook_record['author'],
-                          author="-",
+                          author=self.handbook_record['author'],
+                          ogp_image=ogp_image,
                           release=self.handbook_record['release'],
-        # DAVIDE modificato mapping 'release' che non era utilizzato e verrà utilizzato invece nel tema per l'autore
                           language=self.handbook_record['language'])
         template_variables = dict()
         args = []
@@ -175,7 +173,6 @@ class Main(BaseResourceBatch):
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
                 rst = '%s'%rst + '<hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
-
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
             if self.examples_root and self.curr_sourcebag:
@@ -227,7 +224,7 @@ class Main(BaseResourceBatch):
             parsstring = '?_source_viewer=%s&_source_toolbar=%s' %(source_region,source_region_inspector)
             if source_theme:
                 parsstring = '%s&cm_theme=%s' %(parsstring,source_theme)
-
+        
         iframekw = dict(height=height,width=width or '100%',examples_root = self.examples_root,
                         examples_root_local = self.examples_root_local,
                         example_folder = self.hierarchical_name,parsstring=parsstring,
@@ -241,7 +238,6 @@ class Main(BaseResourceBatch):
             <div></div>
         </div> 
         """  %(dumps(iframekw),iframekw['example_label'])
-
 
     def fixImages(self, m):
         old_filepath = m.group(1)
@@ -296,7 +292,6 @@ class Main(BaseResourceBatch):
         for recipient in notification_recipients:
             result = socialservice.publishPost(message=notification_message, 
                                             bot_token=notification_bot, page_id_code=recipient)
-            print(result)
              
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
         reference_label='.. _%s:\n' % hname if hname else ''

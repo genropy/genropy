@@ -35,7 +35,7 @@ def setup(app):
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx_sitemap']
+extensions = ['sphinx_sitemap','sphinxext.opengraph']
 
 # Sitemap html_baseurl required by: https://pypi.org/project/sphinx-sitemap/
 #html_baseurl = '/docs/'
@@ -110,7 +110,7 @@ todo_include_todos = False
 html_theme_options = {'includehidden': True,   
                     'titles_only': False,
                     'collapse_navigation': True,
-                    'sticky_navigation': True,
+                    'sticky_navigation': False,
                     'navigation_depth': -1}
 
 # Add any paths that contain custom static files (such as style sheets) here,

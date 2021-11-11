@@ -28,7 +28,4 @@ webob
 werkzeug<2.0
 webob
 six
-sphinx
-sphinx_rtd_theme
-sphinx-sitemap
 tzlocal
