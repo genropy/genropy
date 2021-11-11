@@ -108,7 +108,7 @@ class Main(BaseResourceBatch):
     def step_buildHtmlDocs(self):
         "Build HTML docs"
         self.resultNode = self.sphinxNode.child('build')
-        ogp_image = self.page.path_url[:-1] + self.handbook_record['image'].split('?',1)[0] if self.handbook_record['image'] else None
+        ogp_image = self.page.externalUrl(self.handbook_record['ogp_image']) if self.handbook_record['ogp_image'] else None
         build_args = dict(project=self.handbook_record['title'],
                           version=self.handbook_record['version'],
                           author=self.handbook_record['author'],
