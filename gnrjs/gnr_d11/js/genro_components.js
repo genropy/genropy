@@ -3811,7 +3811,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var gnrwdg = sourceNode.gnrwdg;
         var uploaderPars = objectExtract(kw,'onUploadedMethod,onUploadingMethod');
-        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort');
+        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort,_lockScreen');
         objectUpdate(uploaderPars,objectExtract(kw,'rpc_*'));
         var nodeId = objectPop(kw,'nodeId') || 'uploader_'+genro.getCounter()
         uploaderKw.uploadPath = uploaderKw.uploadPath || 'page:'+nodeId;
@@ -3841,15 +3841,27 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 gnrwdg.fakeinputNode.domNode.click();
             }
         }
+        if(label && label.startsWith('!!')){
+            label = _T(label)
+        }
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         onUploadingCb = funcCreate(onUploadingCb,'dropInfo,data',sourceNode);
         var progressBar = objectPop(kw,'progressBar',true);
-        if(uploaderKw.onResult){
-            uploaderKw.onResult = funcCreate(uploaderKw.onResult,'evt',sourceNode);
+        var onResult = uploaderKw.onResult;
+        if(onResult){
+            onResult = funcCreate(onResult,'evt',sourceNode);
         }
+        uploaderKw.onResult = function(evt){
+            if(uploaderKw._lockScreen){
+                genro.lockScreen(false,nodeId);
+            }
+            if(onResult){
+                return onResult(evt);
+            }
+        };
         if(uploaderKw.onError){
             uploaderKw.onError = funcCreate(uploaderKw.onError,'evt',sourceNode);
         }
@@ -3874,6 +3886,9 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             var doUpload = onUploadingCb(dropInfo,data);
             if(doUpload===false){
                 return false;
+            }
+            if(uploaderKw._lockScreen){
+                genro.lockScreen(true,nodeId)
             }
             return genro.rpc.uploadMultipart_oneFile(data,objectUpdate({},uploaderPars),objectUpdate({filename:data.name},uploaderKw));
         }
