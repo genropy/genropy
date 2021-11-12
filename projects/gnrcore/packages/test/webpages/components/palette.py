@@ -17,15 +17,15 @@ class GnrCustomWebPage(object):
         "Alternative to former example, showing table values using a remoteTableHandler instead of a palette"
         bc = pane.borderContainer(region='center', height='400px')
         left = bc.borderContainer(width='50%', region='left')
-        left.contentPane(region='top').button('Create View',fire='.create_view').dataController("""
-             pane._('ContentPane',{remote:'th_remoteTableHandler',remote_thkwargs:{table:'glbl.provincia'}});
-            """,_fired='^.create',pane=left.contentPane(region='center'))
+        left.contentPane(region='top').button('Create View').dataController("""
+             pane._('ContentPane',{remote:'th_remoteTableHandler',remote_thkwargs:{table:'glbl.provincia'}});""", 
+             pane=left.contentPane(region='center'))
         
         right = bc.borderContainer(region='center')
-        right.contentPane(region='top').button('Create Form',fire='.create_form').dataController("""
+        right.contentPane(region='top').button('Create Form').dataController("""
              pane._('ContentPane',{remote:'th_remoteTableHandler',
-                                    remote_thkwargs:{table:'glbl.provincia',thwidget:'form'}});
-            """,_fired='^.create',pane=right.contentPane(region='center'))
+                                    remote_thkwargs:{table:'glbl.provincia',thwidget:'form'}});""",
+            pane=right.contentPane(region='center'))
         
     def test_3_palettePane(self, pane):
         "Custom palette with background and no values"
