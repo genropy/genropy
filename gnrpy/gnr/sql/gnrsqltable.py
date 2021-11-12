@@ -577,6 +577,8 @@ class SqlTable(GnrObject):
                     if dtype and isinstance(v, basestring):
                         if dtype not in ['T', 'A', 'C', 'X']:
                             v = converter.fromText(record[k], dtype)
+                            if isinstance(v,tuple):
+                                v = v[0]
                     if 'rjust' in colattr:
                         v = v.rjust(int(colattr['size']), colattr['rjust'])
                         
