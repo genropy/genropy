@@ -204,7 +204,7 @@ class PublicSlots(BaseComponent):
                     _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();',padding_right='3px',padding_left='3px',margin_top='3px')
 
     @struct_method
-    def public_publicRoot_partition_selector(self,pane, **kwargs): 
+    def public_publicRoot_partition_selector(self,pane, **kwargs):
         box = pane.div(margin_top='2px') 
         self.public_partitioned = self.tblobj.partitionParameters if self.public_partitioned is True else self.public_partitioned
         kw = self.public_partitioned
@@ -214,9 +214,12 @@ class PublicSlots(BaseComponent):
         related_tblobj = self.db.table(table)
         default_partition_value = self.db.currentEnv.get('current_{}'.format(partition_path)) or self.rootenv[partition_path]
         fb = box.formbuilder(cols=1,border_spacing='0')
-        if hasattr(related_tblobj,'partitionioning_pkeys'):
-            #to avoid this query use login onUserSelected instead of use partitionioning_pkeys
-            allowedPartitionPkeys =  related_tblobj.partitionioning_pkeys()
+        for hn in ['partitioning_pkeys','partitionioning_pkeys']: #partitionioning_pkeys is deprecated #retrocompatibility
+            if hasattr(related_tblobj, hn):
+                partition_pkeys_method = getattr(related_tblobj, hn)
+                break
+        if partition_pkeys_method:
+            allowedPartitionPkeys = partition_pkeys_method()
             self.pageStore().setItem('rootenv.allowed_%s' %partition_field, allowedPartitionPkeys or [],dbenv=True)
             if not allowedPartitionPkeys and default_partition_value:
                 allowedPartitionPkeys = [default_partition_value]
