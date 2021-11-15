@@ -214,6 +214,7 @@ class PublicSlots(BaseComponent):
         related_tblobj = self.db.table(table)
         default_partition_value = self.db.currentEnv.get('current_{}'.format(partition_path)) or self.rootenv[partition_path]
         fb = box.formbuilder(cols=1,border_spacing='0')
+        partition_pkeys_method = None
         for hn in ['partitioning_pkeys','partitionioning_pkeys']: #partitionioning_pkeys is deprecated #retrocompatibility
             if hasattr(related_tblobj, hn):
                 partition_pkeys_method = getattr(related_tblobj, hn)
