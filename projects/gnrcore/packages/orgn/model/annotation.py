@@ -102,9 +102,8 @@ class Table(object):
         tbl.pyColumn('template_cell',dtype='A',group='_',py_method='templateColumn', template_name='action_tpl',template_localized=True)
 
 
-
     def pyColumn_calc_description(self,record=None,field=None):
-        if record['rec_type'] == 'AN':
+        if record.get('rec_type') == 'AN':
             if not record['done_ts']:
                 return record['description']
             else:
@@ -115,7 +114,7 @@ class Table(object):
                 result = "<b>%s:</b><i>%s</i><br/><b>%s:</b>%s" %(c0,action_description,c1,description)
                 return result
         else:
-            return record['action_description']
+            return record.get('action_description')
 
     def pyColumn_countdown(self,record=None,field=None):
         date_due = record.get('calculated_date_due')
