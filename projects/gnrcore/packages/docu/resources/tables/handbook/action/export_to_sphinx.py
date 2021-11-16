@@ -166,19 +166,6 @@ class Main(BaseResourceBatch):
             self.curr_sourcebag = Bag(record['sourcebag'])
             toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
-            if n.attr['child_count']>0:
-                result.append('%s/%s.rst' % (name,name))
-                if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
-                    tocstring = self.createToc(elements=toc_elements,
-                            hidden=not record['sphinx_toc'],
-                            titlesonly=True,
-                            maxdepth=1)
-            else:
-                result.append(name)
-                self.curr_pathlist=pathlist
-                tocstring=''
             lbag=docbag[self.handbook_record['language']] or Bag()
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'])
@@ -197,6 +184,20 @@ class Main(BaseResourceBatch):
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
             else:
                 footer= ''
+            if n.attr['child_count']>0:
+                result.append('%s/%s.rst' % (name,name))
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+                    tocstring = self.createToc(elements=toc_elements,
+                            hidden=not record['sphinx_toc'],
+                            titlesonly=True,
+                            maxdepth=1)
+            else:
+                result.append(name)
+                self.curr_pathlist=pathlist
+                tocstring=''
+            
             self.createFile(pathlist=self.curr_pathlist, name=name,
                             title=lbag['title'], 
                             rst=rst,
