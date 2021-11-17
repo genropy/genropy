@@ -580,7 +580,7 @@ dojo.declare("gnr.widgets.TooltipMultivalue", gnr.widgets.TooltipPane, {
     },
     cleanMultivalueData:function(data){
         if(data){
-            dojo.forEach(data.getNodes(),function(n){
+            data.getNodes().forEach(function(n){
                 var r = n.getValue();
                 if(!r || !r.getItem('mv_value')){
                     data.popNode(n.label);
@@ -803,7 +803,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 n.attr.nodeId = frameCode+'_target';
             }
         },'static');
-        dojo.forEach(sides,function(side){
+        sides.forEach(function(side){
             slot = children.popNode(side);
             slotcontent = null;
             sidepane = null;
@@ -821,7 +821,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 sideKw = slot?objectUpdate(slot.attr,{'region':side}):{'region':side};
                 sideKw.splitter = sideKw.splitter || objectPop(node.attr,'splitter');
                 objectPop(node.attr,'side');
-                dojo.forEach(corners[side],function(c){
+                corners[side].forEach(function(c){
                     v=objectPop(rounded_corners,c);
                     if(v){
                         node.attr['rounded_'+c] = v;
@@ -832,7 +832,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 sidepane.setItem('#id',node._value,node.attr);
             }
             if(sidepane && slotcontent && slotcontent.len()>0){
-                dojo.forEach(slotcontent.getNodes(),function(n){
+                slotcontent.getNodes().forEach(function(n){
                     n.attr['frameCode'] = frameCode;
                     sidepane.setItem('#id',n._value,n.attr);
                 });
@@ -1889,7 +1889,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
             databag.setItem('menu_auto', menubag);
         }
         else {
-            dojo.forEach(searchOn.split(','), function(col) {
+            searchOn.split(',').forEach(function(col) {
                 col = dojo.trim(col);
                 var caption = col;
                 if (col.indexOf(':') >= 0) {
@@ -2603,7 +2603,7 @@ dojo.declare("gnr.widgets.VideoPlayer", gnr.widgets.gnrwdg, {
                                                 }
                                             }
                                             if(_querystring){
-                                                dojo.forEach(cues,function(c){
+                                                cues.forEach(function(c){
                                                     if(c.startTime<range_start || c.startTime>range_end){
                                                         return;
                                                     }
@@ -3449,7 +3449,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(!curr_vc){
             curr_vc = tpl_vc;
         }else{
-            dojo.forEach(tpl_vc,function(c){
+            tpl_vc.forEach(function(c){
                 if(dojo.indexOf(curr_vc,c)<0){
                     curr_vc.push(c)
                 }
@@ -3789,13 +3789,13 @@ dojo.declare("gnr.widgets.DropUploaderGrid", gnr.widgets.gnrwdg, {
                                         },
                                         onDrop:function(dropInfo,files){
                                             var filebag = this.widget.storebag();
-                                            files.forEach(function(f){
+                                            for(let f of files){
                                                 let row = {_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:nodeId};
-                                                let label = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
-                                                if(filebag.index(label)<0){
-                                                    filebag.addItem(label,new gnr.GnrBag(row));
+                                                let ll = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
+                                                if(filebag.index(ll)<0){
+                                                    filebag.addItem(ll,new gnr.GnrBag(row));
                                                 }
-                                            });
+                                            }
                                         }});
         grid._('column',{name:_T('Filename'),field:'_name',width:'15em',edit:true});
         grid._('column',{name:_T('Size'),field:'_size',width:'5em','dtype':'L'});
@@ -3900,9 +3900,9 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             }
             var totSize = 0;
             if(maxsize){
-                dojo.forEach(function(f){
+                for(let f of files){
                     totSize += f.size;
-                });
+                }
                 if (totSize>maxsize){
                     var size_kb = maxsize/1000
                     genro.dlg.alert("File exeeds size limit ("+size_kb+"KB)",'Error');
@@ -3911,7 +3911,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             }
             var c = 0;
             var height = Math.round(100/files.length)
-            dojo.forEach(files,function(f){
+            for(let f of files){
                 var h = cbOnDropData(dropInfo,f);
                 if(h){
                     gnrwdg.pendingHandlers.push(h);
@@ -3928,7 +3928,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                     }
                     c+=1;
                 }
-            });
+            }
         };
         dropAreaKw.onDrop = onFiles;
         containerKw._class =containerKw._class ||  'dropUploaderBox' ;
@@ -4374,7 +4374,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         sn.delayedCall(function(){
             var cn = sn._stackButtonsNodes;
             if(cn){
-                dojo.forEach(cn,function(c){
+                cn.forEach(function(c){
                     that.makeTabButton(c,child.sourceNode,sn);
                 });
             }
@@ -4389,7 +4389,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         }
         var paneId = this.getPaneId(child.sourceNode);
         setTimeout(function(){
-            dojo.forEach(controllerNodes,function(c){
+            controllerNodes.forEach(function(c){
                 c._value.popNode(paneId);
             });
         },1)
@@ -4402,7 +4402,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
             return;
         }
         var paneId = this.getPaneId(child.sourceNode);
-        dojo.forEach(controllerNodes,function(c){
+        controllerNodes.forEach(function(c){
             genro.dom.setClass(c._value.getNode(paneId),'hidden',value)
         })
     },
@@ -4417,7 +4417,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         if((!controllerNodes) || sn._isBuilding){
             return;
         }
-        dojo.forEach(controllerNodes,function(c){
+        controllerNodes.forEach(function(c){
             genro.dom.setClass(c._value.getNode(paneId),'multibutton_selected',st)
         })
         
@@ -4432,7 +4432,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         }
         stackNode._value.forEach(function(n){
             if(n.getWidget()){
-                dojo.forEach(controllerNodes,function(c){
+                controllerNodes.forEach(function(c){
                     that.makeTabButton(c,n,stackNode);
                 });
             }
@@ -5357,7 +5357,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var ghrwdg = this;
         ghrwdg.captionDict = {};
         ghrwdg.valuesDict = {};
-        dojo.forEach(valuelist,function(v){
+        valuelist.forEach(function(v){
             if(v=='/'){
                 curr_row =  tblNode._('tr',row_kw);
                 i = 1;
@@ -5401,11 +5401,10 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var i = 0;
         var labels = [];
         var codes = [];
-        var rows = sourceNode.getValue().getItem('#0');
         var sourceNodes = dojo.query('.dijitCheckBoxInput',this.tblNode.domNode).map(function(n){
             return dijit.getEnclosingWidget(n).sourceNode
         });
-        dojo.forEach(sourceNodes,function(cbNode){
+        sourceNodes.forEach(function(cbNode){
             if(cbNode.widget.checked){
                 if(has_code){
                     codes.push(cbNode.attr._code);
@@ -5493,7 +5492,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
 
         attributes.orientation=orientation;
         var buildKw={};
-        dojo.forEach(['table','row','cell','lbl'],function(k){
+        ['table','row','cell','lbl'].forEach(function(k){
             buildKw[k] = objectExtract(attributes,k+'_*');
             buildKw[k]['_class'] = (buildKw[k]['_class'] || '') + ' slotbar_'+k;
         });
@@ -5545,7 +5544,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var slots = objectPop(kw,'slots');
         var orientation = objectPop(kw,'orientation');
         var result = this['createContent_'+orientation](sourceNode,kw,kw.slotbarCode,slots,children);
-        dojo.forEach(children._nodes,function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
+        children._nodes.forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
         return result;
     },
     
@@ -5563,14 +5562,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             rlabel=  table._('tr');
         }
         var attr,cell,slotNode,slotValue,slotKw,slotValue;
-        var children = children || new gnr.GnrBag();
+        children = children || new gnr.GnrBag();
         var that = this;
-        var attr,kwLbl,lbl,labelCell,k;
+        var kwLbl,lbl,labelCell,k;
         var slotArray = splitStrip(slots);
         var counterSpacer = dojo.filter(slotArray,function(s){return s=='*';}).length;
         var spacerWidth = counterSpacer? 100/counterSpacer:100;
         var cellKwLbl = buildKw.lbl_cell;
-        dojo.forEach(slotArray,function(slot){
+        slotArray.forEach(function(slot){
             if(rlabel){
                 labelCell = rlabel._('td',cellKwLbl);
             }else if(lblPos=='L'){
@@ -5652,18 +5651,11 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var table = sourceNode._('div',kw)._('table',buildKw.table)._('tbody');
 
         var attr,row,cell,slotNode,slotValue,slotKw,slotValue;
-        var children = children || new gnr.GnrBag();
+        children = children || new gnr.GnrBag();
         var that = this;
-        var attr,kwLbl,lbl,labelCell,k;
+        var kwLbl,lbl,labelCell,k;
         var slotArray = splitStrip(slots);
-        var cellKwLbl = buildKw.lbl_cell;
-        dojo.forEach(slotArray,function(slot){
-            /*if(rlabel){
-                labelCell = rlabel._('td',cellKwLbl);
-            }else if(lblPos=='L'){
-                cellKwLbl['width'] = cellKwLbl['width'] || '1px'
-                labelCell = r._('td',cellKwLbl)
-            }*/
+        slotArray.forEach(function(slot){
             if(slot=='*'){
                 table._('tr');
                 return;
@@ -5679,10 +5671,6 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             
             row = table._('tr',buildKw.row)
             cell = row._('td',objectUpdate({_slotname:slot,position:'relative'},buildKw.cell));
-            /*if(lblPos=='R'){
-                cellKwLbl['width'] = cellKwLbl['width'] || '1px';
-                labelCell = r._('td',cellKwLbl)
-            }*/
             slotNode = children.popNode(slot);
             if (slotNode){
                 slotValue = slotNode.getValue();
@@ -5693,10 +5681,6 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
                         kwLbl = objectExtract(attr,'lbl_*');
                         lbl = objectPop(attr,'lbl');
                         cell.setItem(n.label,n._value,n.attr);
-                        /*if((k==0)&&labelCell){
-                            kwLbl = objectUpdate(objectUpdate({},buildKw.lbl),kwLbl);
-                            labelCell._('div',objectUpdate({'innerHTML':lbl,'text_align':'center'},kwLbl));
-                        }*/
                         k++;
                     });
                 }
@@ -6422,7 +6406,7 @@ dojo.declare("gnr.stores._Collection",null,{
 dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
     loadData:function(data,selfUpdate){
         if(selfUpdate){
-            dojo.forEach(this.linkedGrids(),function(grid){
+            this.linkedGrids().forEach(function(grid){
                 grid.selectionKeeper('save');
                 grid._batchUpdating = true;
             });
@@ -6433,7 +6417,7 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
             this.sort();
         }
         if(selfUpdate){
-            dojo.forEach(this.linkedGrids(),function(grid){
+            this.linkedGrids().forEach(function(grid){
                 grid.applyFilter(true);
                 grid._batchUpdating = false;
                 grid.restoreSelectedRows();
@@ -6546,7 +6530,7 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
         }
         var data = this.getData();
         var sl = [];
-        dojo.forEach(this.sortedBy.split(','),function(n){
+        this.sortedBy.split(',').forEach(function(n){
             sl.push(n);
         });
         sl = sl.join(',');
@@ -6590,7 +6574,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         }
         var data = this.getData();
         var sl = [];
-        dojo.forEach(this.sortedBy.split(','),function(n){
+        this.sortedBy.split(',').forEach(function(n){
             if(n.slice(0,3)!='#a.'){
                 n = '#a.'+n;
             }
@@ -6708,7 +6692,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                     return;
                 }
                 var isExternal = from_page_id!=genro.page_id;
-                dojo.forEach(kw.changelist,function(c){
+                kw.changelist.forEach(function(c){
                     c._isExternal = isExternal;
                     that.pendingChanges.push(c);
                 });
@@ -6879,7 +6863,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             return;
         }
         var isExternalDict = {};
-        dojo.forEach(changelist,function(change){
+        changelist.forEach(function(change){
             if (change['dbevent']=='D'){
                 if (dojo.indexOf(delKeys,change.pkey)<0){
                      delKeys.push(change.pkey);
@@ -6934,7 +6918,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         var selectedPkeysDict = {};
         var selectedIndex,selectedPkey;
         var data = this.getData();
-        dojo.forEach(linkedGrids,function(grid){
+        linkedGrids.forEach(function(grid){
             //grid.batchUpdating(true);
             genro.dom.removeClass(grid.sourceNode,'onExternalChanged');
             selectedIndex = grid.selection.selectedIndex;
@@ -6978,7 +6962,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             }
         }
         if(insOrUpdKeys.length>0){
-            dojo.forEach(insOrUpdKeys,function(pkey){
+            insOrUpdKeys.forEach(function(pkey){
                 wasInSelectionNode = insOrUpdKeys_wasInSelection[pkey];
                 willBeInSelectionNode = willBeInSelection[pkey];
                 if(wasInSelectionNode){
@@ -7010,7 +6994,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                         }
                         rowNode.updAttributes(newattr,true);
                         if(selectedPkeysDict[pkey]){
-                            dojo.forEach(selectedPkeysDict[pkey],function(grid){
+                            selectedPkeysDict[pkey].forEach(function(grid){
                                 grid.sourceNode.publish('updatedSelectedRow');
                             });
                         }
@@ -7030,7 +7014,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             this.mustBeSorted = true;
         } 
         var that = this;
-        dojo.forEach(linkedGrids,function(grid){
+        linkedGrids.forEach(function(grid){
             //grid.batchUpdating(false);   
             if(toUpdate){
                 if (!grid.gnrediting){
@@ -7172,7 +7156,7 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         if(resultattr.prevSelectedIdx && resultattr.prevSelectedIdx.length>0){
             var pagetoload = {};
             var cs = this.chunkSize;
-            dojo.forEach(resultattr.prevSelectedIdx,function(idx){
+            resultattr.prevSelectedIdx.forEach(function(idx){
                 pagetoload[(idx - idx % cs) / cs]=true;
             });
             for(var page in pagetoload){
@@ -7203,14 +7187,14 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         if(changelist.length>0){
             var that = this;
             this.externalChangedKeys = this.externalChangedKeys || {};
-            dojo.forEach(changelist,function(n){
+            changelist.forEach(function(n){
                 if(n._isExternal){
                     that.externalChangedKeys[n.pkey] = true;
                 }
             });
             var prevSelected = {};
-            dojo.forEach(this.linkedGrids(),function(grid){
-                dojo.forEach(grid.selection.getSelected(), function(idx) {
+            this.linkedGrids().forEach(function(grid){
+                grid.selection.getSelected().forEach(function(idx) {
                     prevSelected[grid.rowIdByIndex(idx)] = true;
                 });
                 grid._saved_selections = grid.selectionKeeper('save');
@@ -7218,7 +7202,7 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             this.storeNode.setRelativeData('.query.prevSelectedDict',prevSelected);
             var that = this;
             var cb = function(result){
-                dojo.forEach(that.linkedGrids(),function(grid){
+                that.linkedGrids().forEach(function(grid){
                     grid.sourceNode.publish('onExternalChanged');
                 });
                 return result;
