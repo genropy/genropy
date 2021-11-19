@@ -6894,12 +6894,15 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                 return;
             }
             this.runQuery(function(result){
-                                            willBeInSelection={};
-                                            result.getValue().forEach(function(n){
-                                                willBeInSelection[n.attr['_pkey']] = n;
-                                            },'static');
-                                            that.checkExternalChange(delKeys,insOrUpdKeys,willBeInSelection,isExternalDict);
-                                            return result;
+                                        if(!result){
+                                            return;
+                                        }
+                                        willBeInSelection={};
+                                        result.getValue().forEach(function(n){
+                                            willBeInSelection[n.attr['_pkey']] = n;
+                                        },'static');
+                                        that.checkExternalChange(delKeys,insOrUpdKeys,willBeInSelection,isExternalDict);
+                                        return result;
                                     },{store_chpkeys:chpkeys,condition:condition,applymethod:null});
 
 
