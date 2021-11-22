@@ -1385,7 +1385,11 @@ class AttachmentTable(GnrDboTable):
                     name_long='!![en][Is foreign document]',
                     name_short='!![en]Ext')
         tbl.column('maintable_id',size='22',group='*',name_long=mastertblname).relation('%s.%s.%s' %(pkgname,mastertblname,mastertbl.attributes.get('pkey')), 
-                    mode='foreignkey', onDelete_sql='cascade',onDelete='cascade', relation_name='atc_attachments',
+                    mode='foreignkey', 
+                    onDelete_sql='cascade',
+                    onDelete='cascade',
+                    relation_name='atc_attachments',
+                    onDuplicate=None,
                     one_group='_',many_group='_',deferred=True)
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
