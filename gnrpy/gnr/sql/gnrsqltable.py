@@ -650,6 +650,27 @@ class SqlTable(GnrObject):
             newrecord.setItem(fld, v, info)
         return newrecord
         
+    def recordCopy(self,fromRecord):
+        """"returns a copy of a record, exluding columns that are
+            - unique
+            - _sysfield
+            - draftfield
+            - parent_id
+            - ignoreOnCopy
+        """
+        result = dict()
+        for colname,obj in self.model.columns.items():
+            #should continue or set None??
+            if  obj.attributes.get('unique'):
+                continue
+            if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
+                continue
+            if obj.attributes.get('ignoreOnCopy'):
+                continue 
+
+            result[colname] = fromRecord[colname]
+        return result
+
     def newrecord(self, assignId=False, resolver_one=None, resolver_many=None, _fromRecord=None, **kwargs):
         """TODO
         
@@ -657,18 +678,10 @@ class SqlTable(GnrObject):
         :param resolver_one: TODO
         :param resolver_many: TODO"""
         
-        defaultValues = dict()
+        defaultValues = self.defaultValues() or {}
         if _fromRecord:
-            for colname,obj in self.model.columns.items():
-                if  obj.attributes.get('unique'):
-                    continue
-                if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
-                    continue
-                defaultValues[colname] = _fromRecord[colname]
-        else:
-            defaultValues = self.defaultValues() or {}
+            defaultValues.update(self.recordCopy(_fromRecord))
         defaultValues.update(kwargs)
-
         newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one, resolver_many=resolver_many)
         if assignId:
             newrecord[self.pkey] = self.newPkeyValue(record=newrecord)
@@ -931,6 +944,8 @@ class SqlTable(GnrObject):
         howmany = howmany or 1
         howmany = str(howmany)
         original_record = self.recordAs(recordOrKey,mode='dict')
+
+        #---should use recordCopy START
         record = dict(original_record)
         pkey = record.get(self.pkey,None)
         record[self.pkey] = None
@@ -939,6 +954,8 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('unique') or obj.attributes.get('_sysfield'):
                 record[colname] = None
+        #---should use recordCopy END
+
         if hasattr(self,'onDuplicating'):
             self.onDuplicating(record)
         if howmany.isdigit():
