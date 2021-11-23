@@ -653,22 +653,19 @@ class SqlTable(GnrObject):
     def recordCopy(self,fromRecord):
         """"returns a copy of a record, exluding columns that are
             - unique
-            - _sysfield
-            - draftfield
-            - parent_id
+            - _sysfield (except draftfield or parent_id)
             - ignoreOnCopy
         """
         result = dict()
         for colname,obj in self.model.columns.items():
             #should continue or set None??
-            if  obj.attributes.get('unique'):
+            if  obj.attributes.get('unique') or obj.attributes.get('_sysfield') or colname in (self.draftField, 'parent_id'):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
             if obj.attributes.get('ignoreOnCopy'):
-                continue 
-
-            result[colname] = fromRecord[colname]
+                continue
+            result[colname] = fromRecord.get(colname)
         return result
 
     def newrecord(self, assignId=False, resolver_one=None, resolver_many=None, _fromRecord=None, **kwargs):
