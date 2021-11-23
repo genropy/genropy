@@ -647,7 +647,7 @@ class SqlTable(GnrObject):
         result = dict()
         for colname,obj in self.model.columns.items():
             #should continue or set None??
-            if  obj.attributes.get('unique') or obj.attributes.get('_sysfield') or colname in (self.draftField, 'parent_id'):
+            if obj.attributes.get('unique'):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
