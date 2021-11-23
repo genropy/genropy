@@ -930,10 +930,10 @@ class SqlTable(GnrObject):
         howmany = howmany or 1
         howmany = str(howmany)
         original_record = self.recordAs(recordOrKey,mode='dict')
+        original_pkey = original_record.get(self.pkey,None)
 
         #---should use recordCopy START
         record = dict(original_record)
-        pkey = record.get(self.pkey,None)
         record[self.pkey] = None
         for colname,obj in self.model.columns.items():
             if colname == self.draftField or colname == 'parent_id':
@@ -970,9 +970,9 @@ class SqlTable(GnrObject):
                 subtable ='.'.join(rellist[:-1])
                 manytable = self.db.table(subtable)
                 if hasattr(manytable,'getRowsForDuplication'):
-                    rows = manytable.getRowsForDuplication(pkey)
+                    rows = manytable.getRowsForDuplication(original_pkey)
                 else:
-                    rows = manytable.query(where="$%s=:p" %fkey,p=pkey,addPkeyColumn=False,bagFields=True).fetch()
+                    rows = manytable.query(where="$%s=:p" %fkey,p=original_pkey,addPkeyColumn=False,bagFields=True).fetch()
                 for dupRec in duplicatedRecords:
                     for r in rows:
                         r = dict(r)
