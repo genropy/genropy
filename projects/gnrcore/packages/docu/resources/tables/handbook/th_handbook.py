@@ -34,17 +34,16 @@ class Form(BaseComponent):
                                                     max_width='800px',
                                                     width='100%', colswidth='auto')
         fb.field('name', validate_notnull=True)
-        fb.dataController("SET .sphinx_path=current_path+'/'+handbook_name;", 
-                            current_path=self.db.application.getPreference('.sphinx_path',pkg='docu'),
-                            handbook_name='^.name', _userChanges=True)
         fb.a('^.handbook_url', lbl='Doc url:', href='^.handbook_url', target='_blank', hidden='^.handbook_url?=!#v')
         fb.field('title', validate_notnull=True)
+        fb.div('^.sphinx_path', lbl='Sphinx path', hidden='^.handbook_url?=!#v')
+        fb.dataController("SET .sphinx_path=current_path+'/'+handbook_name;", 
+                            current_path=self.db.application.getPreference('.sphinx_path',pkg='docu'),
+                            handbook_name='^.name', _userChanges=True, _if='current_path')
         fb.field('docroot_id', hasDownArrow=True, validate_notnull=True, tag='hdbselect', folderSelectable=True)
         fb.checkBoxText(value='^.toc_roots',
                         table='docu.documentation', popup=True, cols=4,lbl='TOC roots',
                         condition='$parent_id = :docroot_id', condition_docroot_id='^.docroot_id' )
-
-
         fb.field('language', validate_notnull=True)
         fb.field('version')
         fb.field('author')
@@ -54,7 +53,7 @@ class Form(BaseComponent):
             fb.field('theme', values=themes, tag='filteringSelect')
         else:
             fb.textBox(value='Sphinx RTD standard theme', lbl='Theme', readOnly=True)
-        fb.field('sphinx_path')
+        
         fb.field('examples_site')
         fb.field('examples_directory')
         fb.field('custom_styles',tag='simpleTextArea',colspan=2,height='150px')
@@ -94,7 +93,8 @@ class Form(BaseComponent):
     def th_top_exportButton(self, top):
         bar = top.bar.replaceSlots('*','*,export_button')
         bar.export_button.slotButton('Exp.To Sphinx',
-                                    action="""genro.publish("table_script_run",{table:"docu.handbook",
+                                    action="""this.form.save();
+                                                genro.publish("table_script_run",{table:"docu.handbook",
                                                                                res_type:'action',
                                                                                resource:'export_to_sphinx',
                                                                                handbook_id: pkey,

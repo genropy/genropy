@@ -34,3 +34,21 @@ class Table(object):
     def trigger_onDeleting(self, record):
         handbookNode = self.db.application.site.storageNode(record['sphinx_path'])
         handbookNode.delete()
+    
+    def trigger_onInserting(self, record):
+        if not record['sphinx_path']:
+            self.checkSphinxPath(record)
+    
+    def trigger_onUpdating(self, record, old_record=None):
+        if not record['sphinx_path'] or record['name']!=old_record['name'] :
+            self.checkSphinxPath(record)
+    
+    def checkSphinxPath(self, record):
+        "Sets default path to handbooks if not specified"
+        current_path = self.db.application.getPreference('.sphinx_path', pkg='docu')
+        if not current_path:
+            current_path = 'site:handbooks'
+        handbook_name=record['name']
+        record['sphinx_path'] = current_path + '/' + handbook_name
+                            
+                            

@@ -38,7 +38,7 @@ class Main(BaseResourceBatch):
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable=self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
+        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path']) 
         self.sphinxNode = self.handbookNode.child('sphinx')
         self.sphinxNode.delete()
         self.sourceDirNode = self.sphinxNode.child('source')
@@ -46,7 +46,9 @@ class Main(BaseResourceBatch):
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        html_baseurl =self.db.application.getPreference('.sphinx_baseurl',pkg='docu')
+        html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + 'docs/' 
+        #DP202111 Default url set to /docs
+        self.handbook_url = html_baseurl + self.handbook_record['name']
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
@@ -66,8 +68,7 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        self.handbook_url = html_baseurl + self.handbook_record['name'] if html_baseurl.endswith('/') else self.handbook_url = html_baseurl + '/' + self.handbook_record['name']
-
+        
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
