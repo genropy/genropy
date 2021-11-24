@@ -432,7 +432,7 @@ class BagToXml(object):
         if ':' in originalTag and originalTag.split(':')[0] in namespaces:
             tagName = originalTag
         else:
-            tagName = re.sub(r'[^\w.]', '_', originalTag).replace('__', '_')
+            tagName = re.sub(r'[^\w.]', '_', originalTag, flags=re.ASCII).replace('__', '_')
         if tagName[0].isdigit(): tagName = '_' + tagName
         
         if tagName != originalTag:
