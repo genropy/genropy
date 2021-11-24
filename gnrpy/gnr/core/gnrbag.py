@@ -3246,7 +3246,7 @@ class TraceBackResolver(BagResolver):
             tb_bag['lineno'] = lineno
             tb_bag['name'] = name
             tb_bag['line'] = line
-            tb_bag['locals'] = Bag(list(f.f_locals.items()))
+            tb_bag['locals'] = Bag(dict(f.f_locals))  # copia di f_locals (è un dict)
             tb = tb.tb_next
             n = n + 1
             result['%s method: %s line: %s' % (tb_bag['module'], name, lineno)] = tb_bag
