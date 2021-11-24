@@ -44,7 +44,7 @@
 				<en_categories base="Categories" en="Categories" it="Categorie"/>
 				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 				<en_description base="Description" en="Description" it="Descrizione"/>
-				<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Pollice"/>
+				<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"/>
 				<en_items base="Items" en="Items" it="Elementi"/>
 		</item_picker>
 		<preference ext="py" path="resources/preference.py">
@@ -66,7 +66,7 @@
 								<en_file_type base="File type" en="File type" it="Tipo di file"/>
 								<en_extension base="Extension" en="Extension" it="Estensione"/>
 								<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"/>
-								<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Pollice"/>
+								<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"/>
 				</th_item>
 			</item>
 		</tables>
