@@ -9,19 +9,18 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('title', name='!!Title')
         r.fieldcell('description', name='!!Description')
-        r.fieldcell('url', name='!!Url',template='<a href="#?download=True">download</a>')
+        r.fieldcell('url', name='!!Url',template='<a href="#?download=True">download</a>', width='6em')
         r.fieldcell('path', name='!!Path')
-        r.fieldcell('thumb_url', name='!!Url')
-        r.fieldcell('thumb_path', name='!!Path')
-        r.fieldcell('file_type', name='!!File type')
-        r.fieldcell('ext', name='!!Extension')
-        r.fieldcell('username', name='!!User')
+        r.fieldcell('thumb_url', name='!!Url', width='auto')
+        r.fieldcell('thumb_path', name='!!Path', width='auto')
+        r.fieldcell('file_ext', name='!!Extension', width='6em')
+        r.fieldcell('username', name='!!User', width='6em')
         
     def th_order(self):
-        return 'description'
+        return 'title'
         
     def th_query(self):
-        return dict(column='description',op='contains',val='',runOnStart=True)
+        return dict(column='title',op='contains',val='',runOnStart=True)
 
              
 class ThumbsView(BaseComponent):
@@ -42,15 +41,16 @@ class ThumbsView(BaseComponent):
         selection.apply(apply_thumb)
 
 class ImagesView(BaseComponent):
+    #DP202111 Used in htmltemplate, soon to be replaced
     def th_struct(self,struct):
         r = struct.view().rows()
         r.cell('title',width='5em',hidden=True)
         r.cell('description',width='5em',hidden=True)
-
-        r.cell("image_drag", width='100%', name='!!Thumb', calculated=True)  
         r.cell('description',hidden=True)
         r.cell('url',hidden=True)
         r.cell('path',hidden=True)
+        #It only shows image (or file) to drag 
+        r.cell("image_drag", width='100%', name='!!Thumb', calculated=True)  
 
     def th_order(self):
         return 'description'
@@ -80,15 +80,27 @@ class ImagesView(BaseComponent):
         
     def th_top_custom(self,top):
         top.bar.replaceSlots('#','searchOn',searchOn_width='5em')
+
+class ViewFromTemplate(BaseComponent):
+    #DP202111 Use this instead of former View in Template Editor
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.cell('title', width='auto') 
+        
+    def th_top_custom(self,top):
+        top.bar.replaceSlots('#','searchOn',searchOn_width='5em')
+
+    def th_condition(self):
+        return dict(condition="$file_ext IN ('.jpg','.png','.jpeg')")
         
 class LoadedFilesView(ThumbsView):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell("title", width='10em', edit=True)
-        r.fieldcell("description", width='100%', edit=True)
-        r.fieldcell("url", width='100%', hidden=True)
+        r.fieldcell("description", width='auto', edit=True)
+        r.fieldcell("url", hidden=True)
         r.cell("_thumb", width='5em', name='!!Thumb', calculated=True)
-        r.cell('apri_tab', name="Apri", calculated=True, width='3em',
+        r.cell('apri_tab', name="!![en]Open", calculated=True, width='3em',
                cellClasses='cellbutton',
                format_buttonclass='icnBaseLens buttonIcon',
                format_isbutton=True, format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);

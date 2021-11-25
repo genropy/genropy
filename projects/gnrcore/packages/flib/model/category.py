@@ -17,4 +17,7 @@ class Table(object):
     def touch_fix_htable(self,record=None,old_record=None):
         record['parent_id'] =  record['old_parent_id']
 
+    @metadata(mandatory=True)
+    def sysRecord_NoCategory(self):
+        return self.newrecord(description='!![en]No category')  
 
