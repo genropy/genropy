@@ -1371,8 +1371,8 @@ class AttachmentTable(GnrDboTable):
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Attachments' %mastertbl_name_long)
 
-        #self.sysFields(tbl, counter='maintable_id')
-        self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
+        self.sysFields(tbl, counter='maintable_id')
+        #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
                     onInserted='convertDocFile',
