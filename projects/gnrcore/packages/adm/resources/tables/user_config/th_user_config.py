@@ -169,12 +169,12 @@ class Form(BaseComponent):
         fb.field('pkgid',fld_disabled=True)
         fb.field('tblid',fld_disabled=True)
 
-        fb.remoteSelect(value='^.data.qtree',lbl='Fields Tree (quick)',auxColumns='code,description',
+        fb.remoteSelect(value='^.data.qtree',lbl='!![en]Fields Tree (query)',auxColumns='code,description',
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='QTREE',
                         hasDownArrow=True)
-        fb.remoteSelect(value='^.data.ftree',lbl='Fields Tree (full)',auxColumns='code,description',
+        fb.remoteSelect(value='^.data.ftree',lbl='!![en]Fields Tree (view)',auxColumns='code,description',
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='FTREE',
