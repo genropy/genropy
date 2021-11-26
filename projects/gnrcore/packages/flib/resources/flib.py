@@ -29,17 +29,22 @@ class FlibBase(BaseComponent):
                                 checked_categories=checked_categories)
             storePars['startLocked'] = False
             th.view.store.attributes.update(storePars)
-        th.view.grid.attributes.update(hiddencolumns='$__ins_ts,$thumb_url,$url,$ext,$metadata')
+        th.view.grid.attributes.update(hiddencolumns='$__ins_ts,$thumb_url,$url,$ext,$file_ext,$metadata')
         if preview:
-            footer = th.view.bottom.slotBar('preview',closable='close',closable_tip='!!Preview',splitter=True)
-            ppane = footer.preview.contentPane(height='200px',width='100%',_lazyBuild=True)
-            sc = ppane.stackContainer(selectedPage='^.preview_type',margin='2px',)
-            sc.dataController("""
-                                var imageExt = ['.png','.jpg','.jpeg']
-                                SET .preview_type = dojo.indexOf(imageExt,ext.toLowerCase())>=0?'image':'no_prev';
-                                """, ext="^.grid.selectedId?ext")
-            sc.contentPane(overflow='hidden', pageName='image',_class='pbl_roundedGroup').img(height='100%', src='^.grid.selectedId?url')
-            sc.contentPane(pageName='no_prev',_class='pbl_roundedGroup').div(innerHTML='^.grid.selectedId?_thumb')
+            preview_height = '200px'
+            footer = th.view.bottom.slotBar('preview',closable='open',closable_tip='!!Preview',splitter=True, height=preview_height)
+            ppane = footer.preview.contentPane(width='100%', height='100%')
+            sc = ppane.stackContainer(selectedPage='^.preview_type',margin='2px')
+            sc.dataController("""const imageExt = ['.png','.jpg','.jpeg'];
+                                    var file_ext = file_ext;
+                                    if(imageExt.includes(file_ext)){
+                                        SET .preview_type = 'image';
+                                    }else{
+                                        SET .preview_type = 'no_prev';
+                                    }""", file_ext="^.grid.selectedId?file_ext")
+            sc.contentPane(pageName='image',_class='pbl_roundedGroup').img(
+                                                height=preview_height, src='^.grid.selectedId?url')
+
         return th
     
     
@@ -111,7 +116,7 @@ class FlibUploaderMain(BaseComponent):
 
     def main(self, root, **kwargs):
         frame = root.rootBorderContainer(title='!!Upload file', datapath='main')
-        left = frame.contentPane(region='left', width='150px', overflow='auto',
+        left = frame.contentPane(region='left', width='20%', overflow='auto',
                                 _class='pbl_roundedGroup',
                                  margin='2px', splitter=True)
         left.div('!!Categories', _class='pbl_roundedGroupLabel')  
@@ -126,7 +131,7 @@ class FlibUploaderMain(BaseComponent):
                   checked_pkey='selected_categories',
                   selected_child_count='.tree.child_count')
         frame.contentPane(region='right', margin='2px',
-                            splitter=True,width='300px').flibSavedFilesGrid(checked_categories='^selected_categories')
+                            splitter=True,width='40%').flibSavedFilesGrid(checked_categories='^selected_categories', preview=True)
         self.uploader_pane(frame.contentPane(region='center', margin='2px'))
 
     def uploader_pane(self, pane):

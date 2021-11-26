@@ -9,19 +9,19 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('title', name='!!Title')
         r.fieldcell('description', name='!!Description')
-        r.fieldcell('url', name='!!Url',template='<a href="#?download=True">download</a>')
+        r.fieldcell('url', name='!!Url',template='<a href="#?download=True">download</a>', width='6em')
         r.fieldcell('path', name='!!Path')
-        r.fieldcell('thumb_url', name='!!Url')
-        r.fieldcell('thumb_path', name='!!Path')
-        r.fieldcell('file_type', name='!!File type')
-        r.fieldcell('ext', name='!!Extension')
-        r.fieldcell('username', name='!!User')
+        r.fieldcell('thumb_url', name='!!Url', width='auto')
+        r.fieldcell('thumb_path', name='!!Path', width='auto')
+        r.fieldcell('file_ext', name='!!Extension', width='6em')
+        r.fieldcell('username', name='!!User', width='6em')
+
         
     def th_order(self):
-        return 'description'
+        return 'title'
         
     def th_query(self):
-        return dict(column='description',op='contains',val='',runOnStart=True)
+        return dict(column='title',op='contains',val='',runOnStart=True)
 
              
 class ThumbsView(BaseComponent):
@@ -80,7 +80,19 @@ class ImagesView(BaseComponent):
         
     def th_top_custom(self,top):
         top.bar.replaceSlots('#','searchOn',searchOn_width='5em')
+
+class ViewFromTemplate(BaseComponent):
+    #DP202111 Use this instead of former View in Template Editor
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.cell('title', width='auto') 
         
+    def th_top_custom(self,top):
+        top.bar.replaceSlots('#','searchOn',searchOn_width='5em')
+
+    def th_condition(self):
+        return dict(condition="$file_ext IN ('.jpg','.png','.jpeg')")
+
 class LoadedFilesView(ThumbsView):
     def th_struct(self,struct):
         r = struct.view().rows()
