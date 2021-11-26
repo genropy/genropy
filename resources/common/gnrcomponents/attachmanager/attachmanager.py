@@ -146,8 +146,8 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,design=None,maintable_id=None,uploaderButton=False,**kwargs):
-        bc = pane.borderContainer(design)
         design = design or 'sidebar'
+        bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
         kwargs.setdefault('grid_selfDragRows',True)
         kwargs.setdefault('autoSave',True)
