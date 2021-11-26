@@ -77,16 +77,17 @@ class Table(object):
         result = Bag()
         standard_codes = self.getTypeList(item_type)
         d = dict(standard_codes)
-        if tbl:
-            custom_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code NOT IN :c',
-                                        t=tbl,it=item_type,c=list(d.keys()),columns='$code,$description').fetch()
-            existing_std_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code IN :sc',
-                                        t=tbl, it=item_type, sc=list(d.keys()), columns='$code,$description').fetch()
-            existing_std_codes = [c['code'] for c in existing_std_codes]
-            existing_std_codes.append('_RAW_')
-            if custom_codes:
-                for r in custom_codes:
-                    standard_codes.append((r['code'],r['description']))
+        if not tbl:
+            return
+        custom_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code NOT IN :c',
+                                    t=tbl,it=item_type,c=list(d.keys()),columns='$code,$description').fetch()
+        existing_std_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code IN :sc',
+                                    t=tbl, it=item_type, sc=list(d.keys()), columns='$code,$description').fetch()
+        existing_std_codes = [c['code'] for c in existing_std_codes]
+        existing_std_codes.append('_RAW_')
+        if custom_codes:
+            for r in custom_codes:
+                standard_codes.append((r['code'],r['description']))
         if _id:
             f = [(_id,d[_id])]
         else:
