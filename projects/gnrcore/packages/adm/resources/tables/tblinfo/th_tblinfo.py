@@ -98,10 +98,9 @@ class Form(BaseComponent):
                                                                 dict(lbl='Custom description',
                                                                     name='custom_description',disabled='^.standard_code'),
                                                                 dict(lbl='Based on',
-                                                                    name='based_on',tag='dbselect',
-                                                                    dbtable='adm.tblinfo_item',condition='$tblid=:tbl AND $item_type=:item_type',
-                                                                        condition_tbl='=#tblinfo_rec.tblid',
-                                                                        condition_item_type=item_type)],
+                                                                    name='based_on',tag='dbselect', hasDownArrow=True,
+                                                                    dbtable='adm.tblinfo_item', condition='$tblid=:tb',
+                                                                    condition_tb='=#tblinfo_rec.tblid', auxColumns='$item_type')],
                                                                ),
                 parentForm=True,deleteAction=False)
         bar = frame.top.bar.replaceSlots('#','#,cancel_btn,5,save_btn,5')

@@ -312,7 +312,7 @@
 <en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
 <en_no_preview_available base="No preview available" en="No preview available" it="Nessuna anteprima disponibile"></en_no_preview_available>
-<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Pollice"></en_thumb>
+<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"></en_thumb>
 <en_uploaded_elements base="Uploaded elements" de="Hochgeladene Elemente" en="Uploaded elements" fr="Éléments téléchargés" it="Elementi caricati"></en_uploaded_elements></drop_uploader>
 <dynamicform><dynamicform ext="py" path="resources/common/gnrcomponents/dynamicform/dynamicform.py"><en_code base="Code" en="Code" it="Codice"></en_code>
 <en_description base="Description" en="Description" it="Descrizione"></en_description>
