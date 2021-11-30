@@ -657,18 +657,24 @@ class SqlTable(GnrObject):
             - ignoreOnCopy
         """
         result = dict()
+        
         for colname,obj in self.model.columns.items():
+            fieldMode = obj.attributes.get('fieldMode')
+            if fieldMode not in (None,'D'):
+                continue
             #should continue or set None??
             if obj.attributes.get('unique'):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
-            if obj.attributes.get('ignoreOnCopy'):
-                continue
             result[colname] = fromRecord.get(colname)
         return result
 
-    def newrecord(self, assignId=False, resolver_one=None, resolver_many=None, _fromRecord=None, **kwargs):
+
+
+    def newrecord(self, assignId=False, resolver_one=None, 
+                resolver_many=None, 
+                _fromRecord=None, **kwargs):
         """TODO
         
         :param assignId: TODO
