@@ -173,12 +173,12 @@ class Form(BaseComponent):
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='QTREE',
-                        hasDownArrow=True)
+                        hasDownArrow=True, hidden='^.tblid?=!#v')
         fb.remoteSelect(value='^.data.ftree',lbl='!![en]Fields Tree (view)',auxColumns='code,description',
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='FTREE',
-                        hasDownArrow=True)
+                        hasDownArrow=True, hidden='^.tblid?=!#v')
         fb.checkBoxText(value='^.data.tbl_permission',values='hidden,readonly',cols=3,
                         lbl='!!Table Restrictions',colspan=2)
         fb.checkBoxText(value='^.data.tbl_forbidden',values='^.$allPermissions',cols=3,

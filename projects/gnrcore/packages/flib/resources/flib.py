@@ -138,8 +138,7 @@ class FlibUploaderMain(BaseComponent):
     def uploader_pane(self, pane):
         def footer(footer, **kwargs):
             footer.button('Upload', action='PUBLISH flib_uploader_upload', float='right',
-                          disabled='==!_selected_categories',
-                          _selected_categories='^selected_categories')
+                            _selected_categories='^selected_categories')
 
         pane.dropFileFrame(uploaderId='flib_uploader', datapath='.drop_filegrid',
                           label='!!Upload files', uploader_path=self.db.table('flib.item').getUploadPath(),
@@ -157,7 +156,7 @@ class FlibUploaderMain(BaseComponent):
                                   description=None, title=None, action_results=None, **kwargs):
         item_table = self.db.table('flib.item')
         cat_table = self.db.table('flib.item_category')
-        categories = categories.split(',') if categories else 'NoCategory____________'
+        categories = categories.split(',') if categories else ['NoCategory____________']
         item_record = dict(path=file_path, url=file_url, description=description, title=title,
                            username=self.user, ext=file_ext)
         versions = Bag()
@@ -179,8 +178,7 @@ class FlibUploaderMain(BaseComponent):
         else:
             item_table.insert(item_record)
         for category_id in categories:
-            if category_id:
-                cat_table.insert(dict(category_id=category_id, item_id=item_record['id']))
+            cat_table.insert(dict(category_id=category_id, item_id=item_record['id']))
         self.db.commit()
         
         
