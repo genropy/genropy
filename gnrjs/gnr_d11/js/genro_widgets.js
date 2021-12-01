@@ -3670,11 +3670,6 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget);
         this.connectForUpdate(widget, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
     },
     mixin_onSpeechEnd:function(){
         this._startSearchFromInput();
@@ -3978,11 +3973,6 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectForUpdate(widget, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
         genro.google().setGeocoder(widget);
     },
     mixin_handleGeocodeResults: function(results, status){
@@ -4199,11 +4189,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget, savedAttrs, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
         if(savedAttrs.connectedArrowMenu && widget.downArrowNode){
             var connectedMenu = savedAttrs.connectedArrowMenu; 
             genro.src.onBuiltCall(function(){

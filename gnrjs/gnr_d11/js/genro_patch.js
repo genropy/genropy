@@ -464,6 +464,7 @@ genropatches.comboBox = function() {
             // summary: handles keyboard events
 
             //except for pasting case - ctrl + v(118)
+            console.log('evt',evt)
             if(evt.altKey || (evt.ctrlKey && evt.charCode != 118)){
                 return;
             }
@@ -592,9 +593,7 @@ genropatches.comboBox = function() {
                 default: // non char keys (F1-F12 etc..)  shouldn't open list
                     this._prev_key_backspace = false;
                     this._prev_key_esc = false;
-                    if(dojo.isIE || evt.charCode != 0){
-                        doSearch = true;
-                    }
+                    doSearch = true;
             }
             if(this.searchTimer){
                 clearTimeout(this.searchTimer);
@@ -606,6 +605,7 @@ genropatches.comboBox = function() {
             }
         }
         dijit_form_ComboBoxMixin_onKeyPress.nom='_onKeyPress';
+        dijit.form.ComboBoxMixin.prototype.templateString = "<div class=\"dijit dijitReset dijitInlineTable dijitLeft\"\n\tid=\"widget_${id}\"\n\tdojoAttachEvent=\"onmouseenter:_onMouse,onmouseleave:_onMouse,onmousedown:_onMouse\" dojoAttachPoint=\"comboNode\" waiRole=\"combobox\" tabIndex=\"-1\"\n\t><div style=\"overflow:hidden;\"\n\t\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton'\n\t\t\tdojoAttachPoint=\"downArrowNode\" waiRole=\"presentation\"\n\t\t\tdojoAttachEvent=\"onmousedown:_onArrowMouseDown,onmouseup:_onMouse,onmouseenter:_onMouse,onmouseleave:_onMouse\"\n\t\t\t><div class=\"dijitArrowButtonInner\">&thinsp;</div\n\t\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div\n\t\t></div\n\t\t><div class=\"dijitReset dijitValidationIcon\"><br></div\n\t\t><div class=\"dijitReset dijitValidationIconText\">&Chi;</div\n\t\t><div class=\"dijitReset dijitInputField\"\n\t\t\t><input type=\"text\" autocomplete=\"off\" name=\"${name}\" class='dijitReset'\n\t\t\tdojoAttachEvent=\"onkeydown:_onKeyPress, onfocus:_update, compositionend,onkeyup\"\n\t\t\tdojoAttachPoint=\"textbox,focusNode\" waiRole=\"textbox\" waiState=\"haspopup-true,autocomplete-list\"\n\t\t/></div\n\t></div\n></div>\n"
         dijit.form.ComboBoxMixin.prototype._onKeyPress = dijit_form_ComboBoxMixin_onKeyPress;
         dijit.form.ComboBox.prototype._onKeyPress = dijit_form_ComboBoxMixin_onKeyPress;
 };
