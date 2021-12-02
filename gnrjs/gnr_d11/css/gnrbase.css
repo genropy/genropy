@@ -3733,7 +3733,6 @@ img.cannotBeDropped {
 }
 
 
-
 .dojoxGrid-header .canBeDropped {
     background: #8fff9d !important;
 }
@@ -5072,8 +5071,9 @@ div[disabled='true'], div[disabled='disabled']{
     margin-left: -1px;
 }
 
-._common_d11 .dojoxGrid.focusedGrid{
-    /*todo*/
+
+._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
+    background: rgba(58, 84, 186, 0.05);
 }
 
 ._common_d11 .dojoxGrid-scrollbox {

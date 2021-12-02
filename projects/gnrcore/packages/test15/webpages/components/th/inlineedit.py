@@ -69,6 +69,9 @@ class GnrCustomWebPage(object):
 
     def test_5_pastegrid(self, pane):
         bc = pane.borderContainer(height='400px')
+        bc.contentPane(region='left',width='300px').simpleTextArea(
+             value='^.sentences'
+        ,height='200px',width='90%')
         bc.bagGrid(struct=self.sentence_struct,region='center',
                     grid_onpaste=r"""
                 let txt = event.clipboardData.getData('text');

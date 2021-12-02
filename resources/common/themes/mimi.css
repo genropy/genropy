@@ -930,23 +930,23 @@ body.tundra.mimi {
 
 .tundra._common_d11 .editingGrid .dojoxGrid-row.dojoxGrid-row-selected,
 .tundra._common_d11 .noselect .dojoxGrid-row.dojoxGrid-row-selected{
-    background-color:#fff;
+    background-color:rgba(255,255,255,.5);
 }
 
 
 .tundra._common_d11 .dojoxGrid-row{
-    background-color:#fff;
+    background-color:rgba(255,255,255,.5);
 }
 
 .tundra._common_d11 .dojoxGrid-row-odd{
-    background-color: #F3F6FA;
+    background-color:rgba(243,246,250,.5);
 }
 
 .tundra._common_d11 .dojoxGrid-row.dojoxGrid-row-selected{
-    background-color: #AFCBEC;
+    background-color:rgba(175, 203, 236, .8);
 }
 .tundra._common_d11 .dojoxGrid-row-selected.dojoxGrid-row-odd{
-    background-color: #AFCBEC;
+    background-color: rgba(175, 203, 236, .8);
 }
 
 ._common_d11 .canBeDropped .dojoxGrid-row.dojoxGrid-row-odd{
