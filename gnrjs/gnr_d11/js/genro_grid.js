@@ -646,6 +646,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         attributes.rowsPerPage = attributes.rowsPerPage || 10;
         attributes.rowCount = attributes.rowCount || 0;
         attributes.fastScroll = attributes.fastScroll || false;
+        savedAttrs.onpaste = objectPop(attributes,'onpaste');
         sourceNode.dropModes = objectExtract(sourceNode.attr, 'dropTarget_*', true);
         if (!sourceNode.dropTarget && objectNotEmpty(sourceNode.dropModes)) {
             sourceNode.dropTarget = true;
@@ -748,6 +749,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         if (sourceNode.attr.loadFormEvent) {
             dojo.connect(widget, sourceNode.attr.loadFormEvent, widget, 'linkedFormLoad');
+        }
+        if(savedAttrs.onpaste){
+            genro.dom.addClass(widget.domNode,'pasteOnGrid');
+            widget.domNode.setAttribute('pasteOnGrid',"true");
+            widget.domNode.setAttribute('contenteditable',"true");
+            widget.domNode.setAttribute('onpaste',"return false;");
+            widget.domNode.setAttribute('oncut',"return false;");
+            widget.domNode.setAttribute('onkeydown',"if(event.metaKey || event.target!=event.currentTarget) return true; return false;");
+            dojo.connect(widget.domNode,'onpaste', funcCreate(savedAttrs.onpaste,'event',widget));
         }
         objectFuncReplace(widget.selection, 'clickSelectEvent', function(e) {
             if(sourceNode.attr.selectGroupColumns && ( e.shiftKey && (e.ctrlKey || e.metaKey) ) ){
@@ -1022,6 +1032,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     return;
                 }
                 if(!txt || txt[0]!='<'){
+                    if(txt && grid.gridEditor.editorPars.pasteCb){
+                        funcApply(grid.gridEditor.editorPars.pasteCb,{'txt':txt},grid)
+                    }
                     return;
                 }
                 var rows = new gnr.GnrBag(txt);

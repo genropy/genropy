@@ -717,7 +717,12 @@ label.ghostlabel span {
 ._common_d11 .bagEditor .dojoxGrid-cell{
     height:17px;
 }
-
+.pasteOnGrid .dojoxGrid-cell{
+    caret-color: rgb(146, 140, 140);
+}
+.pasteOnGrid{
+    caret-color: transparent;
+}
 /* @end */
 
 /* @group palette */
