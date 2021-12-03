@@ -1,8 +1,8 @@
-#-*- coding: UTF-8 -*-  
+#-*- coding: UTF-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
-# Copyright (c)     : 2004 - 2007 Softwell sas - Milano 
+# Copyright (c)     : 2004 - 2007 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
@@ -135,40 +135,40 @@ class RemoteStoreBag(object):
                             register_item_id=self.register_item_id,rootpath=self.rootpath,
                             hmac_key=self.hmac_key)
 
-        
+
     @remotebag_wrapper
     def __str__(self,*args,**kwargs):
         with self.proxy as p:
             return p.asString(*args,**kwargs)
 
-    @remotebag_wrapper 
+    @remotebag_wrapper
     def __getitem__(self,*args,**kwargs):
         with self.proxy as p:
             return p.__getitem__(*args,**kwargs)
 
-    @remotebag_wrapper 
+    @remotebag_wrapper
     def __setitem__(self,*args,**kwargs):
         with self.proxy as p:
             return p.__setitem__(*args,**kwargs)
 
-    @remotebag_wrapper 
+    @remotebag_wrapper
     def __len__(self,*args,**kwargs):
         with self.proxy as p:
             return p.__len__(*args,**kwargs)
 
-    @remotebag_wrapper 
+    @remotebag_wrapper
     def __contains__(self,*args,**kwargs):
         with self.proxy as p:
             return p.__contains__(*args,**kwargs)
 
-    @remotebag_wrapper 
+    @remotebag_wrapper
     def __eq__(self,*args,**kwargs):
         with self.proxy as p:
             return p.__eq__(*args,**kwargs)
 
     def __getattr__(self,name):
         with self.proxy as p:
-            h = getattr(p,name) 
+            h = getattr(p,name)
             if not callable(h):
                 return h
             def decore(*args,**kwargs):
@@ -187,7 +187,7 @@ class BaseRegister(BaseRemoteObject):
     """docstring for BaseRegister"""
     def __init__(self, siteregister):
         self.siteregister = siteregister
-        self.registerItems = dict() 
+        self.registerItems = dict()
         self.itemsData = dict()
         self.itemsTS = dict()
         self.locked_items = dict()
@@ -295,8 +295,8 @@ class BaseRegister(BaseRemoteObject):
         item = self.registerItems.get(register_item_id)
         if not item:
             #print 'missing register item ',register_item_id,self.registerName
-            return 
-        
+            return
+
         item['last_user_ts'] = max(item['last_user_ts'],last_user_ts) if item.get('last_user_ts') else last_user_ts
         item['last_rpc_ts'] = max(item['last_rpc_ts'],last_rpc_ts) if item.get('last_rpc_ts') else last_rpc_ts
         item['last_refresh_ts'] = max(item['last_refresh_ts'],refresh_ts) if item.get('last_refresh_ts') else refresh_ts
@@ -362,7 +362,7 @@ class BaseRegister(BaseRemoteObject):
     def get_dbenv(self,register_item_id):
         data = self.get_item_data(register_item_id)
         dbenvbag = data.getItem('dbenv') or Bag()
-        dbenvbag.update((data.getItem('rootenv') or Bag()))     
+        dbenvbag.update((data.getItem('rootenv') or Bag()))
         def addToDbEnv(n,_pathlist=None):
             if n.attr.get('dbenv'):
                 path = n.label if n.attr['dbenv'] is True else n.attr['dbenv']
@@ -370,7 +370,7 @@ class BaseRegister(BaseRemoteObject):
         _pathlist = []
         data.walk(addToDbEnv,_pathlist=_pathlist)
         return dbenvbag
-      
+
     def dump(self,storagefile):
 
         pickle.dump(self.registerItems, storagefile)
@@ -399,7 +399,7 @@ class GlobalRegister(BaseRegister):
                 register_name='global')
         self.addRegisterItem(register_item)
         return register_item
-        
+
     def drop(self,identifier):
         self.drop_item(identifier)
 
@@ -418,7 +418,7 @@ class UserRegister(BaseRegister):
                 register_name='user')
         self.addRegisterItem(register_item)
         return register_item
-        
+
     def drop(self,user):
         self.siteregister.drop_connections(user)
         self.drop_item(user)
@@ -432,7 +432,7 @@ class ConnectionRegister(BaseRegister):
                 register_item_id=connection_id,
                 start_ts=datetime.now(),
                 connection_name = connection_name,
-                user= user, 
+                user= user,
                 user_id= user_id,
                 user_name = user_name,
                 user_tags = user_tags,
@@ -467,7 +467,7 @@ class ConnectionRegister(BaseRegister):
         if user:
             connections = [v for v in connections if v['user'] == user]
         return connections
-        
+
 
 class PageRegister(BaseRegister):
     def __init__(self,*args,**kwargs):
@@ -559,7 +559,7 @@ class PageRegister(BaseRegister):
 
 
     def updatePageProfilers(self,page_id,pageProfilers):
-        self.pageProfilers[page_id] = pageProfilers 
+        self.pageProfilers[page_id] = pageProfilers
 
     def setStoreSubscription(self,page_id,storename=None,client_path=None,active=None):
         register_item_data = self.get_item_data(page_id)
@@ -583,12 +583,12 @@ class PageRegister(BaseRegister):
 
     def notifyDbEvents(self,dbeventsDict=None,origin_page_id=None,dbevent_reason=None):
         for table,dbevents in list(dbeventsDict.items()):
-            if not dbevents: 
+            if not dbevents:
                 continue
             table_code = table.replace('.', '_')
             self.siteregister.checkCachedTables(table)
             subscribers = self.subscribed_table_pages(table)
-            if not subscribers: 
+            if not subscribers:
                 continue
             for page in subscribers:
                 self.set_datachange(page['register_item_id'],'gnr.dbchanges.%s' %table_code, dbevents,attributes=dict(from_page_id=origin_page_id,dbevent_reason=dbevent_reason))
@@ -681,7 +681,7 @@ class SiteRegister(BaseRemoteObject):
             self.drop_page(page_id)
 
     def drop_page(self,page_id, cascade=None):
-        return self.page_register.drop(page_id,cascade=cascade)   
+        return self.page_register.drop(page_id,cascade=cascade)
 
     def drop_connections(self,user):
         for connection_id in self.user_connection_keys(user):
@@ -733,7 +733,7 @@ class SiteRegister(BaseRemoteObject):
             print('call subscribed_table_pages instead of pages')
             return self.subscribed_table_pages(index_name)
         return self.page_register.pages(connection_id=connection_id,user=user,filters=filters,include_data=include_data)
-        
+
 
     def page(self,page_id):
         return self.page_register.get_item(page_id)
@@ -750,7 +750,7 @@ class SiteRegister(BaseRemoteObject):
 
     def connections(self,user=None,include_data=None):
         return self.connection_register.connections(user=user,include_data=include_data)
- 
+
 
     def change_connection_user(self, connection_id, user=None, user_tags=None, user_id=None, user_name=None,
                                avatar_extra=None):
@@ -808,7 +808,7 @@ class SiteRegister(BaseRemoteObject):
 
     def setStoreSubscription(self,page_id,storename=None, client_path=None, active=None):
         self.page_register.setStoreSubscription(page_id,storename=storename,client_path=client_path,active=active)
-            
+
     def subscribeTable(self,page_id,table,subscribe,subscribeMode=None):
         self.page_register.subscribeTable(page_id,table=table,subscribe=subscribe,subscribeMode=subscribeMode)
 
@@ -869,7 +869,7 @@ class SiteRegister(BaseRemoteObject):
                 self.refresh(k, child_lastUserEventTs,last_rpc_ts=child_lastRpc,pageProfilers=child_pageProfilers)
         envelope = Bag(dict(result=None))
         user=page_item['user']
-        datachanges = self.handle_ping_get_datachanges(page_id, user=user)            
+        datachanges = self.handle_ping_get_datachanges(page_id, user=user)
         if datachanges:
             envelope.setItem('dataChanges', datachanges)
         if _children_pages_info:
@@ -895,7 +895,7 @@ class SiteRegister(BaseRemoteObject):
                            change_fired=change.fired, change_attr=change.attributes,
                            change_ts=change.change_ts, change_delete=change.delete)
         return result
-        
+
     def set_serverstore_changes(self, page_id=None, datachanges=None):
         page_item_data = self.page_register.get_item_data(page_id)
         for k, v in list(datachanges.items()):
@@ -943,7 +943,7 @@ class SiteRegister(BaseRemoteObject):
         commands = pidhandler['commands']
         pidhandler['commands'] = []
         pidhandler['ts'] = datetime.now()
-        
+
         return commands
 
     def sendProcessCommand(self,command,pid=None):
@@ -995,7 +995,7 @@ class SiteRegister(BaseRemoteObject):
             return h(*args,**kwargs)
         return decore
 
-        
+
 ################################### CLIENT ##########################################
 
 class SiteRegisterClient(object):
@@ -1008,8 +1008,27 @@ class SiteRegisterClient(object):
         self.siteregister_uri = None
         self.storage_path = os.path.join(self.site.site_path, self.STORAGE_PATH)
         self.errors = Pyro4.errors
-
+        Pyro4.config.SERIALIZER = 'pickle'
         daemonconfig = self.site.config.getAttr('gnrdaemon')
+        sitedaemonconfig = self.site.config.getAttr('sitedaemon') or {}
+        sitedaemon_xml_path = os.path.join(self.site.site_path,'sitedaemon.xml')
+        if os.path.exists(sitedaemon_xml_path):
+            from psutil import pid_exists
+            sitedaemon_bag = Bag(sitedaemon_xml_path)
+            params = sitedaemon_bag.getAttr('params')
+            sitedaemon_pid = params.get('pid')
+            print('uso sitedaemon')
+            print(params)
+            if sitedaemon_pid and pid_exists(sitedaemon_pid):
+                self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
+                self.siteregisterserver_uri = params.get('main_uri')
+                self.siteregister_uri = params.get('register_uri')
+                print(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
+                sitedaemon_bag=None
+                self.initSiteRegister()
+                return
+            else:
+                print('no sitedaemon process')
         if 'sockets' in daemonconfig:
             if daemonconfig['sockets'].lower() in ('t','true','y') :
                 daemonconfig['sockets'] = os.path.join(gnrConfigPath(),'sockets')
@@ -1025,13 +1044,11 @@ class SiteRegisterClient(object):
             daemon_hmac = bytes(daemon_hmac)
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = daemon_hmac
-
-        Pyro4.config.SERIALIZER = 'pickle'
         self.gnrdaemon_proxy = Pyro4.Proxy(daemon_uri)
         self.hmac_key =  daemon_hmac
         if not OLD_HMAC_MODE:
             self.gnrdaemon_proxy._pyroHmacKey = self.hmac_key
-        
+
         with self.gnrdaemon_proxy as daemonProxy:
             if not self.runningDaemon(daemonProxy):
                 raise Exception('GnrDaemon is not started')
@@ -1040,11 +1057,15 @@ class SiteRegisterClient(object):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
                     raise Exception('GnrDaemon timout')
         print('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
+        self.initSiteRegister()
+    
+    def initSiteRegister(self):
         self.siteregister = Pyro4.Proxy(self.siteregister_uri)
         if not OLD_HMAC_MODE:
             self.siteregister._pyroHmacKey = self.hmac_key
         self.remotebag_uri =self.siteregister_uri.replace(':SiteRegister@',':RemoteData@')
         self.siteregister.setConfiguration(cleanup = self.site.custom_config.getAttr('cleanup'))
+        print('fine init')
 
 
     def checkSiteRegisterServerUri(self,daemonProxy):
@@ -1076,7 +1097,7 @@ class SiteRegisterClient(object):
 
     def new_page(self, page_id, page, data=None):
         register_item = self.siteregister.new_page( page_id, pagename = page.pagename,connection_id=page.connection_id,user=page.user,
-                                            user_ip=page.user_ip,user_agent=page.user_agent, 
+                                            user_ip=page.user_ip,user_agent=page.user_agent,
                                             relative_url=page.request.path_info,
                                             data=data)
         self.add_data_to_register_item(register_item)
@@ -1095,7 +1116,7 @@ class SiteRegisterClient(object):
         if lazy_data:
             include_data=False
         pages =  self.siteregister.pages(connection_id=connection_id,user=user,index_name=index_name,filters=filters,include_data=include_data)
-        #adapt for old use 
+        #adapt for old use
         return self.adaptListToDict(pages,lazy_data=lazy_data)
 
     def connections(self,user=None,include_data=None):
@@ -1113,7 +1134,7 @@ class SiteRegisterClient(object):
         if lazy_data:
             include_data=False
         users = self.siteregister.users(include_data=include_data)
-        return self.adaptListToDict(users,lazy_data=lazy_data)  
+        return self.adaptListToDict(users,lazy_data=lazy_data)
 
     def refresh(self,page_id, ts=None,lastRpc=None,pageProfilers=None):
         return self.siteregister.refresh(page_id,last_user_ts=ts,last_rpc_ts=lastRpc,pageProfilers=pageProfilers)
@@ -1190,7 +1211,7 @@ class GnrSiteRegisterServer(object):
         self.debug = debug
         self.storage_path = storage_path
         self._running = False
-    
+
     def running(self):
         return self._running
 
@@ -1209,7 +1230,7 @@ class GnrSiteRegisterServer(object):
         self._running = False
 
     def start(self,port=None,host=None,socket=None,hmac_key=None,compression=None,multiplex=None,
-                    timeout=None,polltimeout=None,autorestore=False):
+                    timeout=None,polltimeout=None,autorestore=False, run_now=True):
         if socket:
             pyrokw = dict(unixsocket=socket)
         else:
@@ -1246,7 +1267,8 @@ class GnrSiteRegisterServer(object):
                     proxy._pyroHmacKey = hmac_key
                 proxy.onRegisterStart(self.sitename,server_uri=str(self.main_uri),
                                     register_uri=str(self.register_uri))
-        self.run(autorestore=autorestore)
+        if run_now:
+            self.run(autorestore=autorestore)
 
 ########################################### SERVER STORE #######################################
 
@@ -1302,7 +1324,7 @@ class ServerStore(object):
     def data(self):
         if self.register_item:
             return self.register_item['data']
-        
+
     @property
     def datachanges(self):
         return self.register_item['datachanges']
@@ -1388,7 +1410,7 @@ class RegisterResolver(BagResolver):
             item['info'] = Bag(page)
             item['data'] = data
             result.setItem(itemlabel, item, user=item['user'], connection_id=item['connection_id'], page_id=page_id)
-        return result     
+        return result
 
     def resolverSerialize(self):
         attr = super(RegisterResolver, self).resolverSerialize()
