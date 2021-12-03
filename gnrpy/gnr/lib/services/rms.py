@@ -73,7 +73,7 @@ class RMS(object):
         if not service_tbl.checkDuplicate(service_name=instancename,service_type='rms'):
             domain = rmskw.get('domain')
             deploy_token = db.table('sys.external_token').create_token(exec_user='DEPLOY_SERVER')
-            servicetbl = service_tbl.addService(service_type='rms',service_name=instancename,
+            service_tbl.addService(service_type='rms',service_name=instancename,
                                                             token=deploy_token,
                                                             domain=domain)
         rmsbag = Bag()
