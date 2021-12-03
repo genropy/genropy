@@ -45,8 +45,24 @@ wsgi_options = dict(
 DNS_SD_PID = None
 
 
+def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
+        from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+        import os
+        from gnr.core.gnrbag import Bag
+        sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
+        sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
+        sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
+        sitedaemon_bag = Bag()
+        sitedaemon_bag.setItem('params',None,
+            register_uri=sitedaemon.register_uri,
+            main_uri = sitedaemon.main_uri,
+            pid=os.getpid()
+            )
+        sitedaemon_bag.toXml(sitedaemon_xml_path)
+        sitedaemon.run()
+
 class GnrDebuggedApplication(DebuggedApplication):
-    
+
     def debug_application(self, environ, start_response):
         """Run the application and conserve the traceback frames."""
         app_iter = None
@@ -130,7 +146,7 @@ class Server(object):
     usage = '[start|stop|restart|status] [var=value]'
     summary = "Start this genropy application"
     description = """\
-    This command serves a genropy web application.  
+    This command serves a genropy web application.
 
     """
 
@@ -251,7 +267,7 @@ class Server(object):
         else:
             self.config_path = gnrConfigPath()
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
-        
+
         self.site_name = self.options.site_name or (self.args and self.args[0]) or os.getenv('GNR_CURRENT_SITE')
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
@@ -272,6 +288,7 @@ class Server(object):
         else:
             self.site_path = os.path.dirname(os.path.realpath(site_script))
         self.init_options()
+
     def isVerbose(self, level=0):
         return self.options.verbose and self.options.verbose>level
 
@@ -291,13 +308,13 @@ class Server(object):
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
 
-    @property 
+    @property
     def site_config(self):
         if not hasattr(self, '_site_config'):
             self._site_config = self.get_config()
         return self._site_config
 
-    @property 
+    @property
     def instance_config(self):
         if not hasattr(self, '_instance_config'):
             self._instance_config = self.get_instance_config()
@@ -325,7 +342,36 @@ class Server(object):
     def run(self):
         self.reloader = not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
+        self.start_sitedaemon()
         self.serve()
+
+    def start_sitedaemon(self):
+        from gnr.app.gnrdeploy import PathResolver
+        import os
+        from multiprocessing import Process
+        path_resolver = PathResolver()
+        siteconfig = path_resolver.get_siteconfig(self.site_name)
+        daemonconfig = siteconfig.getAttr('gnrdaemon')
+        sitedaemonconfig = siteconfig.getAttr('sitedaemon') or {}
+        if not sitedaemonconfig:
+            return
+        sitepath = path_resolver.site_name_to_path(self.site_name)
+        sitedaemon_attr = dict(
+            sitepath = sitepath,
+            debug = sitedaemonconfig.get('debug',None),
+            host = sitedaemonconfig.get('host','localhost'),
+            socket = sitedaemonconfig.get('socket',None),
+            port = sitedaemonconfig.get('port','*'),
+            hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key'],
+            storage_path = os.path.join(sitepath, 'siteregister_data.pik')
+        )
+        sitedaemon_process = Process(name='sitedaemon_%s' %(self.site_name),
+                        target=run_sitedaemon, kwargs=sitedaemon_attr)
+        sitedaemon_process.daemon = True
+        sitedaemon_process.start()
+        print('sitedaemon started')
+        import time
+        time.sleep(500)
 
     def serve(self):
         port = int(self.options.port)
@@ -335,7 +381,7 @@ class Server(object):
         if self.options.tornado:
             from gnr.web.gnrasync import GnrAsyncServer
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
-                counter=getattr(self.options, 'counter', None), 
+                counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
             print(f'[{now}]\tStarting Tornado server - listening on http://127.0.0.1:{port}')
             server=GnrAsyncServer(port=port,instance=site_name,
@@ -352,5 +398,5 @@ class Server(object):
             print(f'[{now}]\tStarting server - listening on http://127.0.0.1:{port}')
             run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
                 reloader_type='stat')
-        
-        
+
+
