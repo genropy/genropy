@@ -59,17 +59,21 @@ class RMS(object):
         sp = urllib.parse.urlsplit(self.url)
         return '%s://%s:%s@%s%s' %(sp.scheme,'gnrtoken',self.token,sp.netloc,sp.path)
 
-    def buildRmsService(self,instancename,rmspath,domain=None,customer_code=None):
+    def buildRmsService(self,instancename,domain=None,customer_code=None):
+        rmsfolder = os.path.join(gnrConfigPath(),'rms')
+        if not os.path.isdir(rmsfolder):
+            os.mkdir(rmsfolder)
+        rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=instancename))
         app = GnrApp(instancename,enabled_packages=['gnrcore:sys','gnrcore:adm'])
         db = app.db
         usertbl = db.table('adm.user')
+        service_tbl = db.table('sys.service')
         if not usertbl.checkDuplicate(username='DEPLOY_SERVER'):
             user_rec = usertbl.newrecord(username='DEPLOY_SERVER',md5pwd=usertbl.newPkeyValue())
             usertbl.insert(user_rec)
             htagtbl = db.table('adm.htag')
             tag_id = htagtbl.sysRecord('_SYSTEM_')['id']
             db.table('adm.user_tag').insert({'tag_id':tag_id,'user_id':user_rec['id']})
-        service_tbl = db.table('sys.service')
         if not service_tbl.checkDuplicate(service_name=instancename,service_type='rms'):
             deploy_token = db.table('sys.external_token').create_token(exec_user='DEPLOY_SERVER')
             service_tbl.addService(service_type='rms',service_name=instancename,
@@ -79,6 +83,9 @@ class RMS(object):
             rmsbag.setItem('rms',None,token=deploy_token,domain=domain,instance_name=instancename,customer_code=customer_code)
             rmsbag.toXml(rmspath)
             db.commit()
+        else:
+            rmsbag = Bag(rmspath)
+            rmsbag.setAttr('rms',domain=domain,instance_name=instancename,customer_code=customer_code)
         return rmsbag
 
     def ping(self):
@@ -105,16 +112,9 @@ class RMS(object):
         site_rms = dict(siteconfig.getAttr('rms'))
         customer_code = customer_code or site_rms.get('customer_code')
         domain = domain or  site_rms.get('domain')
-        rmsfolder = os.path.join(gnrConfigPath(),'rms')
-        if not os.path.isdir(rmsfolder):
-            os.mkdir(rmsfolder)
-        rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=name))
         if not domain:
             return
-        if not os.path.exists(rmspath):
-            rmsbag = self.buildRmsService(name,rmspath,domain=domain,customer_code=customer_code)
-        else:
-            rmsbag = Bag(rmspath)
+        rmsbag = self.buildRmsService(name,domain=domain,customer_code=customer_code)
         rms_instance_attr = rmsbag.getAttr('rms')
         customer_code = rms_instance_attr.get('customer_code') or self.customer_code
         return NetBag(self.authenticatedUrl,'register_instance',code=name,
