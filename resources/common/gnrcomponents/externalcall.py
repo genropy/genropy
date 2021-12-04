@@ -93,18 +93,29 @@ class BaseRpc(BaseComponent):
 class NetBagRpc(BaseComponent):
 
     skip_connection = True
+    def logCall(self,methodname,result=None,parameters=None,error=None,**kwargs):
+        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+            tblobj = self.db.table('sys.externalcall_log')
+            newrec = tblobj.newrecord(methodname=methodname,result=result,parameters=parameters,error=error)
+            tblobj.insert(newrec)
+            self.db.commit()
 
     def rootPage(self, *args, **kwargs):
         self.response.content_type = 'application/xml'
+        methodname = args[0]
+        parameters=Bag(kwargs)
         if 'pagetemplate' in kwargs:
             kwargs.pop('pagetemplate')
         if args:
             try:
-                method = self.getPublicMethod('rpc','netbag_%s' %args[0])
+                method = self.getPublicMethod('rpc','netbag_%s' %methodname)
             except (GnrUserNotAllowed, GnrBasicAuthenticationError) as err:
+                self.logCall(methodname,parameters=parameters,error=str(err))
                 return Bag(dict(error=str(err))).toXml()
             if not method:
-                return self.rpc_error(*args, **kwargs)
+                error =  self.rpc_error(*args, **kwargs)
+                self.logCall(methodname,parameters=parameters,error=error)
+                return error
             args = list(args)
             args.pop(0)
         else:
@@ -114,9 +125,11 @@ class NetBagRpc(BaseComponent):
         except Exception as e:
             #import traceback
             #result = Bag(dict(error=traceback.format_exc().encode('utf8')))
-            result = Bag(dict(error=TraceBackResolver()))
+            self.logCall(methodname,parameters=parameters,error=str(e))
+            return Bag(dict(error=TraceBackResolver()))
         if not isinstance(result,Bag):
             result = Bag(dict(result=result))
+        self.logCall(methodname,parameters=parameters,result=result)
         return result.toXml(unresolved=True)
 
     def validIpList(self):

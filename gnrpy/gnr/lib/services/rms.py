@@ -117,6 +117,7 @@ class RMS(object):
         rmsbag = self.buildRmsService(name,domain=domain,customer_code=customer_code)
         rms_instance_attr = rmsbag.getAttr('rms')
         customer_code = rms_instance_attr.get('customer_code') or self.customer_code
+        print('self.authenticatedUrl',self.authenticatedUrl)
         return NetBag(self.authenticatedUrl,'register_instance',code=name,
                             domain=domain,
                             pod_token=self.token,
