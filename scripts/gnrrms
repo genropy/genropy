@@ -10,19 +10,12 @@ from gnr.app.gnrdeploy import PathResolver
 import os
 
 
-def main(instance,options):
+def main(instance,**kwargs):
     rms = RMS()
-    rms.registerInstance(instance)
+    rms.registerInstance(instance,**kwargs)
 
 def init_env(pod=None, service_url=None):
     setRmsOptions(code=pod, url=service_url)
-
-def init_site(site=None, domain=None, customer_code=None):
-    path_resolver = PathResolver()
-    siteconfig_path = path_resolver.site_name_to_config_path(site)
-    siteconfig = Bag(siteconfig_path)
-    siteconfig.setItem('rms', None, domain=domain, customer_code=customer_code)
-    siteconfig.toXml(siteconfig_path)
 
 if __name__ == '__main__':
     usage = """
@@ -46,9 +39,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     instance = args[0] if args else None
     if instance and not options.domain:
-        main(instance,options)
-    elif options.domain:
-        init_site(site=instance, domain=options.domain, customer_code=options.customer_code)
+        main(instance,domain=options.domain, customer_code=options.customer_code)
     else:
         pod = options.pod
         service_url = options.service_url or "https://deploy.softwell.it/deploy/rms_endpoint"
