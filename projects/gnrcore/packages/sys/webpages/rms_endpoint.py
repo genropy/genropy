@@ -35,3 +35,9 @@ class GnrCustomWebPage(object):
     @public_method #(tags='ext')
     def netbag_repositories(self,code=None,customer_code=None,**kwargs):
         pass
+
+
+
+    @public_method(tags='_SYSTEM_',loglevel=1)
+    def netbag_serverping(self,**kwargs):
+        return Bag(message='OK')
