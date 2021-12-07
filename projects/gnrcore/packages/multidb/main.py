@@ -344,9 +344,7 @@ class MultidbTable(object):
             multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
             if fkey in multidb_fkeys:
                 keysync = 'syncChildren_{}_{}_{}'.format(childtable.fullname,fkey,pkey)
-                storename = self.db.currentEnv.get('storename')
                 keysyncval = self.db.currentEnv.get(keysync)
-                print('keysync',keysync,keysyncval,storename,id(self.db))
                 if not keysyncval:
                     self.db.currentEnv[keysync] = 1
                     with self.db.tempEnv(_parentSyncChildren=True):
