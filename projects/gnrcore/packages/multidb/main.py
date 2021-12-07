@@ -345,10 +345,12 @@ class MultidbTable(object):
                 multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
                 if fkey in multidb_fkeys:
                     keysync = 'syncChildren_{}_{}'.format(pkey,childtable.fullname)
-                    print('keysync',keysync)
-                    if not self.db.currentEnv.get(keysync):
+                    keysyncval = self.db.currentEnv.get(keysync)
+                    print('keysync',keysync,keysyncval)
+                    if not keysyncval:
                         childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
-                        self.db.currentEnv[keysync] = True
+                        self.db.currentEnv[keysync] = 1
+
 
     def checkSyncPartial(self,dbstores=None,main_fetch=None,errors=None):
         queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',
