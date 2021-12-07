@@ -335,23 +335,22 @@ class MultidbTable(object):
 
 
     def syncChildren(self,pkey):
-        with self.db.tempEnv(_parentSyncChildren=True):
             #many_rels = [manyrel.split('.') for manyrel, onDelete in self.relations_many.digest('#a.many_relation,#a.onDelete') if onDelete=='cascade']
-            for many_rel in self.relations_many.digest('#a.many_relation'):
-                pkg,tbl,fkey = many_rel.split('.')
-                childtable = self.db.table('%s.%s' %(pkg,tbl))
-                if not childtable.multidb=='parent':
-                    continue
-                multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
-                if fkey in multidb_fkeys:
-                    keysync = 'syncChildren_{}_{}'.format(pkey,childtable.fullname)
-                    storename = self.db.currentEnv.get('storename')
-                    keysyncval = self.db.currentEnv.get(keysync)
-                    print('keysync',keysync,keysyncval,storename,id(self.db))
-                    if not keysyncval:
+        for many_rel in self.relations_many.digest('#a.many_relation'):
+            pkg,tbl,fkey = many_rel.split('.')
+            childtable = self.db.table('%s.%s' %(pkg,tbl))
+            if not childtable.multidb=='parent':
+                continue
+            multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
+            if fkey in multidb_fkeys:
+                keysync = 'syncChildren_{}_{}'.format(pkey,childtable.fullname)
+                storename = self.db.currentEnv.get('storename')
+                keysyncval = self.db.currentEnv.get(keysync)
+                print('keysync',keysync,keysyncval,storename,id(self.db))
+                if not keysyncval:
+                    with self.db.tempEnv(_parentSyncChildren=True):
                         childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
-                        self.db.currentEnv[keysync] = 1
-
+                    self.db.currentEnv[keysync] = 1
 
     def checkSyncPartial(self,dbstores=None,main_fetch=None,errors=None):
         queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',
