@@ -104,11 +104,8 @@ class Table(object):
             f = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,for_update=True,
                             addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
                             subtable='*').fetch()
-            if not f:
-                print('ho letto senza trovare ',tblobj.fullname,pkey,storename)
             if event == 'I':
                 if not f:
-                    print('inserisco',data_record['id'])
                     tblobj.insert(data_record)
                 else:
                     tblobj.update(data_record,f[0])
@@ -127,9 +124,7 @@ class Table(object):
                     else:
                         tblobj.delete(data_record)
                 elif event=='U':
-                    print('manca e lo andrei inserire',storename,tblobj.fullname,data_record['id'])
                     tblobj.insert(data_record)   
-                    print(r'inserito \n')
                     
     def onPlugToForm(self,field):
         if self.db.currentPage.dbstore:

@@ -223,8 +223,6 @@ class MultidbTable(object):
                         self._unifyRecords_default(sr,dr)
 
     def checkForeignKeys(self,record=None,old_record=None):
-        print('checkForeignKeys',self.fullname,self.db.currentEnv['storename'])
-        
         for rel_table,rel_table_pkey,fkey in self.model.oneRelationsList(True):
             if old_record:
                 checkKey = record.get(fkey)!=old_record.get(fkey) and record.get(fkey)
@@ -239,7 +237,6 @@ class MultidbTable(object):
                     continue
                 storename = self.db.currentEnv['storename']
                 with self.db.tempEnv(storename=self.db.rootstore):
-                    print('sottoscrivo per dbstore',storename)
                     reltable.multidbSubscribe(pkey=checkKey,dbstore=storename)
 
 
@@ -347,7 +344,10 @@ class MultidbTable(object):
                     continue
                 multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
                 if fkey in multidb_fkeys:
-                    childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
+                    keysync = 'syncChildren_{}_{}'.format(fkey,childtable.fullname)
+                    if not self.db.currentEnv.get(keysync):
+                        childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
+                        self.db.currentEnv[keysync] = True
 
     def checkSyncPartial(self,dbstores=None,main_fetch=None,errors=None):
         queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',
