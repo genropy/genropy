@@ -101,12 +101,14 @@ class Table(object):
             else:
                 return
         with self.db.tempEnv(storename=storename,_systemDbEvent=True,_multidbSync=True):
-            print('read ',tblobj.fullname,pkey,storename)
             f = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,for_update=True,
                             addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
                             subtable='*').fetch()
+            if not f:
+                print('ho letto senza trovare ',tblobj.fullname,pkey,storename)
             if event == 'I':
                 if not f:
+                    print('inserisco',data_record['id'])
                     tblobj.insert(data_record)
                 else:
                     tblobj.update(data_record,f[0])
