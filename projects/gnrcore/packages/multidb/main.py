@@ -133,7 +133,7 @@ class Package(GnrDboPackage):
             multidb = tbl.multidb
             if not multidb or multidb=='one' or multidb=='parent':
                 continue
-            main_f = tbl.query(addPkeyColumn=False,bagFields=True,
+            main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',
                                 excludeLogicalDeleted=False,ignorePartition=True,
                                 excludeDraft=False).fetch()
             if multidb=='*':
@@ -263,6 +263,7 @@ class MultidbTable(object):
             
     def _onUpdating_master(self, record,old_record=None,**kwargs):
         if record['__multidb_default_subscribed']:
+            print('_onUpdating_master',self.fullname)
             for f in list(self.relations_one.keys()):
                 if record.get(f):
                     relcol = self.column(f)
@@ -346,7 +347,7 @@ class MultidbTable(object):
                     childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
 
     def checkSyncPartial(self,dbstores=None,main_fetch=None,errors=None):
-        queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
+        queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',
                         ignorePartition=True,excludeDraft=False)
         checkdict = dict([(r[self.pkey],dict(r)) for r in main_fetch])
         substable = self.db.table('multidb.subscription')
@@ -412,9 +413,9 @@ class MultidbTable(object):
             multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
             if fkey in multidb_fkeys:
                 main_children_records = childtable.query(where='$%s=:pk' %fkey,pk=pkey,addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
-                                                    ignorePartition=True,excludeDraft=False,_storename=False).fetch()
+                                                    ignorePartition=True,excludeDraft=False,_storename=False,subtable='*').fetch()
                 store_children_records = childtable.query(where='$%s=:pk' %fkey,pk=pkey,addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
-                                                    ignorePartition=True,excludeDraft=False).fetchAsDict(childtable.pkey)
+                                                    ignorePartition=True,excludeDraft=False,subtable='*').fetchAsDict(childtable.pkey)
                 for r in main_children_records:
                     sr = store_children_records.get(r[childtable.pkey])
                     cr = dict(r)
@@ -472,7 +473,8 @@ class MultidbTable(object):
         pkeyfield = self.pkey
         insertManyData = [dict(r) for r in main_fetch]
         ts = datetime.datetime.now()
-        queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,ignorePartition=True,excludeDraft=False)
+        queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
+                            subtable='*',ignorePartition=True,excludeDraft=False)
         for dbstore in dbstores:
             with self.db.tempEnv(storename=dbstore,_multidbSync=True):
                 self._checkSyncAll_store(main_fetch=main_fetch,insertManyData=insertManyData,
