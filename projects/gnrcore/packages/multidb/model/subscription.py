@@ -32,7 +32,7 @@ class Table(object):
             queryargs = dict(where='$pkey IN :pkeys',pkeys=pkeys)
         if tblobj.attributes.get('hierarchical'):
             queryargs.setdefault('order_by','$hierarchical_pkey')
-        records = tblobj.query(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,**queryargs).fetch()
+        records = tblobj.query(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',**queryargs).fetch()
         with self.db.tempEnv(storename=dbstore,_multidbSync=True):
             for rec in records:
                 tblobj.insertOrUpdate(Bag(dict(rec)))
@@ -64,7 +64,7 @@ class Table(object):
     def delSubscription(self,table=None,pkey=None,dbstore=None):
         fkey = self.tableFkey(table)        
         f = self.query(where='$dbstore=:dbstore AND $tablename=:tablename AND $%s =:fkey' %fkey,for_update=True,
-                            excludeLogicalDeleted=False,
+                            excludeLogicalDeleted=False,subtable='*',
                             dbstore=dbstore,tablename=table,fkey=pkey,addPkeyColumn=False).fetch()
         if f:
             self.delete(f[0])
@@ -95,7 +95,7 @@ class Table(object):
         if master_record:
             data_record = deepcopy(master_record)
         else:
-            data_record = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False).fetch()
+            data_record = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,addPkeyColumn=False,subtable='*',bagFields=True,excludeLogicalDeleted=False).fetch()
             if data_record:
                 data_record = dict(data_record[0])
             else:
@@ -124,7 +124,9 @@ class Table(object):
                     else:
                         tblobj.delete(data_record)
                 elif event=='U':
+                    print('manca e lo andrei inserire',storename,tblobj.fullname,data_record['id'])
                     tblobj.insert(data_record)   
+                    print(r'inserito \n')
                     
     def onPlugToForm(self,field):
         if self.db.currentPage.dbstore:
