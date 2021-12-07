@@ -424,7 +424,7 @@ class GnrHtmlBuilder(object):
             
     def newPage(self):
         """Create a new page"""
-        firstpage = self.current_page_number == 1
+        firstpage = len(self.body) == 0
         border_color = 'white'
         extra_style= ''
         if self.page_debug:
