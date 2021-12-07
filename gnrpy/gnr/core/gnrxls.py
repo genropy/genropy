@@ -396,7 +396,7 @@ class XlsxWriter(object):
                 self.writeCell(sheet, current_row, c, value, style="datetime")
             elif coltype=='DHZ':
                 # Excel format doesn't manage timezone: writing the UTC (the user timezone is missing here)
-                self.writeCell(sheet, current_row, c, value.replace(tzinfo=None), style="datetime")
+                self.writeCell(sheet, current_row, c, value.replace(tzinfo=None) if value else None, style="datetime")
             else:
                 value = toText(value, self.locale)
                 self.writeCell(sheet, current_row, c, value, style="default")
