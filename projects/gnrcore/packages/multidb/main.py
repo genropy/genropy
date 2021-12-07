@@ -343,7 +343,7 @@ class MultidbTable(object):
                 continue
             multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
             if fkey in multidb_fkeys:
-                keysync = 'syncChildren_{}_{}'.format(pkey,childtable.fullname)
+                keysync = 'syncChildren_{}_{}_{}'.format(childtable.fullname,fkey,pkey)
                 storename = self.db.currentEnv.get('storename')
                 keysyncval = self.db.currentEnv.get(keysync)
                 print('keysync',keysync,keysyncval,storename,id(self.db))
@@ -351,6 +351,7 @@ class MultidbTable(object):
                     with self.db.tempEnv(_parentSyncChildren=True):
                         childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
                     self.db.currentEnv[keysync] = 1
+
 
     def checkSyncPartial(self,dbstores=None,main_fetch=None,errors=None):
         queryargs = dict(addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,subtable='*',
