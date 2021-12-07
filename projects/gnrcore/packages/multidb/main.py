@@ -345,8 +345,9 @@ class MultidbTable(object):
                 multidb_fkeys = childtable.attributes.get('multidb_fkeys').split(',')
                 if fkey in multidb_fkeys:
                     keysync = 'syncChildren_{}_{}'.format(pkey,childtable.fullname)
+                    storename = self.db.currentEnv.get('storename')
                     keysyncval = self.db.currentEnv.get(keysync)
-                    print('keysync',keysync,keysyncval)
+                    print('keysync',keysync,keysyncval,storename)
                     if not keysyncval:
                         childtable.touchRecords(where='$%s=:pk' %fkey,pk=pkey)
                         self.db.currentEnv[keysync] = 1
