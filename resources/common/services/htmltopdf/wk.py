@@ -14,16 +14,18 @@ class Service(HtmlToPdfService):
 
         pdf_kwargs['orientation'] = orientation or 'Portrait'
 
-        if page_height:
-            if pdf_kwargs['orientation'] == 'Portrait':
-                pdf_kwargs['page_height'] = page_height
-            else:
-                pdf_kwargs['page_width'] = page_height
-        if page_width:
-            if pdf_kwargs['orientation'] == 'Portrait':
-                pdf_kwargs['page_width'] = page_width
-            else:
-                pdf_kwargs['page_height'] = page_width
+        # D&D: qualunque cosa venga fatta con height e width, in ogni caso questi due valori
+        # vengono "discarded" alle righe 34 e 35. Quindi...
+        # if page_height:
+        #     if pdf_kwargs['orientation'] == 'Portrait':
+        #         pdf_kwargs['page_height'] = page_height
+        #     else:
+        #         pdf_kwargs['page_width'] = page_height
+        # if page_width:
+        #     if pdf_kwargs['orientation'] == 'Portrait':
+        #         pdf_kwargs['page_width'] = page_width
+        #     else:
+        #         pdf_kwargs['page_height'] = page_width
         if not 'quiet' in pdf_kwargs:
             pdf_kwargs['quiet'] = True
 
@@ -39,10 +41,9 @@ class Service(HtmlToPdfService):
                     args.append(str(v))
 
         # We need to zoom on Windows platform. Bug?
-       #import platform
-       #if platform.system() in ['Windows','Darwin']:
-       #    args.extend(['--zoom', '1.25'])
-
+        import platform
+        if platform.system() in ['Windows','Darwin']:
+            args.extend(['--zoom', '1.25'])
 
         if destPath.isdir:
             baseName = os.path.splitext(srcPath.basename)[0]
