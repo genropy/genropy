@@ -109,7 +109,7 @@ class RMS(object):
             return
         p = PathResolver()
         siteconfig = p.get_siteconfig(name)
-        site_rms = dict(siteconfig.getAttr('rms')) or dict()
+        site_rms = dict(siteconfig.getAttr('rms')) if siteconfig.getAttr('rms') else dict()
         customer_code = customer_code or site_rms.get('customer_code')
         domain = domain or  site_rms.get('domain')
         if not domain:
