@@ -638,7 +638,7 @@ class GnrSqlDb(GnrObject):
             if not connections:
                 break
             connection = connections[0]
-            with self.tempEnv(storename=connection.storename):
+            with self.tempEnv(storename=connection.storename,onCommittingStep=True):
                 self.onCommitting()
             connection.commit()
             connection.committed = True
@@ -646,17 +646,19 @@ class GnrSqlDb(GnrObject):
 
     def onCommitting(self):
         deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
-        deferreds_blocks.sort()
-        with self.tempEnv(onCommittingStep=True):
-            for deferreds in deferreds_blocks.values():
-                while deferreds:
-                    node =  deferreds.popNode('#0')
-                    cb,args,kwargs = node.value
-                    cb(*args,**kwargs)
-                    allowRecursion = getattr(cb,'deferredCommitRecursion',False)
-                    if not allowRecursion:
-                        deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
-        deferreds_blocks.clear()
+        while deferreds_blocks:
+            deferreds_blocks.sort()
+            self.executeDeferred(deferreds_blocks.pop('#0'))
+
+
+    def executeDeferred(self,deferreds):
+        while deferreds:
+            node =  deferreds.popNode('#0')
+            cb,args,kwargs = node.value
+            cb(*args,**kwargs)
+            allowRecursion = getattr(cb,'deferredCommitRecursion',False)
+            if not allowRecursion:
+                deferreds.popNode(node.label) 
 
     def deferToCommit(self,cb,*args,**kwargs):
         deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
