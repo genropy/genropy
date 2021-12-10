@@ -517,6 +517,9 @@ class PathResolver(object):
             site_config.update(Bag(site_config_path))
         else:
             site_config = Bag(site_config_path)
+        instance_config = self.get_instanceconfig(site_name)
+        if instance_config and instance_config['site']:
+            site_config.update(instance_config['site'])
         return site_config
 
 
