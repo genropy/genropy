@@ -1349,10 +1349,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         objectPop(attributes, 'position');
         objectPop(attributes, 'autoSize');
         var closable = ('closable' in attributes) ? objectPop(attributes, 'closable') : false;
-        attributes.title = attributes.title || '';
+        attributes.title = _T(attributes.title || '');
         if (!closable) {
             attributes.templateString = "<div class=\"dijitDialog\" tabindex=\"-1\" waiRole=\"dialog\" waiState=\"labelledby-${id}_title\">\n\t<div dojoAttachPoint=\"titleBar\" class=\"dijitDialogTitleBar\">\n\t<span dojoAttachPoint=\"titleNode\" class=\"dijitDialogTitle\" id=\"${id}_title\">${title}</span>\n\t</div>\n\t\t<div dojoAttachPoint=\"containerNode\" class=\"dijitDialogPaneContent\"></div>\n</div>\n";
-        } else if (closable!=true) {
+        } else if (closable!==true) {
             var closeAction;
             if(closable=='ask'){
                 closeAction='onAskCancel';

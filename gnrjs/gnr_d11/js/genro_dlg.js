@@ -160,7 +160,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             onClosedCb = funcCreate(onClosedCb,null,sourceNode)
         }
         var messageBox = sourceNode._('div','_floatingmess',{_class:'invisible fm_box fm_'+msgType,transition:transition}).getParentNode()
-        kw.innerHTML = message;
+        kw.innerHTML = _T(message);
         messageBox._('div',kw);
         var deleteCb = function(){
                                     that._value.popNode('_floatingmess');
@@ -386,7 +386,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                                     },connect_hide:function(){
                                         that.alert_count-=1;
                                     },centerOn:'_pageRoot'})._('div', {_class:'dlg_ask','action':action});
-        dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg',width:kw.width});
+        dlg._('div', {'content':_T(msg),'_class':'selectable dlg_ask_msg',width:kw.width});
         //var buttonBox = dlg._('div', {'_class':'dlg_ask_btnBox'});
         objectKeys(buttons).sort().reverse().forEach(function(btn){
             dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
