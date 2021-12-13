@@ -371,7 +371,7 @@ class Server(object):
         sitedaemon_process.start()
         print('sitedaemon started')
         import time
-        time.sleep(500)
+        time.sleep(1)
 
     def serve(self):
         port = int(self.options.port)

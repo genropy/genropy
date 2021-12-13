@@ -231,7 +231,7 @@ class TableHandlerForm(BaseComponent):
         elif showtoolbar:
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
-                default_slots = default_slots.replace('form_archive','annotationTool,10,form_archive')
+                default_slots = default_slots.replace('right_placeholder','right_placeholder,annotationTool')
             if form_add is False:
                 default_slots = default_slots.replace('form_add','')
             if form_delete is False:
@@ -247,7 +247,7 @@ class TableHandlerForm(BaseComponent):
             elif navigation:
                 default_slots = 'navigation,%s' %default_slots
             if selector:
-                default_slots = default_slots.replace('*','5,form_selectrecord,*')
+                default_slots = default_slots.replace('left_placeholder','form_selectrecord,left_placeholder')
                 if isinstance(selector,dict):
                     options['form_selectrecord_pars'] = selector
             if options.pop('printMenu',False):
