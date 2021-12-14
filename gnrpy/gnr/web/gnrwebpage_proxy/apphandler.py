@@ -716,7 +716,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                          savedQuery=None,savedView=None, externalChanges=None,prevSelectedDict=None,
                          checkPermissions=None,queryBySample=False,weakLogicalDeleted=False,
                          customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,
-                         saveRpcQuery=None,gridVisibleColumns=None,formulaVariants=None,**kwargs):
+                         saveRpcQuery=None,gridVisibleColumns=None,formulaVariants=None,countOnly=False,**kwargs):
         """TODO
         
         ``getSelection()`` method is decorated with the :meth:`public_method
@@ -844,8 +844,10 @@ class GnrWebAppHandler(GnrBaseProxy):
                                       recordResolver=recordResolver, selectionName=selectionName, 
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
                                       excludeDraft=excludeDraft,checkPermissions=checkPermissions,
-                                      filteringPkeys=filteringPkeys,**kwargs)
+                                      filteringPkeys=filteringPkeys,countOnly=countOnly,**kwargs)
             selection = selecthandler(**selection_pars)
+            if countOnly:
+                return Bag(),dict(table=table,selectionName=selectionName,totalrows=selection)
             if selection is False:
                 return Bag(),dict(table=table,selectionName=selectionName)
             elif selectmethod and isinstance(selection,list):
@@ -1077,7 +1079,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                               relationDict=None, sqlparams=None,recordResolver=None, selectionName=None,
                                pkeys=None,filteringPkeys=None, queryMode=None,
                               sortedBy=None, sqlContextName=None,
-                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,**kwargs):
+                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,countOnly=False,**kwargs):
         sqlContextBag = None
         _qmpkeys = None
         if sqlContextName:
@@ -1135,6 +1137,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                              order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                              relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
                              excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
+        if countOnly:
+            return query.count()
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
         selection = query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)

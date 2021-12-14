@@ -62,6 +62,9 @@ class TableHandler(BaseComponent):
                                                     relation_kwargs=relation_kwargs,
                                                     default_kwargs=default_kwargs,original_kwargs=kwargs)
 
+        view_kwargs['grid_rootPane'] = pane
+        if pane.attributes.get('showCounter'):
+            view_kwargs['store_showCounter'] = True
         if 'inheritLock' in kwargs:
             view_kwargs['store_inheritLock'] = kwargs['inheritLock']
             form_kwargs['form_inheritLock'] = kwargs.pop('inheritLock')
@@ -962,3 +965,14 @@ class THBusinessIntelligence(BaseComponent):
                             dashboardGalleryId=dashboardGalleryId,table=table,tablepkey=self.db.table(table).pkey)
         parent.dashboardGallery(pkg=pkg,code=code or formId,nodeId=dashboardGalleryId,from_table=inattr['table'],
                                 from_pkey='=#FORM.pkey',**kwargs)
+
+
+    @extract_kwargs(user=True)
+    @struct_method
+    def th_formLinkedAnnotations(self,parent,linked_entity=None,user_kwargs=None,configurable=True,
+                                parentForm=False,nodeId=None,viewResource=None,formResource=None,**kwargs):
+        if not self.db.package('orgn'):
+            return
+        self.mixinComponent('orgn_components:OrganizerComponent')
+        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,user_kwargs=user_kwargs,configurable=configurable,
+                                        parentForm=parentForm,nodeId=nodeId,viewResource=viewResource,formResource=formResource)

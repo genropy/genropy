@@ -1169,6 +1169,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     mixin_rowBagNodeByIdentifier:function(identifier){
         return this.storebag().getNodeByAttr(this.rowIdentifier(),pkey);
     },
+    mixin_updateShowCount:function(cnt){
+        var pane = this.sourceNode.getAttributeFromDatasource('rootPane');
+        if(pane && pane.attr.title && pane.attr.titleCounter){
+            pane.widget.setTitle(`${pane.attr.title} (${cnt})`);
+        }
+    },
 
     mixin_updateTotalsCount: function(countBoxNode){
         var countBoxCode =(this.sourceNode.attr.frameCode || this.sourceNode.attr.nodeId)+'_countbox';

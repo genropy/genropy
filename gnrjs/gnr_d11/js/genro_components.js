@@ -6013,6 +6013,12 @@ dojo.declare("gnr.stores._Collection",null,{
             return genro.dom.isVisible(grid.sourceNode);
         });
     },
+    hasTitleCounterClients:function(){
+        return this.linkedGrids().some(function(grid){
+            let rootPane = grid.sourceNode.getAttributeFromDatasource('rootPane')
+            return rootPane?rootPane.attr.titleCounter:false;
+        })
+    },
 
     runQuery:function(cb,runKwargs){
         var result =  this.storeNode.fireNode(runKwargs);
@@ -6743,6 +6749,9 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         var that = this;
         this.pendingLoading = true;
         if(!(this.isEnabledStore())){
+            if(this.hasTitleCounterClients()){
+                this.loadingDataDo(objectUpdate({countOnly:true},runKwargs));
+            }
             this.storeNode.watch('isEnabledStore',function(){
                 return that.isEnabledStore();
             },function(){
@@ -6765,6 +6774,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             that.loadingData = false;
             that.gridBroadcast(function(grid){
                 grid.sourceNode.publish('loadingData',{loading:false});
+                grid.updateShowCount(result.attr.totalrows)
             });
         };
         this.onLoading();

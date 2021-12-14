@@ -458,7 +458,7 @@ class LoginComponent(BaseComponent):
                 return
             userid = kwargs.get('userid')
         else:
-            if self.login_checkPwd(self.avatar.user,password=current_password):
+            if self.avatar and self.login_checkPwd(self.avatar.user,password=current_password):
                 userid = self.avatar.user_id
             else:
                 return 'Wrong password'
