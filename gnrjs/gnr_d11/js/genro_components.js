@@ -6015,7 +6015,7 @@ dojo.declare("gnr.stores._Collection",null,{
     },
     hasTitleCounterClients:function(){
         return this.linkedGrids().some(function(grid){
-            let rootPane = grid.sourceNode.getAttributeFromDatasource('rootPane')
+            let rootPane = grid.getRootPane();
             return rootPane?rootPane.attr.titleCounter:false;
         })
     },

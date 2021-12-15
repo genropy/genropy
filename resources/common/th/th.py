@@ -61,10 +61,6 @@ class TableHandler(BaseComponent):
                                                     condition_kwargs=condition_kwargs,
                                                     relation_kwargs=relation_kwargs,
                                                     default_kwargs=default_kwargs,original_kwargs=kwargs)
-
-        view_kwargs['grid_rootPane'] = pane
-        if pane.attributes.get('showCounter'):
-            view_kwargs['store_showCounter'] = True
         if 'inheritLock' in kwargs:
             view_kwargs['store_inheritLock'] = kwargs['inheritLock']
             form_kwargs['form_inheritLock'] = kwargs.pop('inheritLock')
@@ -93,6 +89,9 @@ class TableHandler(BaseComponent):
             datapath = datapath or '.{}'.format(th_root)
         viewCode='V_{}'.format(th_root)
         formCode='F_{}'.format(th_root)
+        if not pane.attributes.get('nodeId'):
+            pane.attributes['nodeId'] = 'C_{}'.format(th_root)
+        view_kwargs['grid_rootPaneNodeId'] = pane.attributes.get('nodeId')
         defaultModule = 'th_{}'.format(table.split('.')[1])
         unlinkdict = kwargs.pop('store_unlinkdict',None)
         store_excludeDraft = kwargs.pop('store_excludeDraft',None)

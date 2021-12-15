@@ -1170,10 +1170,17 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.storebag().getNodeByAttr(this.rowIdentifier(),pkey);
     },
     mixin_updateShowCount:function(cnt){
-        var pane = this.sourceNode.getAttributeFromDatasource('rootPane');
+        let pane = this.getRootPane();
         if(pane && pane.attr.title && pane.attr.titleCounter){
             pane.widget.setTitle(`${pane.attr.title} (${cnt})`);
         }
+    },
+    mixin_getRootPane:function(){
+        let rootPaneNodeId = this.sourceNode.getAttributeFromDatasource('rootPaneNodeId');
+        if (!rootPaneNodeId){
+            return
+        }
+        return genro.nodeById(rootPaneNodeId);
     },
 
     mixin_updateTotalsCount: function(countBoxNode){
