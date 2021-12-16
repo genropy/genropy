@@ -274,3 +274,24 @@ class BaseResourcePrint(BaseResourceBatch):
             template_address = 'adm.userobject.data:%s' %template_address
         return self.page.loadTemplate(template_address,asSource=True)[0]
 
+
+    def table_script_parameters_footer(self,pane,**kwargs):
+        bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
+        bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
+        bar.confirmbtn.slotButton('!!Confirm', action='FIRE .confirm;')
+        bar.exturl.slotButton('!!Ext url',
+                                action="""
+                                let url = '/adm/endpoint'
+                                url = genro.makeUrl(url,{
+                                    resource:resource,
+                                    res_type:res_type,
+                                    rpc:'print_res_data',
+                                    selectionName:selectionName,
+                                })
+                                console.log(url)
+                                navigator.clipboard.writeText(url);
+                                """,datapath='.#parent',resource='=.resource',
+                                    res_type='=.res_type',
+                                    selectionName='=.selectionName')
+
+        return bar
