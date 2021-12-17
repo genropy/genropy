@@ -478,13 +478,16 @@ class FrameGrid(BaseComponent):
         return frame
 
     @public_method
-    def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,**kwargs):
+    def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,rowIdentifier=None,**kwargs):
         handler = self.getPublicMethod('rpc',handlerName) if handlerName else None
         result = Bag()
         if not (handler or selectedQueries):
             return
         for r in self.utils.quickThermo(rows,maxidx=len(rows)):
             value = r.value
+            if value is None:
+                value = Bag(r.attr)
+            value[rowIdentifier] = value[rowIdentifier] or r.attr.get(rowIdentifier)
             if selectedQueries:
                 for queryNode in selectedQueries:
                     self.handleSelectedParsQuery(value,queryNode)
