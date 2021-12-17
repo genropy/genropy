@@ -1359,7 +1359,7 @@ dojo.declare("gnr.GridEditor", null, {
         genro.lockScreen(true,reason,{thermo:true});
         var onResult = function(result){
             result.forEach(function(n){
-                that.updateRowFromRemote(grid.rowIdentity(grid.rowFromBagNode(n)) || n.label,n.getValue());
+                that.updateRowFromRemote(n.getValue().getItem(grid.rowIdentifier()) || n.label,n.getValue());
             },'static');
             genro.lockScreen(false,reason,{thermo:true});
             that.updateStatus();
@@ -1376,6 +1376,7 @@ dojo.declare("gnr.GridEditor", null, {
         }
         return genro.serverCall('remoteRowControllerBatch',
                                     objectUpdate(kw,{handlerName:this.remoteRowController,
+                                    rowIdentifier:grid.rowIdentifier(),
                                     rows:rows,_sourceNode:this.grid.sourceNode}),
                                         onResult
                                     );
