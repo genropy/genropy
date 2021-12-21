@@ -1152,6 +1152,7 @@ class BagToHtml(object):
     def _set_copies(self, copies):
         self._copies = copies #legacyprint compatibility
 
+    
     copies = property(_get_copies, _set_copies)
 
     @property

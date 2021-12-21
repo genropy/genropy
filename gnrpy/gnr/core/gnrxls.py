@@ -130,6 +130,10 @@ class XlsWriter(object):
                 self.workbook.save(outfile)
         else:
             self.workbook.save(self.filepath)
+    
+    def write(self,sheet_name=None,what=None):
+        pass
+
 
     def writeRow(self, row, sheet_name=None):
         """TODO

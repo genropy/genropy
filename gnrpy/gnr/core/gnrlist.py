@@ -32,6 +32,7 @@ from builtins import range
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
+from gnr.core.gnrexporter import BaseWriter
 import datetime
 import csv
 

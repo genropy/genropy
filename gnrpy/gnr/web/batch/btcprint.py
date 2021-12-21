@@ -69,6 +69,15 @@ class BaseResourcePrint(BaseResourceBatch):
         for k,record in self.btc.thermo_wrapper(records, maximum=len(self.get_selection()),enum=True ,**thermo_s):
             self.print_record(record=record, thermo=thermo_r, storagekey=record[pkeyfield],idx=k)
 
+
+    def export_selection_data(self):
+        for record in self.get_records():
+            yield self.htmlMaker.getExportData(record=record,parent=self,**self.batch_parameters)
+    
+    def export_record_data(self,record=None):
+        return [self.htmlMaker.getExportData(record=record,parent=self,**self.batch_parameters)]
+                
+
     def print_record(self, record=None, thermo=None, storagekey=None,idx=None):
         self.onRecordPrinting(record)
         result = self.do_print_record(record=record)
@@ -103,16 +112,27 @@ class BaseResourcePrint(BaseResourceBatch):
 
     def onRecordPrinted(self,record=None,filepath=None):
         return
-        
+
     def do(self):
-        if not 'templates' in self.batch_parameters:
+        if 'templates' not in self.batch_parameters:
             self.batch_parameters['templates'] = self.templates  #CONTROLLARE
         if self.htmlMaker and self.htmlMaker.maintable == self.htmlMaker.row_table:
             self.htmlMaker.row_table = self.tblobj.fullname
-            self.print_record(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())),
-                              storagekey='__mainrecord__',idx=0)
+            self.print_record(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())))
         else:
-            self.print_selection()
+            return self.print_selection()
+
+    def get_export_data(self,export_mode=None,selectionName=None,selectedRowidx=None,**kwargs):
+        #metto le cose in self, selection_name,export_mode
+        #poi modalita singola o estesa
+        self.export_mode = export_mode
+        self.defineSelection(selectionName=selectionName,selectedRowidx=selectedRowidx)
+        self.batch_parameters = dict(kwargs)
+        if self.htmlMaker and self.htmlMaker.maintable == self.htmlMaker.row_table:
+            self.htmlMaker.row_table = self.tblobj.fullname
+            return self.export_record_data(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())))
+        else:
+            return self.export_selection_data()
         
     def get_record_caption(self, item, progress, maximum, **kwargs):
         caption = '%s (%i/%i)' % (self.tblobj.recordCaption(item),
@@ -281,17 +301,26 @@ class BaseResourcePrint(BaseResourceBatch):
         bar.confirmbtn.slotButton('!!Confirm', action='FIRE .confirm;')
         bar.exturl.slotButton('!!Ext url',
                                 action="""
-                                let url = '/adm/endpoint'
-                                url = genro.makeUrl(url,{
+                                let url = '/adm/endpoint';
+                                let kw = {
+                                    table:table,
                                     resource:resource,
                                     res_type:res_type,
                                     rpc:'print_res_data',
-                                    selectionName:selectionName,
-                                })
-                                console.log(url)
+                                    selectionName:selectionName
+                                };
+                                data.getNodes().forEach(function(n){
+                                    let v = n.getValue();
+                                    if(!isNullOrBlank(v)){
+                                        kw[n.label] = asTypedTxt(v)
+                                    }
+                                });
+                                url = genro.makeUrl(url,kw);
                                 navigator.clipboard.writeText(url);
                                 """,datapath='.#parent',resource='=.resource',
                                     res_type='=.res_type',
+                                    table='=.table',
+                                    data='=.data',
                                     selectionName='=.selectionName')
 
         return bar
