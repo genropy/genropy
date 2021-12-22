@@ -298,7 +298,7 @@ class BaseResourcePrint(BaseResourceBatch):
 
 
     def table_script_extUrlButton(self,pane,**kwargs):
-        pane.slotButton('!!Ext url',
+        pane.slotButton('!!Export url',
                                 action="""
                                 let kw = {
                                     table:table,
@@ -306,7 +306,9 @@ class BaseResourcePrint(BaseResourceBatch):
                                     res_type:res_type,
                                     rpc:'print_res_data',
                                     selectionName:selectionName,
-                                    selectedRowidx:selectedRowidx
+                                    selectedRowidx:selectedRowidx,
+                                    export_name:export_name,
+                                    export_mode:export_mode
                                 };
 
                                 data.getNodes().forEach(function(n){
@@ -322,11 +324,20 @@ class BaseResourcePrint(BaseResourceBatch):
                                     kw[k] = asTypedTxt(kw[k])
                                 }
                                 let url = genro.makeUrl('/adm/endpoint',kw);
-                                navigator.clipboard.writeText(url);
-                                """,datapath='.#parent',resource='=.resource',
-                                    res_type='=.res_type',
-                                    table='=.table',
-                                    data='=.data',
-                                    selectedRowidx='=.selectedRowidx',
-                                    selectionName='=.selectionName')
+                                genro.textToClipboard(url,msg);
+                               FIRE .cancel;
+                                """,resource='=.#parent.resource',
+                                    res_type='=.#parent.res_type',
+                                    msg='!!Link in clipboard',
+                                    table='=.#parent.table',
+                                    data='=.#parent.data',
+                                    selectedRowidx='=.#parent.selectedRowidx',
+                                    selectionName='=.#parent.selectionName',
+                                    export_mode='html',
+                                    export_name='=.#parent.resource',
+                                    ask=dict(title='!!Export url',
+                                                fields=[dict(name='export_name',lbl='Name'),
+                                                            dict(name='export_mode',lbl='Output',tag='filteringSelect',
+                                                            values='xls,csv,html')])
+                                    )
 

@@ -15,6 +15,8 @@ class BaseXls(object):
     
     def save(self,filepath=None,autosize=None):
         self.filepath = filepath
+        if autosize is None:
+            autosize = True
         self.workbookSave(autosize=autosize)
 
     def getSheet(self,name=None):
@@ -71,6 +73,18 @@ class BaseXls(object):
         if self.filenode:
             self.filenode.path = filepath
         self._filepath = filepath
+
+    def composeAll(self,data=None,**kwargs):
+        for export_data in data:
+            self.compose(export_data)
+    
+    def compose(self,data):
+        sheet_name = data['name'].replace('/','')
+        self.createSheet(sheet_name,**data['struct'])
+        self.writeHeaders(sheet_name=sheet_name)
+        for row in data['rows']:
+            self.writeRow(row,sheet_name=sheet_name)
+
 
 
 
@@ -399,6 +413,7 @@ class XlsxWriter(BaseXls):
 
             coltype = coltypes.get(col)
             if coltype in ('R', 'F', 'N'):
+                print('writing float',c)
                 self.writeCell(sheet, current_row, c, value, style="float")
             elif coltype in ('L', 'I'):
                 self.writeCell(sheet, current_row, c, value, style="int")

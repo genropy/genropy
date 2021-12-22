@@ -1878,6 +1878,21 @@ dojo.declare('gnr.GenroClient', null, {
         var sep = (url.indexOf('?') != -1) ? '&' : '?';
         return url + sep + parameters.join('&');
     },
+
+    textToClipboard:function(txt,cb){
+        let promise = navigator.clipboard.writeText(txt); 
+        if(cb){
+            if(typeof(cb)=='string'){
+                let message = cb;
+                cb = function(){
+                    genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:message});
+                }
+            }
+            promise.then(cb);
+        }
+        return promise;
+    },
+
     getFormChanges: function(formId) {
         var fh = genro.formById(formId);
         if (fh) {
