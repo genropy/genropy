@@ -24,10 +24,10 @@ class GnrCustomWebPage(object):
     
     def test_1_colored_div(self, pane):
         "Popup menu from colored div"
-        ddm = pane.div(height='50px', width='50px', background='lime')
+        ddm = pane.div(height='25px', width='25px', background='lime')
         m = ddm.menu(modifiers='*', _class='menupane')
         m.menuItem(label='Line 1')
-        box = m.menuItem().div(max_height='350px',min_width='300px',overflow='auto')
+        box = m.menuItem().div(max_height='325px',min_width='300px',overflow='auto')
         box.horizontalSlider(value='^.scaleX',width='8em',intermediateChanges=True)
         box.verticalSlider(value='^.scaleY',height='8em',intermediateChanges=True)
         m.menuItem(label='Line last')
@@ -47,7 +47,7 @@ class GnrCustomWebPage(object):
 
     def test_4_bag(self, pane):
         "Menu built with options coming from a Bag. Click add menuline to add Palau port"
-        menudiv = pane.div(height='50px',width='50px',background='lime')
+        menudiv = pane.div(height='25px',width='25px',background='lime')
         ddb = pane.dropDownButton('test')
         ddb.menu(action='alert($1.code)',modifiers='*',storepath='.menudata')
         menu = menudiv.menu(action='alert($1.code)',modifiers='*',storepath='.menudata')
@@ -68,27 +68,21 @@ class GnrCustomWebPage(object):
                     
     def test_5_resolver(self, pane):
         "Menu built with options coming from Resolver"
-        ddm = pane.div(height='50px', width='50px', background='lime')
+        ddm = pane.div(height='25px', width='25px', background='lime')
         menu = ddm.menu(action='alert($1.code)', modifiers='*', storepath='.menudata', _class='smallmenu',
                         id='test5menu')
-        ddm2 = pane.div(height='50px', width='50px', background='red', connectedMenu='test4menu')
+        ddm2 = pane.div(height='25px', width='25px', background='red', connectedMenu='test4menu')
         pane.dataRemote('.menudata', 'menudata', cacheTime=5)
         
     def test_6_dir_resolver(self,pane):
         "Menu built with options coming from DirectoryResolver"
         pane.data('.store',DirectoryResolver(expandpath('~/'),cacheTime=10,
                             include='*.py', exclude='_*,.*',dropext=True,readOnly=False)())
-        ddm = pane.div(height='50px', width='50px', background='lime')
+        ddm = pane.div(height='25px', width='25px', background='lime')
         ddm.menu(action='console.log($1)', modifiers='*', storepath='.store', _class='smallmenu',
                         id='test99menu')
     
-    def test_7_controller(self, pane):
-        "Attach controller directly to menuline"
-        menu = pane.menudiv(iconClass='iconbox menu_icon')
-        line = menu.menuline('Alert')
-        line.dataController('alert("Be careful")')
-
-    def test_8_datarpc(self, pane):
+    def test_7_datarpc(self, pane):
         "Download a file from menuline with dataRpc. Please insert your OpenWeatherMap API key first"
         pane.textbox('^.APPID', lbl='OWM API key')
         menu = pane.menudiv(iconClass='iconbox menu_icon')
@@ -102,3 +96,23 @@ class GnrCustomWebPage(object):
         b = Bag()
         b.fromXml(f'http://api.openweathermap.org/data/2.5/weather?q=Milano,IT&APPID={APPID}&mode=xml&units=metric')
         b.toXml('/Users/dgpaci/Downloads/weather.xml') 
+
+    def test_8_menudiv(self,pane):
+        "Click on menu can trigger a dataController or a dataRpc"
+        m = pane.menudiv(iconClass='iconbox gear')
+        m.menuline('Use dataController').dataController('alert(message + cognome)', message='Hello ',
+                                                cognome='Pippo',
+                                                _ask=dict(title='Complete parameters',
+                                                            fields=[dict(name='cognome',lbl='Cognome')]))
+        m.menuline('Use dataRpc').dataRpc('.info_string', self.menulineRpc,
+                    _ask=dict(title='Confirm',
+                              fields=[
+                                dict(name='surname', lbl='Surname', validate_notnull=True),
+                                dict(name='title', lbl='Title', tag='filteringSelect', values='Mr,Miss,Mrs')]))
+        pane.div('^.info_string')
+
+    @public_method
+    def menulineRpc(self,surname=None,title=None,**kwargs):
+        info_string = 'Hello '+title+' '+surname
+        print(info_string)
+        return info_string

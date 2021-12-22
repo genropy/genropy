@@ -3,7 +3,7 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
-
+from gnr.lib.services.mail import MailService
 
 class View(BaseComponent):
 
@@ -40,12 +40,15 @@ class ViewSmall(BaseComponent):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        tc = form.center.tabContainer(margin='2px')
+        main_bc = form.center.borderContainer()
+        top_fb = main_bc.contentPane(datapath='.record', region='top', height='40px').formbuilder(cols=1, border_spacing='4px')
+        top_fb.field('account_name')
+
+        tc = main_bc.tabContainer(margin='2px', region='center')
         bc = tc.borderContainer(title='Input')
-        top = bc.contentPane(region='top',datapath='.record')
+        top = bc.contentPane(region='top', datapath='.record')
         fb = top.div(padding='10px').formbuilder(cols=2,border_spacing='4px',
                                             fld_html_label=True)
-        fb.field('account_name')
         fb.field('address')
         fb.field('full_name')
         fb.field('host')
@@ -57,17 +60,11 @@ class Form(BaseComponent):
         fb.field('password', type='password')
         fb.field('last_uid')
         fb.field('schedulable')
-        fb.button('check email', action='PUBLISH check_email')
-        fb.dataRpc('dummy', self.db.table('email.message').receive_imap, subscribe_check_email=True, account='=.id')
-        center = bc.contentPane(region='center')
-        center.inlineTableHandler(relation='@account_users',
-                                viewResource=':ViewFromAccount',
-                                picker='user_id',title='!!Users',
-                                pbl_classes=True,margin='2px')
+        fb.button('!![en]Check e-mail', action='PUBLISH check_email')
+        fb.dataRpc(self.db.table('email.message').receive_imap, subscribe_check_email=True, account='=.id')
         
         out = tc.contentPane(title='Output',datapath='.record')
-        fb = out.div(padding='10px').formbuilder(cols=2,border_spacing='4px',
-                        fld_html_label=True)
+        fb = out.div(padding='10px').formbuilder(cols=2,border_spacing='4px', fld_html_label=True)
         fb.field('smtp_host')
         fb.field('smtp_from_address')
         fb.field('smtp_username')
@@ -80,13 +77,32 @@ class Form(BaseComponent):
         fb.field('save_output_message',html_label=True)
         fb.field('send_limit')
         fb.field('debug_address')
+        fb.button('!![en]Send test').dataRpc(self.testSmtpSettings, host='=.smtp_host', from_address='=.smtp_from_address',
+                                        username='=.smtp_username', password='=.smtp_password', port='=.smtp_port',
+                                        tls='=.smtp_tls', ssl='=.smtp_ssl', _ask=dict(title="!![en]Send test e-mail",
+                                        fields=[dict(name="to_address",lbl="To address")]))
+
+        main_bc.contentPane(region='bottom', height='50%').inlineTableHandler(relation='@account_users',
+                                viewResource=':ViewFromAccount',
+                                picker='user_id',title='!!Users',
+                                pbl_classes=True,margin='2px')
 
     def account_messages(self,bottom):
         th = bottom.dialogTableHandler(relation='@messages',
                                    dialog_height='600px',
                                    dialog_width='800px',
                                    dialog_title='Message')
-    
+
+    @public_method
+    def testSmtpSettings(self, host=None, from_address=None, to_address=None, 
+                                username=None, password=None, tls=None, ssl=None, port=None):
+        msg = "From: {from_address}\r\nTo: {to_address}\r\nTest Message".format(from_address=from_address, 
+                            to_address=to_address)
+        account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls)
+        mh = MailService()
+        with mh.get_smtp_connection(**account_params) as smtp_connection:
+            smtp_connection.sendmail(from_address, to_address, msg)
+
     def th_options(self):
         return dict(duplicate=True)
 
