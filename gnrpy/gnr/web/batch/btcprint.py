@@ -266,14 +266,15 @@ class BaseResourcePrint(BaseResourceBatch):
                                                                     border_spacing='4px', fld_width=fld_width)
 
     def table_script_option_footer(self,pane,**kwargs):
-        bar = pane.slotBar('*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
+        bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
         bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
         bar.confirmbtn.slotButton('!!Print', action='FIRE .confirm;')
+        self.table_script_extUrlButton(bar.exturl)
         return bar
         
     def table_script_parameters_footer(self,pane, immediate=None,**kwargs):
         if immediate:
-            bar = pane.slotBar('*,cancelbtn,3,downloadbtn,3,printbtn,3',_class='slotbar_dialog_footer')
+            bar = pane.slotBar('3,exturl,*,cancelbtn,3,downloadbtn,3,printbtn,3',_class='slotbar_dialog_footer')
             bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
             bar.downloadbtn.slotButton('!!Download', action="""SET #table_script_runner.data.immediate_mode ="download";  
                                                                FIRE .confirm ="download";""")
@@ -284,9 +285,10 @@ class BaseResourcePrint(BaseResourceBatch):
             elif immediate=='download':
                 bar.replaceSlots('printbtn,3','')
         else:
-            bar = pane.slotBar('*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
+            bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
             bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
             bar.confirmbtn.slotButton('!!Confirm', action='FIRE .confirm;')
+        self.table_script_extUrlButton(bar.exturl)
         return bar
 
     def get_template(self,template_address):
@@ -295,32 +297,36 @@ class BaseResourcePrint(BaseResourceBatch):
         return self.page.loadTemplate(template_address,asSource=True)[0]
 
 
-    def table_script_parameters_footer(self,pane,**kwargs):
-        bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
-        bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
-        bar.confirmbtn.slotButton('!!Confirm', action='FIRE .confirm;')
-        bar.exturl.slotButton('!!Ext url',
+    def table_script_extUrlButton(self,pane,**kwargs):
+        pane.slotButton('!!Ext url',
                                 action="""
-                                let url = '/adm/endpoint';
                                 let kw = {
                                     table:table,
                                     resource:resource,
                                     res_type:res_type,
                                     rpc:'print_res_data',
-                                    selectionName:selectionName
+                                    selectionName:selectionName,
+                                    selectedRowidx:selectedRowidx
                                 };
+
                                 data.getNodes().forEach(function(n){
+                                    if(n.label=='batch_options'){
+                                        return;
+                                    }
                                     let v = n.getValue();
                                     if(!isNullOrBlank(v)){
-                                        kw[n.label] = asTypedTxt(v)
+                                        kw[n.label] = v
                                     }
                                 });
-                                url = genro.makeUrl(url,kw);
+                                for(let k in kw){
+                                    kw[k] = asTypedTxt(kw[k])
+                                }
+                                let url = genro.makeUrl('/adm/endpoint',kw);
                                 navigator.clipboard.writeText(url);
                                 """,datapath='.#parent',resource='=.resource',
                                     res_type='=.res_type',
                                     table='=.table',
                                     data='=.data',
+                                    selectedRowidx='=.selectedRowidx',
                                     selectionName='=.selectionName')
 
-        return bar

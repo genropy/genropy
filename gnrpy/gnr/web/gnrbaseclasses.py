@@ -33,6 +33,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import  splitAndStrip, slugify,templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import getUuid
 
 
 def page_proxy(*args,**metadata):
@@ -595,7 +596,7 @@ class TableScriptToHtml(BagToHtml):
         sel = query.selection(_aggregateRows=True)
         if not parameters.get('order_by') and self.record['selectionPkeys']: #same case of line 493
             sel.data.sort(key = lambda r : self.record['selectionPkeys'].index(r['pkey']))
-        if self.parent.export_mode:
+        if self.parent and self.parent.export_mode:
             return sel.output('dictlist')
         return sel.output('grid',recordResolver=False)
 
@@ -612,7 +613,7 @@ class TableScriptToHtml(BagToHtml):
         self._gridsColumnsBag = Bag()
         self.record = record
         self.htmlTemplate = None
-        self.record_idx = idx or 0
+        self.record_idx = idx or None
         self.prepareTemplates()
         data = self.gridData()
         if isinstance(data,Bag):
@@ -620,7 +621,23 @@ class TableScriptToHtml(BagToHtml):
                 data = [dict(n.attr) for n in data]
             else:
                 data = [n.value.asDict() for n in data]
-        return dict(name=self.outputDocName(),struct=self.getExportParsFromStruct(),rows=data)
+        return dict(name=self.getExportCaption(),
+                    identifier=self.getExportIdentifier(),
+                    struct=self.getExportParsFromStruct(),rows=data)
+    
+    def getExportCaption(self):
+        if self.record['selectionPkeys']:
+            return self.parameter('export_name') or f'export_{self.tblobj.name}'
+        elif self.record is not None:
+            return self.tblobj.recordCaption(self.record)
+        return self.getExportIdentifier()
+
+    def getExportIdentifier(self):
+        if self.record['selectionPkeys']:
+            return f'export_{getUuid()}'
+        elif self.record is not None:
+            return self.record[self.tblobj.pkey]
+        return getUuid()
 
 
     def getExportParsFromStruct(self):
@@ -686,6 +703,7 @@ class TableScriptToHtml(BagToHtml):
     def getPdfUrl(self, *args, **kwargs):
         """TODO"""
         return self.site.storageNode(self.pdf_folder, *args).url(**kwargs)
+        
         
     def outputDocName(self, ext=''):
         """TODO

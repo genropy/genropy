@@ -1,4 +1,3 @@
-
 var batch_monitor = {};
 
 batch_monitor.owner_page_batch = function(batch_id) {
@@ -8,7 +7,6 @@ batch_monitor.owner_page_batch = function(batch_id) {
             return  (genro.page_id == batchBag.getItem('owner_page_id'))
         }
     }
-   
 };
 
 batch_monitor.on_datachange = function(kw) {

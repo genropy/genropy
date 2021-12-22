@@ -37,13 +37,16 @@ def getWriter(mode):
 
 
 class BaseWriter(object):
-    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, **kwargs):
+    content_type = 'text/plain'
+    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, rowseparator=None,colseparator=None,**kwargs):
         self.headers = headers or []
         self.columns = columns
         self.coltypes = coltypes
         self.filepath = filepath
         self.locale = locale
         self.result = []
+        self.rowseparator = rowseparator
+        self.colseparator = colseparator
         from gnr.core.gnrstring import toText
         self.toText = toText
 
@@ -61,6 +64,10 @@ class BaseWriter(object):
 
     def writeRow(self, row, separator='\t',**kwargs):
         pass
+
+    def join(self,data):
+        return self.rowseparator.join(list(data))
+
 
     def workbookSave(self):
         if not self.filepath:
@@ -90,6 +97,10 @@ class CsvWriter(BaseWriter):
     """docstring for CsVWriter"""
     extension = 'csv'
 
+    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None, locale=None,rowseparator=None,colseparator=None, **kwargs):
+        rowseparator = rowseparator or '\n'
+        super().__init__(columns=columns, coltypes=coltypes, headers=headers, filepath=filepath, locale=locale,rowseparator=rowseparator,colseparator=colseparator, **kwargs)
+
     def writeHeaders(self, separator='\t',**kwargs):
         self.result = [separator.join(self.headers)]
 
@@ -97,11 +108,44 @@ class CsvWriter(BaseWriter):
         self.result.append(separator.join([self.cleanCol(self.toText(row.get(col),locale=self.locale), self.coltypes[col]) for col in self.columns]))
 
 
+
+    def composeHeader(self, separator='\t',**kwargs):
+        return separator.join(self.headers)
+
+    def composeRow(self, row, separator='\t',**kwargs):
+        return separator.join([self.cleanCol(self.toText(row.get(col),locale=self.locale), self.coltypes.get(col,'T')) for col in self.columns])
+
+    def composeAll(self,data=None,**kwargs):
+        firstExport = True
+        extra_headers = []
+        extra_columns = []
+        if not (isinstance(data,list) and len(data)==1):
+            extra_headers =  ['Identifier','Caption']
+            extra_columns = ['_export_identifier','_export_caption']
+        for export_data in data:
+            if firstExport:
+                struct = export_data['struct']
+                self.headers = extra_headers + struct['headers']
+                self.columns =  extra_columns + struct['columns']
+                self.coltypes = struct['coltypes']
+                print('self.headers',self.headers)
+                firstExport = False
+                yield self.composeHeader()
+            for r in export_data['rows']:
+                r['_export_identifier'] = export_data.get('identifier')
+                r['_export_caption'] = export_data.get('name')
+                yield self.composeRow(r)
+
+
+
+
 class HtmlTableWriter(BaseWriter):
+    content_type = 'text/html'
     extension = 'html'
 
-    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None, locale=None, **kwargs):
-        super().__init__(columns=columns, coltypes=coltypes, headers=headers, filepath=filepath, locale=locale, **kwargs)
+    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None, locale=None,rowseparator=None, **kwargs):
+        rowseparator = rowseparator or '<br/>'
+        super().__init__(columns=columns, coltypes=coltypes, headers=headers, filepath=filepath, locale=locale,rowseparator=rowseparator, **kwargs)
         self.rows = []
 
     def writeHeaders(self, separator='',**kwargs):
@@ -129,17 +173,15 @@ class HtmlTableWriter(BaseWriter):
         with csv_open(mode='wb') as f:
             f.write(result.encode('utf-8'))
 
-
-    def composeAll(self,data=None,filepath=None, **kwargs):
+    def composeAll(self,data=None,**kwargs):
         for export_data in data:
             yield self.compose(export_data)
-            
     
     def compose(self,data):
         self.setStructInfo(data['struct'])
         result = []
         name = data['name']
-        result.append(f'<table caption="{name}">')
+        result.append(f'<table class="gnrexport_tbl"><caption>{name}</captipn>')
         result.append(self.composeHeaders())
         result.append('<tbody>')
         for row in data['rows']:
@@ -150,7 +192,7 @@ class HtmlTableWriter(BaseWriter):
 
     def save(self,storageNode=None):
         with storageNode.open('wb') as f:
-            f.write('\n'.join(self.result))
+            f.write('<br/>'.join(self.result))
 
 
 
