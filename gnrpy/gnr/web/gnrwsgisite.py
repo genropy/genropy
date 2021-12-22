@@ -1419,7 +1419,7 @@ class GnrWsgiSite(object):
         result = script(**kwargs)
         return result
 
-    def loadTableScript(self, page=None, table=None, respath=None, class_name=None):
+    def loadTableScript(self, page=None, table=None, respath=None, class_name=None,**kwargs):
         """TODO
 
         :param page: TODO
@@ -1428,7 +1428,7 @@ class GnrWsgiSite(object):
                       :ref:`package <packages>` to which the table belongs to)
         :param respath: TODO
         :param class_name: TODO"""
-        return self.resource_loader.loadTableScript(page=page, table=table, respath=respath, class_name=class_name)
+        return self.resource_loader.loadTableScript(page=page, table=table, respath=respath, class_name=class_name,**kwargs)
 
     def _get_resources(self):
         if not hasattr(self, '_resources'):

@@ -69,6 +69,15 @@ class BaseResourcePrint(BaseResourceBatch):
         for k,record in self.btc.thermo_wrapper(records, maximum=len(self.get_selection()),enum=True ,**thermo_s):
             self.print_record(record=record, thermo=thermo_r, storagekey=record[pkeyfield],idx=k)
 
+
+    def export_selection_data(self):
+        for record in self.get_records():
+            yield self.htmlMaker.getExportData(record=record,parent=self,**self.batch_parameters)
+    
+    def export_record_data(self,record=None):
+        return [self.htmlMaker.getExportData(record=record,parent=self,**self.batch_parameters)]
+                
+
     def print_record(self, record=None, thermo=None, storagekey=None,idx=None):
         self.onRecordPrinting(record)
         result = self.do_print_record(record=record)
@@ -103,16 +112,27 @@ class BaseResourcePrint(BaseResourceBatch):
 
     def onRecordPrinted(self,record=None,filepath=None):
         return
-        
+
     def do(self):
-        if not 'templates' in self.batch_parameters:
+        if 'templates' not in self.batch_parameters:
             self.batch_parameters['templates'] = self.templates  #CONTROLLARE
         if self.htmlMaker and self.htmlMaker.maintable == self.htmlMaker.row_table:
             self.htmlMaker.row_table = self.tblobj.fullname
-            self.print_record(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())),
-                              storagekey='__mainrecord__',idx=0)
+            self.print_record(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())))
         else:
-            self.print_selection()
+            return self.print_selection()
+
+    def get_export_data(self,export_mode=None,selectionName=None,selectedRowidx=None,**kwargs):
+        #metto le cose in self, selection_name,export_mode
+        #poi modalita singola o estesa
+        self.export_mode = export_mode
+        self.defineSelection(selectionName=selectionName,selectedRowidx=selectedRowidx)
+        self.batch_parameters = dict(kwargs)
+        if self.htmlMaker and self.htmlMaker.maintable == self.htmlMaker.row_table:
+            self.htmlMaker.row_table = self.tblobj.fullname
+            return self.export_record_data(record=Bag(dict(selectionPkeys=self.get_selection_pkeys())))
+        else:
+            return self.export_selection_data()
         
     def get_record_caption(self, item, progress, maximum, **kwargs):
         caption = '%s (%i/%i)' % (self.tblobj.recordCaption(item),
@@ -246,14 +266,15 @@ class BaseResourcePrint(BaseResourceBatch):
                                                                     border_spacing='4px', fld_width=fld_width)
 
     def table_script_option_footer(self,pane,**kwargs):
-        bar = pane.slotBar('*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
+        bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
         bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
         bar.confirmbtn.slotButton('!!Print', action='FIRE .confirm;')
+        self.table_script_extUrlButton(bar.exturl)
         return bar
         
     def table_script_parameters_footer(self,pane, immediate=None,**kwargs):
         if immediate:
-            bar = pane.slotBar('*,cancelbtn,3,downloadbtn,3,printbtn,3',_class='slotbar_dialog_footer')
+            bar = pane.slotBar('3,exturl,*,cancelbtn,3,downloadbtn,3,printbtn,3',_class='slotbar_dialog_footer')
             bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
             bar.downloadbtn.slotButton('!!Download', action="""SET #table_script_runner.data.immediate_mode ="download";  
                                                                FIRE .confirm ="download";""")
@@ -264,13 +285,59 @@ class BaseResourcePrint(BaseResourceBatch):
             elif immediate=='download':
                 bar.replaceSlots('printbtn,3','')
         else:
-            bar = pane.slotBar('*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
+            bar = pane.slotBar('3,exturl,*,cancelbtn,3,confirmbtn,3',_class='slotbar_dialog_footer')
             bar.cancelbtn.slotButton('!!Cancel',action='FIRE .cancel;')
             bar.confirmbtn.slotButton('!!Confirm', action='FIRE .confirm;')
+        self.table_script_extUrlButton(bar.exturl)
         return bar
 
     def get_template(self,template_address):
         if not ':' in template_address:
             template_address = 'adm.userobject.data:%s' %template_address
         return self.page.loadTemplate(template_address,asSource=True)[0]
+
+
+    def table_script_extUrlButton(self,pane,**kwargs):
+        pane.slotButton('!!Export url',
+                                action="""
+                                let kw = {
+                                    table:table,
+                                    resource:resource,
+                                    res_type:res_type,
+                                    rpc:'print_res_data',
+                                    selectionName:selectionName,
+                                    selectedRowidx:selectedRowidx,
+                                    export_name:export_name,
+                                    export_mode:export_mode
+                                };
+
+                                data.getNodes().forEach(function(n){
+                                    if(n.label=='batch_options'){
+                                        return;
+                                    }
+                                    let v = n.getValue();
+                                    if(!isNullOrBlank(v)){
+                                        kw[n.label] = v
+                                    }
+                                });
+                                for(let k in kw){
+                                    kw[k] = asTypedTxt(kw[k])
+                                }
+                                let url = genro.makeUrl('/adm/endpoint',kw);
+                                genro.textToClipboard(url,msg);
+                               FIRE .cancel;
+                                """,resource='=.#parent.resource',
+                                    res_type='=.#parent.res_type',
+                                    msg='!!Link in clipboard',
+                                    table='=.#parent.table',
+                                    data='=.#parent.data',
+                                    selectedRowidx='=.#parent.selectedRowidx',
+                                    selectionName='=.#parent.selectionName',
+                                    export_mode='html',
+                                    export_name='=.#parent.resource',
+                                    ask=dict(title='!!Export url',
+                                                fields=[dict(name='export_name',lbl='Name'),
+                                                            dict(name='export_mode',lbl='Output',tag='filteringSelect',
+                                                            values='xls,csv,html')])
+                                    )
 

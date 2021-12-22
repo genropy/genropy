@@ -391,7 +391,6 @@ class LoginComponent(BaseComponent):
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
-        rootenv['workdate'] = rootenv['workdate']
         self.pageStore().setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)

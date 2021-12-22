@@ -506,9 +506,9 @@ class ResourceLoader(object):
         return resource_class
 
 
-    def loadTableScript(self, page, table=None, respath=None, class_name=None):
+    def loadTableScript(self, page, table=None, respath=None, class_name=None,**kwargs):
         resource_class,resource_table = self._loadTableScript_class(page,table=table,respath=respath,class_name=None)
-        resource_obj = resource_class(page=page, resource_table=resource_table)
+        resource_obj = resource_class(page=page, resource_table=resource_table,**kwargs)
         return resource_obj
 
     def _loadTableScript_class(self, page, table=None, respath=None, class_name=None,ignoreCust=None):

@@ -24,7 +24,7 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 from past.builtins import basestring
-import os,sys,math
+import os,math,re
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlSrc
@@ -33,6 +33,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import  splitAndStrip, slugify,templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import getUuid
 
 
 def page_proxy(*args,**metadata):
@@ -591,14 +592,91 @@ class TableScriptToHtml(BagToHtml):
         rowtblobj = self.db.table(self.row_table)
         if self.grid_subtotal_order_by:
             parameters['order_by'] = self.grid_subtotal_order_by
-        sel = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters
-                                ).selection(_aggregateRows=True)
-
-
+        query = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters)
+        sel = query.selection(_aggregateRows=True)
         if not parameters.get('order_by') and self.record['selectionPkeys']: #same case of line 493
             sel.data.sort(key = lambda r : self.record['selectionPkeys'].index(r['pkey']))
+        if self.parent and self.parent.export_mode:
+            return sel.output('dictlist')
         return sel.output('grid',recordResolver=False)
 
+    def getExportData(self,record=None,language=None, parent=None,idx=None,**kwargs):
+        if record is None:
+            record = Bag()
+        self.parent = parent
+        self._data = Bag()
+        self._parameters = Bag()
+        for k, v in list(kwargs.items()):
+            self._parameters[k] = v
+        self.language = language
+        self._rows = dict()
+        self._gridsColumnsBag = Bag()
+        self.record = record
+        self.htmlTemplate = None
+        self.record_idx = idx or None
+        self.prepareTemplates()
+        data = self.gridData()
+        if isinstance(data,Bag):
+            if self.row_mode=='attribute':
+                data = [dict(n.attr) for n in data]
+            else:
+                data = [n.value.asDict() for n in data]
+        return dict(name=self.getExportCaption(),
+                    identifier=self.getExportIdentifier(),
+                    struct=self.getExportParsFromStruct(),rows=data)
+    
+    def getExportCaption(self):
+        if self.record['selectionPkeys']:
+            return self.parameter('export_name') or f'export_{self.tblobj.name}'
+        elif self.record is not None:
+            return self.tblobj.recordCaption(self.record)
+        return self.getExportIdentifier()
+
+    def getExportIdentifier(self):
+        if self.record['selectionPkeys']:
+            return f'export_{getUuid()}'
+        elif self.record is not None:
+            return self.record[self.tblobj.pkey]
+        return getUuid()
+
+
+    def getExportParsFromStruct(self):
+        struct = self.getStruct()
+        info = struct.pop('info')
+        columnsets = {}
+        columns = []
+        headers = []
+        groups = []
+        coltypes = {}
+        result = {'columns':columns,'headers':headers,'groups':groups,'coltypes':coltypes}
+        if info:
+            columnsets[None]=''
+            for columnset in (info['columnsets'] or []):
+                columnsets[columnset.getAttr('code')]=columnset.getAttr('name')
+        for view in list(struct.values()):
+            for row in list(view.values()):
+                curr_columnset = dict(start=0, name='')
+                curr_column = 0
+                for curr_column,cell in enumerate(row):
+                    if cell.getAttr('hidden') is True:
+                        continue
+                    col = self.db.colToAs(cell.getAttr('caption_field') or cell.getAttr('field'))
+                    if cell.getAttr('group_aggr'):
+                        col = '%s_%s' %(col,re.sub("\\W", "_",cell.getAttr('group_aggr').lower()))
+                    columns.append(col)
+                    headers.append(self.localize(cell.getAttr('name')))
+                    coltypes[col] = cell.getAttr('dtype')
+                    columnset = cell.getAttr('columnset')
+                    columnset_name = columnsets.get(columnset)
+                    if columnset_name!=curr_columnset.get('name'):
+                        curr_columnset['end']=curr_column-1
+                        if curr_columnset.get('name'):
+                            groups.append(curr_columnset)
+                        curr_columnset = dict(start=curr_column, name=columnset_name)
+                curr_columnset['end']=curr_column
+                if curr_columnset.get('name'):
+                    groups.append(curr_columnset)
+        return result
 
     @property
     def grid_sqlcolumns(self):
@@ -625,6 +703,7 @@ class TableScriptToHtml(BagToHtml):
     def getPdfUrl(self, *args, **kwargs):
         """TODO"""
         return self.site.storageNode(self.pdf_folder, *args).url(**kwargs)
+        
         
     def outputDocName(self, ext=''):
         """TODO

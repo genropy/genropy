@@ -1733,7 +1733,7 @@ class GnrWebPage(GnrBaseWebPage):
         result = script(**kwargs)
         return result
 
-    def loadTableScript(self, table=None, respath=None, class_name=None):
+    def loadTableScript(self, table=None, respath=None, class_name=None,**kwargs):
         """TODO
 
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -1741,7 +1741,7 @@ class GnrWebPage(GnrBaseWebPage):
                       :ref:`package <packages>` to which the table belongs to)
         :param respath: TODO
         :param class_name: TODO"""
-        return self.site.loadTableScript(self, table=table, respath=respath, class_name=class_name)
+        return self.site.loadTableScript(self, table=table, respath=respath, class_name=class_name,**kwargs)
         
     @public_method
     def setPreference(self, path, data, pkg=''):

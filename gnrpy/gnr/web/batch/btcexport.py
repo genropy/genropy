@@ -9,52 +9,10 @@
 #from builtins import object
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from gnr.lib.services.storage import StorageNode
-from gnr.core.gnrstring import toText
+from gnr.core.gnrexporter import getWriter
 import re
-try:
-    import openpyxl
-    from gnr.core.gnrxls import XlsxWriter as ExcelWriter
-except:
-    from gnr.core.gnrxls import XlsWriter as ExcelWriter
 
 
-class CsvWriter(object):
-    """docstring for CsVWriter"""
-
-    extension = 'csv'
-
-    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, **kwargs):
-        self.headers = headers or []
-        self.columns = columns
-        self.coltypes = coltypes
-        self.filepath = filepath
-        self.locale = locale
-        self.result = []
-
-    def writeHeaders(self, separator='\t'):
-        self.result = [separator.join(self.headers)]
-
-    def cleanCol(self, txt, dtype):
-        txt = txt.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').replace('"', "'")
-        if txt:
-            if txt[0] in ('+', '=', '-'):
-                txt = ' %s' % txt
-            elif txt[0].isdigit() and (dtype in ('T', 'A', '', None)):
-                txt = '%s' % txt # how to escape numbers in text columns?
-        return txt
-
-    def writeRow(self, row, separator='\t'):
-        self.result.append(separator.join([self.cleanCol(toText(row.get(col),locale=self.locale), self.coltypes[col]) for col in self.columns]))
-
-    def workbookSave(self):
-        if isinstance(self.filepath, StorageNode):
-            csv_open = self.filepath.open
-        else:
-            csv_open = lambda **kw: open(self.filepath,**kw)
-        with csv_open(mode='wb') as f:
-            result = '\n'.join(self.result)
-            f.write(result.encode('utf-8'))
 
 class BaseResourceExport(BaseResourceBatch):
     batch_immediate = True
@@ -153,10 +111,7 @@ class BaseResourceExport(BaseResourceBatch):
         writerPars = dict(columns=self.columns, coltypes=self.coltypes, headers=self.headers,
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
-        if self.export_mode == 'xls':
-            self.writer = ExcelWriter(**writerPars)
-        elif self.export_mode == 'csv':
-            self.writer = CsvWriter(**writerPars)
+        self.writer = getWriter(self.export_mode)(**writerPars)
 
     def do(self):
         self.writer.writeHeaders()

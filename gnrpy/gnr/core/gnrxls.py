@@ -11,29 +11,101 @@ import os
 from gnr.core.gnrstring import toText
 from gnr.lib.services.storage import StorageNode
 
-class XlsWriter(object):
+class BaseXls(object):
+    
+    def save(self,filepath=None,autosize=None):
+        self.filepath = filepath
+        if autosize is None:
+            autosize = True
+        self.workbookSave(autosize=autosize)
+
+    def getSheet(self,name=None):
+        name = name or self.sheet_base_name
+        if not self.sheets:
+            self.createSheet(self.sheet_base_name,headers=self.sheet_base_headers,columns=self.sheet_base_columns,
+                coltypes=self.sheet_base_coltypes, groups=self.sheet_base_groups)
+        return self.sheets[name]
+    
+    @property
+    def sheet(self):
+        return self.getSheet()['sheet']
+        
+    @property
+    def headers(self):
+        return self.getSheet()['headers']
+
+    @property
+    def columns(self):
+        return self.getSheet()['columns']
+
+    @property
+    def colsizes(self):
+        return  self.getSheet()['colsizes']
+
+    @property
+    def coltypes(self):
+        return self.getSheet()['coltypes']
+
+    @property
+    def current_row(self):
+        return self.getSheet()['current_row']
+
+    @property
+    def groups(self):
+        return  self.getSheet()['groups']
+
+
+    @property
+    def filepath(self):
+        return self._filepath
+
+    @filepath.setter
+    def filepath(self, filepath):
+        if filepath is None:
+            self._filepath = None
+            self.filenode = None
+            return
+        self.filenode = None
+        if isinstance(filepath, StorageNode):
+            self.filenode = filepath
+            filepath = self.filenode.path
+        filepath = f'{os.path.splitext(filepath)[0]}.{self.extension}'
+        if self.filenode:
+            self.filenode.path = filepath
+        self._filepath = filepath
+
+    def composeAll(self,data=None,**kwargs):
+        for export_data in data:
+            self.compose(export_data)
+    
+    def compose(self,data):
+        sheet_name = data['name'].replace('/','')
+        self.createSheet(sheet_name,**data['struct'])
+        self.writeHeaders(sheet_name=sheet_name)
+        for row in data['rows']:
+            self.writeRow(row,sheet_name=sheet_name)
+
+
+
+
+class XlsWriter(BaseXls):
     """TODO"""
 
     extension = 'xls'
+    content_type = 'application/xls'
 
     def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
                  font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
-        self.filenode = None
-        if isinstance(filepath, StorageNode):
-            self.filenode = filepath
-            filepath = self.filenode.path
-        filepath = '%s.xls' % os.path.splitext(filepath)[0]
-        if self.filenode:
-            self.filenode.path = filepath
         self.filepath = filepath
-        self.workbook = xlwt.Workbook(encoding='latin-1')
         if sheet_base_name is not False:
-            self.sheet_base_name = sheet_base_name or os.path.basename(self.filepath)[:31]
-            self.createSheet(self.sheet_base_name,headers=headers,columns=columns,
-                coltypes=coltypes, groups=groups)
+            self.sheet_base_headers = headers
+            self.sheet_base_groups = groups
+            self.sheet_base_coltypes = coltypes
+            self.sheet_base_columns = columns
+            self.sheet_base_name = sheet_base_name or os.path.basename(self.filepath)[:31] if self.filepath else '_base_'
         else:
             self.sheet_base_name = False
         #self.sheet = self.workbook.add_sheet(os.path.basename(self.filepath)[:31])
@@ -49,34 +121,13 @@ class XlsWriter(object):
         self.hstyle = xlwt.XFStyle()
         self.hstyle.font = font0
 
-    @property
-    def sheet(self):
-        return self.sheets[self.sheet_base_name]['sheet']
-        
-    @property
-    def headers(self):
-        return self.sheets[self.sheet_base_name]['headers']
-
-    @property
-    def columns(self):
-        return self.sheets[self.sheet_base_name]['columns']
-
-    @property
-    def colsizes(self):
-        return self.sheets[self.sheet_base_name]['colsizes']
-
-    @property
-    def coltypes(self):
-        return self.sheets[self.sheet_base_name]['coltypes']
-
-    @property
-    def current_row(self):
-        return self.sheets[self.sheet_base_name]['current_row']
-
-    @property
-    def groups(self):
-        return self.sheets[self.sheet_base_name]['groups']
-
+    def __call__(self, data=None, sheet_name=None):
+        self.writeHeaders(sheet_name=sheet_name)
+        for item in data:
+            row = self.rowGetter(item)
+            self.writeRow(row,sheet_name=sheet_name)
+        self.workbookSave()
+    
     def createSheet(self,sheetname,headers=None,columns=None,coltypes=None,colsizes=None,
             groups=None):
         colsizes = colsizes or dict()
@@ -87,13 +138,8 @@ class XlsWriter(object):
         self.sheets[sheetname]['sheet'].panes_frozen = True
         self.sheets[sheetname]['sheet'].horz_split_pos = 1 if not groups else 2
         
-    def __call__(self, data=None, sheet_name=None):
-        self.writeHeaders(sheet_name=sheet_name)
-        for item in data:
-            row = self.rowGetter(item)
-            self.writeRow(row,sheet_name=sheet_name)
-        self.workbookSave()
-        
+    
+
     def rowGetter(self, item):
         """TODO
         
@@ -103,10 +149,11 @@ class XlsWriter(object):
     def writeHeaders(self,sheet_name=None):
         """TODO"""
         sheet_name = sheet_name or self.sheet_base_name
-        sheet = self.sheets[sheet_name]['sheet']
-        headers = self.sheets[sheet_name]['headers']
-        colsizes = self.sheets[sheet_name]['colsizes']
-        groups = self.sheets[sheet_name]['groups']
+        sheet_obj = self.getSheet(sheet_name)
+        sheet = sheet_obj['sheet']
+        headers = sheet_obj['headers']
+        colsizes = sheet_obj['colsizes']
+        groups = sheet_obj['groups']
         current_row = 0
         if groups:
             group_style = xlwt.easyxf('align: wrap on, vert centre, horiz center')
@@ -121,27 +168,33 @@ class XlsWriter(object):
         for c, header in enumerate(headers):
             sheet.write(current_row, c, header, self.hstyle)
             colsizes[c] = max(colsizes.get(c, 0), self.fitwidth(header))
-        self.sheets[sheet_name]['current_row'] = current_row
+        sheet_obj['current_row'] = current_row
 
-    def workbookSave(self):
+    def workbookSave(self,**kwargs):
         """TODO"""
         if self.filenode:
             with self.filenode.open(mode='wb') as outfile:
                 self.workbook.save(outfile)
         else:
             self.workbook.save(self.filepath)
+    
+    def write(self,sheet_name=None,what=None):
+        pass
+
 
     def writeRow(self, row, sheet_name=None):
         """TODO
         
         :param row: TODO"""
         sheet_name = sheet_name or self.sheet_base_name
-        current_row = self.sheets[sheet_name]['current_row'] + 1
-        self.sheets[sheet_name]['current_row'] = current_row
-        sheet = self.sheets[sheet_name]['sheet']
-        columns = self.sheets[sheet_name]['columns']
-        coltypes = self.sheets[sheet_name]['coltypes']
-        colsizes = self.sheets[sheet_name]['colsizes']
+        sheet_obj = self.getSheet(sheet_name)
+
+        current_row = sheet_obj['current_row'] + 1
+        sheet_obj['current_row'] = current_row
+        sheet = sheet_obj['sheet']
+        columns = sheet_obj['columns']
+        coltypes = sheet_obj['coltypes']
+        colsizes = sheet_obj['colsizes']
 
         for c, col in enumerate(columns):
             value = row.get(col)
@@ -198,31 +251,29 @@ class XlsReader(object):
 
 
 
-class XlsxWriter(object):
+class XlsxWriter(BaseXls):
     """TODO"""
 
     extension = 'xlsx'
+    content_type = 'application/xlsx'
+
 
     def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
                  font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
-        self.filenode = None
-        if isinstance(filepath, StorageNode):
-            self.filenode = filepath
-            filepath = self.filenode.path
-        filepath = '%s.xlsx' % os.path.splitext(filepath)[0]
-        if self.filenode:
-            self.filenode.path = filepath
         self.filepath = filepath
         self.workbook = openpyxl.Workbook()  # self.workbook.active
         del self.workbook[self.workbook.sheetnames[0]]  # elimino il primo
         
-        if sheet_base_name is not False:            
-            self.sheet_base_name = sheet_base_name or os.path.basename(self.filepath)[:31]
-            self.createSheet(self.sheet_base_name,headers=headers,columns=columns,
-                coltypes=coltypes, groups=groups)
+        if sheet_base_name is not False:       
+            self.sheet_base_name = sheet_base_name or os.path.basename(self.filepath)[:31] if self.filepath else '_base_'
+            if sheet_base_name is not False:
+                self.sheet_base_headers = headers
+                self.sheet_base_groups = groups
+                self.sheet_base_coltypes = coltypes
+                self.sheet_base_columns = columns
         else:
             self.sheet_base_name = False
 
@@ -265,33 +316,6 @@ class XlsxWriter(object):
                                 )
         ))
 
-    @property
-    def sheet(self):
-        return self.sheets[self.sheet_base_name]['sheet']
-
-    @property
-    def headers(self):
-        return self.sheets[self.sheet_base_name]['headers']
-
-    @property
-    def columns(self):
-        return self.sheets[self.sheet_base_name]['columns']
-
-    @property
-    def colsizes(self):
-        return self.sheets[self.sheet_base_name]['colsizes']
-
-    @property
-    def coltypes(self):
-        return self.sheets[self.sheet_base_name]['coltypes']
-
-    @property
-    def current_row(self):
-        return self.sheets[self.sheet_base_name]['current_row']
-
-    @property
-    def groups(self):
-        return self.sheets[self.sheet_base_name]['groups']
 
     def createSheet(self,sheetname,headers=None,columns=None,coltypes=None,colsizes=None,
             groups=None):
@@ -319,10 +343,11 @@ class XlsxWriter(object):
     def writeHeaders(self,sheet_name=None):
         """TODO"""
         sheet_name = sheet_name or self.sheet_base_name
-        sheet = self.sheets[sheet_name]['sheet']
-        headers = self.sheets[sheet_name]['headers']
-        colsizes = self.sheets[sheet_name]['colsizes']
-        groups = self.sheets[sheet_name]['groups']
+        sheet_obj = self.getSheet(sheet_name)
+        sheet = sheet_obj['sheet']
+        headers = sheet_obj['headers']
+        colsizes = sheet_obj['colsizes']
+        groups = sheet_obj['groups']
         current_row = 0
         if groups:
             current_col = 0
@@ -340,9 +365,9 @@ class XlsxWriter(object):
             heigth, width = self.fitwidth(header)
             max_height = max(max_height, heigth)
             colsizes[c] = max(colsizes.get(c, 0), width)
-        self.sheets[sheet_name]['current_row'] = current_row
+        sheet_obj['current_row'] = current_row
         sheet.row_dimensions[current_row+1].height = max_height
-
+    
     def workbookSave(self, autosize=True):
         """TODO"""
 
@@ -372,12 +397,13 @@ class XlsxWriter(object):
 
         :param row: TODO"""
         sheet_name = sheet_name or self.sheet_base_name
-        current_row = self.sheets[sheet_name]['current_row'] + 1
-        self.sheets[sheet_name]['current_row'] = current_row
-        sheet = self.sheets[sheet_name]['sheet']
-        columns = self.sheets[sheet_name]['columns']
-        coltypes = self.sheets[sheet_name]['coltypes']
-        colsizes = self.sheets[sheet_name]['colsizes']
+        sheet_obj = self.getSheet(sheet_name)
+        current_row = sheet_obj['current_row'] + 1
+        sheet_obj['current_row'] = current_row
+        sheet = sheet_obj['sheet']
+        columns = sheet_obj['columns']
+        coltypes = sheet_obj['coltypes']
+        colsizes = sheet_obj['colsizes']
 
         max_height = 0
         for c, col in enumerate(columns):
@@ -387,6 +413,7 @@ class XlsxWriter(object):
 
             coltype = coltypes.get(col)
             if coltype in ('R', 'F', 'N'):
+                print('writing float',c)
                 self.writeCell(sheet, current_row, c, value, style="float")
             elif coltype in ('L', 'I'):
                 self.writeCell(sheet, current_row, c, value, style="int")
