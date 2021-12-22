@@ -174,33 +174,43 @@ class Main(BaseResourceBatch):
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
                 rst = '%s'%rst + '<hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
+                
+            if n.attr['child_count']>0:
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+            else:
+                self.curr_pathlist=pathlist
+
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
+            
             if self.examples_root and self.curr_sourcebag:
                 rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
             if record['author']:
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
             else:
                 footer= ''
+                
             if n.attr['child_count']>0:
                 result.append('%s/%s.rst' % (name,name))
                 if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
                     tocstring = self.createToc(elements=toc_elements,
-                            hidden=not record['sphinx_toc'],
-                            titlesonly=True,
-                            maxdepth=1)
+                                                    hidden=not record['sphinx_toc'],
+                                                    titlesonly=True,
+                                                    maxdepth=1)
             else:
                 result.append(name)
-                self.curr_pathlist=pathlist
                 tocstring=''
+                
             self.createFile(pathlist=self.curr_pathlist, name=name,
                             title=lbag['title'], 
                             rst=rst,
                             tocstring=tocstring,
                             hname=record['hierarchical_name'], footer=footer)
+            
         return result
 
     def fixExamples(self, m):
