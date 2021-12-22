@@ -6774,7 +6774,10 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             that.loadingData = false;
             that.gridBroadcast(function(grid){
                 grid.sourceNode.publish('loadingData',{loading:false});
-                grid.updateShowCount(result.attr.totalrows)
+                if(result && result.attr){
+                    //result as bagNode;
+                    grid.updateShowCount(result.attr.totalrows)
+                }
             });
         };
         this.onLoading();
