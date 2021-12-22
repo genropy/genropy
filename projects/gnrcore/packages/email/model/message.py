@@ -304,7 +304,9 @@ class Table(object):
         with self.recordToUpdate(pkey) as message:
             message['error_ts'] = None
             message['error_msg'] = None
+            message['sending_attempt'] = None
         self.db.commit()
+        return 
 
     def atc_getAttachmentPath(self,pkey):
         return self.folderPath(self.recordAs(pkey))

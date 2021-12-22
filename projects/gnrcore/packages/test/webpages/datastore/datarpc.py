@@ -3,7 +3,7 @@
 """dataRpc"""
 
 import psutil
-import datetime
+from datetime import datetime
 from time import sleep
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -21,7 +21,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def get_seconds(self, **kwargs):
-        return datetime.datetime.now().second
+        return datetime.now().second
 
     def test_1_nested(self, pane):
         """Nested syntax: dataRpc can be attached to button. Result is the same but syntax is simpler"""

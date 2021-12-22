@@ -286,7 +286,7 @@
 <en_authentication_messages fr="messages d'authentification" de="Authentifizierungsnachrichten" en="Authentication messages" it="Messaggi di autenticazione" base="Authentication messages"></en_authentication_messages>
 <en_confirm_user_template fr="Confirmez modèle utilisateur" de="Bestätigen Benutzervorlage" en="Confirm user template" it="Confermare modello utente" base="Confirm user template"></en_confirm_user_template>
 <en_confirm_new_password_template fr="Confirmer le nouveau modèle de mot de passe" de="Neues Passwort bestätigen Vorlage" en="Confirm new password template" it="Confermare nuovo modello la password" base="Confirm new password template"></en_confirm_new_password_template>
-<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Soggetto" base="Subject"></en_subject>
+<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
 <en_lost_password fr="Mot de passe oublié" de="Passwort vergessen?" en="Lost password" it="Password dimenticata" base="Lost password"></en_lost_password>
 <en_owner_name fr="Le nom du propriétaire" de="Besitzer der Datei" en="Owner name" it="Nome del proprietario" base="Owner name"></en_owner_name>
 <en_general_options fr="Options générales" de="Allgemeine Optionen" en="General options" it="Opzioni generali" base="General options"></en_general_options></preference>
