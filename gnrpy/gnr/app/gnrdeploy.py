@@ -438,9 +438,9 @@ class PathResolver(object):
         if look_in_projects and 'projects' in self.gnr_config['gnr.environment_xml']:
             projects = [expandpath(path) for path in self.gnr_config['gnr.environment_xml'].digest('projects:#a.path')
                         if os.path.isdir(expandpath(path))]
-            local_projects = expandpath(os.environ.get('GNRLOCAL_PROJECTS')) 
+            local_projects = os.environ.get('GNR_LOCAL_PROJECTS')
             if local_projects:
-                projects = [local_projects]+projects
+                projects = [expandpath(local_projects) ]+projects
             for project_path in projects:
                 folders = glob.glob(os.path.join(project_path, '*',entity,entity_name))
                 if folders:
