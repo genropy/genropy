@@ -4,8 +4,6 @@
 ############################################################
 
 FROM alpine:latest
-MAINTAINER Francesco Porcari - francesco@genropy.org
-
 RUN apk update
 RUN apk add git
 RUN apk add python3
@@ -21,6 +19,9 @@ RUN pip3 install paver
 
 WORKDIR /home/genropy/gnrpy
 RUN paver develop
+
+ENV GNRLOCAL_PROJECTS=/etc/workspaces
+
 RUN python3 initgenropy.py
 ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
