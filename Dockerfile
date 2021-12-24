@@ -20,9 +20,6 @@ RUN pip3 install paver
 WORKDIR /home/genropy/gnrpy
 RUN paver develop
 
-RUN pip3 install psycopg2-binary
-
-
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
 RUN python3 initgenropy.py
