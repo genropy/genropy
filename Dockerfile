@@ -12,7 +12,7 @@ RUN apk add py3-psutil
 RUN apk add py3-pip
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing py3-tzlocal
 RUN apk add supervisor 
-RUN apk add nginx 
+RUN apk add nginx
 
 ADD . /home/genropy
 RUN pip3 install paver
