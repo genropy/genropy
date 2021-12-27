@@ -96,6 +96,9 @@ class Main(BaseResourceBatch):
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
+            if self.batch_parameters.get('skip_images'): 
+                continue
+            #DP202112 Useful for local debugging
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
@@ -316,6 +319,8 @@ class Main(BaseResourceBatch):
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         fb.checkbox(lbl='Download Zip', value='^.download_zip')
+        #DP202112 Useful for local debugging 
+        #fb.checkbox(lbl='Skip images', value='^.skip_images')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
