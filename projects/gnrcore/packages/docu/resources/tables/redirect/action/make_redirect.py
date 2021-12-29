@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.batch.btcbase import BaseResourceBatch
+import os
 
 caption = 'Make redirect'
 description = caption
@@ -24,6 +25,8 @@ class Main(BaseResourceBatch):
             new_url = redirect_rec['new_url']
             html_text = self.defaultHtmlRedirect(new_url)
 
+            #Check if folder exists, otherwise create it 
+            os.makedirs(os.path.dirname(sn.internal_path), exist_ok=True)
             with open(sn.internal_path,"w") as html_file:
                 html_file.write(html_text)
 
