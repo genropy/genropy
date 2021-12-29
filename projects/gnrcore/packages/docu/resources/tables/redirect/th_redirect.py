@@ -34,10 +34,10 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         fb = form.record.formbuilder(cols=2, fld_width='20em')
-        fb.field('page_id')
-        fb.field('is_active')
         fb.field('old_handbook_id', hasDownArrow=True)
         fb.field('new_handbook_id', hasDownArrow=True)
+        fb.field('page_id')
+        fb.field('is_active')
         fb.field('old_url')
         fb.field('new_url')
 

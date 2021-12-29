@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.batch.btcbase import BaseResourceBatch
+import os
+import errno
 
 caption = 'Make redirect'
 description = caption
@@ -23,6 +25,14 @@ class Main(BaseResourceBatch):
             sn = self.page.site.storageNode(redirect_rec['old_handbook_path']+old_page_path)
             new_url = redirect_rec['new_url']
             html_text = self.defaultHtmlRedirect(new_url)
+
+            #Check if folder exists, otherwise creates it
+            if not os.path.exists(os.path.dirname(sn.internal_path)):
+                try:
+                    os.makedirs(os.path.dirname(sn.internal_path))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
 
             with open(sn.internal_path,"w") as html_file:
                 html_file.write(html_text)
