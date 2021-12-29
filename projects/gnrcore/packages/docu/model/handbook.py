@@ -29,3 +29,9 @@ class Table(object):
         tbl.column('last_exp_ts', dtype='DH', name_long='Last export ts')
         tbl.column('custom_styles',name_long='Custom styles')
         tbl.column('examples_pars',dtype='X', name_long='Examples parameters')
+
+    def trigger_onDeleting(self, record):
+        for node in ['build','source']:
+            handbookNode = self.db.application.site.storageNode(record['sphinx_path']+'/sphinx/{node}/'.format(node=node))
+            for file in handbookNode.children():
+                file.delete()

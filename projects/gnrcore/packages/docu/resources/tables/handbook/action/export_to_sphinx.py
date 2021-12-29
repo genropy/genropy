@@ -69,6 +69,10 @@ class Main(BaseResourceBatch):
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
         self.handbook_url = html_baseurl + self.handbook_record['name']
 
+        #DP202112 Check if there are active redirects
+        self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
+                        h_id=self.handbook_id).selection().output('pkeylist')
+
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
@@ -141,6 +145,13 @@ class Main(BaseResourceBatch):
             record['last_exp_ts'] = datetime.now()
             record['handbook_url'] = self.handbook_url
         self.db.commit()
+
+        if self.redirect_pkeys:
+            #DP202112 Make redirect files
+            makered_res = self.page.site.loadTableScript(page=self.page, table='docu.redirect', 
+                                            respath='action/make_redirect', class_name='Main')
+            makered_res(parameters=Bag(dict(redirect_pkeys=self.redirect_pkeys)))
+
 
     def result_handler(self):
         resultAttr = dict()
