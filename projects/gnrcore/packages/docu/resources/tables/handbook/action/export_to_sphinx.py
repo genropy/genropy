@@ -33,7 +33,6 @@ class Main(BaseResourceBatch):
     batch_steps = 'prepareRstDocs,buildHtmlDocs'
 
     def pre_process(self):
-
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable=self.db.table('docu.documentation')
@@ -68,14 +67,9 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        
-        if self.db.package('genrobot'):
-            if self.batch_parameters.get('send_notification'):
-                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
-                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
-                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
-                notification_bot = self.batch_parameters['bot_token']
-                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
+        #DP202112 Check if there are active redirects
+        self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
+                        h_id=self.handbook_id).selection().output('pkeylist')
 
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
@@ -96,6 +90,9 @@ class Main(BaseResourceBatch):
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
+            if self.batch_parameters.get('skip_images'): 
+                continue
+            #DP202112 Useful for local debugging
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
@@ -131,7 +128,7 @@ class Main(BaseResourceBatch):
         with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
             jsfile.write(self.defaultJSCustomization().encode())
         self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path , self.resultNode.internal_path, *args)
-        
+
     def post_process(self):
         if self.batch_parameters['download_zip']:
             self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
@@ -141,6 +138,20 @@ class Main(BaseResourceBatch):
             record['last_exp_ts'] = datetime.now()
             record['handbook_url'] = self.handbook_url
         self.db.commit()
+
+        if self.redirect_pkeys:
+            #DP202112 Make redirect files
+            makered_res = self.page.site.loadTableScript(page=self.page, table='docu.redirect', 
+                                            respath='action/make_redirect', class_name='Main')
+            makered_res(parameters=Bag(dict(redirect_pkeys=self.redirect_pkeys)))
+
+        if self.db.package('genrobot'):
+            if self.batch_parameters.get('send_notification'):
+                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
+                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
+                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
+                notification_bot = self.batch_parameters['bot_token']
+                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
 
     def result_handler(self):
         resultAttr = dict()
@@ -316,6 +327,8 @@ class Main(BaseResourceBatch):
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         fb.checkbox(lbl='Download Zip', value='^.download_zip')
+        #DP202112 Useful for local debugging 
+        #fb.checkbox(lbl='Skip images', value='^.skip_images')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)

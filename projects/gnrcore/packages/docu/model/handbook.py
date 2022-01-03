@@ -32,8 +32,10 @@ class Table(object):
         tbl.column('ogp_image', dtype='P', name_long='!!Handbook preview image')
 
     def trigger_onDeleting(self, record):
-        handbookNode = self.db.application.site.storageNode(record['sphinx_path'])
-        handbookNode.delete()
+        for node in ['build','source']:
+            handbookNode = self.db.application.site.storageNode(record['sphinx_path']+f'/sphinx/{node}/')
+            for file in handbookNode.children():
+                file.delete()
     
     def trigger_onInserting(self, record):
         if not record['sphinx_path']:

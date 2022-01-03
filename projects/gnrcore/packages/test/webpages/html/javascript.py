@@ -91,7 +91,29 @@ class GnrCustomWebPage(object):
         fb.div('^.perimetro',lbl='Perimetro')
         pane.dataController("""SET .area = base * altezza;
                             SET .perimetro = (base+altezza)*2;""",
-                        base='^.base',altezza='^.altezza')
+                            base='^.base',altezza='^.altezza')
+
+    def test_9_buildDynamicContent(self, pane):
+        "Build content dinamically using javascript: insert comma-separated titles to build tabs"
+        bc = pane.borderContainer(height='150px')
+        fb = bc.contentPane(region='top').formbuilder(cols=1)
+        fb.textBox(value='^.tabs_titles',lbl='Tabs Titles')
+        miaradice = bc.contentPane(region='center')
+        bc.dataController(
+            """
+            let tc = myroot._('tabContainer','mybox');
+            if(!tabs_titles){
+                return;
+            }
+            tabs_titles.split(',').forEach(function(mytitle){
+                let innerTile = tc._('ContentPane',{title:mytitle,datapath:`.${mytitle}`});
+                innerTile._('div',{innerHTML:mytitle});
+                innerTile._('textbox',{value:'^.mycontent'});
+            });
+            """,
+            myroot = miaradice,
+            tabs_titles='^.tabs_titles'
+        )
     
     def test_video(self, pane):
         "This HTML events test was explained in this LearnGenropy video"

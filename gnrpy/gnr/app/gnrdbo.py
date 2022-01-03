@@ -1425,7 +1425,7 @@ class AttachmentTable(GnrDboTable):
         site = self.db.application.site
         record = self.record(pkey=pkey,for_update=True).output('dict')
         old_record = dict(record)
-        text_content = site.extractTextContent(self._atcStorageNode(record))
+        text_content = site.extractTextContent(self._atcStorageNode(record).internal_path)
         if text_content:
             record['text_content'] = text_content
             self.update(record,old_record=old_record)

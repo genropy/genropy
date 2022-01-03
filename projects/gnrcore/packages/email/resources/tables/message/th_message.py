@@ -164,11 +164,11 @@ class Form(BaseComponent):
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
         fb.field('bcc_address',colspan=2)
-        fb.field('send_date', readOnly=True)
+        fb.field('send_date', tag='div')
         fb.field('html',html_label=True)
         fb.field('__is_draft', lbl='!![en]Draft')
 
-        tc = bc.tabContainer(region='center',margin='2px')
+        tc = bc.tabContainer(region='center', margin_top='15px')
         tc.contentPane(title='Body').simpleTextArea(value='^.record.body',editor=True)
         sc = tc.stackContainer(title='Attachments')
         sc.plainTableHandler(relation='@attachments',pbl_classes=True)
