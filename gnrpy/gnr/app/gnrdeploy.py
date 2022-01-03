@@ -119,14 +119,14 @@ def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, g
     environment_bag.setItem('gnrdaemon', None, dict(host='localhost', port=gnrdaemon_port, hmac_key=gnrdaemon_password))
     environment_bag.toXml(path,typevalue=False,pretty=True)
 
-def build_instanceconfig_xml(path=None):
+def build_instanceconfig_xml(path=None,avoid_baseuser=None):
     instanceconfig_bag = Bag()
     instanceconfig_bag.setItem('packages',None)
     instanceconfig_bag.setItem('authentication.xml_auth',None, dict(defaultTags='user,xml'))
     password = get_random_password(size=6)
-    instanceconfig_bag.setItem('authentication.xml_auth.admin',None, dict(
-        pwd=password, tags='superadmin,_DEV_,admin,user'))
-    print("Default password for user admin is %s, you can change it by editing %s" %(password, path))
+    if not avoid_baseuser:
+        instanceconfig_bag.setItem('authentication.xml_auth.admin',None, dict(pwd=password, tags='superadmin,_DEV_,admin,user'))
+        print("Default password for user admin is %s, you can change it by editing %s" %(password, path))
     instanceconfig_bag.toXml(path,typevalue=False,pretty=True)
     
 def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None):
@@ -149,7 +149,7 @@ def check_file(xml_path=None):
     if os.path.exists(xml_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
-def initgenropy(gnrpy_path=None,gnrdaemon_password=None):
+def initgenropy(gnrpy_path=None,gnrdaemon_password=None,avoid_baseuser=False):
     if not gnrpy_path or not os.path.basename(gnrpy_path)=='gnrpy':
         raise GnrConfigException("You are not running this script inside a valid gnrpy folder")
     config_path  = gnrConfigPath(force_return=True)
@@ -168,7 +168,7 @@ def initgenropy(gnrpy_path=None,gnrdaemon_password=None):
     gnrdaemon_port = get_gnrdaemon_port(set_last=True)
     build_environment_xml(path=environment_xml_path, gnrpy_path=gnrpy_path, gnrdaemon_password=gnrdaemon_password,
         gnrdaemon_port=gnrdaemon_port)
-    build_instanceconfig_xml(path=default_instanceconfig_xml_path)
+    build_instanceconfig_xml(path=default_instanceconfig_xml_path,avoid_baseuser=avoid_baseuser)
     build_siteconfig_xml(path=default_siteconfig_xml_path, gnrdaemon_password=gnrdaemon_password, gnrdaemon_port=gnrdaemon_port)
 
 

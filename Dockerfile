@@ -1,6 +1,6 @@
 ############################################################
 # Dockerfile to build Genropy container images
-# Based on Ubuntu
+# Based on Alpine
 ############################################################
 
 FROM alpine:latest
@@ -11,9 +11,7 @@ RUN apk add py3-lxml
 RUN apk add py3-psutil
 RUN apk add py3-pip
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing py3-tzlocal
-RUN apk add supervisor 
-RUN apk add nginx
-
+  
 ADD . /home/genropy
 RUN pip3 install paver
 
@@ -22,8 +20,7 @@ RUN paver develop
 
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
-RUN python3 initgenropy.py
-ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN python3 initgenropy.py --no_user
 
 
 
