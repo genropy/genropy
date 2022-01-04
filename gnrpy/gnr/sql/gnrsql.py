@@ -640,6 +640,9 @@ class GnrSqlDb(GnrObject):
             connection = connections[0]
             with self.tempEnv(storename=connection.storename,onCommittingStep=True):
                 self.onCommitting()
+            pending_exceptions = self.currentEnv.get('_pendingExceptions')
+            if pending_exceptions:
+                raise  GnrException('\n'.join([str(exception) for exception in pending_exceptions]))
             connection.commit()
             connection.committed = True
         self.onDbCommitted()
@@ -659,6 +662,9 @@ class GnrSqlDb(GnrObject):
             allowRecursion = getattr(cb,'deferredCommitRecursion',False)
             if not allowRecursion:
                 deferreds.popNode(node.label) 
+
+    def deferredRaise(self,exception):
+        self.currentEnv.setdefault('_pendingExceptions',[]).append(exception)
 
     def deferToCommit(self,cb,*args,**kwargs):
         deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
