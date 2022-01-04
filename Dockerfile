@@ -12,7 +12,7 @@ RUN apk add py3-psutil
 RUN apk add py3-pip
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing py3-tzlocal
   
-ADD . /home/genropy
+COPY . /home/genropy
 RUN pip3 install paver
 
 WORKDIR /home/genropy/gnrpy

@@ -455,7 +455,7 @@ class Bag(GnrObject):
         self._rootattributes = None
         source=source or kwargs
         if source:
-            self.fillFrom(source)
+            self.fillFrom(source,**kwargs)
                     
     def _get_parent(self):
         return self._parent
@@ -1894,16 +1894,16 @@ class Bag(GnrObject):
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
-    def fillFrom(self, source):
+    def fillFrom(self, source,_template_kwargs=None,**kwargs):
         """Fill a void Bag from a source (basestring, Bag or list)
         
         :param source: the source for the Bag"""
         if isinstance(source, basestring):
-            b = self._fromSource(*self._sourcePrepare(source))
+            b = self._fromSource(*self._sourcePrepare(source),_template_kwargs=_template_kwargs)
             if not b: b = Bag()
             self._nodes[:] = b._nodes[:]
         elif hasattr(source, 'read'):
-            self.fillFrom(source.read())
+            self.fillFrom(source.read(),**kwargs)
         elif isinstance(source, Bag):
             self._nodes = [BagNode(self, *x.asTuple()) for x in source]
             
@@ -1923,7 +1923,7 @@ class Bag(GnrObject):
                     else:
                         self.setItem(x[0], x[1])
 
-    def _fromSource(self, source, fromFile, mode):
+    def _fromSource(self, source, fromFile, mode,_template_kwargs=None):
         """Receive "mode" and "fromFile" and switch between the different
         modes calling _fromXml or _unpickle
         
@@ -1935,6 +1935,8 @@ class Bag(GnrObject):
             return
         
         if mode == 'xml':
+            if _template_kwargs:
+                source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)

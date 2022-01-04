@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<GenRoBag>
+	<db implementation="{GNR_DB_IMPLEMENTATION}" host="{GNR_DB_HOST}" port="{GNR_DB_PORT}" dbname="{GNR_DB_NAME}" />
+	<packages>
+	</packages>
+	<authentication pkg="{GNR_MAINPACKAGE}">
+		<py_auth defaultTags="user" method="authenticate" pkg="adm"/>
+        <xml_auth defaultTags="user,xml">
+            <root pwd="{GNR_ROOTPWD}" tags="_DEV_,admin"/>
+        </xml_auth>
+        
+	</authentication>
+	<site>
+		<gnrdaemon hmac_key="DOCKER" host="localhost" port="40407"/>
+        <gui css_theme="mimi"/>
+		<wsgi mainpackage="{GNR_MAINPACKAGE}"/>
+    	<options liveUpdate="*"/>
+    	<sitedaemon/>
+	</site>
+</GenRoBag>
