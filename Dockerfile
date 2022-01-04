@@ -20,7 +20,6 @@ RUN paver develop
 
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
-RUN python3 initgenropy.py --no_user
-
+COPY gnrhome /root/.gnr
 
 

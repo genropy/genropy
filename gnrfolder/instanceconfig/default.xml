@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <GenRoBag>
-	<db implementation="{GNR_DB_IMPLEMENTATION}" host="{GNR_DB_HOST}" port="{GNR_DB_PORT}" dbname="{GNR_DB_NAME}" />
+	<db implementation="{GNR_DB_IMPLEMENTATION}" host="{GNR_DB_HOST}" dbname="{GNR_DB_NAME}" />
 	<packages>
 	</packages>
 	<authentication pkg="{GNR_MAINPACKAGE}">
