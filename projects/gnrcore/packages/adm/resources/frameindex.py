@@ -179,7 +179,8 @@ class FrameIndex(BaseComponent):
                             data="=iframes",externalWindows='=externalWindows',_refreshTablist='^refreshTablist',tabroot=tabroot,indexTab=self.indexTab,
                             onCreatingTablist=onCreatingTablist or False,_onStart=True)
         if not self.isMobile:
-            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100)
+            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
+                                _if='!genro.startArgs.new_window')
         pane.dataController(""" var cb = function(){
                                                 var iframetab = tabroot.getValue().getNode(page);
                                                 if(iframetab){
