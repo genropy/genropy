@@ -43,7 +43,6 @@ import threading
 import re
 
 logger = logging.getLogger(__name__)
-VIRTUAL_COLUMNS_CACHETIME = timedelta(0,300)
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None):
     itempath = itempath.replace('.','/')
@@ -988,9 +987,10 @@ class DbTableObj(DbModelObj):
     @property  
     def virtual_columns(self):
         """Returns a DbColAliasListObj"""
-        if hasattr(self,'_virtual_columns'):
-            if datetime.now()-self._last_virtual_columns_ts<VIRTUAL_COLUMNS_CACHETIME:
-                return self._virtual_columns 
+        vc_key = '_virtual_columns_{}'.format(self.dbtable.fullname.replace('.','_'))
+        env_virtual_columns = self.db.currentEnv.get(vc_key)
+        if env_virtual_columns:
+            return env_virtual_columns
         virtual_columns = self['virtual_columns']
         local_virtual_columns = self.db.localVirtualColumns(self.fullname) #to remove use dynamic_virtual_columns
         if local_virtual_columns:
@@ -1001,8 +1001,7 @@ class DbTableObj(DbModelObj):
             obj = DbVirtualColumnObj(structnode=node,parent=virtual_columns)
             virtual_columns.children[obj.name.lower()] = obj
         self._handle_variant_columns(virtual_columns=virtual_columns)
-        self._virtual_columns = virtual_columns
-        self._last_virtual_columns_ts = datetime.now()
+        self.db.currentEnv[vc_key] = virtual_columns
         return virtual_columns
 
     @property
