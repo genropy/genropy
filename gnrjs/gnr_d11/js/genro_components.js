@@ -3635,7 +3635,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 handler.openTemplatePalette(this,editorConstrain,showLetterhead);
             }
             kw.connect_ondblclick = function(evt){
-                if(tplpars.editable==true || evt.shiftKey){
+                if(tplpars.editable===true || evt.shiftKey){
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
@@ -3731,8 +3731,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 nodeVal.popNode('safeIframe');
             }
             if(pkey){
+                let template_address = tplpars.template.include(':')?tplpars.template: tplpars.table+':'+tplpars.template;
                 genro.serverCall('te_renderChunk',{record_id:pkey,
-                    template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},onResult,null,'POST');
+                    template_address:template_address,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};
