@@ -3610,6 +3610,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             sourceNode.attr.record_id = record_id;
         }
         sourceNode.attr.template = tplpars.template;
+        sourceNode.attr.template_address = tplpars.template_address;
         for(var k in editorConstrain){
             var c = editorConstrain[k];
             if(typeof(c)=='string' && (c[0]=='^' || c[0]=='=')){
@@ -3732,7 +3733,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
             if(pkey){
                 let template_address = tplpars.template_address || tplpars.table+':'+tplpars.template;
-                console.log('template_address',template_address);
                 genro.serverCall('te_renderChunk',{record_id:pkey,
                     template_address:template_address,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
@@ -3763,6 +3763,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         tnode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
+        var tnode = this.sourceNode._value.getNode('templateChunk');
+        tnode.updateTemplate(pkey);
+    },
+
+    gnrwdg_setTemplate_address:function(pkey){
         var tnode = this.sourceNode._value.getNode('templateChunk');
         tnode.updateTemplate(pkey);
     }
