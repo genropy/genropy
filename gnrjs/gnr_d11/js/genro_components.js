@@ -3731,6 +3731,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 nodeVal.popNode('safeIframe');
             }
             if(pkey){
+                tplpars = sourceNode.evaluateOnNode(tplpars)
                 let template_address = tplpars.template.include(':')?tplpars.template: tplpars.table+':'+tplpars.template;
                 genro.serverCall('te_renderChunk',{record_id:pkey,
                     template_address:template_address,_sourceNode:sourceNode},onResult,null,'POST');
