@@ -3591,7 +3591,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
         }
-        var tplpars = objectExtract(kw,'table,template,template_address,editable');
+        var tplpars = objectExtract(kw,'table,template,editable');
         tplpars.table = tplpars.table || '';
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
@@ -3610,7 +3610,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             sourceNode.attr.record_id = record_id;
         }
         sourceNode.attr.template = tplpars.template;
-        sourceNode.attr.template_address = tplpars.template_address;
         for(var k in editorConstrain){
             var c = editorConstrain[k];
             if(typeof(c)=='string' && (c[0]=='^' || c[0]=='=')){
@@ -3732,9 +3731,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 nodeVal.popNode('safeIframe');
             }
             if(pkey){
-                let template_address = tplpars.template_address || tplpars.table+':'+tplpars.template;
                 genro.serverCall('te_renderChunk',{record_id:pkey,
-                    template_address:template_address,_sourceNode:sourceNode},onResult,null,'POST');
+                    template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};
@@ -3763,11 +3761,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         tnode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
-        var tnode = this.sourceNode._value.getNode('templateChunk');
-        tnode.updateTemplate(pkey);
-    },
-
-    gnrwdg_setTemplate_address:function(pkey){
         var tnode = this.sourceNode._value.getNode('templateChunk');
         tnode.updateTemplate(pkey);
     }
