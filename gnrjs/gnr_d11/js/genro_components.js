@@ -3591,7 +3591,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
         }
-        var tplpars = objectExtract(kw,'table,template,editable');
+        var tplpars = objectExtract(kw,'table,template,template_address,editable');
         tplpars.table = tplpars.table || '';
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
