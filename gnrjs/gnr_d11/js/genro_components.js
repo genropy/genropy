@@ -3731,8 +3731,16 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 nodeVal.popNode('safeIframe');
             }
             if(pkey){
+                let template = this.currentFromDatasource(tplpars.template);
+                let template_address;
+                let template_bag;
+                if(template instanceof gnr.GnrBag){
+                    template_bag = template;
+                }else{
+                    template_address = tplpars.table+':'+tplpars.template
+                }
                 genro.serverCall('te_renderChunk',{record_id:pkey,
-                    template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},onResult,null,'POST');
+                    template_address:template_address,template_bag:template_bag,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};

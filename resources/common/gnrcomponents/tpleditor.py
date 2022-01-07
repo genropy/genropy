@@ -45,18 +45,23 @@ class TemplateEditorBase(BaseComponent):
         return self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)))
 
     @public_method
-    def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,**kwargs):
-        data,dataInfo = self.loadTemplate(template_address=template_address,asSource=True)
-        if not data:
-            return '<div class="chunkeditor_emptytemplate">Template not yet created</div>',dataInfo
-        compiled = data['compiled']
+    def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,**kwargs):
         result = Bag()
-        if not compiled:
-            content = data['content']
-            record = self.db.table(template_address.split(':')[0]).recordAs(record_id)
-            result['rendered'] = templateReplace(content,record)
-            result['template_data'] = data
-            return result,dataInfo
+        if template_bag:
+            data = template_bag
+            compiled = template_bag['compiled']
+            dataInfo = {}
+        else:
+            data,dataInfo = self.loadTemplate(template_address=template_address,asSource=True)
+            if not data:
+                return '<div class="chunkeditor_emptytemplate">Template not yet created</div>',dataInfo
+            compiled = data['compiled']
+            if not compiled:
+                content = data['content']
+                record = self.db.table(template_address.split(':')[0]).recordAs(record_id)
+                result['rendered'] = templateReplace(content,record)
+                result['template_data'] = data
+                return result,dataInfo
         tplbuilder = self.te_getTemplateBuilder(compiled=compiled, templates=templates)
         rendered = self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)),contentOnly=True)
         result['rendered'] = rendered
