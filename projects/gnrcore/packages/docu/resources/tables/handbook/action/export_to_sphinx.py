@@ -186,6 +186,13 @@ class Main(BaseResourceBatch):
             if atc_rst:
                 rst = '%s\n\n**Attachments:**\n\n%s' %(rst,atc_rst)
 
+            if n.attr['child_count']>0:
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+            else:
+                self.curr_pathlist = pathlist
+
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
             if self.examples_root and self.curr_sourcebag:
@@ -195,18 +202,16 @@ class Main(BaseResourceBatch):
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
             else:
                 footer= ''
+
             if n.attr['child_count']>0:
                 result.append('%s/%s.rst' % (name,name))
                 if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
                     tocstring = self.createToc(elements=toc_elements,
                             hidden=not record['sphinx_toc'],
                             titlesonly=True,
                             maxdepth=1)
             else:
                 result.append(name)
-                self.curr_pathlist=pathlist
                 tocstring=''
             
             self.createFile(pathlist=self.curr_pathlist, name=name,
