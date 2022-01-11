@@ -275,7 +275,7 @@ class TableScriptToHtml(BagToHtml):
     client_locale = False
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
-
+    record_template = None
 
     def __init__(self, page=None, resource_table=None, parent=None, **kwargs):
         super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,**kwargs)
@@ -296,7 +296,7 @@ class TableScriptToHtml(BagToHtml):
         
 
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
-                    language=None,locale=None,**kwargs):
+                    language=None,locale=None, htmlContent=None, **kwargs):
         if not record:
             return
         self.thermo_kwargs = thermo
@@ -315,7 +315,11 @@ class TableScriptToHtml(BagToHtml):
                                         languageUPPER=self.language.upper())
         elif self.locale:
             self.language = self.locale.split('-')[0].lower()
-        result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, **kwargs)
+        if self.record_template:
+            template = self.page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
+            htmlContent = self.contentFromTemplate(record=record, template=template)
+
+        result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
         if not result:
             return False
         if not pdf:
@@ -737,20 +741,6 @@ class TableTemplateToHtml(BagToHtml):
             htmlContent = self.contentFromTemplate(record,template,locale=locale)
             record = self.record
         return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
-
-    def contentFromTemplate(self,record,template,locale=None,**kwargs):
-        virtual_columns=None
-        if isinstance(template,Bag):
-            kwargs['locale'] = locale or template.getItem('main?locale')
-            kwargs['masks'] = template.getItem('main?masks')
-            kwargs['formats'] = template.getItem('main?formats')
-            kwargs['df_templates'] = template.getItem('main?df_templates')
-            kwargs['dtypes'] = template.getItem('main?dtypes')
-            virtual_columns = template.getItem('main?virtual_columns')
-        self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
-        return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
-                    localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
-                    **kwargs)
 
     @extract_kwargs(pdf=True)
     def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
