@@ -1992,8 +1992,11 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var value = objectPop(kw,'value');
+        var contentCss = objectPop(kw,'contentCss');
+
         kw.border = kw.border || 0;
         sourceNode.attr.value = value;
+        sourceNode.attr.contentCss = contentCss
         var iframe = sourceNode._('iframe',kw);
         var gnrwdg = sourceNode.gnrwdg;
         gnrwdg.zoom = objectPop(kw,'zoom');
@@ -2005,9 +2008,15 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         if(this.zoom){
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
+        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss') || '';
+        this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
-    }
+    },
 
+    gnrwdg_setContentCss:function(value,kw,trigger_reason){
+        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss') || '';
+        this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
+    }
 });
 
 dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
