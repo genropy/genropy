@@ -83,7 +83,6 @@ class TemplateEditorBase(BaseComponent):
         return htmlbuilder
         
     def te_renderTemplate(self, templateBuilder, record_id=None, extraData=None, locale=None,contentOnly=False,**kwargs):
-        record = Bag()
         if record_id:
             record = templateBuilder.data_tblobj.record(pkey=record_id,
                                                         virtual_columns=templateBuilder.virtual_columns).output('bag')
@@ -124,7 +123,7 @@ class TemplateEditorBase(BaseComponent):
             
         
     @public_method
-    def te_compileTemplate(self,table=None,datacontent=None,varsbag=None,parametersbag=None,record_id=None,templates=None,template_id=None,**kwargs):
+    def te_compileTemplate(self,table=None,datacontent=None,content_css=None,varsbag=None,parametersbag=None,record_id=None,templates=None,template_id=None,**kwargs):
         result = Bag()
         formats = dict()
         editcols = dict()
@@ -177,17 +176,23 @@ class TemplateEditorBase(BaseComponent):
         cmain = template
         if HT:
             doc = HT.parse(StringIO(template)).getroot()
-            htmltables = doc.xpath('//table')
-            for t in htmltables:
-                attributes = t.attrib
-                if 'row_datasource' in attributes:
+            innerdatasources = doc.xpath("//*[@row_datasource]")
+            if innerdatasources:
+                for t in innerdatasources:
+                    attributes = t.attrib
                     subname = attributes['row_datasource']
-                    tbody = t.xpath('tbody')[0]
-                    tbody_lastrow = tbody.getchildren()[-1]
-                    tbody.replace(tbody_lastrow,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
-                    subtemplate=HT.tostring(tbody_lastrow).decode().replace('%s.'%subname,'').replace('%24','$')
-                    compiled.setItem(subname.replace('.','_'),subtemplate)
-            cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),HT.tostring(doc).decode().replace('%24','$'))
+                    if t.tag=='table':
+                        repeating_container = t.xpath('tbody')[0]
+                        repeating_item = repeating_container.getchildren()[-1]
+                    else:
+                        repeating_container = t
+                        repeating_item = t.getchildren()[0]
+                    repeating_container.replace(repeating_item,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
+                    subtemplate= HT.tostring(repeating_item).decode().replace('%s.'%subname,'').replace('%24','$')
+                    compiled.setItem(subname,subtemplate)
+                cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),HT.tostring(doc).decode().replace('%24','$'))
+        if content_css:
+            cmain = cmain.replace('<body>',f'<body><style>{content_css}</style>')
         compiled.setItem('main', cmain,
                             maintable=table,locale=self.locale,virtual_columns=','.join(virtual_columns),
                             columns=','.join(columns),formats=formats,masks=masks,editcols=editcols,df_templates=df_templates,dtypes=dtypes)
@@ -211,7 +216,9 @@ class TemplateEditor(TemplateEditorBase):
     
     def _te_mainstack(self,pane,table=None):
         sc = pane.stackContainer(selectedPage='^.status',_anchor=True)
-        sc.dataRpc('dummy',self.te_compileTemplate,varsbag='=.data.varsbag',parametersbag='=.data.parameters',
+        sc.dataRpc('dummy',self.te_compileTemplate,varsbag='=.data.varsbag',
+                        content_css='=.data.content_css',
+                        parametersbag='=.data.parameters',
                     datacontent='=.data.content',table=table,_if='_status=="preview"&&datacontent&&varsbag',
                     _POST=True,
                     _status='^.status',record_id='=.preview.selected_id',templates='=.preview.html_template_name',
@@ -394,9 +401,18 @@ class TemplateEditor(TemplateEditorBase):
                 letterhead_center_height='^.preview.letterhead_record.center_height',
                 letterhead_center_width='^.preview.letterhead_record.center_width',
                 _init=True)
-        bc.contentPane(region='center',overflow='hidden',margin_left='5px').ckEditor(value='^.data.content',constrain_height='^.editor.height',
+        sc = bc.tabContainer(region='center',overflow='hidden',margin='2px',margin_left='5px')
+        sc.contentPane(title='HTML Editor').ckEditor(value='^.data.content',constrain_height='^.editor.height',
                                                  constrain_width='^.editor.width',**editorConstrain)
-                            
+        sc.contentPane(title='HTML Advanced',overflow='hidden').codemirror(value='^.data.content',config_mode='htmlembedded',config_lineNumbers=True,
+                          #config_indentUnit=4,config_keyMap='softTab',
+                          font_size='1.2em',
+                          height='100%')
+        sc.contentPane(title='CSS',overflow='hidden').codemirror(value='^.data.content_css',config_mode='css',config_lineNumbers=True,
+                          #config_indentUnit=4,config_keyMap='softTab',
+                          font_size='1.2em',
+                          height='100%')
+
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   
         fb = bar.fb.formbuilder(cols=2, border_spacing='0px',margin_top='2px')
@@ -406,9 +422,20 @@ class TemplateEditor(TemplateEditorBase):
         fb.dbSelect(dbtable=table, value='^.preview.selected_id',lbl='!!Record', width='12em',lbl_width='6em',excludeDraft=False)
         fb.dataRpc('.preview.renderedtemplate', self.te_getPreview,
                    _POST =True,record_id='^.preview.selected_id',
-                   templates='^.preview.html_template_name',
+                   #templates='^.preview.html_template_name',
                    compiled='=.data.compiled')
-        frame.center.contentPane(margin='5px',background='white',border='1px solid silver',rounded=4,padding='4px').div('^.preview.renderedtemplate')
+        bc = frame.center.borderContainer()
+        
+        bc.contentPane(region='center',overflow='hidden',border='1px solid silver',margin='3px'
+                            ).iframeDiv(value='^.preview.renderedtemplate',
+                                                contentCss='^.data.content_css',
+                                                height='100%',width='100%')
+
+        
+      # pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
+      #                         printAction=printAction,bodyStyle=bodyStyle,datasource=datasource,extra_bottom=extra_bottom,**tpl_kwargs)
+
+
 
     # def _te_frameHelp(self,frame):
     #     frame.top.slotToolbar(slots='5,parentStackButtons,*',parentStackButtons_font_size='8pt')
@@ -537,7 +564,7 @@ class PaletteTemplateEditor(TemplateEditor):
         if data['metadata.email']:
             data['metadata.email_compiled'] = self.te_compileBagForm(table=table,sourcebag=data['metadata.email'],
                                                                     varsbag=data['varsbag'],parametersbag=data['parameters'])
-        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
+        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
         self.saveTemplate(template_address=template_address,data=data,inMainResource=inMainResource)
 
     @public_method
@@ -546,7 +573,7 @@ class PaletteTemplateEditor(TemplateEditor):
         if data['metadata.email']:
             data['metadata.email_compiled'] = self.te_compileBagForm(table=table,sourcebag=data['metadata.email'],
                                                                     varsbag=data['varsbag'],parametersbag=data['parameters'])
-        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
+        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
         pkey,record = self.db.table('adm.userobject').saveUserObject(table=table,metadata=metadata,data=data,objtype='template')
         record.pop('data')
         return record
@@ -596,6 +623,8 @@ class ChunkEditor(PaletteTemplateEditor):
             bar = framePreview.top.bar
             bar.replaceSlots('#','#,savetpl,5')
             self._te_saveButton(bar.savetpl,table,paletteId)
+
+        
         
     def _te_frameChunkInfo(self,frame,table=None,datasourcepath=None):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
@@ -622,10 +651,13 @@ class ChunkEditor(PaletteTemplateEditor):
         
         
     def _te_saveButton(self,pane,table,paletteId):
-        pane.slotButton('!!Save',action="""var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,varsbag:vb,parametersbag:pb},null,null,'POST');
+        pane.slotButton('!!Save',action="""
+                                    genro.bp(true);
+                                    var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
                                     genro.nodeById(paletteId).publish("savechunk");""",
                             iconClass='iconbox save',paletteId=paletteId,table=table,dc='=.data.content',
+                            content_css='=.data.content_css',
                             vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')
         
     

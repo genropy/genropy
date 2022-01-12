@@ -265,6 +265,8 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                 sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
             },sourceNode.attr._delay || 500,'updatingContent')
         })
+        let startValue = sourceNode.getAttributeFromDatasource('value');
+        cm.setValue(startValue || '');
     },
 
 

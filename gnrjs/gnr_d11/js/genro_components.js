@@ -2008,13 +2008,11 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         if(this.zoom){
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
-        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss') || '';
-        this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
     },
 
     gnrwdg_setContentCss:function(value,kw,trigger_reason){
-        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss') || '';
+        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss');
         this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
     }
 });
