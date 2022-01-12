@@ -176,6 +176,7 @@ class TemplateEditorBase(BaseComponent):
         cmain = template
         if HT:
             doc = HT.parse(StringIO(template)).getroot()
+            
             innerdatasources = doc.xpath("//*[@row_datasource]")
             if innerdatasources:
                 for t in innerdatasources:
@@ -190,9 +191,11 @@ class TemplateEditorBase(BaseComponent):
                     repeating_container.replace(repeating_item,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
                     subtemplate= HT.tostring(repeating_item).decode().replace('%s.'%subname,'').replace('%24','$')
                     compiled.setItem(subname,subtemplate)
-                cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),HT.tostring(doc).decode().replace('%24','$'))
+                body = doc.xpath('//body')[0]
+                bodycontent = '\n'.join([HT.tostring(el).decode() for el in body.getchildren()])
+                cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),bodycontent.replace('%24','$'))
         if content_css:
-            cmain = cmain.replace('<body>',f'<body><style>{content_css}</style>')
+            cmain =f'<style>{content_css}</style>{cmain}'
         compiled.setItem('main', cmain,
                             maintable=table,locale=self.locale,virtual_columns=','.join(virtual_columns),
                             columns=','.join(columns),formats=formats,masks=masks,editcols=editcols,df_templates=df_templates,dtypes=dtypes)
