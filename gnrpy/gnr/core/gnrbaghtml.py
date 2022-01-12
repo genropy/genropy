@@ -230,19 +230,6 @@ class BagToHtml(object):
         self.defineStandardStyles()
         self.defineCustomStyles()
 
-    def contentFromTemplate(self,record,template,locale=None,**kwargs):
-        virtual_columns=None
-        if isinstance(template,Bag):
-            kwargs['locale'] = locale or template.getItem('main?locale')
-            kwargs['masks'] = template.getItem('main?masks')
-            kwargs['formats'] = template.getItem('main?formats')
-            kwargs['df_templates'] = template.getItem('main?df_templates')
-            kwargs['dtypes'] = template.getItem('main?dtypes')
-            virtual_columns = template.getItem('main?virtual_columns')
-        self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
-        return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
-                    localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
-                    **kwargs)
 
     @property
     def body(self):
