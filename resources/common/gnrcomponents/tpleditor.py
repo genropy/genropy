@@ -404,17 +404,10 @@ class TemplateEditor(TemplateEditorBase):
                 letterhead_center_height='^.preview.letterhead_record.center_height',
                 letterhead_center_width='^.preview.letterhead_record.center_width',
                 _init=True)
-        sc = bc.tabContainer(region='center',overflow='hidden',margin='2px',margin_left='5px')
-        sc.contentPane(title='HTML Editor').ckEditor(value='^.data.content',constrain_height='^.editor.height',
-                                                 constrain_width='^.editor.width',**editorConstrain)
-        sc.contentPane(title='HTML Advanced',overflow='hidden').codemirror(value='^.data.content',config_mode='htmlembedded',config_lineNumbers=True,
-                          #config_indentUnit=4,config_keyMap='softTab',
-                          font_size='1.2em',
-                          height='100%')
-        sc.contentPane(title='CSS',overflow='hidden').codemirror(value='^.data.content_css',config_mode='css',config_lineNumbers=True,
-                          #config_indentUnit=4,config_keyMap='softTab',
-                          font_size='1.2em',
-                          height='100%')
+        bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
+                            value='^.data.content',css_value='^.data.content_css',
+                            constrain_height='^.editor.height',
+                            constrain_width='^.editor.width',**editorConstrain)
 
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   

@@ -751,6 +751,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
                    ]
 
     },
+    
     creating: function(attributes, sourceNode) {
 
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
@@ -787,7 +788,6 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             config.toolbar = 'custom';
             config.toolbar_custom = toolbar;
         }
-        ;
         var savedAttrs = {'config':config,showtoolbar:showtoolbar,enterMode:objectPop(attributes,'enterMode'),bodyStyle:objectPop(attributes,'bodyStyle',{margin:'2px'})};
         savedAttrs.customStyles = customStyles;
         savedAttrs.contentsCss = contentsCss;
