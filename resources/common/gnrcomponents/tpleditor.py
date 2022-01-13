@@ -52,7 +52,7 @@ class TemplateEditorBase(BaseComponent):
             compiled = template_bag['compiled']
             dataInfo = {}
         elif not template_address:
-            return Bag(dict(rendered='<div class="chunkeditor_emptytemplate">Template not yet created</div>')),{} 
+            return Bag(dict(rendered='<div class="chunkeditor_emptytemplate">Template not yet created</div>'),data=Bag()),{} 
         else:
             data,dataInfo = self.loadTemplate(template_address=template_address,asSource=True)
             if not data:
