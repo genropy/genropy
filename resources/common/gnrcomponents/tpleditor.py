@@ -48,7 +48,7 @@ class TemplateEditorBase(BaseComponent):
     def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,**kwargs):
         result = Bag()
         if not template_address:
-            data = template_bag or Bag(dict(compiled='<div class="chunkeditor_emptytemplate">Template not yet created</div>'))
+            data = template_bag or Bag(dict(rendered='<div class="chunkeditor_emptytemplate">Template not yet created</div>'))
             compiled = template_bag['compiled']
             dataInfo = {}
         else:
@@ -62,6 +62,7 @@ class TemplateEditorBase(BaseComponent):
                 result['rendered'] = templateReplace(content,record)
                 result['template_data'] = data
                 return result,dataInfo
+                
         tplbuilder = self.te_getTemplateBuilder(compiled=compiled, templates=templates)
         rendered = self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)),contentOnly=True)
         result['rendered'] = rendered
