@@ -265,8 +265,9 @@ class GnrTableScriptHtmlSrc(GnrHtmlSrc):
 
 class TableTemplateToHtml(BagToHtml):
     client_locale = False
+    record_template = None
 
-    def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,resource_table=None,**kwargs):
+    def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,resource_table=None,record_template=None,**kwargs):
         super(TableTemplateToHtml, self).__init__(**kwargs)
         self.page = page
         self.parent = parent
@@ -282,16 +283,20 @@ class TableTemplateToHtml(BagToHtml):
         self.print_handler = self.site.getService('htmltopdf')
         self.pdf_handler = self.site.getService('pdf')
         self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
+        self.record_template = record_template
         self.record = None
 
     def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
         if not htmlContent:
-            htmlContent = self.contentFromTemplate(record,template,locale=locale)
+            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
         return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
 
-    def contentFromTemplate(self,record,template,locale=None,**kwargs):
+    def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
         virtual_columns=None
+        page = self.page or self.db.currentPage
+        if not template and page and self.record_template:
+            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
         if isinstance(template,Bag):
             kwargs['locale'] = locale or template.getItem('main?locale')
             kwargs['masks'] = template.getItem('main?masks')
@@ -348,8 +353,7 @@ class TableScriptToHtml(TableTemplateToHtml):
         elif self.locale:
             self.language = self.locale.split('-')[0].lower()
         if self.record_template:
-            template = self.page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
-            htmlContent = self.contentFromTemplate(record=record, template=template)
+            htmlContent = self.contentFromTemplate(record=record)
         result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
         if not result:
             return False
