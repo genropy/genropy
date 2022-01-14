@@ -4,7 +4,7 @@
 ############################################################
 
 FROM public.ecr.aws/genropy/genropy-pg
-COPY supervisord.conf /home/supervisord.conf
-COPY nginx.conf /home/nginx.conf
-COPY mime.types /home/mime.types
+COPY supervisord.conf /root/supervisord.conf
+COPY nginx.conf /root/nginx.conf
+COPY mime.types /root/mime.types
 

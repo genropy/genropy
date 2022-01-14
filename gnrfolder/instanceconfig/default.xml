@@ -2,6 +2,7 @@
 <GenRoBag envtemplate="t">
 	<db implementation="{GNR_DB_IMPLEMENTATION}" host="{GNR_DB_HOST}" dbname="{GNR_DB_NAME}" />
 	<packages>
+		<gnrcore_sys pkg_code='gnrcore:sys'/>
 	</packages>
 	<authentication pkg="{GNR_MAINPACKAGE}">
 		<py_auth defaultTags="user" method="authenticate" pkg="adm"/>
