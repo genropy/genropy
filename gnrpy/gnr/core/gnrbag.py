@@ -78,6 +78,7 @@ import os.path
 import logging
 import sys
 import re
+import os
 import six
 gnrlogger = logging.getLogger(__name__)
 
@@ -1935,8 +1936,8 @@ class Bag(GnrObject):
             return
         
         if mode == 'xml':
-            if _template_kwargs:
-                source = source.format(**_template_kwargs)
+            _template_kwargs = _template_kwargs or dict(os.environ)
+            source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)

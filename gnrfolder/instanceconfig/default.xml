@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<GenRoBag>
+<GenRoBag envtemplate="t">
 	<db implementation="{GNR_DB_IMPLEMENTATION}" host="{GNR_DB_HOST}" dbname="{GNR_DB_NAME}" />
 	<packages>
 	</packages>

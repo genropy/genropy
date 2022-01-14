@@ -20,6 +20,6 @@ RUN paver develop
 
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
-COPY gnrhome /root/.gnr
+COPY gnrfolder /root/.gnr
 
 
