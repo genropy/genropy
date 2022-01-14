@@ -282,7 +282,7 @@ class TableTemplateToHtml(BagToHtml):
         self.print_handler = self.site.getService('htmltopdf')
         self.pdf_handler = self.site.getService('pdf')
         self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
-        self.record_template = record_template
+        self.record_template = record_template or self.record_template
         self.record = None
 
     def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
