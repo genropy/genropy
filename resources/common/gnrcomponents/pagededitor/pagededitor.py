@@ -28,7 +28,7 @@ class PagedEditor(BaseComponent):
         if printAction is True:
             printAction = """genro.getFrameNode(this.getInheritedAttributes()['frameCode']).publish('print');"""
         center = bc.contentPane(overflow='hidden',region='center')
-        editor = center.ckeditor(value=value,**editor_kwargs)
+        editor = center.ExtendedCkeditor(value=value,**editor_kwargs)
         bc.contentPane(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
                             margin_left='2px',margin_right='2px').pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
                                 printAction=printAction,bodyStyle=bodyStyle,datasource=datasource,extra_bottom=extra_bottom,**tpl_kwargs)
