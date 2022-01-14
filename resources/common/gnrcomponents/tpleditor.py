@@ -190,8 +190,8 @@ class TemplateEditorBase(BaseComponent):
                         repeating_container = t.xpath('tbody')[0]
                         repeating_item = repeating_container.getchildren()[-1]
                     else:
-                        repeating_container = t
-                        repeating_item = t.getchildren()[0]
+                        repeating_item = t
+                        repeating_container = t.getparent()
                     repeating_container.replace(repeating_item,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
                     subtemplate= HT.tostring(repeating_item).decode().replace('%s.'%subname,'').replace('%24','$')
                     compiled.setItem(subname,subtemplate)

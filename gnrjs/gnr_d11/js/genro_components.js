@@ -2055,6 +2055,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
         ckeditor_pars.value = value;
         ckeditor_pars.height = '100%';
         ckeditor_pars.width = '100%';
+        ckeditor_pars.contentStyles = css_value;
         let html_pars = {}
         html_pars.value = value;
         html_pars.height = '100%';
