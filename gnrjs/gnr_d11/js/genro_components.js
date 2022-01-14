@@ -1992,8 +1992,11 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var value = objectPop(kw,'value');
+        var contentCss = objectPop(kw,'contentCss');
+
         kw.border = kw.border || 0;
         sourceNode.attr.value = value;
+        sourceNode.attr.contentCss = contentCss
         var iframe = sourceNode._('iframe',kw);
         var gnrwdg = sourceNode.gnrwdg;
         gnrwdg.zoom = objectPop(kw,'zoom');
@@ -2006,8 +2009,12 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
-    }
+    },
 
+    gnrwdg_setContentCss:function(value,kw,trigger_reason){
+        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss');
+        this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
+    }
 });
 
 dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
@@ -2034,6 +2041,45 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
         colattr['constrain_overflow'] = 'hidden'
         colattr['height'] = colattr['height'] || '18px';
     }
+
+});
+
+dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let containerkw = objectExtract(kw,'height,width,region,title,margin');
+        objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
+        let tc = sourceNode._('tabContainer',containerkw);
+        let ckeditor_pars = objectExtract(kw,'ckeditor_*');
+        let value = objectPop(kw,'value');
+        let css_value = objectPop(kw,'css_value');
+        ckeditor_pars.value = value;
+        ckeditor_pars.height = '100%';
+        ckeditor_pars.width = '100%';
+        let html_pars = {}
+        html_pars.value = value;
+        html_pars.height = '100%';
+        html_pars.width = '100%';
+        html_pars.config_mode='htmlembedded';
+        html_pars.config_lineNumbers=true;
+        html_pars.config_keyMap='softTab';
+        objectUpdate(html_pars,objectExtract(kw,'html_*'));
+        tc._('contentPane',{title:_T('HTML Editor'),overflow:'hidden'})._('ckeditor',objectUpdate(kw,ckeditor_pars));
+        tc._('contentPane',{title:_T('Full Editor'),overflow:'hidden'})._('codemirror',html_pars);
+        if(css_value){
+            let css_pars = {}
+            css_pars.value = css_value;
+            css_pars.height = '100%';
+            css_pars.width = '100%';
+            css_pars.config_mode='css';
+            css_pars.config_lineNumbers=true;
+            css_pars.config_keyMap='softTab';
+            objectUpdate(css_pars,objectExtract(kw,'css_*'));
+            tc._('contentPane',{title:_T('CSS Editor'),overflow:'hidden'})._('codemirror',css_pars);
+
+        }
+        return tc;
+    }
+
 
 });
 
@@ -3635,7 +3681,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 handler.openTemplatePalette(this,editorConstrain,showLetterhead);
             }
             kw.connect_ondblclick = function(evt){
-                if(tplpars.editable==true || evt.shiftKey){
+                if(tplpars.editable===true || evt.shiftKey){
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
@@ -3731,8 +3777,16 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 nodeVal.popNode('safeIframe');
             }
             if(pkey){
+                let template = this.currentFromDatasource(tplpars.template);
+                let template_address;
+                let template_bag;
+                if(template instanceof gnr.GnrBag){
+                    template_bag = template;
+                }else{
+                    template_address = tplpars.table+':'+tplpars.template
+                }
                 genro.serverCall('te_renderChunk',{record_id:pkey,
-                    template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},onResult,null,'POST');
+                    template_address:template_address,template_bag:template_bag,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};

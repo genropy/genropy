@@ -759,7 +759,9 @@ dojo.declare("gnr.RowEditor", null, {
         if(this.grid.datamode!='bag' && rowNode){
             rowNode.clearValue(); //deleting data because dbevents remove changes
         }
-        delete rowNode._rowEditor;
+        if (rowNode){
+            delete rowNode._rowEditor;
+        }
     },
 
     checkRowEditor:function(){
@@ -998,7 +1000,7 @@ dojo.declare("gnr.GridEditor", null, {
             var widgets = {'L':'NumberTextBox','I':'NumberTextBox','D':'DateTextbox',
                             'DH':'DatetimeTextbox','R':'NumberTextBox',
                             'N':'NumberTextBox','H':'TimeTextBox','B':'CheckBox'};
-            colattr['tag'] = widgets[dt] || 'Textbox';
+            colattr.tag = widgets[dt] || 'Textbox';
             if('related_table' in colattr){
                 colattr.tag = 'dbselect';
                 colattr.dbtable = colattr.related_table;
@@ -1009,7 +1011,7 @@ dojo.declare("gnr.GridEditor", null, {
             if('values' in colattr){
                 colattr.tag = colattr.values.indexOf(':')>=0?'filteringselect':'combobox';
             }
-            if('size' in colattr && tag=='Textbox'){
+            if('size' in colattr && colattr.tag=='Textbox'){
                 colattr.validate_len = colattr.size;
             }
             if(dt == 'L' || dt == 'I'){

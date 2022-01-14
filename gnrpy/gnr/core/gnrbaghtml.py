@@ -230,6 +230,7 @@ class BagToHtml(object):
         self.defineStandardStyles()
         self.defineCustomStyles()
 
+
     @property
     def body(self):
         return self.builder.body

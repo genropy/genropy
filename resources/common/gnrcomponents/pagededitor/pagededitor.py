@@ -19,25 +19,23 @@ class PagedEditor(BaseComponent):
     def pe_pagedEditor(self,pane,value=None,editor_kwargs=None,letterhead_id=None,pagedText=None,printAction=None,bodyStyle=None,
                         datasource=None,extra_bottom=None,tpl_kwargs=True,**kwargs):
         bodyStyle = bodyStyle or self.getPreference('print.bodyStyle',pkg='adm') or self.getService('htmltopdf').printBodyStyle()
-        frame = pane.framePane(_workspace=True,selfsubscribe_print='FIRE #WORKSPACE.print;',**kwargs)
-        right = frame.right
-        right.attributes.update(background='white')
-        printId = 'pe_print_%s' %id(frame)
-        frame.dataRpc('dummy',self.pe_printPages,
+        bc = pane.borderContainer(_workspace=True,selfsubscribe_print='FIRE #WORKSPACE.print;',**kwargs)
+        printId = 'pe_print_%s' %id(bc)
+        bc.dataRpc('dummy',self.pe_printPages,
                     pages=pagedText.replace('^','='),
                     bodyStyle=bodyStyle,nodeId=printId,
                     _fired='^#WORKSPACE.print')
         if printAction is True:
             printAction = """genro.getFrameNode(this.getInheritedAttributes()['frameCode']).publish('print');"""
-        center = frame.center.contentPane(overflow='hidden')
+        center = bc.contentPane(overflow='hidden',region='center')
         editor = center.ckeditor(value=value,**editor_kwargs)
-        bar = right.slotBar('0,previewPane,0',closable=True,width='270px',preview_height='100%',splitter=True,border_left='1px solid silver')
-        bar.previewPane.pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
+        bc.contentPane(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
+                            margin_left='2px',margin_right='2px').pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
                                 printAction=printAction,bodyStyle=bodyStyle,datasource=datasource,extra_bottom=extra_bottom,**tpl_kwargs)
         
-        frame.dataRemote('#WORKSPACE.letterheads',self._pe_getLetterhead,letterhead_id=letterhead_id,_if='letterhead_id')#_userChanges=True)
-        frame._editor = editor
-        return frame
+        bc.dataRemote('#WORKSPACE.letterheads',self._pe_getLetterhead,letterhead_id=letterhead_id,_if='letterhead_id')#_userChanges=True)
+        bc._editor = editor
+        return bc
 
 
     @public_method
