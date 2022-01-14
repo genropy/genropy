@@ -277,7 +277,6 @@ class TableTemplateToHtml(BagToHtml):
             self.maintable = self.tblobj.fullname if self.tblobj else None
         self.db = self.page.db if page else self.tblobj.db
         self.site = self.db.application.site
-        self.maintable = table.fullname
         self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
         self.letterhead_sourcedata = letterhead_sourcedata
         self.print_handler = self.site.getService('htmltopdf')
