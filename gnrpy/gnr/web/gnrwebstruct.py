@@ -1257,14 +1257,26 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
 
+    #def onDbChanges(self, action=None, table=None, **kwargs):
+    #    """TODO
+    #    
+    #    :param action: the :ref:`action_attr` attribute
+    #    :param table: the :ref:`database table <table>`"""
+    #    self.page.subscribeTable(table,True)
+    #    self.dataController(action,dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),**kwargs)
+    
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
         :param action: the :ref:`action_attr` attribute
         :param table: the :ref:`database table <table>`"""
         self.page.subscribeTable(table,True)
-        self.dataController(action,dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),**kwargs)
-    
+        self.dataController("""var _isLocalPageId = genro.isLocalPageId(_node.attr.from_page_id); 
+                               %s""" % action,
+                               dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),
+                             **kwargs)
+
+
     def dataSelection(self, path, table=None, method='app.getSelection', columns=None, distinct=None,
                       where=None, order_by=None, group_by=None, having=None, columnsFromView=None, **kwargs):
         """Create a :ref:`dataselection` and returns it. dataSelection allows... TODO
