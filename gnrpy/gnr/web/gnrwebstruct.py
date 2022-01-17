@@ -1257,14 +1257,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
 
-    #def onDbChanges(self, action=None, table=None, **kwargs):
-    #    """TODO
-    #    
-    #    :param action: the :ref:`action_attr` attribute
-    #    :param table: the :ref:`database table <table>`"""
-    #    self.page.subscribeTable(table,True)
-    #    self.dataController(action,dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),**kwargs)
-    
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
