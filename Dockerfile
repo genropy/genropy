@@ -3,7 +3,7 @@
 # Based on Alpine
 ############################################################
 
-FROM alpine:latest
+FROM alpine:3.14
 RUN apk update
 RUN apk add git
 RUN apk add python3

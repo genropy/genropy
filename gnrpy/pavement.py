@@ -34,7 +34,7 @@ setup(
                  '../scripts/gnrrms','../scripts/gnrserviceworker','../scripts/gnrdbshell'],
         packages=['gnr', 'gnr.core', 'gnr.app', 'gnr.web', 'gnr.sql'],
         data_files=data_files,
-        install_requires=['pip'], # NOTE: real requirements are now handled by pip and are in requirements.txt
+        #install_requires=['pip'], # NOTE: real requirements are now handled by pip and are in requirements.txt
         zip_safe=False,
         extras_require=dict(
                 postgres=['psycopg2'],
@@ -116,6 +116,12 @@ def install():
 def develop(options):
     call(['pip3', 'install','pyPdf','pyPdf'])
     call(['pip3', 'install','-r', 'requirements.txt'])
+
+@task
+@needs(['generate_setup', 'setuptools.command.develop'])
+def docker(options):
+    call(['pip3', 'install','pyPdf','pyPdf','--user'])
+    call(['pip3', 'install','-r', 'requirements.txt','--user'])
 
 @task
 @needs(['generate_setup', 'setuptools.command.sdist'])

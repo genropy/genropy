@@ -4,7 +4,6 @@
 		<genropy path="/root/genropy/projects"/>
 		<custom path="/root/genropy_projects"/>
 	</projects>
-
 	<static>
 		<js>
 			<dojo_11 cdn="" path="/root/genropy/dojo_libs/dojo_11"/>
@@ -14,7 +13,6 @@
 	<resources>
 		<genropy path="/root/genropy/resources"/>
 	</resources>
-
 	<webtools>
 		<genropy path="/root/genropy/webtools"/>
 	</webtools>
