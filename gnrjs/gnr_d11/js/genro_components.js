@@ -3781,7 +3781,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
                 setter(rendered);
-                templateHandler.data = r.popNode('template_data').getValue();
+                let template_data_node = r.popNode('template_data');
+                templateHandler.data = template_data_node?template_data_node.getValue(): new gnr.GnrBag();
             }else{
                 setter(r);
                 templateHandler.data = new gnr.GnrBag();

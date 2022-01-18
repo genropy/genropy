@@ -2358,7 +2358,6 @@ class GnrWebPage(GnrBaseWebPage):
             nodeattr['fullcaption'] = concat(prevCaption, self._(nodeattr['caption']), '/')
 
             if nodeattr.get('one_relation'):
-                #print node.label
                 innerCurrRecordPath = '%s.%s' %(node.label,currRecordPath) if currRecordPath else ''
                 nodeattr['_T'] = 'JS'
                 if nodeattr['mode'] == 'O':

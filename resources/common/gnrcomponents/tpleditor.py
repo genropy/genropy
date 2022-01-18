@@ -250,6 +250,9 @@ class TemplateEditor(TemplateEditorBase):
         r.cell('mask', name='Mask', width='20em',edit=True)
         if self.isDeveloper():
             r.cell('editable', name='!!Edit pars', width='20em',edit=True)
+            r.cell('df_template', name='!!Df', width='10em',edit=True)
+            r.cell('fieldpath', name='!!', width='10em',edit=True)
+            r.cell('required_columns', name='!!Req columns', width='10em',edit=True)
 
 
     def _te_info_top(self,pane):
@@ -305,13 +308,24 @@ class TemplateEditor(TemplateEditorBase):
                                         df_template = fieldpath[1];
                                         fieldpath = fieldpath[0];
                                     }
-                                    grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
+                                    var finalizeDropRow = function(kw){
+                                        grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
                                                                                 dtype:dtype,
                                                                                 fieldname:caption,
                                                                                 varname:varname,
                                                                                 virtual_column:data.virtual_column,
                                                                                 required_columns:data.required_columns,
-                                                                                df_template:df_template}]);""",
+                                                                                df_template:kw.df_template}])
+                                    };
+                                    if(dtype=='X' && data.subfields){
+                                        genro.dlg.askParameters(function(_askResult){
+                                                                let df_template = `@${data.subfields}.df_custom_templates.${_askResult.df_template}.tpl`;
+                                                                finalizeDropRow({df_template:df_template})},
+                                                            {title:'Choose template',fields:[{name:'df_template',lbl:'Template'}]});
+                                    }else{
+                                        finalizeDropRow({df_template:df_template});
+                                    }
+                                    """,
                                  data="^.dropped_fieldvars",grid=grid.js_widget)    
     
     def _te_info_parameters(self,bc,**kwargs):
