@@ -597,7 +597,7 @@ class ChunkEditor(PaletteTemplateEditor):
             bar.menutemplates.div(_class='iconbox folder',tip='!!Copy From').menu(modifiers='*',storepath='.menu',
                     action="""var that = this;
                               genro.serverCall('_table.adm.userobject.loadUserObject',{table:'%s',pkey:$1.pkey},function(result){
-                                    var v = result.getItem();
+                                    var v = result.getValue();
                                     if(!v){
                                         return;
                                     }
