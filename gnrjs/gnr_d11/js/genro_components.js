@@ -3523,11 +3523,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     loadTemplateEditData:function(sourceNode){
         var paletteNode = sourceNode._connectedPalette;
         var templateHandler = sourceNode._templateHandler;
-        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag()); 
+        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''})); 
         var respath = templateHandler.dataInfo.respath;
         if(respath && respath.indexOf('_custom')>=0){
             paletteNode.setRelativeData('.data.metadata.custom',true);
         }
+        paletteNode.setRelativeData('.status','info');
     },
     gnrwdg_setTemplate:function(templateBag){
         if(this.chunkNode._connectedPalette){
@@ -3562,9 +3563,14 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_showLetterhead:showLetterhead,
                     remote_editorConstrain: editorConstrain
                     };  
-            kw.remote__onRemote = function(){
+           //kw.remote__onRemote = function(){
+           //    sourceNode._editorReady = true;
+           //    handler.loadTemplateEditData(sourceNode);
+           //}
+
+            kw.selfsubscribe_showing = function(){
                 handler.loadTemplateEditData(sourceNode);
-            }
+            };
             kw.palette_selfsubscribe_savechunk = function(){
                 tplpars = sourceNode.evaluateOnNode(tplpars);
                 var template = tplpars.template || new gnr.GnrBag();
