@@ -597,7 +597,13 @@ class ChunkEditor(PaletteTemplateEditor):
             bar.menutemplates.div(_class='iconbox folder',tip='!!Copy From').menu(modifiers='*',storepath='.menu',
                     action="""var that = this;
                               genro.serverCall('_table.adm.userobject.loadUserObject',{table:'%s',pkey:$1.pkey},function(result){
-                                    that.setRelativeData('.data',result._value.deepCopy());
+                                    var v = result.getItem();
+                                    if(!v){
+                                        return;
+                                    }
+                                    that.setRelativeData('.data.varsbag',v.getItem('varsbag'));
+                                    that.setRelativeData('.data.content',v.getItem('content'));
+                                    that.setRelativeData('.data.content_css',v.getItem('content_css'));
                              },null,'POST');
             """ %table,_class='smallmenu')
             bar.dataRemote('.menu',self.te_menuTemplates,table=table,cacheTime=5)
