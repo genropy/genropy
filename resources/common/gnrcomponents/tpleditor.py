@@ -297,7 +297,10 @@ class TemplateEditor(TemplateEditorBase):
             grid = frame.grid
             grid.data('.table',table)
             grid.dragAndDrop(dropCodes='fieldvars')
-            grid.dataController("""var caption = data.fullcaption;
+            
+            #tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
+
+            grid.dataController(r"""var caption = data.fullcaption;
                                     var varname = caption.replace(/\W/g,'_').toLowerCase();
                                     var df_template =null;
 
@@ -308,23 +311,13 @@ class TemplateEditor(TemplateEditorBase):
                                         df_template = fieldpath[1];
                                         fieldpath = fieldpath[0];
                                     }
-                                    var finalizeDropRow = function(kw){
-                                        grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
+                                    grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
                                                                                 dtype:dtype,
                                                                                 fieldname:caption,
                                                                                 varname:varname,
                                                                                 virtual_column:data.virtual_column,
                                                                                 required_columns:data.required_columns,
-                                                                                df_template:kw.df_template}])
-                                    };
-                                    if(dtype=='X' && data.subfields){
-                                        genro.dlg.askParameters(function(_askResult){
-                                                                let df_template = `@${data.subfields}.df_custom_templates.${_askResult.df_template}.tpl`;
-                                                                finalizeDropRow({df_template:df_template})},
-                                                            {title:'Choose template',fields:[{name:'df_template',lbl:'Template'}]});
-                                    }else{
-                                        finalizeDropRow({df_template:df_template});
-                                    }
+                                                                                df_template:df_template}]);
                                     """,
                                  data="^.dropped_fieldvars",grid=grid.js_widget)    
     

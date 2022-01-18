@@ -1065,7 +1065,7 @@ class SiteRegisterClient(object):
             self.siteregister._pyroHmacKey = self.hmac_key
         self.remotebag_uri =self.siteregister_uri.replace(':SiteRegister@',':RemoteData@')
         self.siteregister.setConfiguration(cleanup = self.site.custom_config.getAttr('cleanup'))
-        print('fine init')
+        #print('fine init')
 
 
     def checkSiteRegisterServerUri(self,daemonProxy):

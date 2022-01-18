@@ -167,11 +167,13 @@ class DynamicForm(BaseComponent):
         bar = frame.top.slotToolbar('parentStackButtons,*,delgridrow,addrow_dlg')
         bc = frame.center.borderContainer(design='sidebar')
         left = bc.borderContainer(width='120px',region='left',splitter=True)
+        table = bc.getInheritedAttributes().get('table')
+        tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
         fg = left.frameGrid(region='top',height='40%',margin_top='3px',splitter=True,storepath='#FORM.record.df_custom_templates',datamode='bag',
                  struct=self.__df_tpl_struct,grid_selectedLabel='.selectedLabel',grid_autoSelect=True,_class='noheader buttons_grid no_over')
-        bar.addrow_dlg.slotButton('!!Add custom template',iconClass='iconbox add_row',
-                                            action='genro.dlg.prompt(dlgtitle,{lbl:dlglbl,action:"FIRE #FORM.dynamicFormTester.newCustTpl=value;"},this);',
-                                            dlgtitle='!!New template',dlglbl='!!Name')
+        bar.addrow_dlg.slotButton('!!Add custom template',iconClass='iconbox add_row'
+                                    ).dataController('FIRE #FORM.dynamicFormTester.newCustTpl = nametpl',
+                                            _ask=dict(title='New template',fields=[dict(name='nametpl',lbl='Name',tag='combobox',values=tplnames)]))
         bar.delgridrow.slotButton('!!Delete selected template',iconClass='iconbox delete_row',
                                     action="""grid.publish("delrow");grid.widget.updateRowCount();""",grid=fg.grid)
         fg.dataController("""if(!currtemplates || currtemplates.len()==0){
