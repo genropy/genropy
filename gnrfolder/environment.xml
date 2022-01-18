@@ -1,20 +1,20 @@
 <?xml version="1.0" ?>
 <GenRoBag>
 	<projects>
-		<genropy path="/root/genropy/projects"/>
-		<custom path="/root/genropy_projects"/>
+		<genropy path="/home/genro/genropy/projects"/>
+		<custom path="/home/genro/genropy_projects"/>
 	</projects>
 	<static>
 		<js>
-			<dojo_11 cdn="" path="/root/genropy/dojo_libs/dojo_11"/>
-			<gnr_11 path="/root/genropy/gnrjs/gnr_d11"/>
+			<dojo_11 cdn="" path="/home/genro/genropy/dojo_libs/dojo_11"/>
+			<gnr_11 path="/home/genro/genropy/gnrjs/gnr_d11"/>
 		</js>
 	</static>
 	<resources>
-		<genropy path="/root/genropy/resources"/>
+		<genropy path="/home/genro/genropy/resources"/>
 	</resources>
 	<webtools>
-		<genropy path="/root/genropy/webtools"/>
+		<genropy path="/home/genro/genropy/webtools"/>
 	</webtools>
 	<gnrdaemon hmac_key="DOCKER" host="localhost" port="40407"/>
 	<rms code="{GNR_RMS_CODE}" customer_code="{GNR_RMS_CUSTOMER_CODE}" url="{GNR_RMS_URL}" />
