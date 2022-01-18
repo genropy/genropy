@@ -353,7 +353,7 @@ class TableScriptToHtml(TableTemplateToHtml):
             self.language = self.locale.split('-')[0].lower()
         if self.record_template:
             htmlContent = self.contentFromTemplate(record=record)
-        result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
+        result = super(TableTemplateToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
         if not result:
             return False
         if not pdf:
