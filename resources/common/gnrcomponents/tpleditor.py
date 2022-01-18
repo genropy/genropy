@@ -665,7 +665,6 @@ class ChunkEditor(PaletteTemplateEditor):
         
     def _te_saveButton(self,pane,table,paletteId):
         pane.slotButton('!!Save',action="""
-                                    genro.bp(true);
                                     var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
                                     genro.nodeById(paletteId).publish("savechunk");""",
