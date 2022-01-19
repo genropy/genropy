@@ -667,7 +667,7 @@ class ChunkEditor(PaletteTemplateEditor):
         pane.slotButton('!!Save',action="""
                                     var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
-                                    genro.nodeById(paletteId).publish("savechunk");""",
+                                    genro.nodeById(paletteId).publish("savechunk",{inMainResource:$1.shiftKey});""",
                             iconClass='iconbox save',paletteId=paletteId,table=table,dc='=.data.content',
                             content_css='=.data.content_css',
                             vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')

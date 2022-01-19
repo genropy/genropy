@@ -120,7 +120,7 @@ try:
                                                 noneIsBlank=self.noneIsBlank,emptyMode=True)
                         return result if result!=empty else ''
                     else:
-                        return value.getFormattedValue(joiner='<br/>');
+                        return value.getFormattedValue(joiner='<br/>',mode='static')
                 else:
                     valueNode = self.data.getNode(k)
                     if valueNode:

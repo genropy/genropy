@@ -3571,13 +3571,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             kw.selfsubscribe_showing = function(){
                 handler.loadTemplateEditData(sourceNode);
             };
-            kw.palette_selfsubscribe_savechunk = function(){
+            kw.palette_selfsubscribe_savechunk = function(publishkw){
                 tplpars = sourceNode.evaluateOnNode(tplpars);
                 var template = tplpars.template || new gnr.GnrBag();
                 var data = this.getRelativeData('.data').deepCopy();
                 var custom = data.pop('metadata.custom');
                 if(typeof(template)=='string'){
-                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom);
+                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom,publishkw);
                     templateHandler.dataInfo.respath = respath;
                 }else{
                     var tplpath = sourceNode.attr._tplpars.template;
@@ -3644,13 +3644,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return {template:result};
     },
     
-    saveTemplate:function(sourceNode,data,kw,custom){
+    saveTemplate:function(sourceNode,data,kw,custom,savekw){
         var template_address = (kw.table || '')+':'+kw.template;
-        var templateHandler = sourceNode._templateHandler;
         if(custom){
             template_address = template_address+',custom'
         }
-        return genro.serverCall("saveTemplate",{template_address:template_address,data:data},null,null,'POST');
+        return genro.serverCall("saveTemplate",{template_address:template_address,data:data,inMainResource:savekw.inMainResource},function(){});
     },
     
     
