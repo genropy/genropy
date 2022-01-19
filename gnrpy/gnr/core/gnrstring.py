@@ -119,7 +119,6 @@ try:
                                                 noneIsBlank=self.noneIsBlank,emptyMode=True)
                         return result if result!=empty else ''
                     else:
-                        print(x)
                         return value.getFormattedValue(joiner='<br/>')
                 else:
                     valueNode = self.data.getNode(k)
