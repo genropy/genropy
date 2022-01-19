@@ -350,7 +350,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     }else if(as_name in df_templates){
                                         value = dataTemplate(data.getItem(df_templates[as_name]),value);
                                     }else{
-                                        value = value.getFormattedValue(null,'static');
+                                        value = value.getFormattedValue();
                                     }
                                 }else{
                                     if(editpars){

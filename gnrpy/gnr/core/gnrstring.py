@@ -96,17 +96,16 @@ try:
                 value= ''
             if self.isBag:
                 if hasattr(value, '_htraverse'):
-                    templatename = k.replace('.','_')
-                    if self.templates and templatename in self.templates:
-                        templateNode = self.templates.getNode(templatename)
-                        if templateNode:
-                            template = templateNode.value
-                            joiner = templateNode.getAttr('joiner','')
-                            result = []
-                            for v in list(value.values()):
-                                result.append(templateReplace(template,v, locale=self.locale, 
-                                                formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
-                            return joiner.join(result)
+                    templatename = k # k.replace('.','_')
+                    templateNode = self.templates.getNode(templatename) if self.templates else None
+                    if templateNode:
+                        template = templateNode.value
+                        joiner = templateNode.getAttr('joiner','')
+                        result = []
+                        for v in list(value.values()):
+                            result.append(templateReplace(template,v, locale=self.locale, 
+                                            formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
+                        return joiner.join(result)
                     elif as_name in self.df_templates:
                         templatepath = self.df_templates[as_name]
                         template = self.data[templatepath]
@@ -120,7 +119,8 @@ try:
                                                 noneIsBlank=self.noneIsBlank,emptyMode=True)
                         return result if result!=empty else ''
                     else:
-                        return value.getFormattedValue(joiner='<br/>',mode='static')
+                        print(x)
+                        return value.getFormattedValue(joiner='<br/>')
                 else:
                     valueNode = self.data.getNode(k)
                     if valueNode:
