@@ -194,7 +194,7 @@ class TemplateEditorBase(BaseComponent):
                         repeating_container = t.getparent()
                     repeating_container.replace(repeating_item,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
                     subtemplate= HT.tostring(repeating_item).decode().replace('%s.'%subname,'').replace('%24','$')
-                    compiled.setItem(subname,subtemplate)
+                    compiled.setItem(subname.replace('.','_'),subtemplate)
                 body = doc.xpath('//body')[0]
                 bodycontent = '\n'.join([HT.tostring(el).decode() for el in body.getchildren()])
                 cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),bodycontent.replace('%24','$'))

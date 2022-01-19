@@ -96,7 +96,7 @@ try:
                 value= ''
             if self.isBag:
                 if hasattr(value, '_htraverse'):
-                    templatename = k # k.replace('.','_')
+                    templatename =  k.replace('.','_')
                     templateNode = self.templates.getNode(templatename) if self.templates else None
                     if templateNode:
                         template = templateNode.value
