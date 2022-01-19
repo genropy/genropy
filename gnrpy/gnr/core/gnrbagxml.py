@@ -41,6 +41,10 @@ import time
 import io
 import six
 
+class Default(dict):
+    def __missing__(self, key):
+        return key
+
 REGEX_XML_ILLEGAL = re.compile(r'<|>|&')
 ZERO_TIME=datetime.time(0,0)
 
@@ -98,8 +102,10 @@ class BagFromXml(object):
             infile.close()
         if six.PY34 and isinstance(source,str):
             source = source.encode('utf8')
-
-        #source = re.sub("&(?!([a-zA-Z][a-zA-Z0-9]*|#\d+);)", "&amp;", source)
+        source = source.decode()
+        for k in os.environ.keys():
+            if k.startswith('GNR_'):
+                source = source.replace('{%s}' %k,os.environ[k])
         sax.parseString(source, bagImport)
         if not testmode:
             result = bagImport.bags[0][0]

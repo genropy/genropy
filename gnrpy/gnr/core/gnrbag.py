@@ -1895,12 +1895,12 @@ class Bag(GnrObject):
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
-    def fillFrom(self, source,_template_kwargs=None,**kwargs):
+    def fillFrom(self, source,**kwargs):
         """Fill a void Bag from a source (basestring, Bag or list)
         
         :param source: the source for the Bag"""
         if isinstance(source, basestring):
-            b = self._fromSource(*self._sourcePrepare(source),_template_kwargs=_template_kwargs)
+            b = self._fromSource(*self._sourcePrepare(source))
             if not b: b = Bag()
             self._nodes[:] = b._nodes[:]
         elif hasattr(source, 'read'):
@@ -1924,7 +1924,7 @@ class Bag(GnrObject):
                     else:
                         self.setItem(x[0], x[1])
 
-    def _fromSource(self, source, fromFile, mode,_template_kwargs=None):
+    def _fromSource(self, source, fromFile, mode):
         """Receive "mode" and "fromFile" and switch between the different
         modes calling _fromXml or _unpickle
         
@@ -1936,8 +1936,6 @@ class Bag(GnrObject):
             return
         
         if mode == 'xml':
-            _template_kwargs = _template_kwargs or dict(os.environ)
-            source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
@@ -2053,7 +2051,6 @@ class Bag(GnrObject):
 
     def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None):
         from gnr.core.gnrbagxml import BagFromXml
-
         return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty)
 
     def _fromXsd(self, source, fromFile, catalog=None, bagcls=None, empty=None):
