@@ -11,7 +11,7 @@ class TranslationService(GnrBaseService):
 
     @property
     def languages(self):
-        pass
+        return dict(it='Italian', en='English', fr='French')
 
     def translate(self,what=None, to_language=None,from_language=None,format=None):
         pass

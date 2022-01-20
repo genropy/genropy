@@ -226,7 +226,7 @@ class RstDocumentationHandler(BaseComponent):
     @public_method
     def rst_getTranslation(self,docbody=None,doctitle=None,to_language=None,base_language=None,**kwargs):
         if docbody or doctitle:
-            tr = self.getService('translation')
+            tr = self.getService(service_name='aws', service_type='translation')  # tr = self.getService('translation')
             base_language = base_language or 'it'
             docbody = docbody or doctitle
             return dict(docbody=tr.translate(docbody,to_language=to_language,from_language=base_language) if docbody else None,
