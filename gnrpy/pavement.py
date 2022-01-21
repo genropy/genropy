@@ -4,7 +4,7 @@ import os
 import hashlib
 from paver.easy import *
 from paver.setuputils import setup, find_packages
-from setuptools.command import *
+#from setuptools.command import *
 from subprocess import call
 import sys
 
