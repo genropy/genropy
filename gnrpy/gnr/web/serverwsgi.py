@@ -375,10 +375,12 @@ class Server(object):
 
     def serve(self):
         port = int(self.options.port)
-        host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
+        host = self.options.host
         site_name='%s:%s' %(self.site_name,self.remote_db) if self.remote_db else self.site_name
         if self.options.tornado:
+            host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
+
             from gnr.web.gnrasync import GnrAsyncServer
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
