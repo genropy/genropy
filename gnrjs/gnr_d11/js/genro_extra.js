@@ -749,7 +749,6 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
                    ['Styles','Format','Font','FontSize'],
                    ['TextColor','BGColor'],['Maximize', 'ShowBlocks']
                    ]
-
     },
     
     creating: function(attributes, sourceNode) {

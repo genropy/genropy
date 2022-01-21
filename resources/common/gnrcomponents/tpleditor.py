@@ -194,7 +194,7 @@ class TemplateEditorBase(BaseComponent):
                         repeating_container = t.getparent()
                     repeating_container.replace(repeating_item,HT.etree.Comment('TEMPLATEROW:$%s' %subname))
                     subtemplate= HT.tostring(repeating_item).decode().replace('%s.'%subname,'').replace('%24','$')
-                    compiled.setItem(subname,subtemplate)
+                    compiled.setItem(subname.replace('.','_'),subtemplate)
                 body = doc.xpath('//body')[0]
                 bodycontent = '\n'.join([HT.tostring(el).decode() for el in body.getchildren()])
                 cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),bodycontent.replace('%24','$'))
@@ -250,6 +250,9 @@ class TemplateEditor(TemplateEditorBase):
         r.cell('mask', name='Mask', width='20em',edit=True)
         if self.isDeveloper():
             r.cell('editable', name='!!Edit pars', width='20em',edit=True)
+            r.cell('df_template', name='!!Df', width='10em',edit=True)
+            r.cell('fieldpath', name='!!', width='10em',edit=True)
+            r.cell('required_columns', name='!!Req columns', width='10em',edit=True)
 
 
     def _te_info_top(self,pane):
@@ -294,7 +297,10 @@ class TemplateEditor(TemplateEditorBase):
             grid = frame.grid
             grid.data('.table',table)
             grid.dragAndDrop(dropCodes='fieldvars')
-            grid.dataController("""var caption = data.fullcaption;
+            
+            #tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
+
+            grid.dataController(r"""var caption = data.fullcaption;
                                     var varname = caption.replace(/\W/g,'_').toLowerCase();
                                     var df_template =null;
 
@@ -311,7 +317,8 @@ class TemplateEditor(TemplateEditorBase):
                                                                                 varname:varname,
                                                                                 virtual_column:data.virtual_column,
                                                                                 required_columns:data.required_columns,
-                                                                                df_template:df_template}]);""",
+                                                                                df_template:df_template}]);
+                                    """,
                                  data="^.dropped_fieldvars",grid=grid.js_widget)    
     
     def _te_info_parameters(self,bc,**kwargs):
@@ -590,7 +597,13 @@ class ChunkEditor(PaletteTemplateEditor):
             bar.menutemplates.div(_class='iconbox folder',tip='!!Copy From').menu(modifiers='*',storepath='.menu',
                     action="""var that = this;
                               genro.serverCall('_table.adm.userobject.loadUserObject',{table:'%s',pkey:$1.pkey},function(result){
-                                    that.setRelativeData('.data',result._value.deepCopy());
+                                    var v = result.getValue();
+                                    if(!v){
+                                        return;
+                                    }
+                                    that.setRelativeData('.data.varsbag',v.getItem('varsbag'));
+                                    that.setRelativeData('.data.content',v.getItem('content'));
+                                    that.setRelativeData('.data.content_css',v.getItem('content_css'));
                              },null,'POST');
             """ %table,_class='smallmenu')
             bar.dataRemote('.menu',self.te_menuTemplates,table=table,cacheTime=5)
@@ -652,10 +665,9 @@ class ChunkEditor(PaletteTemplateEditor):
         
     def _te_saveButton(self,pane,table,paletteId):
         pane.slotButton('!!Save',action="""
-                                    genro.bp(true);
                                     var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
-                                    genro.nodeById(paletteId).publish("savechunk");""",
+                                    genro.nodeById(paletteId).publish("savechunk",{inMainResource:$1.shiftKey});""",
                             iconClass='iconbox save',paletteId=paletteId,table=table,dc='=.data.content',
                             content_css='=.data.content_css',
                             vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')

@@ -263,12 +263,12 @@ class GnrTableScriptHtmlSrc(GnrHtmlSrc):
                         border_width=border_width, 
                         **kwargs)
 
-class TableTemplateToHtml(BagToHtml):
+class BagToHtmlWeb(BagToHtml):
     client_locale = False
     record_template = None
 
     def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,resource_table=None,record_template=None,**kwargs):
-        super(TableTemplateToHtml, self).__init__(**kwargs)
+        super(BagToHtmlWeb, self).__init__(**kwargs)
         self.page = page
         self.parent = parent
         self.tblobj = table or resource_table
@@ -282,14 +282,8 @@ class TableTemplateToHtml(BagToHtml):
         self.print_handler = self.site.getService('htmltopdf')
         self.pdf_handler = self.site.getService('pdf')
         self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
-        self.record_template = record_template
+        self.record_template = record_template or self.record_template
         self.record = None
-
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
-        if not htmlContent:
-            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
-            record = self.record
-        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
 
     def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
         virtual_columns=None
@@ -314,7 +308,14 @@ class TableTemplateToHtml(BagToHtml):
         self.print_handler.htmlToPdf(self.filepath,pdfpath, orientation=self.orientation(),pdf_kwargs=pdf_kwargs)
         return pdfpath   
 
-class TableScriptToHtml(TableTemplateToHtml):
+class TableTemplateToHtml(BagToHtmlWeb):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
+        if not htmlContent:
+            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
+            record = self.record
+        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
+
+class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
     rows_table = None
     virtual_columns = None

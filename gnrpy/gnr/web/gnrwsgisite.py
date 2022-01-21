@@ -819,7 +819,7 @@ class GnrWsgiSite(object):
             external_host = self.currentPage.external_host
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
-        return external_host.rstrip('/')
+        return (external_host or '').rstrip('/')
         
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]

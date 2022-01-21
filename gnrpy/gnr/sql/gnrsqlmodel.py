@@ -49,7 +49,7 @@ def bagItemFormula(bagcolumn=None,itempath=None,dtype=None):
     sql_formula = """ CAST( (xpath('/GenRoBag/%s/text()', CAST(%s as XML) ) )[1]  AS text)""" %(itempath,bagcolumn)
     dtype = dtype or 'T'
     typeconverter = {'T':'text','A':'text','C':'text','P':'text', 'N': 'numeric','B': 'boolean',
-                 'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real'}
+                 'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}
     desttype = typeconverter[dtype]
     return """CAST ( ( %s ) AS %s) """ %(sql_formula,desttype) if desttype!='text' else sql_formula
 

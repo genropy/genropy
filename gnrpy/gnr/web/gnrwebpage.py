@@ -2292,14 +2292,12 @@ class GnrWebPage(GnrBaseWebPage):
         if  df_table.model.column('df_custom_templates') is not None:
             df_custom_templates = df_table.readColumns(pkey=fieldvalue,columns='$df_custom_templates')    
             df_custom_templates = Bag(df_custom_templates)
-            #templates = ['auto']+df_custom_templates.keys()
             for t in list(df_custom_templates.keys()):
                 caption='Summary: %s' %t
                 recordpath = recordpath or '@%s' %field
                 fieldpath = '%s:%s.df_custom_templates.%s.tpl' %(prevRelation,recordpath,t)
                 subfields.setItem('summary_%s' %t,None,caption=caption,dtype='T',fieldpath=fieldpath,
                                   fullcaption='%s/%s' %(prevCaption,caption))
-            
         return subfields
 
     @public_method    
@@ -2358,7 +2356,6 @@ class GnrWebPage(GnrBaseWebPage):
             nodeattr['fullcaption'] = concat(prevCaption, self._(nodeattr['caption']), '/')
 
             if nodeattr.get('one_relation'):
-                #print node.label
                 innerCurrRecordPath = '%s.%s' %(node.label,currRecordPath) if currRecordPath else ''
                 nodeattr['_T'] = 'JS'
                 if nodeattr['mode'] == 'O':
@@ -2374,15 +2371,31 @@ class GnrWebPage(GnrBaseWebPage):
                 jsquote(nodeattr['fullcaption']), jsquote(omit),
                 jsquote(innerCurrRecordPath),jsquote(concat(relationStack,relkey,'|')),cps
                 ))
-            elif 'subfields' in nodeattr and currRecordPath:
-                nodeattr['_T'] = 'JS'
-                jsresolver = "genro.rpc.remoteResolver('subfieldExplorer',{table:%s, field:%s,fieldvalue:%s,prevRelation:%s, prevCaption:%s, omit:%s,checkPermissions:%s},{cacheTime:1})"
-                node.setValue(jsresolver % (
-                jsquote("%(pkg)s.%(table)s" %nodeattr),
-                jsquote(nodeattr['subfields']),
-                jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
-                jsquote(concat(prevRelation, node.label)),
-                jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
+            elif 'subfields' in nodeattr:
+                typecol = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}').column(nodeattr["subfields"])
+                if typecol is None:
+                    self.log(f'warning missing column {nodeattr["subfields"]} used inside subfields attribute in table {nodeattr["pkg"]}.{nodeattr["table"]}')
+                elif not currRecordPath:
+                    default_templates = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}'
+                                        ).column(f'@{nodeattr["subfields"]}.df_custom_templates'
+                                        ).attributes.get('templates')
+                    if default_templates:
+                        templatesbag = Bag()
+                        node.value = templatesbag
+                        for t in default_templates.split(','):
+                            caption=f'Summary: {t}'
+                            fieldpath = f'{node.label}:@{nodeattr["subfields"]}.df_custom_templates.{t}.tpl'
+                            templatesbag.setItem(f'summary_{t}',None,caption=caption,dtype='T',fieldpath=fieldpath,
+                                            fullcaption='%s/%s' %( nodeattr['caption'],caption),name_long=caption)
+                else:
+                    nodeattr['_T'] = 'JS'
+                    jsresolver = "genro.rpc.remoteResolver('subfieldExplorer',{table:%s, field:%s,fieldvalue:%s,prevRelation:%s, prevCaption:%s, omit:%s,checkPermissions:%s},{cacheTime:1})"
+                    node.setValue(jsresolver % (
+                    jsquote("%(pkg)s.%(table)s" %nodeattr),
+                    jsquote(nodeattr['subfields']),
+                    jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
+                    jsquote(concat(prevRelation, node.label)),
+                    jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
         result = self.db.relationExplorer(table=table,
                                           prevRelation=prevRelation,
                                           relationStack=relationStack,

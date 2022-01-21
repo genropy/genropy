@@ -436,7 +436,8 @@ class TableBase(object):
                     r.append('%s.__is_invalid' %rel)
             tbl.formulaColumn('__is_invalid', ' ( %s ) '  %' OR '.join(r), dtype='B',aggregator='OR')
         if df:
-            self.sysFields_df(tbl)
+            df = df if df is not True else dict()
+            self.sysFields_df(tbl,**df)
         tbl.formulaColumn('__protecting_reasons',sql_formula=True,group=group,name_long='!![en]Protecting reasons',_sysfield=True)
         tbl.formulaColumn('__is_protected_row',"$__protecting_reasons!=''",group=group,name_long='!![en]Row Protected',_sysfield=True)
 
@@ -475,10 +476,10 @@ class TableBase(object):
                                                     END ) """,dtype='B',_sysfield=True)
         #doctor,staff,superadmin               ,doctor,staff,superadmin, LIKE %%,admin,%%
 
-    def sysFields_df(self,tbl):
+    def sysFields_df(self,tbl,templates=None,**kwargs):
         tbl.column('df_fields',dtype='X',group='_',_sendback=True)
         tbl.column('df_fbcolumns','L',group='_')
-        tbl.column('df_custom_templates','X',group='_')
+        tbl.column('df_custom_templates','X',group='_',templates=templates)
         tbl.column('df_colswidth',group='_')
 
 

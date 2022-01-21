@@ -2048,7 +2048,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         let containerkw = objectExtract(kw,'height,width,region,title,margin');
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
-        let tc = sourceNode._('tabContainer',containerkw);
+        let bc = sourceNode._('borderContainer',containerkw);
         let ckeditor_pars = objectExtract(kw,'ckeditor_*');
         let value = objectPop(kw,'value');
         let css_value = objectPop(kw,'css_value');
@@ -2064,8 +2064,19 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
         html_pars.config_lineNumbers=true;
         html_pars.config_keyMap='softTab';
         objectUpdate(html_pars,objectExtract(kw,'html_*'));
-        tc._('contentPane',{title:_T('HTML Editor'),overflow:'hidden'})._('ckeditor',objectUpdate(kw,ckeditor_pars));
-        tc._('contentPane',{title:_T('Full Editor'),overflow:'hidden'})._('codemirror',html_pars);
+        bc._('contentPane',{region:'center',overflow:'hidden'})._('ckeditor',objectUpdate(kw,ckeditor_pars));
+        let leftbc = bc._('borderContainer',{region:'right',width:'50%','splitter':true,
+                            closable:'close',
+                            closable_background:'rgba(222, 255, 0, 1)',
+                            closable_top:'10px',
+                            closable_width:'14px',
+                            closable_left:'-20px',
+                            closable_height:'14px',
+                            closable_padding:'2px',
+                            closable_opacity:'1',
+                            closable_iconClass:'smalliconbox create_edit_html_template',
+                            border_left:'1px solid silver'})
+        leftbc._('contentPane',{region:'center',overflow:'hidden'})._('codemirror',html_pars);
         if(css_value){
             let css_pars = {}
             css_pars.value = css_value;
@@ -2075,10 +2086,13 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
             css_pars.config_lineNumbers=true;
             css_pars.config_keyMap='softTab';
             objectUpdate(css_pars,objectExtract(kw,'css_*'));
-            tc._('contentPane',{title:_T('CSS Editor'),overflow:'hidden'})._('codemirror',css_pars);
+            leftbc._('contentPane',{region:'bottom',splitter:true,
+                            height:'50%',overflow:'hidden',
+                            'border_top':'1px solid silver',
+                            })._('codemirror',css_pars);
 
         }
-        return tc;
+        return bc;
     }
 
 
@@ -3470,8 +3484,9 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
                 node = src.removeChild(children[0]);
                 node.setAttribute('orig_idx',idx);
                 genro.dom.addClass(node,'pe_node');
-                dest.appendChild(node);                
-                if((dest.clientHeight+this.extra_bottom>=page.clientHeight) || (node.innerHTML.indexOf('--//--')>=0)){
+                dest.appendChild(node);        
+                let pageBreakNode = node.innerHTML.indexOf('--//--')>=0 || node.style.pageBreakBefore || node.style.pageBreakAfter || node.getAttribute('page_break_before');
+                if((dest.clientHeight+this.extra_bottom>=page.clientHeight) || pageBreakNode){
                     node = dest.removeChild(node);
                     page = this.addPage();
                     dest = document.createElement('div');
@@ -3508,11 +3523,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     loadTemplateEditData:function(sourceNode){
         var paletteNode = sourceNode._connectedPalette;
         var templateHandler = sourceNode._templateHandler;
-        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag()); 
+        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''})); 
         var respath = templateHandler.dataInfo.respath;
         if(respath && respath.indexOf('_custom')>=0){
             paletteNode.setRelativeData('.data.metadata.custom',true);
         }
+        paletteNode.setRelativeData('.status','info');
     },
     gnrwdg_setTemplate:function(templateBag){
         if(this.chunkNode._connectedPalette){
@@ -3547,16 +3563,21 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_showLetterhead:showLetterhead,
                     remote_editorConstrain: editorConstrain
                     };  
-            kw.remote__onRemote = function(){
+           //kw.remote__onRemote = function(){
+           //    sourceNode._editorReady = true;
+           //    handler.loadTemplateEditData(sourceNode);
+           //}
+
+            kw.selfsubscribe_showing = function(){
                 handler.loadTemplateEditData(sourceNode);
-            }
-            kw.palette_selfsubscribe_savechunk = function(){
+            };
+            kw.palette_selfsubscribe_savechunk = function(publishkw){
                 tplpars = sourceNode.evaluateOnNode(tplpars);
                 var template = tplpars.template || new gnr.GnrBag();
                 var data = this.getRelativeData('.data').deepCopy();
                 var custom = data.pop('metadata.custom');
                 if(typeof(template)=='string'){
-                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom);
+                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom,publishkw);
                     templateHandler.dataInfo.respath = respath;
                 }else{
                     var tplpath = sourceNode.attr._tplpars.template;
@@ -3623,13 +3644,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return {template:result};
     },
     
-    saveTemplate:function(sourceNode,data,kw,custom){
+    saveTemplate:function(sourceNode,data,kw,custom,savekw){
         var template_address = (kw.table || '')+':'+kw.template;
-        var templateHandler = sourceNode._templateHandler;
         if(custom){
             template_address = template_address+',custom'
         }
-        return genro.serverCall("saveTemplate",{template_address:template_address,data:data},null,null,'POST');
+        return genro.serverCall("saveTemplate",{template_address:template_address,data:data,inMainResource:savekw.inMainResource},function(){});
     },
     
     
@@ -3766,7 +3786,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
                 setter(rendered);
-                templateHandler.data = r.popNode('template_data').getValue();
+                let template_data_node = r.popNode('template_data');
+                templateHandler.data = template_data_node?template_data_node.getValue(): new gnr.GnrBag();
             }else{
                 setter(r);
                 templateHandler.data = new gnr.GnrBag();

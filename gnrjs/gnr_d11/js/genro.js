@@ -2071,7 +2071,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
     serverCall:function(method, params, async_cb, mode,httpMethod) {
         var cb = funcCreate(async_cb);
-        var httpMethod = httpMethod || 'POST';
+        httpMethod = httpMethod || 'POST';
         return genro.rpc.remoteCall(method, params, mode, httpMethod, null, cb);
     },
     
