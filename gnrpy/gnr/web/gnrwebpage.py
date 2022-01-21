@@ -2372,7 +2372,10 @@ class GnrWebPage(GnrBaseWebPage):
                 jsquote(innerCurrRecordPath),jsquote(concat(relationStack,relkey,'|')),cps
                 ))
             elif 'subfields' in nodeattr:
-                if not currRecordPath:
+                typecol = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}').column(nodeattr["subfields"])
+                if typecol is None:
+                    self.log(f'warning missing column {nodeattr["subfields"]} used inside subfields attribute in table {nodeattr["pkg"]}.{nodeattr["table"]}')
+                elif not currRecordPath:
                     default_templates = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}'
                                         ).column(f'@{nodeattr["subfields"]}.df_custom_templates'
                                         ).attributes.get('templates')
