@@ -4687,7 +4687,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
-                var uploadhandler_key = genro.isMobile? 'selfsubscribe_doubletap':'connect_ondblclick';
+                var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
                 attr[uploadhandler_key] = function(){
                     this.getValue().getNode('fakeinput').domNode.click();
                 };

@@ -863,7 +863,7 @@ dojo.declare("gnr.GridEditor", null, {
         //this.widgetRootNode.attr.datapath = sourceNode.absDatapath(sourceNode.attr.storepath);
         var _this = this;
         if(genro.isMobile){
-            sourceNode.subscribe('doubletap',function(info){
+            sourceNode.subscribe('press',function(info){
                 var e = info.event;
                 if (_this.enabled() && _this.editableCell(e.cellIndex,e.rowIndex,true) && !grid.gnrediting) {
                     _this.startEdit(e.rowIndex, e.cellIndex,e.dispatch);
