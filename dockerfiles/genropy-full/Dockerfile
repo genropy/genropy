@@ -8,8 +8,22 @@ USER root
 RUN apk update \
   && apk add supervisor nginx
 
-COPY supervisord.conf /root/supervisord.conf
-COPY nginx.conf /root/nginx.conf
-COPY mime.types /root/mime.types
+RUN mkdir -p /var/lib/nginx/tmp/
+RUN mkdir -p /var/lib/nginx/tmp/proxy
+
+COPY --chown=genro:genro supervisord.conf /home/genro/supervisord.conf
+COPY --chown=genro:genro nginx.conf /home/genro/nginx.conf
+COPY --chown=genro:genro mime.types /home/genro/mime.types
+
+
+RUN chown genro:genro -R /var/lib/nginx 
+
+RUN chown -R genro:genro /var/log/nginx
+RUN touch /var/run/nginx.pid && \
+        chown -R genro:genro /var/run/nginx.pid
+
 
 USER genro
+
+
+CMD ["supervisord","-c","/home/genro/supervisord.conf"]
