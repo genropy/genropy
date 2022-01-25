@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
 # thermo.py
-# Created by Francesco Porcari on 2010-09-03.
+# Created by Francesco Porcari on 2010-09-03 and updated by Davide Paci on 2022-01-18.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 """thermo"""
 
-from builtins import str
-from builtins import range
-from builtins import object
+from gnr.core.gnrdecorator import public_method
 import random
 import time
 
@@ -24,31 +22,16 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return 'Thermo'
         
-    def test_1_batch(self, pane):
-        "Batch"
+    def test_0_batch(self, pane):
+        "Run testing batch with thermo. Open monitor to watch progress"
         box = pane.div(datapath='test1')
-        box.button('Start', fire='.start_test')
-        box.dataRpc('dummy', 'test_1_batch', _fired='^.start_test')
-        
-    def test_2_batch(self, pane):
-        "Batch 2"
-        box = pane.div(datapath='test2')
-        box.button('Start', fire='.start_test')
-        box.dataRpc('dummy', 'test_2_batch', _fired='^.start_test')
-        
-    def test_3_batch(self, pane):
-        "Batch 3"
-        box = pane.div(datapath='test3')
-        box.button('Start', fire='.start_test')
-        box.dataRpc('dummy', 'test_3_batch', _fired='^.start_test')
-        
-    def rpc_test_1_batch(self):
+        box.button('Start').dataRpc(self.runFirstBatch)
+
+    @public_method    
+    def runFirstBatch(self):
         t = time.time()
-        # thermo_lines = [{'title':'Clients',_class=}]
-        thermo_lines = 'clients,invoices,rows'
-        thermo_lines = None
-        self.btc.batch_create(title='testbatch',
-                              thermo_lines=thermo_lines, note='This is a test batch_1 %i' % int(random.random() * 100))
+        self.btc.batch_create(title='testbatch',  
+                                note='This is a test batch_1 %i' % int(random.random() * 100))
         clients = int(random.random() * cli_max)
         self.btc.thermo_line_add(code='clients', maximum=clients)
         try:
@@ -80,14 +63,18 @@ class GnrCustomWebPage(object):
             self.btc.batch_aborted()
         except Exception as e:
             self.btc.batch_error(error=str(e))
-        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='http://www.apple.com'))
+        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='https://www.genropy.org'))
         
-    def rpc_test_2_batch(self):
+    def test_1_batch(self, pane):
+        "Run testing batch with thermo, use of methods. Open monitor to watch progress"
+        box = pane.div(datapath='test1')
+        box.button('Start').dataRpc(self.runSecondBatch)
+
+    @public_method
+    def runSecondBatch(self):
         t = time.time()
-        thermo_lines = 'clients,invoices,rows'
-        thermo_lines = None
         self.btc.batch_create(title='testbatch',
-                              thermo_lines=thermo_lines, note='This is a test batch_2 %i' % int(random.random() * 100))
+                              note='This is a test batch_2 %i' % int(random.random() * 100))
         try:
             clients = int(random.random() * cli_max)
             for client in self.client_provider(clients):
@@ -100,7 +87,7 @@ class GnrCustomWebPage(object):
             self.btc.batch_aborted()
         except Exception as e:
             self.btc.batch_error(error=str(e))
-        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='http://www.apple.com'))
+        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='https://www.genropy.org'))
         
     def client_provider(self, clients):
         self.btc.thermo_line_add(code='clients', maximum=clients)
@@ -126,8 +113,14 @@ class GnrCustomWebPage(object):
                                         maximum=rows, message='row %i/%i' % (row, rows), progress=row)
             yield row
         self.btc.thermo_line_del(code='rows')
-        
-    def rpc_test_3_batch(self):
+    
+    def test_2_batch(self, pane):
+        "Run testing batch with thermo, use of callbacks. Open monitor to watch progress"
+        box = pane.div(datapath='test1')
+        box.button('Start').dataRpc(self.runThirdBatch)
+
+    @public_method
+    def runThirdBatch(self):
         t = time.time()
         btc = self.btc
         self.btc.batch_create(title='testbatch', note='This is a test batch_3 %i' % int(random.random() * 100))
@@ -150,4 +143,4 @@ class GnrCustomWebPage(object):
             self.btc.batch_aborted()
         except Exception as e:
             self.btc.batch_error(error=str(e))
-        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='http://www.apple.com'))
+        self.btc.batch_complete(result='Execution completed', result_attr=dict(url='https://www.genropy.org'))
