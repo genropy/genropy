@@ -1216,7 +1216,7 @@ dojo.declare("gnr.GridEditor", null, {
             let selectedKw = objectExtract(editkw,'selected_*',true);
             if(rowData){
                 for(let k in selectedKw){
-                    if(selectedKw[k].startsWith('.') && !isNullOrBlank(rowData.getItem(selectedKw[k]))){
+                    if(selectedKw[k].startsWith('.') && !isNullOrBlank(rowData.getItem(selectedKw[k].slice(1)))){
                         objectPop(selectedKw,k);
                     }
                 }
