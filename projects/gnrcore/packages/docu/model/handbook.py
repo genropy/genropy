@@ -30,8 +30,10 @@ class Table(object):
         tbl.column('custom_styles',name_long='Custom styles')
         tbl.column('examples_pars',dtype='X', name_long='Examples parameters')
 
-    def trigger_onDeleting(self, record):
+    def trigger_onDeleted(self, record):
         for node in ['build','source']:
             handbookNode = self.db.application.site.storageNode(record['sphinx_path']+'/sphinx/{node}/'.format(node=node))
+            if not handbookNode.children():
+                continue
             for file in handbookNode.children():
                 file.delete()

@@ -148,9 +148,10 @@ class Main(BaseResourceBatch):
 
         if self.redirect_pkeys:
             #DP202112 Make redirect files
-            makered_res = self.page.site.loadTableScript(page=self.page, table='docu.redirect', 
-                                            respath='action/make_redirect', class_name='Main')
-            makered_res(parameters=Bag(dict(redirect_pkeys=self.redirect_pkeys)))
+            redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
+            for redirect_pkey in self.redirect_pkeys:
+                redirect_rec = redirect_recs[redirect_pkey]
+                self.db.table('docu.redirect').makeRedirect(redirect_rec)
 
 
     def result_handler(self):
@@ -186,6 +187,13 @@ class Main(BaseResourceBatch):
             if atc_rst:
                 rst = '%s\n\n**Attachments:**\n\n%s' %(rst,atc_rst)
 
+            if n.attr['child_count']>0:
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+            else:
+                self.curr_pathlist = pathlist
+
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
             if self.examples_root and self.curr_sourcebag:
@@ -195,18 +203,16 @@ class Main(BaseResourceBatch):
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
             else:
                 footer= ''
+
             if n.attr['child_count']>0:
                 result.append('%s/%s.rst' % (name,name))
                 if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
                     tocstring = self.createToc(elements=toc_elements,
                             hidden=not record['sphinx_toc'],
                             titlesonly=True,
                             maxdepth=1)
             else:
                 result.append(name)
-                self.curr_pathlist=pathlist
                 tocstring=''
             
             self.createFile(pathlist=self.curr_pathlist, name=name,
