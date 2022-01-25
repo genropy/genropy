@@ -3549,7 +3549,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             paletteNode.getWidget().show();
         }else{
             var table = tplpars.table;
-            var remote_datasourcepath =  sourceNode.absDatapath(sourceNode.attr.datasource);
+            var remote_datasourcepath = sourceNode.attr.datasource? sourceNode.absDatapath(sourceNode.attr.datasource):null;
             var showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
