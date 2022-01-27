@@ -138,6 +138,7 @@ class Main(BaseResourceBatch):
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             record['handbook_url'] = self.handbook_url
+            record['local_handbook_zip'] = self.result_url if self.result_url else None
         self.db.commit()
 
         if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
