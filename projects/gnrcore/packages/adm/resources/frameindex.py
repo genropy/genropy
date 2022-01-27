@@ -135,10 +135,23 @@ class FrameIndex(BaseComponent):
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,userbox,logout,5',_class='framedindex_tablist showcase_dark',height='28px')
-        bar.pluginSwitch.div(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='25px',
-                                                      connect_onclick="""genro.nodeById('standard_index').publish('toggleLeft');""")
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
+                                                      action="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
-        bar.pageTitle.div('^selectedPageTitle',color='white')
+        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='13px',
+                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
+        bar.dataController("""
+        var currentpages = new gnr.GnrBag();
+        iframes = iframes || new gnr.GnrBag();
+        for(let n of iframes.getNodes()){
+            let kw = {caption:n.attr.fullname};
+
+            currentpages.addItem(n.label,null,kw);
+        }
+        SET gnr.currentPages = currentpages;
+        
+        """,iframes='^iframes')
+
         bar.pageTitle.dataController("""
                                         let selectedPageTitle = basetitle;
                                         if(iframes && iframes.len()>0){
@@ -150,7 +163,7 @@ class FrameIndex(BaseComponent):
                                 iframes='=iframes',basetitle='Index')
 
         bar.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold')
-        bar.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+        bar.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
 
     
@@ -410,7 +423,11 @@ class FrameIndex(BaseComponent):
                                                          }
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
-        bar = frame.bottom.slotToolbar('*,pluginButtons,*')
+        bar = frame.bottom.slotBar('*,pluginButtons,*')
+        sb = frame.bottom.slotToolbar('*,genrologo,*',
+                            _class='slotbar_toolbar framefooter',height='23px',
+                        background='#EEEEEE',border_top='1px solid silver',childname='logobar')
+        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         pluginButtons = bar.pluginButtons.div(display='inline-block', margin_left='10px',margin_top='4px')  
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));

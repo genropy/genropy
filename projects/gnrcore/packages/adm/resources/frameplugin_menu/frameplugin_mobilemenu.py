@@ -107,21 +107,6 @@ class MobileMenu(BaseComponent):
                         }
                     """,subscribe_refreshApplicationMenu=True,_menutree=menutree)
 
-        pane.dataController("""
-        var openpages = menu.getNode('_openpages_');
-        if(!openpages || !openpages.getValue()){
-            openpages = new gnr.GnrBag();
-            menu.setItem('_openpages_',openpages,{label:'Open pages',isDir:true,labelClass:'menu_shape menu_level_0 open_pages_branch'},{_position:'<'})
-            console.log('aggiunto openpages')
-        }else{
-            openpages = openpages.getValue();
-        }
-        let node = genro.getDataNode(_kwargs.fullpath);
-        let kw = {...node.attr};
-        genro.framedIndexManager.makePageUrl(kw)
-        openpages.setItem('p_'+stringHash(kw.url),null,kw);
-        """,iframes='=iframes',menu='=gnr.appmenu.root',subscribe__menutree__selected=True)
-
     @public_method
     def menu_refreshAppMenu(self,**kwargs):
         self.application.clearSiteMenu()
