@@ -11,18 +11,26 @@ class GnrCustomWebPage(object):
                  connect_onkeydown='genro.publish("log_event",{evt:$1});',
                  connect_onkeypress='genro.publish("log_event",{evt:$1});',
                  connect_onkeyup='genro.publish("log_event",{evt:$1});')
+
+        fb.dbSelect(value='^.provincia',lbl='Test dbselect',
+                 connect_onkeydown='genro.publish("log_event",{evt:$1});',
+                 connect_onkeypress='genro.publish("log_event",{evt:$1});',
+                 connect_onkeyup='genro.publish("log_event",{evt:$1});',
+                 dbtable='glbl.provincia')
+
         fb.checkbox(value='^.keydown',label='onkeydown',default=True)
         fb.checkbox(value='^.keypress',label='onkeypress',default=True)
         fb.checkbox(value='^.keyup',label='onkeyup',default=True)
 
         fb.button('Clear',action='SET .logdata = null;SET .curval=null;')
         bc.dataController("""
+                console.log('aaa',evt)
                 if(!data){
                     data = new gnr.GnrBag();
                 }else{
                     data = data.deepCopy();
                 }
-                if(keydown && evt.type=='keydown' || keypress && evt.type=='keypress'){
+                if(keydown && evt.type=='keydown' || keypress && evt.type=='keypress' || evt.type=='keyup'){
                     var row = new gnr.GnrBag();
                     columns.forEach(function(c){row.setItem(c,evt[c]) });
                     data.setItem('#id',row,{_customClasses:'event_type_'+evt.type},{_position:'<'});
