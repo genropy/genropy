@@ -20,6 +20,7 @@ class Table(object):
         tbl.column('toc_roots', name_long='Toc roots')
         tbl.column('language',size=':2',name_long='Base language').relation('docu.language.code',mode='foreignkey')
         tbl.column('sphinx_path', name_long='Sphinx path')
+        tbl.column('local_handbook_zip', name_long='Local handbook zip')
         tbl.column('version', name_long='Version')
         tbl.column('author', name_long='Author')
         tbl.column('theme', name_long='Theme')

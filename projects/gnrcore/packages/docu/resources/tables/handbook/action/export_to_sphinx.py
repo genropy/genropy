@@ -39,8 +39,9 @@ class Main(BaseResourceBatch):
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable=self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path']) #or default_path
-        self.sphinxNode = self.handbookNode.child('sphinx')
+        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
+        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.batch_parameters['download_zip'] else None
+        self.sphinxNode = self.handbookNode.child('sphinx') if not self.localHandbookNode else self.localHandbookNode.child('sphinx')
         self.sphinxNode.delete()
         self.sourceDirNode = self.sphinxNode.child('source')
         confSn = self.sourceDirNode.child('conf.py')
@@ -138,15 +139,16 @@ class Main(BaseResourceBatch):
 
     def post_process(self):
         if self.batch_parameters['download_zip']:
-            self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
+            self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
             self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
             self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             record['handbook_url'] = self.handbook_url
+            record['local_handbook_zip'] = self.result_url if self.result_url else None
         self.db.commit()
 
-        if self.redirect_pkeys:
+        if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
             #DP202112 Make redirect files
             redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
             for redirect_pkey in self.redirect_pkeys:
@@ -319,6 +321,7 @@ class Main(BaseResourceBatch):
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         fb.checkbox(lbl='Download Zip', value='^.download_zip')
+        fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
