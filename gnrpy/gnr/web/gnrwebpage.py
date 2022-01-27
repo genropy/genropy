@@ -2049,7 +2049,7 @@ class GnrWebPage(GnrBaseWebPage):
         if context_subtables:
             root.data('gnr.context_subtables',Bag(context_subtables),dbenv=True,serverpath='rootenv.context_subtables')
         if self.root_page_id and self.root_page_id==self.parent_page_id:
-            root.dataController("""var openMenu = genro.isMobile?false:openMenu;
+            root.dataController("""
                                if(openMenu===false){
                                     genro.publish({parent:true,topic:'setIndexLeftStatus'},openMenu);
                                }

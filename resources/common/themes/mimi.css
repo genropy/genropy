@@ -723,20 +723,40 @@ body.tundra.mimi {
     background: linear-gradient(45deg, #1f345d26, transparent);
 }
 
-.touchDevice .menutree .menu_shape{
-    background:RGBA(64, 128, 180, 1.00);
-    color:white;
-    line-height: 20px;
-    font-size:16px;
-    padding-left:30px;
-    border-radius:6px;
-    margin-left:8px;
-    padding-top:3px;
+.open_pages_branch.menu_shape{
+    background:RGBA(94, 281, 150, 1.00);
+
 }
-.touchDevice .menutree .opendir{
+
+.mode_mobile .menutree .menu_shape{
+    line-height: 20px;
+    border-radius:4px;
+    margin-left:8px;
+    font-size:13px;
+    padding-left: 20px;
+    background:none;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 28px;
+}
+
+.mode_mobile .menutree .menu_existing_page.menu_shape{
+    padding-top:3px;
+    padding-bottom:3px;
+}
+
+.mode_mobile .menutree .menu_shape.menu_level_0{
+    background:RGBA(64, 128, 180, 1.00);
+    font-size:14px;
+    text-align: center;
+    color:white;
+    padding-left: 0;
+
+}
+.mode_mobile .menutree .opendir{
     background: none;
 }
-.touchDevice .menutree .closedir{
+.mode_mobile .menutree .closedir{
     background: none;
 }
 
@@ -903,9 +923,9 @@ body.tundra.mimi {
     vertical-align:top;
 }
 
-.touchDevice._common_d11 .dojoxGrid-row .dojoxGrid-cell,
-.touchDevice._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
-.touchDevice._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell{
+.mode_mobile._common_d11 .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell{
     border-left: 0px !important;
     border-top: 0 !important;
     border-right: 1px solid #DDDDDD;
@@ -1134,6 +1154,7 @@ body.tundra.mimi {
     -moz-border-radius-bottomright: 4px;
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
+    border-right:1px solid #666;
 }
 .iframetab:first-child{
     -moz-border-radius-topleft: 4px;

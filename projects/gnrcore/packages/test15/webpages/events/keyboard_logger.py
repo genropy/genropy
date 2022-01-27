@@ -9,9 +9,11 @@ class GnrCustomWebPage(object):
         fb = bc.contentPane(region='top',border_bottom='1px solid silver').formbuilder(cols=4)
         fb.input(value='^.curval',lbl='Test input',
                  connect_onkeydown='genro.publish("log_event",{evt:$1});',
-                 connect_onkeypress='genro.publish("log_event",{evt:$1});')
+                 connect_onkeypress='genro.publish("log_event",{evt:$1});',
+                 connect_onkeyup='genro.publish("log_event",{evt:$1});')
         fb.checkbox(value='^.keydown',label='onkeydown',default=True)
         fb.checkbox(value='^.keypress',label='onkeypress',default=True)
+        fb.checkbox(value='^.keyup',label='onkeyup',default=True)
 
         fb.button('Clear',action='SET .logdata = null;SET .curval=null;')
         bc.dataController("""

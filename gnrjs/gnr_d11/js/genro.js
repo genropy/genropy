@@ -426,6 +426,10 @@ dojo.declare('gnr.GenroClient', null, {
         },15000);
         
         window.addEventListener("click", function(e){
+            var parentGenro = genro.getParentGenro();
+            if(genro.isMobile && parentGenro){
+                parentGenro.publish('setIndexLeftStatus',false);
+            }
             e._clickDuration = genro._lastMouseEvent.duration;
             e._longClick = genro._lastMouseEvent.longClick;
             genro._lastMouseEvent.mousedown = e;

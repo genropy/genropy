@@ -34,7 +34,7 @@ class FrameIndex(BaseComponent):
     @property
     def plugin_list(self):
         if self.device_mode!='std':
-            frameplugins = ['mobilemenu_plugin','batch_monitor','chat_plugin']
+            frameplugins = ['mobilemenu_plugin','batch_monitor']
         else:
             frameplugins = ['iframemenu_plugin','batch_monitor','chat_plugin']
         for pkgId,pkgobj in list(self.packages.items()):
@@ -47,7 +47,8 @@ class FrameIndex(BaseComponent):
                 if requires:
                     for p in requires.split(','):
                         self.mixinComponent(p)
-        frameplugins.append('maintenance')
+        if self.device_mode!='std':
+            frameplugins.append('maintenance')
         return ','.join(frameplugins)
 
     def main(self,root,new_window=None,gnrtoken=None,custom_index=None,**kwargs):
@@ -133,7 +134,7 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,envSlot,5',_class='framedindex_tablist showcase_dark')
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,userbox,logout,5',_class='framedindex_tablist showcase_dark',height='28px')
         bar.pluginSwitch.div(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='25px',
                                                       connect_onclick="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
@@ -147,7 +148,10 @@ class FrameIndex(BaseComponent):
                                         SET selectedPageTitle = selectedPageTitle;
                                         """,selectedPage='^selectedFrame', 
                                 iframes='=iframes',basetitle='Index')
-        bar.envSlot.div(datasource='^gnr.rootenv',template='<div>$workdate</div>',_class='pbl_avatar ',**kwargs)
+
+        bar.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold')
+        bar.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
 
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
@@ -279,8 +283,36 @@ class FrameIndex(BaseComponent):
         sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
                             action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
         sb.debugping.div(_class='ping_semaphore')
-    prepareBottom_mobile = prepareBottom_std
-    
+
+
+
+    def prepareBottom_mobile(self,bc):
+        return
+        bottom = bc.contentPane(region='bottom',overflow='hidden')
+        sb = bottom.slotToolbar('15,applogo,genrologo,5,*,preferences,logout,15',
+                            _class='slotbar_toolbar framefooter',height='23px',
+                        background='#EEEEEE',border_top='1px solid silver')
+        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        sb.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+        box = sb.preferences.div(_class='iframeroot_pref')
+        if not self.dbstore:
+            appPref = box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                    _class='iframeroot_appname',
+                                    connect_onclick='PUBLISH app_preference',envbag='=gnr.rootenv')
+            userPref = box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
+                                connect_onclick='PUBLISH user_preference')
+            appPref.dataController("""genro.dlg.iframePalette({top:'10px',left:'10px',url:url,
+                                                        title:preftitle,height:'450px', width:'800px',
+                                                        palette_nodeId:'mainpreference'});""",
+                            subscribe_app_preference=True,url='adm/app_preference',
+                            _tags=self.pageAuthTags(method='preference'),pane=appPref,preftitle='!!Application preference')
+            userPref.dataController("""genro.dlg.iframePalette({top:'10px',right:'10px',title:preftitle,url:url,
+                                                        height:'300px', width:'400px',palette_transition:null,
+                                                        palette_nodeId:'userpreference'});""",url='adm/user_preference',
+                            subscribe_user_preference=True,pane=userPref,preftitle='!!User preference')
+        bottom.div(height='20px')
+
     #def electronAppDownload(self,bar):
     #    electron_pars = self.site.config.getAttr('electron') or {}
     #    name = electron_pars.get('name') or self.site.site_name
@@ -378,7 +410,7 @@ class FrameIndex(BaseComponent):
                                                          }
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
-        bar = frame.top.slotToolbar('*,pluginButtons,*')
+        bar = frame.bottom.slotToolbar('*,pluginButtons,*')
         pluginButtons = bar.pluginButtons.div(display='inline-block', margin_left='10px',margin_top='4px')  
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));

@@ -80,9 +80,6 @@ class MobileMenu(BaseComponent):
                         var selectingPageKw = objectUpdate({name:node.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,
                                                             formResource:null,viewResource:null,fullpath:$1.fullpath,
                                                             modifiers:$1.modifiers},node.attr);
-                        if(genro.isMobile){
-                            genro.publish('setIndexLeftStatus',false);
-                        }
                         if (genro.isMobile && false){
                             genro.framedIndexManager.makePageUrl(selectingPageKw);
                             genro.openWindow(selectingPageKw.url,selectingPageKw.label);
@@ -111,11 +108,10 @@ class MobileMenu(BaseComponent):
                     """,subscribe_refreshApplicationMenu=True,_menutree=menutree)
 
         pane.dataController("""
-        genro.bp(true)
         var openpages = menu.getNode('_openpages_');
         if(!openpages || !openpages.getValue()){
             openpages = new gnr.GnrBag();
-            menu.addItem('_openpages_',openpages,{label:'Open pages',isDir:true,_class:'menu_shape'})
+            menu.setItem('_openpages_',openpages,{label:'Open pages',isDir:true,labelClass:'menu_shape menu_level_0 open_pages_branch'},{_position:'<'})
             console.log('aggiunto openpages')
         }else{
             openpages = openpages.getValue();
@@ -166,7 +162,6 @@ class MenuResolver(BagResolver):
             filepath = nodeattr.get('file')
             checkenv = nodeattr.get('checkenv')
             multidb = nodeattr.get('multidb')            
-            dashboard = nodeattr.get('dashboard')
             if nodeattr.get('dashboard'):
                 dashboards = self._getDashboards(pkg=nodeattr['dashboard'])
                 if not dashboards:
@@ -202,22 +197,23 @@ class MenuResolver(BagResolver):
                 attributes = {}
                 attributes.update(node.getAttr())
                 labelClass = 'menu_level_%i' % level
-           
                 if isinstance(value, Bag):
                     attributes['isDir'] = True
-                    newpath = '%s.%s' % (self.path, node.label) if self.path else node.label
+                    newpath = f'{self.path}.{node.label}' if self.path else node.label
                     value = MenuResolver(path=newpath, pagepath=self.pagepath,_page=self._page)()
                    # labelClass = 'menu_level_%i' % level
                 else:
                     value = None
-                    labelClass = '%s menu_page' %labelClass
+                    labelClass = '{labelClass} menu_page'
                     if 'file' in attributes and  attributes['file'].endswith(self.pagepath.replace('.py', '')):
                         labelClass = 'menu_page menu_current_page'
                     if 'workInProgress' in attributes:
                         labelClass+=' workInProgress'
                 customLabelClass = attributes.get('customLabelClass', '')
                 attributes['externalSite'] = externalSite
-                attributes['labelClass'] = 'menu_shape %s %s' % (labelClass, customLabelClass)
+                if attributes.get('pkg'):
+                    labelClass = 'branch_pkg' if not labelClass else f'{labelClass} branch_pkg'
+                attributes['labelClass'] = f'menu_shape {labelClass} {customLabelClass}'
                 result.setItem(node.label, value, attributes)
         return result
 
