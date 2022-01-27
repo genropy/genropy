@@ -1097,6 +1097,9 @@ body.tundra.mimi {
     color:var(--frameindex-tablist-color);
     min-height: 34px;
 }
+.mode_mobile .framedindex_tablist{
+    min-height: 15px;
+}
 .mimi .framedindex_tablist .button_block.iframetab{ 
     padding:2px;
 }
