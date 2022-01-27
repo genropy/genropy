@@ -13,9 +13,9 @@ class GnrCustomWebPage(object):
                  connect_onkeyup='genro.publish("log_event",{evt:$1});')
 
         fb.dbSelect(value='^.provincia',lbl='Test dbselect',
-                 connect_onkeydown='genro.publish("log_event",{evt:$1});',
-                 connect_onkeypress='genro.publish("log_event",{evt:$1});',
-                 connect_onkeyup='genro.publish("log_event",{evt:$1});',
+                 #connect_onkeydown='genro.publish("log_event",{evt:$1});',
+                 #connect_onkeypress='genro.publish("log_event",{evt:$1});',
+                 #connect_onkeyup='genro.publish("log_event",{evt:$1});',
                  dbtable='glbl.provincia')
 
         fb.checkbox(value='^.keydown',label='onkeydown',default=True)
