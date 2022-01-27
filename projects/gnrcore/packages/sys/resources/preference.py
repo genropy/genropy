@@ -35,6 +35,8 @@ class AppPref(object):
         stylepane = tc.contentPane(title='Styling')
         fb = stylepane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
         fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='Theme variant')
+        fb.filteringSelect('^.device_mode',lbl='Device mode',
+                        values='std:Standard,mobile:Mobile,xmobile:Large mobile')
         fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
                         minimum=0,maximum=360,lbl='Color rotate',livePreference=True)
         fb.horizontalSlider(value='^.body.filter_invert',intermediateChanges=True,width='150px',default_value=0,

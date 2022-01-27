@@ -1242,12 +1242,20 @@ class GnrWebPage(GnrBaseWebPage):
                                                                           allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
         
+
+    
+    @property
+    def device_mode(self):
+        default_device_mode = 'mobile' if self.isMobile else 'std'
+        return self.getPreference('theme.device_mode',pkg='sys') or default_device_mode
+
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
         theme_variant = self.getPreference('theme.theme_variant',pkg='sys') or ''
         if theme_variant:
             theme_variant = 'theme_variant_%s' %theme_variant
-        return '%s %s %s _common_d11 pkg_%s page_%s %s' % ((self.site.config['gui?css_theme'] or ''),
+        theme_variant = '%s mode_%s' %(theme_variant,self.device_mode)
+        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.site.config['gui?css_theme'] or ''),
         self.frontend.theme or '',theme_variant, self.packageId, self.pagename, getattr(self, 'bodyclasses', ''))
         
     def get_css_genro(self):
