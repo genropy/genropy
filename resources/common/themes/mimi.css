@@ -13,7 +13,7 @@ body.tundra.mimi {
     background:linear-gradient(to top, #f6f8fa, #ffffff);    
 }
 .mode_mobile .frameindexroot{
-    background:linear-gradient(to bottom, #ffffff, #bacbdf);    
+    background:#4b525b;    
 }
 
 
@@ -748,6 +748,8 @@ body.tundra.mimi {
     padding-top: 0;
     padding-bottom: 0;
     line-height: 24px;
+    color:white;
+
 }
 
 .mode_mobile .menutree .menu_existing_page.menu_shape{
@@ -756,15 +758,10 @@ body.tundra.mimi {
 }
 
 .mode_mobile .menutree .menu_shape.menu_level_0{
-    font-size:16px;
-    color:#172b51;
+    font-size:18px;
     padding-left: 0;
     line-height: 28px;
-
-}
-.open_pages_branch.mode_mobile .menutree .menu_shape.menu_level_0{
-    background: RGBA(255, 210, 0, 1.00);
-    color:#172b51;
+    font-variant-caps: all-small-caps;
 }
 
 .mode_mobile .menutree .opendir{
@@ -1169,6 +1166,17 @@ body.tundra.mimi {
     font-size:10pt;
     font-variant: none;
 }
+.mimi .mode_mobile .iframetab{
+    background: transparent;
+    border-left:0;
+    border-right: 0;
+    border-top: 2px transparent;
+    border-bottom: 0;
+    padding:3px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
 .iframetab:last-child{
     -moz-border-radius-topright: 4px;
     -moz-border-radius-bottomright: 4px;
@@ -1187,6 +1195,11 @@ body.tundra.mimi {
     background-image: none;
     background-color: #A6CAEE;
     background-image: -moz-linear-gradient(-90deg, #A6CAEE, #467399);
+}
+
+.mimi .mode_mobile .iframetab_selected.iframetab{
+    background-color: transparent;
+    border-top:2px solid red;
 }
 
 
