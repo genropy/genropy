@@ -142,10 +142,12 @@ class Main(BaseResourceBatch):
             self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
             self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
             self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
-        with self.tblobj.recordToUpdate(self.handbook_id) as record:
-            record['last_exp_ts'] = datetime.now()
-            record['handbook_url'] = self.handbook_url
-            record['local_handbook_zip'] = self.result_url if self.result_url else None
+            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+                record['local_handbook_zip'] = self.result_url
+        else:
+            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+                record['last_exp_ts'] = datetime.now()
+                record['handbook_url'] = self.handbook_url
         self.db.commit()
 
         if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
