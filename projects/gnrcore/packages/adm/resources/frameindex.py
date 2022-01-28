@@ -134,12 +134,14 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',_class='framedindex_tablist showcase_dark',height='28px')
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,debugping,5',_class='framedindex_tablist showcase_dark',height='30px')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
-        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='13px',
+        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
                         caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
+        bar.debugping.div(_class='ping_semaphore',width='30px')
+
         bar.dataController("""
         var currentpages = new gnr.GnrBag();
         iframes = iframes || new gnr.GnrBag();
@@ -378,8 +380,8 @@ class FrameIndex(BaseComponent):
 
     def prepareLeft_mobile(self,bc):
 
-        frame = bc.framePane(region='left',splitter=True,width='210px',datapath='left',
-                                    margin_right='-4px',overflow='hidden',hidden=self.hideLeftPlugins,border_right='5px solid #eee')
+        frame = bc.framePane(region='left',width='210px',datapath='left',
+                                overflow='hidden',hidden=self.hideLeftPlugins)
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
@@ -396,13 +398,11 @@ class FrameIndex(BaseComponent):
 
 
 
-        sb = frame.bottom.slotToolbar('*,genrologo,*',
-                            _class='slotbar_toolbar framefooter',height='23px',
-                        background='#EEEEEE',border_top='1px solid silver',childname='logobar')
+        sb = frame.bottom.slotBar('*,genrologo,*',background='white',
+                            _class='slotbar_toolbar framefooter',height='23px',childname='logobar')
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));
-                             console.log('selected',selected);
                              genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);
                              """,subscribe_gnr_main_left_center_selected=True)
         frame.dataController("""var command= main_left_status[0]?'open':'close';

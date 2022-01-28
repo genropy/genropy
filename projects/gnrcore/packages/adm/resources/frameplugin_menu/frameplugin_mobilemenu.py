@@ -35,6 +35,10 @@ class MobileMenu(BaseComponent):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
         #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
         bc = frame.center.borderContainer()
+        sb = frame.bottom.slotBar('10,userbox,*,logout,10',height='40px',border_top='1px solid white')
+        sb.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold',font_size='.9em')
+        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
         #tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
         self.menu_mobilemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
 
@@ -67,7 +71,8 @@ class MobileMenu(BaseComponent):
                         }
                         return opened? 'opendir':'closedir';                        
                     }""",
-                  getLabelClass="return node.attr.labelClass;",
+                    selectedLabelClass="mobilemenuSelected",
+                  getLabelClass="""return node.attr.labelClass;""",
                   openOnClick=True,
                   connect_onClick="""this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
                                                                     relpath:$1.getFullpath(null,genro.getData(this.attr.storepath)),
@@ -189,7 +194,7 @@ class MenuResolver(BagResolver):
                    # labelClass = 'menu_level_%i' % level
                 else:
                     value = None
-                    labelClass = '{labelClass} menu_page'
+                    labelClass = f'{labelClass} menu_page'
                     if 'file' in attributes and  attributes['file'].endswith(self.pagepath.replace('.py', '')):
                         labelClass = 'menu_page menu_current_page'
                     if 'workInProgress' in attributes:
