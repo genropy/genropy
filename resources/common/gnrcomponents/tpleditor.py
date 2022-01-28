@@ -161,8 +161,8 @@ class TemplateEditorBase(BaseComponent):
                     fk='^%s'%fk
                 if table:
                     varsdict[varname] = '$%s%s' %(fldpath,fk)
-
-                columns.append((varsdict.get(varname) or fldpath).replace('$@','@'))
+                colname = (varsdict.get(varname) or fldpath).split('^')[0].replace('$@','@')
+                columns.append(colname)
                 if virtualcol:
                     virtual_columns.append(fldpath)
                 if required_columns:

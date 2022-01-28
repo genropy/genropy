@@ -1302,11 +1302,11 @@ body.tundra.mimi {
 
 .mimi .menudiv_text{
     background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat righ 70%;
-    background-size: 20%;
+    background-size: 10px;
 }
 .mimi .menudiv_text.menudiv_text_white{
     background: url(/_rsrc/common/css_icons/svg/16/popup_white.svg) no-repeat right 70%;
-    background-size: 20%;
+    background-size: 10px;
 }
 
 
