@@ -111,6 +111,20 @@ class GnrCustomWebPage(object):
                                 dict(name='title', lbl='Title', tag='filteringSelect', values='Mr,Miss,Mrs')]))
         pane.div('^.info_string')
 
+    def test_9_menudiv_label(self,pane):
+        bar = pane.slotToolbar('*,mymenu,*')
+        bar.mymenu.menudiv(value='^.code',storepath='.menudata',
+                        caption_path='.caption',
+                        placeholder='!![en]Select', _class='smallmenu')
+        pane.data('.menudata', self.menudata())
+
+    def test_10_combomenu(self,pane):
+        bar = pane.slotToolbar('*,mymenu,*')
+        bar.data('.caption','Select')
+        bar.mymenu.textbox('^.caption',width='15em').comboMenu(storepath='.menudata', selected_caption='.caption',_class='smallmenu')
+        pane.data('.menudata', self.menudata())
+
+
     @public_method
     def menulineRpc(self,surname=None,title=None,**kwargs):
         info_string = 'Hello '+title+' '+surname

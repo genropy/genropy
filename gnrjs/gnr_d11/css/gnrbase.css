@@ -5029,6 +5029,9 @@ div[disabled='true'], div[disabled='disabled']{
     background: url(icons/base12/smallpopup.gif) no-repeat right;
 }
 
+.menudiv_text.menudiv_text_white{
+    color:white;
+}
 ._common_d11__ .dijitMenu {
     border: 1px solid gray;
     background-color: whitesmoke;
