@@ -1099,9 +1099,12 @@ class TableBase(object):
             kwargs['df_templates'] = tpl.getItem('main?df_templates')
             kwargs['dtypes'] = tpl.getItem('main?dtypes')
             #virtual_columns = tpl.getItem('main?virtual_columns')
-        r = Bag(dict(record))
+        r = record
         if not isinstance(record,Bag):
-            tpl['main'] = tpl['main'].replace('@','_').replace('.','_')
+            for col in tpl.getAttr('main','columns').split(','):
+                if col.startswith('@'):
+                    tpl['main'] = tpl['main'].replace(col, col.replace('@','_').replace('.','_'))
+            r = Bag(dict(record))
         return templateReplace(tpl,r,**kwargs)
 
 
