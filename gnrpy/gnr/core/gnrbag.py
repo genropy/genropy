@@ -58,6 +58,8 @@ from __future__ import print_function
 
 #import weakref
 from past.builtins import cmp
+from functools import cmp_to_key
+
 from future import standard_library
 standard_library.install_aliases()
 from builtins import zip
@@ -652,8 +654,17 @@ class Bag(GnrObject):
         """TODO
         
         :param pars: TODO None: label ascending"""
+        def safeCmp(a, b):
+            if a is None:
+                if b is None:
+                    return 0
+                return -1
+            elif b is None:
+                return 1
+            else:
+                return cmp(a, b)
+
         if not isinstance(pars, basestring):
-            print(pars)
             self._nodes.sort(key=pars)
         else:
             levels = pars.split(',')
@@ -669,12 +680,15 @@ class Bag(GnrObject):
                 if what == '#k':
                     self._nodes.sort(key=lambda a: a.label.lower(), reverse=reverse)
                 elif what == '#v':
-                    self._nodes.sort(key=lambda a: a.value, reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.value, b.value)
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
                 elif what.startswith('#a'):
                     attrname = what[3:]
-                    self._nodes.sort(key=lambda a: a.getAttr(attrname), reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.getAttr(attrname), b.getAttr(attrname))
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
                 else:
-                    self._nodes.sort(key=lambda a:a.value[what], reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.value[what], b.value[what])
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
         return self
         
     def sum(self, what='#v'):
