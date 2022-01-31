@@ -2737,26 +2737,26 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
 
     mixin_onOpeningPopup:function(popupKwargs){
         var kw = this.sourceNode.currentAttributes();
-        var aroundWidget = kw.attachTo? kw.attachTo.widget:null;
-
-        if(!aroundWidget && this.originalContextTarget){
+        var around = kw.attachTo;
+        if(!kw.attachTo && this.originalContextTarget){
             var enclosingWidget = dijit.getEnclosingWidget(this.originalContextTarget);
             if(enclosingWidget.sourceNode){
                 var cmenu = enclosingWidget.sourceNode.attr.connectedMenu;
                 if(cmenu && cmenu == this.sourceNode.attr.id){
-                    aroundWidget = enclosingWidget;
+                    around = enclosingWidget;
                 }
             }
         }
-        if(aroundWidget){
-            this.gnrPlaceAround(popupKwargs,aroundWidget);
+        if(around){
+            this.gnrPlaceAround(popupKwargs,around);
         }
 
     },
-    mixin_gnrPlaceAround:function(popupKwargs,widget){
-        popupKwargs.popup.domNode.style.width = widget.domNode.clientWidth+'px';
+    mixin_gnrPlaceAround:function(popupKwargs,where){
+        let domNode = genro.dom.getDomNode(where);
+        popupKwargs.popup.domNode.style.width =domNode.clientWidth+'px';
         popupKwargs.orient = this.isLeftToRight() ? {'BL':'TL', 'BR':'TR', 'TL':'BL', 'TR':'BR'}: {'BR':'TR', 'BL':'TL', 'TR':'BR', 'TL':'BL'};
-        popupKwargs.around = widget.domNode;
+        popupKwargs.around = domNode;
     }
 
 });
@@ -3670,11 +3670,6 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget);
         this.connectForUpdate(widget, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
     },
     mixin_onSpeechEnd:function(){
         this._startSearchFromInput();
@@ -3978,11 +3973,6 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectForUpdate(widget, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
         genro.google().setGeocoder(widget);
     },
     mixin_handleGeocodeResults: function(results, status){
@@ -4199,11 +4189,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget, savedAttrs, sourceNode);
-        if (dojo_version == '1.1') {
-            if (dojo.isSafari) {
-                dojo.connect(widget.focusNode, 'onkeydown', widget, '_onKeyPress');
-            }
-        }
         if(savedAttrs.connectedArrowMenu && widget.downArrowNode){
             var connectedMenu = savedAttrs.connectedArrowMenu; 
             genro.src.onBuiltCall(function(){
@@ -4687,7 +4672,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
-                var uploadhandler_key = genro.isMobile? 'selfsubscribe_doubletap':'connect_ondblclick';
+                var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
                 attr[uploadhandler_key] = function(){
                     this.getValue().getNode('fakeinput').domNode.click();
                 };

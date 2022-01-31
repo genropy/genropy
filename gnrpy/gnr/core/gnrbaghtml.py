@@ -293,6 +293,9 @@ class BagToHtml(object):
             result = []
             for fpath,html in self.splittedPages_data:
                 html = html.replace('#TOTPAGE',str(self.current_page_number+1))
+                folderpath = os.path.dirname(fpath)
+                if not os.path.isdir(folderpath):
+                    os.makedirs(folderpath)
                 with open(fpath,'w') as f:
                     f.write(html)
                 result.append(fpath)

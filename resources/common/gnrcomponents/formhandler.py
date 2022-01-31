@@ -115,7 +115,7 @@ class FormHandler(BaseComponent):
         gridsubscribers = dict()
         if link_kwargs.get('event'):
             if self.isMobile:
-                gridattr['selfsubscribe_doubletap'] = """
+                gridattr['selfsubscribe_press'] = """
                             var rowIndex= $1.event.rowIndex;
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];

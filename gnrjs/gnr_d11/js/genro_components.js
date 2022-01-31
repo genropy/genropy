@@ -179,6 +179,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
         var disabled = objectPop(kw,'disabled');
         var parentForm = objectPop(kw,'parentForm');
         var value = objectPop(kw,'value');
+        var colorWhite = objectPop(kw,'colorWhite');
 
         buttonkw.hidden = objectPop(kw,'hidden');
 
@@ -201,7 +202,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             for(let k in styleKw){
                 sourceStyleKw[k.replace('-','_')] = styleKw[k];
             }
-            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:'menudiv_text'},sourceStyleKw));
+            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:colorWhite?'menudiv_text menudiv_text_white':'menudiv_text'},sourceStyleKw));
             let value_path = value.slice(1);
             let caption_path = objectPop(kw,'caption_path') || `${value_path}?label`;
             let key = objectPop(kw,'key') || 'fullpath';
@@ -213,6 +214,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
 
         kw._class = kw._class || 'smallmenu';
         kw.modifiers = kw.modifiers || '*';
+        kw.attachTo = box.getParentNode();
         return box._('menu',kw);
     }
 });
@@ -3549,7 +3551,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             paletteNode.getWidget().show();
         }else{
             var table = tplpars.table;
-            var remote_datasourcepath =  sourceNode.absDatapath(sourceNode.attr.datasource);
+            var remote_datasourcepath = sourceNode.attr.datasource? sourceNode.absDatapath(sourceNode.attr.datasource):null;
             var showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',

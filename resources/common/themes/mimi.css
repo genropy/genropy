@@ -12,6 +12,9 @@ body.tundra.mimi {
 .frameindexcenter{
     background:linear-gradient(to top, #f6f8fa, #ffffff);    
 }
+.mode_mobile .frameindexroot{
+    background:#4b525b;    
+}
 
 
 /* @group Floating pane */
@@ -713,6 +716,14 @@ body.tundra.mimi {
     padding-top: 0px;
 }
 
+.mode_mobile .menutree .dijitTreeContent {
+    margin-left: 0px;
+    min-height: 10px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+
 .menutree .menu_shape {
     padding-top: 6px;
     line-height: 11px;
@@ -723,20 +734,40 @@ body.tundra.mimi {
     background: linear-gradient(45deg, #1f345d26, transparent);
 }
 
-.touchDevice .menutree .menu_shape{
-    background:RGBA(64, 128, 180, 1.00);
-    color:white;
-    line-height: 20px;
-    font-size:16px;
-    padding-left:30px;
-    border-radius:6px;
-    margin-left:8px;
-    padding-top:3px;
+.open_pages_branch.menu_shape{
+    background:RGBA(94, 281, 150, 1.00);
+
 }
-.touchDevice .menutree .opendir{
+
+.mode_mobile .menutree .menu_shape{
+    border-radius:4px;
+    margin-left:0px;
+    font-size:13px;
+    padding-left: 0px;
+    background:none;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 24px;
+    color:white;
+
+}
+
+.mode_mobile .menutree .menu_existing_page.menu_shape{
+    padding-top:3px;
+    padding-bottom:3px;
+}
+
+.mode_mobile .menutree .menu_shape.menu_level_0{
+    font-size:18px;
+    padding-left: 0;
+    line-height: 28px;
+    font-variant-caps: all-small-caps;
+}
+
+.mode_mobile .menutree .opendir{
     background: none;
 }
-.touchDevice .menutree .closedir{
+.mode_mobile .menutree .closedir{
     background: none;
 }
 
@@ -747,6 +778,16 @@ body.tundra.mimi {
     font-weight:bold;
     padding-top: 5px; /*adjustment for bold*/
     padding-bottom: 5px; /*adjustment for bold*/
+}
+.mode_mobile .menutree .menu_existing_page.menu_shape  {
+    font-weight: normal;
+    padding-top: 0; /*adjustment for bold*/
+    padding-bottom: 0; /*adjustment for bold*/
+}
+
+
+.mimi .menu_page.mobilemenuSelected{
+    color:rgba(255, 210, 0, 1.00);
 }
 
 .menutree .menu_shape:hover {
@@ -903,9 +944,9 @@ body.tundra.mimi {
     vertical-align:top;
 }
 
-.touchDevice._common_d11 .dojoxGrid-row .dojoxGrid-cell,
-.touchDevice._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
-.touchDevice._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell{
+.mode_mobile._common_d11 .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .dojoxGrid-row-selected .dojoxGrid-cell{
     border-left: 0px !important;
     border-top: 0 !important;
     border-right: 1px solid #DDDDDD;
@@ -1097,6 +1138,9 @@ body.tundra.mimi {
     color:var(--frameindex-tablist-color);
     min-height: 34px;
 }
+.mode_mobile .framedindex_tablist{
+    min-height: 15px;
+}
 .mimi .framedindex_tablist .button_block.iframetab{ 
     padding:2px;
 }
@@ -1126,22 +1170,45 @@ body.tundra.mimi {
     font-size:10pt;
     font-variant: none;
 }
+.mimi.mode_mobile .iframetab{
+    background: transparent;
+    border-left:0;
+    border-right: 0;
+    border-top: 4px transparent;
+    border-bottom: 0;
+    padding:3px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
 .iframetab:last-child{
-    -moz-border-radius-topright: 4px;
-    -moz-border-radius-bottomright: 4px;
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
+    border-right: 1px solid #666;
 }
+
 .iframetab:first-child{
-    -moz-border-radius-topleft: 4px;
-    -moz-border-radius-bottomleft: 4px;
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
+.mimi.mode_mobile .iframetab:first-child{
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.mimi.mode_mobile .iframetab:last-child{
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
 .iframesubtab.iframetab{
     background-image: none;
     background-color: #A6CAEE;
     background-image: -moz-linear-gradient(-90deg, #A6CAEE, #467399);
+}
+
+.mimi.mode_mobile .iframetab_selected.iframetab{
+    background-color: transparent;
+    border-top:4px solid rgba(255, 210, 0, 1.00);;
 }
 
 
@@ -1254,6 +1321,17 @@ body.tundra.mimi {
     padding-top: 2px;
     padding-bottom: 2px;
 }
+
+.mimi .menudiv_text{
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat righ 70%;
+    background-size: 10px;
+}
+.mimi .menudiv_text.menudiv_text_white{
+    background: url(/_rsrc/common/css_icons/svg/16/popup_white.svg) no-repeat right 70%;
+    background-size: 10px;
+}
+
+
 
 .popupLabel {
     padding-right: 15px;
@@ -1377,6 +1455,10 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/menu_icon.svg) no-repeat center center;
 }
 
+.mimi .menu_white{
+    background: url(/_rsrc/common/css_icons/svg/16/menu_white.svg) no-repeat center center;
+}
+
 .mimi .import_data_tool{
     background: url(/_rsrc/common/css_icons/svg/16/import_data_tool.svg) no-repeat center center;
 }
@@ -1446,6 +1528,10 @@ body.tundra.mimi {
 
 .mimi .read_only_status{
     background: url(/_rsrc/common/css_icons/svg/16/read_only_status.svg) no-repeat center center;
+}
+.mimi.touchDevice .iconbox{
+    padding-left:3px;
+    padding-right:3px;
 }
 
 .mimi .reset_record, .mimi .revert{

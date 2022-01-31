@@ -14,7 +14,7 @@ class GnrCustomWebPage(object):
     def test_0_groupByTableHandler(self,pane):
         "Group data by customized criteria with groupByTableHandler. In this case, insert region name to show data"
         bc = pane.borderContainer(height='400px',width='650px')
-        bc.contentPane(region='top').dbSelect(value='^regione',dbtable='glbl.regione', lbl='Regione')
+        bc.contentPane(region='top').dbSelect(value='^regione', table='glbl.regione', lbl='Regione')
         center = bc.contentPane(region='center')
         center.groupByTableHandler(table='glbl.comune', struct=self.struttura_group,
                                 condition='@sigla_provincia.regione LIKE :rg', condition_rg='^regione?=#v?#v:"%"',

@@ -863,7 +863,7 @@ dojo.declare("gnr.GridEditor", null, {
         //this.widgetRootNode.attr.datapath = sourceNode.absDatapath(sourceNode.attr.storepath);
         var _this = this;
         if(genro.isMobile){
-            sourceNode.subscribe('doubletap',function(info){
+            sourceNode.subscribe('press',function(info){
                 var e = info.event;
                 if (_this.enabled() && _this.editableCell(e.cellIndex,e.rowIndex,true) && !grid.gnrediting) {
                     _this.startEdit(e.rowIndex, e.cellIndex,e.dispatch);
@@ -1200,7 +1200,7 @@ dojo.declare("gnr.GridEditor", null, {
         this.updateStatus();
     },
 
-    rowSelectedQueries:function(){
+    rowSelectedQueries:function(rowData){
         var cellmap = this.grid.cellmap;
         var queries = new gnr.GnrBag();
         this.grid.getColumnInfo().forEach(function(colNode){
@@ -1214,11 +1214,18 @@ dojo.declare("gnr.GridEditor", null, {
             let hcols = [];
             let rcol = cmap.relating_column || field;
             let selectedKw = objectExtract(editkw,'selected_*',true);
-            let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
+            if(rowData){
+                for(let k in selectedKw){
+                    if(selectedKw[k].startsWith('.') && !isNullOrBlank(rowData.getItem(selectedKw[k].slice(1)))){
+                        objectPop(selectedKw,k);
+                    }
+                }
+            }
             if(objectNotEmpty(selectedKw)){
                 hcols = hcols.concat(objectKeys(selectedKw));
             }
             if(hcols.length){
+                let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
                 queries.setItem(field,new gnr.GnrBag(selectedKw),objectUpdate({table:tbl,columns:hcols.join(','),pkey:rcol,where:'$pkey =:pkey'},dbenvKw));
             }
         });
@@ -2246,7 +2253,8 @@ dojo.declare("gnr.GridChangeManager", null, {
             var rowEditor = this.grid.getRowEditor({rowId:kw.node.label});
             if(!rowEditor){
                 rowEditor = gridEditor.newRowEditor(kw.node);
-                if((gridEditor.remoteRowController || gridEditor.rowSelectedQueries().len()>0) && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
+                let rowSelectedQueries = gridEditor.rowSelectedQueries(rowEditor.data);
+                if((gridEditor.remoteRowController || rowSelectedQueries.len(rowEditor.data)>0) && rowEditor.data.getItem(this.grid.masterEditColumn())!==null ){
                     gridEditor.callRemoteController(kw.node,null,null,true);
                 }
             }
