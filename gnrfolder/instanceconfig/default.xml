@@ -17,5 +17,10 @@
 		<wsgi mainpackage="{GNR_MAINPACKAGE}"/>
     	<options liveUpdate="*"/>
     	<sitedaemon/>
+		<resources >
+			<mobile/>
+			<common/>
+			<js_libs/>
+		</resources>
 	</site>
 </GenRoBag>
