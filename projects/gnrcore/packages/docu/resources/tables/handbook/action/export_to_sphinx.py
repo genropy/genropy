@@ -191,10 +191,12 @@ class Main(BaseResourceBatch):
             if atc_rst:
                 rst = '%s\n\n**Attachments:**\n\n%s' %(rst,atc_rst)
 
-            self.curr_pathlist=pathlist
-
-            if n.attr['child_count']>0 and v:
-                self.curr_pathlist = pathlist+[name]
+            if n.attr['child_count']>0:
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+            else:
+                self.curr_pathlist = pathlist
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
@@ -209,11 +211,10 @@ class Main(BaseResourceBatch):
             if n.attr['child_count']>0:
                 result.append('%s/%s.rst' % (name,name))
                 if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
                     tocstring = self.createToc(elements=toc_elements,
-                                                    hidden=not record['sphinx_toc'],
-                                                    titlesonly=True,
-                                                    maxdepth=1)
+                            hidden=not record['sphinx_toc'],
+                            titlesonly=True,
+                            maxdepth=1)
             else:
                 result.append(name)
                 tocstring=''
