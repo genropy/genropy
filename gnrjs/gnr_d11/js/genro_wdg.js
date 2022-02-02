@@ -1538,7 +1538,10 @@ dojo.declare("gnr.GridEditor", null, {
         var fldDict = this.columns[colname];
         var gridcell = fldDict.attr.gridcell || colname;
         var rowDataNode = grid.dataNodeByIndex(row);
-        if(rowDataNode && rowDataNode.attr._is_readonly_row){
+
+        let celledit = cell.edit;
+        let _ignore_readonly_row= celledit && celledit._ignore_readonly_row===true;
+        if(rowDataNode && rowDataNode.attr._is_readonly_row && !_ignore_readonly_row){
             return;
         }
         var datachanged = false;
@@ -1809,7 +1812,9 @@ dojo.declare("gnr.GridEditor", null, {
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);
-        if(rowdict._is_readonly_row){
+        let celledit = cell.edit;
+        let _ignore_readonly_row= celledit && celledit._ignore_readonly_row===true;
+        if(rowdict._is_readonly_row && !_ignore_readonly_row){
             return false;
         }
         if(gridSourceNode.currentFromDatasource(cell.editDisabled)){
@@ -1817,7 +1822,7 @@ dojo.declare("gnr.GridEditor", null, {
         }else if(clicked){
             return true;
         }else if(gridSourceNode.currentFromDatasource(cell.editLazy)){
-            var editpars = cell.edit==true?{}:gridSourceNode.evaluateOnNode(cell.edit);
+            var editpars = cell.edit===true?{}:gridSourceNode.evaluateOnNode(cell.edit);
             return (editpars.validate_notnull && this.grid.rowByIndex(row)[cell.field]===null);
         }else{
             return true;
