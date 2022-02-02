@@ -232,9 +232,9 @@ class Main(BaseResourceBatch):
     def fixExamples(self, m):
         example_label = m.group(1)
         example_name = m.group(2)
-        
+        print('**EXAMPLE**', example_name)
         sourcedata = self.curr_sourcebag[example_name] or Bag()
-     
+        print(sourcedata)
         return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
         
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):
