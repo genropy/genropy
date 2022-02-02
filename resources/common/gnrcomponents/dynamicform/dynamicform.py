@@ -98,7 +98,7 @@ class DynamicFormBagManager(BaseComponent):
 
         fb.textbox(value='^.source_dbselect',lbl='!!Source',colspan=3,row_class='df_row field_dbselect',width='100%',ghost='!!pkg.table')  
         fb.textbox(value='^.source_dbcombobox',lbl='!!Source',colspan=3,row_class='df_row field_dbcombobox',width='100%',ghost='!!pkg.table')  
-
+        fb.checkbox(value='^.hasDownArrow',label='!!Show Down Arrow',colspan=3,row_class='df_row field_dbcombobox field_dbselect')
         fb.filteringSelect(value='^.validate_case',lbl='!!Case',row_class='df_row field_textbox',width='100%',values='u:Uppercase,l:Lowercase,c:Capitalize,t:Title')
         fb.br()
         
