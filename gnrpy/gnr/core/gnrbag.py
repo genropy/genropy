@@ -1999,6 +1999,10 @@ class Bag(GnrObject):
                         return source, True, 'pickle'
                     elif fext in ['xml', 'html', 'xhtml', 'htm']:
                         return source, True, 'xml'
+                    elif fext == 'yaml':
+                        return source, True, 'yaml'
+                    elif fext == 'json':
+                        return source, True, 'json'
                     elif fext=='xsd':
                         return source,True,'xsd'
                     else:
@@ -2021,6 +2025,27 @@ class Bag(GnrObject):
         #    return urlobj.read(), False, 'xsd' #it is an url of type xml
         return source, False, 'direct' #urlresolver
 
+
+    def fromYaml(self,y,listJoiner=None):
+        import yaml
+        if os.path.isfile(y):
+            with open(y,'rb') as f :
+                doc = yaml.safe_load_all(f)
+                self._nodes[:] = self._fromYaml(doc,listJoiner=listJoiner)._nodes
+        else:
+            doc = yaml.safe_load_all(y)
+            self._nodes[:] = self._fromYaml(doc,listJoiner=listJoiner)._nodes
+        
+    def _fromYaml(self,yamlgen,listJoiner=None):
+        result = Bag()
+        i = 0
+        for r in yamlgen:
+            b = Bag()
+            b.fromJson(r,listJoiner=listJoiner)
+            result.addItem(f'r_{i:04}',b,_autolist=True)
+        return result
+
+
     def fromJson(self,json,listJoiner=None):
         if isinstance(json,basestring):
             json = gnrstring.fromJson(json)
@@ -2037,7 +2062,7 @@ class Bag(GnrObject):
             if listJoiner and all([isinstance(r,basestring) and not converter.isTypedText(r) for r in json]):
                 return listJoiner.join(json)
             for n,v in enumerate(json):
-                result.setItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
+                result.addItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
 
         elif isinstance(json,dict):
             if not json:
