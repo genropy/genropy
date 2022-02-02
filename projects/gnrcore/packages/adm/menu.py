@@ -7,6 +7,7 @@ def config(root,application=None):
     user_setup.thpage(u"!!Auth tags", table="adm.htag")
     user_setup.thpage(u"!!Group", table="adm.group")
     user_setup.thpage(u"!!Access groups", table="adm.access_group",tags='_DEV_,superadmin')
+    user_setup.webpage('!!User preferences',filepath='/adm/user_preference')
 
     utility = administration.branch('!!App Utility',tags='admin')
     utility.thpage(u"!!Letterheads", table="adm.htmltemplate")
@@ -16,6 +17,7 @@ def config(root,application=None):
     utility.thpage(u"!!Userobjects", table="adm.userobject")
     utility.thpage(u"!!Counters", table="adm.counter",tags='_DEV_,superadmin')
     utility.lookups(u"!!Utility tables", lookup_manager="adm")
+    utility.webpage('!!Application preferences',tags='admin',filepath='/adm/app_preference')
 
     dev = administration.branch('!!Developers',tags='_DEV_')
     
@@ -31,7 +33,6 @@ def config(root,application=None):
     permissions.thpage(u"!!Pkginfo", table="adm.pkginfo")
     permissions.thpage(u"!!Tableinfo", table="adm.tblinfo")
     permissions.webpage(u"!!User configurator", filepath="/adm/user_configuration",tags='superadmin')
-
 
     unused = administration.branch('!!Unused',tags='_DEV_')
     unused.thpage(u"!!Menu Manager", table="adm.menu")
