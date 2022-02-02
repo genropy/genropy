@@ -190,7 +190,10 @@ class Main(BaseResourceBatch):
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
                 rst = '%s'%rst + '<hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
-                
+            
+            if self.examples_root and self.curr_sourcebag:
+                        rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
             if n.attr['child_count']>0:
                 if v:
                     toc_elements=self.prepare(v, pathlist+toc_elements)
@@ -200,9 +203,6 @@ class Main(BaseResourceBatch):
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
-            
-            if self.examples_root and self.curr_sourcebag:
-                rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
 
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
             if record['author']:
@@ -232,9 +232,9 @@ class Main(BaseResourceBatch):
     def fixExamples(self, m):
         example_label = m.group(1)
         example_name = m.group(2)
-        
+        print('**EXAMPLE**', example_name)
         sourcedata = self.curr_sourcebag[example_name] or Bag()
-     
+        print(sourcedata)
         return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
         
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):

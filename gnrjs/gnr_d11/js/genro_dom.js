@@ -262,6 +262,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
             where = where.getDomNode();
         } else if (where instanceof gnr.GnrDomSource) {
             where = where.getParentNode().getDomNode();
+        }else if(where.domNode){
+            where = where.domNode;
         }
         return where;
     },

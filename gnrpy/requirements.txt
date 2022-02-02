@@ -30,3 +30,4 @@ webob
 six
 tzlocal
 openpyxl
+pyyaml
