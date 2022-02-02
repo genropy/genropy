@@ -191,6 +191,9 @@ class Main(BaseResourceBatch):
             if atc_rst:
                 rst = '%s\n\n**Attachments:**\n\n%s' %(rst,atc_rst)
 
+            if self.examples_root and self.curr_sourcebag:
+                        rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
             if n.attr['child_count']>0:
                 if v:
                     toc_elements=self.prepare(v, pathlist+toc_elements)
@@ -200,8 +203,7 @@ class Main(BaseResourceBatch):
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
-            if self.examples_root and self.curr_sourcebag:
-                rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
             if record['author']:
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
