@@ -47,7 +47,7 @@ class FrameIndex(BaseComponent):
                 if requires:
                     for p in requires.split(','):
                         self.mixinComponent(p)
-        if self.device_mode!='std':
+        if self.device_mode=='std':
             frameplugins.append('maintenance')
         return ','.join(frameplugins)
 
