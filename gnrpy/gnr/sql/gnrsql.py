@@ -456,9 +456,12 @@ class GnrSqlDb(GnrObject):
         """
         # transform list and tuple parameters in named values.
         # Eg.   WHERE foo IN:bar ----> WHERE foo in (:bar_1, :bar_2..., :bar_n)
-        envargs = dict([('env_%s' % k, v) for k, v in list(self.currentEnv.items()) if not k.startswith('dbevents')])
-        if not 'env_workdate' in envargs:
-            envargs['env_workdate'] = self.workdate
+        env_pars_match = re.findall(r':env_(\S\w*)(\W|$)', sql)
+        envargs = {f'env_{k}':self.currentEnv.get(k) for k,chunk in env_pars_match}
+        if 'env_workdate' in envargs:
+            envargs['env_workdate'] = envargs['env_workdate'] or self.workdate
+        if self.currentEnv.get('storename'):
+            envargs['env_storename'] = self.currentEnv['storename']
         envargs.update(sqlargs or {})
         if storename is False:
             storename = self.rootstore
