@@ -27,6 +27,8 @@ Component for menu handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrdecorator import public_method
+from gnr.app.gnrconfig import MenuStruct
+from gnr.core.gnrbag import BagCbResolver
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
@@ -166,7 +168,10 @@ class MenuResolver(BagResolver):
             nodetags = nodeattr.get('tags')
             filepath = nodeattr.get('file')
             checkenv = nodeattr.get('checkenv')
-            multidb = nodeattr.get('multidb')            
+            multidb = nodeattr.get('multidb')     
+            method = nodeattr.get('method')
+            if method:
+                node.value  = self.getBranchResolver(nodeattr)
             if nodeattr.get('dashboard'):
                 dashboards = self._getDashboards(pkg=nodeattr['dashboard'])
                 if not dashboards:
@@ -187,6 +192,9 @@ class MenuResolver(BagResolver):
             if checkenv:
                 allowed = allowed and self._page.rootenv[checkenv]
             if allowed:
+                
+                if method:
+                    print(x)
                 value=node.getValue()
                 if node.resolver:
                     basepath='%(pkg)s/%(dir)s' % node.attr if 'dir' in node.attr else node.attr.get('basepath')
@@ -221,6 +229,13 @@ class MenuResolver(BagResolver):
                 attributes['labelClass'] = f'menu_shape {labelClass} {customLabelClass}'
                 result.setItem(node.label, value, attributes)
         return result
+
+    def getBranchResolver(self,attributes):
+        method = attributes.pop('method')
+        table = attributes.pop('table',None)
+        obj = self._page.db.table(table) if table else self._page
+        return BagCbResolver(getattr(obj,method), **attributes)
+
 
     def _getDashboards(self,pkg=None):
         if not self._page.db.package('biz'):

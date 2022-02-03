@@ -72,8 +72,10 @@ class InstanceConfigStruct(ConfigStruct):
 
 
 class MenuStruct(ConfigStruct):
-    def branch(self, label, basepath=None ,tags='', **kwargs):
-        return self.child('branch',label=label,basepath=basepath,tags=tags,**kwargs)
+    
+    def branch(self, label, basepath=None ,tags='',pkg=None,table=None, method=None,**kwargs):
+        return self.child('branch',label=label,basepath=basepath,method=method,table=table,
+                            tags=tags,pkg=pkg,**kwargs)
 
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,file=filepath,_returnStruct=False,**kwargs)
