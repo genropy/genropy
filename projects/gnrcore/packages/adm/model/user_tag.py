@@ -38,7 +38,7 @@ class Table(object):
         if record['linked_table']:
             linked_tbl = self.db.table(record['linked_table'])
             if hasattr(linked_tbl, 'userTagCb'):
-                linked_tbl.userTagCb(self, user_id=record['user_id'], evt=evt)
+                linked_tbl.userTagCb(user_id=record['user_id'], evt=evt)
     
     def setUserAuthTags(self,record):
         user_id = record.get('user_id')
