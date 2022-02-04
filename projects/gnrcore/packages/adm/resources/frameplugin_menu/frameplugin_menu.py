@@ -192,9 +192,6 @@ class MenuResolver(BagResolver):
             if checkenv:
                 allowed = allowed and self._page.rootenv[checkenv]
             if allowed:
-                
-                if method:
-                    print(x)
                 value=node.getValue()
                 if node.resolver:
                     basepath='%(pkg)s/%(dir)s' % node.attr if 'dir' in node.attr else node.attr.get('basepath')
@@ -205,7 +202,7 @@ class MenuResolver(BagResolver):
                             n.attr['file']= f"{basepath}/{n.attr.get('rel_path')}"
                         else:
                             n.attr['basepath']=basepath
-                            n.attr['child_count']=len(n.value)
+                            n.attr['child_count']=len(n.value) if n.value else 0
                     value.walk(cb)
                 attributes = {}
                 attributes.update(node.getAttr())
