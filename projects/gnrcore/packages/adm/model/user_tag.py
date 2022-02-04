@@ -35,10 +35,11 @@ class Table(object):
         self.linkedTableCb(record=record, evt='d')
 
     def linkedTableCb(self, record=None, old_record=None, evt=None):
-        if record['linked_table']:
-            linked_tbl = self.db.table(record['linked_table'])
-            if hasattr(linked_tbl, 'userTagCb'):
-                linked_tbl.userTagCb(user_id=record['user_id'], evt=evt)
+        linked_table = self.db.table('adm.htag').readColumns(record['tag_id'], columns='$linked_table')
+        if linked_table:
+            tblobj = self.db.table(linked_table)
+            if hasattr(tblobj, 'userTagCb'):
+                tblobj.userTagCb(user_id=record['user_id'], evt=evt)
     
     def setUserAuthTags(self,record):
         user_id = record.get('user_id')
