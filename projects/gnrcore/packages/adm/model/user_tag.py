@@ -17,18 +17,28 @@ class Table(object):
         tbl.aliasColumn('tag_code',relation_path='@tag_id.hierarchical_code')
         tbl.aliasColumn('tag_description',relation_path='@tag_id.description')
         tbl.aliasColumn('tag_note',relation_path='@tag_id.note')
+        tbl.aliasColumn('linked_table',relation_path='@tag_id.linked_table', static=True)
         tbl.formulaColumn('user_or_group',"COALESCE($user,$group_code)")
 
         #tbl.aliases(relation='@user_id',user='username')
     
     def trigger_onInserted(self, record_data):
         self.setUserAuthTags(record_data)
+        self.linkedTableCallback(record=record_data, evt='i')
     
     def trigger_onUpdated(self, record_data, old_record):
         self.setUserAuthTags(record_data)
-    
+        self.linkedTableCallback(record=record_data,old_record=old_record, evt='u')
+
     def trigger_onDeleted(self, record):
         self.setUserAuthTags(record)
+        self.linkedTableCallback(record=record, evt='d')
+
+    def linkedTableCb(self, record=None, old_record=None, evt=None):
+        if record['linked_table']:
+            linked_tbl = self.db.table(record['linked_table'])
+            if hasattr(linked_tbl, 'userTagCb'):
+                linked_tbl.userTagCb(self, user_id=record['user_id'], evt=evt)
     
     def setUserAuthTags(self,record):
         user_id = record.get('user_id')
