@@ -24,15 +24,15 @@ class Table(object):
     
     def trigger_onInserted(self, record_data):
         self.setUserAuthTags(record_data)
-        self.linkedTableCallback(record=record_data, evt='i')
+        self.linkedTableCb(record=record_data, evt='i')
     
     def trigger_onUpdated(self, record_data, old_record):
         self.setUserAuthTags(record_data)
-        self.linkedTableCallback(record=record_data,old_record=old_record, evt='u')
+        self.linkedTableCb(record=record_data,old_record=old_record, evt='u')
 
     def trigger_onDeleted(self, record):
         self.setUserAuthTags(record)
-        self.linkedTableCallback(record=record, evt='d')
+        self.linkedTableCb(record=record, evt='d')
 
     def linkedTableCb(self, record=None, old_record=None, evt=None):
         if record['linked_table']:
