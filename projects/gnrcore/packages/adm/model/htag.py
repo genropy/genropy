@@ -18,6 +18,7 @@ class Table(object):
         tbl.column('description',name_long='!!Description',validate_notnull=True)
         tbl.column('isreserved', 'B', name_long='!!Reserved')
         tbl.column('note',name_long='!!Notes')
+        tbl.column('linked_table', name_long='Linked table')
 
 
     @metadata(mandatory=True)
