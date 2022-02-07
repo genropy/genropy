@@ -7,7 +7,8 @@ from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from datetime import datetime
+from datetime import time
+
 #from gnr.core.gnrlang import componentFactory
 import boto3
 import botocore
@@ -168,7 +169,7 @@ class Service(StorageService):
                     Bucket=self.bucket,
                     Key=internalpath)
             lastModified = response['LastModified']
-            return (lastModified-datetime(1970,1,1)).total_seconds()
+            return time.mktime(lastModified.timetuple())
         except botocore.exceptions.ClientError as e:
             return
 
