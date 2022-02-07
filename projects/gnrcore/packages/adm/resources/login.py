@@ -375,7 +375,7 @@ class LoginComponent(BaseComponent):
                 body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
                 mailservice.sendmail_template(data,to_address=email,
                                     body=body, subject=self.loginPreference('subject') or 'Confirm user',
-                                    async_=False,html=True)
+                                    async_=False,html=True,scheduler=False)
             self.db.commit()
         except Exception as e:
             return dict(error=str(e))
@@ -417,7 +417,7 @@ class LoginComponent(BaseComponent):
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
                                     body=body, subject=self.loginPreference('subject') or 'Password recovery',
-                                    async_=False,html=True)
+                                    async_=False,html=True,scheduler=False)
         self.db.commit()
         return 'ok'
         
@@ -443,7 +443,7 @@ class LoginComponent(BaseComponent):
             else:
                 mailservice.sendmail_template(recordBag,to_address=email,
                                         body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
-                                        async_=False,html=True)
+                                        async_=False,html=True,scheduler=False)
             self.db.commit()
 
         return 'ok'

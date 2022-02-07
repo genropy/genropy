@@ -27,6 +27,8 @@ Component for menu handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrdecorator import public_method
+from gnr.app.gnrconfig import MenuStruct
+from gnr.core.gnrbag import BagCbResolver
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
@@ -43,7 +45,6 @@ class MenuIframes(BaseComponent):
     def btn_iframemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('iframemenu_plugin',caption='!!Menu',
                             iconClass='iframemenu_plugin_icon',defaultWidth='210px')
-
 
                  
     def menu_iframemenuPane(self, pane, **kwargs):
@@ -70,7 +71,8 @@ class MenuIframes(BaseComponent):
                         }
                         return opened? 'opendir':'closedir';                        
                     }""",
-                  getLabelClass="return node.attr.labelClass;",
+                    selectedLabelClass="menutreeSelected",
+                  getLabelClass="""return node.attr.labelClass;""",
                   openOnClick=True,
                   connect_onClick="""this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
                                                                     relpath:$1.getFullpath(null,genro.getData(this.attr.storepath)),
@@ -83,9 +85,6 @@ class MenuIframes(BaseComponent):
                         var selectingPageKw = objectUpdate({name:node.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,
                                                             formResource:null,viewResource:null,fullpath:$1.fullpath,
                                                             modifiers:$1.modifiers},node.attr);
-                        if(genro.isMobile){
-                            genro.publish('setIndexLeftStatus',false);
-                        }
                         if (genro.isMobile && false){
                             genro.framedIndexManager.makePageUrl(selectingPageKw);
                             genro.openWindow(selectingPageKw.url,selectingPageKw.label);
@@ -102,6 +101,7 @@ class MenuIframes(BaseComponent):
                             this.widget.setSelectedPath(null,{value:node.getFullpath(null,genro.getData(this.attr.storepath))});
                         }
                   """,
+
                   nodeId='_menutree_')
    
         pane.dataRpc('dummy',self.menu_refreshAppMenu,
@@ -112,12 +112,29 @@ class MenuIframes(BaseComponent):
                         }
                     """,subscribe_refreshApplicationMenu=True,_menutree=menutree)
 
+
+#################################### MOBILE MENU #########################################################################
+
+
+    def mainLeft_mobilemenu_plugin(self, tc):
+        frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
+        #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
+        bc = frame.center.borderContainer()
+        sb = frame.bottom.slotBar('10,userbox,*,logout,10',height='40px',border_top='1px solid white')
+        sb.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold',font_size='.9em')
+        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
+        #tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
+        self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+
+    def btn_mobilemenu_plugin(self,pane,**kwargs):
+        pane.pluginButton('mobilemenu_plugin',caption='!!Menu',
+                            iconClass='iframemenu_plugin_icon',defaultWidth='210px')
+
+
     @public_method
     def menu_refreshAppMenu(self,**kwargs):
         self.application.clearSiteMenu()
-
-
-
 
 class MenuResolver(BagResolver):
     classKwargs = {'cacheTime': 300,
@@ -151,8 +168,10 @@ class MenuResolver(BagResolver):
             nodetags = nodeattr.get('tags')
             filepath = nodeattr.get('file')
             checkenv = nodeattr.get('checkenv')
-            multidb = nodeattr.get('multidb')            
-            dashboard = nodeattr.get('dashboard')
+            multidb = nodeattr.get('multidb')     
+            method = nodeattr.get('method')
+            if method:
+                node.value  = self.getBranchResolver(nodeattr)
             if nodeattr.get('dashboard'):
                 dashboards = self._getDashboards(pkg=nodeattr['dashboard'])
                 if not dashboards:
@@ -180,32 +199,40 @@ class MenuResolver(BagResolver):
                         n.attr['aux_instance'] = n.attr.get('aux_instance') or aux_instance
                         n.attr['label']=n.attr.get('caption')
                         if n.attr.get('file_ext')== 'py':
-                            n.attr['file']= '%s/%s' %(basepath,n.attr.get('rel_path'))
+                            n.attr['file']= f"{basepath}/{n.attr.get('rel_path')}"
                         else:
                             n.attr['basepath']=basepath
-                            n.attr['child_count']=len(n.value)
+                            n.attr['child_count']=len(n.value) if n.value else 0
                     value.walk(cb)
                 attributes = {}
                 attributes.update(node.getAttr())
                 labelClass = 'menu_level_%i' % level
-           
                 if isinstance(value, Bag):
                     attributes['isDir'] = True
-                    newpath = '%s.%s' % (self.path, node.label) if self.path else node.label
+                    newpath = f'{self.path}.{node.label}' if self.path else node.label
                     value = MenuResolver(path=newpath, pagepath=self.pagepath,_page=self._page)()
                    # labelClass = 'menu_level_%i' % level
                 else:
                     value = None
-                    labelClass = '%s menu_page' %labelClass
+                    labelClass = f'{labelClass} menu_page'
                     if 'file' in attributes and  attributes['file'].endswith(self.pagepath.replace('.py', '')):
                         labelClass = 'menu_page menu_current_page'
                     if 'workInProgress' in attributes:
                         labelClass+=' workInProgress'
                 customLabelClass = attributes.get('customLabelClass', '')
                 attributes['externalSite'] = externalSite
-                attributes['labelClass'] = 'menu_shape %s %s' % (labelClass, customLabelClass)
+                if attributes.get('pkg'):
+                    labelClass = 'branch_pkg' if not labelClass else f'{labelClass} branch_pkg'
+                attributes['labelClass'] = f'menu_shape {labelClass} {customLabelClass}'
                 result.setItem(node.label, value, attributes)
         return result
+
+    def getBranchResolver(self,attributes):
+        method = attributes.pop('method')
+        table = attributes.pop('table',None)
+        obj = self._page.db.table(table) if table else self._page
+        return BagCbResolver(getattr(obj,method), **attributes)
+
 
     def _getDashboards(self,pkg=None):
         if not self._page.db.package('biz'):

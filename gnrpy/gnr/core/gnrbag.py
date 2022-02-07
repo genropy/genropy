@@ -235,7 +235,10 @@ class BagNode(object):
         """
         if self.locked:
             raise BagNodeException("Locked node %s" % self.label)
-        if isinstance(value, BagNode):
+        if isinstance(value,BagResolver):
+            self.resolver = value
+            value = None
+        elif isinstance(value, BagNode):
             _attributes = _attributes or {}
             _attributes.update(value.attr)
             value = value._value

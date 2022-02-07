@@ -786,9 +786,14 @@ body.tundra.mimi {
 }
 
 
-.mimi .menu_page.mobilemenuSelected{
+.mimi.mode_mobile .menu_page.menutreeSelected{
     color:rgba(255, 210, 0, 1.00);
 }
+
+.mimi .menu_page.menutreeSelected{
+    color:rgb(255, 0, 111);
+}
+
 
 .menutree .menu_shape:hover {
 }

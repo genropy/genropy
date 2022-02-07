@@ -10,7 +10,6 @@ from gnr.web.gnrwebstruct import struct_method
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
-                    frameplugin_menu/frameplugin_mobilemenu:MobileMenu,
                    login:LoginComponent,
                    th/th:TableHandler,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
@@ -380,8 +379,8 @@ class FrameIndex(BaseComponent):
 
     def prepareLeft_mobile(self,bc):
 
-        frame = bc.framePane(region='left',width='210px',datapath='left',
-                                overflow='hidden',hidden=self.hideLeftPlugins)
+        frame = bc.framePane(region='left',width='40%',datapath='left',
+                                overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
