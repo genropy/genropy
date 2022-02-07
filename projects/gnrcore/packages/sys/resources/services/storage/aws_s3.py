@@ -172,7 +172,8 @@ class Service(StorageService):
             response = s3.head_object(
                     Bucket=self.bucket,
                     Key=internalpath)
-            return response['LastModified']
+            lastModified = response['LastModified']
+            return lastModified.timestamp()
         except botocore.exceptions.ClientError as e:
             return
 
