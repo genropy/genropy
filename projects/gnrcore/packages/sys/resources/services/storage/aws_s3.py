@@ -166,7 +166,7 @@ class Service(StorageService):
             response = s3.head_object(
                     Bucket=self.bucket,
                     Key=internalpath)
-            return response['Last-Modified']
+            return response['LastModified']
         except botocore.exceptions.ClientError as e:
             return
 
