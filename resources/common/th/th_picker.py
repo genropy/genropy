@@ -48,7 +48,10 @@ class THPicker(BaseComponent):
                 tblobj = self.db.table(table) 
         elif table:
             tblobj = self.db.table(table)
-        paletteCode = paletteCode or picker_kwargs.get('paletteCode') or '%s_picker' %table.replace('.','_')
+        
+        paletteCode = paletteCode or picker_kwargs.get('paletteCode')
+        if not paletteCode:
+            paletteCode = f"{table.replace('.','_')}_{id(pane)}_picker" 
         title = title or tblobj.name_long
         treepicker = tblobj.attributes.get('hierarchical') and not viewResource
         condition_kwargs = dictExtract(picker_kwargs,'condition_',pop=True,slice_prefix=not treepicker)
