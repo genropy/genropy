@@ -464,7 +464,6 @@ genropatches.comboBox = function() {
             // summary: handles keyboard events
 
             //except for pasting case - ctrl + v(118)
-            console.log('evt',evt)
             if(evt.altKey || (evt.ctrlKey && evt.charCode != 118)){
                 return;
             }
