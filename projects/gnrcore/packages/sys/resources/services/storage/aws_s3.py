@@ -7,7 +7,7 @@ from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from datetime import time
+import time
 
 #from gnr.core.gnrlang import componentFactory
 import boto3
