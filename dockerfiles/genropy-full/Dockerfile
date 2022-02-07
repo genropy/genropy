@@ -22,7 +22,7 @@ RUN chown -R genro:genro /var/log/nginx
 RUN touch /var/run/nginx.pid && \
         chown -R genro:genro /var/run/nginx.pid
 
-
+EXPOSE 8080
 USER genro
 
 
