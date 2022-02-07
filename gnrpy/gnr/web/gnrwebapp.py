@@ -196,10 +196,6 @@ class GnrWsgiWebApp(GnrApp):
     def clearSiteMenu(self):
         self._siteMenuDict = dict()
     
-    @property
-    def siteMenu(self):
-        return self.compileSiteMenu(self.config['menu'] or self.applicationMenuBag())
-
    # def _get_siteMenu(self):
    #     dbstore = self.site.currentPage.dbstore
    #     siteMenu = self._siteMenuDict.get(dbstore)
@@ -210,6 +206,18 @@ class GnrWsgiWebApp(GnrApp):
 #
    # siteMenu = property(_get_siteMenu)
 
+   # @property
+   # def siteMenu(self):
+   #     return self.compileSiteMenu(self.config['menu'] or self.applicationMenuBag())
+
+    def _get_siteMenu(self):
+        dbstore = self.site.currentPage.dbstore
+        siteMenu = self._siteMenuDict.get(dbstore)
+        if not siteMenu:
+            siteMenu = self.compileSiteMenu(self.config['menu'] or self.applicationMenuBag())
+            self._siteMenuDict[dbstore] = siteMenu
+        return siteMenu
+    siteMenu = property(_get_siteMenu)
 
     def compileSiteMenu(self, menubag, basepath=None,level=None,parent_aux_instance=None):
         basepath = basepath or []
