@@ -2,6 +2,7 @@
 # encoding: utf-8
 from builtins import object
 import os
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
 
@@ -37,17 +38,24 @@ class Table(object):
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
          
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
+        tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
 
         tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
 
+
     def pyColumn_all_tags(self,record,**kwargs):
+        return self.get_all_tags(record)
+
+    
+    def get_all_tags(self, record=None):
         alltags = self.db.table('adm.user_tag').query(where='$user_id=:uid OR $group_code=:gc',
                                                             uid=record['id'],
                                                             gc=record['group_code'],
                                                             columns='$tag_code',distinct=True).fetch()
         return ','.join([r['tag_code'] for r in alltags])
-
+    
+    
     def partitionioning_pkeys(self):
         return None
         
@@ -63,6 +71,9 @@ class Table(object):
         if old_record.get('md5pwd') and not record['md5pwd']:
             raise self.exception('business_logic',msg='Missing password')
 
+    def trigger_onInserted(self, record=None):
+        if record['group_code']:
+            self.checkExternalTable(record)
 
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('preferences',record,old_record):
@@ -73,6 +84,22 @@ class Table(object):
             if site and site.currentPage:
                 site.currentPage.setInClientData('gnr.serverEvent.refreshNode', value='gnr.user_preference', filters='*',
                              fired=True, public=True)
+        if self.fieldsChanged('group_code,auth_tags', record, old_record):
+            self.checkExternalTable(record)
+
+
+    def checkExternalTable(self, record=None):
+        all_tags = self.get_all_tags(record)
+        
+        linked_tables = self.db.table('adm.htag').query(where='$hierarchical_code IN :all_tags AND $linked_table IS NOT NULL', 
+                                                        columns='$linked_table', addPkeyColumn=False, 
+                                                        distinct=True, all_tags=all_tags.split(',')).fetch()
+        
+        for lt in linked_tables:
+            handler = getattr(self.db.table(lt['linked_table']), 'onUserChanges', None)
+            if handler:
+                handler(record)
+
 
     def trigger_onInserting(self, record, **kwargs):
         self.passwordTrigger(record)
@@ -131,5 +158,57 @@ class Table(object):
             if docommit:
                 self.db.commit()
 
+
+    def onChangedTags(self, user_id=None, **kwargs):
+        rows = self.query(where='$user_id=:u_id', u_id=user_id, columns='$tag_code', addPkeyColumn=False).fetch()
+        tags = ','.join([r['tag_code'] for r in rows])
+        with self.recordToUpdate(user_id) as rec:
+            rec['auth_tags']=tags
+
+    def importerStructure(self):
+        return dict(fields=dict(firstname='firstname',
+                                lastname='lastname',
+                                email='email',
+                                username='username',
+                                group_code='group_code'),
+                    mandatories='firstname,lastname,email')
         
+    @public_method
+    def importUserFromFile(self, filepath=None, **kwargs):
+        reader = self.db.currentPage.utils.getReader(filepath)
+        fields = self.importerStructure()['fields']
         
+        current_users = self.query().fetchAsDict('username')
+        
+        rows = list(reader())
+        
+        result=Bag()
+        errors=list()
+        
+        for r in self.db.quickThermo(rows, labelfield='Adding users'):
+            extra_data = Bag()
+            
+            username=r['username']
+            if not username:
+                username=f"{r['firstname'][0]}{r['lastname']}"
+            
+            if username in current_users:
+                errors.append(f'Existing user: {username}')
+                continue
+            
+            new_user = self.newrecord(username=username)
+            for k,v in r.items():
+                if k not in fields:
+                    extra_data[k]=v
+                else:
+                    new_user[k]=v
+            new_user['extra_data']=extra_data
+            
+            self.insert(new_user)
+        
+        if errors:
+            result['errors']=','.join(errors)
+        
+        self.db.commit()
+        
+        return result

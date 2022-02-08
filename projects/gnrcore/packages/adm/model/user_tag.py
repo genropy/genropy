@@ -24,30 +24,17 @@ class Table(object):
     
     def trigger_onInserted(self, record_data):
         self.setUserAuthTags(record_data)
-        self.linkedTableCb(record=record_data, evt='i')
     
     def trigger_onUpdated(self, record_data, old_record):
         self.setUserAuthTags(record_data)
-        self.linkedTableCb(record=record_data,old_record=old_record, evt='u')
 
     def trigger_onDeleted(self, record):
         self.setUserAuthTags(record)
-        self.linkedTableCb(record=record, evt='d')
 
-    def linkedTableCb(self, record=None, old_record=None, evt=None):
-        linked_table = self.db.table('adm.htag').readColumns(record['tag_id'], columns='$linked_table')
-        if linked_table:
-            tblobj = self.db.table(linked_table)
-            if hasattr(tblobj, 'userTagCb'):
-                tblobj.userTagCb(user_id=record['user_id'], evt=evt)
-    
     def setUserAuthTags(self,record):
         user_id = record.get('user_id')
         if not user_id:
             return
-        rows = self.query(where='$user_id=:u_id',u_id=user_id,columns='$tag_code',addPkeyColumn=False).fetch()
-        tags = ','.join([r['tag_code'] for r in rows])
-        self.db.table('adm.user').batchUpdate(dict(auth_tags=tags),where='$id=:pkey',pkey=user_id)
 
-
+        self.db.deferToCommit(self.db.table('adm.user').onChangedTags, user_id=user_id, _deferredId=user_id)
         
