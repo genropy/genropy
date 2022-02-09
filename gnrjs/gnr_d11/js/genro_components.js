@@ -1433,13 +1433,19 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         }
 
         genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
-            
+            if(result instanceof gnr.GnrBag){
+                result = result.asDict();
+            }
+            if(result.errors){
+                genro.dlg.alert(result.errors, 'Errors');
+                return
+            }
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
                 if(result.warning_mode=='alert'){
                     genro.dlg.alert(result.warnings, 'Warning');
                 }else{
-                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
+                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings,messageType:'warning'});
                 }
             }
             that.resetImporter();
