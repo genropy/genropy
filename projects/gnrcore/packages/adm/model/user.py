@@ -160,7 +160,7 @@ class Table(object):
 
 
     def onChangedTags(self, user_id=None, **kwargs):
-        rows = self.query(where='$user_id=:u_id', u_id=user_id, columns='$tag_code', addPkeyColumn=False).fetch()
+        rows = self.db.table('adm.user_tag').query(where='$user_id=:u_id', u_id=user_id, columns='$tag_code', addPkeyColumn=False).fetch()
         tags = ','.join([r['tag_code'] for r in rows])
         with self.recordToUpdate(user_id) as rec:
             rec['auth_tags']=tags
