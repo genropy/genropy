@@ -4169,8 +4169,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
         var containerKw = {_class:'multibutton_container'};
+        var btn_action;
         if (sticky){
-            var btn_action = function(event){
+            btn_action = function(_kwargs){
+                let event = _kwargs.event;
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4193,9 +4195,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             };
         }else{
-            var btn_action = function(_kwargs){
+            btn_action = function(_kwargs){
                 var event=_kwargs.event
-
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4205,7 +4206,13 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
         }
-        containerKw.action = btn_action;
+        containerKw.action = function(_kwargs){
+            if(gnrwdg.isDisabled()){
+                return;
+            }
+            return btn_action(_kwargs);
+
+        };
         containerKw.selfsubscribe_appendItem = function(kw){
             gnrwdg.appendItem(kw);
         }
@@ -4220,6 +4227,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         return multibutton;
     },
 
+    gnrwdg_isDisabled:function(){
+        return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
+    },
     gnrwdg_itemsFromValues:function(values){
         var result = new gnr.GnrBag();
         if(!values){
@@ -4324,18 +4334,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         items = items || new gnr.GnrBag();
         var sourceNode = this.sourceNode;
         var mb = this.multibuttonSource;
-        var child_count = items.len();
-        var deleteAction = this.deleteAction;
-        var customDelete;
-        var gnrwdg = this;
         mb.clear(true);
         if (mb){
-            var btn,content_kw,btn_class,code,caption,kw;
-            var firstItem = items.getNode('#0');
             var currentSelected = sourceNode.getRelativeData(sourceNode.attr.value);
-            //if(!currentSelected && this.mandatory && firstItem){
-            //    currentSelected = firstItem.attr[gnrwdg.identifier] || firstItem.label;
-            //}
             var that = this;
             this.childItemsPrev.forEach(function(n){
                 that.oneButton(n,currentSelected,'code','caption');
