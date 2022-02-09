@@ -139,17 +139,16 @@ class GnrWebResponse(object):
         else:
             return getattr(self._response, name)
 
-    def add_cookie(self, cookie):
+    def add_cookie(self, cookie, **kw):
         res = self._response
         if not res.headers.has_key("Set-Cookie"):
             res.headers.add("Cache-Control", 'no-cache="set-cookie"')
-        cookie_params = {}
         for k in ("version", "path", "domain", "secure",
             "comment",  "max_age", "expires",
-            "commentURL", "discard", "port", "httponly" ):
+            "commentURL", "discard", "port", "httponly", "samesite" ):
             if hasattr(cookie, k):
-                cookie_params[k] = getattr(cookie, k)
-        res.set_cookie(cookie.name, cookie.output(), **cookie_params)
+                kw[k] = getattr(cookie, k)
+        res.set_cookie(cookie.name, cookie.output(), **kw)
         #res.headers.add("Set-Cookie", str(cookie))
 
     def add_header(self, header, value):

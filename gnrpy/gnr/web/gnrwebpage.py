@@ -61,7 +61,7 @@ from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
-
+import re
 import datetime
 
 AUTH_OK = 0
@@ -164,6 +164,10 @@ class GnrWebPage(GnrBaseWebPage):
         self._request = self.request._request
         self._response = self.response._response
         self.response.add_header('Pragma', 'no-cache')
+        if self.site.config['x_frame_options']:
+            self.response.add_header('X-Frame-Options', self.site.config['x_frame_options'])
+        else:
+            self.response.add_header('X-Frame-Options', 'SAMEORIGIN')
         self._htmlHeaders = []
         self._pendingContext = []
         self.local_datachanges = []
@@ -1106,7 +1110,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.frontend.frontend_arg_dict(arg_dict)
         arg_dict['customHeaders'] = self._htmlHeaders
         arg_dict['charset'] = self.charset
-        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\')
+        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\') if self.site.debug else ''
         arg_dict['filename'] = self.pagename
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
@@ -1137,7 +1141,12 @@ class GnrWebPage(GnrBaseWebPage):
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
-        arg_dict['startArgs'] = toJson(dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())]))
+        safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
+        startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
+        for arg in startArgs:
+            if re.search(safety_re, startArgs[arg]):
+                startArgs[arg]= None
+        arg_dict['startArgs'] = toJson(startArgs)
         arg_dict['page_id'] = self.page_id or getUuid()
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath

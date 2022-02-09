@@ -88,11 +88,11 @@ class GnrBaseWebPage(GnrObject):
         :param path: TODO"""
         return self.request.get_cookie(cookieName, cookieType, secret=secret, path=path)
         
-    def add_cookie(self, cookie):
+    def add_cookie(self, cookie, **kw):
         """TODO
         
         :param cookie: TODO"""
-        self.response.add_cookie(cookie)
+        self.response.add_cookie(cookie, **kw)
         
     def _get_clientContext(self):
         cookie = self.get_cookie('genroContext', 'simple')

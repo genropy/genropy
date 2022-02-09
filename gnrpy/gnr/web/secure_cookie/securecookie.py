@@ -350,7 +350,7 @@ class SecureCookie(ModificationTrackingDict):
         path="/",
         domain=None,
         secure=None,
-        httponly=False,
+        httponly=True,
         force=False,
     ):
         """Save the data securely in a cookie on response object. All
