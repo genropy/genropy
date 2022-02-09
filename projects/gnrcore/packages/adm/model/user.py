@@ -72,7 +72,7 @@ class Table(object):
             raise self.exception('business_logic',msg='Missing password')
 
     def trigger_onInserted(self, record=None):
-        if record['group_code']:
+        if record['group_code'] or record['auth_tags']:
             self.checkExternalTable(record)
 
     def trigger_onUpdated(self,record=None,old_record=None):
@@ -90,11 +90,11 @@ class Table(object):
 
     def checkExternalTable(self, record=None):
         all_tags = self.get_all_tags(record)
-        
         linked_tables = self.db.table('adm.htag').query(where='$hierarchical_code IN :all_tags AND $linked_table IS NOT NULL', 
                                                         columns='$linked_table', addPkeyColumn=False, 
                                                         distinct=True, all_tags=all_tags.split(',')).fetch()
         
+        # print(x)
         for lt in linked_tables:
             handler = getattr(self.db.table(lt['linked_table']), 'onUserChanges', None)
             if handler:
@@ -186,7 +186,7 @@ class Table(object):
         errors=list()
         
         for r in self.db.quickThermo(rows, labelfield='Adding users'):
-            extra_data = Bag()
+            custom_fields = Bag()
             
             username=r['username']
             if not username:
@@ -199,10 +199,10 @@ class Table(object):
             new_user = self.newrecord(username=username)
             for k,v in r.items():
                 if k not in fields:
-                    extra_data[k]=v
+                    custom_fields[k]=v
                 else:
                     new_user[k]=v
-            new_user['extra_data']=extra_data
+            new_user['custom_fields']=custom_fields
             
             self.insert(new_user)
         
