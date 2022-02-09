@@ -727,7 +727,7 @@ class TableHandlerView(BaseComponent):
             """ %sections
             ,isMain=isMain,_onBuilt=True if sectionsBag else False,
             currentSection='^.current',sectionbag='=.data',
-            _delay=1,
+            _delay=100,
             th_root=th_root)
 
     def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
