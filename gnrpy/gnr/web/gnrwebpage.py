@@ -1146,6 +1146,7 @@ class GnrWebPage(GnrBaseWebPage):
         for arg in startArgs:
             if re.search(safety_re, arg):
                 startArgs.pop(arg, None)
+                continue
             if re.search(safety_re, startArgs[arg]):
                 startArgs[arg]= None
         arg_dict['startArgs'] = toJson(startArgs)
