@@ -236,6 +236,8 @@ class FrameGridTools(BaseComponent):
                                         **kwargs)
         if closable !='close':
             bc.data('.use_grouper',True)
+
+        
         inattr = view.getInheritedAttributes()
         bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
@@ -245,12 +247,14 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
-        gth = pane.groupByTableHandler(table=table,frameCode='{groupedTh}_grouper'.format(groupedTh=groupedTh),
+        tree_nodeId = f'{groupedTh}_grouper_tree'
+        gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
                             configurable=False,
                             grid_configurable=True,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
-                            tree_selected__pkeylist='#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
+                            grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            tree_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            tree_nodeId = tree_nodeId,
                             linkedTo=groupedTh,
                             pbl_classes=True,margin='2px',grouper=True,**kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
@@ -262,7 +266,13 @@ class FrameGridTools(BaseComponent):
         """,struct='^.grid.struct')
         if self.application.checkResourcePermission('admin', self.userTags):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
-        pane.dataController("""
+        gth.dataController(f"""
+            SET .selectedIndex = null;
+            SET #{tree_nodeId}.currentGroupPath = null;
+            SET #{groupedTh}_grid.grouperPkeyList = null;
+    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',)   
+
+        pane.dataController(f"""
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
                             if(!grouperPkeyList){{
                                 groupedStore.store.clear();
@@ -273,9 +283,8 @@ class FrameGridTools(BaseComponent):
                             queryvars.currpkeylist = grouperPkeyList.split(',');
                             queryvars.query_reason = 'grouper';
                             groupedStore.store.loadData(queryvars);
-                            """.format(groupedTh=groupedTh),
-                            grouperPkeyList='^#{groupedTh}_grid.grouperPkeyList'.format(groupedTh=groupedTh),
-                            _if='grouperPkeyList')
+                            """,
+                            grouperPkeyList=f'^#{groupedTh}_grid.grouperPkeyList')
 
         gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
         downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
@@ -292,7 +301,7 @@ class FrameGridTools(BaseComponent):
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
                             values='grid:Flat,tree:Hierarchical,conf:Toggle configurator',
-                            action="""
+                            action=f"""
                             let output;
                             if($1.fullpath=='conf'){{
                                 SET .output = 'grid';
@@ -301,7 +310,7 @@ class FrameGridTools(BaseComponent):
                                 return;
                             }}
                             SET .output = $1.fullpath;
-                        """.format(frameCode=frameCode))
+                        """)
                 
         #groupSelector,*,searchOn,2,ingranaggio
 

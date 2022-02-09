@@ -1268,10 +1268,6 @@ class TableHandlerView(BaseComponent):
                 currentReason='=.internalQuery.reason') 
         frame.data('.internalQuery.reason',None) 
         frame.dataController("""
-        if(!_use_grouper){
-            FIRE .clearStore;
-        }""",_use_grouper='^.use_grouper')     
-        frame.dataController("""
             genro.dom.setClass(fn,'filteredGrid',internalQueryReason);
             SET .query.queryAttributes.extended = internalQueryReason!=null;
             """,fn=frame,internalQueryReason='^.internalQuery.reason')
