@@ -1144,6 +1144,8 @@ class GnrWebPage(GnrBaseWebPage):
         safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
         startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
         for arg in startArgs:
+            if re.search(safety_re, arg):
+                startArgs.pop(arg, None)
             if re.search(safety_re, startArgs[arg]):
                 startArgs[arg]= None
         arg_dict['startArgs'] = toJson(startArgs)
