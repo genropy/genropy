@@ -773,10 +773,14 @@ class TableBase(object):
             return 'Missing %s' %','.join(errors)
     
     def importerInsertRow(self,row,import_mode=None):
+        record = self.importerRecordFromRow(row)
         if import_mode=='insert_or_update':
-            self.insertOrUpdate(row)
+            self.insertOrUpdate(record)
         else:
-            self.insert(row)
+            self.insert(record)
+    
+    def importerRecordFromRow(self,row):
+        return self.newrecord(**dict(row))
 
 
     @public_method
