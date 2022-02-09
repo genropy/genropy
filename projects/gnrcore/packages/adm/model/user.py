@@ -171,7 +171,7 @@ class Table(object):
                                 email='email',
                                 username='username',
                                 group_code='group_code',
-                                extra_data='*'),
+                                custom_fields='*'),
                     importer = 'importUsers',
                     mandatories='firstname,username,lastname,email')
 
@@ -179,11 +179,11 @@ class Table(object):
    # def importerRecordFromRow(self,row):
    #     fields = self.importerStructure()['fields']
    #     row = dict(row)
-   #     extra_data = Bag()
+   #     custom_fields = Bag()
    #     for k,v in row.items():
    #         if k not in fields:
-   #             extra_data[k]=v
-   #     row['extra_data'] = extra_data
+   #             custom_fields[k]=v
+   #     row['custom_fields'] = custom_fields
    #     return self.newrecord(**row)
 #
 
@@ -195,7 +195,7 @@ class Table(object):
         result=Bag()
         warnings=list()
         for r in self.db.quickThermo(rows, labelfield='Adding users'):
-            extra_data = Bag()
+            custom_fields = Bag()
             username=r['username']
             if not username:
                 username=f"{r['firstname'][0]}{r['lastname']}"
@@ -205,10 +205,10 @@ class Table(object):
             new_user = self.newrecord(username=username)
             for k,v in r.items():
                 if k not in fields:
-                    extra_data[k]=v
+                    custom_fields[k]=v
                 else:
                     new_user[k]=v
-            new_user['extra_data']=extra_data
+            new_user['custom_fields']=custom_fields
             self.insert(new_user)
         if warnings:
             result['warnings']=','.join(warnings)
