@@ -52,6 +52,6 @@ class GnrCustomWebPage(object):
                                 viewResource='ViewFromUser',
                                 formResource='FormFromUser')
 
-    def onSaving(self, recordCluster, recordClusterAttr, resultAttr=None):
-        if recordCluster['md5pwd']:
-            recordCluster.setItem('md5pwd', hashlib.md5(recordCluster.pop('md5pwd').encode()).hexdigest())
+   #def onSaving(self, recordCluster, recordClusterAttr, resultAttr=None):
+   #    if recordCluster['md5pwd']:
+   #        recordCluster.setItem('md5pwd', hashlib.md5(recordCluster.pop('md5pwd').encode()).hexdigest())
