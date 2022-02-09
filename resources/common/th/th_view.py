@@ -1266,7 +1266,11 @@ class TableHandlerView(BaseComponent):
                 syncSelectionCaption='!!In sync with ',
                 linkedSelectionPars='=.linkedSelectionPars',_fired='^.queryEnd',_delay=1,
                 currentReason='=.internalQuery.reason') 
-        frame.data('.internalQuery.reason',None)      
+        frame.data('.internalQuery.reason',None) 
+        frame.dataController("""
+        if(!_use_grouper){
+            FIRE .clearStore;
+        }""",_use_grouper='^.use_grouper')     
         frame.dataController("""
             genro.dom.setClass(fn,'filteredGrid',internalQueryReason);
             SET .query.queryAttributes.extended = internalQueryReason!=null;
