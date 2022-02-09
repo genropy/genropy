@@ -2,7 +2,7 @@
 # encoding: utf-8
 from builtins import object
 import os
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import metadata, public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
 
@@ -170,32 +170,38 @@ class Table(object):
                                 lastname='lastname',
                                 email='email',
                                 username='username',
-                                group_code='group_code'),
-                    mandatories='firstname,lastname,email')
-        
-    @public_method
-    def importUserFromFile(self, filepath=None, **kwargs):
-        reader = self.db.currentPage.utils.getReader(filepath)
+                                group_code='group_code',
+                                extra_data='*'),
+                    importer = 'importUsers',
+                    mandatories='firstname,username,lastname,email')
+
+   #modo alternativo riga per riga
+   # def importerRecordFromRow(self,row):
+   #     fields = self.importerStructure()['fields']
+   #     row = dict(row)
+   #     extra_data = Bag()
+   #     for k,v in row.items():
+   #         if k not in fields:
+   #             extra_data[k]=v
+   #     row['extra_data'] = extra_data
+   #     return self.newrecord(**row)
+#
+
+
+    def importUsers(self, reader, **kwargs):
         fields = self.importerStructure()['fields']
-        
         current_users = self.query().fetchAsDict('username')
-        
         rows = list(reader())
-        
         result=Bag()
-        errors=list()
-        
+        warnings=list()
         for r in self.db.quickThermo(rows, labelfield='Adding users'):
             extra_data = Bag()
-            
             username=r['username']
             if not username:
                 username=f"{r['firstname'][0]}{r['lastname']}"
-            
             if username in current_users:
-                errors.append(f'Existing user: {username}')
+                warnings.append(f'Existing user: {username}')
                 continue
-            
             new_user = self.newrecord(username=username)
             for k,v in r.items():
                 if k not in fields:
@@ -203,12 +209,8 @@ class Table(object):
                 else:
                     new_user[k]=v
             new_user['extra_data']=extra_data
-            
             self.insert(new_user)
-        
-        if errors:
-            result['errors']=','.join(errors)
-        
+        if warnings:
+            result['warnings']=','.join(warnings)
         self.db.commit()
-        
         return result

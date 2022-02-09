@@ -308,7 +308,9 @@ class GnrWebUtils(GnrBaseProxy):
             sheets = importerStructure.get('sheets')
             if not sheets:
                 sheets = [dict(sheet=importerStructure.get('mainsheet'),struct=importerStructure)]
-            results = []
+            result = Bag()
+            errors = []
+            warnings = []
             for sheet in sheets:
                 if sheet.get('sheet') is not None:
                     reader.setMainSheet(sheet['sheet'])
@@ -316,15 +318,28 @@ class GnrWebUtils(GnrBaseProxy):
                 match_index = tblobj.importerMatchIndex(reader,struct=struct)
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
-                res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
+                importer = struct.get('importer')
+                if importer:
+                    res = getattr(tblobj,importer)(reader)
+                else:
+                    res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
                                                 match_index=match_index,
                                                 import_mode=import_mode,
                                                 sql_mode=sql_mode,constants=constants,
                                                 mandatories=struct.get('mandatories'))
-                results.append(res)
-                errors = [r for r in results if r!='OK']
+                if res!='OK':
+                    if isinstance(res,str):
+                        errors.append(res)
+                    else:
+                        if res.get('errors'):
+                            errors.append(res['errors'])
+                        if res.get('warnings'):
+                            warnings.append(res['warnings'])
                 if errors:
-                    return 'ER'
+                    result['errors'] = ','.join(errors)
+                if warnings:
+                    result['warnings'] = ','.join(warnings)
+                return result
         elif import_method:
             handler = getattr(tblobj,'importer_%s' %import_method)
             return handler(reader,  **constant_kwargs)
