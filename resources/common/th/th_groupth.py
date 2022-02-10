@@ -276,6 +276,9 @@ class TableHandlerGroupBy(BaseComponent):
         treeNodeId = tree_kwargs.setdefault('tree_nodeId','{frameCode}_tree'.format(frameCode=inhattr['frameCode']))
         tree_kwargs['tree_selectedPath'] = '#{treeNodeId}.currentGroupPath'.format(treeNodeId=treeNodeId)
         frame.dataController("""
+            if(!genro.dom.isVisible(pane)){
+                return;
+            }
             var nodeLabel = _node.label;
             var v = _node.getValue();
             var lastTs = v instanceof Date?v:null;
