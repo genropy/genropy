@@ -110,7 +110,8 @@ class GnrWebConnection(GnrBaseProxy):
                                                                     secret=self.secret)
         self.cookie.expires = expires
         self.cookie.path = self.page.site.default_uri
-        self.page.add_cookie(self.cookie)
+        cookieattrs = self.page.site.config.getAttr('cookies') or {}
+        self.page.add_cookie(self.cookie, **cookieattrs)
 
     @property
     def loggedUser(self):

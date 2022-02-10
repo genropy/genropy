@@ -72,7 +72,8 @@ class metaCookie(type):
         # RFC 2965
         "commentURL", "discard", "port",
         # Microsoft Extension
-        "httponly" )
+        "httponly",
+        "samesite" )
         
         # _valid_attr + property values
         # (note __slots__ is a new Python feature, it
