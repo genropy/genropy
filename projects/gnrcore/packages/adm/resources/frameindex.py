@@ -389,7 +389,7 @@ class FrameIndex(BaseComponent):
 
 
 
-        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',background='white')
+        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer')
 
        #bar = frame.bottom.slotBar('5,userbox,*,logout,5',childname='userlogout')
        #bar.userbox.div(self.user if not self.isGuest else 'guest',color='#EDEDEE',font_weight='bold')

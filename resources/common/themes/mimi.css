@@ -749,7 +749,11 @@ body.tundra.mimi {
     padding-bottom: 0;
     line-height: 24px;
     color:white;
+    padding-left: 12px;
 
+}
+.plugin_mobile_footer{
+    background: #efefef;
 }
 
 .mode_mobile .menutree .menu_existing_page.menu_shape{
@@ -759,7 +763,6 @@ body.tundra.mimi {
 
 .mode_mobile .menutree .menu_shape.menu_level_0{
     font-size:18px;
-    padding-left: 0;
     line-height: 28px;
     font-variant-caps: all-small-caps;
 }
@@ -769,6 +772,13 @@ body.tundra.mimi {
 }
 .mode_mobile .menutree .closedir{
     background: none;
+}
+
+.mode_mobile .menutree .label_opendir{
+    background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
+}
+.mode_mobile .menutree .label_closedir{
+    background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
 }
 
 .menutree .menu_current_page {
