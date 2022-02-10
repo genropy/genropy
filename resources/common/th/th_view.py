@@ -739,7 +739,7 @@ class TableHandlerView(BaseComponent):
             return allsection+sections if allPosition!='last' else sections+allsection
         return sections
  
-    def th_monthlySections(self,column=None,dtstart=None,count=3,allPosition=True,over='>=',**kwargs):
+    def th_monthlySections(self,column=None,dtstart=None,count=3,allPosition=True,over='>=',default_date=None,**kwargs):
         sections = []
         import datetime
         from dateutil import rrule
@@ -751,10 +751,14 @@ class TableHandlerView(BaseComponent):
             currdate = dt.date()
             condition = "to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"\
                         .format(column=column)
+            if default_date:
+                isDefault = (currdate==default_date)
+            else:
+                isDefault = (currdate==dtstart)
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
-                            isDefault=idx==0,
+                            isDefault=isDefault,
                             caption=self.toText(currdate,format='MMMM')))
         endlast = nextMonth(currdate)
         if over:
