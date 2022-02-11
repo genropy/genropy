@@ -742,32 +742,50 @@ class TableHandlerView(BaseComponent):
             return allsection+sections if allPosition!='last' else sections+allsection
         return sections
  
-    def th_monthlySections(self,column=None,dtstart=None,count=3,allPosition=True,over='>=',default_date=None,**kwargs):
+    def th_monthlySections(self, column=None, dtstart=None, 
+                            n_previous=None, n_following=3,
+                            all_previous=None, all_following=None,
+                            allPosition=None, 
+                            **kwargs):
         sections = []
         import datetime
         from dateutil import rrule
+        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
-        dtstart = datetime.date(dtstart.year,dtstart.month,1)
+        dtstart = dtstart.replace(day=1)
+        default_date = dtstart
+        
+        count = n_following+1
+        if n_previous:
+            dtstart = dtstart + relativedelta(months=-n_previous)
+            count = count+n_previous
         for idx,dt in enumerate(rrule.rrule(rrule.MONTHLY, 
                                 dtstart=dtstart, 
                                 count=count)):
             currdate = dt.date()
             condition = "to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"\
                         .format(column=column)
-            if default_date:
-                isDefault = (currdate==default_date)
-            else:
-                isDefault = (currdate==dtstart)
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
-                            isDefault=isDefault,
+                            isDefault=(currdate==default_date),
                             caption=self.toText(currdate,format='MMMM')))
         endlast = nextMonth(currdate)
-        if over:
-            sections.append(dict(code='after',condition='{column}>=:endlast'.format(column=column),
+        if all_following:
+            sections.append(dict(code='all_following',condition='{column}>=:endlast'.format(column=column),
                                 condition_endlast=endlast,
-                                caption='!![en]Next months'))
+                                caption='!![en]Following months'))
+        if all_previous:
+            all_prev_section = dict(code='all_previous',condition='{column}<:dtstart'.format(column=column),
+                                condition_dtstart=dtstart,
+                                caption='!![en]Previous months')
+            sections.insert(0,all_prev_section)
+        if allPosition:
+            all_section = dict(code='all',caption='!![en]All')
+            if all_section=='first':
+                sections.insert(0,all_section)
+            else:
+                sections.append(all_section)
         return sections
 
     @struct_method
