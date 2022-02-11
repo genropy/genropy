@@ -148,7 +148,6 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         }
         if (!attributes['getLabelClass']) {
             attributes['getLabelClass'] = function(node, opened) {
-                var labelClass;
                 if (opened) {
                     return node.attr.labelClassOpened || node.attr.labelClass;
                 } else {
