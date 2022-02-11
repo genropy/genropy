@@ -2894,9 +2894,9 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
         },_delay);
     },
     _clickHandlerDo:function(sourceNode,e,inattr,count) {
-        if('disabled' in inattr && sourceNode.currentFromDatasource(inattr.disabled)){
-            return
-        }
+       // if('disabled' in inattr && sourceNode.currentFromDatasource(inattr.disabled)){
+       //     return
+       // }
         var modifier = eventToString(e);
         var action = inattr.action;
         var modifiers = genro.dom.getEventModifiers(e);
