@@ -4349,7 +4349,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
             sourceNode.setRelativeData(sourceNode.attr.value,currentSelected);
-
         }
     },
     gnrwdg_oneButton:function(n,currentSelected,identifier,caption){
@@ -4361,6 +4360,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         var codeKey = identifier || this.identifier;
         var caption = kw[captionKey];
         var code = kw[codeKey] || n.label;
+        kw[codeKey] =code;
+        if(!kw.disabled){
+            kw.parentDisabled = true;
+        }
         var btn_class = code==currentSelected?'multibutton multibutton_selected':'multibutton';
         var customDelete = kw.deleteAction;
         if(typeof(customDelete)=='string'){
