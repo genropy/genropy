@@ -4206,13 +4206,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
         }
-        containerKw.action = function(_kwargs){
-            if(gnrwdg.isDisabled()){
-                return;
-            }
-            return btn_action(_kwargs);
-
-        };
+        containerKw.action = btn_action;
         containerKw.selfsubscribe_appendItem = function(kw){
             gnrwdg.appendItem(kw);
         }
