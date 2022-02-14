@@ -210,7 +210,8 @@ class MenuResolver(BagResolver):
                 if isinstance(value, Bag):
                     attributes['isDir'] = True
                     newpath = f'{self.path}.{node.label}' if self.path else node.label
-                    value = MenuResolver(path=newpath, pagepath=self.pagepath,_page=self._page)()
+                    value = MenuResolver(path=newpath, pagepath=self.pagepath,_page=self._page)
+                    node.value = value()
                    # labelClass = 'menu_level_%i' % level
                 else:
                     value = None
