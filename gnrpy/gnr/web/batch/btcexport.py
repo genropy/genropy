@@ -10,6 +10,7 @@
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrexporter import getWriter
+from gnr.core.gnrlang import objectExtract
 import re
 
 
@@ -19,9 +20,10 @@ class BaseResourceExport(BaseResourceBatch):
     export_zip = False
     export_mode = 'xls'
     localized_data = False
+    locale = None
     def __init__(self, *args, **kwargs):
         super(BaseResourceExport, self).__init__(*args, **kwargs)
-        self.locale = self.page.locale
+        self.locale = self.locale or self.page.locale
         self.columns = []
         self.hiddencolumns = []
         self.headers = []
@@ -111,7 +113,10 @@ class BaseResourceExport(BaseResourceBatch):
         writerPars = dict(columns=self.columns, coltypes=self.coltypes, headers=self.headers,
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
+        extraPars = objectExtract(self,f'{self.export_mode}_')
+        writerPars.update(extraPars)
         self.writer = getWriter(self.export_mode)(**writerPars)
+    
 
     def do(self):
         self.writer.writeHeaders()
@@ -144,7 +149,8 @@ class BaseResourceExport(BaseResourceBatch):
     def result_handler(self):
         if self.batch_immediate:
             self.page.setInClientData(path='gnr.downloadurl',value=self.fileurl,fired=True)
-        return 'Execution completed', dict(url=self.fileurl, document_name=self.batch_parameters['filename'])
+
+        return 'Execution completed', dict(url=self.fileurl, document_name=self.batch_parameters.get('filename',self.fileurl.split('/')[-1]))
 
     def get_record_caption(self, item, progress, maximum, **kwargs):
         caption = '%s (%i/%i)' % (self.tblobj.recordCaption(item),

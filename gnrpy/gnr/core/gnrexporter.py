@@ -77,7 +77,8 @@ class BaseWriter(object):
         else:
             csv_open = lambda **kw: open(self.filepath,**kw)
         with csv_open(mode='wb') as f:
-            result = '\n'.join(self.result)
+            separator = self.rowseparator or '\n'
+            result = separator.join(self.result)
             f.write(result.encode('utf-8'))
     
     def composeAll(self,data=None,filepath=None, **kwargs):
@@ -101,18 +102,19 @@ class CsvWriter(BaseWriter):
         rowseparator = rowseparator or '\n'
         super().__init__(columns=columns, coltypes=coltypes, headers=headers, filepath=filepath, locale=locale,rowseparator=rowseparator,colseparator=colseparator, **kwargs)
 
-    def writeHeaders(self, separator='\t',**kwargs):
-        self.result = [separator.join(self.headers)]
+    def writeHeaders(self, separator=None,**kwargs):
+        self.result.append(self.composeHeader(separator=separator,**kwargs))
 
-    def writeRow(self, row, separator='\t',**kwargs):
-        self.result.append(separator.join([self.cleanCol(self.toText(row.get(col),locale=self.locale), self.coltypes[col]) for col in self.columns]))
+    def writeRow(self, row, separator=None,**kwargs):
+        self.result.append(self.composeRow(row,separator=separator,**kwargs))
 
 
-
-    def composeHeader(self, separator='\t',**kwargs):
+    def composeHeader(self, separator=None,**kwargs):
+        separator = separator or self.colseparator or '\t'
         return separator.join(self.headers)
 
-    def composeRow(self, row, separator='\t',**kwargs):
+    def composeRow(self, row, separator=None,**kwargs):
+        separator = separator or self.colseparator or '\t'
         return separator.join([self.cleanCol(self.toText(row.get(col),locale=self.locale), self.coltypes.get(col,'T')) for col in self.columns])
 
     def composeAll(self,data=None,**kwargs):
@@ -128,7 +130,6 @@ class CsvWriter(BaseWriter):
                 self.headers = extra_headers + struct['headers']
                 self.columns =  extra_columns + struct['columns']
                 self.coltypes = struct['coltypes']
-                print('self.headers',self.headers)
                 firstExport = False
                 yield self.composeHeader()
             for r in export_data['rows']:
