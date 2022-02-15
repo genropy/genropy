@@ -51,6 +51,10 @@ class BaseWriter(object):
         self.toText = toText
 
     def cleanCol(self, txt, dtype):
+        if self.rowseparator:
+            txt = txt.replace(self.rowseparator,' ')
+        if self.colseparator:
+            txt = txt.replace(self.colseparator,' ')
         txt = txt.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').replace('"', "'")
         if txt:
             if txt[0] in ('+', '=', '-'):
