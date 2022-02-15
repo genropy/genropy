@@ -35,7 +35,7 @@ class Table(object):
         placeholder = '*'* (N_end-N_start)
         #columns="overlay($%s placing '%s' from %i for %i) as dc" %(field,placeholder,N_start+1,len(placeholder))
         columns = "substr($%(fld)s, 1,%(nstart)i) || '%(placeholder)s' || substr($%(fld)s,%(lst)i) AS dc" %dict(fld=field,nstart=N_start,placeholder=placeholder,lst=N_start+len(placeholder)+1)
-        dc = tblobj.query(columns = columns,
+        dc = tblobj.query(columns = columns,subtable='*',
                             distinct=True,where=" NOT ($%s IS NULL OR $%s='') " %(field,field)).fetch()
         return sorted([r['dc'] for r in dc if r['dc']])
 
@@ -116,7 +116,7 @@ class Table(object):
         dccol = "substr($%(fld)s, 1,%(nstart)i) || '%(placeholder)s' || substr($%(fld)s,%(lst)i)" %dict(fld=field,nstart=N_start,placeholder=placeholder,lst=N_start+delta+1)
         l = tblobj.query(columns=columns ,
                         where="%s = :sq" %dccol,
-                        sq=sq,excludeDraft=False,
+                        sq=sq,excludeDraft=False,subtable='*',
                         excludeLogicalDeleted=False).fetch()
         i = 0
         errors = Bag()

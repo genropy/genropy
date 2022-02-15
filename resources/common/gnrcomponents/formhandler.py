@@ -414,8 +414,10 @@ class FormHandler(BaseComponent):
 
 
     @struct_method          
-    def fh_slotbar_form_duplicate(self,pane,parentForm=None,**kwargs):
+    def fh_slotbar_form_duplicate(self,pane,parentForm=None,disabled=None,**kwargs):
+        disabled = disabled or '^#FORM.controller.locked'
         pane.formButton('!!Duplicate',iconClass='iconbox copy duplicate_record',opt_howmany=1,
+                            disabled=disabled,
                         ask=dict(title='How many copies',askOn='Shift',
                                         fields=[dict(name='opt_howmany',lbl='How many')]),
                        topic='navigationEvent',command='duplicate',parentForm=parentForm)

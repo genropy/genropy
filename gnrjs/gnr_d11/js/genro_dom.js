@@ -639,24 +639,48 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
 
     },
+
+    cssStyleRulesToBag:function(styleRules) {
+        var result = new gnr.GnrBag();
+        var i = 0;
+        for(let rule of styleRules){
+            if(!(rule instanceof CSSStyleRule)){
+                return;
+            }
+            let l = [];
+            for (let n of rule.style){
+                l.push(`${n}:${rule.style[n]}`);
+            }
+            result.addItem('r_'+i,new gnr.GnrBag({
+                selectorText:rule.selectorText,
+                cssText:rule.cssText,
+                cssContent:l.join('\n')
+            }));
+        }
+        if(result.len()){
+            return result;
+        }
+    },
+
+
     cssRulesToBag:function(rules) {
         var result = new gnr.GnrBag();
         var _importRule = 3;
         var _styleRule = 1;
         var rule,label,value,attr;
         for (var i = 0, len = rules.length; i < len; i++) {
-            r = rules.item(i);
+            var r = rules.item(i);
             switch (r.type) {
                 case _styleRule:
                     label = 'r_' + i;
                     value = genro.dom.styleToBag(r.style);
-                    result.setItem(label, value, {selectorText:r.selectorText,_style:r.style});
-                    this.css_selectors[r.selectorText] = value;
+                    result.addItem(label, value, {selectorText:r.selectorText,_style:r.style,caption:r.selectorText});
+                    //this.css_selectors[r.selectorText] = value;
                     break;
                 case _importRule:
-                    attr = {href:r.href};
+                    attr = {href:r.href,caption:r.href};
                     label = r.title || 'r_' + i;
-                    result.setItem(label, genro.dom.cssRulesToBag(r.styleSheet.cssRules), attr);
+                    result.addItem(label, genro.dom.cssRulesToBag(r.styleSheet.cssRules), attr);
 
                     break;
                 // default:
@@ -699,11 +723,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
             label = s.title || 's_' + cnt;
             attr = {'type':s.type,'title':s.title};
             value = genro.dom.cssRulesToBag(s.cssRules);
-            result.setItem(label, value, attr);
+            result.addItem(label, value, attr);
             cnt++;
         });
         return result;
     },
+
+
     styleToBag:function(s) {
         var result = new gnr.GnrBag();
         var rule;
@@ -712,8 +738,11 @@ dojo.declare("gnr.GnrDomHandler", null, {
         //     result.setItem(st, s.getPropertyValue(st)); 
         // };
         for (var i = s.length; i>=0 ;i--) {
-            var st = s[i];
-            result.setItem(st, s.getPropertyValue(st));
+            var st = s[i-1];
+            if(st){
+                //result.addItem('r_'+i,new gnr.GnrBag({name:st,value:s.getPropertyValue(st)}),{caption:st});
+                result.addItem(st, s.getPropertyValue(st));
+            }
         }
         return result;
     },
@@ -735,7 +764,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }*/
         var stylebag = genro.dom.styleToBag(st);
         parentNode.setValue(stylebag);
-        this.css_selectors[parentNode.attr.selectorText] = stylebag;
+        //this.css_selectors[parentNode.attr.selectorText] = stylebag;
     },
     cursorWait:function(flag) {
         if (flag) {

@@ -496,6 +496,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                             searchOn:true,tree_inspect:'shift',tree_labelAttribute:null,editable:true});
         genro.setDataFromRemote('gnr.palettes.dbmodel.store', "app.dbStructure",{checkPermission:true});
         this.sqlDebugPalette(pg);
+        this.cssDebugPalette(pg);
         this.devUtilsPalette(pg);
         node.unfreeze();
     },
@@ -523,6 +524,60 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return h?h[field]:'';
     },
 
+    cssSourceTree:function(){
+        let sources = new gnr.GnrBag();
+        for (let stylesheet of document.styleSheets){
+            for(let rule of stylesheet.cssRules){
+                if(rule instanceof CSSImportRule){
+                    let pathlist = rule.href.split('?');
+                    pathlist = pathlist[0].replaceAll('.','_').split('/').filter(n=>n);
+                    sources.addItem(pathlist,null,{'href':rule.href});
+                }
+            }
+        }
+        return sources;
+    },
+    cssOpenStylesheet:function(href){
+        for (let stylesheet of document.styleSheets){
+            for(let rule of stylesheet.cssRules){
+                if(rule instanceof CSSImportRule && rule.href==href){
+                    let cssbag = genro.dom.cssStyleRulesToBag(rule.styleSheet.cssRules);
+                    if(!cssbag){
+                        return;
+                    }
+                    cssbag.setBackRef();
+                    cssbag.subscribe('styleTrigger',{'any':dojo.hitch(genro.dom, "styleTrigger")});
+                    return cssbag;
+                }
+            }
+        }
+
+    },
+
+    cssDebugPalette:function(parent){
+        var bc = parent._('palettePane',{'paletteCode':'devCSSDebug',title:'CSS Tool',
+                                contentWidget:'borderContainer',
+                                frameCode:'devCSSDebug',margin:'2px',rounded:4});
+        let left = bc._('contentPane',{region:'left',width:'200px'});
+        bc.getParentNode().setRelativeData('.source_css',this.cssSourceTree());
+        left._('tree',{
+            'storepath':'.source_css',
+            'hideValues':true,
+            'selectedLabelClass':'selectedTreeNode',
+            'connect_onClick':function(item){
+                if(item.attr.href){ 
+                    this.setRelativeData('.current_stylesheet',genro.dev.cssOpenStylesheet(item.attr.href));
+                }
+            }
+        });
+        let grid = bc._('contentPane',{
+            'region':'center'
+        })._('quickGrid',{value:'^.current_stylesheet'});
+        grid._('column',{field:'selectorText',name:'Selector',width:'20em'});
+        grid._('column',{field:'cssContent',name:'Content',width:'100%',cellStyles:'white-space: pre;',edit:true});
+
+
+    },
     sqlDebugPalette:function(parent){
         var bc = parent._('palettePane',{'paletteCode':'devSqlDebug',title:'Sql',contentWidget:'borderContainer',frameCode:'devSqlDebug',margin:'2px',rounded:4});
         bc._('dataController',{'script':"genro.debug_sql=sqldebug",'sqldebug':'^gnr.debugger.sqldebug'});

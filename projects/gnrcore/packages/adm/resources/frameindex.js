@@ -598,7 +598,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             }
             if(external_menucode){
                 var menubag = genro.getData('gnr.appmenu.root');
-                var n = menubag.getNodeByAttr('menucode',external_menucode);
+                let n = menubag.getNodeByAttr('menucode',external_menucode);
                 inattr = n.getInheritedAttributes()
                 kw = objectUpdate({name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
                                       viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null},n.attr);

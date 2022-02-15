@@ -47,6 +47,27 @@ class MenuIframes(BaseComponent):
                             iconClass='iframemenu_plugin_icon',defaultWidth='210px')
 
                  
+    def _menutree_getIconClass(self):
+        if self.device_mode=='std':
+            return """function(item,opened){
+                        if(!item.attr.isDir){
+                            return "treeNoIcon";
+                        }
+                        return opened? 'opendir':'closedir';                        
+                    }"""
+        return  "return 'treeNoIcon';"
+    
+    def _menutree_getLabelClass(self):
+        if self.device_mode=='std':
+            return """return node.attr.labelClass;"""
+        return """let labelClass = node.attr.labelClass;
+                if(node.attr.isDir){
+                    let diricon = opened? 'label_opendir':'label_closedir';
+                    return `${diricon} ${labelClass}`;
+                }
+                return labelClass;"""
+
+
     def menu_iframemenuPane(self, pane, **kwargs):
         b = Bag()
         root_id = None
@@ -65,14 +86,9 @@ class MenuIframes(BaseComponent):
                   persist='site',
                   inspect='AltShift',
                   identifier='#p',
-                  getIconClass="""function(item,opened){
-                        if(!item.attr.isDir){
-                            return "treeNoIcon";
-                        }
-                        return opened? 'opendir':'closedir';                        
-                    }""",
+                  getIconClass=self._menutree_getIconClass(),
                     selectedLabelClass="menutreeSelected",
-                  getLabelClass="""return node.attr.labelClass;""",
+                  getLabelClass=self._menutree_getLabelClass(),
                   openOnClick=True,
                   connect_onClick="""this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
                                                                     relpath:$1.getFullpath(null,genro.getData(this.attr.storepath)),
@@ -120,7 +136,7 @@ class MenuIframes(BaseComponent):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
         #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
         bc = frame.center.borderContainer()
-        sb = frame.bottom.slotBar('10,userbox,*,logout,10',height='40px',border_top='1px solid white')
+        sb = frame.bottom.slotBar('10,userbox,*,logout,10',height='32px',border_top='1px solid white')
         sb.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold',font_size='.9em')
         sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 

@@ -16,7 +16,9 @@
 .menutree .treeNoIcon{
     width: 12px;
 }
-
+.mode_mobile .menutree .treeNoIcon{
+    display: none;
+}
 .menutree .menu_level_0 {
 }
 

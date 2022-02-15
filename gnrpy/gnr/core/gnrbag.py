@@ -2795,6 +2795,9 @@ class VObjectBag(Bag):
                 
                 
 class GeoCoderBag(Bag):
+    def __init__(self, source=None,api_key=None, **kwargs):
+        super().__init__(source, **kwargs)
+        self.api_key = api_key
     def setGeocode(self, key, address, language='it'):
         """TODO
 
@@ -2803,7 +2806,9 @@ class GeoCoderBag(Bag):
         urlparams = dict(address=address,sensor='false')
         if language:
             urlparams['language']=language
-        url = "http://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
+        if self.api_key:
+            urlparams['key'] = self.api_key
+        url = "https://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
         self._result = Bag()
         answer = Bag(url)
         if answer['GeocodeResponse.status']=='OK':

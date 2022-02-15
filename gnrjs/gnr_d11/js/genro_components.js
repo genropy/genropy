@@ -1433,13 +1433,19 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         }
 
         genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
-            
+            if(result instanceof gnr.GnrBag){
+                result = result.asDict();
+            }
+            if(result.errors){
+                genro.dlg.alert(result.errors, 'Errors');
+                return
+            }
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
                 if(result.warning_mode=='alert'){
                     genro.dlg.alert(result.warnings, 'Warning');
                 }else{
-                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
+                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings,messageType:'warning'});
                 }
             }
             that.resetImporter();
@@ -4163,8 +4169,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
         var containerKw = {_class:'multibutton_container'};
+        var btn_action;
         if (sticky){
-            var btn_action = function(event){
+            btn_action = function(_kwargs){
+                let event = _kwargs.event;
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4187,9 +4195,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             };
         }else{
-            var btn_action = function(_kwargs){
+            btn_action = function(_kwargs){
                 var event=_kwargs.event
-
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4214,6 +4221,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         return multibutton;
     },
 
+    gnrwdg_isDisabled:function(){
+        return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
+    },
     gnrwdg_itemsFromValues:function(values){
         var result = new gnr.GnrBag();
         if(!values){
@@ -4318,18 +4328,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         items = items || new gnr.GnrBag();
         var sourceNode = this.sourceNode;
         var mb = this.multibuttonSource;
-        var child_count = items.len();
-        var deleteAction = this.deleteAction;
-        var customDelete;
-        var gnrwdg = this;
         mb.clear(true);
         if (mb){
-            var btn,content_kw,btn_class,code,caption,kw;
-            var firstItem = items.getNode('#0');
             var currentSelected = sourceNode.getRelativeData(sourceNode.attr.value);
-            //if(!currentSelected && this.mandatory && firstItem){
-            //    currentSelected = firstItem.attr[gnrwdg.identifier] || firstItem.label;
-            //}
             var that = this;
             this.childItemsPrev.forEach(function(n){
                 that.oneButton(n,currentSelected,'code','caption');
@@ -4348,7 +4349,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
             sourceNode.setRelativeData(sourceNode.attr.value,currentSelected);
-
         }
     },
     gnrwdg_oneButton:function(n,currentSelected,identifier,caption){
@@ -4360,6 +4360,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         var codeKey = identifier || this.identifier;
         var caption = kw[captionKey];
         var code = kw[codeKey] || n.label;
+        kw[codeKey] =code;
+        if(!kw.disabled){
+            kw.parentDisabled = true;
+        }
         var btn_class = code==currentSelected?'multibutton multibutton_selected':'multibutton';
         var customDelete = kw.deleteAction;
         if(typeof(customDelete)=='string'){
