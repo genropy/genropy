@@ -226,7 +226,6 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var w = genro.openWindow(kw.url,kw.label,{location:externalWindowKw.location || 'no',menubar:externalWindowKw.menubar || 'no'});
         w.moveTo(externalWindowKw.left,externalWindowKw.top);
         w.resizeTo(externalWindowKw.width,externalWindowKw.height);
-        var that = this;
         var url = kw.url;
         var windowKey = kw.rootPageName;
         this.subscribeExternalWindow(w,windowKey);
