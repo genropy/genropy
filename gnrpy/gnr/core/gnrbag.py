@@ -2681,6 +2681,7 @@ class BagResolver(object):
         attr['resolvermodule'] = self.__class__.__module__
         attr['args'] = self._initArgs
         attr['kwargs'] = self._initKwargs
+        attr['kwargs']['cacheTime'] = self.cacheTime
         return attr
         
     def __getitem__(self, k):

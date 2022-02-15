@@ -239,7 +239,11 @@ class BagToXml(object):
         if self.unresolved and node.resolver is not None and not getattr(node.resolver,'_xmlEager',None):
             if not nodeattr.get('_resolver_name'):
                 nodeattr['_resolver'] = gnrstring.toJson(node.resolver.resolverSerialize())
-            value = node.resolver._cache or ''
+            if getattr(node.resolver,'xmlresolved',False):
+                value = node.resolver()
+                node._value = value
+            else:
+                value = ''
             if isinstance(node._value, Bag):
                 value = self.bagToXmlBlock(node._value,namespaces=current_namespaces)
             return self.buildTag(node.label, value, nodeattr, '', xmlMode=True,namespaces=current_namespaces)

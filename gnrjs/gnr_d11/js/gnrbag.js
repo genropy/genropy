@@ -2068,7 +2068,6 @@ dojo.declare("gnr.GnrBag", null, {
                         textContent = textContent + childnode.nodeValue;
                     }
                 }
-
                 if (istxtnode && convertAs!='BAG') {
                     var itemValue = textContent;
                     if (convertAs != 'T') {
@@ -2081,11 +2080,12 @@ dojo.declare("gnr.GnrBag", null, {
                     }
                     if (resolverPars != null) {
                         resolverPars = genro.evaluate(resolverPars);
-                        var cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
                         resolverPars['cacheTime'] = 0;
                         //resolverPars = dojo.toJson(resolverPars);
                         itemValue = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
                     } else if (js_resolver) {
+                        
                         itemValue = genro.getRelationResolver(attributes, js_resolver, this); // genro['remote_'+js_resolver].call(genro, this, tagName, attributes);
                     }
                     this.addItem(tagName, itemValue, attributes);
@@ -2105,6 +2105,15 @@ dojo.declare("gnr.GnrBag", null, {
                     var newBagNode = this.addItem(tagName, newBag, attributes);
                     if(js_resolver){
                         var resolver = genro.getRelationResolver(attributes, js_resolver, this);
+                        newBagNode.setResolver(resolver);
+                        newBagNode._status = 'loaded';
+                        resolver.lastUpdate = new Date();
+                        objectUpdate(newBagNode.attr,js_resolvedInfo);
+                    }else if(resolverPars){
+                        resolverPars = genro.evaluate(resolverPars);
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        resolverPars['cacheTime'] = 0;
+                        let resolver = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
                         newBagNode.setResolver(resolver);
                         newBagNode._status = 'loaded';
                         resolver.lastUpdate = new Date();
