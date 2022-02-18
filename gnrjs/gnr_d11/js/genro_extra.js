@@ -1088,6 +1088,9 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
 
     mixin_gnr_setInDatastore : function() {
         var value=this.getData();
+        if(this.sourceNode.form && this.sourceNode.form.isDisabled()){
+            return;
+        }
         if(this.sourceNode.getAttributeFromDatasource('value')!=value){
             this.sourceNode.setAttributeInDatasource('value',value );
         }
