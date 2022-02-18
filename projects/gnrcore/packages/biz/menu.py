@@ -3,3 +3,6 @@ def config(root,application=None):
     biz = root.branch(u"!!Business intelligence")
     biz.thpage(u"!!Dashboards management", table="biz.dashboard",tags="admin")
     biz.branch('!!All dashboards',dashboard=True)
+
+def dashboards(self,root,pkg=None):
+    pass

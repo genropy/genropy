@@ -39,7 +39,9 @@ from gnr.core.gnrstructures import  GnrStructData
 
 class ConfigStruct(GnrStructData):
     config_method = 'config'
-    def __init__(self,filepath=None,autoconvert=False,**kwargs):
+    def __init__(self,filepath=None,autoconvert=False,config_method=None,**kwargs):
+        if config_method:
+            self.config_method = config_method
         super(ConfigStruct, self).__init__()
         self.setBackRef()
         if not filepath:
@@ -73,10 +75,9 @@ class InstanceConfigStruct(ConfigStruct):
 
 class MenuStruct(ConfigStruct):
     
-    def branch(self, label, basepath=None ,tags='',pkg=None,table=None, method=None,**kwargs):
-        return self.child('branch',label=label,basepath=basepath,method=method,table=table,
-                            tags=tags,pkg=pkg,**kwargs)
-
+    def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
+        return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
+    
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,file=filepath,_returnStruct=False,**kwargs)
 
@@ -86,6 +87,20 @@ class MenuStruct(ConfigStruct):
 
     def lookups(self,label,lookup_manager=None,tags=None,**kwargs):
         return self.child('lookups',label=label,lookup_manager=lookup_manager,tags=tags,_returnStruct=False,**kwargs)
+
+            
+    def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
+        return self.child('dashboardBranch',label=label,dashboard=dashboard,
+                            tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
+
+
+    def packageBranch(self,label=None,pkg=None,**kwargs):
+        return self.child('packageBranch',label=label,pkg=pkg,_returnStruct=False,**kwargs)
+
+    
+    def tableBranch(self,label=None,table=None,**kwargs):
+        return self.child('tableBranch',label=label,table=table,_returnStruct=False,**kwargs)
+
 
     def toPython(self,filepath=None):
         filepath = filepath or 'menu.py'

@@ -25,14 +25,14 @@ Component for menu handling:
 """
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrbag import Bag,BagResolver
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-from gnr.app.gnrconfig import MenuStruct
-from gnr.core.gnrbag import BagCbResolver
+from gnr.web.gnrmenu import MenuResolver
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
-
+    def isDeveloper(self):
+        return True
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
         frame.top.slotToolbar('2,searchOn,*',searchOn=True)
@@ -120,13 +120,13 @@ class MenuIframes(BaseComponent):
 
                   nodeId='_menutree_')
    
-        pane.dataRpc('dummy',self.menu_refreshAppMenu,
-                    _onResult="""
-                        genro.getDataNode('gnr.appmenu.root').refresh(true);
-                        if(kwargs.selectPath){
-                            kwargs._menutree.publish('selectMenuItem',{fullpath:kwargs.selectPath,doSelect:true}); 
-                        }
-                    """,subscribe_refreshApplicationMenu=True,_menutree=menutree)
+       # pane.dataRpc('dummy',self.menu_refreshAppMenu,
+       #             _onResult="""
+       #                 genro.getDataNode('gnr.appmenu.root').refresh(true);
+       #                 if(kwargs.selectPath){
+       #                     kwargs._menutree.publish('selectMenuItem',{fullpath:kwargs.selectPath,doSelect:true}); 
+       #                 }
+       #             """,subscribe_refreshApplicationMenu=True,_menutree=menutree)
 
 
 #################################### MOBILE MENU #########################################################################
@@ -147,118 +147,3 @@ class MenuIframes(BaseComponent):
         pane.pluginButton('mobilemenu_plugin',caption='!!Menu',
                             iconClass='iframemenu_plugin_icon',defaultWidth='210px')
 
-
-    @public_method
-    def menu_refreshAppMenu(self,**kwargs):
-        self.application.clearSiteMenu()
-
-class MenuResolver(BagResolver):
-    classKwargs = {'cacheTime': 300,
-                   'readOnly': False,
-                   'path': None,
-                   'pagepath': None,
-                   'xmlresolved':True,
-                   '_page':None}
-    classArgs = ['path']
-
-
-    def resolverSerialize(self):
-        attr = super(MenuResolver, self).resolverSerialize()
-        attr['kwargs'].pop('_page',None)
-        return attr
-
-    def load(self):
-        sitemenu = self._page.userMenu or self._page.application.siteMenu
-        userTags = self._page.userTags
-        dbstore = self._page.dbstore
-
-        result = Bag()
-        level = 0
-        if self.path:
-            level = len(self.path.split('.'))
-        for node in sitemenu[self.path]:
-            allowed = True
-            nodeattr = node.attr
-            externalSite = node.attr.get('externalSite')
-            if externalSite:
-                externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
-            nodetags = nodeattr.get('tags')
-            filepath = nodeattr.get('file')
-            checkenv = nodeattr.get('checkenv')
-            multidb = nodeattr.get('multidb')     
-            method = nodeattr.get('method')
-            if method:
-                node.value  = self.getBranchResolver(nodeattr)
-            if nodeattr.get('dashboard'):
-                dashboards = self._getDashboards(pkg=nodeattr['dashboard'])
-                if not dashboards:
-                    continue
-                node.value = dashboards
-            if (multidb=='slave' and not dbstore) or (multidb=='master' and dbstore):
-                allowed = False
-            aux_instance = nodeattr.get('aux_instance')
-            if nodetags:
-                allowed = allowed and self._page.application.checkResourcePermission(nodetags, userTags)
-            allowed = allowed and self._page.application.allowedByPreference(**nodeattr)
-            if not aux_instance:
-                tableattr = self._page.db.table(nodeattr['table']).attributes if 'table' in nodeattr else None
-                if tableattr:
-                    allowed = allowed and self._page.application.allowedByPreference(**tableattr)
-            if allowed and filepath:
-                allowed = self._page.checkPermission(filepath)
-            if checkenv:
-                allowed = allowed and self._page.rootenv[checkenv]
-            if allowed:
-                value=node.getValue()
-                if node.resolver:
-                    basepath='%(pkg)s/%(dir)s' % node.attr if 'dir' in node.attr else node.attr.get('basepath')
-                    def cb(n):
-                        n.attr['aux_instance'] = n.attr.get('aux_instance') or aux_instance
-                        n.attr['label']=n.attr.get('caption')
-                        if n.attr.get('file_ext')== 'py':
-                            n.attr['file']= f"{basepath}/{n.attr.get('rel_path')}"
-                        else:
-                            n.attr['basepath']=basepath
-                            n.attr['child_count']=len(n.value) if n.value else 0
-                    value.walk(cb)
-                attributes = {}
-                attributes.update(node.getAttr())
-                labelClass = 'menu_level_%i' % level
-                if isinstance(value, Bag):
-                    attributes['isDir'] = True
-                    newpath = f'{self.path}.{node.label}' if self.path else node.label
-                    value = MenuResolver(path=newpath, pagepath=self.pagepath,_page=self._page)
-                   # labelClass = 'menu_level_%i' % level
-                else:
-                    value = None
-                    labelClass = f'{labelClass} menu_page'
-                    if 'file' in attributes and  attributes['file'].endswith(self.pagepath.replace('.py', '')):
-                        labelClass = 'menu_page menu_current_page'
-                    if 'workInProgress' in attributes:
-                        labelClass+=' workInProgress'
-                customLabelClass = attributes.get('customLabelClass', '')
-                attributes['externalSite'] = externalSite
-                if attributes.get('pkg'):
-                    labelClass = 'branch_pkg' if not labelClass else f'{labelClass} branch_pkg'
-                attributes['labelClass'] = f'menu_shape {labelClass} {customLabelClass}'
-                result.setItem(node.label, value, attributes)
-        return result
-
-    def getBranchResolver(self,attributes):
-        method = attributes.pop('method')
-        table = attributes.pop('table',None)
-        obj = self._page.db.table(table) if table else self._page
-        return BagCbResolver(getattr(obj,method), **attributes)
-
-
-    def _getDashboards(self,pkg=None):
-        if not self._page.db.package('biz'):
-            return
-        result = Bag()
-        f = self._page.db.table('biz.dashboard').query(where='$pkgid=:pk' if pkg is not True else None).fetch()
-        for i,r in enumerate(f):
-            if r['private']:
-                continue
-            label = 'dash_%s' %i
-            result.setItem(label,None,file='/biz/dashboards/%(pkgid)s/%(code)s' %r,label=r['description'] or r['code'])
-        return result

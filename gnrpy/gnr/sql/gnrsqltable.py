@@ -2403,6 +2403,14 @@ class SqlTable(GnrObject):
     
     def onLogChange(self,evt,record,old_record=None):
         pass
+
+
+
+    def menu_dynamicMenuContent(self,**kwargs):
+        return self.query(**kwargs).fetch()
+    
+    def menu_dynamicMenuLine(self,record):
+        return {'label':record.get(self.attributes.get('caption_field','pkey'))}
     
     @property
     def totalizers(self):
@@ -2425,6 +2433,7 @@ class SqlTable(GnrObject):
             record = None
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
+
             
 if __name__ == '__main__':
     pass

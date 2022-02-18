@@ -144,13 +144,13 @@ def boolean(x):
             return False
     return bool(x)
     
-def objectExtract(myobj, f):
+def objectExtract(myobj, f,slicePrefix=True):
     """TODO
     
     :param myobj: TODO
     :param f: TODO"""
     lf = len(f)
-    return dict([(k[lf:], getattr(myobj, k)) for k in dir(myobj) if k.startswith(f)])
+    return dict([(k[lf:] if slicePrefix else k, getattr(myobj, k)) for k in dir(myobj) if k.startswith(f)])
     
 def importModule(module):
     """TODO

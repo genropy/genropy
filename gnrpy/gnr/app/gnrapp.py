@@ -415,7 +415,6 @@ class GnrPackage(object):
         self.tableMixins = {}
         self.plugins = {}
         self.loadPlugins()
-        self._pkgMenu = None
         self.projectInfo = None
         if not project:
             projectPath = os.path.normpath(os.path.join(self.packageFolder,'..','..'))
@@ -476,14 +475,14 @@ class GnrPackage(object):
     def language(self):
         return self.attributes.get('language') or self.projectInfo['project?language']
 
-    @property
-    def pkgMenu(self):
-        if self._pkgMenu is None:
-            pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),application=self.application,autoconvert=True)
-            for pluginname,plugin in list(self.plugins.items()):
-                pkgMenu.update(plugin.menuBag)
-            self._pkgMenu = pkgMenu
-        return self._pkgMenu
+    def pkgMenu(self,branchMethod=None,**kwargs):
+        pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),
+                                config_method=branchMethod, 
+                                application=self.application,autoconvert=True,
+                                **kwargs)
+        for pluginname,plugin in list(self.plugins.items()):
+            pkgMenu.update(plugin.menuBag)
+        return pkgMenu
 
     @property
     def db(self):
@@ -844,22 +843,6 @@ class GnrApp(object):
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
     
-        
-    def applicationMenuBag(self):
-        pkgMenus = self.config['menu?package']
-        if pkgMenus:
-            pkgMenus = pkgMenus.split(',')
-        menuBag = Bag()
-        for pkgid, apppkg in list(self.packages.items()):
-            pkgMenuBag = apppkg.pkgMenu
-            if pkgMenuBag and (not pkgMenus or pkgid in pkgMenus):
-                #self.config['menu.%s' %pkgid] = apppkg.pkgMenu
-                if len(pkgMenuBag) == 1:
-                    menuBag[pkgid] = pkgMenuBag.getNode('#0')
-                else:
-                    menuBag.setItem(pkgid, pkgMenuBag,{'label': apppkg.config_attributes().get('name_long', pkgid),'pkg_menu':pkgid})
-        return menuBag
-
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:
