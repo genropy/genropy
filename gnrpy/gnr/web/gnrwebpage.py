@@ -1143,7 +1143,7 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['_avoid_module_cache'] = True
         safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
         startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
-        for arg in startArgs:
+        for arg in list(startArgs.keys()):
             if re.search(safety_re, arg):
                 startArgs.pop(arg, None)
                 continue
