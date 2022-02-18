@@ -299,10 +299,13 @@ class TableMenuResolver(MenuResolver):
             getattr(self.tblobj,self.branchMethod)(result,**self.kwargs)
             return result
         selection = self.getMenuContentHandler()(**objectExtract(self,'query_'))
+        webpagekw = dictExtract(self.kwargs,'webpage_')
         for record in selection:
             linekw = self.getMenuLineHandler()(record)
             if self.webpage:
-                result.webpage(**linekw)
+                kw = dict(webpagekw)
+                kw.update(linekw)
+                result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],filepath=self.webpage,**{f'url_{k}':v for k,v in kw.items()})
             else:
                 linekw.update(objectExtract(self,'th_',slicePrefix=False))
                 result.thpage(pkey=record['pkey'],table=self.table,**linekw)
