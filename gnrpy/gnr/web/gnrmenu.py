@@ -21,13 +21,77 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 #Copyright (c) 2022 Softwell. All rights reserved.
+
 import os
-from attr import attr
-from gnr.app.gnrconfig import MenuStruct
+from gnr.core.gnrstructures import  GnrStructData
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag,BagResolver,BagCbResolver,DirectoryResolver
 from gnr.core.gnrlang import objectExtract
+from gnr.core.gnrstring import slugify
+from gnr.app.gnrconfig import ConfigStruct
 
+class MenuStruct(ConfigStruct):
+    
+    def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
+        return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
+    
+    def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
+        return self.child('webpage',label=label,multipage=multipage,tags=tags,file=filepath,_returnStruct=False,**kwargs)
+
+    def thpage(self, label,table=None,tags='',multipage=None, **kwargs):
+        return self.child('thpage',label=label,table=table,
+                            multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
+
+    def lookups(self,label,lookup_manager=None,tags=None,**kwargs):
+        return self.child('lookups',label=label,lookup_manager=lookup_manager,tags=tags,_returnStruct=False,**kwargs)
+
+            
+    def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
+        return self.child('dashboardBranch',label=label,dashboard=dashboard,
+                            tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
+
+
+    def packageBranch(self,label=None,pkg=None,**kwargs):
+        return self.child('packageBranch',label=label,pkg=pkg,_returnStruct=False,**kwargs)
+
+    
+    def tableBranch(self,label=None,table=None,**kwargs):
+        return self.child('tableBranch',label=label,table=table,_returnStruct=False,**kwargs)
+
+
+    def toPython(self,filepath=None):
+        filepath = filepath or 'menu.py'
+        with open(filepath,'w') as f:
+            text = """#!/usr/bin/env python
+# encoding: utf-8
+def config(root,application=None):"""         
+            f.write(text)
+            self._toPythonInner(f,self,'root')
+
+
+    def _toPythonInner(self,filehandle,b,rootname):
+        filehandle.write('\n')
+        for n in b:
+            kw = dict(n.attr)
+            label = kw.pop('label',n.label)
+            attrlist = ['u"%s"' %label]
+            for k,v in list(kw.items()):
+                if k=='file':
+                    k = 'filepath'
+                attrlist.append('%s="%s"' %(k,v))
+            if n.value:
+                varname = slugify(label).replace('!!','').replace('-','_')
+                filehandle.write('    %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
+                self._toPythonInner(filehandle,n.value,varname) 
+            elif 'table' in kw:
+                filehandle.write('    %s.thpage(%s)' %(rootname,', '.join(attrlist)))
+            elif 'lookup_manager' in kw:
+                filehandle.write('    %s.lookups(%s)' %(rootname,', '.join(attrlist)))
+            elif 'pkg' in kw:
+                filehandle.write('    %s.branch(%s)' %(rootname,', '.join(attrlist)))
+            else:
+                filehandle.write('    %s.webpage(%s)' %(rootname,', '.join(attrlist)))
+            filehandle.write('\n')
 
 class NotAllowedException(Exception):
     pass
@@ -52,31 +116,57 @@ class MenuResolver(BagResolver):
         return attr
 
     @property
+    def app(self):
+        return self._page.application
+
+
+    def pkgMenu(self,pkgId,branchMethod=None,**kwargs):
+        pkg = self.getPkg(pkgId)
+        pkgMenu = MenuStruct(os.path.join(pkg.packageFolder, 'menu'),
+                                config_method=branchMethod, 
+                                application=self.app,autoconvert=True,
+                                **kwargs)
+        for pluginname,plugin in list(pkg.plugins.items()):
+            pluginmenu = os.path.join(plugin.pluginFolder,'menu')
+            if os.path.exists(pluginmenu):
+                pkgMenu.update(MenuStruct(pluginmenu,application=self.app,autoconvert=True))
+        return pkgMenu
+
+    def getPkg(self,pkgId):
+        return self.app.packages[pkgId]
+
+
+    def getInstanceMenu(self):
+        #legacy
+        menuinstance = os.path.join(self.app.instanceFolder, 'menu')
+        if os.path.exists(menuinstance):
+            return MenuStruct(menuinstance,application=self.app,autoconvert=True)
+
+
+    @property
     def fullMenuBag(self):
-        app = self._page.application
-        if app.config['menu']:
-            return app.config['menu']
-        mainpackage = app.config['packages?main']
+        instanceMenu = self.getInstanceMenu()
+        if instanceMenu:
+            return instanceMenu
+        mainpackage = self.app.config['packages?main']
         if mainpackage:
             pkgMenus = [mainpackage]
         else:
-            pkgMenus = app.config['menu?package']
+            pkgMenus = self.app.config['menu?package']
             if pkgMenus:
                 pkgMenus = pkgMenus.split(',')
             else:
-                pkgMenus = list(app.packages.keys())
-        
+                pkgMenus = list(self.app.packages.keys())
         if len(pkgMenus)==1:
-            return app.packages[pkgMenus[0]].pkgMenu()
+            return self.pkgMenu(pkgMenus[0])
         else:
             result = MenuStruct()
             pkgMenuBag = None
             for pkgid in pkgMenus:
-                apppkg = app.packages[pkgid]
-                pkgMenuBag = apppkg.pkgMenu()
+                pkgMenuBag = self.pkgMenu(pkgid)
                 if not pkgMenuBag:
                     continue
-                pkgattrs = apppkg.attributes
+                pkgattrs = self.getPkg(pkgid).attributes
                 menu_label =pkgattrs.get('menu_label') or pkgattrs.get('name_long', pkgid)
                 result.packageBranch(menu_label,pkg=pkgid)
             if len(result)==1:
@@ -86,9 +176,9 @@ class MenuResolver(BagResolver):
     @property
     def sourceBag(self):
         if self.pkg:
-            return self._page.application.packages[self.pkg].pkgMenu(branchMethod=self.branchMethod,**dictExtract(self.kwargs,'branch_'))
+            return self.pkgMenu(self.pkg,branchMethod=self.branchMethod,
+                                **dictExtract(self.kwargs,'branch_'))
         return self.fullMenuBag
-
 
 
     def load(self):
@@ -229,8 +319,8 @@ class MenuResolver(BagResolver):
 
     def nodeType_packageBranch(self,node):
         attributes = dict(node.attr)
-        value = self._page.application.packages[attributes['pkg']].pkgMenu(branchMethod=attributes.get('branchMethod'),
-                                                                        **dictExtract(attributes,'branch_'))
+        value = self.pkgMenu(attributes['pkg'],branchMethod=attributes.get('branchMethod'),
+                                **dictExtract(attributes,'branch_'))
         path = None
         if len(value) == 1:
             path = '#0'
@@ -321,9 +411,7 @@ class PackageMenuResolver(MenuResolver):
 
     @property
     def sourceBag(self):
-        pkgobj = self._page.application.packages[self.pkg]
-        result = pkgobj.pkgMenu(branchMethod=self.branchMethod,**dictExtract(self.kwargs,'branch_'))
-        return result
+        return self.pkgMenu(self.pkg,branchMethod=self.branchMethod,**dictExtract(self.kwargs,'branch_'))
 
 
 class DirectoryMenuResolver(MenuResolver):

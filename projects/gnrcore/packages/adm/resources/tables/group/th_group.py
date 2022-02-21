@@ -134,6 +134,7 @@ class Form(BaseComponent):
     
     @public_method
     def groupMenuSource(self,packages=None):
+        #da adattare urgentemente
         if not packages:
             return
         result = Bag()

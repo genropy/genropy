@@ -44,6 +44,7 @@ from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
@@ -1381,6 +1382,13 @@ class GnrWebPage(GnrBaseWebPage):
             self._app = GnrWebAppHandler(self)
         return self._app
         
+    @property
+    def menu(self):
+        """TODO"""
+        if not hasattr(self, '_menu'):
+            self._menu = GnrMenuProxy(self)
+        return self._menu
+
     @property
     def btc(self):
         """TODO"""

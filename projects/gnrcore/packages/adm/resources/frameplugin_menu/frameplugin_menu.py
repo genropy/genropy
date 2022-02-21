@@ -25,21 +25,17 @@ Component for menu handling:
 """
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrmenu import MenuResolver
 
 class MenuIframes(BaseComponent):
     css_requires='frameplugin_menu/frameplugin_menu'
-    def isDeveloper(self):
-        return True
+
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
         frame.top.slotToolbar('2,searchOn,*',searchOn=True)
         if not self.isMobile:
             frame.bottom.slotToolbar('5,newWindow,*')
         bc = frame.center.borderContainer()
-        tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
+        bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
         self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
 
     def btn_iframemenu_plugin(self,pane,**kwargs):
@@ -69,17 +65,8 @@ class MenuIframes(BaseComponent):
 
 
     def menu_iframemenuPane(self, pane, **kwargs):
-        b = Bag()
-        root_id = None
-        customMenu = self.db.table('adm.menu').getMenuBag(root_id=root_id,userTags=self.userTags)
-        if customMenu:
-            b['root'] = customMenu 
-        else:
-            b['root'] = MenuResolver(path=getattr(self,'menu_path',None), pagepath=self.pagepath,_page=self)
-            #b.getIndex()
-        pane.data('gnr.appmenu', b)
-        #leftPane = parentBC.contentPane(width='20%',_class='menupane',**kwargs)
-        menutree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
+        pane.data('gnr.appmenu',self.menu.getRoot())
+        pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,
                   _class='menutree',
