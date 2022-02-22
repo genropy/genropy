@@ -13,7 +13,13 @@ from datetime import datetime
 class BaseResourceMail(BaseResourceBatch):
     def __init__(self, *args, **kwargs):
         super(BaseResourceMail, self).__init__(**kwargs)
-        self.mail_handler = self.page.getService('mail')
+        self._mail_handler = None
+
+    @property
+    def mailhandler(self):
+        if not self._mail_handler:
+            self._mail_handler = self.page.getService('mail')
+        return self._mail_handler
 
     def send_one_template(self,record=None,to_address=None,cc_address=None,subject=None,body=None,attachments=None,**kwargs):
         self.mail_handler.sendmail_template(record,body=body,to_address=to_address,attachments=attachments,
