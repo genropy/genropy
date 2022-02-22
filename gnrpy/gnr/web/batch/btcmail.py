@@ -16,7 +16,7 @@ class BaseResourceMail(BaseResourceBatch):
         self._mail_handler = None
 
     @property
-    def mailhandler(self):
+    def mail_handler(self):
         if not self._mail_handler:
             self._mail_handler = self.page.getService('mail')
         return self._mail_handler
