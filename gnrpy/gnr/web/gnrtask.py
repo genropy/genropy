@@ -63,7 +63,7 @@ class GnrTaskScheduler(object):
                 taskToUpdate.append(t)
 
         self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),_pkeys=taskToUpdate)
-        self.checkAlive()
+        #self.checkAlive()
         self.db.commit()
     
     def checkAlive(self):
