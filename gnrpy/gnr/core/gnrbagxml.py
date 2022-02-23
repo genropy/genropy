@@ -233,7 +233,7 @@ class _SaxImporter(sax.handler.ContentHandler):
             tagLabel = f'{tagLabel}_{cnt}' if cnt else tagLabel
         if attributes:
             if self.attrInValue:
-                if isinstance(curr,Bag):
+                if isinstance(curr,self.bagcls):
                     curr['__attributes'] = self.bagcls(attributes)
                 else:
                     value = curr
