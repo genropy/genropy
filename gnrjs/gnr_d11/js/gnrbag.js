@@ -197,11 +197,14 @@ dojo.declare("gnr.GnrBagNode", null, {
         }
         if (this._resolver.isGetter) {
             //This kind of resolver returns the value but doesn't set it in the node.
+            this._status = 'resolving';
             var finalize = function(r) {
+                this._status = 'loaded'
                 return r;
             };
             var result = this._resolver.resolve(optkwargs, this);
             if (result instanceof dojo.Deferred) {
+                this._status = 'loading';
                 return result.addCallback(finalize);
             } else {
                 return finalize(result);
@@ -2530,9 +2533,10 @@ dojo.declare("gnr.GnrBagGetter", gnr.GnrBagResolver, {
 //*******************BagCbResolver****************************
 
 dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
-    constructor: function(kwargs,isGetter) {
+    constructor: function(kwargs,isGetter,cacheTime) {
         this.method = kwargs.method;
         this.parameters = kwargs.parameters;
+        this.cacheTime = cacheTime;
         this.isGetter = isGetter;
     },
 

@@ -2416,6 +2416,13 @@ class GnrWebPage(GnrBaseWebPage):
                     jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
                     jsquote(concat(prevRelation, node.label)),
                     jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
+                
+            elif nodeattr.get('dtype')=='X':
+                nodeattr['_T'] = 'JS'
+                jsresolver ="""genro.dev.currDataExplorer({fieldPath:%s,prevRelation:%s,prevCaption:%s,omit:%s,checkPermissions:%s})""" 
+                jsresolver = jsresolver %( jsquote("%s.%s" %(currRecordPath,node.label)),jsquote(concat(prevRelation, node.label)),jsquote(nodeattr['fullcaption']), jsquote(omit),cps)
+                node.setValue(jsresolver)
+
         result = self.db.relationExplorer(table=table,
                                           prevRelation=prevRelation,
                                           relationStack=relationStack,
