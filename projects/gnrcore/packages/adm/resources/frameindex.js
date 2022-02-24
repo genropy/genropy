@@ -62,7 +62,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
     
     createIframeRootPage:function(kw){
-        this.makePageUrl(kw);
+        //this.makePageUrl(kw);
         var url = kw.url;
         var stackSourceNode = this.stackSourceNode;
         var rootPageName = kw.rootPageName;
@@ -214,7 +214,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         })
     },
     newBrowserWindowPage:function(kw){
-        this.makePageUrl(kw);
+        //this.makePageUrl(kw);
         if(kw.rootPageName in genro.externalWindowsObjects){
             genro.externalWindowsObjects[kw.rootPageName].focus();
             return;
@@ -283,7 +283,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
         return b;
     },
     
-    makePageUrl:function(kw){
+    /*makePageUrl:function(kw){
+        var original_url = objectPop(kw,'url')
         var url = kw.file;
         var table = kw.table;
         var lookup_manager = kw.lookup_manager;
@@ -329,9 +330,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.externalSite){
             kw.url = kw.externalSite+kw.url;
         }
+        console.log('pyurl',original_url,'jsurl',kw.url)
         kw.rootPageName = kw.pageName || kw.url.replace(/\W/g,'_');
 
-    },
+    },*/
     
     closeRootFramPage:function(frameName,title,evt){
         var that = this;

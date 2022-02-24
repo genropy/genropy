@@ -2,7 +2,7 @@
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
-# Copyright (c)     : 2004 - 2019 Softwell sas - Milano 
+# Copyright (c)     : 2004 - 2022 Softwell srl - Milano 
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari 
 #--------------------------------------------------------------------------
@@ -22,28 +22,86 @@
 
 #Copyright (c) 2022 Softwell. All rights reserved.
 
+from email.mime import application
 import os
+import urllib.parse
+from attr import attrib, attributes
 from gnr.core.gnrstructures import  GnrStructData
+from gnr.core.gnrlang import gnrImport,instanceMixin
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrbag import Bag,BagResolver,BagCbResolver,DirectoryResolver
+from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrstring import slugify
-from gnr.app.gnrconfig import ConfigStruct
 
-class MenuStruct(ConfigStruct):
+class BaseMenu(object):
+    def __init__(self,page) -> None:
+        self.page = page
+        self.db = self.page.db
+        self.application = self.db.application
+
+class MenuStruct(GnrStructData):
+    config_method = 'config'
+    def __init__(self,filepath=None,config_method=None,page=None,**kwargs):
+        if config_method:
+            self.config_method = config_method
+        super().__init__()
+        self.setBackRef()
+        filepath,ext = self._handleFilepath(filepath)
+        if not filepath:
+            return
+        getattr(self,f'_handle_{ext[1:]}')(filepath,page=page,**kwargs)
+
+        
+    def _handle_py(self,filepath,page=None,**kwargs):
+        m = gnrImport(filepath, avoidDup=True)
+        mixinclass = getattr(m,'Menu',None)
+        if mixinclass:
+            menuinstance = BaseMenu(page)
+            instanceMixin(menuinstance,mixinclass)
+            getattr(menuinstance,self.config_method)(self,**kwargs)
+        else:
+            getattr(m,self.config_method)(self,application=page.application, **kwargs)
+            autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
+            if autoconvert and len([k for k in dir(m) if not k.startswith('__')])==1:
+                self.toPython(filepath)
+
+  
+    def _handle_xml(self,filepath,page=None,**kwargs):
+        self.fillFrom(filepath)
+        autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
+
+        if len(self) and autoconvert:
+            self.toPython(filepath.replace('.xml','.py'))
+
+    def _handleFilepath(self,filepath):
+        if not filepath:
+            return None,None
+        filename,ext = os.path.splitext(filepath)
+        if not ext:
+            if os.path.exists(f'{filepath}.xml'):
+                filepath = f'{filepath}.xml'
+                ext = '.xml'
+            elif os.path.exists(f'{filepath}.py'):
+                filepath = f'{filepath}.py'
+                ext = '.py'
+            else:
+                return None,None
+        return filepath,ext
     
     def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
         return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
     
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
-        return self.child('webpage',label=label,multipage=multipage,tags=tags,file=filepath,_returnStruct=False,**kwargs)
+        return self.child('webpage',label=label,multipage=multipage,tags=tags,
+                        filepath=filepath,_returnStruct=False,**kwargs)
 
     def thpage(self, label,table=None,tags='',multipage=None, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
     def lookups(self,label,lookup_manager=None,tags=None,**kwargs):
-        return self.child('lookups',label=label,lookup_manager=lookup_manager,tags=tags,_returnStruct=False,**kwargs)
+        return self.child('lookups',label=label,lookup_manager=lookup_manager,
+                    tags=tags,_returnStruct=False,**kwargs)
 
             
     def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
@@ -62,9 +120,9 @@ class MenuStruct(ConfigStruct):
     def toPython(self,filepath=None):
         filepath = filepath or 'menu.py'
         with open(filepath,'w') as f:
-            text = """#!/usr/bin/env python
-# encoding: utf-8
-def config(root,application=None):"""         
+            text = """# encoding: utf-8
+class Menu(object):
+    def config(self,root,**kwargs):"""         
             f.write(text)
             self._toPythonInner(f,self,'root')
 
@@ -73,6 +131,7 @@ def config(root,application=None):"""
         filehandle.write('\n')
         for n in b:
             kw = dict(n.attr)
+            kw.pop('tag',None)
             label = kw.pop('label',n.label)
             attrlist = ['u"%s"' %label]
             for k,v in list(kw.items()):
@@ -81,16 +140,16 @@ def config(root,application=None):"""
                 attrlist.append('%s="%s"' %(k,v))
             if n.value:
                 varname = slugify(label).replace('!!','').replace('-','_')
-                filehandle.write('    %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
+                filehandle.write('        %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
                 self._toPythonInner(filehandle,n.value,varname) 
             elif 'table' in kw:
-                filehandle.write('    %s.thpage(%s)' %(rootname,', '.join(attrlist)))
+                filehandle.write('        %s.thpage(%s)' %(rootname,', '.join(attrlist)))
             elif 'lookup_manager' in kw:
-                filehandle.write('    %s.lookups(%s)' %(rootname,', '.join(attrlist)))
+                filehandle.write('        %s.lookups(%s)' %(rootname,', '.join(attrlist)))
             elif 'pkg' in kw:
-                filehandle.write('    %s.branch(%s)' %(rootname,', '.join(attrlist)))
+                filehandle.write('        %s.branch(%s)' %(rootname,', '.join(attrlist)))
             else:
-                filehandle.write('    %s.webpage(%s)' %(rootname,', '.join(attrlist)))
+                filehandle.write('        %s.webpage(%s)' %(rootname,', '.join(attrlist)))
             filehandle.write('\n')
 
 class NotAllowedException(Exception):
@@ -122,14 +181,16 @@ class MenuResolver(BagResolver):
 
     def pkgMenu(self,pkgId,branchMethod=None,**kwargs):
         pkg = self.getPkg(pkgId)
+        if not pkg:
+            return
         pkgMenu = MenuStruct(os.path.join(pkg.packageFolder, 'menu'),
-                                config_method=branchMethod, 
-                                application=self.app,autoconvert=True,
+                                config_method=branchMethod,
+                                page=self._page,
                                 **kwargs)
         for pluginname,plugin in list(pkg.plugins.items()):
             pluginmenu = os.path.join(plugin.pluginFolder,'menu')
             if os.path.exists(pluginmenu):
-                pkgMenu.update(MenuStruct(pluginmenu,application=self.app,autoconvert=True))
+                pkgMenu.update(MenuStruct(pluginmenu,page=self._page))
         return pkgMenu
 
     def getPkg(self,pkgId):
@@ -140,7 +201,7 @@ class MenuResolver(BagResolver):
         #legacy
         menuinstance = os.path.join(self.app.instanceFolder, 'menu')
         if os.path.exists(menuinstance):
-            return MenuStruct(menuinstance,application=self.app,autoconvert=True)
+            return MenuStruct(menuinstance,page=self._page)
 
 
     @property
@@ -195,18 +256,31 @@ class MenuResolver(BagResolver):
                 value,attributes = handler(node)
             except NotAllowedException:
                 continue
-            externalSite = self.checkExternalSiteUrl(node)
-            labelClass = f'menu_shape menu_level_{self.level}'
-            customLabelClass = node.attr.get('customLabelClass')
-            if customLabelClass:
-                labelClass = f'{labelClass} {customLabelClass}'
-            if attributes.get('workInProgress'):
-                labelClass = f'{labelClass} workInProgress'
-            attributes['labelClass'] = labelClass
-            if externalSite:
-                attributes['externalSite'] = externalSite
+            self.setLabelClass(attributes)
+            if attributes.get('url'):
+                attributes['rootPageName'] = attributes.get('pageName') or slugify(attributes.get('url'))
             result.setItem(node.label, value, attributes)
         return result
+
+    def setLabelClass(self,attributes):
+        labelClass = f'menu_shape menu_level_{self.level}'
+        customLabelClass = attributes.get('customLabelClass')
+        if customLabelClass:
+            labelClass = f'{labelClass} {customLabelClass}'
+        if attributes.get('workInProgress'):
+            labelClass = f'{labelClass} workInProgress'
+        attributes['labelClass'] = labelClass
+
+    @property
+    def starturl(self):
+        if not hasattr(self,'_starturl'):
+            starturl = self._page.site.default_uri or '/'
+            dbstore = self._page.dbstore
+            if dbstore:
+                starturl = f'{starturl}/{dbstore}'
+            self._starturl = starturl
+        return self._starturl
+
 
     def checkLegacyNode(self,node):
         nodeattr = node.attr
@@ -225,13 +299,9 @@ class MenuResolver(BagResolver):
         if nodeTag=='webpage' and nodeattr.get('table'):
             nodeattr['tag'] = 'thpage'
             return 'thpage'
-        if nodeTag=='thpage' and nodeattr.get('file'):
+        if nodeTag=='thpage' and nodeattr.get('filepath'):
             nodeattr['tag'] = 'webpage'
 
-    def checkExternalSiteUrl(self,node):
-        externalSite = node.attr.get('externalSite')
-        if externalSite:
-            return self._page.site.config['externalSites'].getAttr(externalSite)['url']
 
     @property
     def level(self):
@@ -254,18 +324,14 @@ class MenuResolver(BagResolver):
             return False
         return True
 
+    def addParametersToUrl(self,url,externalSite=None,**kwargs):
+        if 'dbstore' not in kwargs and self._page.dbstore and not kwargs.get('aux_instance'):
+            kwargs['dbstore'] = self._page.dbstore
+        if externalSite:
+            externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
+            url = f'{externalSite}{url}'
 
-    def _getDashboards(self,pkg=None):
-        if not self._page.db.package('biz'):
-            return
-        result = Bag()
-        f = self._page.db.table('biz.dashboard').query(where='$pkgid=:pk' if pkg is not True else None).fetch()
-        for i,r in enumerate(f):
-            if r['private']:
-                continue
-            label = 'dash_%s' %i
-            result.setItem(label,None,file='/biz/dashboards/%(pkgid)s/%(code)s' %r,label=r['description'] or r['code'])
-        return result
+        return '?'.join((url,urllib.parse.urlencode({k:v for k,v in kwargs.items() if v is not None})))
 
     def nodeType_lookups(self,node):
         attributes = dict(node.attr)
@@ -273,34 +339,59 @@ class MenuResolver(BagResolver):
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
-        if not self._page.checkPermission(attributes['file']):
+        if not self._page.checkPermission(attributes['filepath']):
             raise NotAllowedException('Not allowed page')
+        aux_instance = attributes.get('aux_instance') or self.aux_instance
+        attributes['aux_instance'] = aux_instance
+        urlkw = dictExtract(attributes,'url_')
+        urlkw['aux_instance'] = aux_instance
+        urlkw['externalSite'] = attributes.get('externalSite') or self.externalSite
+        attributes['url'] = self.addParametersToUrl(attributes['filepath'],**urlkw)
         return None,attributes
 
     def nodeType_thpage(self,node):
         attributes = dict(node.attr)
         aux_instance = attributes.get('aux_instance') or self.aux_instance
         attributes['aux_instance'] = aux_instance
-        pkey = attributes.pop('pkey',None)
-        if pkey:
-            attributes.setdefault('subtab',True)
-            attributes.setdefault('url_main_call','main_form')
-            attributes['url_th_pkey'] = pkey
-            attributes['url_linker'] = True
-            attributes['multipage'] = False 
-
-            #attributes.setdefault('url_th_public',True)
+        pkey = attributes.get('pkey',None)
+        urlkw = dictExtract(attributes,'url_')
+        urlkw['aux_instance'] = aux_instance
+        urlkw['th_from_package'] = attributes.get('pkg_menu') 
+        urlkw['externalSite'] = attributes.get('externalSite') or self.externalSite
         if not aux_instance:
-            table = attributes['table']
-            tableattr = self._page.db.table(table).attributes
-            if not self._page.application.allowedByPreference(**tableattr):
-                raise NotAllowedException('Not allowed by preference')
+            urlkw['th_from_package'] = urlkw['th_from_package'] or self._page.package.name
+        if pkey:
+            urlkw.setdefault('subtab',True)
+            urlkw.setdefault('main_call','main_form')
+            urlkw['th_pkey'] = pkey
+            urlkw['linker'] = True
+            urlkw['multipage'] = False 
+            #attributes.setdefault('url_th_public',True)
+        for k in ('pageResource','formResource','viewResource'):
+            urlkw[f'th_{k}'] = attributes.get(k)
+        table = attributes['table']
+        tableattr = self._page.db.table(table).attributes
+        application = self._page.application.getAuxInstance(aux_instance) if aux_instance else self._page.application
+        if not application.allowedByPreference(**tableattr):
+            raise NotAllowedException('Not allowed by preference')
+        attributes['url'] = self.addParametersToUrl(f'/sys/thpage/{table.replace(".","/")}',**urlkw)
+        
         return None,attributes
+
+
+    def nodeType_dashboardBranch(self,node):
+        attributes = dict(node.attr)
+        attributes['isDir'] = True
+        return PackageMenuResolver(pkg=attributes['pkg'],level_offset=self.level,
+                                branchMethod='dashboardBranch',
+                                aux_instance=attributes.get('aux_instance') or self.aux_instance,
+                                externalSite= attributes.get('externalSite') or self.externalSite,
+                                _page=self._page,**dictExtract(attributes,'branch_')),attributes
+
 
     def nodeType_directoryBranch(self,node):
         attributes = dict(node.attr)
         return DirectoryMenuResolver(level_offset=self.level,
-                                    
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
                                 _page=self._page),attributes
@@ -395,7 +486,9 @@ class TableMenuResolver(MenuResolver):
             if self.webpage:
                 kw = dict(webpagekw)
                 kw.update(linekw)
-                result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],filepath=self.webpage,**{f'url_{k}':v for k,v in kw.items()})
+                result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],
+                                filepath=self.webpage,
+                                **{f'url_{k}':v for k,v in kw.items()})
             else:
                 linekw.update(objectExtract(self,'th_',slicePrefix=False))
                 result.thpage(pkey=record['pkey'],table=self.table,**linekw)
@@ -411,7 +504,8 @@ class PackageMenuResolver(MenuResolver):
 
     @property
     def sourceBag(self):
-        return self.pkgMenu(self.pkg,branchMethod=self.branchMethod,**dictExtract(self.kwargs,'branch_'))
+        return self.pkgMenu(self.pkg,branchMethod=self.branchMethod,
+                            **dictExtract(self.kwargs,'branch_'))
 
 
 class DirectoryMenuResolver(MenuResolver):
