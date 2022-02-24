@@ -310,8 +310,11 @@ class MenuResolver(BagResolver):
     def allowedNode(self,node):
         nodeattr = node.attr
         auth_tags = nodeattr.get('tags')
+        checkInstance = nodeattr.get('checkInstance')
+        if checkInstance and self.app.instanceName not in checkInstance.split(','):
+            return False
         if auth_tags and \
-            not self._page.application.checkResourcePermission(auth_tags, self._page.userTags):
+            not self.app.checkResourcePermission(auth_tags, self._page.userTags):
             return False
         multidb = nodeattr.get('multidb')
         dbstore = self._page.dbstore
@@ -320,7 +323,7 @@ class MenuResolver(BagResolver):
         checkenv = nodeattr.get('checkenv')
         if checkenv and not self._page.rootenv[checkenv]:
             return False
-        if not self._page.application.allowedByPreference(**nodeattr):
+        if not self.app.allowedByPreference(**nodeattr):
             return False
         return True
 
@@ -371,7 +374,7 @@ class MenuResolver(BagResolver):
             urlkw[f'th_{k}'] = attributes.get(k)
         table = attributes['table']
         tableattr = self._page.db.table(table).attributes
-        application = self._page.application.getAuxInstance(aux_instance) if aux_instance else self._page.application
+        application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         attributes['url'] = self.addParametersToUrl(f'/sys/thpage/{table.replace(".","/")}',**urlkw)
