@@ -2080,7 +2080,7 @@ class Bag(GnrObject):
 
     #-------------------- fromXml --------------------------------
     def fromXml(self, source, catalog=None, bagcls=None, empty=None, 
-            attrInValue=None, avoidDupLabel=False):
+            attrInValue=None, avoidDupLabel=None):
         """Fill a Bag with values read from an XML string or file or URL
         
         :param source: the XML source to be loaded in the Bag
@@ -2094,7 +2094,7 @@ class Bag(GnrObject):
                                        avoidDupLabel=avoidDupLabel)
 
     def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None,
-                attrInValue=None, avoidDupLabel=False):
+                attrInValue=None, avoidDupLabel=None):
         from gnr.core.gnrbagxml import BagFromXml
 
         return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty,

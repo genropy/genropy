@@ -57,7 +57,7 @@ class BagFromXml(object):
     """The class that handles the conversion from the XML format to the
     :class:`Bag <gnr.core.gnrbag.Bag>` class"""
     def build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None,
-                attrInValue=None, avoidDupLabel=False):
+                attrInValue=None, avoidDupLabel=None):
         """TODO
         
         :param source: TODO
@@ -77,7 +77,7 @@ class BagFromXml(object):
         return result
 
     def do_build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None, testmode=False,
-                attrInValue=None, avoidDupLabel=False):
+                attrInValue=None, avoidDupLabel=None):
         """TODO
         
         :param source: TODO
@@ -239,7 +239,8 @@ class _SaxImporter(sax.handler.ContentHandler):
                     value = curr
                     curr = Bag()
                     curr['__attributes'] = self.bagcls(attributes)
-                    curr['__content'] = value
+                    if value:
+                        curr['__content'] = value
                 dest.nodes.append(BagNode(dest, tagLabel, curr))
             else:
                 dest.nodes.append(BagNode(dest, tagLabel, curr, attributes, _removeNullAttributes=False))
