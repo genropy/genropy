@@ -1191,7 +1191,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
        }
        kwargs.parameters = kw;
        //kwargs.cacheTime = 5000;
-       return new gnr.GnrBagCbResolver(kwargs,null,5000);
+       if(kw.fieldPath){
+            return new gnr.GnrBagCbResolver(kwargs,null,5000);
+       }
     },
 
     formatErrors:function(errorbag){

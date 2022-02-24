@@ -2417,7 +2417,7 @@ class GnrWebPage(GnrBaseWebPage):
                     jsquote(concat(prevRelation, node.label)),
                     jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
                 
-            elif nodeattr.get('dtype')=='X':
+            elif nodeattr.get('dtype')=='X' and currRecordPath:
                 nodeattr['_T'] = 'JS'
                 jsresolver ="""genro.dev.currDataExplorer({fieldPath:%s,prevRelation:%s,prevCaption:%s,omit:%s,checkPermissions:%s})""" 
                 jsresolver = jsresolver %( jsquote("%s.%s" %(currRecordPath,node.label)),jsquote(concat(prevRelation, node.label)),jsquote(nodeattr['fullcaption']), jsquote(omit),cps)
