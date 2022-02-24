@@ -197,14 +197,11 @@ dojo.declare("gnr.GnrBagNode", null, {
         }
         if (this._resolver.isGetter) {
             //This kind of resolver returns the value but doesn't set it in the node.
-            this._status = 'resolving';
             var finalize = function(r) {
-                this._status = 'loaded'
                 return r;
             };
             var result = this._resolver.resolve(optkwargs, this);
             if (result instanceof dojo.Deferred) {
-                this._status = 'loading';
                 return result.addCallback(finalize);
             } else {
                 return finalize(result);
@@ -2071,7 +2068,6 @@ dojo.declare("gnr.GnrBag", null, {
                         textContent = textContent + childnode.nodeValue;
                     }
                 }
-
                 if (istxtnode && convertAs!='BAG') {
                     var itemValue = textContent;
                     if (convertAs != 'T') {
@@ -2084,11 +2080,12 @@ dojo.declare("gnr.GnrBag", null, {
                     }
                     if (resolverPars != null) {
                         resolverPars = genro.evaluate(resolverPars);
-                        var cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
                         resolverPars['cacheTime'] = 0;
                         //resolverPars = dojo.toJson(resolverPars);
                         itemValue = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
                     } else if (js_resolver) {
+                        
                         itemValue = genro.getRelationResolver(attributes, js_resolver, this); // genro['remote_'+js_resolver].call(genro, this, tagName, attributes);
                     }
                     this.addItem(tagName, itemValue, attributes);
@@ -2536,8 +2533,8 @@ dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
     constructor: function(kwargs,isGetter,cacheTime) {
         this.method = kwargs.method;
         this.parameters = kwargs.parameters;
-        this.cacheTime = cacheTime;
         this.isGetter = isGetter;
+        this.cacheTime = cacheTime;
     },
 
     load: function(kwargs) {
