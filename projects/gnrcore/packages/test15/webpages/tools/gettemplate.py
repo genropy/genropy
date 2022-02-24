@@ -102,6 +102,32 @@ class GnrCustomWebPage(object):
                             editable=True, 
                             height='100px')
 
+
+    def test_33_notable(self,pane):
+        fb = pane.formbuilder()
+        fb.dbSelect(value='^.prodotto_id',dbtable='fatt.prodotto',
+                        condition='$caratteristiche IS NOT NULL')
+        fb.dataRecord('.prodotto','fatt.prodotto',pkey='^.prodotto_id',_if='pkey')
+        
+        
+        pane.templateChunk(template='.prodotto.prodotto_tipo_id',
+                            datasource='^.prodotto.caratteristiche',
+                            editable=True, 
+                            height='100px')
+
+    def test_34_notable(self,pane):
+        fb = pane.formbuilder()
+        fb.dbSelect(value='^.prodotto_id',dbtable='fatt.prodotto',
+                        condition='$caratteristiche IS NOT NULL')
+        fb.dataRecord('.prodotto','fatt.prodotto',pkey='^.prodotto_id',_if='pkey')
+        
+        
+        pane.templateChunk(template='^.prodotto.prodotto_tipo_id',
+                            datasource='.prodotto',
+                            table='fatt.prodotto',
+                            editable=True, 
+                            height='100px')
+
     def test_11_griddynamic(self,pane):
         frame = pane.templateGrid(storepath='.data',
             fields=[dict(value='^.sigla',lbl='Sigla'),dict(value='^.nome',lbl='Nome')],

@@ -287,39 +287,64 @@ class TemplateEditor(TemplateEditorBase):
                                 addrow= not table,
                                 splitter=True,**kwargs)
         
+        if not (table or datasourcepath):
+            return
         if table:
-
             frame.left.slotBar('5,fieldsTree,*',
                             fieldsTree_table=table,
                             fieldsTree_dragCode='fieldvars',
                             border_right='1px solid silver',
-                            closable=True,width='150px',fieldsTree_height='100%',splitter=True,**fieldsTree_kwargs)
-            grid = frame.grid
-            grid.data('.table',table)
-            grid.dragAndDrop(dropCodes='fieldvars')
-            
-            #tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
+                            closable=True,width='150px',fieldsTree_height='100%',
+                            splitter=True,**fieldsTree_kwargs)
+        else:
+            bar = frame.left.slotBar('5,sourceTree,*',
+                            #fieldsTree_dragCode='fieldvars',
+                            border_right='1px solid silver',
+                            closable=True,width='150px',
+                            splitter=True)
 
-            grid.dataController(r"""var caption = data.fullcaption;
-                                    var varname = caption.replace(/\W/g,'_').toLowerCase();
-                                    var df_template =null;
+            bar.sourceTree.div(text_align='left').tree(storepath=datasourcepath,
+                     _class='branchtree noIcon',hideValues=True,margin_top='6px',font_size='.9em',
+                      labelAttribute='caption',draggable=True,
+                      onDrag="""let kw = {...treeItem.attr};
+                                objectUpdate(kw,dragValues.treenode);
+                                kw.fieldpath = kw.relpath;
+                                kw.dtype = kw.dtype;
+                                let val = treeItem.getValue()
+                                if(!kw.dtype && val!==null){
+                                    kw.dtype = guessDtype(val)
+                                }
+                                kw.fullcaption = kw.caption || kw.fieldpath.replaceAll('.','/');
+                                dragValues["fieldvars"] = kw""")
 
-                                    var fieldpath = data.fieldpath;
-                                    var dtype = data.dtype;
-                                    if(fieldpath.indexOf(':')>=0){
-                                        fieldpath = fieldpath.split(':');
-                                        df_template = fieldpath[1];
-                                        fieldpath = fieldpath[0];
-                                    }
-                                    grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
-                                                                                dtype:dtype,
-                                                                                fieldname:caption,
-                                                                                varname:varname,
-                                                                                virtual_column:data.virtual_column,
-                                                                                required_columns:data.required_columns,
-                                                                                df_template:df_template}]);
-                                    """,
-                                 data="^.dropped_fieldvars",grid=grid.js_widget)    
+
+        grid = frame.grid
+        grid.data('.table',table)
+        grid.dragAndDrop(dropCodes='fieldvars')
+        #tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
+        grid.dataController(r"""
+                                var caption = data.fullcaption;
+                                var varname = caption.replace(/\W/g,'_').toLowerCase();
+                                var df_template =null;
+                                var fieldpath = data.fieldpath;
+                                var dtype = data.dtype;
+                                if(fieldpath.indexOf(':')>=0){
+                                    fieldpath = fieldpath.split(':');
+                                    df_template = fieldpath[1];
+                                    fieldpath = fieldpath[0];
+                                }
+                                grid.gridEditor.addNewRows([{'fieldpath':fieldpath,
+                                                                            dtype:dtype,
+                                                                            fieldname:caption,
+                                                                            varname:varname,
+                                                                            virtual_column:data.virtual_column,
+                                                                            required_columns:data.required_columns,
+                                                                            df_template:df_template}]);
+                                """,
+                                data="^.dropped_fieldvars",grid=grid.js_widget)    
+        
+
+
     
     def _te_info_parameters(self,bc,**kwargs):
         bc.bagGrid(datapath='.parametersgrid',title='!!Parameters',
@@ -643,6 +668,7 @@ class ChunkEditor(PaletteTemplateEditor):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
         self._te_info_vars(bc,table=table,region='center',
+                            datasourcepath=datasourcepath,
                             fieldsTree_currRecordPath=datasourcepath,
                             fieldsTree_explorerPath='#ANCHOR.dbexplorer')
         #self._te_info_parameters(bc,region='center')
