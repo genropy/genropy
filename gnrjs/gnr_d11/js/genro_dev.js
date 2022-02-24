@@ -1179,14 +1179,19 @@ dojo.declare("gnr.GnrDevHandler", null, {
        let kwargs = {}
        kwargs.method = function(params){
            let data =  genro.getData(params.fieldPath);
-           let result =  new gnr.GnrBag();
-           data.walk(function(n){
-                let itemKw = {...n.attr};
-                itemKw.fieldpath = n.getFullpath(null,data);
-                itemKw.dtype = itemKw.dtype || n.getValue('static')!==null?guessDtype(n.getValue('static')):'T' ;
-                itemKw.fullcaption = itemKw.caption || itemKw.fieldpath.replaceAll('.','/');
-                result.addItem(n.label,null,itemKw);
+           let result =  data.deepCopy();
+           result.walk(function(n){
+               let v=n.getValue('static')
+               if (v instanceof gnr.GnrBag){
+                   return
+               }
+               let dtype = v!==null?guessDtype(v):'T' ;
+               n.setValue(null);
+               n.attr.fieldpath= n.getFullpath();
+               n.attr.dtype=n.attr.dtype || dtype;
+               n.attr.fullcaption = n.attr.caption || n.attr.fieldpath.replaceAll('.','/');
            },'static');
+
            return result;
        }
        kwargs.parameters = kw;
