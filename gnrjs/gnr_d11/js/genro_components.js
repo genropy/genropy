@@ -3116,7 +3116,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
     gnrwdg_guessDtypeAndWidth:function(rows,fields){
         var types={}
         var sizes={}
-        var w,dtype,v
+        var w,dtype;
         if(!rows || rows.len()==0){
             return {types:null,sizes:null};
         }
