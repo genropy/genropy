@@ -2534,7 +2534,7 @@ dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
         this.method = kwargs.method;
         this.parameters = kwargs.parameters;
         this.isGetter = isGetter;
-        this.cacheTime = cacheTime;
+        this.cacheTime = cacheTime || 0;
     },
 
     load: function(kwargs) {
