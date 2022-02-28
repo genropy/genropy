@@ -201,7 +201,7 @@ class MenuResolver(BagResolver):
 
     def getInstanceMenu(self):
         #legacy
-        menuinstance = os.path.join(self.app.instanceFolder, 'menu')
+        menuinstance = os.path.join(self.app.instanceFolder, 'menu.py')
         if os.path.exists(menuinstance):
             return MenuStruct(menuinstance,page=self._page)
 
