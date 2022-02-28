@@ -423,7 +423,7 @@ class MenuResolver(BagResolver):
                                 **dictExtract(attributes,'branch_'))
         path = None
         if not value:
-            return
+            return None,attributes
         if len(value) == 1:
             path = '#0'
         attributes['isDir'] = True
