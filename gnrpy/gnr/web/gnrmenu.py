@@ -422,6 +422,8 @@ class MenuResolver(BagResolver):
         value = self.pkgMenu(attributes['pkg'],branchMethod=attributes.get('branchMethod'),
                                 **dictExtract(attributes,'branch_'))
         path = None
+        if not value:
+            return
         if len(value) == 1:
             path = '#0'
         attributes['isDir'] = True
