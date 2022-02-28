@@ -2079,7 +2079,8 @@ class Bag(GnrObject):
         return result
 
     #-------------------- fromXml --------------------------------
-    def fromXml(self, source, catalog=None, bagcls=None, empty=None):
+    def fromXml(self, source, catalog=None, bagcls=None, empty=None, 
+            attrInValue=None, avoidDupLabel=None):
         """Fill a Bag with values read from an XML string or file or URL
         
         :param source: the XML source to be loaded in the Bag
@@ -2088,12 +2089,16 @@ class Bag(GnrObject):
         :param empty: TODO"""
         source, fromFile, mode = self._sourcePrepare(source)
         self._nodes[:] = self._fromXml(source, fromFile, catalog=catalog,
-                                       bagcls=bagcls, empty=empty)
+                                       bagcls=bagcls, empty=empty,
+                                       attrInValue=attrInValue,
+                                       avoidDupLabel=avoidDupLabel)
 
-    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None):
+    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None,
+                attrInValue=None, avoidDupLabel=None):
         from gnr.core.gnrbagxml import BagFromXml
 
-        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty)
+        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty,
+                                    attrInValue=attrInValue,avoidDupLabel=avoidDupLabel)
 
     def _fromXsd(self, source, fromFile, catalog=None, bagcls=None, empty=None):
         dirname = os.path.dirname(source)
