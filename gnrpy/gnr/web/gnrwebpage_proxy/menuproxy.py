@@ -6,11 +6,11 @@ from gnr.core.gnrbag import Bag
 
 
 class GnrMenuProxy(GnrBaseProxy):
-    def getRoot(self,pkg=None,**kwargs):
+    def getRoot(self,pkg=None,indexPagePkg=None,**kwargs):
         result = Bag()
-        result['root'] = MenuResolver(path=getattr(self.page,'menu_path',None), 
-                                        pagepath=self.page.pagepath,
-                                        _page=self.page,pkg=pkg,**kwargs)
+        result['root'] = MenuResolver(pagepath=self.page.pagepath,
+                                        _page=self.page,
+                                        pkg=pkg,**kwargs)
         return result
     
 

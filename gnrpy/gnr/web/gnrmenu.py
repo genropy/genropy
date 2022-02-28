@@ -216,19 +216,20 @@ class MenuResolver(BagResolver):
 
 
     @property
-    def fullMenuBag(self):
+    def indexMenu(self):
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
-        mainpackage = self.app.config['packages?main']
-        if mainpackage:
-            pkgMenus = [mainpackage]
-        else:
-            pkgMenus = self.app.config['menu?package']
-            if pkgMenus:
-                pkgMenus = pkgMenus.split(',')
-            else:
-                pkgMenus = list(self.app.packages.keys())
+        pkgMenus = self.app.config['menu?package']
+        if pkgMenus:
+            return self.legacyMenuFromPkgList(pkgMenus)
+        result = self.pkgMenu(self._page.package.name)
+        if len(result) == 1:
+            result = result['#0']
+        return result
+
+    def legacyMenuFromPkgList(self,pkgMenus):
+        pkgMenus = pkgMenus.split(',') if pkgMenus!='*' else list(self.app.packages.keys())
         if len(pkgMenus)==1:
             return self.pkgMenu(pkgMenus[0])
         else:
@@ -250,7 +251,7 @@ class MenuResolver(BagResolver):
         if self.pkg:
             return self.pkgMenu(self.pkg,branchMethod=self.branchMethod,
                                 **dictExtract(self.kwargs,'branch_'))
-        return self.fullMenuBag
+        return self.indexMenu
 
 
     def load(self):
