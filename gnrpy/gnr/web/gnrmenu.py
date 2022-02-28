@@ -103,7 +103,9 @@ class MenuStruct(GnrStructData):
         return self.child('lookups',label=label,lookup_manager=lookup_manager,
                     tags=tags,_returnStruct=False,**kwargs)
 
-            
+    def directoryBranch(self,label=None,pkg=None,folder=None,**kwargs):
+        return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,_returnStruct=False,**kwargs)
+
     def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
         return self.child('dashboardBranch',label=label,dashboard=dashboard,
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
@@ -286,15 +288,16 @@ class MenuResolver(BagResolver):
         nodeattr = node.attr
         nodeTag = nodeattr.get('tag')
         if nodeTag == 'branch':
-            if nodeattr.get('pkg'):
-                nodeattr['tag'] = 'packageBranch'
-                return 'updateToPackageBranch'
             if nodeattr.get('dashboard'):
                 nodeattr['tag'] = 'dashboardBranch'
                 return 'updateToDashboardBranch'
             if nodeattr.get('dir'):
                 nodeattr['tag'] = 'directoryBranch'
+                nodeattr['folder'] = nodeattr.pop('dir')
                 return 'updateToDirectoryBranch'
+            if nodeattr.get('pkg'):
+                nodeattr['tag'] = 'packageBranch'
+                return 'updateToPackageBranch'
 
         if nodeTag=='webpage' and nodeattr.get('table'):
             nodeattr['tag'] = 'thpage'
@@ -394,7 +397,10 @@ class MenuResolver(BagResolver):
 
     def nodeType_directoryBranch(self,node):
         attributes = dict(node.attr)
+        attributes['isDir'] = True
         return DirectoryMenuResolver(level_offset=self.level,
+                                pkg=attributes.get('pkg') or self.pkg,
+                                folder = attributes.get('folder'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
                                 _page=self._page),attributes
@@ -515,15 +521,21 @@ class DirectoryMenuResolver(MenuResolver):
     def __init__(self, dirpath=None, **kwargs):
        super().__init__(dirpath=dirpath,**kwargs)
        self.dirpath = dirpath
+       self.xmlresolved = False
 
     @property
     def sourceBag(self):
         result = MenuStruct()
-        for sn in self._page.site.storageNode(self.dirpath).children:
-            if sn.isfile and sn.extension=='py':
+        if self.pkg:
+            folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',self.folder)
+        else:
+            folderSN = self._page.site.storageNode(f'site:webpages',self.folder)
+        for sn in folderSN.children():
+            if sn.isfile and sn.ext=='py':
+                filepath = sn.path.replace('.py','').replace('webpages/','')
                 result.webpage(sn.cleanbasename.replace('_',' ').title(),
-                                file=sn.url)
-            elif sn.isdir:
+                                filepath=f"/{filepath}")
+            elif sn.isdir and sn.basename!='__pycache__':
                 result.directoryBranch(sn.cleanbasename.replace('_',' ').title(),
-                                        dir=sn.path)
+                                        folder=sn.path,pkg=self.pkg)
         return result
