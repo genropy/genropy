@@ -137,7 +137,7 @@ dojo.declare("gnr.GnrBagNode", null, {
         var fullpath = '';
         var parentbag = this.getParentBag();
         if (parentbag) {
-            fullpath = parentbag.getFullpath(mode, root);
+            fullpath = parentbag.getFullpath(mode, root);            
             if (mode == '#' || mode == '##') {
                 segment = parentbag.getNodes().indexOf(this);
                 if (mode == '##') {
@@ -145,6 +145,9 @@ dojo.declare("gnr.GnrBagNode", null, {
                 }
             } else {
                 segment = this.label;
+                if(parentbag.getNode(segment)!==this){
+                    segment = '#'+parentbag.getNodes().indexOf(this);
+                }
             }
             if (fullpath) {
                 fullpath = fullpath + '.' + segment;
