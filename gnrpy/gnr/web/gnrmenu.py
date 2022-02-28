@@ -40,16 +40,25 @@ class BaseMenu(object):
         self.application = self.db.application
 
 class MenuStruct(GnrStructData):
-    config_method = 'config'
-    def __init__(self,filepath=None,config_method=None,page=None,**kwargs):
-        if config_method:
-            self.config_method = config_method
+    def __init__(self,filepath=None,branchMethod=None,page=None,**kwargs):
         super().__init__()
         self.setBackRef()
+        self.branchMethod = branchMethod
         filepath,ext = self._handleFilepath(filepath)
         if not filepath:
             return
         getattr(self,f'_handle_{ext[1:]}')(filepath,page=page,**kwargs)
+
+    def _getBranchMethod(self,page,obj):
+        if self.branchMethod:
+            return self.branchMethod
+        for methodname in dir(obj):
+            if methodname.startswith('config_'):
+                handler = getattr(obj,methodname)
+                group_code = getattr(handler,'group_code',None)
+                if group_code==page.rootenv['user_group_code']:
+                    return methodname
+        return 'config'
 
         
     def _handle_py(self,filepath,page=None,**kwargs):
@@ -58,9 +67,9 @@ class MenuStruct(GnrStructData):
         if mixinclass:
             menuinstance = BaseMenu(page)
             instanceMixin(menuinstance,mixinclass)
-            getattr(menuinstance,self.config_method)(self,**kwargs)
+            getattr(menuinstance,self._getBranchMethod(page,menuinstance))(self,**kwargs)
         else:
-            getattr(m,self.config_method)(self,application=page.application, **kwargs)
+            getattr(m,self._getBranchMethod(page,m))(self,application=page.application, **kwargs)
             autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
             if autoconvert and len([k for k in dir(m) if not k.startswith('__')])==1:
                 self.toPython(filepath)
@@ -186,7 +195,7 @@ class MenuResolver(BagResolver):
         if not pkg:
             return
         pkgMenu = MenuStruct(os.path.join(pkg.packageFolder, 'menu'),
-                                config_method=branchMethod,
+                                branchMethod=branchMethod,
                                 page=self._page,
                                 **kwargs)
         for pluginname,plugin in list(pkg.plugins.items()):
