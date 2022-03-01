@@ -320,7 +320,6 @@ dojo.declare("gnr.GnrDevHandler", null, {
         treeattr.getLabelClass=function(item){
             var dtype = item.attr.dtype;
             var _class = [];
-            console.log(item.label)
             if(!dtype || dtype=='RM' || dtype=='RO' || item.attr.subfields || item.getResolver()){
                 _class.push('fieldsTree_folder');
             }

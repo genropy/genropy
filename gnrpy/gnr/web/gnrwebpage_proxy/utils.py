@@ -87,7 +87,7 @@ class GnrWebUtils(GnrBaseProxy):
                 else:
                     lbl = v
             elif labelfield:
-                if labelfield in v:
+                if v is not None and labelfield in v:
                     lbl = v[labelfield]
                 else:
                     lbl = '%s %s' %(labelfield,idx)
