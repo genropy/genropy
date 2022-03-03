@@ -189,6 +189,7 @@ class TableHandlerForm(BaseComponent):
         form_archive = options.pop('form_archive',False)
         selector = options.pop('selector',False)
         annotations = options.pop('annotations',False)
+        single_record = options.get('single_record') or options.pop('linker',False)
 
         form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid)
         if autoSave:
@@ -262,7 +263,7 @@ class TableHandlerForm(BaseComponent):
                 extra_slots.append('form_audit')
             if options.pop('copypaste',False):
                 extra_slots.append('form_copypaste')
-            if options.pop('linker',False):
+            if single_record:
                 default_slots = default_slots.replace('form_delete',','.join(extra_slots) if extra_slots else '')
                 default_slots = default_slots.replace('form_add','')
                 #default_slots = default_slots.replace('locker','') 

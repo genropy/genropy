@@ -342,8 +342,12 @@ class TableHandlerMain(BaseComponent):
     def th_options(self):
         return dict()
 
-    def main(self,root,**kwargs):
-        root.rootTableHandler(**kwargs)
+
+    def main(self,root,single_record=False,**kwargs):
+        if not single_record:
+            root.rootTableHandler(**kwargs)
+        else:
+            self.main_form(root,single_record=True,**kwargs)
 
     @extract_kwargs(th=True,current=True)
     @struct_method
@@ -665,13 +669,14 @@ class TableHandlerMain(BaseComponent):
                                     }
                                }
                                """,
+                            subscribe_changedStartArgs=True,
                             subscribe_main_form_open=True)
 
     @public_method                     
-    def main_form(self, root,**kwargs):
+    def main_form(self, root,pkey=None,th_pkey=None,**kwargs):
         """ALTERNATIVE MAIN CALL"""
         callArgs =  self.getCallArgs('th_pkg','th_table','th_pkey') 
-        pkey = callArgs.pop('th_pkey',None)
+        pkey = pkey or th_pkey or callArgs.pop('th_pkey',None)
         formCb = self.th_form if hasattr(self,'th_form') else None
         form = self._th_prepareForm(root,formCb=formCb,pkey=pkey,**kwargs)
         self.root_form = form

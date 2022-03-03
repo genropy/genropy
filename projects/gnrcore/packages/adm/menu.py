@@ -3,7 +3,7 @@ class Menu(object):
     def config(self,root):
         administration = root.branch(u"!!Administration", tags="admin")
         user_setup = administration.branch('!!Users setup')
-        self.userSetup(user_setup)
+        self.userSubmenu(user_setup)
         utility = administration.branch('!!App Utility',tags='admin')
         self.appUtility(utility)
         dev = administration.branch('!!Developers',tags='_DEV_')
@@ -22,7 +22,7 @@ class Menu(object):
         unused.thpage(u"!!Sent email", table="adm.sent_email")
 
 
-    def userSetup(self,root,**kwargs):
+    def userSubmenu(self,root,**kwargs):
         root.webpage(u"!!Users", filepath="/adm/user_page")
         root.thpage(u"!!Auth tags", table="adm.htag")
         root.thpage(u"!!Group", table="adm.group")
