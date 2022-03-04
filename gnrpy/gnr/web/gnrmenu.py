@@ -308,11 +308,14 @@ class MenuResolver(BagResolver):
             nodeattr['tag'] = 'webpage'
 
         if nodeTag == 'lookups':
-            lookup_manager = nodeattr.pop('lookup_manager')
+            lookup_manager = nodeattr.pop('lookup_manager',None)
             if lookup_manager is True:
                 nodeattr['tag'] = 'lookupBranch'
                 nodeattr['pkg'] = '*'
             else:
+                table = nodeattr.get('table')
+                pkg = nodeattr.get('pkg')
+                lookup_manager = lookup_manager or table or pkg
                 lookup_manager_list = lookup_manager.split('.')
                 if len(lookup_manager_list)==2:
                     nodeattr['tag'] = 'lookupPage'
@@ -322,7 +325,10 @@ class MenuResolver(BagResolver):
                     nodeattr['pkg'] = lookup_manager
     @property
     def level(self):
-        return self.level_offset+(len(self.path.split('.')) if self.path else 0)
+        level = len(self.path.split('.')) if self.path else 0
+        if self.level_offset:
+            return self.level_offset+level+1
+        return level
 
     def allowedNode(self,node):
         nodeattr = node.attr
