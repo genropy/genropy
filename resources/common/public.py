@@ -347,7 +347,7 @@ class TableHandlerMain(BaseComponent):
         if not single_record:
             root.rootTableHandler(**kwargs)
         else:
-            self.main_form(root,single_record=True,**kwargs)
+            self.main_form(root,single_record=single_record,**kwargs)
 
     @extract_kwargs(th=True,current=True)
     @struct_method

@@ -58,5 +58,5 @@ class GnrCustomWebPage(object):
         if not single_record:
             root.rootTableHandler(th_pkey=th_pkey,**kwargs)
         else:
-            self.main_form(root,single_record=True,th_pkey=th_pkey,**kwargs)
+            self.main_form(root,single_record=single_record,th_pkey=th_pkey,**kwargs)
     

@@ -1259,8 +1259,9 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def device_mode(self):
-        default_device_mode = 'mobile' if self.isMobile else 'std'
-        return self.getPreference('theme.device_mode',pkg='sys') or default_device_mode
+        if self.isMobile:
+            return 'mobile'
+        return self.getPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
@@ -1933,7 +1934,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -1967,7 +1968,11 @@ class GnrWebPage(GnrBaseWebPage):
 
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
         page.dataRemote('server.pageStore',self.getPageStoreData,cacheTime=1)
-        page.dataRemote('server.userStore',self.getUserStoreData,cacheTime=1)
+        if branchIdentifier:
+            page.dataController(""" let b = new gnr.GnrBag();
+                                    b.setCallBackItem('root',genro.getParentBranchMenuByIdentifier,{branchIdentifier:branchIdentifier});
+                                    SET gnr.parentBranchMenu = b;
+                                """,branchIdentifier=branchIdentifier,_onStart=True)
 
         page.dataRemote('server.dbEnv',self.dbCurrentEnv,cacheTime=1)
         page.dataController(""" var changelist = copyArray(_node._value);

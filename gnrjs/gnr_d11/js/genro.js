@@ -1865,6 +1865,13 @@ dojo.declare('gnr.GenroClient', null, {
         return convertFromText(value);
     },
 
+    getParentBranchMenuByIdentifier:function(kw){
+        let appmenu = genro.mainGenroWindow.genro.getData('gnr.appmenu').toXml();
+        appmenu = new gnr.GnrBag(appmenu);
+        appmenu.walk(function(n){objectPop(n.attr,'tag')});
+        let branchNode = appmenu.getNodeByAttr('branchIdentifier',kw.branchIdentifier);
+        return branchNode.getValue().deepCopy();
+    },
 
     addParamsToUrl: function(url, params) {
         if(!url){

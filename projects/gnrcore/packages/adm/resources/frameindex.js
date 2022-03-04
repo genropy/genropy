@@ -88,7 +88,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let startKw =  objectExtract(kw,'start_*');
         let openKw = kw.openKw || {};
         objectUpdate(openKw,startKw)
-        return {'fullname':kw.label,pageName:kw.rootPageName,
+        return {'fullname':kw.title || kw.label,
+                pageName:kw.rootPageName,
                 fullpath:kw.fullpath,url:kw.url,
                 subtab:kw.subtab,
                 openKw:openKw}

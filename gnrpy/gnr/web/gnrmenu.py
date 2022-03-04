@@ -376,7 +376,7 @@ class MenuResolver(BagResolver):
     def nodeType_lookupBranch(self,node):
         attributes = dict(node.attr)
         attributes['isDir'] = True
-        attributes.setdefault('branchId',getUuid())
+        attributes['branchIdentifier'] = getUuid()
         kwargs = dict(attributes)
         kwargs.pop('tag')
         return LookupBranchResolver(level_offset=self.level,
@@ -460,13 +460,14 @@ class MenuResolver(BagResolver):
 
     def nodeType_tableBranch(self,node):
         attributes = dict(node.attr)
-        attributes.setdefault('branchId',getUuid())
+        attributes['branchIdentifier'] = getUuid()
         kwargs = dict(attributes)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
+                            level_offset=self.level,
                             **kwargs)
         attributes['isDir'] = True
         return sbresolver,attributes
@@ -502,17 +503,23 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
-    def __init__(self, table=None,branchVariant=None, branchMethod=None,webpage=None,branchId=None, **kwargs):
+    def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
+                        branchIdentifier=None, cacheTime=None,labelTemplate=None,titleTemplate=None,**kwargs):
         super().__init__(table=table,
-                            branchVariant=branchVariant,
+                            branchId=branchId,
                             branchMethod=branchMethod,
-                            webpage=webpage,branchId=branchId,**kwargs)
+                            labelTemplate=labelTemplate,
+                            titleTemplate=titleTemplate,
+                            cacheTime=cacheTime if cacheTime is not None else 5,
+                            webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
         self.table = table
         self.webpage = webpage
-        self.branchId = branchId
+        self.branchIdentifier = branchIdentifier
         self.query_kwargs = dictExtract(kwargs,'query_')
         self.th_kwargs = dictExtract(kwargs,'th_')
-        self.branchVariant = branchVariant
+        self.branchId = branchId
+        self.labelTemplate = labelTemplate
+        self.titleTemplate = titleTemplate
         self.branchMethod = branchMethod 
 
     @property
@@ -522,16 +529,16 @@ class TableMenuResolver(MenuResolver):
     
     def getMenuContentHandler(self):
         handler = None
-        if self.branchVariant:
-            handler = getattr(self.tblobj,f'menu_dynamicMenuContent_{self.branchVariant}',None)
+        if self.branchId:
+            handler = getattr(self.tblobj,f'menu_dynamicMenuContent_{self.branchId}',None)
         if not handler:
             handler = self.tblobj.menu_dynamicMenuContent
         return handler
     
     def getMenuLineHandler(self):
         handler = None
-        if self.branchVariant:
-            handler = getattr(self.tblobj,f'menu_dynamicMenuLine_{self.branchVariant}',None)
+        if self.branchId:
+            handler = getattr(self.tblobj,f'menu_dynamicMenuLine_{self.branchId}',None)
         if not handler:
             handler = self.tblobj.menu_dynamicMenuLine
         return handler
@@ -546,26 +553,28 @@ class TableMenuResolver(MenuResolver):
         selection = self.getMenuContentHandler()(**objectExtract(self,'query_'))
         webpagekw = dictExtract(self.kwargs,'webpage_')
         for record in selection:
-            linekw = self.getMenuLineHandler()(record)
-            linekw.setdefault('pageName',self.branchId)
+            linekw = self.getMenuLineHandler()(record,labelTemplate=self.labelTemplate,
+                                                titleTemplate=self.titleTemplate)
+            linekw.setdefault('pageName',self.branchIdentifier)
             if self.webpage:
                 kw = dict(webpagekw)
                 kw.update(linekw)
                 result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],
-                                filepath=self.webpage,
+                                filepath=self.webpage,url_branchIdentifier=self.branchIdentifier,
                                 **{f'url_{k}':v for k,v in kw.items()})
             else:
                 linekw.update(objectExtract(self,'th_',slicePrefix=False))
-                result.thpage(start_pkey=record['pkey'],table=self.table,subtab=True,**linekw)
+                result.thpage(start_pkey=record['pkey'],table=self.table,subtab=True,
+                                            url_branchIdentifier=self.branchIdentifier,**linekw)
         return result
 
 
 class LookupBranchResolver(MenuResolver):
-    def __init__(self, pkg=None,tables=None,branchId=None, **kwargs):
-        super().__init__(pkg=pkg,tables=tables,branchId=branchId,**kwargs)
+    def __init__(self, pkg=None,tables=None,branchIdentifier=None, **kwargs):
+        super().__init__(pkg=pkg,tables=tables,branchIdentifier=branchIdentifier,**kwargs)
         self.pkg = pkg
         self.tables = tables
-        self.branchId = branchId
+        self.branchIdentifier = branchIdentifier
 
     
     def lookup_tables(self,pkg=None):
@@ -582,20 +591,20 @@ class LookupBranchResolver(MenuResolver):
                 continue
             lookup_tables = list(self.lookup_tables(pkgId))
             if lookup_tables:
-                yield pkgId
+                yield pkg
  
     @property
     def sourceBag(self):
         result = MenuStruct()
         if self.tables:
-            for tbl in self.tables.split():
-                result.lookupPage(start_table=tbl,pageName=self.branchId)
+            for tbl in self.tables.split(','):
+                result.lookupPage(start_table=tbl,pageName=self.branchIdentifier,url_branchIdentifier=self.branchIdentifier)
         elif self.pkg=='*':
-            for pkg in self.valid_packages:
-                result.lookupBranch(pkg=pkg)
+            for pkgobj in self.valid_packages:
+                result.lookupBranch(pkgobj.attributes.get('name_long'),pkg=pkgobj.id)
         else:
             for tbl in self.lookup_tables(self.pkg):
-                result.lookupPage(start_table=tbl,pageName=self.branchId)
+                result.lookupPage(start_table=tbl,pageName=self.branchIdentifier,url_branchIdentifier=self.branchIdentifier)
         return result
 
 class PackageMenuResolver(MenuResolver):

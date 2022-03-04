@@ -25,7 +25,6 @@ class GnrCustomWebPage(object):
             root = root.rootContentPane(**kwargs)
         frame = root.framePane(nodeId='lookup_root')
         modal = modal or callArgs.get('lookupModal')
-
         root.dataController("""if(_subscription_kwargs.table){
                                     SET main.viewResource = _subscription_kwargs.viewResource;
                                     SET main.table = _subscription_kwargs.table;
@@ -33,7 +32,7 @@ class GnrCustomWebPage(object):
                                """,
                             subscribe_changedStartArgs=True)
         frame.center.contentPane(overflow='hidden').remote(self.remoteTh,
-                            table='^main.table',
+                            table='^main.table',branchIdentifier=self._call_kwargs.get('branchIdentifier'),
                             modal=modal,viewResource='=main.viewResource',
                             _onRemote='FIRE main.load_data;')
 
@@ -55,7 +54,7 @@ class GnrCustomWebPage(object):
             r.fieldcell('__syscode',edit=True)
 
     @public_method
-    def remoteTh(self,pane,table=None,modal=None,viewResource=None):
+    def remoteTh(self,pane,table=None,modal=None,viewResource=None,branchIdentifier=None,**kwargs):
         pane.data('.mainth',Bag())
         if not table:
             pane.div('!!Select a table from the popup menu',margin_left='5em',margin_top='5px', color='#8a898a',text_align='center',font_size='large')
@@ -70,7 +69,9 @@ class GnrCustomWebPage(object):
                                     nodeId='mainth',configurable='*',
                                     view_structCb=self.lookupTablesDefaultStruct,condition_loaddata='^main.load_data',
                                     grid_selfDragRows=tblobj.attributes.get('counter'))
-            th.view.top.bar.replaceSlots('addrow','addrow,export,importer')
+            bar = th.view.top.bar.replaceSlots('addrow','addrow,export,importer')
+            if branchIdentifier:
+                bar.replaceSlots('#','2,pageBranchSelector,#')
             if modal:
                 bar = th.view.bottom.slotBar('10,revertbtn,*,cancel,savebtn,10',margin_bottom='2px',_class='slotbar_dialog_footer')
                 bar.revertbtn.slotButton('!!Revert',action='FIRE main.load_data;',disabled='==status!="changed"',status='^.grid.editor.status')
