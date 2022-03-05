@@ -95,7 +95,7 @@ class MenuIframes(BaseComponent):
                         else if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
                             genro.publish("newBrowserWindowPage",selectingPageKw);
                         }else{
-                            if(labelClass.indexOf('menu_existing_page')<0){
+                            if(labelClass.indexOf('menu_existing_page')<0 && !node.attr.subtab){
                                 node.setAttribute('labelClass',labelClass+' menu_existing_page');
                             }   
                             this.publish("selected",selectingPageKw);
@@ -123,8 +123,16 @@ class MenuIframes(BaseComponent):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
         #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
         bc = frame.center.borderContainer()
-        sb = frame.bottom.slotBar('10,userbox,*,logout,10',height='32px',border_top='1px solid white')
-        sb.userbox.div(self.user if not self.isGuest else 'guest',color='white',font_weight='bold',font_size='.9em')
+        sb = frame.bottom.slotBar('10,userbox,20,appbox,*,logout,10',height='32px',border_top='1px solid white')
+        sb.userbox.lightButton(self.user if not self.isGuest else 'guest',color='white',
+                        action='genro.framedIndexManager.openUserPreferences()',cursor='pointer',
+                        font_weight='bold',text_decoration='underline',font_size='.9em')
+    
+        sb.appbox.lightButton('!!Preferences',color='white',
+                        action='genro.framedIndexManager.openAppPreferences()',cursor='pointer',
+                        font_weight='bold',text_decoration='underline',font_size='.9em')
+
+
         sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
         #tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')

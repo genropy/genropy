@@ -23,6 +23,7 @@
 #Copyright (c) 2022 Softwell. All rights reserved.
 
 from email.mime import application
+from genericpath import isdir
 import os
 import urllib.parse
 from attr import attrib, attributes
@@ -270,10 +271,16 @@ class MenuResolver(BagResolver):
     def setLabelClass(self,attributes):
         labelClass = f'menu_shape menu_level_{self.level}'
         customLabelClass = attributes.get('customLabelClass')
+        subtab = attributes.get('subtab')
+        isDir = attributes.get('isDir')
         if customLabelClass:
             labelClass = f'{labelClass} {customLabelClass}'
         if attributes.get('workInProgress'):
             labelClass = f'{labelClass} workInProgress'
+        if subtab:
+            labelClass = f'{labelClass} menu_subtab'
+        if isDir:
+            labelClass = f'{labelClass} menu_branch'
         attributes['labelClass'] = labelClass
 
     @property
@@ -435,6 +442,7 @@ class MenuResolver(BagResolver):
         if pkey:
             attributes.setdefault('multipage',False)
             attributes.setdefault('url_single_record',True)
+            attributes.setdefault('url_th_public',True)
         else:
             attributes.setdefault('multipage',True)
         tableattr = self._page.db.table(table).attributes

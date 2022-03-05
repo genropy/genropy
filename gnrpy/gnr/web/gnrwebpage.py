@@ -1261,7 +1261,7 @@ class GnrWebPage(GnrBaseWebPage):
     def device_mode(self):
         if self.isMobile:
             return 'mobile'
-        return self.getPreference('theme.device_mode',pkg='sys') or 'std'
+        return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
@@ -1934,7 +1934,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -1961,11 +1961,9 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.windowTitle', self.windowTitle())
+        page.data('gnr.windowTitle',windowTitle or self.windowTitle())
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
-
-
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
         page.dataRemote('server.pageStore',self.getPageStoreData,cacheTime=1)
         if branchIdentifier:
@@ -2011,19 +2009,23 @@ class GnrWebPage(GnrBaseWebPage):
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
             page.dataRemote('gnr.shortcuts.store', self.getShortcuts)
 
-        #page.dataController("""
-        #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
-        #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
-        #    var kw = {'rotate':rotate_val,'invert':invert_val};
-        #    var styledict = {font_family:app_theme_font_family};
-        #    genro.dom.css3style_filter(null,kw,styledict);
-        #    dojo.style(dojo.body(),styledict);
-        #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
-        #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
-        #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
-        #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
-        #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
-        #        _onStart=True)
+       #page.dataController("""
+       #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
+       #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
+       #    var kw = {'rotate':rotate_val,'invert':invert_val};
+       #    var styledict = {font_family:app_theme_font_family,font_size:app_theme_font_size,zoom:app_theme_zoom};
+       #    genro.dom.css3style_filter(null,kw,styledict);
+       #    dojo.style(dojo.body(),styledict);
+       #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
+       #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
+       #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
+       #        app_theme_zoom='^gnr.app_preference.sys.theme.body.zoom',
+
+       #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
+       #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
+       #    app_theme_font_size='^gnr.app_preference.sys.theme.body.font_size',
+
+       #        _onStart=True)
 
 
 

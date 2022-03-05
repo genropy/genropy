@@ -165,7 +165,7 @@ class FrameIndex(BaseComponent):
                                         }
                                         SET selectedPageTitle = selectedPageTitle;
                                         """,selectedPage='^selectedFrame', 
-                                iframes='=iframes',basetitle='Index')
+                                iframes='^iframes',basetitle='Index',_delay=1)
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
@@ -263,21 +263,12 @@ class FrameIndex(BaseComponent):
                         tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
         box = sb.preferences.div(_class='iframeroot_pref')
         if not self.dbstore:
-            appPref = box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+            box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
                                     _class='iframeroot_appname',
-                                    connect_onclick='PUBLISH app_preference',envbag='=gnr.rootenv')
-            userPref = box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                connect_onclick='PUBLISH user_preference')
-            appPref.dataController("""genro.dlg.iframePalette({top:'10px',left:'10px',url:url,
-                                                        title:preftitle,height:'450px', width:'800px',
-                                                        palette_nodeId:'mainpreference'});""",
-                            subscribe_app_preference=True,url='adm/app_preference',
-                            _tags=self.pageAuthTags(method='preference'),pane=appPref,preftitle='!!Application preference')
-            userPref.dataController("""genro.dlg.iframePalette({top:'10px',right:'10px',title:preftitle,url:url,
-                                                        height:'300px', width:'400px',palette_transition:null,
-                                                        palette_nodeId:'userpreference'});""",url='adm/user_preference',
-                            subscribe_user_preference=True,pane=userPref,preftitle='!!User preference')
+                                    connect_onclick='genro.framedIndexManager.openAppPreferences()',envbag='=gnr.rootenv')
+            box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
+                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
         
         sb.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 

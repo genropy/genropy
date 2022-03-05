@@ -733,6 +733,9 @@ body.tundra.mimi {
     padding-bottom: 4px;
     background: linear-gradient(45deg, #1f345d26, transparent);
 }
+.menutree .menu_shape.menu_subtab{
+    font-style: italic;
+}
 
 .open_pages_branch.menu_shape{
     background:RGBA(94, 281, 150, 1.00);
@@ -796,13 +799,14 @@ body.tundra.mimi {
 }
 
 
-.mimi.mode_mobile .menu_page.menutreeSelected{
+.mimi.mode_mobile .menutree .menu_shape.menutreeSelected{
     color:rgba(255, 210, 0, 1.00);
 }
 
-.mimi .menu_page.menutreeSelected{
+.mimi .menutree .menu_shape.menutreeSelected{
     color:rgb(255, 0, 111);
 }
+
 
 
 .menutree .menu_shape:hover {

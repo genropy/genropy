@@ -32,8 +32,7 @@ class GnrCustomWebPage(object):
                                """,
                             subscribe_changedStartArgs=True)
         frame.center.contentPane(overflow='hidden').remote(self.remoteTh,
-                            table='^main.table',branchIdentifier=self._call_kwargs.get('branchIdentifier'),
-                            modal=modal,viewResource='=main.viewResource',
+                            table='^main.table',modal=modal,viewResource='=main.viewResource',
                             _onRemote='FIRE main.load_data;')
 
     def lookupTablesDefaultStruct(self,struct):
@@ -54,7 +53,7 @@ class GnrCustomWebPage(object):
             r.fieldcell('__syscode',edit=True)
 
     @public_method
-    def remoteTh(self,pane,table=None,modal=None,viewResource=None,branchIdentifier=None,**kwargs):
+    def remoteTh(self,pane,table=None,modal=None,viewResource=None,**kwargs):
         pane.data('.mainth',Bag())
         if not table:
             pane.div('!!Select a table from the popup menu',margin_left='5em',margin_top='5px', color='#8a898a',text_align='center',font_size='large')
@@ -70,8 +69,6 @@ class GnrCustomWebPage(object):
                                     view_structCb=self.lookupTablesDefaultStruct,condition_loaddata='^main.load_data',
                                     grid_selfDragRows=tblobj.attributes.get('counter'))
             bar = th.view.top.bar.replaceSlots('addrow','addrow,export,importer')
-            if branchIdentifier:
-                bar.replaceSlots('#','2,pageBranchSelector,#')
             if modal:
                 bar = th.view.bottom.slotBar('10,revertbtn,*,cancel,savebtn,10',margin_bottom='2px',_class='slotbar_dialog_footer')
                 bar.revertbtn.slotButton('!!Revert',action='FIRE main.load_data;',disabled='==status!="changed"',status='^.grid.editor.status')

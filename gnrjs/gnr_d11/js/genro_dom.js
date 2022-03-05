@@ -748,6 +748,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
     },
     windowTitle:function(title) {
         document.title = title;
+        let mainGenro = genro.mainGenroWindow.genro;
+        if(mainGenro.framedIndexManager){
+            if(window.frameElement && window.frameElement.sourceNode){
+                let pageName = window.frameElement.sourceNode.attr.rootPageName;
+                mainGenro.framedIndexManager.changeFrameLabel({pageName:pageName,title:title,lazy:true});
+            }
+        }
     },
     styleTrigger:function(kw) {
         var parentNode = kw.node.getParentNode();

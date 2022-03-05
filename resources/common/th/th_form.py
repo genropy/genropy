@@ -266,8 +266,6 @@ class TableHandlerForm(BaseComponent):
             if single_record:
                 default_slots = default_slots.replace('form_delete',','.join(extra_slots) if extra_slots else '')
                 default_slots = default_slots.replace('form_add','')
-                if self._call_kwargs.get('branchIdentifier'):
-                    default_slots = default_slots.replace('left_placeholder','2,pageBranchSelector,left_placeholder')
             table = form.getInheritedAttributes()['table']  
             if extra_slots:
                 default_slots = default_slots.replace('right_placeholder','right_placeholder,%s' %(','.join(extra_slots)))

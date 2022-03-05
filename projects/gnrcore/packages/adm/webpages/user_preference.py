@@ -12,32 +12,22 @@ from gnr.core.gnrdecorator import public_method
 class GnrCustomWebPage(object):
     """USER PREFERENCE BUILDER"""
     maintable = 'adm.user'
-    py_requires = """public:Public,prefhandler/prefhandler:UserPrefHandler"""
+    py_requires = """public:Public,gnrcomponents/formhandler:FormHandler,prefhandler/prefhandler:UserPrefHandler"""
 
     def windowTitle(self):
         return '!!User preference panel'
 
     def main(self, root, **kwargs):
         """USER PREFERENCE BUILDER"""
+        root = root.rootContentPane(title='!![en]User preferences')
         form = root.frameForm(frameCode='user_preferences',store_startKey=self.avatar.user_id,
                                 table='adm.user',datapath='main',store=True,**kwargs)
-        self.controllers(form)
-        self.user_preference_bottom_bar(form.bottom)
+        form.top.slotToolbar('2,stackButtons,*,form_revert,form_save,semaphore,2',stackButtons_stackNodeId='PREFROOT')
         form.dataController("""
             var tkw = _triggerpars.kw;
             if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
                 genro.mainGenroWindow.genro.publish({topic:'externalSetData',
                 iframe:'*'},{path:'gnr.user_preference.'+tkw.pathlist.slice(2).join('.'),value:tkw.value});
             }""",preference='^#FORM.record.preferences')
-        form.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px')
+        form.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',wdg='stack')
 
-    def user_preference_bottom_bar(self, bottom):
-        bar = bottom.slotBar('revertbtn,*,cancel,savebtn',margin_bottom='2px',_class='slotbar_dialog_footer')
-        #bottom.a('!!Zoom',float='left',href='/adm/app_preference')
-        bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')
-        bar.savebtn.slotButton('!!Save', action='this.form.publish("save",{destPkey:"*dismiss*"});')
-        bar.cancel.slotButton('!!Cancel', action='this.form.abort()')
-
-    def controllers(self, form):
-        form.dataController('window.parent.genro.wdgById("userpreference").close();',
-                                formsubscribe_onDismissed=True)

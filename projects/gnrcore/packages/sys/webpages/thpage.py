@@ -10,6 +10,10 @@ class GnrCustomWebPage(object):
     py_requires='public:TableHandlerMain'
     auth_main='user'
     
+    def windowTitle(self):
+        return self.db.table(self.maintable).attributes.get('name_plural') or self.db.table(self.maintable).attributes.get('name_long')
+
+
     @classmethod
     def getMainPackage(cls,request_args=None,request_kwargs=None):
         return request_kwargs.get('th_from_package') or request_args[0]
