@@ -1887,7 +1887,7 @@ function combineDateAndTime(date, time) {
 
 function splitDateAndTime(dt){
     let year = dt.getFullYear();
-    let month = dt.getMonth() + 1; // Jan is 0, dec is 11
+    let month = dt.getMonth();
     let day = dt.getDate();
 
     let date = new Date(year,month,day);
