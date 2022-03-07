@@ -5801,6 +5801,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
                             'width':objectPop(slotKw,'width'),search_kw:slotKw});
     },
+
+    slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
+        pane._('menudiv',{iconClass:'iconbox popup',storepath:'gnr.parentBranchMenu.root',
+                            action:function(kw){
+                                genro.mainGenroWindow.genro.publish('selectIframePage',kw);
+                            }})
+    },
+
     slot_stackButtons:function(pane,slotValue,slotKw,frameCode){
         var scNode = objectPop(slotKw,'stackNode');
         if(scNode){

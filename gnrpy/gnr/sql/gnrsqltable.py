@@ -2406,11 +2406,20 @@ class SqlTable(GnrObject):
 
 
 
-    def menu_dynamicMenuContent(self,**kwargs):
-        return self.query(**kwargs).fetch()
+    def menu_dynamicMenuContent(self,columns=None,**kwargs):
+        caption_field = self.attributes.get('caption_field')
+        columns = columns or '*'
+        collist = columns.split(',')
+        if caption_field and f'${caption_field}' not in collist:
+            collist.append(f'${caption_field}')
+        return self.query(columns=','.join(collist),**kwargs).fetch()
     
-    def menu_dynamicMenuLine(self,record):
-        return {'label':record.get(self.attributes.get('caption_field','pkey'))}
+    def menu_dynamicMenuLine(self,record,labelTemplate=None,titleTemplate=None):
+        caption_field = record.get(self.attributes.get('caption_field','pkey'))
+        labelTemplate = labelTemplate or f'{caption_field}'
+        titleTemplate = titleTemplate or labelTemplate
+        row = dict(record)
+        return {'label':labelTemplate.format(**row),'title':titleTemplate.format(**row)}
     
     @property
     def totalizers(self):

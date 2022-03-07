@@ -69,9 +69,7 @@ class AppPref(object):
                         hasDownArrow=True)
         fb.textbox(value='^.confirm_user_subject',width='30em',lbl='!!Subject',
                                                 hidden='^.tpl_userconfirm_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',
-                                                            hidden='^.tpl_userconfirm_id',
-                                                            editor=True)
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',editor=True)
 
     def _auth_new_password_template(self,bc):
         fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
@@ -82,7 +80,7 @@ class AppPref(object):
                         condition_searchtbl='adm.user',
                         hasDownArrow=True)
         fb.textbox(value='^.confirm_password_subject',width='30em',lbl='!!Subject', hidden='^.tpl_new_password_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True,hidden='^.tpl_new_password_id')
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True)
 
 
     def _auth_messages(self,pane):

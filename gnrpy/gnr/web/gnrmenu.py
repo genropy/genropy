@@ -23,11 +23,12 @@
 #Copyright (c) 2022 Softwell. All rights reserved.
 
 from email.mime import application
+from genericpath import isdir
 import os
 import urllib.parse
 from attr import attrib, attributes
 from gnr.core.gnrstructures import  GnrStructData
-from gnr.core.gnrlang import gnrImport,instanceMixin
+from gnr.core.gnrlang import getUuid,gnrImport,instanceMixin
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
@@ -104,16 +105,21 @@ class MenuStruct(GnrStructData):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label,table=None,tags='',multipage=None, **kwargs):
+    def thpage(self, label=None,table=None,tags='',multipage=None, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
-    def lookups(self,label,lookup_manager=None,tags=None,**kwargs):
+    def lookups(self,label=None,lookup_manager=None,tags=None,**kwargs):
         return self.child('lookups',label=label,lookup_manager=lookup_manager,
                     tags=tags,_returnStruct=False,**kwargs)
+    
+    def lookupPage(self,label=None,table=None,tags=None,**kwargs):
+        return self.child('lookupPage',label=label,table=table,
+                    tags=tags,_returnStruct=False,**kwargs)
 
-    def directoryBranch(self,label=None,pkg=None,folder=None,**kwargs):
-        return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,_returnStruct=False,**kwargs)
+    def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,**kwargs):
+        return self.child('lookupBranch',label=label,pkg=pkg,tables=tables,
+                            tags=tags,_returnStruct=False,**kwargs)
 
     def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
         return self.child('dashboardBranch',label=label,dashboard=dashboard,
@@ -269,18 +275,26 @@ class MenuResolver(BagResolver):
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('url'):
-                attributes['rootPageName'] = attributes.get('pageName') or slugify(attributes.get('url'))
             result.setItem(node.label, value, attributes)
         return result
 
     def setLabelClass(self,attributes):
         labelClass = f'menu_shape menu_level_{self.level}'
         customLabelClass = attributes.get('customLabelClass')
+        subtab = attributes.get('subtab')
+        isDir = attributes.get('isDir')
+        branchPage = attributes.get('branchPage')
         if customLabelClass:
             labelClass = f'{labelClass} {customLabelClass}'
         if attributes.get('workInProgress'):
             labelClass = f'{labelClass} workInProgress'
+        if subtab:
+            labelClass = f'{labelClass} menu_subtab'
+        if isDir:
+            labelClass = f'{labelClass} menu_branch'
+        if branchPage:
+            labelClass = f'{labelClass} branchPage'
+
         attributes['labelClass'] = labelClass
 
     @property
@@ -315,10 +329,28 @@ class MenuResolver(BagResolver):
         if nodeTag=='thpage' and nodeattr.get('filepath'):
             nodeattr['tag'] = 'webpage'
 
-
+        if nodeTag == 'lookups':
+            lookup_manager = nodeattr.pop('lookup_manager',None)
+            if lookup_manager is True:
+                nodeattr['tag'] = 'lookupBranch'
+                nodeattr['pkg'] = '*'
+            else:
+                table = nodeattr.get('table')
+                pkg = nodeattr.get('pkg')
+                lookup_manager = lookup_manager or table or pkg
+                lookup_manager_list = lookup_manager.split('.')
+                if len(lookup_manager_list)==2:
+                    nodeattr['tag'] = 'lookupPage'
+                    nodeattr['table'] = lookup_manager
+                else:
+                    nodeattr['tag'] = 'lookupBranch'
+                    nodeattr['pkg'] = lookup_manager
     @property
     def level(self):
-        return self.level_offset+(len(self.path.split('.')) if self.path else 0)
+        level = len(self.path.split('.')) if self.path else 0
+        if self.level_offset:
+            return self.level_offset+level+1
+        return level
 
     def allowedNode(self,node):
         nodeattr = node.attr
@@ -353,46 +385,88 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         return None,attributes
 
+    def checkExternalSite(self,attributes):
+        externalSite = attributes.get('externalSite') or self.externalSite
+        if externalSite:
+            externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
+            attributes['webpage'] = f"{externalSite}{attributes['webpage']}"
+
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
         if not self._page.checkPermission(attributes['filepath']):
             raise NotAllowedException('Not allowed page')
         aux_instance = attributes.get('aux_instance') or self.aux_instance
-        attributes['aux_instance'] = aux_instance
-        urlkw = dictExtract(attributes,'url_')
-        urlkw['aux_instance'] = aux_instance
-        urlkw['externalSite'] = attributes.get('externalSite') or self.externalSite
-        attributes['url'] = self.addParametersToUrl(attributes['filepath'],**urlkw)
+        attributes['webpage'] = attributes['filepath']
+        attributes['url_aux_instance'] = aux_instance
+        self.checkExternalSite(attributes)
+        return None,attributes
+
+    def nodeType_lookupBranch(self,node):
+        attributes = dict(node.attr)
+        attributes['isDir'] = True
+        attributes['branchIdentifier'] = getUuid()
+        kwargs = dict(attributes)
+        kwargs.pop('tag')
+        return LookupBranchResolver(level_offset=self.level,
+                                aux_instance=attributes.get('aux_instance') or self.aux_instance,
+                                externalSite= attributes.get('externalSite') or self.externalSite,
+                                _page=self._page,**kwargs),attributes
+
+    def nodeType_lookupPage(self,node):
+        attributes = dict(node.attr)
+        table = attributes.get('table') 
+        attributes.setdefault('multipage',False)
+        attributes['webpage'] = '/sys/lookup_page'
+        if table:
+            attributes['webpage'] = f"/sys/lookup_page/{table.replace('.','/')}"
+        else:
+            table = attributes['start_table']
+        viewResource = attributes.pop('viewResource',None)
+        if viewResource:
+            attributes['url_viewResource'] = viewResource
+        aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
+        attributes['url_aux_instance'] = aux_instance
+        attributes['url_th_from_package'] = attributes.get('pkg_menu')
+        self.checkExternalSite(attributes)
+        if not aux_instance:
+            attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
+        attributes.setdefault('multipage',False)
+        tableattr = self._page.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
+        application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+        if not application.allowedByPreference(**tableattr):
+            raise NotAllowedException('Not allowed by preference')
         return None,attributes
 
     def nodeType_thpage(self,node):
         attributes = dict(node.attr)
-        aux_instance = attributes.get('aux_instance') or self.aux_instance
-        attributes['aux_instance'] = aux_instance
-        pkey = attributes.get('pkey',None)
-        urlkw = dictExtract(attributes,'url_')
-        urlkw['aux_instance'] = aux_instance
-        urlkw['th_from_package'] = attributes.get('pkg_menu') 
-        urlkw['externalSite'] = attributes.get('externalSite') or self.externalSite
-        if not aux_instance:
-            urlkw['th_from_package'] = urlkw['th_from_package'] or self._page.package.name
-        if pkey:
-            urlkw.setdefault('subtab',True)
-            urlkw.setdefault('main_call','main_form')
-            urlkw['th_pkey'] = pkey
-            urlkw['linker'] = True
-            urlkw['multipage'] = False 
-            #attributes.setdefault('url_th_public',True)
-        for k in ('pageResource','formResource','viewResource'):
-            urlkw[f'th_{k}'] = attributes.get(k)
         table = attributes['table']
+        attributes['webpage'] = f'/sys/thpage/{table.replace(".","/")}'
+        for k in ('pkey','pageResource','formResource','viewResource'):
+            v = attributes.pop(k,None)
+            if v is not None:
+                attributes[f'url_th_{k}'] = v
+        aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
+        attributes['url_aux_instance'] = aux_instance
+        attributes['url_th_from_package'] = attributes.get('pkg_menu')
+        self.checkExternalSite(attributes)
+        if not aux_instance:
+            attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
+        pkey = attributes.get('url_th_pkey') or attributes.get('start_pkey')
+        if pkey:
+            attributes.setdefault('multipage',False)
+            attributes.setdefault('url_single_record',True)
+            attributes.setdefault('url_th_public',True)
+        else:
+            attributes.setdefault('multipage',True)
         tableattr = self._page.db.table(table).attributes
+        attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
         application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
-        attributes['url'] = self.addParametersToUrl(f'/sys/thpage/{table.replace(".","/")}',**urlkw)
-        
         return None,attributes
+    
+
 
 
     def nodeType_dashboardBranch(self,node):
@@ -416,14 +490,16 @@ class MenuResolver(BagResolver):
                                 _page=self._page),attributes
 
     def nodeType_tableBranch(self,node):
-        kwargs = dict(node.attr)
+        attributes = dict(node.attr)
+        attributes['branchIdentifier'] = getUuid()
+        kwargs = dict(attributes)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
+                            level_offset=self.level,
                             **kwargs)
-        attributes = dict(node.attr)
         attributes['isDir'] = True
         return sbresolver,attributes
 
@@ -460,17 +536,29 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
-    def __init__(self, table=None,branchVariant=None, branchMethod=None,webpage=None, **kwargs):
-       super().__init__(table=table,
-                            branchVariant=branchVariant,
+    def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
+                        branchIdentifier=None, cacheTime=None,labelTemplate=None,
+                        titleTemplate=None,label=None,title=None,**kwargs):
+        super().__init__(table=table,
+                            branchId=branchId,
+                            label=label,
+                            title=title,
                             branchMethod=branchMethod,
-                            webpage=webpage,**kwargs)
-       self.table = table
-       self.webpage = webpage
-       self.query_kwargs = dictExtract(kwargs,'query_')
-       self.th_kwargs = dictExtract(kwargs,'th_')
-       self.branchVariant = branchVariant
-       self.branchMethod = branchMethod 
+                            labelTemplate=labelTemplate,
+                            titleTemplate=titleTemplate,
+                            cacheTime=cacheTime if cacheTime is not None else 5,
+                            webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
+        self.table = table
+        self.label = label
+        self.title = title or label
+        self.webpage = webpage
+        self.branchIdentifier = branchIdentifier
+        self.query_kwargs = dictExtract(kwargs,'query_')
+        self.th_kwargs = dictExtract(kwargs,'th_')
+        self.branchId = branchId
+        self.labelTemplate = labelTemplate
+        self.titleTemplate = titleTemplate or self.title
+        self.branchMethod = branchMethod 
 
     @property
     def tblobj(self):
@@ -479,16 +567,16 @@ class TableMenuResolver(MenuResolver):
     
     def getMenuContentHandler(self):
         handler = None
-        if self.branchVariant:
-            handler = getattr(self.tblobj,f'menu_dynamicMenuContent_{self.branchVariant}',None)
+        if self.branchId:
+            handler = getattr(self.tblobj,f'menu_dynamicMenuContent_{self.branchId}',None)
         if not handler:
             handler = self.tblobj.menu_dynamicMenuContent
         return handler
     
     def getMenuLineHandler(self):
         handler = None
-        if self.branchVariant:
-            handler = getattr(self.tblobj,f'menu_dynamicMenuLine_{self.branchVariant}',None)
+        if self.branchId:
+            handler = getattr(self.tblobj,f'menu_dynamicMenuLine_{self.branchId}',None)
         if not handler:
             handler = self.tblobj.menu_dynamicMenuLine
         return handler
@@ -503,16 +591,67 @@ class TableMenuResolver(MenuResolver):
         selection = self.getMenuContentHandler()(**objectExtract(self,'query_'))
         webpagekw = dictExtract(self.kwargs,'webpage_')
         for record in selection:
-            linekw = self.getMenuLineHandler()(record)
+            linekw = self.getMenuLineHandler()(record,labelTemplate=self.labelTemplate,
+                                                titleTemplate=self.titleTemplate)
+            linekw.setdefault('pageName',self.branchIdentifier)
             if self.webpage:
                 kw = dict(webpagekw)
                 kw.update(linekw)
                 result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],
-                                filepath=self.webpage,
+                                filepath=self.webpage,url_branchIdentifier=self.branchIdentifier,
                                 **{f'url_{k}':v for k,v in kw.items()})
             else:
                 linekw.update(objectExtract(self,'th_',slicePrefix=False))
-                result.thpage(pkey=record['pkey'],table=self.table,**linekw)
+                result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
+                                url_branchIdentifier=self.branchIdentifier,**linekw)
+        return result
+
+
+class LookupBranchResolver(MenuResolver):
+    def __init__(self, pkg=None,tables=None,branchIdentifier=None,label=None,title=None,**kwargs):
+        super().__init__(pkg=pkg,tables=tables,
+                            branchIdentifier=branchIdentifier,
+                            label=label,title=title,**kwargs)
+        self.pkg = pkg
+        self.tables = tables
+        self.label = label
+        self.title = title or label
+        self.branchIdentifier = branchIdentifier
+
+    
+    def lookup_tables(self,pkg=None):
+        for tbl in self._page.db.model.package(pkg).tables.values():
+            tblattr = tbl.attributes
+            if tblattr.get('lookup') and self._page.db.application.allowedByPreference(**tblattr):
+                yield tbl.fullname
+
+    @property
+    def valid_packages(self):
+        for pkgId,pkg in self._page.application.packages.items():
+            attr = pkg.attributes
+            if attr.get('_syspackage'):
+                continue
+            lookup_tables = list(self.lookup_tables(pkgId))
+            if lookup_tables:
+                yield pkg
+ 
+    @property
+    def sourceBag(self):
+        result = MenuStruct()
+        if self.tables:
+            for tbl in self.tables.split(','):
+                result.lookupPage(start_table=tbl,pageName=self.branchIdentifier,
+                            title=self.title,branchPage=True,
+                            url_branchIdentifier=self.branchIdentifier)
+        elif self.pkg=='*':
+            for pkgobj in self.valid_packages:
+                result.lookupBranch(pkgobj.attributes.get('name_long'),
+                                    title=self.title,pkg=pkgobj.id)
+        else:
+            for tbl in self.lookup_tables(self.pkg):
+                result.lookupPage(start_table=tbl,pageName=self.branchIdentifier,
+                                    title=self.title,branchPage=True,
+                                    url_branchIdentifier=self.branchIdentifier)
         return result
 
 class PackageMenuResolver(MenuResolver):
