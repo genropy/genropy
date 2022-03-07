@@ -11,6 +11,4 @@ class GnrCustomWebPage(object):
     def test_2_dh(self,pane):
         "dateTimeTextBox inserts both date and time"
         fb = pane.formbuilder()
-        fb.dataFormula('.dhbox','new Date()',_onStart=True)
         fb.datetimeTextBox(value='^.dhbox',lbl='DHBOX',dtype='DHZ')
-        fb.dataController('console.log(dhbox,dhbox._gnrdtype)',dhbox='^.dhbox')
