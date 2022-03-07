@@ -5026,6 +5026,7 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
         var gnr = this;
         var marker_type = objectPop(kw,'marker_type') || 'default';
         var onClick = objectPop(kw, 'onClick')
+        var onDblClick = objectPop(kw, 'onDblClick')
         this.onPositionCall(sourceNode,marker,function(position){
             if (position){
                 kw.position=position;
@@ -5038,7 +5039,10 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
                 var currMarker = sourceNode.markers[marker_name];
                 if (onClick){
                     currMarker.addListener('click', function(e){onClick(marker_name, e)});
-                }
+                };
+                if (onDblClick) {
+                    currMarker.addListener('dblclick', function(e){onDblClick(marker_name, e)});
+                };
                 var events = objectExtract(kw,'event_*',true);
                 for(let evt in events){
                     currMarker.addListener(evt, funcCreate(events[evt],null,sourceNode));

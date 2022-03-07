@@ -186,9 +186,8 @@ class Form(BaseComponent):
                     self.db.table('email.message').clearErrors, pkey='=#FORM.record.id', _onResult='this.form.reload();')
 
     def th_top_custom(self,top):
-            bar = top.bar.replaceSlots('archive','*,sendbutton,5,archive')
-            fb = bar.sendbutton.formbuilder(border_spacing='2px')
-            fb.button('Send message', hidden='^#FORM.record.send_date').dataRpc(
+        bar = top.bar.replaceSlots('form_delete','send_button,5,form_delete')
+        bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
                     self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
 
 class FormFromDashboard(Form):

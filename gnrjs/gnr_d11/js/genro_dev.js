@@ -320,7 +320,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         treeattr.getLabelClass=function(item){
             var dtype = item.attr.dtype;
             var _class = [];
-            if(!dtype || dtype=='RM' || dtype=='RO' || item.attr.subfields){
+            if(!dtype || dtype=='RM' || dtype=='RO' || item.attr.subfields || item.getResolver()){
                 _class.push('fieldsTree_folder');
             }
             dtype = dtype || (item.attr.isRoot?'root':'group');
@@ -1173,6 +1173,31 @@ dojo.declare("gnr.GnrDevHandler", null, {
         pane._('div',{innerHTML:'==genro.dev.formatErrors(_errors)',_errors:'^gnr.errors',padding:'5px',
                     border:'1px solid silver',background:'whitesmoke',rounded:6,margin:'5px'});
         parent.unfreeze();
+    },
+    currDataExplorer:function(kw){
+       let kwargs = {}
+       kwargs.method = function(params){
+           let data =  genro.getData(params.fieldPath);
+           let result =  data.deepCopy();
+           result.walk(function(n){
+               let v=n.getValue('static')
+               if (v instanceof gnr.GnrBag){
+                   return
+               }
+               let dtype = v!==null?guessDtype(v):'T' ;
+               n.setValue(null);
+               n.attr.fieldpath= n.getFullpath();
+               n.attr.dtype=n.attr.dtype || dtype;
+               n.attr.fullcaption = n.attr.caption || n.attr.fieldpath.replaceAll('.','/');
+           },'static');
+
+           return result;
+       }
+       kwargs.parameters = kw;
+       //kwargs.cacheTime = 5000;
+       if(kw.fieldPath){
+            return new gnr.GnrBagCbResolver(kwargs,null,5000);
+       }
     },
 
     formatErrors:function(errorbag){

@@ -1787,7 +1787,7 @@ class SqlTable(GnrObject):
                 return record['__syscode'].ljust(int(size),'_')
             else:
                 return record['__syscode']
-        else:
+        elif pkeycol.dtype in ('T','A','C') and pkeycol.attributes.get('size') in ('22',':22',None):
             return getUuid()
             
     def baseViewColumns(self):
