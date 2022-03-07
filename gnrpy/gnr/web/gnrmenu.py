@@ -693,5 +693,5 @@ class DirectoryMenuResolver(MenuResolver):
                                 filepath=f"/{filepath}")
             elif sn.isdir and sn.basename!='__pycache__':
                 result.directoryBranch(sn.cleanbasename.replace('_',' ').title(),
-                                        folder=sn.path,pkg=self.pkg)
+                                        folder=sn.path.replace(f'{self.pkg}/webpages',''),pkg=self.pkg)
         return result
