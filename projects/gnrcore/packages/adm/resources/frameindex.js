@@ -92,7 +92,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
                 pageName:kw.rootPageName,
                 rootPageName:kw.rootPageName,
                 fullpath:kw.fullpath,url:kw.url,
-                subtab:kw.subtab,
+                subtab:kw.subtab,branchPage:kw.branchPage,
                 openKw:openKw}
     },
 
@@ -577,7 +577,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
                     kw = treenode.attr;
 
                     var labelClass= treenode.attr.labelClass;
-                    if(labelClass.indexOf('menu_existing_page')<0 && !treenode.attr.subtab){
+                    if(labelClass.indexOf('menu_existing_page')<0 && !treenode.attr.branchPage){
                         treenode.setAttribute('labelClass',labelClass+' menu_existing_page');
                     }                
                     inattr = treenode.getInheritedAttributes();    

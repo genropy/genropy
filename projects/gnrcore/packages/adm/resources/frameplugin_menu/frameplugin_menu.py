@@ -95,7 +95,7 @@ class MenuIframes(BaseComponent):
                         else if (selectingPageKw.externalWindow==true || selectingPageKw.modifiers == 'Shift'){
                             genro.publish("newBrowserWindowPage",selectingPageKw);
                         }else{
-                            if(labelClass.indexOf('menu_existing_page')<0 && !node.attr.subtab){
+                            if(labelClass.indexOf('menu_existing_page')<0 && !node.attr.branchPage){
                                 node.setAttribute('labelClass',labelClass+' menu_existing_page');
                             }   
                             this.publish("selected",selectingPageKw);

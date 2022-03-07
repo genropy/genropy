@@ -733,7 +733,7 @@ body.tundra.mimi {
     padding-bottom: 4px;
     background: linear-gradient(45deg, #1f345d26, transparent);
 }
-.menutree .menu_shape.menu_subtab{
+.menutree .menu_shape.branchPage{
     font-style: italic;
 }
 
