@@ -98,6 +98,7 @@ class MenuStruct(GnrStructData):
                 return None,None
         return filepath,ext
     
+    
     def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
         return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
     
@@ -119,6 +120,10 @@ class MenuStruct(GnrStructData):
 
     def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,**kwargs):
         return self.child('lookupBranch',label=label,pkg=pkg,tables=tables,
+                            tags=tags,_returnStruct=False,**kwargs)
+    
+    def directoryBranch(self,label=None,pkg=None,folder=None,tags=None,**kwargs):
+        return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,
                             tags=tags,_returnStruct=False,**kwargs)
 
     def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
