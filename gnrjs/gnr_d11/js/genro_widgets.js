@@ -3375,6 +3375,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
         }
     },
     patch__onFocus: function(/*Event*/ evt){
+        if(this.sourceNode.attr.popup===true){
+            this._onFocus_replaced(evt)
+        }
     // summary: open the TimePicker popup
     
     },
@@ -3503,7 +3506,39 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
         this._domtag = 'input';
         this._dojotag = 'DateTextBox';
         this._dtype = 'DHZ';
-    }
+    },
+    onBuilding:function(sourceNode){
+        sourceNode.freeze();
+        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let box = cm._('menuItem',{})._('div',{'padding':'5px'});
+        var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
+        let dateValue = `${sourceNode.attr.value}?_date`;
+        let timeValue = `${sourceNode.attr.value}?_time`;
+        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true});
+        fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
+        sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
+                                        formula:'combineDateAndTime(d,t)',
+                                        d:dateValue,t:timeValue});
+        sourceNode.unfreeze(true);
+
+    },
+    onChanged:function(widget, value) {
+        //genro.debug('onChanged:'+value);
+        //widget.sourceNode.setAttributeInDatasource('value',value);
+        if (value) {
+            let kw = {dtype:this._dtype};
+            objectUpdate(kw,splitDateAndTime(value));
+            this._doChangeInData(widget.domNode, widget.sourceNode, value,kw);
+        }
+        else {
+            this._doChangeInData(widget.domNode, widget.sourceNode, null);
+        }
+    },
+
+   // doChangeInData:function(sourceNode, value, valueAttr){
+   //     console.log('doChangeInData',value);
+   //     console.log('doChangeInData',valueAttr)
+   // },
 
     //attributes_mixin__selector:'datetime'
 });    

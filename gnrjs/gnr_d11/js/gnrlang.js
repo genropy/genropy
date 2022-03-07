@@ -1885,6 +1885,18 @@ function combineDateAndTime(date, time) {
     return combined;
 }
 
+function splitDateAndTime(dt){
+    let year = dt.getFullYear();
+    let month = dt.getMonth() + 1; // Jan is 0, dec is 11
+    let day = dt.getDate();
+
+    let date = new Date(year,month,day);
+    date._gnrdtype = 'D';
+    let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
+    time._gnrdtype = 'H'
+    return {_date:date,_time:time};
+}
+
 function localeParser(/*String*/value, /*Object?*/options) {
     // summary:
     //      Convert a properly formatted string to a primitive Date object,
