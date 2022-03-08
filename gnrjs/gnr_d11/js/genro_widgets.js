@@ -3419,6 +3419,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
             var doSetValue = false;
             var canSetValue =  this.sourceNode.form? !this.sourceNode.form.opStatus:true;
             var that = this;
+            var original_value = value;
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
@@ -3483,7 +3484,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 this.setValue(null);
                 var sn = this.sourceNode;
                 sn._waiting_rpc = true;
-                genro.serverCall('decodeDatePeriod',{datestr:value},function(v){
+                genro.serverCall('decodeDatePeriod',{datestr:original_value},function(v){
                     if(v.getItem('from')){
                         that.setValue(v.getItem('from'),true);
                     }
