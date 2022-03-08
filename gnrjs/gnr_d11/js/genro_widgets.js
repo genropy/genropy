@@ -3518,7 +3518,7 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
                                         formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue,_delay:100});
+                                        d:dateValue,t:timeValue});
         sourceNode.unfreeze(true);
 
     },
