@@ -1323,7 +1323,9 @@ class SqlTable(GnrObject):
         newkey = False
         if pkeyValue in (None, ''):
             newkey = True
-            record[self.pkey] = self.newPkeyValue(record=record)
+            pkeyValue = self.newPkeyValue(record=record)
+            if pkeyValue is not None:
+                record[self.pkey] = pkeyValue
         return newkey
         
     def empty(self, truncate=None):
