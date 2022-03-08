@@ -3398,8 +3398,6 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     created: function(widget, savedAttrs, sourceNode) {
         if(!sourceNode.attr.noIcon){
-            var focusNode;
-            var curNode = sourceNode;
             genro.dom.addClass(widget.focusNode,'comboArrowTextbox')
             var box= sourceNode._('div',{cursor:'pointer', width:'20px',tabindex:-1,
                                     position:'absolute',top:0,bottom:0,right:0,connect_onclick:function(){
@@ -3419,14 +3417,16 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
             var datesplit = value.split(' ');
             var match = datesplit[0].match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/);
             var doSetValue = false;
+            var canSetValue =  this.sourceNode.form? !this.sourceNode.form.opStatus:true;
             var that = this;
+            var original_value = value;
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
-                doSetValue = true;
+                doSetValue = canSetValue;
             }
             if(constraints.selector=='datetime'){
-                doSetValue = true;
+                doSetValue = canSetValue;
                 var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
                 if (!timematch){
@@ -3484,7 +3484,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 this.setValue(null);
                 var sn = this.sourceNode;
                 sn._waiting_rpc = true;
-                genro.serverCall('decodeDatePeriod',{datestr:value},function(v){
+                genro.serverCall('decodeDatePeriod',{datestr:original_value},function(v){
                     if(v.getItem('from')){
                         that.setValue(v.getItem('from'),true);
                     }
@@ -3518,7 +3518,7 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
                                         formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue});
+                                        d:dateValue,t:timeValue,_if:'d&&t'});
         sourceNode.unfreeze(true);
 
     },
