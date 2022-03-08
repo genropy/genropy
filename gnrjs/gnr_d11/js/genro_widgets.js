@@ -3419,14 +3419,15 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
             var datesplit = value.split(' ');
             var match = datesplit[0].match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/);
             var doSetValue = false;
+            var canSetValue =  this.sourceNode.form? !this.sourceNode.form.opStatus:true;
             var that = this;
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
-                doSetValue = true;
+                doSetValue = canSetValue;
             }
             if(constraints.selector=='datetime'){
-                doSetValue = true;
+                doSetValue = canSetValue;
                 var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
                 if (!timematch){
@@ -3518,7 +3519,7 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
                                         formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue});
+                                        d:dateValue,t:timeValue,_if:'d&&t'});
         sourceNode.unfreeze(true);
 
     },
