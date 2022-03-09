@@ -464,8 +464,15 @@ genropatches.comboBox = function() {
             // summary: handles keyboard events
 
             //except for pasting case - ctrl + v(118)
-            if(evt.altKey || (evt.ctrlKey && evt.charCode != 118)){
+            if(evt.altKey || evt.ctrlKey || evt.metaKey){
+                console.log('dijit_form_ComboBoxMixin_onKeyPress exit',evt)
                 return;
+            }
+            if(evt.shiftKey){
+                let code = evt.code.toLowerCase();
+                if(code.includes('shift') || code=='space'){
+                    return
+                }
             }
             var doSearch = false;
             var pw = this._popupWidget;
