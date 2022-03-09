@@ -531,7 +531,6 @@ class MenuResolver(BagResolver):
             basepath = f'{self.basepath}/{basepath}' if basepath else self.basepath
         path = f'{self.path}.{node.label}' if self.path else node.label
         menuRes = MenuResolver(path=path,basepath=basepath,pkg=self.pkg,
-                        table=self.table,brancheMethod=self.brancheMethod,
                         aux_instance=attributes.get('aux_instance') or self.aux_instance,
                         externalSite=attributes.get('externalSite') or self.externalSite,
                         _page=self._page)
