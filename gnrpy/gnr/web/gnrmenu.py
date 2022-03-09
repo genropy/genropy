@@ -22,11 +22,8 @@
 
 #Copyright (c) 2022 Softwell. All rights reserved.
 
-from email.mime import application
-from genericpath import isdir
 import os
 import urllib.parse
-from attr import attrib, attributes
 from gnr.core.gnrstructures import  GnrStructData
 from gnr.core.gnrlang import getUuid,gnrImport,instanceMixin
 from gnr.core.gnrdict import dictExtract
@@ -409,7 +406,7 @@ class MenuResolver(BagResolver):
     def nodeType_lookupBranch(self,node):
         attributes = dict(node.attr)
         attributes['isDir'] = True
-        attributes['branchIdentifier'] = getUuid()
+        attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
         kwargs.pop('tag')
         return LookupBranchResolver(level_offset=self.level,
@@ -496,7 +493,7 @@ class MenuResolver(BagResolver):
 
     def nodeType_tableBranch(self,node):
         attributes = dict(node.attr)
-        attributes['branchIdentifier'] = getUuid()
+        attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
@@ -534,6 +531,7 @@ class MenuResolver(BagResolver):
             basepath = f'{self.basepath}/{basepath}' if basepath else self.basepath
         path = f'{self.path}.{node.label}' if self.path else node.label
         menuRes = MenuResolver(path=path,basepath=basepath,pkg=self.pkg,
+                        table=self.table,brancheMethod=self.brancheMethod,
                         aux_instance=attributes.get('aux_instance') or self.aux_instance,
                         externalSite=attributes.get('externalSite') or self.externalSite,
                         _page=self._page)
