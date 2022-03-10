@@ -30,6 +30,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrstring import slugify
+from gnr.core.gnrdecorator import extract_kwargs
 
 class BaseMenu(object):
     def __init__(self,page) -> None:
@@ -539,29 +540,22 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
+    @extract_kwargs(query=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
-                        branchIdentifier=None, cacheTime=None,labelTemplate=None,
-                        titleTemplate=None,label=None,title=None,**kwargs):
+                        branchIdentifier=None, cacheTime=None,caption_field=None,
+                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,**kwargs):
         super().__init__(table=table,
                             branchId=branchId,
                             label=label,
-                            title=title,
+                            title=title or label,
+                            label_field= label_field or caption_field,
+                            title_field = title_field,
+                            caption_field=caption_field,
                             branchMethod=branchMethod,
-                            labelTemplate=labelTemplate,
-                            titleTemplate=titleTemplate,
                             cacheTime=cacheTime if cacheTime is not None else 5,
+                            query_kwargs = query_kwargs,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
-        self.table = table
-        self.label = label
-        self.title = title or label
-        self.webpage = webpage
-        self.branchIdentifier = branchIdentifier
-        self.query_kwargs = dictExtract(kwargs,'query_')
-        self.th_kwargs = dictExtract(kwargs,'th_')
-        self.branchId = branchId
-        self.labelTemplate = labelTemplate
-        self.titleTemplate = titleTemplate or self.title
-        self.branchMethod = branchMethod 
+        self.leaf_kwargs = kwargs
 
     @property
     def tblobj(self):
@@ -591,18 +585,21 @@ class TableMenuResolver(MenuResolver):
         if self.branchMethod:
             getattr(self.tblobj,self.branchMethod)(result,**self.kwargs)
             return result
-        selection = self.getMenuContentHandler()(**objectExtract(self,'query_'))
-        webpagekw = dictExtract(self.kwargs,'webpage_')
+        selection = self.getMenuContentHandler()(**self.query_kwargs)
         for record in selection:
-            linekw = self.getMenuLineHandler()(record,labelTemplate=self.labelTemplate,
-                                                titleTemplate=self.titleTemplate)
+            linekw = dict(self.leaf_kwargs)
+            linekw.update(self.getMenuLineHandler()(record))
             linekw.setdefault('pageName',self.branchIdentifier)
+            label_field = self.label_field or self.tblobj.attributes.get('caption_field')
+            linekw.setdefault('label',record.get(label_field))
+            if self.title_field:
+                linekw.setdefault('title',record.get(self.title_field))
+            else:
+                linekw.setdefault('title',self.title or self.label)
             if self.webpage:
-                kw = dict(webpagekw)
-                kw.update(linekw)
-                result.webpage(label = kw.pop('label'),url_pkey=record['pkey'],
+                result.webpage(label = linekw.pop('label'),url_pkey=record['pkey'],
                                 filepath=self.webpage,url_branchIdentifier=self.branchIdentifier,
-                                **{f'url_{k}':v for k,v in kw.items()})
+                                **{f'url_{k}':v for k,v in linekw.items()})
             else:
                 linekw.update(objectExtract(self,'th_',slicePrefix=False))
                 result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
