@@ -383,7 +383,10 @@ class SqlDbAdapter(object):
         record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
         sql_flds = []
         data_keys = []
-        for k in list(record_data.keys()):
+        for k,v in record_data.items():
+            if v is None:
+                #in inserting avoid NULL value
+                continue
             sqlcolname = tblobj.sqlnamemapper.get(k)
             if sqlcolname: # skip aliasColumns
                 sql_flds.append(sqlcolname)
