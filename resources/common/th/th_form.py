@@ -264,7 +264,7 @@ class TableHandlerForm(BaseComponent):
             if options.pop('copypaste',False):
                 extra_slots.append('form_copypaste')
             if single_record:
-                default_slots = default_slots.replace('form_delete',','.join(extra_slots) if extra_slots else '')
+                default_slots = default_slots.replace('form_delete','')
                 default_slots = default_slots.replace('form_add','')
             table = form.getInheritedAttributes()['table']  
             if extra_slots:

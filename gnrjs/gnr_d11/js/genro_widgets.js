@@ -417,7 +417,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             }
         }
         if (savedAttrs.onEnter) {
-            var callback = savedAttrs.onEnter==true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
+            var callback = savedAttrs.onEnter===true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
             var kbhandler = function(evt) {
                 if (evt.keyCode == genro.PATCHED_KEYS.ENTER) {
                     evt.target.blur();
@@ -427,7 +427,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 }
             };
             var domnode = newobj.domNode || newobj;
-            dojo.connect(domnode, 'onkeypress', kbhandler);
+            dojo.connect(domnode, 'onkeydown', kbhandler);
         };
         
         if(newobj.domNode && newobj.isFocusable()){
@@ -3710,6 +3710,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget);
+        this.connectPaste(widget);
         this.connectForUpdate(widget, sourceNode);
     },
     mixin_onSpeechEnd:function(){
@@ -3749,6 +3750,13 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
   //     this._arrowIdle();
   //     this.inherited(arguments);
   //  },
+    connectPaste:function(widget){
+        dojo.connect(widget.focusNode,'paste',function(evt){
+            navigator.clipboard.read().then(function(){
+                widget._startSearchFromInput();
+            });
+        });
+    },
 
     connectFocus: function(widget, savedAttrs, sourceNode) {
         var timeoutId = null;
@@ -3757,9 +3765,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             // select all text in the current field -- (TODO: reason for the delay)
                 timeoutId = setTimeout(dojo.hitch(this, 'selectAllInputText'), 300);
             });
-
         }
-
         dojo.connect(widget, 'onBlur', widget, function(e) {
             clearTimeout(timeoutId); // prevent selecting all text (and thus messing with focus) if we're moving to another field before the timeout fires
             this.validate(e);
@@ -4010,10 +4016,20 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         }
         this.store.mainbag=new gnr.GnrBag();
     },
+
+    connectPaste:function(widget){
+        dojo.connect(widget.focusNode,'paste',function(evt){
+            navigator.clipboard.read().then(function(){
+                widget.geocodevalue();
+            });
+        });
+    },
+
     created: function(widget, savedAttrs, sourceNode){
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectForUpdate(widget, sourceNode);
+        this.connectPaste(widget);
         genro.google().setGeocoder(widget);
     },
     mixin_handleGeocodeResults: function(results, status){
@@ -4230,6 +4246,7 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget, savedAttrs, sourceNode);
+        this.connectPaste(widget);
         if(savedAttrs.connectedArrowMenu && widget.downArrowNode){
             var connectedMenu = savedAttrs.connectedArrowMenu; 
             genro.src.onBuiltCall(function(){
@@ -4413,7 +4430,6 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
             // the value
             //console.log('SET BLUR VALUE')
             var displayedValue=this.getDisplayedValue();
-            var lastValueReported=this._lastValueReported;
             var value;
             if(this._lastDisplayedValue==displayedValue){
                 value=this.getValue();
@@ -4512,7 +4528,6 @@ dojo.declare("gnr.widgets.DropDownButton", gnr.widgets.baseDojo, {
         this._dojotag = 'DropDownButton';
     },
     creating:function(attributes, sourceNode) {
-        var savedAttrs = {};
         var buttoNodeAttr = 'height,width,padding';
         var savedAttrs = objectExtract(attributes, 'fire_*');
         savedAttrs['_style'] = genro.dom.getStyleDict(objectExtract(attributes, buttoNodeAttr));
@@ -5050,7 +5065,7 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
         }
     },
     setMarker:function(sourceNode,marker_name,marker,kw){
-        var kw = kw || {};
+        kw = kw || {};
         if (marker_name in sourceNode.markers){
             sourceNode.markers[marker_name].setMap(null);
             objectPop(sourceNode.markers,marker_name);

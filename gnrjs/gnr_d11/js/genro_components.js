@@ -2250,7 +2250,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             gnrwdg.headerNode = box._('div',{_class:'treeGridHeader'}).getParentNode();
         }
         if(gnrwdg.footers){
-            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter'}).getParentNode();
+            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter selectable'}).getParentNode();
         }
         var center = box._('div',{_class:'treeGridCenter'});
         gnrwdg.scrollerNode = box._('div',{_class:'treeGridScroller'}).getParentNode();
