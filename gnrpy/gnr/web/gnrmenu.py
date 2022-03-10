@@ -123,8 +123,8 @@ class MenuStruct(GnrStructData):
         return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,
                             tags=tags,_returnStruct=False,**kwargs)
 
-    def dashboardBranch(self,label,dashboard=None,tags=None,cacheTime=None,**kwargs):
-        return self.child('dashboardBranch',label=label,dashboard=dashboard,
+    def dashboardBranch(self,label,pkg=None,tags=None,cacheTime=None,**kwargs):
+        return self.child('dashboardBranch',label=label,pkg=pkg,
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
@@ -316,6 +316,7 @@ class MenuResolver(BagResolver):
         if nodeTag == 'branch':
             if nodeattr.get('dashboard'):
                 nodeattr['tag'] = 'dashboardBranch'
+                nodeattr['pkg'] = nodeattr.pop('dashboard')
                 return 'updateToDashboardBranch'
             if nodeattr.get('dir'):
                 nodeattr['tag'] = 'directoryBranch'
@@ -474,7 +475,7 @@ class MenuResolver(BagResolver):
     def nodeType_dashboardBranch(self,node):
         attributes = dict(node.attr)
         attributes['isDir'] = True
-        return PackageMenuResolver(pkg=attributes['pkg'],level_offset=self.level,
+        return PackageMenuResolver(pkg='biz',level_offset=self.level,
                                 branchMethod='dashboardBranch',
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
