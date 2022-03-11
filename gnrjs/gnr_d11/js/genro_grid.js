@@ -1050,7 +1050,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         label = flattenString(grid.rowIdentity(r),['.',' '])
                     }
                     for(let k in n.attr){
-                        if(k in grid.cellmap){
+                        let cell = grid.cellmap[k];
+                        if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
                             r[k] = n.attr[k];
                         }
                     }
