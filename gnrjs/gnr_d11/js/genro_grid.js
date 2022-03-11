@@ -1049,7 +1049,6 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     }
                     for(let k in n.attr){
                         let cell = grid.cellmap[k];
-
                         if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
                             r[k] = n.attr[k];
                         }
