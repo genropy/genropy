@@ -385,15 +385,16 @@ class SqlDbAdapter(object):
         data_keys = []
         for k,v in record_data.items():
             sqlcolname = tblobj.sqlnamemapper.get(k)
-            if sqlcolname: # skip aliasColumns
-                sql_value = tblobj.column(k).attributes.get('sql_value')
-                if v is None and not sql_value:
-                    #in inserting avoid NULL value without sql_value
-                    continue
+            if not sqlcolname: 
+                # skip aliasColumns
+                continue
+            sql_value = tblobj.column(k).attributes.get('sql_value')
+            if v or sql_value:
                 sql_flds.append(sqlcolname)
                 data_keys.append(sql_value or ':%s' % k)
         sql = 'INSERT INTO %s(%s) VALUES (%s);' % (tblobj.sqlfullname, ','.join(sql_flds), ','.join(data_keys))
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
 
     def insertMany(self, dbtable, records,**kwargs):
         tblobj = dbtable.model
