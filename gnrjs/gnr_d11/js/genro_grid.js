@@ -4611,13 +4611,12 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return this.collectionStore().isFiltered();
     },
     
-    
+
     mixin_currentData:function(nodes, rawData,filtered){
-        var nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
+        nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
-        var nodes;
         if (rawData===true){
-            var filtered = this.collectionStore()._filtered || [];
+            filtered = this.collectionStore()._filtered || [];
             if(nodes=='all'){
                 nodes = this.collectionStore().getData().getNodes();
             }else if(nodes=='selected'){
