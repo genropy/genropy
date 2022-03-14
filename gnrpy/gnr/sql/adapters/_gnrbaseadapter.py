@@ -389,11 +389,12 @@ class SqlDbAdapter(object):
                 # skip aliasColumns
                 continue
             sql_value = tblobj.column(k).attributes.get('sql_value')
-            if (v is not None) or (sql_value is None):
+            if (v is not None) or (sql_value is not None):
                 sql_flds.append(sqlcolname)
                 data_keys.append(sql_value or ':%s' % k)
         sql = 'INSERT INTO %s(%s) VALUES (%s);' % (tblobj.sqlfullname, ','.join(sql_flds), ','.join(data_keys))
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
 
 
     def insertMany(self, dbtable, records,**kwargs):
