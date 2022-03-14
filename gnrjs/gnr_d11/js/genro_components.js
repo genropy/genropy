@@ -1433,6 +1433,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         }
 
         genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
+            result = result || {};
             if(result instanceof gnr.GnrBag){
                 result = result.asDict();
             }
