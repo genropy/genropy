@@ -191,6 +191,8 @@ class BaseServiceType(object):
         return self._implementations
 
     def getServiceFactory(self,implementation=None):
+        if implementation is False:
+            return
         return self.implementations.get(implementation) or self.implementations.get(self.baseImplementation)
     
     @property
