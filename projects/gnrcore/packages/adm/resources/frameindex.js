@@ -33,8 +33,6 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode = stackSourceNode;
         this.dbstore =  genro.getData('gnr.dbstore');
         this.default_uri =  genro.getData('gnr.defaultUrl')||'/';
-        this.thpage_url = '${$default_url}/${$dbstore/}sys/thpage/';
-        this.lookup_url = '${$default_url}/${$dbstore/}sys/lookuptables';
         genro.externalWindowsObjects = {};
         var that = this;
         genro.childrenHasPendingChanges_replaced = genro.childrenHasPendingChanges;
@@ -307,7 +305,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let baseurl = kw.webpage || kw.file || kw.filepath;
         if(this.dbstore && !kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
             if(baseurl.slice(1).split('/')[0]!=this.dbstore){
-                baseurl = `${this.dbstore}${baseurl}`;
+                baseurl = `/${this.dbstore}${baseurl}`;
             }
         }
         if(kw.unique){
