@@ -294,12 +294,7 @@ class GnrWsgiSite(object):
     
     @property
     def mainpackage(self):
-        return self.config['wsgi?mainpackage'] or self.gnrapp.packages.keys()[-1]
-
-
-    @property
-    def mainpackage(self):
-        return self.config['wsgi?mainpackage'] or self.gnrapp.packages.keys()[-1]
+        return self.config['wsgi?mainpackage'] or self.gnrapp.config['packages?main'] or self.gnrapp.packages.keys()[-1]
     
     def getAuxInstance(self,name):
         return self._main_gnrapp.getAuxInstance(name)

@@ -224,6 +224,9 @@ def parselocal_time(txt, locale):
     
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
+    txtlist = txt.split(':')
+    txtlist.extend(['00','00'])
+    txt = ':'.join(txtlist[0:3])
     return dates.parse_time(txt, locale)
     
 def parselocal(txt, cls, locale=None):
@@ -283,6 +286,11 @@ def currentLocale(locale=None):
 def getDateKeywords(keyword, locale=None):
     return getKeywords(DATEKEYWORDS,keyword,locale=locale)
 
+
+def getTimeSplitKeywords(keyword, locale=None):
+    return getKeywords(TIMESPLITKEYWORDS,keyword,locale=locale)
+
+
 def getBoolKeywords(keyword, locale=None):
     return getKeywords(BOOLKEYWORDS,keyword,locale=locale)
       
@@ -338,6 +346,15 @@ DATEKEYWORDS = {
            'this month': ('questo mese', 'mese'), 'next month': 'mese prossimo', 'last month': 'mese scorso',
            'today': 'oggi', 'yesterday': 'ieri', 'tomorrow': 'domani',
            'from': ('da', 'dal', 'dalla'), 'to': ('a', 'al', 'alla', 'e'), 'no period': ('-','senza periodo', 'sempre')}
+}
+
+TIMESPLITKEYWORDS = {
+    'en':{
+        'at':'at'
+    },
+    'it':{
+        'at':('alle','ore')
+    }
 }
 
 BOOLKEYWORDS = { 'en':{'tf':'True;False','tfu':'True;False;Undefined','yn':'Yes;No','ynu':'Yes;No;Unknown'},

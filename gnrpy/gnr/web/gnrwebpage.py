@@ -44,6 +44,7 @@ from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
@@ -61,7 +62,7 @@ from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
-
+import re
 import datetime
 
 AUTH_OK = 0
@@ -164,6 +165,10 @@ class GnrWebPage(GnrBaseWebPage):
         self._request = self.request._request
         self._response = self.response._response
         self.response.add_header('Pragma', 'no-cache')
+        if self.site.config['x_frame_options']:
+            self.response.add_header('X-Frame-Options', self.site.config['x_frame_options'])
+        else:
+            self.response.add_header('X-Frame-Options', 'SAMEORIGIN')
         self._htmlHeaders = []
         self._pendingContext = []
         self.local_datachanges = []
@@ -1106,7 +1111,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.frontend.frontend_arg_dict(arg_dict)
         arg_dict['customHeaders'] = self._htmlHeaders
         arg_dict['charset'] = self.charset
-        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\')
+        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\') if self.site.debug else ''
         arg_dict['filename'] = self.pagename
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
@@ -1137,7 +1142,15 @@ class GnrWebPage(GnrBaseWebPage):
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
-        arg_dict['startArgs'] = toJson(dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())]))
+        safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
+        startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
+        for arg in list(startArgs.keys()):
+            if re.search(safety_re, arg):
+                startArgs.pop(arg, None)
+                continue
+            if re.search(safety_re, startArgs[arg]):
+                startArgs[arg]= None
+        arg_dict['startArgs'] = toJson(startArgs)
         arg_dict['page_id'] = self.page_id or getUuid()
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
@@ -1246,8 +1259,9 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def device_mode(self):
-        default_device_mode = 'mobile' if self.isMobile else 'std'
-        return self.getPreference('theme.device_mode',pkg='sys') or default_device_mode
+        if self.isMobile:
+            return 'mobile'
+        return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
@@ -1369,6 +1383,13 @@ class GnrWebPage(GnrBaseWebPage):
             self._app = GnrWebAppHandler(self)
         return self._app
         
+    @property
+    def menu(self):
+        """TODO"""
+        if not hasattr(self, '_menu'):
+            self._menu = GnrMenuProxy(self)
+        return self._menu
+
     @property
     def btc(self):
         """TODO"""
@@ -1913,7 +1934,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -1940,14 +1961,16 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.windowTitle', self.windowTitle())
+        page.data('gnr.windowTitle',windowTitle or self.windowTitle())
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
-
-
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
         page.dataRemote('server.pageStore',self.getPageStoreData,cacheTime=1)
-        page.dataRemote('server.userStore',self.getUserStoreData,cacheTime=1)
+        if branchIdentifier:
+            page.dataController(""" let b = new gnr.GnrBag();
+                                    b.setCallBackItem('root',genro.getParentBranchMenuByIdentifier,{branchIdentifier:branchIdentifier});
+                                    SET gnr.parentBranchMenu = b;
+                                """,branchIdentifier=branchIdentifier,_onStart=True)
 
         page.dataRemote('server.dbEnv',self.dbCurrentEnv,cacheTime=1)
         page.dataController(""" var changelist = copyArray(_node._value);
@@ -1986,19 +2009,23 @@ class GnrWebPage(GnrBaseWebPage):
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
             page.dataRemote('gnr.shortcuts.store', self.getShortcuts)
 
-        #page.dataController("""
-        #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
-        #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
-        #    var kw = {'rotate':rotate_val,'invert':invert_val};
-        #    var styledict = {font_family:app_theme_font_family};
-        #    genro.dom.css3style_filter(null,kw,styledict);
-        #    dojo.style(dojo.body(),styledict);
-        #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
-        #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
-        #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
-        #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
-        #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
-        #        _onStart=True)
+       #page.dataController("""
+       #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
+       #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
+       #    var kw = {'rotate':rotate_val,'invert':invert_val};
+       #    var styledict = {font_family:app_theme_font_family,font_size:app_theme_font_size,zoom:app_theme_zoom};
+       #    genro.dom.css3style_filter(null,kw,styledict);
+       #    dojo.style(dojo.body(),styledict);
+       #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
+       #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
+       #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
+       #        app_theme_zoom='^gnr.app_preference.sys.theme.body.zoom',
+
+       #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
+       #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
+       #    app_theme_font_size='^gnr.app_preference.sys.theme.body.font_size',
+
+       #        _onStart=True)
 
 
 
@@ -2404,6 +2431,13 @@ class GnrWebPage(GnrBaseWebPage):
                     jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
                     jsquote(concat(prevRelation, node.label)),
                     jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
+                
+            elif nodeattr.get('dtype')=='X' and currRecordPath:
+                nodeattr['_T'] = 'JS'
+                jsresolver ="""genro.dev.currDataExplorer({fieldPath:%s,prevRelation:%s,prevCaption:%s,omit:%s,checkPermissions:%s})""" 
+                jsresolver = jsresolver %( jsquote("%s.%s" %(currRecordPath,node.label)),jsquote(concat(prevRelation, node.label)),jsquote(nodeattr['fullcaption']), jsquote(omit),cps)
+                node.setValue(jsresolver)
+
         result = self.db.relationExplorer(table=table,
                                           prevRelation=prevRelation,
                                           relationStack=relationStack,

@@ -418,7 +418,7 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
         var pageName;
         var formUrl = dbname?'/'+dbname+this.formUrl:this.formUrl;
         var recyclablePage = null;
-        for (var k in this.pages_dict){
+        for (let k in this.pages_dict){
             var pagePkey = this.pages_dict[k];
             if(pagePkey==pkey){
                 this.indexgenro.publish('selectIframePage',{pageName:k});
@@ -440,8 +440,8 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
         }
         var kw = objectUpdate({file:formUrl,pageName:pageName,label:this.loadingTitle},this.page_kw);
         if(pkey=='*newrecord*'){
-            default_kwargs = this.sourceNode.evaluateOnNode(this.default_kwargs);
-            for (var k in default_kwargs){
+            let default_kwargs = this.sourceNode.evaluateOnNode(this.default_kwargs);
+            for (let k in default_kwargs){
                 kw['url_default_'+k] = default_kwargs[k];
             }
         }
@@ -456,12 +456,12 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
                                         that.pages_dict[pageName] = kw.pkey;
                                         indexgenro.publish('changeFrameLabel',{pageName:pageName,title:kw.data?kw.data.attr.caption:'loading...'});
                                     });
-            iframegenro.dojo.subscribe('onDeletingIframePage',function(pageName){
+            iframegenro.dojo.subscribe('onDeletingIframePage',function(pn){
                 if(that.recyclablePages){
-                    that.pages_dict[pageName] = null;
+                    that.pages_dict[pn] = null;
                     form.norecord();
                 }else{
-                    objectPop(that.pages_dict,pageName);
+                    objectPop(that.pages_dict,pn);
                 }
             });
             form.store.parentStore = that.viewStore;

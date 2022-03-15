@@ -39,7 +39,9 @@ from gnr.core.gnrstructures import  GnrStructData
 
 class ConfigStruct(GnrStructData):
     config_method = 'config'
-    def __init__(self,filepath=None,autoconvert=False,**kwargs):
+    def __init__(self,filepath=None,autoconvert=False,config_method=None,**kwargs):
+        if config_method:
+            self.config_method = config_method
         super(ConfigStruct, self).__init__()
         self.setBackRef()
         if not filepath:
@@ -70,54 +72,6 @@ class InstanceConfigStruct(ConfigStruct):
     def db(self, implementation='postgres', dbname=None,filename=None,**kwargs):
         return self.child('db',implementation=implementation,dbname=dbname,filename=filename,**kwargs)
 
-
-class MenuStruct(ConfigStruct):
-    def branch(self, label, basepath=None ,tags='', **kwargs):
-        return self.child('branch',label=label,basepath=basepath,tags=tags,**kwargs)
-
-    def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
-        return self.child('webpage',label=label,multipage=multipage,tags=tags,file=filepath,_returnStruct=False,**kwargs)
-
-    def thpage(self, label,table=None,tags='',multipage=None, **kwargs):
-        return self.child('thpage',label=label,table=table,
-                            multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
-
-    def lookups(self,label,lookup_manager=None,tags=None,**kwargs):
-        return self.child('lookups',label=label,lookup_manager=lookup_manager,tags=tags,_returnStruct=False,**kwargs)
-
-    def toPython(self,filepath=None):
-        filepath = filepath or 'menu.py'
-        with open(filepath,'w') as f:
-            text = """#!/usr/bin/env python
-# encoding: utf-8
-def config(root,application=None):"""         
-            f.write(text)
-            self._toPythonInner(f,self,'root')
-
-
-    def _toPythonInner(self,filehandle,b,rootname):
-        filehandle.write('\n')
-        for n in b:
-            kw = dict(n.attr)
-            label = kw.pop('label',n.label)
-            attrlist = ['u"%s"' %label]
-            for k,v in list(kw.items()):
-                if k=='file':
-                    k = 'filepath'
-                attrlist.append('%s="%s"' %(k,v))
-            if n.value:
-                varname = slugify(label).replace('!!','').replace('-','_')
-                filehandle.write('    %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
-                self._toPythonInner(filehandle,n.value,varname) 
-            elif 'table' in kw:
-                filehandle.write('    %s.thpage(%s)' %(rootname,', '.join(attrlist)))
-            elif 'lookup_manager' in kw:
-                filehandle.write('    %s.lookups(%s)' %(rootname,', '.join(attrlist)))
-            elif 'pkg' in kw:
-                filehandle.write('    %s.branch(%s)' %(rootname,', '.join(attrlist)))
-            else:
-                filehandle.write('    %s.webpage(%s)' %(rootname,', '.join(attrlist)))
-            filehandle.write('\n')
 
 class IniConfStruct(ConfigStruct):
 

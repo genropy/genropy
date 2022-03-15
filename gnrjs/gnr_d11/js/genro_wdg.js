@@ -1409,10 +1409,14 @@ dojo.declare("gnr.GridEditor", null, {
                     }
                 });
                 var that = this;
-                this.callRemoteControllerBatch(rows,kw).addCallback(function(result){
-                    that._pendingRemoteController = null;
-                    that.grid.sourceNode.publish('remoteRowControllerDone',{result:result});
-                });
+                let deferred = this.callRemoteControllerBatch(rows,kw);
+                if (deferred){
+                    deferred.addCallback(function(result){
+                        that._pendingRemoteController = null;
+                        that.grid.sourceNode.publish('remoteRowControllerDone',{result:result});
+                    });
+                }
+                
             },1,this,'callRemoteControllerBatch_'+this.grid.sourceNode._id);
             return;
         }

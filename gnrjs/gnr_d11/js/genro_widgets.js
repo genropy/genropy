@@ -417,7 +417,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             }
         }
         if (savedAttrs.onEnter) {
-            var callback = savedAttrs.onEnter==true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
+            var callback = savedAttrs.onEnter===true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
             var kbhandler = function(evt) {
                 if (evt.keyCode == genro.PATCHED_KEYS.ENTER) {
                     evt.target.blur();
@@ -427,7 +427,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 }
             };
             var domnode = newobj.domNode || newobj;
-            dojo.connect(domnode, 'onkeypress', kbhandler);
+            dojo.connect(domnode, 'onkeydown', kbhandler);
         };
         
         if(newobj.domNode && newobj.isFocusable()){
@@ -2894,6 +2894,12 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
         },_delay);
     },
     _clickHandlerDo:function(sourceNode,e,inattr,count) {
+        if(sourceNode.attr.parentDisabled && inattr.disabled){
+            let parentDisableNode = sourceNode.attributeOwnerNode('disabled');
+            if(parentDisableNode && parentDisableNode.getAttributeFromDatasource('disabled')){
+                return;
+            }
+        }
         var modifier = eventToString(e);
         var action = inattr.action;
         var modifiers = genro.dom.getEventModifiers(e);
@@ -3369,6 +3375,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
         }
     },
     patch__onFocus: function(/*Event*/ evt){
+        if(this.sourceNode.attr.popup===true){
+            this._onFocus_replaced(evt)
+        }
     // summary: open the TimePicker popup
     
     },
@@ -3389,8 +3398,6 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
 
     created: function(widget, savedAttrs, sourceNode) {
         if(!sourceNode.attr.noIcon){
-            var focusNode;
-            var curNode = sourceNode;
             genro.dom.addClass(widget.focusNode,'comboArrowTextbox')
             var box= sourceNode._('div',{cursor:'pointer', width:'20px',tabindex:-1,
                                     position:'absolute',top:0,bottom:0,right:0,connect_onclick:function(){
@@ -3410,14 +3417,16 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
             var datesplit = value.split(' ');
             var match = datesplit[0].match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/);
             var doSetValue = false;
+            var canSetValue =  this.sourceNode.form? !this.sourceNode.form.opStatus:true;
             var that = this;
+            var original_value = value;
 
             if(match){
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
-                doSetValue = true;
+                doSetValue = canSetValue;
             }
             if(constraints.selector=='datetime'){
-                doSetValue = true;
+                doSetValue = canSetValue;
                 var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
                 if (!timematch){
@@ -3475,7 +3484,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 this.setValue(null);
                 var sn = this.sourceNode;
                 sn._waiting_rpc = true;
-                genro.serverCall('decodeDatePeriod',{datestr:value},function(v){
+                genro.serverCall('decodeDatePeriod',{datestr:original_value},function(v){
                     if(v.getItem('from')){
                         that.setValue(v.getItem('from'),true);
                     }
@@ -3497,7 +3506,39 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
         this._domtag = 'input';
         this._dojotag = 'DateTextBox';
         this._dtype = 'DHZ';
-    }
+    },
+    onBuilding:function(sourceNode){
+        sourceNode.freeze();
+        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let box = cm._('menuItem',{})._('div',{'padding':'5px'});
+        var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
+        let dateValue = `${sourceNode.attr.value}?_date`;
+        let timeValue = `${sourceNode.attr.value}?_time`;
+        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true});
+        fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
+        sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
+                                        formula:'combineDateAndTime(d,t)',
+                                        d:dateValue,t:timeValue,_if:'d&&t'});
+        sourceNode.unfreeze(true);
+
+    },
+    onChanged:function(widget, value) {
+        //genro.debug('onChanged:'+value);
+        //widget.sourceNode.setAttributeInDatasource('value',value);
+        if (value) {
+            let kw = {dtype:this._dtype};
+            objectUpdate(kw,splitDateAndTime(value));
+            this._doChangeInData(widget.domNode, widget.sourceNode, value,kw);
+        }
+        else {
+            this._doChangeInData(widget.domNode, widget.sourceNode, null);
+        }
+    },
+
+   // doChangeInData:function(sourceNode, value, valueAttr){
+   //     console.log('doChangeInData',value);
+   //     console.log('doChangeInData',valueAttr)
+   // },
 
     //attributes_mixin__selector:'datetime'
 });    
@@ -3669,6 +3710,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget);
+        this.connectPaste(widget);
         this.connectForUpdate(widget, sourceNode);
     },
     mixin_onSpeechEnd:function(){
@@ -3708,6 +3750,13 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
   //     this._arrowIdle();
   //     this.inherited(arguments);
   //  },
+    connectPaste:function(widget){
+        dojo.connect(widget.focusNode,'paste',function(evt){
+            navigator.clipboard.read().then(function(){
+                widget._startSearchFromInput();
+            });
+        });
+    },
 
     connectFocus: function(widget, savedAttrs, sourceNode) {
         var timeoutId = null;
@@ -3716,9 +3765,7 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             // select all text in the current field -- (TODO: reason for the delay)
                 timeoutId = setTimeout(dojo.hitch(this, 'selectAllInputText'), 300);
             });
-
         }
-
         dojo.connect(widget, 'onBlur', widget, function(e) {
             clearTimeout(timeoutId); // prevent selecting all text (and thus messing with focus) if we're moving to another field before the timeout fires
             this.validate(e);
@@ -3969,10 +4016,20 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         }
         this.store.mainbag=new gnr.GnrBag();
     },
+
+    connectPaste:function(widget){
+        dojo.connect(widget.focusNode,'paste',function(evt){
+            navigator.clipboard.read().then(function(){
+                widget.geocodevalue();
+            });
+        });
+    },
+
     created: function(widget, savedAttrs, sourceNode){
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectForUpdate(widget, sourceNode);
+        this.connectPaste(widget);
         genro.google().setGeocoder(widget);
     },
     mixin_handleGeocodeResults: function(results, status){
@@ -4189,6 +4246,7 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         var tag = 'cls_' + sourceNode.attr.tag;
         dojo.addClass(widget.domNode.childNodes[0], tag);
         this.connectFocus(widget, savedAttrs, sourceNode);
+        this.connectPaste(widget);
         if(savedAttrs.connectedArrowMenu && widget.downArrowNode){
             var connectedMenu = savedAttrs.connectedArrowMenu; 
             genro.src.onBuiltCall(function(){
@@ -4372,7 +4430,6 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
             // the value
             //console.log('SET BLUR VALUE')
             var displayedValue=this.getDisplayedValue();
-            var lastValueReported=this._lastValueReported;
             var value;
             if(this._lastDisplayedValue==displayedValue){
                 value=this.getValue();
@@ -4471,7 +4528,6 @@ dojo.declare("gnr.widgets.DropDownButton", gnr.widgets.baseDojo, {
         this._dojotag = 'DropDownButton';
     },
     creating:function(attributes, sourceNode) {
-        var savedAttrs = {};
         var buttoNodeAttr = 'height,width,padding';
         var savedAttrs = objectExtract(attributes, 'fire_*');
         savedAttrs['_style'] = genro.dom.getStyleDict(objectExtract(attributes, buttoNodeAttr));
@@ -5009,7 +5065,7 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
         }
     },
     setMarker:function(sourceNode,marker_name,marker,kw){
-        var kw = kw || {};
+        kw = kw || {};
         if (marker_name in sourceNode.markers){
             sourceNode.markers[marker_name].setMap(null);
             objectPop(sourceNode.markers,marker_name);
@@ -5020,6 +5076,7 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
         var gnr = this;
         var marker_type = objectPop(kw,'marker_type') || 'default';
         var onClick = objectPop(kw, 'onClick')
+        var onDblClick = objectPop(kw, 'onDblClick')
         this.onPositionCall(sourceNode,marker,function(position){
             if (position){
                 kw.position=position;
@@ -5032,7 +5089,10 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
                 var currMarker = sourceNode.markers[marker_name];
                 if (onClick){
                     currMarker.addListener('click', function(e){onClick(marker_name, e)});
-                }
+                };
+                if (onDblClick) {
+                    currMarker.addListener('dblclick', function(e){onDblClick(marker_name, e)});
+                };
                 var events = objectExtract(kw,'event_*',true);
                 for(let evt in events){
                     currMarker.addListener(evt, funcCreate(events[evt],null,sourceNode));

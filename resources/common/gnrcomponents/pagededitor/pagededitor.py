@@ -19,14 +19,14 @@ class PagedEditor(BaseComponent):
     def pe_pagedEditor(self,pane,value=None,editor_kwargs=None,letterhead_id=None,pagedText=None,printAction=None,bodyStyle=None,
                         datasource=None,extra_bottom=None,tpl_kwargs=True,**kwargs):
         bodyStyle = bodyStyle or self.getPreference('print.bodyStyle',pkg='adm') or self.getService('htmltopdf').printBodyStyle()
-        bc = pane.borderContainer(_workspace=True,selfsubscribe_print='FIRE #WORKSPACE.print;',**kwargs)
+        bc = pane.borderContainer(_workspace=True,**kwargs)
         printId = 'pe_print_%s' %id(bc)
-        bc.dataRpc('dummy',self.pe_printPages,
+        bc.dataRpc(self.pe_printPages,
                     pages=pagedText.replace('^','='),
                     bodyStyle=bodyStyle,nodeId=printId,
-                    _fired='^#WORKSPACE.print')
+                    selfsubscribe_print=True)
         if printAction is True:
-            printAction = """genro.getFrameNode(this.getInheritedAttributes()['frameCode']).publish('print');"""
+            printAction = f"""genro.nodeById('{printId}').publish('print');"""
         center = bc.contentPane(overflow='hidden',region='center')
         editor = center.ExtendedCkeditor(value=value,**editor_kwargs)
         bc.contentPane(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
@@ -64,10 +64,6 @@ class PagedEditor(BaseComponent):
 
 
     @public_method
-    def pe_printPages(self,pages=None,bodyStyle=None):
-        self.getService('htmltopdf').htmlToPdf(pages,self.site.getStaticPath('page:temp','pe_preview.pdf',autocreate=-1),pdf_margin_top='0mm',
-                                                                                                  pdf_margin_bottom='0mm',
-                                                                                                  pdf_margin_left='0mm',
-                                                                                                  pdf_margin_right='0mm',
-                                                                                                  bodyStyle=bodyStyle)
+    def pe_printPages(self,pages=None,bodyStyle=None,**kwargs):
+        self.getService('htmltopdf').htmlToPdf(pages,self.site.getStaticPath('page:temp','pe_preview.pdf',autocreate=-1), bodyStyle=bodyStyle)
         self.setInClientData(path='gnr.clientprint',value=self.site.getStaticUrl('page:temp','pe_preview.pdf', nocache=True),fired=True)

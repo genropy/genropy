@@ -1433,13 +1433,20 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         }
 
         genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
-            
+            result = result || {};
+            if(result instanceof gnr.GnrBag){
+                result = result.asDict();
+            }
+            if(result.errors){
+                genro.dlg.alert(result.errors, 'Errors');
+                return
+            }
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
                 if(result.warning_mode=='alert'){
                     genro.dlg.alert(result.warnings, 'Warning');
                 }else{
-                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
+                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings,messageType:'warning'});
                 }
             }
             that.resetImporter();
@@ -2244,7 +2251,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             gnrwdg.headerNode = box._('div',{_class:'treeGridHeader'}).getParentNode();
         }
         if(gnrwdg.footers){
-            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter'}).getParentNode();
+            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter selectable'}).getParentNode();
         }
         var center = box._('div',{_class:'treeGridCenter'});
         gnrwdg.scrollerNode = box._('div',{_class:'treeGridScroller'}).getParentNode();
@@ -3110,7 +3117,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
     gnrwdg_guessDtypeAndWidth:function(rows,fields){
         var types={}
         var sizes={}
-        var w,dtype,v
+        var w,dtype;
         if(!rows || rows.len()==0){
             return {types:null,sizes:null};
         }
@@ -3547,12 +3554,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var paletteId = paletteCode+'_floating';
 
         if(sourceNode._connectedPalette){
-            var paletteNode = sourceNode._connectedPalette;
+            let paletteNode = sourceNode._connectedPalette;
             paletteNode.getWidget().show();
         }else{
             var table = tplpars.table;
             var remote_datasourcepath = sourceNode.attr.datasource? sourceNode.absDatapath(sourceNode.attr.datasource):null;
-            var showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
+            showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,
@@ -3596,8 +3603,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 sourceNode.publish('onChunkEdit');
                 this.widget.hide();
             }
-            var palette = sourceNode._('palettePane',kw);
-            var paletteNode = palette.getParentNode();  
+            let palette = sourceNode._('palettePane',kw);
+            let paletteNode = palette.getParentNode();  
             sourceNode._connectedPalette = paletteNode; 
         }
     },
@@ -4163,8 +4170,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
         var containerKw = {_class:'multibutton_container'};
+        var btn_action;
         if (sticky){
-            var btn_action = function(event){
+            btn_action = function(_kwargs){
+                let event = _kwargs.event;
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4187,9 +4196,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             };
         }else{
-            var btn_action = function(_kwargs){
+            btn_action = function(_kwargs){
                 var event=_kwargs.event
-
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4214,6 +4222,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         return multibutton;
     },
 
+    gnrwdg_isDisabled:function(){
+        return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
+    },
     gnrwdg_itemsFromValues:function(values){
         var result = new gnr.GnrBag();
         if(!values){
@@ -4318,18 +4329,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         items = items || new gnr.GnrBag();
         var sourceNode = this.sourceNode;
         var mb = this.multibuttonSource;
-        var child_count = items.len();
-        var deleteAction = this.deleteAction;
-        var customDelete;
-        var gnrwdg = this;
         mb.clear(true);
         if (mb){
-            var btn,content_kw,btn_class,code,caption,kw;
-            var firstItem = items.getNode('#0');
             var currentSelected = sourceNode.getRelativeData(sourceNode.attr.value);
-            //if(!currentSelected && this.mandatory && firstItem){
-            //    currentSelected = firstItem.attr[gnrwdg.identifier] || firstItem.label;
-            //}
             var that = this;
             this.childItemsPrev.forEach(function(n){
                 that.oneButton(n,currentSelected,'code','caption');
@@ -4348,7 +4350,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
             sourceNode.setRelativeData(sourceNode.attr.value,currentSelected);
-
         }
     },
     gnrwdg_oneButton:function(n,currentSelected,identifier,caption){
@@ -4360,6 +4361,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         var codeKey = identifier || this.identifier;
         var caption = kw[captionKey];
         var code = kw[codeKey] || n.label;
+        kw[codeKey] =code;
+        if(!kw.disabled){
+            kw.parentDisabled = true;
+        }
         var btn_class = code==currentSelected?'multibutton multibutton_selected':'multibutton';
         var customDelete = kw.deleteAction;
         if(typeof(customDelete)=='string'){
@@ -5797,6 +5802,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
                             'width':objectPop(slotKw,'width'),search_kw:slotKw});
     },
+
+    slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
+        pane._('menudiv',{iconClass:'iconbox popup',storepath:'gnr.parentBranchMenu.root',
+                            action:function(kw){
+                                genro.mainGenroWindow.genro.publish('selectIframePage',kw);
+                            }})
+    },
+
     slot_stackButtons:function(pane,slotValue,slotKw,frameCode){
         var scNode = objectPop(slotKw,'stackNode');
         if(scNode){

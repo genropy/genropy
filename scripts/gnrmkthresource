@@ -15,7 +15,7 @@ from gnr.app.gnrapp import GnrApp
 from optparse import OptionParser
 from gnr.core.gnrlang import uniquify
 from collections import defaultdict
-from gnr.app.gnrconfig import MenuStruct
+from gnr.web.gnrmenu import MenuStruct
 
 class ThResourceMaker(object):
     def __init__(self, options, args):

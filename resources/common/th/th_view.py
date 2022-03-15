@@ -727,7 +727,7 @@ class TableHandlerView(BaseComponent):
             """ %sections
             ,isMain=isMain,_onBuilt=True if sectionsBag else False,
             currentSection='^.current',sectionbag='=.data',
-            _delay=1,
+            _delay=100,
             th_root=th_root)
 
     def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
@@ -742,12 +742,23 @@ class TableHandlerView(BaseComponent):
             return allsection+sections if allPosition!='last' else sections+allsection
         return sections
  
-    def th_monthlySections(self,column=None,dtstart=None,count=3,allPosition=True,over='>=',**kwargs):
+    def th_monthlySections(self, column=None, dtstart=None, 
+                            n_previous=None, n_following=3,
+                            all_previous=None, all_following=None,
+                            allPosition=None, 
+                            **kwargs):
         sections = []
         import datetime
         from dateutil import rrule
+        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
-        dtstart = datetime.date(dtstart.year,dtstart.month,1)
+        dtstart = dtstart.replace(day=1)
+        default_date = dtstart
+        
+        count = n_following+1
+        if n_previous:
+            dtstart = dtstart + relativedelta(months=-n_previous)
+            count = count+n_previous
         for idx,dt in enumerate(rrule.rrule(rrule.MONTHLY, 
                                 dtstart=dtstart, 
                                 count=count)):
@@ -757,13 +768,24 @@ class TableHandlerView(BaseComponent):
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
-                            isDefault=idx==0,
+                            isDefault=(currdate==default_date),
                             caption=self.toText(currdate,format='MMMM')))
         endlast = nextMonth(currdate)
-        if over:
-            sections.append(dict(code='after',condition='{column}>=:endlast'.format(column=column),
+        if all_following:
+            sections.append(dict(code='all_following',condition='{column}>=:endlast'.format(column=column),
                                 condition_endlast=endlast,
-                                caption='!![en]Next months'))
+                                caption='!![en]Following months'))
+        if all_previous:
+            all_prev_section = dict(code='all_previous',condition='{column}<:dtstart'.format(column=column),
+                                condition_dtstart=dtstart,
+                                caption='!![en]Previous months')
+            sections.insert(0,all_prev_section)
+        if allPosition:
+            all_section = dict(code='all',caption='!![en]All')
+            if all_section=='first':
+                sections.insert(0,all_section)
+            else:
+                sections.append(all_section)
         return sections
 
     @struct_method
@@ -1266,7 +1288,7 @@ class TableHandlerView(BaseComponent):
                 syncSelectionCaption='!!In sync with ',
                 linkedSelectionPars='=.linkedSelectionPars',_fired='^.queryEnd',_delay=1,
                 currentReason='=.internalQuery.reason') 
-        frame.data('.internalQuery.reason',None)      
+        frame.data('.internalQuery.reason',None) 
         frame.dataController("""
             genro.dom.setClass(fn,'filteredGrid',internalQueryReason);
             SET .query.queryAttributes.extended = internalQueryReason!=null;

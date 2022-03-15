@@ -236,7 +236,10 @@ class BagNode(object):
         """
         if self.locked:
             raise BagNodeException("Locked node %s" % self.label)
-        if isinstance(value, BagNode):
+        if isinstance(value,BagResolver):
+            self.resolver = value
+            value = None
+        elif isinstance(value, BagNode):
             _attributes = _attributes or {}
             _attributes.update(value.attr)
             value = value._value
@@ -2077,7 +2080,8 @@ class Bag(GnrObject):
         return result
 
     #-------------------- fromXml --------------------------------
-    def fromXml(self, source, catalog=None, bagcls=None, empty=None):
+    def fromXml(self, source, catalog=None, bagcls=None, empty=None, 
+            attrInValue=None, avoidDupLabel=None):
         """Fill a Bag with values read from an XML string or file or URL
         
         :param source: the XML source to be loaded in the Bag
@@ -2086,11 +2090,16 @@ class Bag(GnrObject):
         :param empty: TODO"""
         source, fromFile, mode = self._sourcePrepare(source)
         self._nodes[:] = self._fromXml(source, fromFile, catalog=catalog,
-                                       bagcls=bagcls, empty=empty)
+                                       bagcls=bagcls, empty=empty,
+                                       attrInValue=attrInValue,
+                                       avoidDupLabel=avoidDupLabel)
 
-    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None):
+    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None,
+                attrInValue=None, avoidDupLabel=None):
         from gnr.core.gnrbagxml import BagFromXml
-        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty)
+
+        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty,
+                                    attrInValue=attrInValue,avoidDupLabel=avoidDupLabel)
 
     def _fromXsd(self, source, fromFile, catalog=None, bagcls=None, empty=None):
         dirname = os.path.dirname(source)
@@ -2678,6 +2687,7 @@ class BagResolver(object):
         attr['resolvermodule'] = self.__class__.__module__
         attr['args'] = self._initArgs
         attr['kwargs'] = self._initKwargs
+        attr['kwargs']['cacheTime'] = self.cacheTime
         return attr
         
     def __getitem__(self, k):
@@ -2792,6 +2802,9 @@ class VObjectBag(Bag):
                 
                 
 class GeoCoderBag(Bag):
+    def __init__(self, source=None,api_key=None, **kwargs):
+        super().__init__(source, **kwargs)
+        self.api_key = api_key
     def setGeocode(self, key, address, language='it'):
         """TODO
 
@@ -2800,7 +2813,9 @@ class GeoCoderBag(Bag):
         urlparams = dict(address=address,sensor='false')
         if language:
             urlparams['language']=language
-        url = "http://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
+        if self.api_key:
+            urlparams['key'] = self.api_key
+        url = "https://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
         self._result = Bag()
         answer = Bag(url)
         if answer['GeocodeResponse.status']=='OK':

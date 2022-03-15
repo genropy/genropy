@@ -39,7 +39,7 @@ div,span{
     user-select: none;
 }
 
-.selectable, .selectable .div, .selectable .span, .selectable *{
+.selectable, .selectable div, .selectable span, .selectable *{
     -webkit-touch-callout: text !important;
     -webkit-user-select: text !important;
     -khtml-user-select: text !important;

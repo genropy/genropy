@@ -34,15 +34,7 @@ class AppPref(object):
         tc = tc.tabContainer(margin='2px',**kwargs)
         stylepane = tc.contentPane(title='Styling')
         fb = stylepane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
-        fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='Theme variant')
-        fb.filteringSelect('^.device_mode',lbl='Device mode',
-                        values='std:Standard,mobile:Mobile,xmobile:Large mobile')
-        fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
-                        minimum=0,maximum=360,lbl='Color rotate',livePreference=True)
-        fb.horizontalSlider(value='^.body.filter_invert',intermediateChanges=True,width='150px',default_value=0,
-                        minimum=0,maximum=1,lbl='Color invert',livePreference=True)
-        fb.filteringSelect(value='^.default_fontsize',values='!!12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Font size')
-        fb.comboBox(value='^.body.font_family',values=FONTFAMILIES,lbl='Font family',width='20em',livePreference=True)        
+        fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='Theme variant')       
         fb.textbox(value='^.palette_colors',lbl='Default color palette')
         fb.textbox(value='^.palette_steps',lbl='Default color steps')
 
@@ -63,9 +55,10 @@ class AppPref(object):
         
         dev = tc.contentPane(title='Developer')
         fb = dev.formbuilder()
+
         fb.checkbox(value='^.jsPdfViewer',label='Extended pdf viewer')
         fb.comboBox(value='^.experimental.remoteForm',lbl='Remote forms',values='onEnter,delayed')
-
+        fb.checkbox(value='^.autoconvert_legacy_menu',label='Autoconvert legacy menu')
         self.site_config_override(tc.contentPane(title='!!Site config',datapath='.site_config'))
 
         pane = tc.contentPane(title='Tables Configuration')
@@ -96,9 +89,25 @@ class UserPref(object):
 
     def pref_theme(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.checkbox(value='^.bordered_icons',label='Bordered icons')
-        fb.filteringSelect(value='^.rootstyle.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Font size')
-        fb.comboBox(value='^.rootstyle.font_family',values=FONTFAMILIES,lbl='Font family')
+        fb.filteringSelect('^.device_mode',lbl='Device mode',
+                        values='std:Standard,mobile:Mobile,xmobile:Large mobile')
+
+        #fb.checkbox(value='^.bordered_icons',label='Bordered icons')
+        #fb.filteringSelect(value='^.rootstyle.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Font size')
+        #fb.comboBox(value='^.rootstyle.font_family',values=FONTFAMILIES,lbl='Font family')
+
+
+
+       #fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
+       #                minimum=0,maximum=360,lbl='Color rotate',livePreference=True)
+       #fb.horizontalSlider(value='^.body.filter_invert',intermediateChanges=True,width='150px',default_value=0,
+       #                minimum=0,maximum=1,lbl='Color invert',livePreference=True)
+
+       #fb.numberTextBox(value='^.body.zoom',intermediateChanges=True,width='150px',default_value=0,
+       #                minimum=0,maximum=1,lbl='Zoom',livePreference=True)
+
+        #fb.filteringSelect(value='^.default_fontsize',values='!!12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Font size')
+        #fb.comboBox(value='^.body.font_family',values=FONTFAMILIES,lbl='Font family',width='20em',livePreference=True) 
 
     def pref_sound(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')

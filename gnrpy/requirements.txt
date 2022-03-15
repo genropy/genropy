@@ -21,6 +21,7 @@ gunicorn
 supervisor
 futures
 lxml
+openpyxl
 psutil
 simpleeval
 webob

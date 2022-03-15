@@ -383,14 +383,18 @@ class SqlDbAdapter(object):
         record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
         sql_flds = []
         data_keys = []
-        for k in list(record_data.keys()):
+        for k,v in record_data.items():
             sqlcolname = tblobj.sqlnamemapper.get(k)
-            if sqlcolname: # skip aliasColumns
+            if not sqlcolname: 
+                # skip aliasColumns
+                continue
+            sql_value = tblobj.column(k).attributes.get('sql_value')
+            if (v is not None) or (sql_value is not None):
                 sql_flds.append(sqlcolname)
-                sql_value = tblobj.column(k).attributes.get('sql_value')
                 data_keys.append(sql_value or ':%s' % k)
         sql = 'INSERT INTO %s(%s) VALUES (%s);' % (tblobj.sqlfullname, ','.join(sql_flds), ','.join(data_keys))
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
 
     def insertMany(self, dbtable, records,**kwargs):
         tblobj = dbtable.model

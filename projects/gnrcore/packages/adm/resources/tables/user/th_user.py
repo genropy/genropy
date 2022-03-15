@@ -17,7 +17,33 @@ class View(BaseComponent):
         r.fieldcell('email',name='Email',width='20em')
         r.fieldcell('@tags.@tag_id.code',name='Tags',width='100%')
         r.fieldcell('auth_tags',name='Old tags',width='15em')
-        
+
+   #def th_bottom_main(self, bottom):
+   #    bar = bottom.slotToolbar('5,user_importer,*')
+   #    bar.user_importer.div(_tags='admin',
+   #                        margin_top='1px').paletteImporter(paletteCode='importUsers',
+   #                        dockButton_iconClass='iconbox import_data_tool',
+   #                        title='!!Import users from Excel/CSV',
+   #                        importButton_label='Import users',
+   #                        previewLimit=50,
+   #                        #errorCb='vendita_js.erroreImportRichiesta(error)',
+   #                        dropMessage='Drop you file here or double click this area',
+   #                        importButton_action="""
+   #                                genro.publish('import_users',{filepath:imported_file_path})
+   #                            """,
+   #                        matchColumns='*',
+   #                        importStructure=self.db.table('adm.user').importerStructure())
+   #                        
+   #    bar.dataRpc(self.db.table('adm.user').importUserFromFile,
+   #                    subscribe_import_users=True,
+   #                    _lockScreen=dict(thermo=True),
+   #                    _onResult="""
+   #                                genro.publish('importUsers_onResult',result);
+   #                                """)
+   #                            # _onError="""
+   #                            # genro.bp(true);
+   #                            #     genro.publish('importRigheListino_onResult',{error:error});
+   #                            # """)
         
     def th_order(self):
         return 'username'
