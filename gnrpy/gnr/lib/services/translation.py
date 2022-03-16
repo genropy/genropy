@@ -22,4 +22,3 @@ class TranslationService(GnrBaseService):
     @property
     def translator(self):
         pass
-

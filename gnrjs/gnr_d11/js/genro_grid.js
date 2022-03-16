@@ -4613,7 +4613,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return this.collectionStore().isFiltered();
     },
     
-    
+
     mixin_currentData:function(nodes, rawData,filtered){
         nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
