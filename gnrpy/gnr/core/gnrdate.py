@@ -50,7 +50,9 @@ def toDHZ(date,time,timezone=None):
         timezone = localtz.tzname(ts)
     timezone = timezone or 'UTC'
     tz = pytz.timezone(timezone)
-    return tz.localize(ts) 
+    #result =  tz.localize(ts) 
+    result = ts.replace(tzinfo=tz)
+    return result
 
 def checkDateKeywords(keywords,datestr,locale):
     return anyWordIn(gnrlocale.getDateKeywords(keywords, locale), datestr) or anyWordIn(
