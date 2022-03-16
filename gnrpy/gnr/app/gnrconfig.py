@@ -217,11 +217,11 @@ def getRmsOptions():
     environment_bag = Bag(environment_path) 
     return environment_bag.getAttr('rms')
 
-def setRmsOptions(**options):
+def setRmsOptions(rebuild=False,**options):
     config_path = gnrConfigPath()
     environment_path = os.path.join(config_path,'environment.xml')
     environment_bag = Bag(environment_path) 
-    environment_bag.setAttr('rms',**options)
+    environment_bag.setAttr('rms',_updattr=not rebuild,**options)
     environment_bag.toXml(environment_path,pretty=True)
 
 def getGenroRoot():
