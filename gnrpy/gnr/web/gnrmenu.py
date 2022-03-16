@@ -226,6 +226,8 @@ class MenuResolver(BagResolver):
 
     @property
     def indexMenu(self):
+        if self._page.userMenu:
+            return self._page.userMenu
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
