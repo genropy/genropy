@@ -4618,14 +4618,15 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
         if (rawData===true){
-            filtered = this.collectionStore()._filtered || [];
             if(nodes=='all'){
+                filtered = this.collectionStore()._filtered || [];
                 nodes = this.collectionStore().getData().getNodes();
             }else if(nodes=='selected'){
+                //selectedNodes apply the current filter
                 nodes = this.getSelectedNodes();
             }
             nodes.forEach(function(n,idx){
-                if(filtered.length == 0 || filtered.indexOf(idx)>=0){
+                if(!filtered || (filtered.length == 0 || filtered.indexOf(idx)>=0)){
                     result.addItem(n.label,n);
                 }
             });
