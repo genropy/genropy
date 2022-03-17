@@ -4620,6 +4620,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 filtered = this.collectionStore()._filtered || [];
                 nodes = this.collectionStore().getData().getNodes();
             }else if(nodes=='selected'){
+                //selectedNodes apply the current filter
                 nodes = this.getSelectedNodes();
             }
             nodes.forEach(function(n,idx){
