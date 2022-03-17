@@ -227,7 +227,14 @@ dojo.declare("gnr.FramedIndexManager", null, {
             }
         },function(){
              genro.publish({extWin:'DOCUMENTATION',topic:'onSelectedFrame'});
+             setTimeout(function(){
+                var iframe = that.getCurrentIframe(rootPageName);
+                if (iframe.contentWindow.genro){
+                    iframe.contentWindow.genro.resizeAll();
+                }
+            },1);
         })
+        
     },
     newBrowserWindowPage:function(kw){
         this.finalizePageUrl(kw);
