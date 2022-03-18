@@ -168,7 +168,7 @@ class NetBagRpc(BaseComponent):
 class XmlRpc(BaseComponent):
     skip_connection = True
     def rootPage(self, *args, **kwargs):
-        args,method = xmlrpcloads(self.request.body,use_datetime=True)
+        args,method = xmlrpcloads(self.request.data,use_datetime=True)
         if not method:
             return self.returnFault(-1,'Missing methodName')
         method=method.replace('.','_')
@@ -240,4 +240,3 @@ class XmlRpc(BaseComponent):
             return self.returnFault(-5,'Not Existing Method: %s' % methodName)
         h=getattr(self,methodName)
         return h.__doc__
-
