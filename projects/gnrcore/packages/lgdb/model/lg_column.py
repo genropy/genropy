@@ -33,6 +33,8 @@ class Table(object):
         existing = self.query(where='$lg_table_id=:tbl_id AND $name=:name',
                                 for_update=True,
                                 tbl_id=tbl_id, name=colobj.name).fetch()
+        if colobj.getAttr('_sysfield'):
+            col_record['group']='SYS'
         if not existing:
             self.insert(col_record)
         else:

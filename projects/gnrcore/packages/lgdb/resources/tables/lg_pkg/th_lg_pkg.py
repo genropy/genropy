@@ -37,7 +37,8 @@ class Form(BaseComponent):
         center = bc.contentPane(region='center')
         top.dataRpc('import_result', self.importPackage,
                      legacy_db='=.legacy_db', legacy_schema='=.legacy_schema',
-                     pkg_code='=.code',_fired='^#FORM.fillPackage')
+                     pkg_code='=.code',_fired='^#FORM.fillPackage',
+                     _lockScreen=True)
         center.dialogTableHandler(relation='@lg_tables', viewResource='ViewFromPackage')
 
 
