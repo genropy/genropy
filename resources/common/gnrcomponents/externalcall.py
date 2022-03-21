@@ -190,6 +190,8 @@ class XmlRpc(BaseComponent):
             result = handler(*args, **kwargs)
             xmlRpcResult = xmlrpcdumps((result,),encoding='UTF-8',methodresponse=True,allow_none=True)
             return xmlRpcResult
+        except Fault as e:
+            return self.returnFault(e.faultCode, e.faultString)
         except Exception as e:
             import sys,os
             tb = sys.exc_info()[2]
