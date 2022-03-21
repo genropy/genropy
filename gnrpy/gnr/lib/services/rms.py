@@ -52,6 +52,8 @@ class RMS(object):
                                 customer_code=self.customer_code)()
             if result and result.get('client_token'):
                 setRmsOptions(token=result['client_token'])
+            else:
+                print(result)
     
 
     @property
