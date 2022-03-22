@@ -313,7 +313,7 @@ class TableHandlerGroupBy(BaseComponent):
             changets_stackedview = '^.changets.stackedview',
             groupMode='^.groupMode',
             output='^.output',
-            treeRoot='^.treeRootName',**tree_kwargs)
+            treeRoot='^.treeRootName',_delay=1,**tree_kwargs)
         return frame
 
     @public_method
