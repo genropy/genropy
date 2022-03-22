@@ -3432,10 +3432,11 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             if(lnumber>max_lnumber){
                 lnumber = max_lnumber;
             }
-            var letterhead_page = letterheads.getItem('#'+lnumber);
+            var letterhead_page = letterheads.getItem('#'+lnumber).replaceAll('#p','$p');
             this.sourceBag.setItem('p',rn.childElementCount+1);
+            
             p.innerHTML = dataTemplate(letterhead_page,this.sourceBag,null,true);
-            var p = p.children[0];
+            p = p.children[0];
             content_node = dojo.query('div[content_node=t]',p)[0];
         }else{
             genro.dom.addClass(p,'pe_pages');
