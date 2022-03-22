@@ -41,7 +41,7 @@ class LoginComponent(BaseComponent):
         topbar.wtitle.div(wtitle)  
         if hasattr(self,'loginSubititlePane'):
             self.loginSubititlePane(box.div())
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login;',
+        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
@@ -49,8 +49,21 @@ class LoginComponent(BaseComponent):
         start = 0
         if doLogin:
             start = 2
-            fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False)
-            fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False)
+            tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False)
+            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False)
+            fb.dataController("""if(user&&pwd){
+                FIRE do_login;
+            }else{
+                let user = tbuser.widget.getValue();
+                let pwd = tbpwd.widget.getValue();
+                SET _login.user = user;
+                SET _login.password = pwd;
+            }
+            
+            """,_fired='^do_login_check',user='=_login.user',
+                        tbuser=tbuser,tbpwd=tbpwd,
+                        pwd='=_login.password')
+
             pane.dataRpc('dummy',self.login_checkAvatar,user='^_login.user',password='^_login.password',
                         _onCalling='kwargs.serverTimeDelta = genro.serverTimeDelta;',
                         _if='user&&password&&!_avatar_user',_else='SET gnr.avatar = null;',
@@ -122,7 +135,7 @@ class LoginComponent(BaseComponent):
                             fb=fb)
 
 
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE do_login',position='absolute',right='-5px',top='8px')
+        fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE do_login_check',position='absolute',right='-5px',top='8px')
         dlg.dataController("genro.dlg.floatingMessage(sn,{message:message,messageType:'error',yRatio:1.85})",subscribe_failed_login_msg=True,sn=dlg)
 
         footer = box.div().slotBar('12,lost_password,*,new_user,12',height='18px',width='100%',tdl_width='6em')
@@ -139,7 +152,6 @@ class LoginComponent(BaseComponent):
 
         pane.dataController("dlg_login.hide();dlg_cu.show();",dlg_login=dlg.js_widget,
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
-
 
         footer.dataController("""
         if(!avatar || !avatar.getItem('user') || avatar.getItem('error')){
