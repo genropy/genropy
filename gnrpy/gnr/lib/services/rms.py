@@ -130,6 +130,7 @@ class RMS(object):
                             domain=domain,
                             pod_token=self.token,
                             instance_token= rms_instance_attr['token'],
+                            description=rms_instance_attr.get('description'),
                             customer_code=customer_code)()
         print(result)
         return result
