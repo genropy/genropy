@@ -52,6 +52,8 @@ class RMS(object):
                                 customer_code=self.customer_code)()
             if result and result.get('client_token'):
                 setRmsOptions(token=result['client_token'])
+            else:
+                print(result)
     
 
     @property
@@ -74,7 +76,8 @@ class RMS(object):
             htagtbl = db.table('adm.htag')
             tag_id = htagtbl.sysRecord('_SYSTEM_')['id']
             db.table('adm.user_tag').insert({'tag_id':tag_id,'user_id':user_rec['id']})
-        if not service_tbl.checkDuplicate(service_name=instancename,service_type='rms'):
+        service_record = service_tbl.record(service_name=instancename,service_type='rms',ignoreMissing=True).output('record')
+        if not service_record:
             deploy_token = db.table('sys.external_token').create_token(exec_user='DEPLOY_SERVER')
             service_tbl.addService(service_type='rms',service_name=instancename,
                                                             token=deploy_token,
@@ -84,8 +87,14 @@ class RMS(object):
             rmsbag.toXml(rmspath)
             db.commit()
         else:
-            rmsbag = Bag(rmspath)
-            rmsbag.setAttr('rms',domain=domain,instance_name=instancename,customer_code=customer_code)
+            if os.path.isfile(rmspath):
+                rmsbag = Bag(rmspath)
+            else:
+                rmsbag = Bag()
+            rmsbag.setAttr('rms',domain=domain,instance_name=instancename,
+                                token=service_record['parameters.token'],
+                                customer_code=customer_code)
+            rmsbag.toXml(rmspath)
         return rmsbag
 
     def ping(self):
@@ -108,8 +117,8 @@ class RMS(object):
         if not (self.url and self.token):
             return
         p = PathResolver()
-        siteconfig = p.get_siteconfig(name)
-        site_rms = dict(siteconfig.getAttr('rms')) if siteconfig.getAttr('rms') else dict()
+        instance_config = p.get_instanceconfig(name)
+        site_rms = dict(instance_config.getAttr('rms')) if instance_config.getAttr('rms') else dict()
         customer_code = customer_code or site_rms.get('customer_code')
         domain = domain or  site_rms.get('domain')
         if not domain:
@@ -117,10 +126,12 @@ class RMS(object):
         rmsbag = self.buildRmsService(name,domain=domain,customer_code=customer_code)
         rms_instance_attr = rmsbag.getAttr('rms')
         customer_code = rms_instance_attr.get('customer_code') or self.customer_code
-        print('self.authenticatedUrl',self.authenticatedUrl)
-        return NetBag(self.authenticatedUrl,'register_instance',code=name,
+        result = NetBag(self.authenticatedUrl,'register_instance',code=name,
                             domain=domain,
                             pod_token=self.token,
                             instance_token= rms_instance_attr['token'],
+                            description=rms_instance_attr.get('description'),
                             customer_code=customer_code)()
+        print(result)
+        return result
 
