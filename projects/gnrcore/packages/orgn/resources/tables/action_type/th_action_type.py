@@ -75,17 +75,20 @@ class Form(BaseComponent):
         fb.field('description',colspan=2)
         fb.field('deadline_days',width='6em')
         fb.field('default_priority',width='10em')
+        fb.br()
         fb.field('default_tag',condition='$child_count = 0 AND $isreserved IS NOT TRUE',
                 tag='dbselect',
                 dbtable='adm.htag',
                 alternatePkey='hierarchical_code',
                 hasDownArrow=True,
                 validate_notnull=True)
-
+        fb.field('show_to_all_tag',html_label=True)
+        implementors = self.db.table('orgn.action_type').action_implementors()
+        fb.field('implementor',tag='filteringSelect',values=','.join([f'{key}:{name}' for key,name,handler in implementors]))
         restrictions = self.db.table('orgn.annotation').getLinkedEntities()
         if restrictions:
-            fb.field('restrictions',tag='checkBoxText',values=restrictions,popup=True,cols=1,colspan=2,width='100%')
-        fb.field('show_to_all_tag',html_label=True)
+            fb.field('restrictions',tag='checkBoxText',values=restrictions,popup=True,cols=1,colspan=3,width='100%')
+
         fb.field('extended_description',tag='simpleTextArea',lbl='!!Extended description',colspan=3,width='100%')
         fb.div(height='17px',width='4em',lbl='Background',
                border='1px solid gray',
