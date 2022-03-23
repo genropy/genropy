@@ -202,11 +202,29 @@ class ActionOutcomeForm(BaseComponent):
         centerframe = bc.framePane(region='center',border_top='1px solid silver')
         centerframe.top.slotToolbar('*,stackButtons,*')
         sc = centerframe.center.stackContainer(selectedPage='^#FORM.record.exit_status')
-        sc.contentPane(title='!!More info',pageName='more_info').dynamicFieldsPane('action_fields',margin='2px')
+        self.orgnActionExecution(sc.borderContainer(title='!!More info',pageName='more_info'))
+        
+        
         self.orgnActionConfirmed(sc.contentPane(title='!!Confirm',pageName='action_confirmed'))
         self.orgnActionCancelled(sc.contentPane(title='!!Cancel',pageName='action_cancelled'))
         self.orgnActionDelay(sc.contentPane(title='!!Delay',pageName='action_delay'))
         self.orgnActionRescheduled(sc.contentPane(title='!!Reschedule',pageName='action_rescheduled'))
+
+    def orgnActionExecution(self,bc):
+        bc.roundedGroupFrame(title='More info',region='left',width='50%').dynamicFieldsPane('action_fields',margin='2px')
+        bc.contentPane(region='center').remote(self.orgnImplementorPanel,
+                                                implementor='^#FORM.record.@action_type_id.implementor',
+                                                action_id='=#FORM.record.id',
+                                                _if='implementor')
+        
+
+    @public_method
+    def orgnImplementorPanel(self,pane,implementor=None,action_id=None,**kwargs):
+        action_type_tbl = self.db.table('orgn.action_type')
+        handler = getattr(action_type_tbl,f'{implementor}_pane',None)
+        if handler:
+            handler(pane,action_id=action_id)
+    
 
     def orgnActionConfirmed(self,pane):
         fb = pane.div(margin='10px',margin_right='20px').formbuilder(cols=2,border_spacing='3px',
