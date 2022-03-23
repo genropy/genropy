@@ -45,18 +45,19 @@ class TemplateEditorBase(BaseComponent):
         return self.te_renderTemplate(tplbuilder, record_id=record_id, extraData=Bag(dict(host=self.request.host)))
 
     @public_method
-    def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,**kwargs):
+    def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,plainText=False,**kwargs):
         result = Bag()
+        empty_chunk ='Template not yet created' if plainText else '<div class="chunkeditor_emptytemplate">Template not yet created</div>'
         if template_bag:
             data = template_bag
             compiled = template_bag['compiled']
             dataInfo = {}
         elif not template_address:
-            return Bag(dict(rendered='<div class="chunkeditor_emptytemplate">Template not yet created</div>'),data=Bag()),{} 
+            return Bag(dict(rendered=empty_chunk),data=Bag()),{} 
         else:
             data,dataInfo = self.loadTemplate(template_address=template_address,asSource=True)
             if not data:
-                return '<div class="chunkeditor_emptytemplate">Template not yet created</div>',dataInfo
+                return empty_chunk,dataInfo
             compiled = data['compiled']
             if not compiled:
                 content = data['content']
@@ -212,10 +213,10 @@ class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
     css_requires='public'
     @struct_method
-    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,**kwargs):
+    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,**kwargs):
         sc = self._te_mainstack(pane,table=maintable)
         self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable)
-        self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain))
+        self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain,plainText=plainText))
         self._te_framePreview(sc.framePane(title='!!Preview',pageName='preview',childname='preview'),table=maintable)
         #self._te_frameHelp(sc.framePane(title='!!Help',pageName='help',childname='help'))
         
@@ -411,7 +412,7 @@ class TemplateEditor(TemplateEditorBase):
         r.cell('resource',name='!![en]Resource',width='15em',edit=True)
         r.cell('condition',name='!![en]Condition',width='15em',edit=True)
 
-    def _te_frameEdit(self,frame,editorConstrain=None):
+    def _te_frameEdit(self,frame,editorConstrain=None,plainText=None):
         frame.top.slotToolbar(slots='5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer(design='sidebar')
         self._te_pickers(frame.tabContainer(region='left',width='200px',splitter=True))                
@@ -440,7 +441,17 @@ class TemplateEditor(TemplateEditorBase):
                 letterhead_center_height='^.preview.letterhead_record.center_height',
                 letterhead_center_width='^.preview.letterhead_record.center_width',
                 _init=True)
-        bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
+        if plainText:
+            bc.simpleTextArea(value='^.data.content',region='center',
+                            margin='3px',margin_left='6px',border='1px solid silver',
+                            dropTarget=True,dropTypes="text/plain",
+                            onDrop_text_plain="""let v = this.widget.getValue()
+                            v += (' ' + data);
+                            this.widget.setValue(v,true);
+                            """,
+                            rounded=6,padding='5px')
+        else:
+            bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
                             constrain_height='^.editor.height',
                             constrain_width='^.editor.width',**editorConstrain)
@@ -613,7 +624,7 @@ class PaletteTemplateEditor(TemplateEditor):
 class ChunkEditor(PaletteTemplateEditor):
     @public_method
     def te_chunkEditorPane(self,pane,table=None,resource_mode=None,paletteId=None,
-                            datasourcepath=None,showLetterhead=False,editorConstrain=None,**kwargs):
+                            datasourcepath=None,showLetterhead=False,editorConstrain=None,plainText=False,**kwargs):
         sc = self._te_mainstack(pane,table=table)
         self._te_frameChunkInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=table,datasourcepath=datasourcepath)
         bar = sc.info.top.bar
@@ -641,7 +652,7 @@ class ChunkEditor(PaletteTemplateEditor):
             bar.replaceSlots('#','#,savetpl,5')
         self._te_saveButton(bar.savetpl,table,paletteId)
         frameEdit = sc.framePane(title='!!Edit',pageName='edit',childname='edit')
-        self._te_frameEdit(frameEdit,editorConstrain=editorConstrain)
+        self._te_frameEdit(frameEdit,editorConstrain=editorConstrain,plainText=plainText)
         if showLetterhead:
             bar = frameEdit.top.bar.replaceSlots('parentStackButtons','parentStackButtons,letterhead_selector')
             fb = bar.letterhead_selector.formbuilder(cols=1,border_spacing='1px')

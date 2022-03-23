@@ -3568,6 +3568,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote:'te_chunkEditorPane',
                     remote_table:table,
                     remote_paletteId:paletteId,
+                    remote_plainText:sourceNode.attr.plainText,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
@@ -3701,6 +3702,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         kw._tplpars.asSource =  kw._tplpars.editable!=null;
         
         kw._class = (kw._class || '') + ' selectable'
+        if(kw.plainText){
+            kw._class += ' plainTextChunk';
+        }
         var dataProvider = objectPop(kw,'dataProvider');
         if(dataProvider){
             dataProvider = sourceNode.currentFromDatasource(dataProvider);
@@ -3761,7 +3765,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                this.template = this.template || '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                this.template = this.template || emptychunk;
             }
         };
         sourceNode.updateTemplate = function(){

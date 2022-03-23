@@ -1,5 +1,6 @@
 # encoding: utf-8
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrstring import templateReplace
 
 class Table(object):
     def config_db(self,pkg):
@@ -18,7 +19,7 @@ class Table(object):
         tbl.column('color',name_long='!!Text color')
 
         
-        tbl.column('text_template',name_long='!!Text template')
+        tbl.column('text_template',name_long='!!Text template',dtype='X',group='_')
         tbl.column('full_template',dtype='X',group='_',name_long='!!Full template')
         
 
@@ -36,16 +37,43 @@ class Table(object):
         return result
 
 
-    def impl_SMS(self,action_id=None,**kwargs):
+    def impl_SMS(self,action_id=None,sms_number=None,sms_content=None,**kwargs):
         "Sms"
-        pass
+        sms_number = sms_number or self._SMS_get_number(action_id)
+        sms_content = sms_content or self._SMS_get_content(action_id)
+        print(x)
 
-    def SMS_pane(self,pane=None,**kwargs):
+    def _SMS_get_number(self,action_id=None):
+        annotation_tbl = self.db.table('orgn.annotation')
+        record_action = annotation_tbl.record(action_id).output('bag')
+        fkey,fkey_value = annotation_tbl.recordLinkedEntity(record_action)
+        sms_number_path = annotation_tbl.column(fkey).attributes.get('linked_sms_number')
+        return record_action[f'@{fkey}.{sms_number_path}']
+
+    def _SMS_get_content(self,action_id=None):
+        annotation_tbl = self.db.table('orgn.annotation')
+        record_action = annotation_tbl.record(action_id).output('bag')
+        return templateReplace(record_action['@action_type_id.text_template'],record_action)
+
+
+    def SMS_pane(self,pane=None,action_id=None,**kwargs):
         frame = pane.framePane()
-        bc = frame.center.borderContainer(background='red')
-
+        bc = frame.center.borderContainer(datapath='#FORM.impl_sms')
+        annotation_tbl = self.db.table('orgn.annotation')
+        record_action = annotation_tbl.record(action_id).output('bag')
+        sms_number = self._SMS_get_number(action_id)
+        fb = bc.contentPane(region='top').formbuilder()
+        fb.textbox(value='^.sms_number',lbl='Sms Number',default=sms_number)
+        bc.simpleTextArea(value='^.sms_content',region='center')
+        bc.dataFormula('.sms_content',"dataTemplate(tpl,record)",
+                        tpl=record_action['@action_type_id.text_template'],
+                        record='^#FORM.record',_onBuilt=1)
         footer = frame.bottom.slotBar('*,sendSms,5',border_top='1px solid silver',height='22px')
-        footer.sendSms.button('Send SMS')
+        footer.sendSms.button('Send SMS').dataRpc(self.runImplementor,
+                                                implementor='SMS',
+                                                action_id='=#FORM.record.id',
+                                                sms_number='=#FORM.impl_sms.sms_number',
+                                                sms_content='=#FORM.impl_sms.sms_content')
 
 
     def impl_email(self,action_id=None,**kwargs):
