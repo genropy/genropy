@@ -33,6 +33,12 @@ from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app.gnrconfig import getRmsOptions,setRmsOptions
+from gnr.lib.services import BaseServiceType
+
+class ServiceType(BaseServiceType):
+    def conf_rms(self):
+        return dict(implementation='rms')
+
 
 class RMS(object):
     def __init__(self):
