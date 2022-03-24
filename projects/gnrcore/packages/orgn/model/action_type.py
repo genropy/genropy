@@ -1,6 +1,5 @@
 # encoding: utf-8
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrstring import templateReplace
 
 class Table(object):
     def config_db(self,pkg):
@@ -41,6 +40,7 @@ class Table(object):
         "Sms"
         sms_number = sms_number or self._SMS_get_number(action_id)
         sms_content = sms_content or self._SMS_get_content(action_id)
+        sms_service = self.db.application.site.getService('sms')
         print(x)
 
     def _SMS_get_number(self,action_id=None):
@@ -53,7 +53,8 @@ class Table(object):
     def _SMS_get_content(self,action_id=None):
         annotation_tbl = self.db.table('orgn.annotation')
         record_action = annotation_tbl.record(action_id).output('bag')
-        return templateReplace(record_action['@action_type_id.text_template'],record_action)
+        template = record_action['@action_type_id.text_template']['compiled']
+        return self.db.currentPage.renderTemplate(record_id=action_id,table='orgn.annotation',template=template)
 
 
     def SMS_pane(self,pane=None,action_id=None,**kwargs):
@@ -65,9 +66,9 @@ class Table(object):
         fb = bc.contentPane(region='top').formbuilder()
         fb.textbox(value='^.sms_number',lbl='Sms Number',default=sms_number)
         bc.simpleTextArea(value='^.sms_content',region='center')
-        bc.dataFormula('.sms_content',"dataTemplate(tpl,record)",
-                        tpl=record_action['@action_type_id.text_template'],
-                        record='^#FORM.record',_onBuilt=1)
+        template = record_action['@action_type_id.text_template']
+        renderedTemplate = self.db.currentPage.renderTemplate(record_id=action_id,table='orgn.annotation',template=template['compiled'])
+        bc.data('.sms_content',renderedTemplate)
         footer = frame.bottom.slotBar('*,sendSms,5',border_top='1px solid silver',height='22px')
         footer.sendSms.button('Send SMS').dataRpc(self.runImplementor,
                                                 implementor='SMS',
