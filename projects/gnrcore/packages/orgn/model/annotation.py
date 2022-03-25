@@ -327,3 +327,10 @@ class Table(object):
             return '!!New annotation'
         else:
             return '!!New action'
+
+
+    def entityLinker(self,tbl=None,zoomMode=None,zoomUrl=None,
+                    formResource=None,pivot_date=None,**kwargs):
+        return dict(tbl=tbl,zoomMode=zoomMode,zoomUrl=zoomUrl,
+                        formResource=formResource,pivot_date=pivot_date,
+                        **kwargs)
