@@ -3,10 +3,6 @@
 
 from gnr.lib.services import GnrBaseService,BaseServiceType
 
-class ServiceType(BaseServiceType):
-    def conf_translation(self):
-        return dict(implementation=False)
-
 class TranslationService(GnrBaseService):
     
     def __init__(self,parent,**kwargs):

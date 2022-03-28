@@ -30,3 +30,4 @@ from gnr.core.gnrstring import templateReplace
 
 class WebPrintHandler(PrintHandler):
     pass
+

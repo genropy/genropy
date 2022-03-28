@@ -168,10 +168,11 @@ class TableHandlerView(BaseComponent):
                 }
                 var parname;
                 if(n.attr._valuelabel){
-                    parname =  n.attr._valuelabel.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                    parname =  n.attr._valuelabel;
                 }else{
-                    parname = n.attr.column.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                    parname = n.attr.column;
                 }
+                parname = flattenString(parname,true);
                 if(parname in parnames){
                     var parcount = parnames[parname];
                     parcount+=1;
@@ -1221,9 +1222,9 @@ class TableHandlerView(BaseComponent):
                                         }
                                         if(saveRpcQuery && !newNode.attr.parname){
                                             if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#@]/g,'_').toLowerCase();
+                                                newNode.attr.parname = flattenString(value_caption.split('|')[0].slice(1),true);
                                             }else if(newNode.attr.column_caption){
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                                                newNode.attr.parname = flattenString(newNode.attr.column_caption,true);
                                             }
                                         }
                                     });

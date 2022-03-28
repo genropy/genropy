@@ -666,10 +666,10 @@ class GnrWebPage(GnrBaseWebPage):
             return result,{'respath':path}
 
     @public_method
-    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,**kwargs):
+    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,**kwargs):
         from gnr.web.gnrbaseclasses import TableTemplateToHtml
         htmlbuilder = TableTemplateToHtml(table=self.db.table(table))
-        return htmlbuilder.contentFromTemplate(record=record_id,template=self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
+        return htmlbuilder.contentFromTemplate(record=record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
 
     @public_method
     def loadTemplate(self,template_address,asSource=False,missingMessage=None,**kwargs):

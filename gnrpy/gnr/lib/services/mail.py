@@ -43,11 +43,21 @@ import os
 import datetime
 import time
 
+
+from gnr.lib.services import GnrBaseService,BaseServiceType
+
+
+class ServiceType(BaseServiceType):
+    def conf_mail(self):
+        return dict(implementation='mailservice')
+
+
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 TAG_SELECTOR = '<[^>]*>'
 
 mime_mapping = dict(application=MIMEApplication,
                     image=MIMEImage, text=MIMEText)
+
 
 def clean_and_unescape(text):
     """Removes HTML or XML character references and entities from a text string.

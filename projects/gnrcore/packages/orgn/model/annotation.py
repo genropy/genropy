@@ -265,6 +265,13 @@ class Table(object):
         if self.fieldsChanged('annotation_date,annotation_time',record_data,old_record):
             self.setAnnotationTs(record_data)
 
+
+    def recordLinkedEntity(self,record):
+        for colname,colobj in list(self.columns.items()):
+            fkey_value = record[colname]
+            if colobj.attributes.get('linked_entity') and fkey_value is not None:
+                return colname,fkey_value
+
     def getLinkedEntities(self):
         result = []
         for colname,colobj in list(self.columns.items()):
