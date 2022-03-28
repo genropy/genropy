@@ -40,8 +40,9 @@ class Table(object):
         "Sms"
         sms_number = sms_number or self._SMS_get_number(action_id)
         sms_content = sms_content or self._SMS_get_content(action_id)
-        sms_service = self.db.application.site.getService('sms')
-        print(x)
+        sms_service_name = self.db.application.getPreference('sms_service',pkg='orgn') or 'sms'
+        sms_service = self.db.application.site.getService('sms',sms_service_name)
+        result = sms_service.sendsms(destination_number=sms_number,message_content=sms_content)
 
     def _SMS_get_number(self,action_id=None):
         annotation_tbl = self.db.table('orgn.annotation')
