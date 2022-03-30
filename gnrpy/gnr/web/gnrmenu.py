@@ -24,7 +24,6 @@
 
 import os
 import urllib.parse
-from attr import attr
 from gnr.core.gnrstructures import  GnrStructData
 from gnr.core.gnrlang import getUuid,gnrImport,instanceMixin
 from gnr.core.gnrdict import dictExtract
