@@ -49,23 +49,31 @@ class LoginComponent(BaseComponent):
         start = 0
         if doLogin:
             start = 2
-            tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False)
-            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False)
-            fb.dataController("""if(user&&pwd){
+            tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
+                                nodeId='tb_login_user')
+            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False,
+                                nodeId='tb_login_pwd')
+            fb.dataController("""if(user && pwd && avatar_user){
                 FIRE do_login;
             }else{
-                let user = tbuser.widget.getValue();
-                let pwd = tbpwd.widget.getValue();
-                SET _login.user = user;
-                SET _login.password = pwd;
+                console.log('*** missing something for avatar ***','user',!isNullOrBlank(user),'pwd',!isNullOrBlank(pwd),'avatar_user',!isNullOrBlank(pwd))
+                user = user || tbuser.widget.getValue();
+                pwd = pwd || tbpwd.widget.getValue();
+                PUT _login.user = user;
+                PUT _login.password = pwd;
+                FIRE _login.checkAvatar;
             }
             
-            """,_fired='^do_login_check',user='=_login.user',
+            """,_fired='^do_login_check',user='=_login.user',avatar_user='gnr.avatar.user',
                         tbuser=tbuser,tbpwd=tbpwd,
                         pwd='=_login.password')
 
-            pane.dataRpc('dummy',self.login_checkAvatar,user='^_login.user',password='^_login.password',
-                        _onCalling='kwargs.serverTimeDelta = genro.serverTimeDelta;',
+            pane.dataRpc('dummy',self.login_checkAvatar,
+                        user='^_login.user',
+                        password='^_login.password',
+                        _fired='^_login.checkAvatar',
+                        _onCalling="""kwargs.serverTimeDelta = genro.serverTimeDelta;
+                                        """,
                         _if='user&&password&&!_avatar_user',_else='SET gnr.avatar = null;',
                         _avatar_user='=gnr.avatar.user',
                         _onResult="""var avatar = result.getItem('avatar');
