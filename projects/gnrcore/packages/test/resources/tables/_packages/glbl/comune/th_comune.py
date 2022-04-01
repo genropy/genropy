@@ -103,7 +103,7 @@ class ViewTestSections(BaseComponent):
         r.fieldcell('@sigla_provincia.@regione.zona', hidden=True)
 
     def th_sections_zone(self):
-        return [dict(code='nord',caption='!!Nord',condition='@sigla_provincia.@regione.zona=:zona_ovest OR @regione.zona=:zona_est',
+        return [dict(code='nord',caption='!!Nord',condition='@sigla_provincia.@regione.zona=:zona_ovest OR @sigla_provincia.@regione.zona=:zona_est',
                                 condition_zona_ovest='Nord-ovest', condition_zona_est='Nord-est'),
                 dict(code='centro',caption='!!Centro',condition='@sigla_provincia.@regione.zona=:zona',condition_zona='Centro'),
                 dict(code='sud',caption='!!Sud',condition='@sigla_provincia.@regione.zona=:zona',condition_zona='Sud'),
@@ -124,7 +124,21 @@ class ViewTestQuery(BaseComponent):
         r.fieldcell('popolazione_residente')
 
     def th_queryBySample(self):
-        return dict(fields=[dict(field='$popolazione_residente', lbl='pop_resid <=',width='10em', op='lesseq', val=''),
-                    dict(field='$popolazione_residente', lbl='pop_resid :',width='10em', op='greatereq', val=''),
-                    dict(field='$popolazione_residente', lbl='pop_resid',width='10em')],
+        return dict(fields=[dict(field='$denominazione', lbl='Denominazione :',width='10em'),
+                    dict(field='$popolazione_residente', lbl='pop_resid <',width='10em', op='less', val=''),
+                    dict(field='$popolazione_residente', lbl='pop_resid >=',width='10em', op='greatereq', val='')],
                     cols=3, isDefault=True)
+
+class ViewTestQueryCondition(BaseComponent):
+    
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('denominazione', width='20em')
+        r.fieldcell('sigla_provincia')
+
+    def th_queryBySample(self):
+        return dict(fields=[dict(field='$denominazione', lbl='Denominazione',width='10em'),
+                    dict(field='$sigla_provincia', lbl='Provincia', width='6em', table='glbl.provincia', 
+                            condition='$regione=:rlom', condition_rlom='LOM', 
+                            tag='checkboxtext', popup=True)],
+                    cols=2, isDefault=True)

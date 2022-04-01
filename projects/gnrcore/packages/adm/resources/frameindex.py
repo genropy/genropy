@@ -130,6 +130,9 @@ class FrameIndex(BaseComponent):
             self.login_newPassword(pane)
         return bc
         
+    def prepareBottom(self,bc):
+        return self.prepareBottom_std(bc)
+        
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')

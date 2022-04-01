@@ -14,9 +14,8 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.recipient', lbl='To')
         fb.filteringSelect(value='^.message_type', lbl='Message Type', values='LL,L,N')
         fb.simpleTextarea(value='^.message',lbl='Text')
-        fb.button('Run',fire='.run')
-
-        fb.dataRpc(None, self.sendsms, message_type='=.message_type', message='=.message', sender='=.sender', recipient='=.recipient', _fired='^.run')
+        fb.button('Run').dataRpc(self.sendsms, message_type='=.message_type', 
+                            message='=.message', sender='=.sender', recipient='=.recipient')
 
     @public_method
     def sendsms(self, sender=None, recipient=None, message=None, message_type=None):

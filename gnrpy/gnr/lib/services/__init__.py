@@ -49,7 +49,6 @@ class ServiceHandler(object):
     def __init__(self,site):
         self.site = site
         #cerco definizioni core
-        service_types_classes = []
         service_types_factories = {}
         self.service_types = {}
         services_roots = [LIB_ROOT]
@@ -78,7 +77,6 @@ class ServiceHandler(object):
                 self.service_types[service_type] = service_type_factory(self.site,service_type=service_type)
         
     def getService(self,service_type=None,service_name=None, **kwargs):
-        
         if service_type not in self.service_types:
             self.service_types[service_type] = BaseServiceType(site=self.site,service_type=service_type)
         return self(service_type)(service_name, **kwargs)
@@ -188,8 +186,37 @@ class BaseServiceType(object):
 
         return self._implementations
 
+    def getImplementations(self):
+        result = {}
+        dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' %(self.service_type))
+        dirs.reverse()
+        baseImplementation = None
+        for d in dirs:
+            for impl in os.listdir(d):
+                implname,implext = os.path.splitext(impl)
+                impl = os.path.join(d,impl)
+                if os.path.isdir(impl):
+                    impl = os.path.join(d,impl,'service.py')
+                    if not os.path.exists(impl):
+                        continue
+                    implext = '.py'
+                if implext!='.py':
+                    continue
+                try:
+                    module = gnrImport(impl,avoidDup=True)
+                    service_class = getattr(module,'Service',None) or getattr(module,'Main',None) #backward compatibility
+                    result[implname] =  service_class
+                except ImportError as imperr:
+                    log.exception("Could not import %s"%impl)
+                    log.exception(str(imperr))
+                if not baseImplementation:
+                    baseImplementation = implname
+        return result,baseImplementation
+
+
     def getServiceFactory(self,implementation=None):
-        return self.implementations.get(implementation) or self.implementations.get(self.baseImplementation)
+        implementations,baseImplementation = self.getImplementations()
+        return implementations.get(implementation) or implementations.get(baseImplementation)
     
     @property
     def default_service_name(self):
