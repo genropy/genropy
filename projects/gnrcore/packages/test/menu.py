@@ -1,14 +1,17 @@
 # encoding: utf-8
-def config(root,application=None):
-    test = root.branch(u"!!Tests", tags="_DEV_")
-    test.branch("Batch", pkg="test", dir='batch')
-   #test.branch("Components", pkg="test", dir='components')
-   #test.branch("Datastore elements", pkg="test", dir='datastore')
-   #test.branch("Dojo", pkg="test", dir='dojo')
-   #test.branch("Drag & Drop", pkg="test", dir='drag_drop')
-   #test.branch("HTML", pkg="test", dir='html')
-   #test.branch("Input fields", pkg="test", dir='inputfields')
-   #test.branch("Layout", pkg="test", dir='layout')
-   #test.branch("Path", pkg="test", dir='path')
-   #test.branch("Services", pkg="test", dir='services')
-   #test.branch("Websocket", pkg="test", dir='websocket')
+class Menu(object):
+    def config(self,root,**kwargs):
+        tests = root.branch(u"!!Tests", tags="_DEV_")
+        tests.webpage(u"Batch", folder="batch")
+        tests.webpage(u"Components", folder="components")
+        tests.webpage(u"Datastore elements", folder="datastore")
+        tests.webpage(u"Dojo", folder="dojo")
+        tests.webpage(u"Drag & Drop", folder="drag_drop")
+        tests.webpage(u"HTML", folder="html")
+        tests.webpage(u"Input fields", folder="inputfields")
+        tests.webpage(u"Layout", folder="layout")
+        tests.webpage(u"Path", folder="path")
+        tests.webpage(u"Services", folder="services")
+        tests.webpage(u"Tools", folder="tools")
+        tests.webpage(u"Websocket", folder="websocket")
+
