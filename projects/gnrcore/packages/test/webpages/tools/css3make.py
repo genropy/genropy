@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
-# 
-"""css3make tester"""
 
-from builtins import object
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
-    dojo_theme = 'tundra'
-    def test_1_rounded(self, pane):
+
+    def test_0_rounded(self, pane):
+        "Example of CSS mapped attributes: rounded parameters"
         sl = pane.slotBar('fld,test,*')
         fb = sl.fld.formbuilder(cols=2,lbl_position='L',
                                 lbl_font_size='10px',lbl_color='teal')
-        fb.horizontalSlider(value='^.top_left',minimum=0,maximum=30,
+        fb.horizontalSlider(value='^.top_left',minimum=0,maximum=30, cols_class='pippo', fld_class='pluto',
                             intermediateChanges=True,width='150px',
-                            discreteValues=31,lbl='top_left')
-        fb.numbertextbox(value='^.top_left',width='4em')
+                            discreteValues=31,lbl='top_left', lbl_position='T')
+        fb.numbertextbox(value='^.top_left',width='4em', lbl='ehi', lbl_class='paperino', col_class='pippo', fld_class='pluto',)
         fb.horizontalSlider(value='^.top_right',minimum=0,maximum=30,
                             intermediateChanges=True,width='150px',
                             discreteValues=31,lbl='top_right')
@@ -33,7 +31,8 @@ class GnrCustomWebPage(object):
                     rounded_bottom_left='^.bottom_left',
                     rounded_bottom_right='^.bottom_right')
         
-    def test_2_shadow(self, pane):
+    def test_1_shadow(self, pane):
+        "Example of CSS mapped attributes: shadow parameters"
         sl = pane.slotBar('x,y,blur,color,inset,*,test1,*',
                           lbl_font_size='10px',lbl_width='12px',
                           lbl_position='L',lbl_transform_rotate='-90',lbl_color='teal',
@@ -44,17 +43,13 @@ class GnrCustomWebPage(object):
                             height='100px',lbl='Y')
         sl.blur.verticalSlider(value='^.blur',minimum=-30,maximum=30,intermediateChanges=True,
                                height='100px',lbl='blur')
-        sl.color.comboBox(value='^.color',width='90px',lbl='color',
-                          values="""aqua,black,blue,fuchsia,gray,green,lime,maroon,
-                                    navy,olive,purple,red,silver,teal,white,yellow
-                                    """)
-        sl.inset.checkbox(value='^.inset',label='shadow_inset')
-        sl.test1.div(margin='5px',display='inline-block',border='1px solid gray',
-                     width='100px', height='80px',shadow='3px 3px 5px gray inset',
-                     shadow_x='^.x',shadow_y='^.y',shadow_blur='^.blur',
-                     shadow_color='^.color',shadow_inset='^.inset')
         
-    def test_3_gradient(self, pane):
+        sl.test1.div(margin='5px',display='inline-block',border='1px solid gray',
+                     width='100px', height='80px',box_shadow='3px 3px 5px gray inset',
+                     shadow_x='^.x',shadow_y='^.y',shadow_blur='^.blur')
+        
+    def test_2_gradient(self, pane):
+        "Example of CSS mapped attributes: gradient parameters"
         sl = pane.slotBar('deg,fld,*,test,*,test1,*',lbl_position='B',lbl_font_size='8px')
         sl.deg.verticalSlider(value='^.deg',minimum=0,maximum=360,default=10,
                               intermediateChanges=True,height='100px',lbl='Deg')
@@ -79,6 +74,7 @@ class GnrCustomWebPage(object):
                      gradient_deg='^.deg')
                      
     def test_4_transform(self, pane):
+        "Example of CSS mapped attributes: transform parameters"
         sl = pane.slotBar('fld,*,test,*')
         fb = sl.fld.formbuilder(lbl_font_size='10px',lbl_color='teal')
         fb.horizontalSlider(value='^.rotate',minimum=0,maximum=180,lbl='rotate',
@@ -102,19 +98,20 @@ class GnrCustomWebPage(object):
                     transform_skew_x='^.skew_x',transform_skew_y='^.skew_y')
                     
     def test_5_transition(self, pane):
-        sl = pane.slotBar('w,color,mode,duration,*,test',lbl_position='T',
-                           lbl_font_size='10px',lbl_color='teal')
-        sl.w.textbox(value='^.w',lbl='width',default='3px',width='5em')
-        sl.color.textbox(value='^.color',lbl='color',default='red',width='6em')
+        "Example of CSS mapped attributes: transition parameters. Try changing color"
+        sl = pane.slotBar('w,color,mode,duration,*,test',lbl_position='T', lbl_font_size='10px',lbl_color='teal')
+        sl.w.textbox(value='^.w',lbl='width',default='100px',width='5em')
         sl.mode.combobox(value='^.function',default='linear',width='8em',
                          values='linear,ease,ease-in,ease-out,ease-in-out')
-        sl.duration.numbertextbox(lbl='duration',default=2,value='^.duration',width='8em')
+        sl.duration.numbertextbox(lbl='duration',default=5,value='^.duration',width='6em')
+        sl.color.textbox(value='^.color',lbl='color',placeholder='red',width='6em')
         sl.test.div(width='^.w',background='^.color',height='50px',border='1px solid gray',
                     transition='all 3s',transition_function='.^function',transition_duration='^.duration')
 
 
 
     def test_6_filter(self, pane):
+        "Example of CSS mapped attributes: filter parameters"
         sl = pane.slotBar('fld,*,test,*')
         fb = sl.fld.formbuilder(lbl_font_size='10px',lbl_color='teal')
         fb.horizontalSlider(value='^.rotate',minimum=0,maximum=180,lbl='rotate',
