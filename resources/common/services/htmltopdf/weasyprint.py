@@ -16,7 +16,7 @@ class Service(HtmlToPdfService):
         size: A4; /* Change from the default size of A4 */
         margin: 0.25cm; /* Set margin on each page */
         }"""
-
+        print('uso weasyprint')
 
         if destPath.isdir:
             baseName = os.path.splitext(srcPath.basename)[0]
