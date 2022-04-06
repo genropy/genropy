@@ -3,12 +3,12 @@
 
 from builtins import str
 import os
-from weasyprint import CSS, HTML
 from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError
 
 class Service(HtmlToPdfService):
     def writePdf(self,srcPath, destPath, orientation=None, page_height=None, page_width=None,
                         pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs):
+        from weasyprint import CSS, HTML
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         destPath = self.parent.storageNode(destPath, parent=self.parent)
 
