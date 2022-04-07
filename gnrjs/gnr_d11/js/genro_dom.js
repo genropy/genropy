@@ -1449,8 +1449,9 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var item,r, value,v,_customClasses,rowvalidation;
         var tbl = ["<tbody>"];
         var totalizers = {};
-        for (item of nodes) {
+        for (var i = 0; i < nodes.length; i++){
             r = "";
+            item = nodes[i];
             rowvalidation = ' _is_valid_item="true" ';
             if(item._is_invalid_item){
                 rowvalidation = ' onmouseup="dojo.stopEvent(arguments[0]);" _is_valid_item="false" '
@@ -1497,7 +1498,6 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
             tbl.push('<tr class="totalize_row">' + r + '</tr>');
         }
-        
         tbl.push("</tbody>");
         var tbody = tbl.join('');
         var cbf = function(cgr) {
@@ -1529,6 +1529,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
             setTimeout(cb, 1);
         }
     },
+
+    
     setTextInSelection:function(sourceNode,valueToPaste){
         var fn = sourceNode.widget.focusNode;
         var ss = fn.selectionStart;
