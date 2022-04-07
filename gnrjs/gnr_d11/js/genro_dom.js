@@ -1417,7 +1417,6 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
         return result;
     },
-
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
         var max_height = kw.max_height || '180px';
@@ -1449,9 +1448,9 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var item,r, value,v,_customClasses,rowvalidation;
         var tbl = ["<tbody>"];
         var totalizers = {};
-        for (var i = 0; i < nodes.length; i++){
+        for (var i = 0; i < nodes.length; i++) {
             r = "";
-            item = nodes[i];
+            item = nodes[i].attr;
             rowvalidation = ' _is_valid_item="true" ';
             if(item._is_invalid_item){
                 rowvalidation = ' onmouseup="dojo.stopEvent(arguments[0]);" _is_valid_item="false" '
@@ -1498,6 +1497,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
             tbl.push('<tr class="totalize_row">' + r + '</tr>');
         }
+        
         tbl.push("</tbody>");
         var tbody = tbl.join('');
         var cbf = function(cgr) {
@@ -1529,7 +1529,6 @@ dojo.declare("gnr.GnrDomHandler", null, {
             setTimeout(cb, 1);
         }
     },
-
     
     setTextInSelection:function(sourceNode,valueToPaste){
         var fn = sourceNode.widget.focusNode;
