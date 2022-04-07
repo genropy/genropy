@@ -986,7 +986,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         params['filename'] = kw.filename;
         var sourceNode = kw.uploaderId ? genro.nodeById(kw.uploaderId) : null;
         params = this.serializeParameters(genro.src.dynamicParameters(params, sourceNode));
-        for (key in params) {
+        for (let key in params) {
             content.append(key, params[key]);
         }
         var sender = new XMLHttpRequest();

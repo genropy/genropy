@@ -1285,7 +1285,7 @@ dojo.declare('gnr.GenroClient', null, {
                 }
                 v = "<div title='"+title+"'" + event_attrs + " style='margin:auto;' " + divclass + ">" + label + "</div>";
             }
-            else if (f['inlineedit'] == true) {
+            else if (f['inlineedit'] === true) {
                 v = "<span style='font-family: wingdings; text-decoration: underline;'>&nbsp;&nbsp;&nbsp;&nbsp;&#x270d;&nbsp;&nbsp;&nbsp;&nbsp;</span>";
             }
 
