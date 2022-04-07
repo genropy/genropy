@@ -6963,8 +6963,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
     },
     
     onExternalChange:function(changelist){
-        var eventdict = {};
-        var dbevt,pkeys,wasInSelection,willBeInSelection;
+        var willBeInSelection;
         var insOrUpdKeys = [];
         var delKeys = [];
         var data = this.getData();
@@ -7089,7 +7088,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                 changedRows[rowNode.attr._pkey] = rowNode;
                                 if(!isEqual(rowNode.attr[attrname],willBeInSelectionNode.attr[attrname])){
                                     if(rowValue instanceof gnr.GnrBag){
-                                        var editedNode = rowValue.getNode(attrname);
+                                        let editedNode = rowValue.getNode(attrname);
                                         if(editedNode){
                                             editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                         }
@@ -7098,7 +7097,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                         newattr['_customClass_'+attrname] = 'externalChangedCell';
                                     }
                                  }else if(rowValue instanceof gnr.GnrBag){
-                                     var editedNode = rowValue.getNode(attrname);
+                                     let editedNode = rowValue.getNode(attrname);
                                      if(editedNode){
                                         editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                      }

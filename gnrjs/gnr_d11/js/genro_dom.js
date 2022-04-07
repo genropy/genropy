@@ -1346,6 +1346,78 @@ dojo.declare("gnr.GnrDomHandler", null, {
         return m.join();
     },
 
+
+    microchart : function(data,kw,where,clickcb){
+        const scale = kw.scale || 1;
+        let values = [];
+        for(let d of data){
+            d.value = d.value * scale;
+            values.push(d.value);
+        }
+        const valmin = Math.min(values);
+        const valmax = Math.max(values);
+        let ovf_min = kw.ovf_min? kw.ovf_min * scale: null;
+        let ovf_max = kw.ovf_max? kw.ovf_max * scale: null;
+        if(ovf_min === undefined){
+            ovf_min = Math.min(valmin,-valmax) - 2;
+        }
+        if(ovf_max === undefined){
+            ovf_max = valmax+2;
+        }
+        const tot_height =  ovf_max-ovf_min;
+    
+        const bar_width = kw.bar_width || 10;
+        const bar_margin = kw.bar_margin || 2;
+        const tot_width = (bar_width+bar_margin) * data.length;
+    
+        const min_warning = objectExtract(kw,'min_*');
+        const max_warning = objectExtract(kw,'max_*');
+        let result = [];
+        let curridx = 0;
+        
+        for(let d of data){
+            let v = d.value;
+            let clscontent = 'mc_positive';
+            if(v > ovf_max){
+                clscontent = 'mc_positive mc_ovf';
+                v = ovf_max;
+            }else if(d.value<0){
+                clscontent = 'mc_negative';
+                if(v<ovf_min){
+                    clscontent = 'mc_negative mc_ovf';
+                    v = ovf_min;
+                }
+            }
+            let min_warning_value = null;
+            for(let k in min_warning){
+                if(v<min_warning[k] && (min_warning_value===null || min_warning[k]<min_warning_value)){
+                    clscontent = `${clscontent} ${k}`;
+                    min_warning_value = min_warning[k];
+                }
+            }
+            let max_warning_value = null;
+            for(let k in max_warning){
+                if(v>max_warning[k] && (warning_value===null || min_warning[k]>max_warning_value)){
+                    clscontent = `${clscontent} ${k}`;
+                    max_warning_value = max_warning[k];
+                }
+            }
+            let height = Math.abs(v);
+            let bottom = v>0?0:v;
+            result.push(`<div title="${d.label}" class="mc_bar ${clscontent}" style="position:absolute; left:${curridx}px; width:${bar_width}px; bottom:${bottom}px; height:${height}px;"></div>`);
+            curridx += bar_width+bar_margin;
+        }
+        let tophalf = `<div style="position:absolute;top:0;left:0;right:0;height:${Math.abs(ovf_max)}px;">${result.join("")}</div>`;
+        let bottomhalf = `<div style="position:absolute;bottom:0;left:0;right:0;height:${Math.abs(ovf_min)}px; border-top:1px solid silver;"></div>`;
+        
+        result = `<div class="mc_root" style="position:relative; height:${tot_height}px; width:${tot_width}px;">${tophalf}${bottomhalf}</div>`;
+        if(where){
+            where = this.getDomNode(where);
+            where.innerHTML = result;
+        }
+        return result;
+    },
+
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
         var max_height = kw.max_height || '180px';
@@ -1377,9 +1449,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var item,r, value,v,_customClasses,rowvalidation;
         var tbl = ["<tbody>"];
         var totalizers = {};
-        for (var i = 0; i < nodes.length; i++) {
+        for (item of nodes) {
             r = "";
-            item = nodes[i].attr;
             rowvalidation = ' _is_valid_item="true" ';
             if(item._is_invalid_item){
                 rowvalidation = ' onmouseup="dojo.stopEvent(arguments[0]);" _is_valid_item="false" '

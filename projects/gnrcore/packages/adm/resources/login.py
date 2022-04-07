@@ -56,7 +56,6 @@ class LoginComponent(BaseComponent):
             fb.dataController("""if(user && pwd && avatar_user){
                 FIRE do_login;
             }else{
-                console.log('*** missing something for avatar ***','user',!isNullOrBlank(user),'pwd',!isNullOrBlank(pwd),'avatar_user',!isNullOrBlank(pwd))
                 user = user || tbuser.widget.getValue();
                 pwd = pwd || tbpwd.widget.getValue();
                 PUT _login.user = user;
@@ -100,6 +99,8 @@ class LoginComponent(BaseComponent):
                                     SET gnr.avatar = avatar;
                                 """,sync=True,_POST=True)
             rpcmethod = self.login_doLogin    
+        else:
+            fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
         
         fb.dateTextBox(value='^.workdate',lbl='!!Workdate')
         valid_token = False
