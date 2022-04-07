@@ -673,9 +673,10 @@ class BagToHtml(object):
         sheetTotalizers = filter(lambda t: t, [tot for tot in self.columnsBag.digest('#a.totalize')])
         if captions_kw and sheetTotalizers:
             caption = captions_kw.pop('caption')
-            rowData[self._caption_column] = caption
-            for k,v in captions_kw.items():
-                rowData['%s_%s' %(self._caption_column,k)] = v
+            if self._caption_column:
+                rowData[self._caption_column] = caption
+                for k,v in captions_kw.items():
+                    rowData['%s_%s' %(self._caption_column,k)] = v
         return rowData
 
     def subtotalCaption(self,col_breaker,breaker_value):

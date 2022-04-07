@@ -996,7 +996,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         //if (kw.onResult) sender.upload.addEventListener("load", kw.onResult, false);
         if (kw.onProgress){
             sender.upload.addEventListener("progress", function(evt){evt._sender = sender; kw.onProgress(evt)}, false)
-        };
+        }
         if (kw.onError){
             sender.upload.addEventListener("error", function(evt){
                 evt._sender = sender;
