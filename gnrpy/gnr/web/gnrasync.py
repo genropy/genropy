@@ -47,10 +47,8 @@ from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.core.gnrstring import fromJson
 from tornado import version_info
 
-if version_info[0]>=4 and version_info[1]>=2:
-    from tornado import queues
-else:
-    import toro as queues
+from tornado import queues
+
 
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 3
     
