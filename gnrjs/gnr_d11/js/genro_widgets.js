@@ -3577,6 +3577,25 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
         this._domtag = 'input';
         this._dojotag = 'NumberTextBox';
     },
+
+    /*onBuilding:function(sourceNode){
+        if(!sourceNode.attr.formulaBox){
+            return;
+        }
+        sourceNode.freeze();
+        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let box = cm._('menuItem',{})._('div',{'padding':'5px'});
+        var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px',inMenuLine:true});
+        let formulaValue = `${sourceNode.attr.value}?_formula`;
+        fb.addField('textbox',{value:formulaValue,width:'20em',
+                            lbl:_T('Formula')});
+        sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
+                                         formula:'funcApply(f)',
+                                         f:formulaValue,_if:'f'});
+        sourceNode.unfreeze(true);
+
+    },*/
+
     creating: function(attributes, sourceNode) {
         attributes._class = attributes._class ? attributes._class + ' numberTextBox' : 'numberTextBox';
         var format = objectPop(attributes,'format');

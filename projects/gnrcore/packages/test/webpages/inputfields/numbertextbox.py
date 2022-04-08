@@ -38,6 +38,13 @@ class GnrCustomWebPage(object):
         
         fb.dataRpc('.number',self.testblu,_fired='^.colors')
 
+
+    def test_5_numberTextBox_formula(self, pane):
+        "Decimal with formula"
+        fb=pane.formbuilder(cols=1)
+        fb.numberTextBox(value='^.longdec',lbl='Long decimal',formulaBox=True)
+        fb.div('^.longdec')
+
     @public_method
     def testblu(self):
         a = Bag()
