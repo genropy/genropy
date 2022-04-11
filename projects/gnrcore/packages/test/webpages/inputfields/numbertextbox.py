@@ -39,7 +39,7 @@ class GnrCustomWebPage(object):
         fb.dataRpc('.number',self.testblu,_fired='^.colors')
 
 
-    def test_5_numberTextBox_formula(self, pane):
+    def test_6_numberTextBox_formula(self, pane):
         "Decimal with formula"
         fb=pane.formbuilder(cols=1)
         fb.numberTextBox(value='^.longdec',lbl='Long decimal',formulaBox=True)
@@ -56,3 +56,11 @@ class GnrCustomWebPage(object):
         "With autoselect you can automatically select field content"
         fb = pane.formbuilder(cols=2,datapath='.data')
         fb.numberTextBox('^.number',lbl='Number',format='#.00', _autoselect=True)
+    
+    def test_5_numbertextbox_switch(self,pane):
+        fb = pane.formbuilder(cols=2,datapath='.data')
+        fb.numberTextBox('^.number',lbl='Number',format='#.00',
+                    switch_nettoiva='l$',
+                    switch_nettoiva_action="this.widget.setValue(this.widget.getValue()/1.22)",
+                    switch_formula='^=',
+                    switch_action="genro.bp(true)")
