@@ -46,6 +46,8 @@ class Table(object):
         tbl.column('linked_entity',name_long='!!Linked entity')
         tbl.column('linked_fkey',name_long='!!Linked fkey')
         tbl.column('delay_history',dtype='X',group='*',name_long='!!Delay history',_sendback=True)
+        tbl.column('implementor_data', dtype='X', name_long='Implementor data')
+        tbl.column('implementor_result', dtype='X', name_long='Implementor result')
 
         tbl.aliasColumn('assigned_username','@assigned_user_id.username',name_long='!!Assigned username')
         tbl.aliasColumn('action_type_description','@action_type_id.description',group='*')
