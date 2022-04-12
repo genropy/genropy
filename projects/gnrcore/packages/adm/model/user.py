@@ -73,7 +73,7 @@ class Table(object):
             raise self.exception('business_logic',msg='Missing password')
 
     def trigger_onInserted(self, record=None):
-        if record['group_code']:
+        if record.get('group_code'):
             self.checkExternalTable(record)
 
     def trigger_onUpdated(self,record=None,old_record=None):
