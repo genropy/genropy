@@ -1443,9 +1443,11 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def insertRecord(self,table=None,record=None,**kwargs):
         tblobj = self.db.table(table)
-        tblobj.insert(record)
+        newrecord = tblobj.newrecord()
+        newrecord.update(record)
+        tblobj.insert(newrecord)
         self.db.commit()
-        return record[tblobj.pkey]
+        return newrecord[tblobj.pkey]
 
     @public_method
     def duplicateRecord(self,pkey=None,table=None,**kwargs):
