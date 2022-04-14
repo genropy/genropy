@@ -338,7 +338,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var value = objectPop(item,'value');
             if(item.footerCell && !value){
                 if(cell.totalize){
-                    if(isNumericType(cell.dtype)){
+                    if(isNumericType(cell.dtype) || cell.dtype == 'B'){
                         value = '^'+cell.totalize;
                         item._totalized_value = value;
                         item._filtered_totalized_value = '^.filtered_totalize.'+cell.field;
@@ -3670,7 +3670,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             }else if (this.changeManager){
                 this.changeManager.delFormulaColumn(cellmap[k].field);
             }
-            if(cell.totalize && isNumericType(cell.dtype)){
+            if(cell.totalize && (isNumericType(cell.dtype) || cell.dtype=='B') ){
                 var snode = genro.nodeById(this.sourceNode.attr.store+'_store');
                 var virtualStore = snode.attr.selectionName && snode.attr.row_count;
                 var selectionStore = snode.attr.method == 'app.getSelection';
@@ -3727,6 +3727,10 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         selectedIdx.forEach(function(idx){
             that.onCheckedColumn_one(idx,fieldname,checked,kw,evt);
         });
+        if(kw.totalize && this.changeManager){
+            this.changeManager.updateTotalizer(fieldname);
+            this.changeManager.calculateFilteredTotals();
+        }
     },
 
     mixin_onCheckedColumn_one:function(idx,fieldname,checked,cellkw,evt) {

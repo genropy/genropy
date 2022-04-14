@@ -890,7 +890,9 @@ dojo.declare("gnr.GnrBag", null, {
             for (let values of l) {
                 n = values[0];
                 if (typeof n == 'number') {
-                    result = result + n;
+                    result += n;
+                }else if(typeof n == 'boolean'){
+                    result += n===true?1:0;
                 }
             }
         }
