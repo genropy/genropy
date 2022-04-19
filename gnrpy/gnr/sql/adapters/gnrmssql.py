@@ -23,7 +23,7 @@
 from builtins import range
 import re
 
-import _mssql
+from pymssql import _mssql
 import pymssql
 from pymssql import Connection, Cursor
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
