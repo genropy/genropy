@@ -674,7 +674,7 @@ class GnrNamedList(list):
             return list(self.values())     
 
 
-def getReader(file_path,filetype=None,delimiter=None,**kwargs):
+def getReader(file_path,filetype=None,**kwargs):
     import os.path
     filename,ext = os.path.splitext(file_path)
     if filetype=='excel' or not filetype and ext in ('.xls','.xlsx'):

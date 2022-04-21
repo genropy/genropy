@@ -1204,6 +1204,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         dropAreaKw.rpc_row_tag= '=.row_tag';
 
         objectUpdate(dropAreaKw,objectExtract(kw,'drop_*',false,true));
+        objectUpdate(dropAreaKw,objectExtract(kw,'rpc_*',false,true));
         dropAreaKw.onResult = function(result){
                                 if(result.currentTarget.responseText){
                                     gnrwdg.onImportCheck(new gnr.GnrBag(result.currentTarget.responseText));

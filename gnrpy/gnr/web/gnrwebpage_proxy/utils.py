@@ -237,7 +237,7 @@ class GnrWebUtils(GnrBaseProxy):
             importerStructure = importerStructure or self.page.db.table(table).importerStructure()
             checkCb = checkCb or self.page.db.table(table).importerCheck
         try:
-            reader = self.getReader(file_path,filetype=filetype)
+            reader = self.getReader(file_path,filetype=filetype, **kwargs)
         except Exception as e:
             raise GnrException('Reader error %s' %str(e),messageType='error')
         
