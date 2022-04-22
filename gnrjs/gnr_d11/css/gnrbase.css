@@ -39,7 +39,7 @@ div,span{
     user-select: none;
 }
 
-.selectable, .selectable .div, .selectable .span, .selectable *{
+.selectable, .selectable div, .selectable span, .selectable *{
     -webkit-touch-callout: text !important;
     -webkit-user-select: text !important;
     -khtml-user-select: text !important;
@@ -717,7 +717,12 @@ label.ghostlabel span {
 ._common_d11 .bagEditor .dojoxGrid-cell{
     height:17px;
 }
-
+.pasteOnGrid .dojoxGrid-cell{
+    caret-color: rgb(146, 140, 140);
+}
+.pasteOnGrid{
+    caret-color: transparent;
+}
 /* @end */
 
 /* @group palette */
@@ -1877,6 +1882,11 @@ div.dojoxDock {
     white-space: pre;
 }
 
+
+.plainTextChunk{
+    white-space: pre;
+    font-family: 'Courier New', Courier, monospace;
+}
 /* @end */
 
 /*@group template*/
@@ -3728,7 +3738,6 @@ img.cannotBeDropped {
 }
 
 
-
 .dojoxGrid-header .canBeDropped {
     background: #8fff9d !important;
 }
@@ -4835,9 +4844,6 @@ div[disabled='true'], div[disabled='disabled']{
     margin-left: 22px;
 }
 
-.tundra .treegridcheckbox .treegrid .dijitTreeIcon{
-    margin-left: -16px;
-}
 
 /*
 
@@ -5028,6 +5034,9 @@ div[disabled='true'], div[disabled='disabled']{
     background: url(icons/base12/smallpopup.gif) no-repeat right;
 }
 
+.menudiv_text.menudiv_text_white{
+    color:white;
+}
 ._common_d11__ .dijitMenu {
     border: 1px solid gray;
     background-color: whitesmoke;
@@ -5070,8 +5079,9 @@ div[disabled='true'], div[disabled='disabled']{
     margin-left: -1px;
 }
 
-._common_d11 .dojoxGrid.focusedGrid{
-    /*todo*/
+
+._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
+    background: rgba(58, 84, 186, 0.05);
 }
 
 ._common_d11 .dojoxGrid-scrollbox {
@@ -5852,4 +5862,23 @@ div[disabled='true'], div[disabled='disabled']{
     flex-direction: column;
     text-align: center;
     align-items: center;
+}
+
+.mc_bar{
+    z-index: 10;
+}
+
+.mc_positive{
+    background:lightgreen;
+}
+.mc_negative{
+    background: red;
+}
+
+.mc_positive.mc_ovf{
+    background: green;
+}
+
+.mc_negative.mc_ovf{
+    background: darkred;
 }
