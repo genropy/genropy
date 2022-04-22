@@ -1009,7 +1009,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     gnrNS = ['DbSelect','CallBackSelect','RemoteSelect','PackageSelect','TableSelect', 'DbComboBox', 'DbView', 'DbForm', 'DbQuery', 'DbField',
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
-             'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
+             'staticGrid','ExtendedCkeditor', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
              'tinyMCE', 'protovis','codemirror','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
