@@ -65,7 +65,7 @@ class Table(object):
             return False
         if host:
             pass
-        if record['expiry'] and record['expiry'] >= dt.now(pytz.utc):
+        if record['expiry'] and record['expiry'] < dt.now(pytz.utc):
             return False
         if record['max_usages']:
             uses = self.db.table('sys.external_token_use').query(where='external_token_id =:cid',
