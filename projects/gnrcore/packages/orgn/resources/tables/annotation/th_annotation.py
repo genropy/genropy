@@ -201,16 +201,34 @@ class ActionOutcomeForm(BaseComponent):
         centerframe = bc.framePane(region='center',border_top='1px solid silver')
         centerframe.top.slotToolbar('*,stackButtons,*')
         sc = centerframe.center.stackContainer(selectedPage='^#FORM.record.exit_status')
-        sc.contentPane(title='!!More info',pageName='more_info').dynamicFieldsPane('action_fields',margin='2px')
+        self.orgnActionExecution(sc.borderContainer(title='!!More info',pageName='more_info'))
+        
+        
         self.orgnActionConfirmed(sc.contentPane(title='!!Confirm',pageName='action_confirmed'))
         self.orgnActionCancelled(sc.contentPane(title='!!Cancel',pageName='action_cancelled'))
         self.orgnActionDelay(sc.contentPane(title='!!Delay',pageName='action_delay'))
         self.orgnActionRescheduled(sc.contentPane(title='!!Reschedule',pageName='action_rescheduled'))
 
+    def orgnActionExecution(self,bc):
+        bc.roundedGroupFrame(title='More info',region='left',width='50%').dynamicFieldsPane('action_fields',margin='2px')
+        bc.contentPane(region='center').remote(self.orgnImplementorPanel,
+                                                implementor='^#FORM.record.@action_type_id.implementor',
+                                                action_id='=#FORM.record.id',
+                                                _if='implementor')
+        
+
+    @public_method
+    def orgnImplementorPanel(self,pane,implementor=None,action_id=None,**kwargs):
+        action_type_tbl = self.db.table('orgn.action_type')
+        handler = getattr(action_type_tbl,'{implementor}_pane'.format(implementor=implementor),None)
+        if handler:
+            handler(pane,action_id=action_id)
+    
+
     def orgnActionConfirmed(self,pane):
         fb = pane.div(margin='10px',margin_right='20px').formbuilder(cols=2,border_spacing='3px',
                             width='100%',colswidth='auto',datapath='.record',fld_width='100%')
-        fb.field('description',lbl='!!Action result',width='100%',tag='simpleTextArea',colspan=2)
+        fb.field('description',lbl='!!Action result',width='100%',height='150px',tag='simpleTextArea',colspan=2)
 
         fb.dbSelect(value='^.outcome_id',hidden='^.@action_type_id.@outcomes?=(!#v || #v.len()===0)',
                     dbtable='orgn.action_outcome',hasDownArrow=True,condition='$action_type_id=:aid',
@@ -381,7 +399,7 @@ class Form(BaseComponent):
                         viewResource='orgn_components:ViewActionComponent',
                         view_structCb=following_actions_struct,searchOn=False,
                         nodeId='orgn_action_#',default_rec_type='AC',default_priority='L',
-                        **dict([('default_%s' %k,v) for k,v in sub_action_default_kwargs.items()]))
+                        **dict([('default_%s' %k,v) for k,v in list(sub_action_default_kwargs.items())]))
         rpc = bc.dataRpc('dummy',self.orgn_getDefaultActionsRows,annotation_type_id='^#FORM.record.annotation_type_id',
                         _if='annotation_type_id&&_is_newrecord',_is_newrecord='=#FORM.controller.is_newrecord',**sub_action_default_kwargs)
         rpc.addCallback("""if(result){

@@ -18,6 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from builtins import object
 class AppPref(object):
     def permission_orgn(self, **kwargs):
         return 'admin'
@@ -28,3 +29,6 @@ class AppPref(object):
         fb.checkbox(value='^.organizer_enabled',label='!!Organizer enabled')
         fb.textbox(value='^.orgn_superuser_tag',lbl='!!Superuser tag',attr_dbenv=True)
         fb.checkbox(value='^.orgn_author_only',label='!!Upd author only',attr_dbenv=True)
+        fb.dbSelect(value='^.sms_service',lbl='Sms service',dbtable='sys.service',
+                    condition='$service_type=:st',condition_st='sms',caption_field='service_name',
+                    alternatePkey='service_name')

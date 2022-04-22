@@ -14,10 +14,10 @@ class Package(GnrDboPackage):
             return 'organizer','frameplugin_organizer'
 
     def onBuildingDbobj(self):
+        config_entities = self.db.application.packages['orgn'].content['entities']
         for tbl in ('annotation','cal_event'):
             tbl_mixins = self.db.model.mixins['tbl.orgn.{tblname}'.format(tblname=tbl)]
             tbl_src = self.db.model.src['packages.orgn.tables.{tblname}'.format(tblname=tbl)]
-            config_entities = self.db.application.packages['orgn'].content['entities']
             for m in [k for k in dir(tbl_mixins) if k.startswith('orgn_')]:
                 pars = getattr(tbl_mixins,m)()
                 pars['code'] = m[5:]
@@ -35,24 +35,24 @@ class Package(GnrDboPackage):
         tblattrs = tblsrc.attributes
         pkey = tblattrs.get('pkey')
         pkeycolAttrs = tblsrc.column(pkey).getAttr()
-        rel = '%s.%s.%s' % (pkg,tblname, pkey)
-        fkey = 'le_%s_%s' %(tblname,pkey)
+        rel = '{pkg}.{tblname}.{pkey}'.format(pkg=pkg,tblname=tblname,pkey=pkey)
+        fkey = 'le_{tblname}_{pkey}'.format(tblname=tblname,pkey=pkey)
         curr_columns = src['columns']
         caption = caption or tblattrs['name_long']
+        entity = '{code}:{caption}'.format(code=code,caption=caption)
         if caption.startswith('!!'):
-            caption = '[%s]' %caption
-        entity = '%s:%s' %(code,caption)
-        linked_attrs = dict([('linked_%s' %k,v) for k,v in kwargs.items()])
+            caption = '[{caption}]'.format(caption=caption)
+        linked_attrs = {'linked_{k}'.format(k=k) :v for k,v in kwargs.items() if v is not None}
         if fkey in curr_columns:
             colsrc = src['columns'][fkey]
             related_column = colsrc.getAttr('relation')['related_column']
             rpkg,rtbl,rpkey = related_column.split('.')
-            if '%s.%s' %(rpkg,rtbl)==tbl:
+            if '{rpkg}.{rtbl}'.format(rpkg=rpkg,rtbl=rtbl) == tbl:
                 colattr = colsrc.attributes
-                entity = colattr['linked_entity'].split(',')
-                entity.append(entity)
-                colattr['linked_entity'] = ','.join(entity)
-                colattr.update(**kwargs)#da fare
+                linked_entities = colattr['linked_entity'].split(',')
+                linked_entities.append(entity)
+                colattr['linked_entity'] = ','.join(linked_entities)
+                colattr.update(**kwargs)
                 return
             else:
                 fkey = 'le_{}'.format(tbl.replace('.','_'))

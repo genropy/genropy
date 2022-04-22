@@ -1,4 +1,7 @@
 # encoding: utf-8
+from __future__ import division
+from builtins import object
+from past.utils import old_div
 import datetime
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import public_method,metadata
@@ -43,6 +46,8 @@ class Table(object):
         tbl.column('linked_entity',name_long='!!Linked entity')
         tbl.column('linked_fkey',name_long='!!Linked fkey')
         tbl.column('delay_history',dtype='X',group='*',name_long='!!Delay history',_sendback=True)
+        tbl.column('implementor_data', dtype='X', name_long='Implementor data')
+        tbl.column('implementor_result', dtype='X', name_long='Implementor result')
 
         tbl.aliasColumn('assigned_username','@assigned_user_id.username',name_long='!!Assigned username')
         tbl.aliasColumn('action_type_description','@action_type_id.description',group='*')
@@ -99,7 +104,6 @@ class Table(object):
         tbl.pyColumn('template_cell',dtype='A',group='_',py_method='templateColumn', template_name='action_tpl',template_localized=True)
 
 
-
     def pyColumn_calc_description(self,record=None,field=None):
         if record.get('rec_type') == 'AN':
             if not record['done_ts']:
@@ -124,23 +128,23 @@ class Table(object):
             due_ts = datetime.datetime(date_due.year,date_due.month,date_due.day)
 
         td = due_ts-datetime.datetime.now()
-        tdh = int(td.total_seconds()/3600)
+        tdh = int(old_div(td.total_seconds(),3600))
         result = None
         if tdh<0:
             tdh = -tdh
             if tdh >48:
-                result = self.expired_tpl_short() %dict(days=int(tdh/24))
+                result = self.expired_tpl_short() %dict(days=int(old_div(tdh,24)))
             else:
-                result = self.expired_tpl_long() %dict(days=int(tdh/24),hours=tdh%24)
+                result = self.expired_tpl_long() %dict(days=int(old_div(tdh,24)),hours=tdh%24)
         else:
             if tdh >48:
-                result = self.due_tpl_short() %dict(days=int(tdh/24))
+                result = self.due_tpl_short() %dict(days=int(old_div(tdh,24)))
             else:
-                result = self.due_tpl_long() %dict(days=int(tdh/24),hours=tdh%24)
+                result = self.due_tpl_long() %dict(days=int(old_div(tdh,24)),hours=tdh%24)
         return result
 
     def pyColumn_zoomlink(self,record=None,field=None):
-        for colname,colobj in self.columns.items():
+        for colname,colobj in list(self.columns.items()):
             if colname.startswith('le_') and colobj.relatedTable().fullname == record['linked_table']:
                 attr = colobj.attributes
                 entity = record['linked_entity'] 
@@ -176,7 +180,7 @@ class Table(object):
         desc_fields = []
         pivot_dates = []
         assigments_restrictions = ["$_assignment_base"]
-        for colname,colobj in self.columns.items():
+        for colname,colobj in list(self.columns.items()):
             if colname.startswith('_assignment'):
                 assigments_restrictions.append(colname)
             elif colname.startswith('le_'):
@@ -208,7 +212,7 @@ class Table(object):
 
 
     def relatedEntityInfo(self,record):
-        for colname,colobj in self.columns.items():
+        for colname,colobj in list(self.columns.items()):
             related_table = colobj.relatedTable()
             if colname.startswith('le_') and record.get(colname):
                 return related_table.fullname,(record.get('linked_entity') or self.linkedEntityName(related_table)),record[colname]
@@ -263,9 +267,16 @@ class Table(object):
         if self.fieldsChanged('annotation_date,annotation_time',record_data,old_record):
             self.setAnnotationTs(record_data)
 
+
+    def recordLinkedEntity(self,record):
+        for colname,colobj in list(self.columns.items()):
+            fkey_value = record[colname]
+            if colobj.attributes.get('linked_entity') and fkey_value is not None:
+                return colname,fkey_value
+
     def getLinkedEntities(self):
         result = []
-        for colname,colobj in self.columns.items():
+        for colname,colobj in list(self.columns.items()):
             if colobj.attributes.get('linked_entity'):
                 result.extend(colobj.attributes['linked_entity'].split(','))
         return ','.join(result)
@@ -290,7 +301,7 @@ class Table(object):
             return tblobj.name
 
     def getPivotDateFromDefaults(self,action_defaults):
-        fkey_field = [k for k,v in action_defaults.items() if k.startswith('le_') if v]
+        fkey_field = [k for k,v in list(action_defaults.items()) if k.startswith('le_') if v]
         if fkey_field:
             fkey_field = fkey_field[0] if fkey_field else None
             related_table = self.column(fkey_field).relatedTable()
@@ -325,3 +336,10 @@ class Table(object):
             return '!!New annotation'
         else:
             return '!!New action'
+
+
+    def entityLinker(self,tbl=None,zoomMode=None,zoomUrl=None,
+                    formResource=None,pivot_date=None,**kwargs):
+        return dict(tbl=tbl,zoomMode=zoomMode,zoomUrl=zoomUrl,
+                        formResource=formResource,pivot_date=pivot_date,
+                        **kwargs)
