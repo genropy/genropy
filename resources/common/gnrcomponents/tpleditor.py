@@ -200,7 +200,7 @@ class TemplateEditorBase(BaseComponent):
                 bodycontent = '\n'.join([HT.tostring(el).decode() for el in body.getchildren()])
                 cmain = TEMPLATEROW.sub(lambda m: '\n%s\n'%m.group(1),bodycontent.replace('%24','$'))
         if content_css:
-            cmain =f'<style>{content_css}</style>{cmain}'
+            cmain ='<style>{content_css}</style>{cmain}'.format(content_css=content_css,cmain=cmain)
         compiled.setItem('main', cmain,
                             maintable=table,locale=self.locale,virtual_columns=','.join(virtual_columns),
                             columns=','.join(columns),formats=formats,masks=masks,editcols=editcols,df_templates=df_templates,dtypes=dtypes)
