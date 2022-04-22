@@ -863,7 +863,7 @@ dojo.declare("gnr.GridEditor", null, {
         //this.widgetRootNode.attr.datapath = sourceNode.absDatapath(sourceNode.attr.storepath);
         var _this = this;
         if(genro.isMobile){
-            sourceNode.subscribe('doubletap',function(info){
+            sourceNode.subscribe('press',function(info){
                 var e = info.event;
                 if (_this.enabled() && _this.editableCell(e.cellIndex,e.rowIndex,true) && !grid.gnrediting) {
                     _this.startEdit(e.rowIndex, e.cellIndex,e.dispatch);
@@ -1409,10 +1409,14 @@ dojo.declare("gnr.GridEditor", null, {
                     }
                 });
                 var that = this;
-                this.callRemoteControllerBatch(rows,kw).addCallback(function(result){
-                    that._pendingRemoteController = null;
-                    that.grid.sourceNode.publish('remoteRowControllerDone',{result:result});
-                });
+                let deferred = this.callRemoteControllerBatch(rows,kw);
+                if (deferred){
+                    deferred.addCallback(function(result){
+                        that._pendingRemoteController = null;
+                        that.grid.sourceNode.publish('remoteRowControllerDone',{result:result});
+                    });
+                }
+                
             },1,this,'callRemoteControllerBatch_'+this.grid.sourceNode._id);
             return;
         }
@@ -1538,7 +1542,10 @@ dojo.declare("gnr.GridEditor", null, {
         var fldDict = this.columns[colname];
         var gridcell = fldDict.attr.gridcell || colname;
         var rowDataNode = grid.dataNodeByIndex(row);
-        if(rowDataNode && rowDataNode.attr._is_readonly_row){
+
+        let celledit = cell.edit;
+        let _ignore_readonly_row= celledit && celledit._ignore_readonly_row===true;
+        if(rowDataNode && rowDataNode.attr._is_readonly_row && !_ignore_readonly_row){
             return;
         }
         var datachanged = false;
@@ -1809,7 +1816,9 @@ dojo.declare("gnr.GridEditor", null, {
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);
-        if(rowdict._is_readonly_row){
+        let celledit = cell.edit;
+        let _ignore_readonly_row= celledit && celledit._ignore_readonly_row===true;
+        if(rowdict._is_readonly_row && !_ignore_readonly_row){
             return false;
         }
         if(gridSourceNode.currentFromDatasource(cell.editDisabled)){
@@ -1817,7 +1826,7 @@ dojo.declare("gnr.GridEditor", null, {
         }else if(clicked){
             return true;
         }else if(gridSourceNode.currentFromDatasource(cell.editLazy)){
-            var editpars = cell.edit==true?{}:gridSourceNode.evaluateOnNode(cell.edit);
+            var editpars = cell.edit===true?{}:gridSourceNode.evaluateOnNode(cell.edit);
             return (editpars.validate_notnull && this.grid.rowByIndex(row)[cell.field]===null);
         }else{
             return true;

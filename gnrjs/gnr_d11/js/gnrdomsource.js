@@ -696,7 +696,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
        //var handler = function(evt){
        //    funcApply(h, objectUpdate({evt:evt},that.currentAttributes()),that,['evt'],[evt]);
        //}        
-        if (target.domNode) {/* connect to a widget*/
+        
+       if (target.domNode) {/* connect to a widget*/
             if (eventname in target) {
                 dojo.connect(target, eventname, handler);
             } else {

@@ -1185,6 +1185,9 @@ var gnrformatter = {
             format = '<div class="greenLight"></div>,<div class="redLight"></div>,<div class="grayLight"></div>'
         }
         var format = format || 'true,false';
+        if(format=='semaphore'){
+            format = '<div class="greenLight">&nbsp;</div>,<div class="redLight">&nbsp;</div>,<div class="grayLight">&nbsp;</div>'
+        }
         format = format.split(',');
         return (value === null && format.length==3)?format[2]:(value?format[0]:format[1]);
     },
@@ -1882,6 +1885,18 @@ function combineDateAndTime(date, time) {
     return combined;
 }
 
+function splitDateAndTime(dt){
+    let year = dt.getFullYear();
+    let month = dt.getMonth();
+    let day = dt.getDate();
+
+    let date = new Date(year,month,day);
+    date._gnrdtype = 'D';
+    let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
+    time._gnrdtype = 'H'
+    return {_date:date,_time:time};
+}
+
 function localeParser(/*String*/value, /*Object?*/options) {
     // summary:
     //      Convert a properly formatted string to a primitive Date object,
@@ -2111,6 +2126,9 @@ function getRandomColor() {
 }
 
 function flattenString(str,forbidden,replacer){
+    if(forbidden===true){
+        return str.replace(/[^\w\s]/gi, ' ').trim().replaceAll(' ','_').toLowerCase();
+    }
     replacer = replacer || '_';
     forbidden = forbidden || ['.'];
     var result = str;
@@ -2121,6 +2139,7 @@ function flattenString(str,forbidden,replacer){
     });
     return result;
 }
+
 
 function canAccessIFrame(iframe) {
     var html = null;

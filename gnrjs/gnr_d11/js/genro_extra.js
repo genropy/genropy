@@ -265,6 +265,8 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                 sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
             },sourceNode.attr._delay || 500,'updatingContent')
         })
+        let startValue = sourceNode.getAttributeFromDatasource('value');
+        cm.setValue(startValue || '');
     },
 
 
@@ -747,8 +749,8 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
                    ['Styles','Format','Font','FontSize'],
                    ['TextColor','BGColor'],['Maximize', 'ShowBlocks']
                    ]
-
     },
+    
     creating: function(attributes, sourceNode) {
 
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
@@ -785,10 +787,10 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             config.toolbar = 'custom';
             config.toolbar_custom = toolbar;
         }
-        ;
         var savedAttrs = {'config':config,showtoolbar:showtoolbar,enterMode:objectPop(attributes,'enterMode'),bodyStyle:objectPop(attributes,'bodyStyle',{margin:'2px'})};
         savedAttrs.customStyles = customStyles;
         savedAttrs.contentsCss = contentsCss;
+        savedAttrs.contentStyles = objectPop(attributes,'contentStyles');
         savedAttrs.constrainAttr = objectExtract(attributes,'constrain_*')
         return savedAttrs;
 
@@ -842,6 +844,27 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     mixin_gnr_constrain_width:function(width,kw, trigger_reason){
          this.document.getBody()['$'].style.width = width;
     }, 
+
+    mixin_gnr_contentStyles:function(){
+        var that = this;
+        this.sourceNode.watch('hasDocument',function(){
+            return that.document;
+        },function(){
+            var contentStyles = that.sourceNode.getAttributeFromDatasource('contentStyles') || '';
+            let head = that.document.getHead()['$'];
+            let innerID = that.sourceNode._id;
+            let styleID = `${innerID}_ckedit_stylenode`;
+            let innerdocument = that.document['$'];
+            let styleNode = innerdocument.getElementById(styleID);
+            if (!styleNode){
+                styleNode = innerdocument.createElement('style');
+                styleNode.setAttribute('id',styleID);
+                head.appendChild(styleNode);
+            }
+            styleNode.innerText = contentStyles
+        });
+    },
+
     mixin_gnr_assignConstrain:function(){
         var that = this;
         this.sourceNode.watch('hasDocument',function(){
@@ -853,8 +876,6 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             b.style.cssText = objectAsStyle(objectUpdate(objectFromStyle(b.style.cssText),
                                                 genro.dom.getStyleDict(constrainAttr)));  
         });
-            
-
     },
 
     makeEditor:function(widget, savedAttrs, sourceNode){
@@ -922,6 +943,8 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         ckeditor.on('instanceReady', function(ev){
             var editor = ev.editor;
             editor.gnr_assignConstrain();
+            editor.gnr_contentStyles();
+
             var dropHandler = function( evt ) {
                 setTimeout(function(){ckeditor.gnr_setInDatastore();},1);
             };
@@ -1065,6 +1088,9 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
 
     mixin_gnr_setInDatastore : function() {
         var value=this.getData();
+        if(this.sourceNode.form && this.sourceNode.form.isDisabled()){
+            return;
+        }
         if(this.sourceNode.getAttributeFromDatasource('value')!=value){
             this.sourceNode.setAttributeInDatasource('value',value );
         }
