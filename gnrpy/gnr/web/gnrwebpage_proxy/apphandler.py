@@ -807,7 +807,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             debug = 'fromDb'
             if savedQuery:            
                 userobject_tbl = self.db.table('adm.userobject')
-                where = userobject_tbl.loadUserObject(code=savedQuery, 
+                where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery, 
                                 objtype='query', tbl=tblobj.fullname)[0]
                 if where['where']:
                     limit = where['queryLimit']
@@ -816,7 +816,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                     where = where['where']
             if savedView:
                 userobject_tbl = self.db.table('adm.userobject')
-                columns = userobject_tbl.loadUserObject(code=savedView, objtype='view', tbl=tblobj.fullname)[0]
+                columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView, objtype='view', tbl=tblobj.fullname)[0]
             if selectmethod:
                 selecthandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
