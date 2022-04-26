@@ -137,7 +137,7 @@ dojo.declare("gnr.GnrBagNode", null, {
         var fullpath = '';
         var parentbag = this.getParentBag();
         if (parentbag) {
-            fullpath = parentbag.getFullpath(mode, root);
+            fullpath = parentbag.getFullpath(mode, root);            
             if (mode == '#' || mode == '##') {
                 segment = parentbag.getNodes().indexOf(this);
                 if (mode == '##') {
@@ -145,6 +145,9 @@ dojo.declare("gnr.GnrBagNode", null, {
                 }
             } else {
                 segment = this.label;
+                if(parentbag.getNode(segment)!==this){
+                    segment = '#'+parentbag.getNodes().indexOf(this);
+                }
             }
             if (fullpath) {
                 fullpath = fullpath + '.' + segment;
@@ -875,16 +878,21 @@ dojo.declare("gnr.GnrBag", null, {
         }
     },
 
-    sum: function(path) {
+    sum: function(path,strictmode) {
         var result = 0;
         var n;
         path = path || '#v';
         if (path) {
             var l = this.digest(path);
-            for (var i = 0; i < l.length; i++) {
-                n = l[i][0];
+            if(strictmode && l.some(values=>isNullOrBlank(values[0]))){
+                return;
+            }
+            for (let values of l) {
+                n = values[0];
                 if (typeof n == 'number') {
-                    result = result + n;
+                    result += n;
+                }else if(typeof n == 'boolean'){
+                    result += n===true?1:0;
                 }
             }
         }
@@ -2019,8 +2027,7 @@ dojo.declare("gnr.GnrBag", null, {
         if (root.nodeType == 9) {
             root = root.lastChild;
         }
-        for (var i = 0; i < root.childNodes.length; i++) {
-            node = root.childNodes[i];
+        for (node of root.childNodes) {
             convertAs = 'T';
             if (node.nodeType == 1) {
                 var tagName = node.tagName || node.nodeName;
@@ -2047,10 +2054,10 @@ dojo.declare("gnr.GnrBag", null, {
                         convertAs = node.attributes[j].value;
                     }
                     else {
-                        if (attrvalue.indexOf('::') >= 0) {
+                        if (attrvalue.includes('::')) {
                             attrvalue = convertFromText(attrvalue);
                         }
-                        attributes[attrname] = attrvalue;
+                        attributes[attrname] = mapConvertFromText(attrvalue);
                     }
                 }
                 var newcls = objectPop(attributes, '__cls');
@@ -2066,7 +2073,6 @@ dojo.declare("gnr.GnrBag", null, {
                         textContent = textContent + childnode.nodeValue;
                     }
                 }
-
                 if (istxtnode && convertAs!='BAG') {
                     var itemValue = textContent;
                     if (convertAs != 'T') {
@@ -2079,11 +2085,12 @@ dojo.declare("gnr.GnrBag", null, {
                     }
                     if (resolverPars != null) {
                         resolverPars = genro.evaluate(resolverPars);
-                        var cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
                         resolverPars['cacheTime'] = 0;
                         //resolverPars = dojo.toJson(resolverPars);
                         itemValue = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
                     } else if (js_resolver) {
+                        
                         itemValue = genro.getRelationResolver(attributes, js_resolver, this); // genro['remote_'+js_resolver].call(genro, this, tagName, attributes);
                     }
                     this.addItem(tagName, itemValue, attributes);
@@ -2103,6 +2110,15 @@ dojo.declare("gnr.GnrBag", null, {
                     var newBagNode = this.addItem(tagName, newBag, attributes);
                     if(js_resolver){
                         var resolver = genro.getRelationResolver(attributes, js_resolver, this);
+                        newBagNode.setResolver(resolver);
+                        newBagNode._status = 'loaded';
+                        resolver.lastUpdate = new Date();
+                        objectUpdate(newBagNode.attr,js_resolvedInfo);
+                    }else if(resolverPars){
+                        resolverPars = genro.evaluate(resolverPars);
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        resolverPars['cacheTime'] = 0;
+                        let resolver = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
                         newBagNode.setResolver(resolver);
                         newBagNode._status = 'loaded';
                         resolver.lastUpdate = new Date();
@@ -2177,7 +2193,7 @@ dojo.declare("gnr.GnrBag", null, {
     },
     setCallBackItem: function(path, callback, parameters, kwargs) {
         if (!kwargs) {
-            var kwargs = {};
+            kwargs = {};
         }
         kwargs.method = callback;
         kwargs.parameters = parameters;
@@ -2528,10 +2544,11 @@ dojo.declare("gnr.GnrBagGetter", gnr.GnrBagResolver, {
 //*******************BagCbResolver****************************
 
 dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
-    constructor: function(kwargs,isGetter) {
+    constructor: function(kwargs,isGetter,cacheTime) {
         this.method = kwargs.method;
         this.parameters = kwargs.parameters;
         this.isGetter = isGetter;
+        this.cacheTime = cacheTime || 0;
     },
 
     load: function(kwargs) {

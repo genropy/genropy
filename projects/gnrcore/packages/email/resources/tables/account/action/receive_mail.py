@@ -19,9 +19,9 @@ class Main(BaseResourceAction):
         tblmessage = self.db.table('email.message')
         for r in selection.output('pkeylist'):
             try:
-                tblmessage.receive_imap(account=r)
-            except:
-                print('ERROR IN RECEIVING IMAP receive_email batch')
-    
+                tblmessage.receive_imap(account=r)  
+            except Exception as e:
+                print('ERROR IN RECEIVING IMAP receive_email batch', str(e))
+
     def table_script_parameters_pane(self, pane, **kwargs):
         pass

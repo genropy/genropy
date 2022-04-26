@@ -17,7 +17,6 @@ class ProjectConverter(object):
         for prpath in self.projects_paths:
             for prjname,prgval in DirectoryResolver(os.path.expanduser(prpath))().items():
                 if not self.projects or prjname in self.projects:
-                    print 'converting project',prjname
                     self.convertProjectOne(prjname,prgval)
     
     def relpath(self,path):

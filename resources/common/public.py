@@ -67,7 +67,7 @@ class PublicBase(BaseComponent):
                      top_kwargs=None,bottom_kwargs=None,center_class=None,bottom=True,**kwargs):
         frame = rootbc.framePane(frameCode='publicRoot',region='center', center_class=center_class or 'pbl_root_center',**kwargs)
         frame.data('_clientCtx.mainBC.left?show', self.pageOptions.get('openMenu', True))
-        frame.dataController("SET gnr.windowTitle=gnr_public_title[0];",subscribe_gnr_public_title=True)
+        #frame.dataController("SET gnr.windowTitle=gnr_public_title[0];",subscribe_gnr_public_title=True)
         self.public_frameTopBar(frame.top,title=title,**top_kwargs)
         self.root_publicframe = frame
         self.public_applyOnRoot(frame)
@@ -81,7 +81,11 @@ class PublicBase(BaseComponent):
     @customizable
     def public_frameTopBar(self,pane,slots=None,title=None,**kwargs):
         pane.attributes.update(dict(_class='pbl_root_top'))
-        baseslots = '15,captionslot,*,dock,avatar,countErrors'
+        baseslots = 'left_placeholder,15,captionslot,*,dock,avatar,countErrors,right_placeholder'
+
+        if self._call_kwargs.get('branchIdentifier'):
+            baseslots = baseslots.replace('captionslot','captionslot,pageBranchSelector')
+
         #if self.isMobile:
         #    baseslots = '15,captionslot,10,testmobile,*,dock,avatar,countErrors'
         kwargs['margin_top'] ='2px'
@@ -204,7 +208,7 @@ class PublicSlots(BaseComponent):
                     _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();',padding_right='3px',padding_left='3px',margin_top='3px')
 
     @struct_method
-    def public_publicRoot_partition_selector(self,pane, **kwargs): 
+    def public_publicRoot_partition_selector(self,pane, **kwargs):
         box = pane.div(margin_top='2px') 
         self.public_partitioned = self.tblobj.partitionParameters if self.public_partitioned is True else self.public_partitioned
         kw = self.public_partitioned
@@ -212,11 +216,15 @@ class PublicSlots(BaseComponent):
         partition_path = kw['path']
         table = kw['table']
         related_tblobj = self.db.table(table)
-        default_partition_value = self.rootenv[partition_path]
+        default_partition_value = self.db.currentEnv.get('current_{}'.format(partition_path)) or self.rootenv[partition_path]
         fb = box.formbuilder(cols=1,border_spacing='0')
-        if hasattr(related_tblobj,'partitionioning_pkeys'):
-            #to avoid this query use login onUserSelected instead of use partitionioning_pkeys
-            allowedPartitionPkeys =  related_tblobj.partitionioning_pkeys()
+        partition_pkeys_method = None
+        for hn in ['partitioning_pkeys','partitionioning_pkeys']: #partitionioning_pkeys is deprecated #retrocompatibility
+            if hasattr(related_tblobj, hn):
+                partition_pkeys_method = getattr(related_tblobj, hn)
+                break
+        if partition_pkeys_method:
+            allowedPartitionPkeys = partition_pkeys_method()
             self.pageStore().setItem('rootenv.allowed_%s' %partition_field, allowedPartitionPkeys or [],dbenv=True)
             if not allowedPartitionPkeys and default_partition_value:
                 allowedPartitionPkeys = [default_partition_value]
@@ -338,8 +346,12 @@ class TableHandlerMain(BaseComponent):
     def th_options(self):
         return dict()
 
-    def main(self,root,**kwargs):
-        root.rootTableHandler(**kwargs)
+
+    def main(self,root,single_record=False,**kwargs):
+        if not single_record:
+            root.rootTableHandler(**kwargs)
+        else:
+            self.main_form(root,single_record=single_record,**kwargs)
 
     @extract_kwargs(th=True,current=True)
     @struct_method
@@ -661,13 +673,14 @@ class TableHandlerMain(BaseComponent):
                                     }
                                }
                                """,
+                            subscribe_changedStartArgs=True,
                             subscribe_main_form_open=True)
 
     @public_method                     
-    def main_form(self, root,**kwargs):
+    def main_form(self, root,pkey=None,th_pkey=None,**kwargs):
         """ALTERNATIVE MAIN CALL"""
         callArgs =  self.getCallArgs('th_pkg','th_table','th_pkey') 
-        pkey = callArgs.pop('th_pkey',None)
+        pkey = pkey or th_pkey or callArgs.pop('th_pkey',None)
         formCb = self.th_form if hasattr(self,'th_form') else None
         form = self._th_prepareForm(root,formCb=formCb,pkey=pkey,**kwargs)
         self.root_form = form
@@ -680,6 +693,7 @@ class TableHandlerMain(BaseComponent):
         pane.div('^gnr.publicTitle', _class='pbl_title_caption selectable',
                    # draggable=True,onDrag='dragValues["webpage"] = genro.page_id; dragValues["dbrecords"] = objectUpdate({},genro.getDataNode("gnr.publicTitle").attr);',
                     childname='captionbox',**kwargs)
+        
 
     def public_frameTopBarSlots(self,baseslot):
         baseslot = baseslot.replace('avatar','tablelimiter,10,avatar')

@@ -14,8 +14,8 @@ class Table(object):
         tbl.column('user_group',size=':15',name_long='!!Group').relation('group.code',relation_name='custom_info',mode='foreignkey')
         tbl.column('username',size=':32' ,group='_',name_long='!!User').relation('user.username',relation_name='custom_info',
                                                                               onDelete='cascade')
-        tbl.column('pkgid' ,size=':30',name_long='!!Pkg').relation('pkginfo.pkgid',relation_name='rules',mode='foreignkey')
-        tbl.column('tblid' ,size=':30',name_long='!!Tbl').relation('tblinfo.tblid',relation_name='rules',mode='foreignkey')
+        tbl.column('pkgid' ,size=':50',name_long='!!Pkg').relation('pkginfo.pkgid',relation_name='rules',mode='foreignkey')
+        tbl.column('tblid' ,size=':50',name_long='!!Tbl').relation('tblinfo.tblid',relation_name='rules',mode='foreignkey')
         
         tbl.column('data',dtype='X',name_long='!!Data',_sendback=True) #configuration data (tbl_permission,qtree,ftree,forbidden_cols,readonly_cols)
         
@@ -60,11 +60,11 @@ class Table(object):
 
     @metadata(order=1,title="!!Quick Fields Tree",default=1)
     def type_QTREE(self):
-        return '_NO_:No,0:Easy,1:Avarage,2:Expert,_RAW_:Raw'
+        return '_NO_:No,0:Easy,1:Average,2:Expert,_RAW_:Raw'
 
     @metadata(order=2,title="!!Full Fields Tree",default=1)
     def type_FTREE(self):
-        return '_NO_:No,0:Easy,1:Avarage,2:Expert,_RAW_:Raw'
+        return '_NO_:No,0:Easy,1:Average,2:Expert,_RAW_:Raw'
 
 
     def getTypeList(self,type):
@@ -77,19 +77,25 @@ class Table(object):
         result = Bag()
         standard_codes = self.getTypeList(item_type)
         d = dict(standard_codes)
-        if tbl:
-            custom_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code NOT IN :c',
-                                        t=tbl,it=item_type,c=list(d.keys()),columns='$code,$description').fetch()
-            if custom_codes:
-                for r in custom_codes:
-                    standard_codes.append((r['code'],r['description']))
-        d = dict(standard_codes)
+        if not tbl:
+            return
+        custom_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code NOT IN :c',
+                                    t=tbl,it=item_type,c=list(d.keys()),columns='$code,$description').fetch()
+        existing_std_codes = self.db.table('adm.tblinfo_item').query(where='$tblid=:t AND $item_type=:it AND $code IN :sc',
+                                    t=tbl, it=item_type, sc=list(d.keys()), columns='$code,$description').fetch()
+        existing_std_codes = [c['code'] for c in existing_std_codes]
+        existing_std_codes.append('_RAW_')
+        if custom_codes:
+            for r in custom_codes:
+                standard_codes.append((r['code'],r['description']))
         if _id:
             f = [(_id,d[_id])]
         else:
             chunk = _querystring.replace('*','').lower()
             f = [c for c in standard_codes if (chunk in c[1].lower() or chunk in c[0].lower())]
         for i,r in enumerate(f):
+            if not r[0] in existing_std_codes:
+                continue
             result.setItem('%s_%s' %(r[0],i),None,
                code=r[0],description=r[1],_pkey=r[0],caption=r[1])
         return result,dict(columns='code,description',headers='Code,Description')

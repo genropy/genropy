@@ -54,7 +54,7 @@ class RstDocumentationHandler(BaseComponent):
                                  childname='form',attachTo=pane,
                                  store='memory',store_pkeyField='snippet_code')
             self.rst_snipped_form(form)
-            pane.dataRpc('dummy',self.rst_updateRstSnippets,newdata='^#FORM.snippetEditor.data',snippetpath=path,_delay=500)
+            pane.dataRpc(self.rst_updateRstSnippets,newdata='^#FORM.snippetEditor.data',snippetpath=path,_delay=500)
         return view
 
     @public_method
@@ -131,7 +131,7 @@ class RstDocumentationHandler(BaseComponent):
 
     @struct_method
     def rst_translationController(self,pane):
-        pane.dataRpc('dummy',self.rst_getTranslation,subscribe_doTranslation=True,
+        pane.dataRpc(self.rst_getTranslation,subscribe_doTranslation=True,
                     base_language='=#FORM.record.base_language',
                     _onResult="""if(result){
                         this.setRelativeData('#FORM.record.docbag.'+result.language+'.rst',result.docbody);
@@ -195,7 +195,7 @@ class RstDocumentationHandler(BaseComponent):
     def rst_renderedIframe(self,pane,value=None,**kwargs):
         iframe = pane.div(_class='scroll-wrapper').htmliframe(**kwargs)
         js_script_url = self.site.getStaticUrl('rsrc:common','localiframe.js',nocache=True)
-        pane.dataRpc('dummy',self.getPreviewRst2html,
+        pane.dataRpc(self.getPreviewRst2html,
                     rstdoc=value,
                     _delay=500,
                     _if='rstdoc',
@@ -226,7 +226,7 @@ class RstDocumentationHandler(BaseComponent):
     @public_method
     def rst_getTranslation(self,docbody=None,doctitle=None,to_language=None,base_language=None,**kwargs):
         if docbody or doctitle:
-            tr = self.getService('translation')
+            tr = self.getService(service_name='aws', service_type='translation')  # tr = self.getService('translation')
             base_language = base_language or 'it'
             docbody = docbody or doctitle
             return dict(docbody=tr.translate(docbody,to_language=to_language,from_language=base_language) if docbody else None,

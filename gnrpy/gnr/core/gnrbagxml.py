@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from __future__ import print_function
+from collections import defaultdict
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
@@ -55,7 +56,8 @@ class _BagXmlException(Exception): pass
 class BagFromXml(object):
     """The class that handles the conversion from the XML format to the
     :class:`Bag <gnr.core.gnrbag.Bag>` class"""
-    def build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None):
+    def build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None,
+                attrInValue=None, avoidDupLabel=None):
         """TODO
         
         :param source: TODO
@@ -70,10 +72,12 @@ class BagFromXml(object):
         if six.PY2 and isinstance(source, unicode):
             source = source.encode('utf8')
         result = self.do_build(source, fromFile, catalog=catalog,
-                                       bagcls=bagcls, empty=empty)
+                                       bagcls=bagcls, empty=empty,attrInValue=attrInValue,
+                                       avoidDupLabel=avoidDupLabel)
         return result
 
-    def do_build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None, testmode=False):
+    def do_build(self, source, fromFile, catalog=None, bagcls=Bag, empty=None, testmode=False,
+                attrInValue=None, avoidDupLabel=None):
         """TODO
         
         :param source: TODO
@@ -91,6 +95,8 @@ class BagFromXml(object):
         bagImport.catalog = catalog
         bagImport.bagcls = bagcls
         bagImport.empty = empty
+        bagImport.avoidDupLabel = avoidDupLabel
+        bagImport.attrInValue = attrInValue
         bagImportError = _SaxImporterError()
         if fromFile:
             infile =  open(source, 'rt')
@@ -216,8 +222,28 @@ class _SaxImporter(sax.handler.ContentHandler):
     def setIntoParentBag(self, tagLabel, curr, attributes):
         dest = self.bags[-1][0]
         if '_tag'  in attributes: tagLabel = attributes.pop('_tag')
+        
+        if self.avoidDupLabel:
+            dupmanager = getattr(dest,'__dupmanager',None)
+            if dupmanager is None:
+                dupmanager = defaultdict(int)
+                setattr(dest,'__dupmanager',dupmanager)
+            cnt = dupmanager[tagLabel]
+            dupmanager[tagLabel] +=1 
+            tagLabel = f'{tagLabel}_{cnt}' if cnt else tagLabel
         if attributes:
-            dest.nodes.append(BagNode(dest, tagLabel, curr, attributes, _removeNullAttributes=False))
+            if self.attrInValue:
+                if isinstance(curr,self.bagcls):
+                    curr['__attributes'] = self.bagcls(attributes)
+                else:
+                    value = curr
+                    curr = Bag()
+                    curr['__attributes'] = self.bagcls(attributes)
+                    if value:
+                        curr['__content'] = value
+                dest.nodes.append(BagNode(dest, tagLabel, curr))
+            else:
+                dest.nodes.append(BagNode(dest, tagLabel, curr, attributes, _removeNullAttributes=False))
         else:
             dest.nodes.append(BagNode(dest, tagLabel, curr))
             
@@ -239,7 +265,11 @@ class BagToXml(object):
         if self.unresolved and node.resolver is not None and not getattr(node.resolver,'_xmlEager',None):
             if not nodeattr.get('_resolver_name'):
                 nodeattr['_resolver'] = gnrstring.toJson(node.resolver.resolverSerialize())
-            value = ''
+            if getattr(node.resolver,'xmlresolved',False):
+                value = node.resolver()
+                node._value = value
+            else:
+                value = ''
             if isinstance(node._value, Bag):
                 value = self.bagToXmlBlock(node._value,namespaces=current_namespaces)
             return self.buildTag(node.label, value, nodeattr, '', xmlMode=True,namespaces=current_namespaces)
@@ -390,7 +420,7 @@ class BagToXml(object):
                 else:
                     if self.mode4d and isinstance(value, Decimal):
                         value = float(value)
-                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None)
+                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,jsmode=True)
                 if isinstance(value, BagAsXml):
                     print(x)
                 try:
@@ -432,7 +462,7 @@ class BagToXml(object):
         if ':' in originalTag and originalTag.split(':')[0] in namespaces:
             tagName = originalTag
         else:
-            tagName = re.sub(r'[^\w.]', '_', originalTag).replace('__', '_')
+            tagName = re.sub(r'[^\w.]', '_', originalTag, flags=re.ASCII).replace('__', '_')
         if tagName[0].isdigit(): tagName = '_' + tagName
         
         if tagName != originalTag:

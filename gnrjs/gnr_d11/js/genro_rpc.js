@@ -449,10 +449,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         genro.dev.handleRpcHttpError(response, ioArgs);
     },
     setDatachangesInData:function (datachanges) {
-        //console.log('apply datachanges');
         var changenodes = datachanges.getNodes();
-        for (var i = 0; i < changenodes.length; i++) {
-            var changenode = changenodes[i];
+        for (let changenode of changenodes) {
             var value = changenode.getValue();
             var attr = objectExtract(changenode.attr, 'change_*');
             var isDelete = objectPop(attr, 'delete');
@@ -473,7 +471,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 for (var clientpath_prefix in genro._serverstore_paths) {
                     var serverpath_prefix = genro._serverstore_paths[clientpath_prefix];
                     if (stringStartsWith(changepath, serverpath_prefix)) {
-                        clientpath = clientpath_prefix + changepath.slice(serverpath_prefix.length);
+                        let clientpath = clientpath_prefix + changepath.slice(serverpath_prefix.length);
                         updater(clientpath, value, attr, reason);
                     }
                 }
@@ -988,7 +986,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         params['filename'] = kw.filename;
         var sourceNode = kw.uploaderId ? genro.nodeById(kw.uploaderId) : null;
         params = this.serializeParameters(genro.src.dynamicParameters(params, sourceNode));
-        for (key in params) {
+        for (let key in params) {
             content.append(key, params[key]);
         }
         var sender = new XMLHttpRequest();
@@ -998,7 +996,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         //if (kw.onResult) sender.upload.addEventListener("load", kw.onResult, false);
         if (kw.onProgress){
             sender.upload.addEventListener("progress", function(evt){evt._sender = sender; kw.onProgress(evt)}, false)
-        };
+        }
         if (kw.onError){
             sender.upload.addEventListener("error", function(evt){
                 evt._sender = sender;

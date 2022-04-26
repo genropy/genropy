@@ -15,7 +15,8 @@ from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
 from collections import defaultdict
-from gnr.app.gnrconfig import MenuStruct,IniConfStruct
+from gnr.web.gnrmenu import MenuStruct
+from gnr.app.gnrconfig import IniConfStruct
 from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
 
 class GnrConfigException(Exception):
@@ -119,14 +120,14 @@ def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, g
     environment_bag.setItem('gnrdaemon', None, dict(host='localhost', port=gnrdaemon_port, hmac_key=gnrdaemon_password))
     environment_bag.toXml(path,typevalue=False,pretty=True)
 
-def build_instanceconfig_xml(path=None):
+def build_instanceconfig_xml(path=None,avoid_baseuser=None):
     instanceconfig_bag = Bag()
     instanceconfig_bag.setItem('packages',None)
     instanceconfig_bag.setItem('authentication.xml_auth',None, dict(defaultTags='user,xml'))
     password = get_random_password(size=6)
-    instanceconfig_bag.setItem('authentication.xml_auth.admin',None, dict(
-        pwd=password, tags='superadmin,_DEV_,admin,user'))
-    print("Default password for user admin is %s, you can change it by editing %s" %(password, path))
+    if not avoid_baseuser:
+        instanceconfig_bag.setItem('authentication.xml_auth.admin',None, dict(pwd=password, tags='superadmin,_DEV_,admin,user'))
+        print("Default password for user admin is %s, you can change it by editing %s" %(password, path))
     instanceconfig_bag.toXml(path,typevalue=False,pretty=True)
     
 def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None):
@@ -149,7 +150,7 @@ def check_file(xml_path=None):
     if os.path.exists(xml_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
-def initgenropy(gnrpy_path=None,gnrdaemon_password=None):
+def initgenropy(gnrpy_path=None,gnrdaemon_password=None,avoid_baseuser=False):
     if not gnrpy_path or not os.path.basename(gnrpy_path)=='gnrpy':
         raise GnrConfigException("You are not running this script inside a valid gnrpy folder")
     config_path  = gnrConfigPath(force_return=True)
@@ -168,7 +169,7 @@ def initgenropy(gnrpy_path=None,gnrdaemon_password=None):
     gnrdaemon_port = get_gnrdaemon_port(set_last=True)
     build_environment_xml(path=environment_xml_path, gnrpy_path=gnrpy_path, gnrdaemon_password=gnrdaemon_password,
         gnrdaemon_port=gnrdaemon_port)
-    build_instanceconfig_xml(path=default_instanceconfig_xml_path)
+    build_instanceconfig_xml(path=default_instanceconfig_xml_path,avoid_baseuser=avoid_baseuser)
     build_siteconfig_xml(path=default_siteconfig_xml_path, gnrdaemon_password=gnrdaemon_password, gnrdaemon_port=gnrdaemon_port)
 
 
@@ -438,6 +439,9 @@ class PathResolver(object):
         if look_in_projects and 'projects' in self.gnr_config['gnr.environment_xml']:
             projects = [expandpath(path) for path in self.gnr_config['gnr.environment_xml'].digest('projects:#a.path')
                         if os.path.isdir(expandpath(path))]
+            local_projects = os.environ.get('GNR_LOCAL_PROJECTS')
+            if local_projects:
+                projects = [expandpath(local_projects) ]+projects
             for project_path in projects:
                 folders = glob.glob(os.path.join(project_path, '*',entity,entity_name))
                 if folders:
@@ -517,6 +521,9 @@ class PathResolver(object):
             site_config.update(Bag(site_config_path))
         else:
             site_config = Bag(site_config_path)
+        instance_config = self.get_instanceconfig(site_name)
+        if instance_config and instance_config['site']:
+            site_config.update(instance_config['site'])
         return site_config
 
 
@@ -1124,6 +1131,8 @@ class GunicornDeployBuilder(object):
         self.supervisord_monitor_parameters = self.path_resolver.gnr_config.getAttr('gnr.environment_xml.supervisord')
         self.bin_folder = os.path.join(os.environ.get('VIRTUAL_ENV'),'bin') if 'VIRTUAL_ENV' in  os.environ else ''
         self.socket_path = os.path.join(self.site_path, 'sockets')
+        if len(self.socket_path)>90:
+            self.socket_path = os.path.join('/tmp', os.path.basename(self.instance_path), 'gnr_sock')
         self.logs_path = os.path.join(self.site_path, 'logs')
         self.pidfile_path = os.path.join(self.site_path, '%s_pid' % site_name)
         self.gunicorn_conf_path = os.path.join(self.config_folder,'gunicorn.py')

@@ -38,7 +38,9 @@ class GnrCustomWebPage(object):
 
     def test_8_slotToolbar_multibutton_items_path(self,pane):
         pane.data('.multibutton.data',self.getmbdata())
-        pane.multibutton(value='^.base',items='^.multibutton.data')
+        pane.checkbox(value='^.disabled',label='Disabled')
+        pane.lightButton('pippo',action='alert("ciao")',disabled='^.disabled')
+        pane.multibutton(value='^.base',items='^.multibutton.data',disabled='^.disabled')
         pane.textbox(value='^.base')
 
 

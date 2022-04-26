@@ -53,6 +53,16 @@ class GnrCustomWebPage(object):
                     height='100px',dataProvider=rpc,editable=True)
 
 
+    def test_36_templateChunk(self,pane):
+        pane.dbSelect(dbtable='glbl.regione',value='^.pkey',_class='gnrfield',lbl='Regione')
+        rpc = pane.dataRecord('.record','glbl.regione',pkey='^.pkey')
+        pane.templateChunk(innerHTML='^.testplain',template='testplain',table='glbl.regione',datasource='^.record',
+                    height='100px',
+                    dataProvider=rpc,
+                    editable=True,plainText=True)
+
+
+
     def test_6_templateChunk_provincia(self,pane):
         pane.dbSelect(dbtable='glbl.provincia',value='^.pkey',_class='gnrfield')
         rpc = pane.dataRecord('.record','glbl.provincia',pkey='^.pkey')
@@ -99,6 +109,32 @@ class GnrCustomWebPage(object):
         
         pane.templateChunk(template='tplnotable',
                             datasource='^.dati',
+                            editable=True, 
+                            height='100px')
+
+
+    def test_33_notable(self,pane):
+        fb = pane.formbuilder()
+        fb.dbSelect(value='^.prodotto_id',dbtable='fatt.prodotto',
+                        condition='$caratteristiche IS NOT NULL')
+        fb.dataRecord('.prodotto','fatt.prodotto',pkey='^.prodotto_id',_if='pkey')
+        
+        
+        pane.templateChunk(template='.prodotto.prodotto_tipo_id',
+                            datasource='^.prodotto.caratteristiche',
+                            editable=True, 
+                            height='100px')
+
+    def test_34_notable(self,pane):
+        fb = pane.formbuilder()
+        fb.dbSelect(value='^.prodotto_id',dbtable='fatt.prodotto',
+                        condition='$caratteristiche IS NOT NULL')
+        fb.dataRecord('.prodotto','fatt.prodotto',pkey='^.prodotto_id',_if='pkey')
+        
+        
+        pane.templateChunk(template='^.prodotto.prodotto_tipo_id',
+                            datasource='.prodotto',
+                            table='fatt.prodotto',
                             editable=True, 
                             height='100px')
 

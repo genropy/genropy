@@ -15,11 +15,11 @@ class GnrCustomWebPage(object):
                     dashboard_component/dashboard_component:DashboardGallery"""
     public_multidbSelector = True 
 
-    def main(self,root,th_public=None,**kwargs):
+    def main(self,root,th_public=None,dash_pkg=None,dash_code=None,**kwargs):
         callArgs = self.getCallArgs('dash_pkg','dash_code')
         root.attributes['datapath'] = 'main'
-        pkg = callArgs.get('dash_pkg')
-        code = callArgs.get('dash_code')
+        pkg = dash_pkg or callArgs.get('dash_pkg')
+        code = dash_code or callArgs.get('dash_code')
         title = '!!Dashboards'
         dashboard_tbl = self.db.table('biz.dashboard')
         dashboard_record = None

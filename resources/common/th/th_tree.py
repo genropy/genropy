@@ -78,8 +78,7 @@ class HTableTree(BaseComponent):
     @extract_kwargs(related=True)
     @struct_method
     def ht_htableViewStore(self,treeNode,table=None,storepath='.store',caption_field=None,condition=None,caption=None,
-                               dbstore=None,root_id=None,columns=None,related_kwargs=None,subtable=None,resolved=False,**kwargs):
-        b = Bag()
+                               dbstore=None,root_id=None,columns=None,related_kwargs=None,subtable=None,resolved=False,nodeId=None,**kwargs):
         tblobj = self.db.table(table)
         caption = caption or tblobj.name_plural
         tree_datapath = treeNode.attributes.get('datapath')
@@ -92,14 +91,16 @@ class HTableTree(BaseComponent):
                 storekw['related_%s' %k] = v
             if subtable:
                 storekw['_onBuilt'] = 1
+            nodeId = nodeId or '%s_hdata' %table.replace('.','_')
             d = storeRoot.dataRpc(None,tblobj.getHierarchicalData,
                         table=table,
                         caption_field=caption_field,
                         condition=condition,
                         childname='store',caption=caption,dbstore=dbstore,
                         columns=columns,related_kwargs=related_kwargs,
-                        nodeId='%s_hdata' %table.replace('.','_'),
+                        nodeId=nodeId,
                         subtable=subtable,resolved=resolved,**storekw)
+            treeNode._hstore = d
             d.addCallback("""
                 var selectedIdentifier;
                 if(treeNode.attr.tag.toLocaleLowerCase()=='tree'){ //avoid paletteTree

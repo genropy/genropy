@@ -44,6 +44,7 @@ from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
@@ -56,12 +57,12 @@ from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
 from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated
+from gnr.core.gnrdecorator import public_method,deprecated,callers
 from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
-
+import re
 import datetime
 
 AUTH_OK = 0
@@ -164,6 +165,10 @@ class GnrWebPage(GnrBaseWebPage):
         self._request = self.request._request
         self._response = self.response._response
         self.response.add_header('Pragma', 'no-cache')
+        if self.site.config['x_frame_options']:
+            self.response.add_header('X-Frame-Options', self.site.config['x_frame_options'])
+        elif not boolean(self.site.config['x_frame_options?disable']):
+            self.response.add_header('X-Frame-Options', 'SAMEORIGIN')
         self._htmlHeaders = []
         self._pendingContext = []
         self.local_datachanges = []
@@ -663,10 +668,10 @@ class GnrWebPage(GnrBaseWebPage):
             return result,{'respath':path}
 
     @public_method
-    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,**kwargs):
+    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,**kwargs):
         from gnr.web.gnrbaseclasses import TableTemplateToHtml
         htmlbuilder = TableTemplateToHtml(table=self.db.table(table))
-        return htmlbuilder.contentFromTemplate(record=record_id,template=self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
+        return htmlbuilder.contentFromTemplate(record=record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
 
     @public_method
     def loadTemplate(self,template_address,asSource=False,missingMessage=None,**kwargs):
@@ -1106,7 +1111,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.frontend.frontend_arg_dict(arg_dict)
         arg_dict['customHeaders'] = self._htmlHeaders
         arg_dict['charset'] = self.charset
-        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\')
+        arg_dict['pageModule'] = self.filepath.replace('\\',r'\\') if self.site.debug else ''
         arg_dict['filename'] = self.pagename
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
@@ -1137,7 +1142,15 @@ class GnrWebPage(GnrBaseWebPage):
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
-        arg_dict['startArgs'] = toJson(dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())]))
+        safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
+        startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
+        for arg in list(startArgs.keys()):
+            if re.search(safety_re, arg):
+                startArgs.pop(arg, None)
+                continue
+            if re.search(safety_re, startArgs[arg]):
+                startArgs[arg]= None
+        arg_dict['startArgs'] = toJson(startArgs)
         arg_dict['page_id'] = self.page_id or getUuid()
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
@@ -1218,10 +1231,11 @@ class GnrWebPage(GnrBaseWebPage):
         if params:
             path = '%s?%s' % (path, params)
         return path
-        
+
     @property
     def external_host(self):
-        return self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
+        external_host = self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
+        return external_host
 
     def externalUrl(self, path, **kwargs):
         """TODO
@@ -1229,7 +1243,7 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None, **kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,allowed_user=None,**kwargs):
         """TODO
         
         :param path: TODO
@@ -1238,15 +1252,24 @@ class GnrWebPage(GnrBaseWebPage):
         assert 'sys' in self.site.gnrapp.packages
         external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,
                                                                           method=method, parameters=kwargs,max_usages=max_usages,
-                                                                          exec_user=self.user)
+                                                                          allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
         
+
+    
+    @property
+    def device_mode(self):
+        if self.isMobile:
+            return 'mobile'
+        return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
+
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
         theme_variant = self.getPreference('theme.theme_variant',pkg='sys') or ''
         if theme_variant:
             theme_variant = 'theme_variant_%s' %theme_variant
-        return '%s %s %s _common_d11 pkg_%s page_%s %s' % ((self.site.config['gui?css_theme'] or ''),
+        theme_variant = '%s mode_%s' %(theme_variant,self.device_mode)
+        return '%s %s %s _common_d11 pkg_%s page_%s %s ' % ((self.site.config['gui?css_theme'] or ''),
         self.frontend.theme or '',theme_variant, self.packageId, self.pagename, getattr(self, 'bodyclasses', ''))
         
     def get_css_genro(self):
@@ -1360,6 +1383,13 @@ class GnrWebPage(GnrBaseWebPage):
             self._app = GnrWebAppHandler(self)
         return self._app
         
+    @property
+    def menu(self):
+        """TODO"""
+        if not hasattr(self, '_menu'):
+            self._menu = GnrMenuProxy(self)
+        return self._menu
+
     @property
     def btc(self):
         """TODO"""
@@ -1732,7 +1762,7 @@ class GnrWebPage(GnrBaseWebPage):
         result = script(**kwargs)
         return result
 
-    def loadTableScript(self, table=None, respath=None, class_name=None):
+    def loadTableScript(self, table=None, respath=None, class_name=None,**kwargs):
         """TODO
 
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -1740,7 +1770,7 @@ class GnrWebPage(GnrBaseWebPage):
                       :ref:`package <packages>` to which the table belongs to)
         :param respath: TODO
         :param class_name: TODO"""
-        return self.site.loadTableScript(self, table=table, respath=respath, class_name=class_name)
+        return self.site.loadTableScript(self, table=table, respath=respath, class_name=class_name,**kwargs)
         
     @public_method
     def setPreference(self, path, data, pkg=''):
@@ -1904,7 +1934,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -1931,14 +1961,16 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.windowTitle', self.windowTitle())
+        page.data('gnr.windowTitle',windowTitle or self.windowTitle())
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
-
-
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
         page.dataRemote('server.pageStore',self.getPageStoreData,cacheTime=1)
-        page.dataRemote('server.userStore',self.getUserStoreData,cacheTime=1)
+        if branchIdentifier:
+            page.dataController(""" let b = new gnr.GnrBag();
+                                    b.setCallBackItem('root',genro.getParentBranchMenuByIdentifier,{branchIdentifier:branchIdentifier});
+                                    SET gnr.parentBranchMenu = b;
+                                """,branchIdentifier=branchIdentifier,_onStart=True)
 
         page.dataRemote('server.dbEnv',self.dbCurrentEnv,cacheTime=1)
         page.dataController(""" var changelist = copyArray(_node._value);
@@ -1977,19 +2009,23 @@ class GnrWebPage(GnrBaseWebPage):
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
             page.dataRemote('gnr.shortcuts.store', self.getShortcuts)
 
-        #page.dataController("""
-        #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
-        #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
-        #    var kw = {'rotate':rotate_val,'invert':invert_val};
-        #    var styledict = {font_family:app_theme_font_family};
-        #    genro.dom.css3style_filter(null,kw,styledict);
-        #    dojo.style(dojo.body(),styledict);
-        #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
-        #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
-        #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
-        #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
-        #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
-        #        _onStart=True)
+       #page.dataController("""
+       #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
+       #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
+       #    var kw = {'rotate':rotate_val,'invert':invert_val};
+       #    var styledict = {font_family:app_theme_font_family,font_size:app_theme_font_size,zoom:app_theme_zoom};
+       #    genro.dom.css3style_filter(null,kw,styledict);
+       #    dojo.style(dojo.body(),styledict);
+       #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
+       #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
+       #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
+       #        app_theme_zoom='^gnr.app_preference.sys.theme.body.zoom',
+
+       #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
+       #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
+       #    app_theme_font_size='^gnr.app_preference.sys.theme.body.font_size',
+
+       #        _onStart=True)
 
 
 
@@ -2040,7 +2076,7 @@ class GnrWebPage(GnrBaseWebPage):
         if context_subtables:
             root.data('gnr.context_subtables',Bag(context_subtables),dbenv=True,serverpath='rootenv.context_subtables')
         if self.root_page_id and self.root_page_id==self.parent_page_id:
-            root.dataController("""var openMenu = genro.isMobile?false:openMenu;
+            root.dataController("""
                                if(openMenu===false){
                                     genro.publish({parent:true,topic:'setIndexLeftStatus'},openMenu);
                                }
@@ -2291,14 +2327,12 @@ class GnrWebPage(GnrBaseWebPage):
         if  df_table.model.column('df_custom_templates') is not None:
             df_custom_templates = df_table.readColumns(pkey=fieldvalue,columns='$df_custom_templates')    
             df_custom_templates = Bag(df_custom_templates)
-            #templates = ['auto']+df_custom_templates.keys()
             for t in list(df_custom_templates.keys()):
                 caption='Summary: %s' %t
                 recordpath = recordpath or '@%s' %field
                 fieldpath = '%s:%s.df_custom_templates.%s.tpl' %(prevRelation,recordpath,t)
                 subfields.setItem('summary_%s' %t,None,caption=caption,dtype='T',fieldpath=fieldpath,
                                   fullcaption='%s/%s' %(prevCaption,caption))
-            
         return subfields
 
     @public_method    
@@ -2357,7 +2391,6 @@ class GnrWebPage(GnrBaseWebPage):
             nodeattr['fullcaption'] = concat(prevCaption, self._(nodeattr['caption']), '/')
 
             if nodeattr.get('one_relation'):
-                #print node.label
                 innerCurrRecordPath = '%s.%s' %(node.label,currRecordPath) if currRecordPath else ''
                 nodeattr['_T'] = 'JS'
                 if nodeattr['mode'] == 'O':
@@ -2373,15 +2406,38 @@ class GnrWebPage(GnrBaseWebPage):
                 jsquote(nodeattr['fullcaption']), jsquote(omit),
                 jsquote(innerCurrRecordPath),jsquote(concat(relationStack,relkey,'|')),cps
                 ))
-            elif 'subfields' in nodeattr and currRecordPath:
+            elif 'subfields' in nodeattr:
+                typecol = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}').column(nodeattr["subfields"])
+                if typecol is None:
+                    self.log(f'warning missing column {nodeattr["subfields"]} used inside subfields attribute in table {nodeattr["pkg"]}.{nodeattr["table"]}')
+                elif not currRecordPath:
+                    default_templates = self.db.table(f'{nodeattr["pkg"]}.{nodeattr["table"]}'
+                                        ).column(f'@{nodeattr["subfields"]}.df_custom_templates'
+                                        ).attributes.get('templates')
+                    if default_templates:
+                        templatesbag = Bag()
+                        node.value = templatesbag
+                        for t in default_templates.split(','):
+                            caption=f'Summary: {t}'
+                            fieldpath = f'{node.label}:@{nodeattr["subfields"]}.df_custom_templates.{t}.tpl'
+                            templatesbag.setItem(f'summary_{t}',None,caption=caption,dtype='T',fieldpath=fieldpath,
+                                            fullcaption='%s/%s' %( nodeattr['caption'],caption),name_long=caption)
+                else:
+                    nodeattr['_T'] = 'JS'
+                    jsresolver = "genro.rpc.remoteResolver('subfieldExplorer',{table:%s, field:%s,fieldvalue:%s,prevRelation:%s, prevCaption:%s, omit:%s,checkPermissions:%s},{cacheTime:1})"
+                    node.setValue(jsresolver % (
+                    jsquote("%(pkg)s.%(table)s" %nodeattr),
+                    jsquote(nodeattr['subfields']),
+                    jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
+                    jsquote(concat(prevRelation, node.label)),
+                    jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
+                
+            elif nodeattr.get('dtype')=='X' and currRecordPath:
                 nodeattr['_T'] = 'JS'
-                jsresolver = "genro.rpc.remoteResolver('subfieldExplorer',{table:%s, field:%s,fieldvalue:%s,prevRelation:%s, prevCaption:%s, omit:%s,checkPermissions:%s},{cacheTime:1})"
-                node.setValue(jsresolver % (
-                jsquote("%(pkg)s.%(table)s" %nodeattr),
-                jsquote(nodeattr['subfields']),
-                jsquote("=%s.%s" %(currRecordPath,nodeattr['subfields'])),
-                jsquote(concat(prevRelation, node.label)),
-                jsquote(nodeattr['fullcaption']), jsquote(omit),cps))
+                jsresolver ="""genro.dev.currDataExplorer({fieldPath:%s,prevRelation:%s,prevCaption:%s,omit:%s,checkPermissions:%s})""" 
+                jsresolver = jsresolver %( jsquote("%s.%s" %(currRecordPath,node.label)),jsquote(concat(prevRelation, node.label)),jsquote(nodeattr['fullcaption']), jsquote(omit),cps)
+                node.setValue(jsresolver)
+
         result = self.db.relationExplorer(table=table,
                                           prevRelation=prevRelation,
                                           relationStack=relationStack,

@@ -184,10 +184,12 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         form_add = options.pop('form_add',True)
+        form_save = options.pop('form_save',True)
         form_delete = options.pop('form_delete',True)
         form_archive = options.pop('form_archive',False)
         selector = options.pop('selector',False)
         annotations = options.pop('annotations',False)
+        single_record = options.get('single_record') or options.pop('linker',False)
 
         form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid)
         if autoSave:
@@ -228,13 +230,15 @@ class TableHandlerForm(BaseComponent):
             bar.cancel.button('!!Cancel',action='this.form.abort();')
             bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})',hidden=readOnly)
         elif showtoolbar:
-            default_slots = '*,semaphore,5' if readOnly else '*,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
+            default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
-                default_slots = default_slots.replace('form_archive','annotationTool,10,form_archive')
+                default_slots = default_slots.replace('right_placeholder','right_placeholder,annotationTool')
             if form_add is False:
                 default_slots = default_slots.replace('form_add','')
             if form_delete is False:
                 default_slots = default_slots.replace('form_delete','')
+            if form_save is False:
+                default_slots = default_slots.replace('form_save','')
             if form_archive is False:
                 default_slots = default_slots.replace('form_archive','')
             if options.pop('duplicate',False):
@@ -244,7 +248,7 @@ class TableHandlerForm(BaseComponent):
             elif navigation:
                 default_slots = 'navigation,%s' %default_slots
             if selector:
-                default_slots = default_slots.replace('*','5,form_selectrecord,*')
+                default_slots = default_slots.replace('left_placeholder','form_selectrecord,left_placeholder')
                 if isinstance(selector,dict):
                     options['form_selectrecord_pars'] = selector
             if options.pop('printMenu',False):
@@ -259,13 +263,12 @@ class TableHandlerForm(BaseComponent):
                 extra_slots.append('form_audit')
             if options.pop('copypaste',False):
                 extra_slots.append('form_copypaste')
-            if options.pop('linker',False):
-                default_slots = default_slots.replace('form_delete',','.join(extra_slots) if extra_slots else '')
+            if single_record:
+                default_slots = default_slots.replace('form_delete','')
                 default_slots = default_slots.replace('form_add','')
-                #default_slots = default_slots.replace('locker','') 
             table = form.getInheritedAttributes()['table']  
             if extra_slots:
-                default_slots = default_slots.replace('form_delete','%s,10,form_delete' %(','.join(extra_slots)))
+                default_slots = default_slots.replace('right_placeholder','right_placeholder,%s' %(','.join(extra_slots)))
             slots = options.pop('slots',default_slots)
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
@@ -312,7 +315,7 @@ class TableHandlerForm(BaseComponent):
 
     @struct_method
     def td_slotbar_annotationTool(self,pane,frameCode=None,annotationTool=None,**kwargs):
-        if self.getPreference('organizer_enabled',pkg='orgn'):
+        if self.db.package('orgn') and self.getPreference('organizer_enabled',pkg='orgn'):
             self.mixinComponent('orgn_components:OrganizerComponent')
             pane.annotationTool(**kwargs)
         else:
@@ -375,7 +378,17 @@ class TableHandlerForm(BaseComponent):
                             kw.pkey = this.form.getCurrentPkey();
                             var sourceNode = this;
                             var menuattr = $1;
-                            var finalize = function(){
+                            var onResult,onCalling;
+                            if (menuattr.onResult) {
+                                onResult = funcCreate(menuattr.onResult, 'result,kwargs,old', this);
+                            }
+                            if (menuattr.onCalling) {
+                                onCalling = funcCreate(menuattr.onCalling, 'kwargs', this);
+                            }
+                            var finalize = function(_askResult){
+                                if(_askResult){
+                                    objectUpdate(kw,_askResult);
+                                }
                                 if(menuattr.rpcmethod){
                                     objectUpdate(kw,objectExtract(menuattr,'rpc_*',true));
                                     objectUpdate(kw,objectExtract(menuattr,'_lockScreen,_onCalling,_onResult',true));

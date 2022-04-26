@@ -286,13 +286,13 @@
 <en_authentication_messages fr="messages d'authentification" de="Authentifizierungsnachrichten" en="Authentication messages" it="Messaggi di autenticazione" base="Authentication messages"></en_authentication_messages>
 <en_confirm_user_template fr="Confirmez modèle utilisateur" de="Bestätigen Benutzervorlage" en="Confirm user template" it="Confermare modello utente" base="Confirm user template"></en_confirm_user_template>
 <en_confirm_new_password_template fr="Confirmer le nouveau modèle de mot de passe" de="Neues Passwort bestätigen Vorlage" en="Confirm new password template" it="Confermare nuovo modello la password" base="Confirm new password template"></en_confirm_new_password_template>
-<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Soggetto" base="Subject"></en_subject>
+<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
 <en_lost_password fr="Mot de passe oublié" de="Passwort vergessen?" en="Lost password" it="Password dimenticata" base="Lost password"></en_lost_password>
 <en_owner_name fr="Le nom du propriétaire" de="Besitzer der Datei" en="Owner name" it="Nome del proprietario" base="Owner name"></en_owner_name>
 <en_general_options fr="Options générales" de="Allgemeine Optionen" en="General options" it="Opzioni generali" base="General options"></en_general_options></preference>
 <tables><authorization><th_authorization path="resources/tables/authorization/th_authorization.py" ext="py"><en_note fr="Note" de="Note" en="Note" it="Note" base="Note"></en_note></th_authorization></authorization>
 <backup><action><dumpall path="resources/tables/backup/action/dumpall.py" ext="py"><en_backup_name fr="Nom de la sauvegarde" de="Backup-Namen" en="Backup name" it="Nome backup" base="Backup name"></en_backup_name></dumpall></action></backup>
-<connection><th_connection path="resources/tables/connection/th_connection.py" ext="py"><en_open base="Open"></en_open>
+<connection><th_connection path="resources/tables/connection/th_connection.py" ext="py"><en_open base="Open" en="Apri"></en_open>
 <en_closed base="Closed"></en_closed>
 <en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all></th_connection></connection>
 <counter><action><initialize path="resources/tables/counter/action/initialize.py" ext="py"><en_initialize_counter fr="Initialisation compteur" de="Initialisieren Gegen" en="Initialize counter" it="Inizializza contatore" base="Initialize counter"></en_initialize_counter>
@@ -327,7 +327,7 @@
 <en_s_width _tag="en__s_width" fr="%s Largeur" en="[0] width" de="%s Breite" it="%s larghezza" base="%s width"></en_s_width></th_htmltemplate></htmltemplate>
 <notification><th_notification path="resources/tables/notification/th_notification.py" ext="py"><en_template fr="Modèle" de="Schablone" en="Template" it="Sagoma" base="Template"></en_template>
 <en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"></en_users></th_notification></notification>
-<served_page><th_served_page path="resources/tables/served_page/th_served_page.py" ext="py"><en_open base="Open"></en_open>
+<served_page><th_served_page path="resources/tables/served_page/th_served_page.py" ext="py"><en_open base="Open" en="Apri"></en_open>
 <en_closed base="Closed"></en_closed>
 <en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all></th_served_page></served_page>
 <tblinfo><th_tblinfo path="resources/tables/tblinfo/th_tblinfo.py" ext="py"><en_undo base="Undo"></en_undo>

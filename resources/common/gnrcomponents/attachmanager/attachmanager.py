@@ -146,8 +146,8 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,design=None,maintable_id=None,uploaderButton=False,**kwargs):
-        bc = pane.borderContainer(design)
         design = design or 'sidebar'
+        bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
         kwargs.setdefault('grid_selfDragRows',True)
         kwargs.setdefault('autoSave',True)
@@ -222,7 +222,9 @@ class AttachManager(BaseComponent):
     def at_attachmentGallery(self,pane,title=None,searchOn=False,
                         datapath='.attachments',mode=None,viewResource=None,
                         table=None,maintable_id=None,nodeId=None,
-                        parentStack=None,**kwargs):
+                        parentStack=None,
+                        uploaderButton=True,
+                        **kwargs):
         #it will replace at_attachmentPane and at_attachmentGrid
 
         frame = pane.framePane(frameCode='attachmentPane_#',title=title,datapath=datapath,**kwargs)
@@ -265,7 +267,9 @@ class AttachManager(BaseComponent):
                                  intermediateChanges=False, width='15em',default_value=.5)
         bar.delrowbtn.slotButton('!!Delete attachment',iconClass='iconbox delete_row',
                         action='gr.publish("delrow")',gr=th.view.grid)
-        th.view.bottom.dropUploader(
+
+        if uploaderButton:
+            th.view.bottom.dropUploader(
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
                             onUploadingMethod=self.onUploadingAttachment,

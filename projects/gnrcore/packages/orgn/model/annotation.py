@@ -46,6 +46,8 @@ class Table(object):
         tbl.column('linked_entity',name_long='!!Linked entity')
         tbl.column('linked_fkey',name_long='!!Linked fkey')
         tbl.column('delay_history',dtype='X',group='*',name_long='!!Delay history',_sendback=True)
+        tbl.column('implementor_data', dtype='X', name_long='Implementor data')
+        tbl.column('implementor_result', dtype='X', name_long='Implementor result')
 
         tbl.aliasColumn('assigned_username','@assigned_user_id.username',name_long='!!Assigned username')
         tbl.aliasColumn('action_type_description','@action_type_id.description',group='*')
@@ -102,9 +104,8 @@ class Table(object):
         tbl.pyColumn('template_cell',dtype='A',group='_',py_method='templateColumn', template_name='action_tpl',template_localized=True)
 
 
-
     def pyColumn_calc_description(self,record=None,field=None):
-        if record['rec_type'] == 'AN':
+        if record.get('rec_type') == 'AN':
             if not record['done_ts']:
                 return record['description']
             else:
@@ -115,7 +116,7 @@ class Table(object):
                 result = "<b>%s:</b><i>%s</i><br/><b>%s:</b>%s" %(c0,action_description,c1,description)
                 return result
         else:
-            return record['action_description']
+            return record.get('action_description')
 
     def pyColumn_countdown(self,record=None,field=None):
         date_due = record.get('calculated_date_due')
@@ -266,6 +267,13 @@ class Table(object):
         if self.fieldsChanged('annotation_date,annotation_time',record_data,old_record):
             self.setAnnotationTs(record_data)
 
+
+    def recordLinkedEntity(self,record):
+        for colname,colobj in list(self.columns.items()):
+            fkey_value = record[colname]
+            if colobj.attributes.get('linked_entity') and fkey_value is not None:
+                return colname,fkey_value
+
     def getLinkedEntities(self):
         result = []
         for colname,colobj in list(self.columns.items()):
@@ -328,3 +336,10 @@ class Table(object):
             return '!!New annotation'
         else:
             return '!!New action'
+
+
+    def entityLinker(self,tbl=None,zoomMode=None,zoomUrl=None,
+                    formResource=None,pivot_date=None,**kwargs):
+        return dict(tbl=tbl,zoomMode=zoomMode,zoomUrl=zoomUrl,
+                        formResource=formResource,pivot_date=pivot_date,
+                        **kwargs)

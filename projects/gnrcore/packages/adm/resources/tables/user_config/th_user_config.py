@@ -35,10 +35,10 @@ class ViewConfigurator(View):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('user_group',hidden='^#mainpars.user_group',width='6em')
-        r.fieldcell('username',hidden='^#mainpars.username',width='7em')
-        r.fieldcell('pkgid',hidden='^#mainpars.pkgid',width='4em')
-        r.fieldcell('tblid',hidden='^#mainpars.tblid',width='8em')
+        r.fieldcell('user_group',hidden='^#mainpars.user_group',width='10em')
+        r.fieldcell('username',hidden='^#mainpars.username',width='10em')
+        r.fieldcell('pkgid',hidden='^#mainpars.pkgid',width='8em')
+        r.fieldcell('tblid',hidden='^#mainpars.tblid',width='15em')
         r.fieldcell('data',width='30em')
 
     def th_condition(self):
@@ -162,23 +162,23 @@ class Form(BaseComponent):
             """)
         form.css('.dojoxGrid-row.virtualCol',"color:green;")
         bc = form.center.borderContainer()
-        top = bc.contentPane(region='top',datapath='.record')
+        top = bc.contentPane(region='top',datapath='.record', height='130px')
         fb = top.formbuilder(cols=2,border_spacing='3px')
         fb.field('user_group',fld_disabled=True)
         fb.field('username',fld_disabled=True,tag='textbox')
         fb.field('pkgid',fld_disabled=True)
         fb.field('tblid',fld_disabled=True)
 
-        fb.remoteSelect(value='^.data.qtree',lbl='Fields Tree (quick)',auxColumns='code,description',
+        fb.remoteSelect(value='^.data.qtree',lbl='!![en]Fields Tree (quick)',auxColumns='code,description',
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='QTREE',
-                        hasDownArrow=True)
-        fb.remoteSelect(value='^.data.ftree',lbl='Fields Tree (full)',auxColumns='code,description',
+                        hasDownArrow=True, hidden='^.tblid?=!#v')
+        fb.remoteSelect(value='^.data.ftree',lbl='!![en]Fields Tree (full)',auxColumns='code,description',
                         method=self.db.table('adm.user_config').getCustomCodes,
                         condition_tbl='=#FORM.record.tblid',
                         condition_item_type='FTREE',
-                        hasDownArrow=True)
+                        hasDownArrow=True, hidden='^.tblid?=!#v')
         fb.checkBoxText(value='^.data.tbl_permission',values='hidden,readonly',cols=3,
                         lbl='!!Table Restrictions',colspan=2)
         fb.checkBoxText(value='^.data.tbl_forbidden',values='^.$allPermissions',cols=3,

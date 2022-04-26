@@ -78,6 +78,8 @@ class WsgiWebSocketHandler(WebSocketHandler):
     def __init__(self,site):
         self.site = site
         sockets_dir = os.path.join(site.site_path, 'sockets')
+        if len(sockets_dir)>90:
+            sockets_dir = os.path.join('/tmp', os.path.basename(site.site_path), 'gnr_sock')
         if not os.path.exists(sockets_dir):
             os.mkdir(sockets_dir)
         self.socket_path= os.path.join(sockets_dir, 'async.tornado')

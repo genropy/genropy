@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+"""
+gnrdbshell : an helper utility for handling tables
+
+Usage: gnrdbshell instance_name
+"""
+
+
+from __future__ import print_function
+import sys
+
+try:
+    from IPython import embed
+except:
+    print("Python", sys.version)
+    print("\nMissing IPython, please install it")
+    print("pip install ipython")
+    sys.exit(1)
+
+from gnr.app.gnrapp import GnrApp
+
+try:
+    import jedi
+    print ("\n*** Note: jedi is installed, autocompletion may not work properly ***")
+    # pip uninstall jedi
+    # %config IPCompleter.use_jedi = False
+except:
+    pass
+
+
+class AutoTable(object):
+    def __init__(self, pkg_name):
+        self._package_name = pkg_name
+
+    def __getattr__(self, name):
+        # cached in genropy?
+        if name=='__wrapped__':  # jedi fix ?
+            return self.__dir__()
+        return db.table('%s.%s' % (self._package_name, name))
+
+    def __dir__(self):
+        pkg = db.package(self._package_name)
+        return list(pkg.tables)
+
+    def __str__(self):
+        return "<AutoTable for package '%s'>" % self._package_name
+    __repr__ = __str__
+
+
+# optparse is overkill
+if len(sys.argv)!=2:
+    print (__doc__)
+    sys.exit(1)
+
+gnrapp = GnrApp(sys.argv[1])
+db = gnrapp.db
+
+packages = list(db.packages)
+for pkg_name in packages:
+    locals()[pkg_name] = AutoTable(pkg_name)
+print ("\nPackages: %s"%' '.join(packages))
+
+# start IPython
+embed(colors="neutral", display_banner=False)

@@ -31,9 +31,10 @@ class View(BaseComponent):
                     isDefault=True)
 
     def th_top_sup(self,top):
-        top.slotToolbar('*,sections@types,*',
+        top.slotToolbar('10,sections@types,*,sections@groups,5',
                        childname='superiore',
                        sections_types_remote=self.sectionTypes,
+                       sections_groups_remote=self.sectionGroups,
                        _position='<bar',gradient_from='#999',gradient_to='#666')
 
     @public_method
@@ -42,10 +43,23 @@ class View(BaseComponent):
                                                 where= '$data_type IS NOT NULL').fetch()
 
         result=[]
-        result.append(dict(code='all', caption='All'))
+        result.append(dict(code='all', caption='!![en]All'))
         for t in types:
             result.append(dict(code=t['data_type'], caption=t['data_type'], condition='$data_type= :tp', condition_tp=t['data_type']))
-        result.append(dict(code='no_type', caption='No type', condition='$data_type IS NULL'))
+        result.append(dict(code='no_type', caption='!![en]No type', condition='$data_type IS NULL'))
+        return result
+
+    @public_method
+    def sectionGroups(self):
+        groups= self.db.table('lgdb.lg_column').query('$group',distinct=True, 
+                                                where= '$group IS NOT NULL').fetch()
+
+        result=[]
+        result.append(dict(code='all', caption='!![en]All'))
+        result.append(dict(code='no_group', caption='!![en]No group', condition='$group IS NULL'))
+        for g in groups:
+            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+        
         return result
 
 
@@ -55,11 +69,11 @@ class Form(BaseComponent):
         pane = form.record
         fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px', width='100%', fld_width='100%')
         fb.field('lg_table_id', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
-        fb.field('name', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
-        fb.field('data_type', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
+        fb.field('name')
+        fb.field('data_type')
         fb.field('old_type')
         fb.field('group')
-        fb.field('description', colspan=2, readOnly=True, background='rgba(128, 128, 128, 0.125)' )
+        fb.field('description', colspan=2)
         fb.field('notes', tag='simpleTextArea', height='90px')
 
     def th_options(self):

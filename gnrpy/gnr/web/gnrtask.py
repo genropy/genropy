@@ -68,10 +68,14 @@ class GnrTaskScheduler(object):
         self.db.commit()
     
     def checkAlive(self):
-        f = self.exectbl.query(columns='$pid',distinct=True,where='$start_ts IS NOT NULL AND $end_ts IS NULL').fetch()
-        deadpid = [r['pid'] for r in f if not pid_exists(r['pid'])]
-        self.exectbl.batchUpdate(dict(pid=None,start_ts=None),where='$pid IN :deadpid AND $end_ts IS NULL',deadpid=deadpid)
-
+        f = self.exectbl.query(where='$start_ts IS NOT NULL AND $end_ts IS NULL').fetchGrouped(key='pid')
+        for pid,exec_records in f.items():
+            if pid_exists(pid):
+                continue
+            keys_to_kill=[e['id'] for e in exec_records]
+            self.exectbl.batchUpdate(dict(pid=None,start_ts=None),
+                                    _pkeys=keys_to_kill,
+                                    for_update='SKIP LOCKED')
 class GnrTaskWorker(object):
     def __init__(self,sitename,interval=None,code=None):
         self.site = GnrWsgiSite(sitename)
@@ -84,7 +88,6 @@ class GnrTaskWorker(object):
         if self.code:
             wherelist.append('$task_worker_code=:wcode')
         self.where = ' AND '.join(['( %s )' %c for c in wherelist])
-        print('inited')
     
     def taskToExecute(self):
         f = True

@@ -49,13 +49,14 @@ class GnrSqliteConnection(pysqlite.Connection):
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'charactervarying': 'A','nvarchar':'A', 'character varying': 'A', 'character': 'C','char': 'C', 'text': 'T','varchar':'A', 'blob': 'X',
-                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H', 'datetime':'DH','timestamp': 'DH', 'numeric': 'N',
-                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
+                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
+                 'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
+                 'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
                  'integer unsigned':'L',
                  'decimal':'N','serial8': 'L'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
-                    'X': 'blob', 'P': 'text', 'Z': 'text',
+                    'X': 'blob', 'P': 'text', 'Z': 'text','DHZ':'timestamp with time zone',
                     'B': 'boolean', 'D': 'date', 'H': 'time', 'DH': 'timestamp',
                     'I': 'integer', 'L': 'bigint', 'R': 'real', 'N': 'numeric',
                     'serial': 'serial8'}
@@ -226,6 +227,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 col['length'] = colType[colType.find('(') + 1:colType.find(')')]
                 col['size'] = col['length']
                 colType = colType[:colType.find('(')]
+            colType = colType.strip()
             col['dtype'] = self.typesDict[colType] if colType else 'T'
             col['notnull'] = (col['notnull'] == 'NO')
             col = self._filterColInfo(col, '_sl_')
@@ -336,6 +338,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def lockTable(self, dbtable, mode, nowait):
         """We use sqlite just for tests, so we don't care about locking at the moment."""
         pass
+
+    def string_agg(self,fieldpath,separator):
+        return f"group_concat({fieldpath},'{separator}')"
 
 
 class GnrSqliteCursor(pysqlite.Cursor):

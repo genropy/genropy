@@ -88,11 +88,11 @@ class GnrBaseWebPage(GnrObject):
         :param path: TODO"""
         return self.request.get_cookie(cookieName, cookieType, secret=secret, path=path)
         
-    def add_cookie(self, cookie):
+    def add_cookie(self, cookie, **kw):
         """TODO
         
         :param cookie: TODO"""
-        self.response.add_cookie(cookie)
+        self.response.add_cookie(cookie, **kw)
         
     def _get_clientContext(self):
         cookie = self.get_cookie('genroContext', 'simple')
@@ -236,7 +236,7 @@ class GnrBaseWebPage(GnrObject):
 
     @public_method
     def getUserSelection(self, selectionName=None, selectedRowidx=None, filterCb=None, columns=None,
-                         sortBy=None,condition=None, table=None, condition_args=None):
+                         sortBy=None,condition=None, table=None, condition_args=None,limit=None):
         """TODO
         
         :param selectionName: TODO
@@ -258,6 +258,12 @@ class GnrBaseWebPage(GnrObject):
             table = self.db.table(table)
         selection = self.unfreezeSelection(dbtable=table, name=selectionName,page_id=page_id)
         table = table or selection.dbtable
+        if not columns and limit is not None:
+            qpars = dict(selection.querypars)
+            selection_limit = qpars.get('limit')
+            if selection_limit!=limit:
+                qpars['limit'] = limit
+                selection = table.query(**qpars).selection(_aggregateRows=True)
         if filterCb:
             filterCb = self.getPublicMethod('rpc',filterCb)
             selection.filter(filterCb)
@@ -279,8 +285,8 @@ class GnrBaseWebPage(GnrObject):
             where = '%s AND %s' % (where, condition)
         selection = table.query(columns=columns, where=where,
                                 pkeys=pkeys, addPkeyColumn=False,
-                                excludeDraft=False,
-                                **condition_args).selection()
+                                excludeDraft=False,limit=limit,
+                                **condition_args).selection(_aggregateRows=True)
         if sortBy:
             selection.sort(sortBy)
         return selection

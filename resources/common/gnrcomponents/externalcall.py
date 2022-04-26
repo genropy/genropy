@@ -93,18 +93,36 @@ class BaseRpc(BaseComponent):
 class NetBagRpc(BaseComponent):
 
     skip_connection = True
+    def logCall(self,methodname,result=None,parameters=None,error=None,**kwargs):
+
+        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+            tblobj = self.db.table('sys.externalcall_log')
+            newrec = tblobj.newrecord(methodname=methodname,result=result,parameters=parameters,error=error)
+            tblobj.insert(newrec)
+            self.db.commit()
 
     def rootPage(self, *args, **kwargs):
         self.response.content_type = 'application/xml'
+        methodname = args[0]
+        parameters=Bag(kwargs)
+        _debugmode = kwargs.pop('_debugmode',None)
+        loglevel = 0
         if 'pagetemplate' in kwargs:
             kwargs.pop('pagetemplate')
         if args:
             try:
-                method = self.getPublicMethod('rpc','netbag_%s' %args[0])
+                method = self.getPublicMethod('rpc','netbag_%s' %methodname)
+                if method:
+                    loglevel =  getattr(method,'loglevel',0)
             except (GnrUserNotAllowed, GnrBasicAuthenticationError) as err:
+                if _debugmode or loglevel>0:
+                    self.logCall(methodname,parameters=parameters,error=str(err))
                 return Bag(dict(error=str(err))).toXml()
             if not method:
-                return self.rpc_error(*args, **kwargs)
+                error =  self.rpc_error(*args, **kwargs)
+                if _debugmode:
+                    self.logCall(methodname,parameters=parameters,error=error)
+                return error
             args = list(args)
             args.pop(0)
         else:
@@ -114,9 +132,13 @@ class NetBagRpc(BaseComponent):
         except Exception as e:
             #import traceback
             #result = Bag(dict(error=traceback.format_exc().encode('utf8')))
-            result = Bag(dict(error=TraceBackResolver()))
+            if _debugmode or loglevel>0:
+                self.logCall(methodname,parameters=parameters,error=str(e))
+            return Bag(dict(error=TraceBackResolver()))
         if not isinstance(result,Bag):
             result = Bag(dict(result=result))
+        if _debugmode or loglevel>0:
+            self.logCall(methodname,parameters=parameters,result=result)
         return result.toXml(unresolved=True)
 
     def validIpList(self):
@@ -146,7 +168,7 @@ class NetBagRpc(BaseComponent):
 class XmlRpc(BaseComponent):
     skip_connection = True
     def rootPage(self, *args, **kwargs):
-        args,method = xmlrpcloads(self.request.body,use_datetime=True)
+        args,method = xmlrpcloads(self.request.data,use_datetime=True)
         if not method:
             return self.returnFault(-1,'Missing methodName')
         method=method.replace('.','_')
@@ -168,6 +190,8 @@ class XmlRpc(BaseComponent):
             result = handler(*args, **kwargs)
             xmlRpcResult = xmlrpcdumps((result,),encoding='UTF-8',methodresponse=True,allow_none=True)
             return xmlRpcResult
+        except Fault as e:
+            return self.returnFault(e.faultCode, e.faultString)
         except Exception as e:
             import sys,os
             tb = sys.exc_info()[2]
@@ -218,4 +242,3 @@ class XmlRpc(BaseComponent):
             return self.returnFault(-5,'Not Existing Method: %s' % methodName)
         h=getattr(self,methodName)
         return h.__doc__
-

@@ -24,7 +24,7 @@ class Table(object):
         tbl.column('flags', 'T', name_long='!![en]Flags')
         tbl.column('required_pkg', name_long='!![en]Required pkg')
         tbl.column('preview',name_long='!![en][it]Preview')
-        tbl.formulaColumn('system_userobject',"$code LIKE :scode",var_scode='\_\_%%',dtype='B')
+        tbl.formulaColumn('system_userobject',"$code LIKE :scode",var_scode=r'\_\_%%',dtype='B')
         tbl.pyColumn('resource_status',name_long='!![en]Resources',required_columns='$data')
 
     
@@ -137,7 +137,7 @@ class Table(object):
         if tbl:
             where.append('$tbl = :val_tbl')
         if flags:
-            where.append(' ($flags LIKE :_flags)  ')
+            where.append(' ($flags IS NULL OR $flags LIKE :_flags)  ')
             _flags = '%%'+flags+'%%'
         where = ' AND '.join(where)
         sel = self.query(columns='$id, $code, $objtype, $pkg, $tbl, $userid, $description, $authtags, $private, $quicklist, $flags',

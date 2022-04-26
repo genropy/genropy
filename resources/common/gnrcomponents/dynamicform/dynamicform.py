@@ -49,7 +49,7 @@ class DynamicFormBagManager(BaseComponent):
 
     @customizable
     def df_fieldsBagForm(self,form):
-        form.top.slotToolbar('2,navigation,*,delete,add,save,semaphore,locker,2')
+        form.top.slotToolbar('2,navigation,*,delete,add,copypaste,save,semaphore,locker,2')
         form.dataController('SET #FORM.ftitle = desc || newfield;',desc='=#FORM.record.description',newfield='!!New Field',_fired='^#FORM.controller.loaded')
         bc = form.center.borderContainer(datapath='.record')
         pane = bc.contentPane(region='center')
@@ -98,7 +98,7 @@ class DynamicFormBagManager(BaseComponent):
 
         fb.textbox(value='^.source_dbselect',lbl='!!Source',colspan=3,row_class='df_row field_dbselect',width='100%',ghost='!!pkg.table')  
         fb.textbox(value='^.source_dbcombobox',lbl='!!Source',colspan=3,row_class='df_row field_dbcombobox',width='100%',ghost='!!pkg.table')  
-
+        fb.checkbox(value='^.hasDownArrow',label='!!Show Down Arrow',colspan=3,row_class='df_row field_dbcombobox field_dbselect')
         fb.filteringSelect(value='^.validate_case',lbl='!!Case',row_class='df_row field_textbox',width='100%',values='u:Uppercase,l:Lowercase,c:Capitalize,t:Title')
         fb.br()
         
@@ -167,11 +167,13 @@ class DynamicForm(BaseComponent):
         bar = frame.top.slotToolbar('parentStackButtons,*,delgridrow,addrow_dlg')
         bc = frame.center.borderContainer(design='sidebar')
         left = bc.borderContainer(width='120px',region='left',splitter=True)
+        table = bc.getInheritedAttributes().get('table')
+        tplnames = self.db.table(table).column('df_custom_templates').attributes.get('templates') or ''
         fg = left.frameGrid(region='top',height='40%',margin_top='3px',splitter=True,storepath='#FORM.record.df_custom_templates',datamode='bag',
                  struct=self.__df_tpl_struct,grid_selectedLabel='.selectedLabel',grid_autoSelect=True,_class='noheader buttons_grid no_over')
-        bar.addrow_dlg.slotButton('!!Add custom template',iconClass='iconbox add_row',
-                                            action='genro.dlg.prompt(dlgtitle,{lbl:dlglbl,action:"FIRE #FORM.dynamicFormTester.newCustTpl=value;"},this);',
-                                            dlgtitle='!!New template',dlglbl='!!Name')
+        bar.addrow_dlg.slotButton('!!Add custom template',iconClass='iconbox add_row'
+                                    ).dataController('FIRE #FORM.dynamicFormTester.newCustTpl = nametpl',
+                                            _ask=dict(title='New template',fields=[dict(name='nametpl',lbl='Name',tag='combobox',values=tplnames)]))
         bar.delgridrow.slotButton('!!Delete selected template',iconClass='iconbox delete_row',
                                     action="""grid.publish("delrow");grid.widget.updateRowCount();""",grid=fg.grid)
         fg.dataController("""if(!currtemplates || currtemplates.len()==0){
@@ -225,7 +227,6 @@ class DynamicForm(BaseComponent):
         else:
             th = self.df_fieldsBagGrid(center,mastertable=mastertable,**kwargs)
         bar = th.view.top.bar.replaceSlots('*,delrow','fbfields,showpreview,*,delrow')
-        bar.replaceSlots('addrow','addrow,duprow')
         bar.showpreview.checkbox(value='^#FORM.dynamicFormTester.showpreview',label='Preview')
         bc.dataController("bc.setRegionVisible('bottom',prev)",bc=bc.js_widget,prev='^#FORM.dynamicFormTester.showpreview')
         fb = bar.fbfields.formbuilder(cols=2, border_spacing='2px')

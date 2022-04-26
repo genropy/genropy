@@ -26,7 +26,6 @@ from past.builtins import basestring
 #from builtins import object
 from past.utils import old_div
 import re
-
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -385,14 +384,18 @@ class SqlDbAdapter(object):
         record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
         sql_flds = []
         data_keys = []
-        for k in list(record_data.keys()):
+        for k,v in record_data.items():
             sqlcolname = tblobj.sqlnamemapper.get(k)
-            if sqlcolname: # skip aliasColumns
+            if not sqlcolname: 
+                # skip aliasColumns
+                continue
+            sql_value = tblobj.column(k).attributes.get('sql_value')
+            if (v is not None) or (sql_value is not None):
                 sql_flds.append(sqlcolname)
-                sql_value = tblobj.column(k).attributes.get('sql_value')
                 data_keys.append(sql_value or ':%s' % k)
         sql = 'INSERT INTO %s(%s) VALUES (%s);' % (tblobj.sqlfullname, ','.join(sql_flds), ','.join(data_keys))
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
 
     def insertMany(self, dbtable, records,**kwargs):
         tblobj = dbtable.model
@@ -512,6 +515,9 @@ class SqlDbAdapter(object):
                       belongs to)
         :param full: boolean. TODO"""
         self.dbroot.execute('VACUUM ANALYZE %s;' % table)
+
+    def string_agg(self,fieldpath,separator):
+        return f"string_agg({fieldpath},'{separator}')"
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
@@ -680,6 +686,7 @@ class GnrWhereTranslator(object):
     def __call__(self, tblobj, wherebag, sqlArgs, customOpCbDict=None):
         if sqlArgs is None:
             sqlArgs = {}
+        self.parnames = {}
         self.customOpCbDict = customOpCbDict
         result = self.innerFromBag(tblobj, wherebag, sqlArgs, 0)
         return '\n'.join(result)
@@ -690,8 +697,16 @@ class GnrWhereTranslator(object):
             return 'Not %s' % getattr(self, 'op_%s' % op[4:].lower()).__doc__
         result = h.__doc__
         if localize and self.db.localizer:
-            result = self.db.localizer.translateText(result)
+            result = self.db.localizer.translate(result,language=self.db.currentEnv.get('locale'))
         return result
+
+    def _relPathToCaption(self, table, relpath):
+        if not relpath: return ''
+        tbltree = self.db.relationExplorer(table, dosort=False, pyresolver=True)
+        localize = self.db.localizer.translate
+        locale = self.db.currentEnv.get('locale')
+        fullcaption = tbltree.cbtraverse(relpath, lambda node: localize(node.getAttr('name_long'),language=locale))
+        return ':'.join(fullcaption)
 
     def toText(self, tblobj, wherebag, level=0, decodeDate=False):
         result = []
@@ -709,6 +724,10 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op_caption')
                 column = attr.get('column_caption')
+                if not op and attr.get('op'):
+                    op = self.opCaption(attr['op'],localize=True)
+                if not column and attr.get('column'):
+                    column = self._relPathToCaption(tblobj.fullname, attr.get('column'))
                 if not op or not column:
                     continue
                 if decodeDate:
@@ -738,6 +757,10 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op_caption')
                 column = attr.get('column_caption')
+                if not op and attr.get('op'):
+                    op = self.opCaption(attr['op'],localize=True)
+                if not column and attr.get('column'):
+                    column = self._relPathToCaption(tblobj.fullname, attr.get('column'))
                 if not op or not column:
                     continue
                 if decodeDate:
@@ -778,6 +801,15 @@ class GnrWhereTranslator(object):
             else:
                 op = attr.get('op')
                 column = attr.get('column')
+                parname = attr.get('parname')
+                if not parname:
+                    parname = column.replace('@','_').replace('.','_') if column else node.label
+                if parname in self.parnames:
+                    self.parnames[parname]+=1
+                    parname = '{}_{}'.format(parname,self.parnames[parname])
+                    self.parnames[parname] = 1
+                else:
+                    self.parnames[parname] = 1
                 if not op or not column:
                     #ingnoring empty query lines
                     continue
@@ -788,7 +820,7 @@ class GnrWhereTranslator(object):
 
                 if value is None and attr.get('value_caption'):
                     value = sqlArgs.pop(attr['value_caption'],'')
-                onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj)
+                onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
 
             if onecondition:
                 if negate:
@@ -799,7 +831,7 @@ class GnrWhereTranslator(object):
     def checkValueIsField(self,value):
         return value and isinstance(value,basestring) and value[0] in '$@'
 
-    def prepareCondition(self, column, op, value, dtype, sqlArgs,tblobj=None):
+    def prepareCondition(self, column, op, value, dtype, sqlArgs,tblobj=None,parname=None):
         if not dtype:
             dtype = tblobj.column(column).dtype
         if not column[0] in '@$':
@@ -818,11 +850,11 @@ class GnrWhereTranslator(object):
             op = 'in'
         ophandler = getattr(self, 'op_%s' % op, None)
         if ophandler:
-            result = ophandler(column=column, value=value, dtype=dtype, sqlArgs=sqlArgs,tblobj=tblobj)
+            result = ophandler(column=column, value=value, dtype=dtype, sqlArgs=sqlArgs,tblobj=tblobj,parname=parname)
         else:
             ophandler = self.customOpCbDict.get(op)
             assert ophandler, 'undefined ophandler'
-            result = ophandler(column=column, value=value, dtype=dtype, sqlArgs=sqlArgs, whereTranslator=self,tblobj=tblobj)
+            result = ophandler(column=column, value=value, dtype=dtype, sqlArgs=sqlArgs, whereTranslator=self,tblobj=tblobj,parname=parname)
         return result
 
     def decodeDates(self, value, op, dtype):
@@ -866,87 +898,89 @@ class GnrWhereTranslator(object):
                 op = 'equal'
         return value, op
 
-    def storeArgs(self, value, dtype, sqlArgs):
+    def storeArgs(self, value, dtype, sqlArgs, parname=None):
         if not dtype in ('A', 'T') and not self.checkValueIsField(value):
             if isinstance(value, list):
                 value = [self.catalog.fromText(v, dtype) for v in value]
             elif isinstance(value, basestring):
                 value = self.catalog.fromText(value, dtype)
-        argLbl = 'v_%i' % len(sqlArgs)
+        argLbl = parname or 'v_%i' % len(sqlArgs)
         sqlArgs[argLbl] = value
         return argLbl
 
-    def op_startswithchars(self, column, value, dtype, sqlArgs,tblobj):
+    def op_startswithchars(self, column, value, dtype, sqlArgs,tblobj, parname=None):
         "!!Starts with Chars"
-        return self.unaccentTpl(tblobj,column,'LIKE',mask=":%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'LIKE',mask=":%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_equal(self, column, value, dtype, sqlArgs,tblobj):
+    def op_equal(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Equal to"
-        return self.unaccentTpl(tblobj,column,'=')  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'=')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_startswith(self, column, value, dtype, sqlArgs,tblobj):
+    def op_startswith(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Starts with"
-        return self.unaccentTpl(tblobj,column,'ILIKE',mask=":%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'ILIKE',mask=":%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_wordstart(self, column, value, dtype, sqlArgs,tblobj):
+    def op_wordstart(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Word start"
         value = value.replace('(', r'\(').replace(')', r'\)').replace('[', r'\[').replace(']', r'\]')
-        return self.unaccentTpl(tblobj,column,'~*',mask="'(^|\\W)' || :%s")  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'~*',mask="'(^|\\W)' || :%s")  % (column, self.storeArgs(value, dtype, sqlArgs,parname=parname))
 
-    def op_contains(self, column, value, dtype, sqlArgs,tblobj):
+    def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
-        return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_greater(self, column, value, dtype, sqlArgs,tblobj):
+    def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"
-        return self.unaccentTpl(tblobj,column,'>')  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'>')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_greatereq(self, column, value, dtype, sqlArgs,tblobj):
+    def op_greatereq(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater or equal to"
-        return self.unaccentTpl(tblobj,column,'>=')  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'>=')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_less(self, column, value, dtype, sqlArgs,tblobj):
+    def op_less(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Less than"
-        return self.unaccentTpl(tblobj,column,'<')  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'<')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_lesseq(self, column, value, dtype, sqlArgs,tblobj):
+    def op_lesseq(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Less or equal to"
-        return self.unaccentTpl(tblobj,column,'<=')  % (column, self.storeArgs(value, dtype, sqlArgs))
+        return self.unaccentTpl(tblobj,column,'<=')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-    def op_between(self, column, value, dtype, sqlArgs,tblobj):
+    def op_between(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Between"
         v1, v2 = value.split(';')
         return '%s BETWEEN :%s AND :%s' % (
-        column, self.storeArgs(v1, dtype, sqlArgs), self.storeArgs(v2, dtype, sqlArgs))
+            column, self.storeArgs(v1, dtype, sqlArgs, parname='{}_from'.format(parname)), self.storeArgs(v2, dtype, sqlArgs, parname='{}_to'.format(parname))
+        )
 
-    def op_isnull(self, column, value, dtype, sqlArgs,tblobj):
+    def op_isnull(self, column, value, dtype, sqlArgs, tblobj,**kwargs):
         "!!Is null"
         return '%s IS NULL' % column
 
-    def op_istrue(self, column, value, dtype, sqlArgs,tblobj):
+    def op_istrue(self, column, value, dtype, sqlArgs, tblobj,**kwargs):
         "!!Is true"
         return '%s IS TRUE' % column
 
-    def op_isfalse(self, column, value, dtype, sqlArgs,tblobj):
+    def op_isfalse(self, column, value, dtype, sqlArgs, tblobj,**kwargs):
         "!!Is false"
         return '%s IS FALSE' % column
 
-    def op_nullorempty(self, column, value, dtype, sqlArgs,tblobj):
+    def op_nullorempty(self, column, value, dtype, sqlArgs, tblobj,**kwargs):
         "!!Is null or empty"
         if dtype in ('L', 'N', 'M', 'R'):
-            return self.op_isnull(column, value, dtype, sqlArgs)
+            return self.op_isnull(column, value, dtype, sqlArgs,tblobj,
+            **kwargs)
         return " (%s IS NULL OR %s ='')" % (column, column)
 
-    def op_in(self, column, value, dtype, sqlArgs,tblobj):
+    def op_in(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!In"
         if isinstance(value,basestring):
             value = value.split(',')
-        values_string = self.storeArgs(value, dtype, sqlArgs)
+        values_string = self.storeArgs(value, dtype, sqlArgs, parname=parname)
         return '%s IN :%s' % (column, values_string)
 
-    def op_regex(self, column, value, dtype, sqlArgs,tblobj):
+    def op_regex(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Regular expression"
-        return '%s ~* :%s' % (column, self.storeArgs(value, dtype, sqlArgs))
+        return '%s ~* :%s' % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
 
    #def whereFromText(self, table, whereTxt, customColumns=None):

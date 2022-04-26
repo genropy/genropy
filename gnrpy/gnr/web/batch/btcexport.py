@@ -7,57 +7,26 @@
 #Copyright (c) 2011 Softwell. All rights reserved.
 
 #from builtins import object
+from gnr.core.gnrdict import dictExtract
 from gnr.web.batch.btcbase import BaseResourceBatch
-
-from gnr.core.gnrxls import XlsWriter
-from gnr.lib.services.storage import StorageNode
-from gnr.core.gnrstring import toText
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrexporter import getWriter
+from gnr.core.gnrlang import objectExtract
 import re
 
-class CsvWriter(object):
-    """docstring for CsVWriter"""
 
-    def __init__(self, columns=None, coltypes=None, headers=None, filepath=None,locale=None, **kwargs):
-        self.headers = headers or []
-        self.columns = columns
-        self.coltypes = coltypes
-        self.filepath = filepath
-        self.locale = locale
-        self.result = []
 
-    def writeHeaders(self, separator='\t'):
-        self.result = [separator.join(self.headers)]
-
-    def cleanCol(self, txt, dtype):
-        txt = txt.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').replace('"', "'")
-        if txt:
-            if txt[0] in ('+', '=', '-'):
-                txt = ' %s' % txt
-            elif txt[0].isdigit() and (dtype in ('T', 'A', '', None)):
-                txt = '%s' % txt # how to escape numbers in text columns?
-        return txt
-
-    def writeRow(self, row, separator='\t'):
-        self.result.append(separator.join([self.cleanCol(toText(row.get(col),locale=self.locale), self.coltypes[col]) for col in self.columns]))
-
-    def workbookSave(self):
-        if isinstance(self.filepath, StorageNode):
-            csv_open = self.filepath.open
-        else:
-            csv_open = lambda **kw: open(self.filepath,**kw)
-        with csv_open(mode='wb') as f:
-            result = '\n'.join(self.result)
-            f.write(result.encode('utf-8'))
-            
 class BaseResourceExport(BaseResourceBatch):
     batch_immediate = True
     export_zip = False
     export_mode = 'xls'
     localized_data = False
+    locale = None
     def __init__(self, *args, **kwargs):
         super(BaseResourceExport, self).__init__(*args, **kwargs)
-        self.locale = self.page.locale
+        self.locale = self.locale or self.page.locale
         self.columns = []
+        self.hiddencolumns = []
         self.headers = []
         self.coltypes = {}
         self.groups = []
@@ -66,7 +35,10 @@ class BaseResourceExport(BaseResourceBatch):
     def gridcall(self, data=None, struct=None, export_mode=None, datamode=None,selectedRowidx=None,filename=None,
                     localized_data=None,**kwargs):
         self.batch_parameters = dict(export_mode=export_mode, filename=filename,localized_data=localized_data)
-        self.prepareFromStruct(struct)
+        self.batch_parameters.update(kwargs)
+        self.prepareExportCols(data,struct=struct)
+        if not isinstance(data,Bag):
+            data = data.output('grid')
         self.data = self.rowFromValue(data) if datamode == 'bag' else self.rowFromAttr(data)
         self._pre_process()
         self.do()
@@ -82,7 +54,7 @@ class BaseResourceExport(BaseResourceBatch):
             for r in data:
                 yield r.getValue()
 
-    def prepareFromStruct(self, struct=None):
+    def _prepareExportCols_struct(self, struct=None):
         info = struct.pop('info')
         columnsets = {}
         if info:
@@ -112,9 +84,22 @@ class BaseResourceExport(BaseResourceBatch):
                 curr_columnset['end']=curr_column
                 if curr_columnset.get('name'):
                     self.groups.append(curr_columnset)
-        
+
     def getFileName(self):
         return 'export'
+
+    def _prepareExportCols_selection(self,selection):
+        self.columns = selection.columns
+        hiddencolumns = [c.replace('$','').replace('@','_').replace('.','_') for c in self.hiddencolumns]+['pkey', 'rowidx']
+        self.columns = [c for c in self.columns if c not in hiddencolumns]
+        self.coltypes = dict([(k, v['dataType']) for k, v in selection.colAttrs.items()])
+        self.headers = self.columns
+
+    def prepareExportCols(self,selection,struct=None):
+        if not struct:
+            self._prepareExportCols_selection(selection)
+        else:
+            self._prepareExportCols_struct(struct)
 
     def _pre_process(self):
         self.pre_process()
@@ -126,20 +111,16 @@ class BaseResourceExport(BaseResourceBatch):
             selection = self.get_selection()
             struct = self.batch_parameters.get('struct')
             self.data = self.btc.thermo_wrapper(selection.data, message=self.tblobj.name_plural, tblobj=self.tblobj)
-            if not struct:
-                self.columns = selection.columns
-                self.columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
-                self.coltypes = dict([(k, v['dataType']) for k, v in list(selection.colAttrs.items())])
-                self.headers = self.columns
-            else:
-                self.prepareFromStruct(struct)
+            self.prepareExportCols(selection,struct)
         writerPars = dict(columns=self.columns, coltypes=self.coltypes, headers=self.headers,
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
-        if self.export_mode == 'xls':
-            self.writer = XlsWriter(**writerPars)
-        elif self.export_mode == 'csv':
-            self.writer = CsvWriter(**writerPars)
+        extraPars = objectExtract(self,f'{self.export_mode}_')
+        modeParameters = dictExtract(self.batch_parameters,f'{self.export_mode}_')
+        writerPars.update(extraPars)
+        writerPars.update(modeParameters)
+        self.writer = getWriter(self.export_mode)(**writerPars)
+    
 
     def do(self):
         self.writer.writeHeaders()
@@ -155,10 +136,11 @@ class BaseResourceExport(BaseResourceBatch):
             zipNode = self.page.site.storageNode('page:output',export_mode,'%s.%s' % (self.filename, export_mode), autocreate=-1)
             self.page.site.zipFiles(file_list=[self.filepath],zipPath=zipNode)
             self.filepath = zipNode.fullpath
+
         filename = self.filename
-        if not self.filename.endswith('.%s' %self.export_mode):
-            filename = '%s.%s' % (self.filename, export_mode)
-        self.fileurl = self.page.site.storageNode('page:output', export_mode,filename).url()
+        if not self.filename.endswith('.%s' %self.writer.extension):
+            filename = '%s.%s' % (self.filename, self.writer.extension)
+        self.fileurl = self.page.site.storageNode('page:output', export_mode, filename).url()
 
     def prepareFilePath(self, filename=None):
         if not filename:
@@ -171,7 +153,8 @@ class BaseResourceExport(BaseResourceBatch):
     def result_handler(self):
         if self.batch_immediate:
             self.page.setInClientData(path='gnr.downloadurl',value=self.fileurl,fired=True)
-        return 'Execution completed', dict(url=self.fileurl, document_name=self.batch_parameters['filename'])
+
+        return 'Execution completed', dict(url=self.fileurl, document_name=self.batch_parameters.get('filename',self.fileurl.split('/')[-1]))
 
     def get_record_caption(self, item, progress, maximum, **kwargs):
         caption = '%s (%i/%i)' % (self.tblobj.recordCaption(item),

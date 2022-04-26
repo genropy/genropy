@@ -32,10 +32,10 @@ from gnr.web.gnrwebstruct import struct_method
 
 
 class BasePreferenceTabs(BaseComponent):
-    def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,**kwargs):
+    def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,wdg='tab',**kwargs):
         if isinstance(packages,basestring):
             packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
-        tc = parent.tabContainer(datapath=datapath,context_dbstore=context_dbstore,nodeId='PREFROOT',**kwargs)
+        tc = getattr(parent,f'{wdg}Container')(datapath=datapath,context_dbstore=context_dbstore,nodeId='PREFROOT',**kwargs)
         for pkgId in packages:
             pkg = self.application.packages[pkgId]
             if pkg.disabled:

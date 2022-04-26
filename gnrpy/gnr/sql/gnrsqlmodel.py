@@ -26,6 +26,8 @@ from builtins import str
 from builtins import range
 #from builtins import object
 import logging
+import copy
+
 from datetime import datetime,timedelta
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
@@ -41,14 +43,13 @@ import threading
 import re
 
 logger = logging.getLogger(__name__)
-VIRTUAL_COLUMNS_CACHETIME = timedelta(0,300)
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None):
     itempath = itempath.replace('.','/')
     sql_formula = """ CAST( (xpath('/GenRoBag/%s/text()', CAST(%s as XML) ) )[1]  AS text)""" %(itempath,bagcolumn)
     dtype = dtype or 'T'
     typeconverter = {'T':'text','A':'text','C':'text','P':'text', 'N': 'numeric','B': 'boolean',
-                 'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real'}
+                 'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}
     desttype = typeconverter[dtype]
     return """CAST ( ( %s ) AS %s) """ %(sql_formula,desttype) if desttype!='text' else sql_formula
 
@@ -60,6 +61,7 @@ class DbModel(object):
     def __init__(self, db):
         #self._db = weakref.ref(db)
         self.db = db
+        self.onBuildingCb = []
         self.src = DbModelSrc.makeRoot()
         self.src._dbmodel = self
         self.obj = None
@@ -71,7 +73,17 @@ class DbModel(object):
     def debug(self):
         """TODO"""
         return self.db.debug
-        
+
+
+    def runOnBuildingCb(self):
+        while self.onBuildingCb:
+            cbpars = self.onBuildingCb.pop()
+            cbpars['handler'](*cbpars['args'],**cbpars['kwargs'])
+    
+    def deferOnBuilding(self,cb,*args,**kwargs):
+        self.onBuildingCb.append({'handler':cb,'args':args,'kwargs':kwargs})
+
+
     def build(self):
         """Database startup operations:
         
@@ -120,12 +132,16 @@ class DbModel(object):
         sqldict = moduleDict('gnr.sql.gnrsqlmodel', 'sqlclass,sqlresolver')
         for cb in onBuildingCalls:
             cb()
+        #bag sorgente pronta
+        self.runOnBuildingCb()
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in list(self._columnsWithRelations.items()):
             oneCol = relation.pop('related_column')
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
             
+            
+
     def resolveAlias(self, name):
         """TODO
         
@@ -217,6 +233,14 @@ class DbModel(object):
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
             self.checkRelationIndex(many_pkg, many_table, many_field)
             self.checkRelationIndex(one_pkg, one_table, one_field)
+            col_one_size = self.table(one_table,pkg=one_pkg).column(one_field).attributes.get('size')
+            col_many_size = self.table(many_table,pkg=many_pkg).column(many_field).attributes.get('size')
+
+            if col_one_size != col_many_size:
+                message = 'Different size in relation {fkey}:{many_size} - {pkey}:{one_size} '.format(fkey=str('.'.join(many_relation_tuple)),
+                        many_size=col_many_size, pkey=str(oneColumn),one_size=col_one_size)
+                logger.error(message)
+
             if (onDelete=='cascade' and self.db.auto_static_enabled) or meta_kwargs.get('childmode'):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
@@ -941,12 +965,32 @@ class DbTableObj(DbModelObj):
                 r.append((reltbl,deferred or onDelete=='setnull'))
         return r
 
+    def getVirtualColumn(self,fld,sqlparams=None):
+        result = self.virtual_columns[fld]
+        if result is not None:
+            return result
+        vc_pars = sqlparams.get(fld,None)
+        if vc_pars is None:
+            return
+        pars = dict(vc_pars)
+        fld = pars.pop('field')
+        col = self.getVirtualColumn(fld,sqlparams=sqlparams)
+        if col is None:
+            return
+        sn = copy.deepcopy(col._GnrStructObj__structnode)
+        sn.label = fld
+        snattr = sn.attr
+        snattr.update(pars)
+        result = DbVirtualColumnObj(structnode=sn,parent=self['virtual_columns'])
+        return result
+
     @property  
     def virtual_columns(self):
         """Returns a DbColAliasListObj"""
-        if hasattr(self,'_virtual_columns'):
-            if datetime.now()-self._last_virtual_columns_ts<VIRTUAL_COLUMNS_CACHETIME:
-                return self._virtual_columns 
+        vc_key = '_virtual_columns_{}'.format(self.dbtable.fullname.replace('.','_'))
+        env_virtual_columns = self.db.currentEnv.get(vc_key)
+        if env_virtual_columns:
+            return env_virtual_columns
         virtual_columns = self['virtual_columns']
         local_virtual_columns = self.db.localVirtualColumns(self.fullname) #to remove use dynamic_virtual_columns
         if local_virtual_columns:
@@ -957,8 +1001,7 @@ class DbTableObj(DbModelObj):
             obj = DbVirtualColumnObj(structnode=node,parent=virtual_columns)
             virtual_columns.children[obj.name.lower()] = obj
         self._handle_variant_columns(virtual_columns=virtual_columns)
-        self._virtual_columns = virtual_columns
-        self._last_virtual_columns_ts = datetime.now()
+        self.db.currentEnv[vc_key] = virtual_columns
         return virtual_columns
 
     @property

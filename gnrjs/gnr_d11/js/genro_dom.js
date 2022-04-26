@@ -262,6 +262,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
             where = where.getDomNode();
         } else if (where instanceof gnr.GnrDomSource) {
             where = where.getParentNode().getDomNode();
+        }else if(where.domNode){
+            where = where.domNode;
         }
         return where;
     },
@@ -637,24 +639,48 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
 
     },
+
+    cssStyleRulesToBag:function(styleRules) {
+        var result = new gnr.GnrBag();
+        var i = 0;
+        for(let rule of styleRules){
+            if(!(rule instanceof CSSStyleRule)){
+                return;
+            }
+            let l = [];
+            for (let n of rule.style){
+                l.push(`${n}:${rule.style[n]}`);
+            }
+            result.addItem('r_'+i,new gnr.GnrBag({
+                selectorText:rule.selectorText,
+                cssText:rule.cssText,
+                cssContent:l.join('\n')
+            }));
+        }
+        if(result.len()){
+            return result;
+        }
+    },
+
+
     cssRulesToBag:function(rules) {
         var result = new gnr.GnrBag();
         var _importRule = 3;
         var _styleRule = 1;
         var rule,label,value,attr;
         for (var i = 0, len = rules.length; i < len; i++) {
-            r = rules.item(i);
+            var r = rules.item(i);
             switch (r.type) {
                 case _styleRule:
                     label = 'r_' + i;
                     value = genro.dom.styleToBag(r.style);
-                    result.setItem(label, value, {selectorText:r.selectorText,_style:r.style});
-                    this.css_selectors[r.selectorText] = value;
+                    result.addItem(label, value, {selectorText:r.selectorText,_style:r.style,caption:r.selectorText});
+                    //this.css_selectors[r.selectorText] = value;
                     break;
                 case _importRule:
-                    attr = {href:r.href};
+                    attr = {href:r.href,caption:r.href};
                     label = r.title || 'r_' + i;
-                    result.setItem(label, genro.dom.cssRulesToBag(r.styleSheet.cssRules), attr);
+                    result.addItem(label, genro.dom.cssRulesToBag(r.styleSheet.cssRules), attr);
 
                     break;
                 // default:
@@ -697,11 +723,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
             label = s.title || 's_' + cnt;
             attr = {'type':s.type,'title':s.title};
             value = genro.dom.cssRulesToBag(s.cssRules);
-            result.setItem(label, value, attr);
+            result.addItem(label, value, attr);
             cnt++;
         });
         return result;
     },
+
+
     styleToBag:function(s) {
         var result = new gnr.GnrBag();
         var rule;
@@ -710,13 +738,23 @@ dojo.declare("gnr.GnrDomHandler", null, {
         //     result.setItem(st, s.getPropertyValue(st)); 
         // };
         for (var i = s.length; i>=0 ;i--) {
-            var st = s[i];
-            result.setItem(st, s.getPropertyValue(st));
+            var st = s[i-1];
+            if(st){
+                //result.addItem('r_'+i,new gnr.GnrBag({name:st,value:s.getPropertyValue(st)}),{caption:st});
+                result.addItem(st, s.getPropertyValue(st));
+            }
         }
         return result;
     },
     windowTitle:function(title) {
         document.title = title;
+        let mainGenro = genro.mainGenroWindow.genro;
+        if(mainGenro.framedIndexManager){
+            if(window.frameElement && window.frameElement.sourceNode){
+                let pageName = window.frameElement.sourceNode.attr.rootPageName;
+                mainGenro.framedIndexManager.changeFrameLabel({pageName:pageName,title:title,lazy:true});
+            }
+        }
     },
     styleTrigger:function(kw) {
         var parentNode = kw.node.getParentNode();
@@ -733,7 +771,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }*/
         var stylebag = genro.dom.styleToBag(st);
         parentNode.setValue(stylebag);
-        this.css_selectors[parentNode.attr.selectorText] = stylebag;
+        //this.css_selectors[parentNode.attr.selectorText] = stylebag;
     },
     cursorWait:function(flag) {
         if (flag) {
@@ -1308,6 +1346,77 @@ dojo.declare("gnr.GnrDomHandler", null, {
         return m.join();
     },
 
+
+    microchart : function(data,kw,where,clickcb){
+        const scale = kw.scale || 1;
+        let values = [];
+        for(let d of data){
+            d.value = d.value * scale;
+            values.push(d.value);
+        }
+        const valmin = Math.min(values);
+        const valmax = Math.max(values);
+        let ovf_min = kw.ovf_min? kw.ovf_min * scale: null;
+        let ovf_max = kw.ovf_max? kw.ovf_max * scale: null;
+        if(ovf_min === undefined){
+            ovf_min = Math.min(valmin,-valmax) - 2;
+        }
+        if(ovf_max === undefined){
+            ovf_max = valmax+2;
+        }
+        const tot_height =  ovf_max-ovf_min;
+    
+        const bar_width = kw.bar_width || 10;
+        const bar_margin = kw.bar_margin || 2;
+        const tot_width = (bar_width+bar_margin) * data.length;
+    
+        const min_warning = objectExtract(kw,'min_*');
+        const max_warning = objectExtract(kw,'max_*');
+        let result = [];
+        let curridx = 0;
+        
+        for(let d of data){
+            let v = d.value;
+            let clscontent = 'mc_positive';
+            if(v > ovf_max){
+                clscontent = 'mc_positive mc_ovf';
+                v = ovf_max;
+            }else if(d.value<0){
+                clscontent = 'mc_negative';
+                if(v<ovf_min){
+                    clscontent = 'mc_negative mc_ovf';
+                    v = ovf_min;
+                }
+            }
+            let min_warning_value = null;
+            for(let k in min_warning){
+                if(v<min_warning[k] && (min_warning_value===null || min_warning[k]<min_warning_value)){
+                    clscontent = `${clscontent} ${k}`;
+                    min_warning_value = min_warning[k];
+                }
+            }
+            let max_warning_value = null;
+            for(let k in max_warning){
+                if(v>max_warning[k] && (warning_value===null || min_warning[k]>max_warning_value)){
+                    clscontent = `${clscontent} ${k}`;
+                    max_warning_value = max_warning[k];
+                }
+            }
+            let height = Math.abs(v);
+            let bottom = v>0?0:v;
+            result.push(`<div title="${d.label}" class="mc_bar ${clscontent}" style="position:absolute; left:${curridx}px; width:${bar_width}px; bottom:${bottom}px; height:${height}px;"></div>`);
+            curridx += bar_width+bar_margin;
+        }
+        let tophalf = `<div style="position:absolute;top:0;left:0;right:0;height:${Math.abs(ovf_max)}px;">${result.join("")}</div>`;
+        let bottomhalf = `<div style="position:absolute;bottom:0;left:0;right:0;height:${Math.abs(ovf_min)}px; border-top:1px solid silver;"></div>`;
+        
+        result = `<div class="mc_root" style="position:relative; height:${tot_height}px; width:${tot_width}px;">${tophalf}${bottomhalf}</div>`;
+        if(where){
+            where = this.getDomNode(where);
+            where.innerHTML = result;
+        }
+        return result;
+    },
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
         var max_height = kw.max_height || '180px';
@@ -1420,6 +1529,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             setTimeout(cb, 1);
         }
     },
+    
     setTextInSelection:function(sourceNode,valueToPaste){
         var fn = sourceNode.widget.focusNode;
         var ss = fn.selectionStart;
@@ -1433,19 +1543,12 @@ dojo.declare("gnr.GnrDomHandler", null, {
     copyInClipboard:function(what){
         var whatDomNode = this.getDomNode(what);
         let str = whatDomNode.textContent;
-        const el = document.createElement('textarea');
-        el.value = str;
-        el.setAttribute('readonly', '');
-        el.style.position = 'absolute';
-        el.style.left = '-9999px';
-        document.body.appendChild(el);
-        el.select();
         genro.dom.addClass(whatDomNode,'copyingContent');
-        document.execCommand('copy');
-        document.body.removeChild(el);
-        setTimeout(function(){
-            genro.dom.removeClass(whatDomNode,'copyingContent');
-        },500);
+        navigator.clipboard.writeText(str).then(function(){
+            setTimeout(function(){
+                genro.dom.removeClass(whatDomNode,'copyingContent');
+            },500);
+        })
     },
 
     isDisabled:function(domNode,inherited){

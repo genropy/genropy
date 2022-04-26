@@ -25,13 +25,60 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='datetime', op='contains', val='')
 
+class ViewFromUserobject(BaseComponent):
+    def th_hiddencolumns(self):
+        return '$id,$page_path,$external_url'
 
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('datetime',width='10em')
+        r.fieldcell('expiry')
+        r.fieldcell('allowed_user')
+        r.fieldcell('exec_user')
+        r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
+                    format_buttonclass='copy iconbox',
+                    format_isbutton=True,
+                    format_onclick="""
+            var row = this.widget.rowByIndex($1.rowIndex);
+            var external_url = row.external_url;
+            var where_pars = this.getRelativeData('#FORM.record.data.where_pars');
+            var widgetlist = where_pars.getNodes().map(function(n){
+                return {lbl:n.label,value:`^.${n.label}`,placeholder:n.getValue()};
+            });
+            widgetlist.push({
+                value:'^.output',
+                lbl:'Output',
+                tag:'filteringSelect',
+                values:'html:HTML,json:JSON,xls:Excel,tabtext:CSV'
+            });
+            genro.dlg.prompt("Copy url",{
+                    widget:widgetlist,
+                    action:function(result){
+                        let txtlist = [external_url];
+                        result.getNodes().forEach(function(parNode){
+                            let value = parNode.getValue();
+                            if(!isNullOrBlank(value)){
+                                value = encodeURIComponent(value);
+                                txtlist.push(`${parNode.label}=${value}`);
+                            }
+                        });
+                        navigator.clipboard.writeText(txtlist.join('&'));
+                    }
+                }
+            );
+            """)
+
+    def th_order(self):
+        return 'datetime'
+
+    def th_query(self):
+        return dict(column='datetime', op='contains', val='')
 
 class Form(BaseComponent):
 
     def th_form(self, form):
-        pane = form.record
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        bc = form.center.borderContainer()
+        fb = bc.contentPane(region='top').formbuilder(cols=2, border_spacing='4px',datapath='#FORM.record')
         fb.field('datetime')
         fb.field('expiry')
         fb.field('allowed_user')
@@ -40,8 +87,8 @@ class Form(BaseComponent):
         fb.field('allowed_host')
         fb.field('page_path')
         fb.field('method')
-        fb.field('parameters')
         fb.field('exec_user')
+        bc.roundedGroupFrame(title='Parameters',region='center').multiValueEditor(value='^#FORM.record.parameters')
 
 
     def th_options(self):

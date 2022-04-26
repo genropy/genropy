@@ -294,12 +294,7 @@ class GnrWsgiSite(object):
     
     @property
     def mainpackage(self):
-        return self.config['wsgi?mainpackage'] or self.gnrapp.packages.keys()[-1]
-
-
-    @property
-    def mainpackage(self):
-        return self.config['wsgi?mainpackage'] or self.gnrapp.packages.keys()[-1]
+        return self.config['wsgi?mainpackage'] or self.gnrapp.config['packages?main'] or self.gnrapp.packages.keys()[-1]
     
     def getAuxInstance(self,name):
         return self._main_gnrapp.getAuxInstance(name)
@@ -742,7 +737,7 @@ class GnrWsgiSite(object):
 
     @property
     def dummyPage(self):
-        environ_builder = EnvironBuilder(method='GET',path='/sys/headless')
+        environ_builder = EnvironBuilder(method='GET',base_url=self.external_host,path='/sys/headless')
         request = Request(environ_builder.get_environ())
         response = Response()
         page = self.resource_loader(['sys', 'headless'], request, response)
@@ -819,7 +814,7 @@ class GnrWsgiSite(object):
             external_host = self.currentPage.external_host
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
-        return external_host.rstrip('/')
+        return (external_host or '').rstrip('/')
         
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
@@ -1419,7 +1414,7 @@ class GnrWsgiSite(object):
         result = script(**kwargs)
         return result
 
-    def loadTableScript(self, page=None, table=None, respath=None, class_name=None):
+    def loadTableScript(self, page=None, table=None, respath=None, class_name=None,**kwargs):
         """TODO
 
         :param page: TODO
@@ -1428,7 +1423,7 @@ class GnrWsgiSite(object):
                       :ref:`package <packages>` to which the table belongs to)
         :param respath: TODO
         :param class_name: TODO"""
-        return self.resource_loader.loadTableScript(page=page, table=table, respath=respath, class_name=class_name)
+        return self.resource_loader.loadTableScript(page=page, table=table, respath=respath, class_name=class_name,**kwargs)
 
     def _get_resources(self):
         if not hasattr(self, '_resources'):

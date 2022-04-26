@@ -10,6 +10,10 @@ class GnrCustomWebPage(object):
     py_requires='public:TableHandlerMain'
     auth_main='user'
     
+    def windowTitle(self):
+        return self.db.table(self.maintable).attributes.get('name_plural') or self.db.table(self.maintable).attributes.get('name_long')
+
+
     @classmethod
     def getMainPackage(cls,request_args=None,request_kwargs=None):
         return request_kwargs.get('th_from_package') or request_args[0]
@@ -50,10 +54,13 @@ class GnrCustomWebPage(object):
         return 'thpage_%(th_pkg)s_%(th_table)s' %callArgs
 
     #FOR ALTERNATE MAIN HOOKS LOOK AT public:TableHandlerMain component
-    def main(self,root,th_pkey=None,**kwargs):
+    def main(self,root,th_pkey=None,single_record=None,pkey=None,**kwargs):
         callArgs = self.getCallArgs('th_pkg','th_table','th_pkey')  
         root.data('gnr.pagename', self.pagename)
-        pkey = callArgs.pop('th_pkey',None)  
+        pkey = pkey or callArgs.pop('th_pkey',None)  
         th_pkey = pkey or th_pkey
-        root.rootTableHandler(th_pkey=th_pkey,**kwargs)
+        if not single_record:
+            root.rootTableHandler(th_pkey=th_pkey,**kwargs)
+        else:
+            self.main_form(root,single_record=single_record,th_pkey=th_pkey,**kwargs)
     

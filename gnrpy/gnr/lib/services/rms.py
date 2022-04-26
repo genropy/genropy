@@ -33,6 +33,12 @@ from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app.gnrconfig import getRmsOptions,setRmsOptions
+from gnr.lib.services import BaseServiceType
+
+class ServiceType(BaseServiceType):
+    def conf_rms(self):
+        return dict(implementation='rms')
+
 
 class RMS(object):
     def __init__(self):
@@ -52,6 +58,8 @@ class RMS(object):
                                 customer_code=self.customer_code)()
             if result and result.get('client_token'):
                 setRmsOptions(token=result['client_token'])
+            else:
+                print(result)
     
 
     @property
@@ -59,27 +67,40 @@ class RMS(object):
         sp = urllib.parse.urlsplit(self.url)
         return '%s://%s:%s@%s%s' %(sp.scheme,'gnrtoken',self.token,sp.netloc,sp.path)
 
-    def buildRmsService(self,instancename,rmskw,rmspath):
+    def buildRmsService(self,instancename,domain=None,customer_code=None):
+        rmsfolder = os.path.join(gnrConfigPath(),'rms')
+        if not os.path.isdir(rmsfolder):
+            os.mkdir(rmsfolder)
+        rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=instancename))
         app = GnrApp(instancename,enabled_packages=['gnrcore:sys','gnrcore:adm'])
         db = app.db
         usertbl = db.table('adm.user')
+        service_tbl = db.table('sys.service')
         if not usertbl.checkDuplicate(username='DEPLOY_SERVER'):
             user_rec = usertbl.newrecord(username='DEPLOY_SERVER',md5pwd=usertbl.newPkeyValue())
             usertbl.insert(user_rec)
             htagtbl = db.table('adm.htag')
             tag_id = htagtbl.sysRecord('_SYSTEM_')['id']
             db.table('adm.user_tag').insert({'tag_id':tag_id,'user_id':user_rec['id']})
-        service_tbl = db.table('sys.service')
-        if not service_tbl.checkDuplicate(service_name=instancename,service_type='rms'):
-            domain = rmskw.get('domain')
+        service_record = service_tbl.record(service_name=instancename,service_type='rms',ignoreMissing=True).output('record')
+        if not service_record:
             deploy_token = db.table('sys.external_token').create_token(exec_user='DEPLOY_SERVER')
-            servicetbl = service_tbl.addService(service_type='rms',service_name=instancename,
+            service_tbl.addService(service_type='rms',service_name=instancename,
                                                             token=deploy_token,
                                                             domain=domain)
-        rmsbag = Bag()
-        rmsbag.setItem('rms',None,token=deploy_token,domain=domain,instance_name=instancename)
-        rmsbag.toXml(rmspath)
-        db.commit()
+            rmsbag = Bag()
+            rmsbag.setItem('rms',None,token=deploy_token,domain=domain,instance_name=instancename,customer_code=customer_code)
+            rmsbag.toXml(rmspath)
+            db.commit()
+        else:
+            if os.path.isfile(rmspath):
+                rmsbag = Bag(rmspath)
+            else:
+                rmsbag = Bag()
+            rmsbag.setAttr('rms',domain=domain,instance_name=instancename,
+                                token=service_record['parameters.token'],
+                                customer_code=customer_code)
+            rmsbag.toXml(rmspath)
         return rmsbag
 
     def ping(self):
@@ -98,26 +119,25 @@ class RMS(object):
         result =  NetBag(self.authenticatedUrl,'authping')()
         print(result)
 
-    def registerInstance(self,name):
+    def registerInstance(self,name,customer_code=None,domain=None):
         if not (self.url and self.token):
             return
         p = PathResolver()
-        siteconfig = p.get_siteconfig(name)
-        rmsfolder = os.path.join(gnrConfigPath(),'rms')
-        if not os.path.isdir(rmsfolder):
-            os.mkdir(rmsfolder)
-        rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=name))
-        siteattr = siteconfig.getAttr('rms')
-        if not siteattr.get('domain'):
+        instance_config = p.get_instanceconfig(name)
+        site_rms = dict(instance_config.getAttr('rms')) if instance_config.getAttr('rms') else dict()
+        customer_code = customer_code or site_rms.get('customer_code')
+        domain = domain or  site_rms.get('domain')
+        if not domain:
             return
-        if not os.path.exists(rmspath):
-            rmsbag = self.buildRmsService(name,siteattr,rmspath)
-        else:
-            rmsbag = Bag(rmspath)
+        rmsbag = self.buildRmsService(name,domain=domain,customer_code=customer_code)
         rms_instance_attr = rmsbag.getAttr('rms')
-        result =  NetBag(self.authenticatedUrl,'register_instance',code=name,
-                            domain=rms_instance_attr.get('domain'),
+        customer_code = rms_instance_attr.get('customer_code') or self.customer_code
+        result = NetBag(self.authenticatedUrl,'register_instance',code=name,
+                            domain=domain,
                             pod_token=self.token,
                             instance_token= rms_instance_attr['token'],
-                            customer_code=rms_instance_attr.get('customer_code') or self.customer_code)()
+                            description=rms_instance_attr.get('description'),
+                            customer_code=customer_code)()
+        print(result)
+        return result
 

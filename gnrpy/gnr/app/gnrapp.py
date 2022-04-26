@@ -40,7 +40,7 @@ import glob
 from email.mime.text import MIMEText
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
-from gnr.app.gnrconfig import MenuStruct
+#from gnr.app.gnrconfig import MenuStruct
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
@@ -398,7 +398,6 @@ class GnrPackagePlugin(object):
         webpages_path = os.path.join(self.pluginFolder,'webpages')
         self.webpages_path = webpages_path if os.path.isdir(webpages_path) else ''
         config_path = os.path.join(self.pluginFolder,'config.xml')
-        self.menuBag = MenuStruct(os.path.join(self.pluginFolder,'menu'),application=self.application,autoconvert=True)
         self.config = Bag(config_path) if os.path.isfile(config_path) else Bag()
         self.application.config['package_plugins.%s.%s'%(pkg.id,self.id)]=self.config
         
@@ -415,7 +414,6 @@ class GnrPackage(object):
         self.tableMixins = {}
         self.plugins = {}
         self.loadPlugins()
-        self._pkgMenu = None
         self.projectInfo = None
         if not project:
             projectPath = os.path.normpath(os.path.join(self.packageFolder,'..','..'))
@@ -476,14 +474,14 @@ class GnrPackage(object):
     def language(self):
         return self.attributes.get('language') or self.projectInfo['project?language']
 
-    @property
-    def pkgMenu(self):
-        if self._pkgMenu is None:
-            pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),application=self.application,autoconvert=True)
-            for pluginname,plugin in list(self.plugins.items()):
-                pkgMenu.update(plugin.menuBag)
-            self._pkgMenu = pkgMenu
-        return self._pkgMenu
+   #def pkgMenu(self,branchMethod=None,**kwargs):
+   #    pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),
+   #                            config_method=branchMethod, 
+   #                            application=self.application,autoconvert=True,
+   #                            **kwargs)
+   #    for pluginname,plugin in list(self.plugins.items()):
+   #        pkgMenu.update(plugin.menuBag)
+   #    return pkgMenu
 
     @property
     def db(self):
@@ -691,7 +689,6 @@ class GnrApp(object):
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
             os.environ['GNR_LOCALE'] = self.config_locale
-        self.instanceMenu = self.load_instance_menu()
         self.cache = ApplicationCache(self)
         self.build_package_path()
         db_settings_path = os.path.join(self.instanceFolder, 'dbsettings.xml')
@@ -726,9 +723,9 @@ class GnrApp(object):
         """TODO"""
         return GnrModuleFinder(path_entry,self)
         
-    def load_instance_menu(self):
-        """TODO"""
-        return MenuStruct(os.path.join(self.instanceFolder, 'menu'),application=self,autoconvert=True)
+   #def load_instance_menu(self):
+   #    """TODO"""
+   #    return MenuStruct(os.path.join(self.instanceFolder, 'menu'),application=self,autoconvert=True)
 
     def load_instance_config(self):
         """TODO"""
@@ -813,8 +810,8 @@ class GnrApp(object):
         self.db.startup(restorepath=restorepath)
         if len(self.config['menu']) == 1:
             self.config['menu'] = self.config['menu']['#0']
-        if self.instanceMenu:
-            self.config['menu']=self.instanceMenu
+        #if self.instanceMenu:
+        #    self.config['menu']=self.instanceMenu
             
         self.localizer = AppLocalizer(self)
         if forTesting:
@@ -844,22 +841,6 @@ class GnrApp(object):
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
     
-        
-    def applicationMenuBag(self):
-        pkgMenus = self.config['menu?package']
-        if pkgMenus:
-            pkgMenus = pkgMenus.split(',')
-        menuBag = Bag()
-        for pkgid, apppkg in list(self.packages.items()):
-            pkgMenuBag = apppkg.pkgMenu
-            if pkgMenuBag and (not pkgMenus or pkgid in pkgMenus):
-                #self.config['menu.%s' %pkgid] = apppkg.pkgMenu
-                if len(pkgMenuBag) == 1:
-                    menuBag[pkgid] = pkgMenuBag.getNode('#0')
-                else:
-                    menuBag.setItem(pkgid, pkgMenuBag,{'label': apppkg.config_attributes().get('name_long', pkgid),'pkg_menu':pkgid})
-        return menuBag
-
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:

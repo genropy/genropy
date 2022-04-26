@@ -32,7 +32,10 @@ class FrameIndex(BaseComponent):
 
     @property
     def plugin_list(self):
-        frameplugins = ['iframemenu_plugin','batch_monitor','chat_plugin']
+        if self.device_mode!='std':
+            frameplugins = ['mobilemenu_plugin','batch_monitor']
+        else:
+            frameplugins = ['iframemenu_plugin','batch_monitor','chat_plugin']
         for pkgId,pkgobj in list(self.packages.items()):
             if hasattr(pkgobj,'sidebarPlugins'):
                 plugins = pkgobj.sidebarPlugins()
@@ -43,7 +46,8 @@ class FrameIndex(BaseComponent):
                 if requires:
                     for p in requires.split(','):
                         self.mixinComponent(p)
-        frameplugins.append('maintenance')
+        if self.device_mode=='std':
+            frameplugins.append('maintenance')
         return ','.join(frameplugins)
 
     def main(self,root,new_window=None,gnrtoken=None,custom_index=None,**kwargs):
@@ -110,17 +114,63 @@ class FrameIndex(BaseComponent):
                 genro.setInStorage('local','frameindex_left_'+pluginSelected+'_width',currentWidth);
                 """,currentWidth='^frameindex.regions.left',
                     pluginSelected='=left.selected')
-        self.prepareLeft(bc)
-        self.prepareTop(bc,onCreatingTablist=onCreatingTablist)
-        self.prepareBottom(bc)
-        self.prepareCenter(bc)
+        if self.device_mode=='std':
+            self.prepareLeft_std(bc)
+            self.prepareTop_std(bc,onCreatingTablist=onCreatingTablist)
+            self.prepareBottom_std(bc)
+            self.prepareCenter_std(bc)
+        else:
+            self.prepareLeft_mobile(bc)
+            self.prepareTop_mobile(bc,onCreatingTablist=onCreatingTablist)
+            self.prepareBottom_mobile(bc)
+            self.prepareCenter_mobile(bc)
         if new_window:
             self.loginDialog(pane)
         else:
             self.login_newPassword(pane)
         return bc
         
-    def prepareTop(self,bc,onCreatingTablist=None):
+    def prepareBottom(self,bc):
+        return self.prepareBottom_std(bc)
+        
+    
+    def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
+        top = bc.contentPane(region='top',overflow='hidden')
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,debugping,5',_class='framedindex_tablist showcase_dark',height='30px')
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
+                                                      action="""genro.nodeById('standard_index').publish('toggleLeft');""")
+
+        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
+                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
+        bar.debugping.div(_class='ping_semaphore',width='30px')
+
+        bar.dataController("""
+        var currentpages = new gnr.GnrBag();
+        iframes = iframes || new gnr.GnrBag();
+        for(let n of iframes.getNodes()){
+            let kw = {caption:n.attr.fullname};
+            currentpages.addItem(n.label,null,kw);
+        }
+        currentpages.addItem('-')
+        currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
+        currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
+
+        SET gnr.currentPages = currentpages;
+        
+        """,iframes='^iframes',reload_caption='!!Reload current page',
+                closepage_caption="!!Close current page")
+
+        bar.pageTitle.dataController("""
+                                        let selectedPageTitle = basetitle;
+                                        if(iframes && iframes.len()>0){
+                                            let selectedNode = iframes.getNode(selectedPage);
+                                            selectedPageTitle = selectedNode.attr.fullname;
+                                        }
+                                        SET selectedPageTitle = selectedPageTitle;
+                                        """,selectedPage='^selectedFrame', 
+                                iframes='^iframes',basetitle='Index',_delay=1)
+    
+    def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
         leftbar = bc.contentPane(region='left',overflow='hidden').div(display='inline-block', margin_left='10px',margin_top='4px')  
         for btn in ['menuToggle']+self.plugin_list.split(','):
@@ -129,7 +179,6 @@ class FrameIndex(BaseComponent):
         if self.custom_plugin_list:
             for btn in self.custom_plugin_list.split(','):
                 getattr(self,'btn_%s' %btn)(leftbar)
-        
         self.prepareTablist(bc.contentPane(region='center',margin_top='4px'),onCreatingTablist=onCreatingTablist)
         
     def prepareTablist(self,pane,onCreatingTablist=False):
@@ -179,7 +228,8 @@ class FrameIndex(BaseComponent):
                             data="=iframes",externalWindows='=externalWindows',_refreshTablist='^refreshTablist',tabroot=tabroot,indexTab=self.indexTab,
                             onCreatingTablist=onCreatingTablist or False,_onStart=True)
         if not self.isMobile:
-            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100)
+            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
+                                _if='!genro.startArgs.new_window')
         pane.dataController(""" var cb = function(){
                                                 var iframetab = tabroot.getValue().getNode(page);
                                                 if(iframetab){
@@ -202,7 +252,7 @@ class FrameIndex(BaseComponent):
                                     
         """,subscribe_iframe_stack_selected=True,tabroot=tabroot,_if='page')
 
-    def prepareBottom(self,bc):
+    def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,manageDocumentation,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
                         background='#EEEEEE',border_top='1px solid silver')
@@ -216,21 +266,12 @@ class FrameIndex(BaseComponent):
                         tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
         box = sb.preferences.div(_class='iframeroot_pref')
         if not self.dbstore:
-            appPref = box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+            box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
                                     _class='iframeroot_appname',
-                                    connect_onclick='PUBLISH app_preference',envbag='=gnr.rootenv')
-            userPref = box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                connect_onclick='PUBLISH user_preference')
-            appPref.dataController("""genro.dlg.iframePalette({top:'10px',left:'10px',url:url,
-                                                        title:preftitle,height:'450px', width:'800px',
-                                                        palette_nodeId:'mainpreference'});""",
-                            subscribe_app_preference=True,url='adm/app_preference',
-                            _tags=self.pageAuthTags(method='preference'),pane=appPref,preftitle='!!Application preference')
-            userPref.dataController("""genro.dlg.iframePalette({top:'10px',right:'10px',title:preftitle,url:url,
-                                                        height:'300px', width:'400px',palette_transition:null,
-                                                        palette_nodeId:'userpreference'});""",url='adm/user_preference',
-                            subscribe_user_preference=True,pane=userPref,preftitle='!!User preference')
+                                    connect_onclick='genro.framedIndexManager.openAppPreferences()',envbag='=gnr.rootenv')
+            box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
+                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
         
         sb.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
@@ -249,18 +290,14 @@ class FrameIndex(BaseComponent):
         sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
                             action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
         sb.debugping.div(_class='ping_semaphore')
+
+
+
+    def prepareBottom_mobile(self,bc):
+        return
+
     
-    #def electronAppDownload(self,bar):
-    #    electron_pars = self.site.config.getAttr('electron') or {}
-    #    name = electron_pars.get('name') or self.site.site_name
-    #    platform = {'windows':('windows',''),'linux':('linux',''),'mac':('osx','.app')}.get(self.connection.user_device.split(':')[0])
-    #    bar.appdownload.slotButton('!!Download desktop app',iconClass="iconbox inbox",
-    #                            action='genro.download(appurl,{_lazydoc:"service:download_app"})',
-    #                            appurl=self.site.getStaticUrl('site:application',
-    #                                                         platform[0],'%s%s.zip' %(name,platform[1])))
-    #                        
-    
-    def prepareCenter(self,bc):
+    def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
                                 #border_left='1px solid silver',
                                 margin_left='-1px',
@@ -299,17 +336,20 @@ class FrameIndex(BaseComponent):
                                subscribe__menutree__selected=True)
         page.dataController("""genro.framedIndexManager.newBrowserWindowPage(newBrowserWindowPage[0]);""",
                                subscribe_newBrowserWindowPage=True)
-                       
-    def prepareLeft(self,bc):
+
+    prepareCenter_mobile = prepareCenter_std
+        
+    def prepareLeft_std(self,bc):
+
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
                                     margin_right='-4px',overflow='hidden',hidden=self.hideLeftPlugins,border_right='5px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
-                                                         var width = $1.forcedWidth || genro.getFromStorage('local','frameindex_left_'+plugin_name+'_width') || $1.defaultWidth;
+                                                         /*var width = $1.forcedWidth || genro.getFromStorage('local','frameindex_left_'+plugin_name+'_width') || $1.defaultWidth;
                                                          if(width){
                                                               SET frameindex.regions.left = width;
-                                                         }
+                                                         }*/
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
         sc.dataController("""if(!page){return;}
@@ -329,6 +369,55 @@ class FrameIndex(BaseComponent):
             sc.dataController("""PUBLISH main_left_set_status = true;
                                  SET .selected=plugin;
                                  """, **{'subscribe_%s_open' % plugin: True, 'plugin': plugin})
+
+
+    def prepareLeft_mobile(self,bc):
+
+        frame = bc.framePane(region='left',width='40%',datapath='left',
+                                overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
+        sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
+                                subscribe_open_plugin="""var plugin_name = $1.plugin;
+                                                         SET left.selected = plugin_name;
+                                                         genro.nodeById('standard_index').publish('showLeft');""",
+                                overflow='hidden')
+
+
+
+        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer')
+
+       #bar = frame.bottom.slotBar('5,userbox,*,logout,5',childname='userlogout')
+       #bar.userbox.div(self.user if not self.isGuest else 'guest',color='#EDEDEE',font_weight='bold')
+       #bar.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
+
+
+        sb = frame.bottom.slotBar('*,genrologo,*',background='white',
+                            _class='slotbar_toolbar framefooter',height='23px',childname='logobar')
+        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        frame.dataController("""if(!page){return;}
+                             genro.publish(page+'_'+(selected?'on':'off'));
+                             genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);
+                             """,subscribe_gnr_main_left_center_selected=True)
+        frame.dataController("""var command= main_left_status[0]?'open':'close';
+                             genro.publish(page+'_'+(command=='open'?'on':'off'));
+                             """,subscribe_main_left_status=True,page='=.selected') 
+        for plugin in self.plugin_list.split(','):
+            cb = getattr(self, 'mainLeft_%s' % plugin,None)
+            if not cb:
+                print(f'missing {plugin}')
+                return
+            assert cb, 'Plugin %s not found' % plugin
+            cb(sc.contentPane(pageName=plugin,overflow='hidden'))
+            sc.dataController("""PUBLISH main_left_set_status = true;
+                                 SET .selected=plugin;
+                                 """, **{'subscribe_%s_open' % plugin: True, 'plugin': plugin})
+
+        for btn in self.plugin_list.split(','):
+            getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
+            
+        if self.custom_plugin_list:
+            for btn in self.custom_plugin_list.split(','):
+                getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
 
     def btn_menuToggle(self,pane,**kwargs):
         pane.div(_class='button_block iframetab').div(_class='application_menu',tip='!!Show/Hide the left pane',

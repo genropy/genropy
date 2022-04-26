@@ -66,14 +66,20 @@ function _T(str,lazy){
 
 function _F(val,format,dtype){
     return gnrformatter.asText(val,{format:format,dtype:dtype});
-};
+}
+
+function _PREF(path){
+    let pref = genro.getData('gnr.app_preference');
+    return path?pref.getItem(path):pref;
+}
+
 function _IN(val,str){
     var l = str.split(',');
     return l.indexOf(val)>=0;
-};
+}
 function isBag(value){
     return value &&(value.htraverse!=null);
-};
+}
 
 function isNumericType(dtype){
     return dtype in  {'R':null,'L':null,'I':null,'N':null};
@@ -415,8 +421,8 @@ function stringStrip(s) {
     return s.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '');
 }
 function splitStrip(s, sp) {
-    r = [];
-    var sp = sp || ',';
+    var r = [];
+    sp = sp || ',';
     dojo.forEach(s.split(sp), function(v) {
         r.push(stringStrip(v));
     });
@@ -593,6 +599,9 @@ function objectAny(obj,cb) {
 
 function mapConvertFromText(value){
     if(isNullOrBlank(value)){
+        return value;
+    }
+    if(value instanceof gnr.GnrBag){
         return value;
     }
     if (value instanceof Array){
@@ -816,7 +825,7 @@ function objectFromString(values,sep,mode){
     values = values.split(ch);
     var result = {};
     for (var i = 0; i < values.length; i++) {
-        val = values[i];
+        let val = values[i];
         if (val.indexOf(':') > 0) {
             val = val.split(':');
             result[val[0]] = val[1];
@@ -971,10 +980,10 @@ function convertFromText(value, t, fromLocale) {
         return result;
     }
     else if (t == 'JS') {
-        if(window.genro){
-            return genro.evaluate(value);
-        }else{
-            return dojo.fromJson(value);
+        try {
+            return mapConvertFromText(JSON.parse(value));
+        } catch (e) {
+            return genro.evaluate(value)
         }
     }
     else if (t == 'BAG' || t=='X') {
@@ -1302,6 +1311,12 @@ var gnrformatter = {
         return result.join(format || '\n');
     }
 }
+function isDate(obj){
+    if(!obj){
+        return false;
+    }
+    return obj instanceof Date || obj._gnrdtype == 'D' || obj._gnrdtype=='DH' || obj._gnrdtype=='DHZ';
+}
 
 function guessDtype(value){
     if (value instanceof File){
@@ -1328,7 +1343,7 @@ function guessDtype(value){
     }if(t=='function'){
         return 'FUNC';
     }
-    if(value instanceof Date){
+    if(isDate(value)){
         if(( value.getFullYear()==1970) && (value.getMonth()==11) && (value.getDate()==31)){
             return 'H';
         }
@@ -1352,7 +1367,7 @@ function convertToText(value, params) {
     params = objectUpdate({}, params);
     var mask = objectPop(params, 'mask');
     var format = objectPop(params, 'format');
-    var dtype = objectPop(params, 'dtype');
+    var dtype = objectPop(params, 'dtype') || value._gnrdtype;
     var forXml = objectPop(params, 'xml');
     var t = typeof(value);
     if (t == 'string') {
@@ -1385,7 +1400,7 @@ function convertToText(value, params) {
             }
         }
     }
-    else if (value instanceof Date) {
+    else if (isDate(value) || (dtype && (dtype =='D' || dtype=='DH' || dtype=='DHZ') )) {
         var selectors = {'D':'date','H':'time','DH':null};
         if (!dtype) {
             dtype = value._gnrdtype || (value.toString().indexOf('Thu Dec 31 1970') == 0 ? 'H' : 'D');
@@ -1401,15 +1416,14 @@ function convertToText(value, params) {
             opt = objectUpdate(opt, params);
             opt.formatLength = format;
         }
-        var result = [dtype || 'D',v = dojo.date.locale.format(value, opt)];
-
+        result = [dtype || 'D',v = dojo.date.locale.format(value, opt)];
     }
 
     else if (value.toXml) {
         result = ['bag',value.toXml({mode:'static'})];
     }
     else if (t == 'object') {
-        result = ['JS',dojo.toJson(value)];
+        result = ['JS',JSON.stringify(value)];
     }
     if (mask) {
         result[1] = mask.replace(/%s/g, result[1]);
@@ -1767,12 +1781,14 @@ function highlightLinks(text) {
 }
 
 function funcApply(fnc, parsobj, scope,argNames,argValues,showError) {
-    var parsobj = parsobj || {};
-    var argNames = argNames || [];
-    var argValues = argValues || [];
+    parsobj = parsobj || {};
+    argNames = argNames || [];
+    argValues = argValues || [];
     for (var attr in parsobj) {
-        argNames.push(attr);
-        argValues.push(parsobj[attr]);
+        if(!argNames.includes(attr)){
+            argNames.push(attr);
+            argValues.push(parsobj[attr]);
+        }
     }
     argNames.forEach(function(arg,idx){
         if(!(arg in parsobj)){
@@ -1865,8 +1881,20 @@ function combineDateAndTime(date, time) {
     let day = date.getDate();
     let dateString = '' + year + '-' + month + '-' + day;
     let combined = new Date(dateString + ' ' + timeString);
-
+    combined._gnrdtype = 'DHZ';
     return combined;
+}
+
+function splitDateAndTime(dt){
+    let year = dt.getFullYear();
+    let month = dt.getMonth();
+    let day = dt.getDate();
+
+    let date = new Date(year,month,day);
+    date._gnrdtype = 'D';
+    let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
+    time._gnrdtype = 'H'
+    return {_date:date,_time:time};
 }
 
 function localeParser(/*String*/value, /*Object?*/options) {
@@ -2098,8 +2126,11 @@ function getRandomColor() {
 }
 
 function flattenString(str,forbidden,replacer){
+    if(forbidden===true){
+        return str.replace(/[^\w\s]/gi, ' ').trim().replaceAll(' ','_').toLowerCase();
+    }
     replacer = replacer || '_';
-    var forbidden = forbidden || ['.'];
+    forbidden = forbidden || ['.'];
     var result = str;
     var pattern;
     forbidden.forEach(function(c){
@@ -2108,6 +2139,7 @@ function flattenString(str,forbidden,replacer){
     });
     return result;
 }
+
 
 function canAccessIFrame(iframe) {
     var html = null;

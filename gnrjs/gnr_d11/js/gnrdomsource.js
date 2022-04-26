@@ -174,8 +174,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
     },
-    fireNode: function(runKwargs) {
-        return this.setDataNodeValue(runKwargs);
+    fireNode: function(runKwargs,kw, trigger_reason) {
+        return this.setDataNodeValue(runKwargs,kw,trigger_reason);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         var currentAttributes = this.currentAttributes();
@@ -192,15 +192,26 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             if((kw && kw.reason == 'autocreate' ) || (trigger_reason != 'node')){
                 return; //askmode
             }
-            if(!this.attr._ask_if ||  funcApply('return ('+this.attr._ask_if+');',currentAttributes,this) ){
-                var that = this;
-                var _ask_onCancel= this.attr._ask_onCancel || function(){};
-                _ask_onCancel = funcCreate(_ask_onCancel,'kwargs',this);
-                genro.dlg.ask(currentAttributes._ask_title || 'Warning',currentAttributes._ask,null,
-                            {confirm:function(){that.setDataNodeValueDo(nodeOrRunKwargs, kw, trigger_reason, subscription_args);},
-                            cancel:function(){_ask_onCancel(currentAttributes)}});
+            if(typeof(this.attr._ask)=='string'){
+                if(!this.attr._ask_if ||  funcApply('return ('+this.attr._ask_if+');',currentAttributes,this) ){
+                    var that = this;
+                    var _ask_onCancel= this.attr._ask_onCancel || function(){};
+                    _ask_onCancel = funcCreate(_ask_onCancel,'kwargs',this);
+                    genro.dlg.ask(currentAttributes._ask_title || 'Warning',currentAttributes._ask,null,
+                                {confirm:function(){that.setDataNodeValueDo(nodeOrRunKwargs, kw, trigger_reason, subscription_args);},
+                                cancel:function(){_ask_onCancel(currentAttributes)}});
+                }else{
+                    this.setDataNodeValueDo(nodeOrRunKwargs, kw, trigger_reason, subscription_args);
+                }
             }else{
-                this.setDataNodeValueDo(nodeOrRunKwargs, kw, trigger_reason, subscription_args);
+                var runKwargs = (nodeOrRunKwargs instanceof gnr.GnrBagNode)?{}:nodeOrRunKwargs;
+                var currAttr = this.currentAttributes();
+                objectUpdate(currAttr,runKwargs);
+                genro.dlg.askParameters(function(_askResult){
+                    objectUpdate(runKwargs,_askResult);
+                    runKwargs._askResult = _askResult;        
+                    this.setDataNodeValueDo(runKwargs, kw, trigger_reason, subscription_args);
+                },this.attr._ask,currAttr,this);
             }
         }
         else{
@@ -210,8 +221,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     setDataNodeValueDo:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         var node;
-        var runKwargs={};
-        var isFiredNode=!(nodeOrRunKwargs instanceof gnr.GnrBagNode)
+        var runKwargs;
+        var isFiredNode = !(nodeOrRunKwargs instanceof gnr.GnrBagNode)
         if(isFiredNode){
             runKwargs = nodeOrRunKwargs;
         }else{
@@ -283,7 +294,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             argNames.push(trigger_reason);
             argValues.push(subscription_args);
             if ((subscription_args.length == 1) && (typeof(subscription_args[0]) == 'object')) {
-                for (var k in subscription_args[0]) {
+                for (let k in subscription_args[0]) {
                     argNames.push(k);
                     argValues.push(subscription_args[0][k]);
                     kwargs[k] = subscription_args[0][k];
@@ -307,7 +318,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 console.log(val);
             }
         }
-        objectUpdate(kwargs,runKwargs);
+        if(runKwargs){
+            for (let k in runKwargs) {
+                argNames.push(k);
+                argValues.push(runKwargs[k]);
+                kwargs[k] = runKwargs[k];
+            }
+            argNames.push('_runKwargs');
+            argValues.push(runKwargs);
+        }
+        //objectUpdate(kwargs,runKwargs);
         var if_result = true;
         if (_if) {
             if_result = funcCreate('return (' + _if + ')', argNames.join(',')).apply(this, argValues);
@@ -379,7 +399,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     doCall = funcCreate(_onCalling, (['kwargs'].concat(argNames)).join(',')).apply(this, ([kwargs].concat(argValues)));
                 }
                 objectExtract(kwargs, '_*');
-                if (doCall != false) {
+                if (doCall !== false) {
                     if (_lockScreen) {
                         genro.lockScreen(true, domsource_id,_lockScreen);
                     }   
@@ -676,7 +696,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
        //var handler = function(evt){
        //    funcApply(h, objectUpdate({evt:evt},that.currentAttributes()),that,['evt'],[evt]);
        //}        
-        if (target.domNode) {/* connect to a widget*/
+        
+       if (target.domNode) {/* connect to a widget*/
             if (eventname in target) {
                 dojo.connect(target, eventname, handler);
             } else {

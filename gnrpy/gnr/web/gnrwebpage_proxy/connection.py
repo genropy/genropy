@@ -74,7 +74,7 @@ class GnrWebConnection(GnrBaseProxy):
     def validate_connection(self, connection_id=None, user=None):
         connection_item = self.page.site.register.connection(connection_id)
         if connection_item:
-            if (connection_item['user'] == user) and (connection_item['user_ip'] == self.page.user_ip):
+            if (connection_item['user'] == user):
                 self.connection_id = connection_id
                 self.user = user
                 self.user_tags = connection_item['user_tags']
@@ -110,7 +110,8 @@ class GnrWebConnection(GnrBaseProxy):
                                                                     secret=self.secret)
         self.cookie.expires = expires
         self.cookie.path = self.page.site.default_uri
-        self.page.add_cookie(self.cookie)
+        cookieattrs = self.page.site.config.getAttr('cookies') or {}
+        self.page.add_cookie(self.cookie, **cookieattrs)
 
     @property
     def loggedUser(self):

@@ -1020,7 +1020,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'tinyMCE', 'protovis','codemirror','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
@@ -1055,7 +1055,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         return self.child('dataController', script=script, **kwargs)
         
-    def dataRpc(self, path, method, **kwargs):
+    def dataRpc(self, pathOrMethod, method=None, **kwargs):
         """Create a :ref:`datarpc` and returns it. dataRpc allows the client to make a call
         to the server to perform an action and returns it.
         
@@ -1066,6 +1066,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
+        if not method and callable(pathOrMethod):
+            method = pathOrMethod
+            path = None
+        else:
+            path = pathOrMethod
         return self.child('dataRpc', path=path, method=method, **kwargs)
         
     def selectionstore_addcallback(self, *args, **kwargs):
@@ -1258,15 +1263,19 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
 
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
-
+        
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
         :param action: the :ref:`action_attr` attribute
         :param table: the :ref:`database table <table>`"""
         self.page.subscribeTable(table,True)
-        self.dataController(action,dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),**kwargs)
-    
+        self.dataController("""var _isLocalPageId = genro.isLocalPageId(_node.attr.from_page_id); 
+                               %s""" % action,
+                               dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),
+                             **kwargs)
+
+
     def dataSelection(self, path, table=None, method='app.getSelection', columns=None, distinct=None,
                       where=None, order_by=None, group_by=None, having=None, columnsFromView=None, **kwargs):
         """Create a :ref:`dataselection` and returns it. dataSelection allows... TODO
@@ -1869,8 +1878,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         dtype = result['dtype'] = fieldobj.dtype
         fldattr =  dict(fieldobj.attributes or dict())
         result['format'] = fldattr.pop('format',None)
+        col_size = fldattr.get('size')
         if dtype in ('A', 'C'):
-            size = fldattr.get('size', '20')
+            size = col_size
+            if not size:
+                size = '20'
             if ':' in size:
                 size = size.split(':')[1]
             size = int(size)
@@ -1964,6 +1976,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 del kwargs['autospan']
         elif dtype == 'T':
             result['tag'] = 'textBox'
+            if col_size:
+                result.setdefault('validate_len',col_size)
             result['_guess_width'] = '%iem' % int(size * .5)
         elif dtype == 'R':
             result['tag'] = 'numberTextBox'
@@ -1973,6 +1987,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['_guess_width'] = '7em'
         elif dtype == 'L' or dtype == 'I':
             result['tag'] = 'numberTextBox'
+            result['places'] = 0
+            result.setdefault('format','#,###')
             result['_guess_width'] = '7em'
         elif dtype == 'D':
             result['tag'] = 'dateTextBox'
@@ -1980,8 +1996,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         elif dtype == 'H':
             result['tag'] = 'timeTextBox'
             result['_guess_width'] = '7em'
-        elif dtype == 'DH':
-            result['tag'] = result.get('tag') or 'div'
+        elif dtype == 'DH' or dtype=='DHZ':
+            result['tag'] = result.get('tag') or 'dateTimeTextBox'
             result['_guess_width'] = '9em'
         elif dtype =='X':
             result['tag'] = 'tree'         

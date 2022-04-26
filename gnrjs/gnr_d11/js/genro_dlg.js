@@ -52,7 +52,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
     dialog:function(msg, cb, buttons) {
         var root = genro.getNode()._('div', '_dlg');
-        dlg = root._('dialog', 'dialogbox', {gnrId:'dialogbox', toggle:"fade", toggleDuration:250});
+        var dlg = root._('dialog', 'dialogbox', {gnrId:'dialogbox', toggle:"fade", toggleDuration:250});
         dlg._('layoutcontainer', {height:'100%'});
         dlg._('contentpane', {'_class':'dojoDialogInner',layoutAling:'client'})._('span', {content:msg});
         var bottom = dlg._('contentpane', {layoutAling:'bottom'})._('div', {'align':'right'});
@@ -60,7 +60,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             {'caption':'OK', result:'OK'},
             {'caption':'cancel', result:'cancel'}
         ];
-        for (btn in buttons) {
+        for (let btn in buttons) {
             btn.action = function() {
                 genro.dialogbox.hide();
                 cb(btn.result);
@@ -74,7 +74,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         //alert(nodeId);
         var root = genro.nodeById(nodeId);
         root.freeze();
-        var mc = root._('contentPane', {'_class':'menucontainer','background_color':'red',
+        root._('contentPane', {'_class':'menucontainer','background_color':'red',
             'height':'3em',margin_left:'1em',margin_right:'1em',layoutAlign:'top'});
         /*var menunodes = genro.getData('gnr.pagemenu').getNodes();
          for (var i=0; i < menunodes.length; i++) {
@@ -160,7 +160,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             onClosedCb = funcCreate(onClosedCb,null,sourceNode)
         }
         var messageBox = sourceNode._('div','_floatingmess',{_class:'invisible fm_box fm_'+msgType,transition:transition}).getParentNode()
-        kw.innerHTML = message;
+        kw.innerHTML = _T(message);
         messageBox._('div',kw);
         var deleteCb = function(){
                                     that._value.popNode('_floatingmess');
@@ -322,8 +322,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         buttons = buttons || {confirm:'OK'};
         //var kw = objectUpdate({'width':'20em'}, kw);
         kw = kw || {};
-        confirmCb = objectPop(kw,'confirmCb');
-        resultPath = resultPath;
+        var confirmCb = objectPop(kw,'confirmCb');
         var that = this;
         var node = genro.src.getNode(alertCode).clearValue().freeze();
         var dlg = node._('dialog', objectUpdate({nodeId:alertCode, title:title, _class:'dlg_alert',
@@ -387,7 +386,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                                     },connect_hide:function(){
                                         that.alert_count-=1;
                                     },centerOn:'_pageRoot'})._('div', {_class:'dlg_ask','action':action});
-        dlg._('div', {'content':msg,'_class':'selectable dlg_ask_msg',width:kw.width});
+        dlg._('div', {'content':_T(msg),'_class':'selectable dlg_ask_msg',width:kw.width});
         //var buttonBox = dlg._('div', {'_class':'dlg_ask_btnBox'});
         objectKeys(buttons).sort().reverse().forEach(function(btn){
             dlg._('button', {'_class':'dlg_ask_btn','label':buttons[btn],'actCode':btn,'act':actions[btn]});
@@ -487,22 +486,44 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     
     askParameters:function(cb,ask_params,parameters,sourceNode,argnames,argvalues){
         var promptkw = objectUpdate({},ask_params);
-        promptkw.fields = promptkw.fields.map(function(kw){
-            kw = objectUpdate({},kw);
-            if(kw['name'] in parameters){
-                kw['default_value'] = parameters[kw['name']];
+        let doAsk = true;
+        if(ask_params._if){
+            doAsk = funcApply('return '+ask_params._if,parameters,sourceNode);
+        }
+        var default_result = {};
+        parameters = objectUpdate({},parameters);
+        if(promptkw.fields){
+            promptkw.fields = promptkw.fields.map(function(kw){
+                kw = objectUpdate({},kw);
+                if(kw.dtype && !kw.tag){
+                    kw.tag = genro.wdg.wdgByDtype(kw.dtype);
+                }
+                if(kw['name'] in parameters){
+                    kw['default_value'] = parameters[kw['name']];
+                    default_result[kw['name']] = parameters[kw['name']];
+                }
+                if(!('_autoselect' in kw)){
+                    kw._autoselect = true;
+                }
+                kw['value'] = '^.'+kw['name'];
+                return kw;
+            })
+            promptkw.widget = objectPop(promptkw,'fields');
+        }
+        if(!doAsk){
+            if(default_result && objectNotEmpty(default_result)){
+                parameters._askResult = default_result;
             }
-            kw['value'] = '^.'+kw['name'];
-            return kw;
-        })
-        promptkw.widget = objectPop(promptkw,'fields');
+            funcApply(cb, parameters, sourceNode,argnames,argvalues);
+            return;
+        }
         promptkw.action = function(result){
             if(result && result.len()){
                 result = result.asDict();
                 objectUpdate(parameters,result);
                 parameters._askResult = result;
             }
-            funcApply(cb, objectUpdate(parameters, {}), sourceNode,argnames,argvalues);
+            funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
         genro.dlg.prompt(objectPop(promptkw,'title','Parameters'),promptkw,sourceNode);
     },
@@ -719,6 +740,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             genro.src.getNode()._('div',quickRoot);
             node = genro.src.getNode(quickRoot).clearValue();
         }else{
+            let roottag = rootNode.attr.tag.toLowerCase();
+            while(roottag == 'dataformula' || roottag == 'datascript' || roottag == 'datacontroller' || roottag == 'datarpc'){
+                rootNode = rootNode.getParentNode();
+                roottag = rootNode.attr.tag.toLowerCase();
+            }
             rootNode._('div',quickRoot,{_attachTo:'mainWindow',parentForm:false});
             node = rootNode.getValue().getNode(quickRoot).clearValue();
         }
@@ -743,9 +769,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         dlg.close_action = function() {
             dlg.getParentNode().widget.hide(); 
             setTimeout(function(){
-                var ndlg =dlg.getParentNode();
-                if(ndlg){
-                    ndlg.getParentNode()._value.popNode(ndlg.label);
+                if(rootNode){
+                    rootNode.getValue().popNode(quickRoot);
+                }else{
+                    var ndlg =dlg.getParentNode();
+                    if(ndlg){
+                        ndlg.getParentNode()._value.popNode(ndlg.label);
+                    }
                 }
             },genro.dlg._quickDialogDestroyTimeout);
             

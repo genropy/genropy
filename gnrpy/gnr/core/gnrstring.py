@@ -45,7 +45,7 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile('\W+')
-
+NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
 try:
     from string import Template
     
@@ -96,17 +96,16 @@ try:
                 value= ''
             if self.isBag:
                 if hasattr(value, '_htraverse'):
-                    templatename = k.replace('.','_')
-                    if self.templates and templatename in self.templates:
-                        templateNode = self.templates.getNode(templatename)
-                        if templateNode:
-                            template = templateNode.value
-                            joiner = templateNode.getAttr('joiner','')
-                            result = []
-                            for v in list(value.values()):
-                                result.append(templateReplace(template,v, locale=self.locale, 
-                                                formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
-                            return joiner.join(result)
+                    templatename =  k.replace('.','_')
+                    templateNode = self.templates.getNode(templatename) if self.templates else None
+                    if templateNode:
+                        template = templateNode.value
+                        joiner = templateNode.getAttr('joiner','')
+                        result = []
+                        for v in list(value.values()):
+                            result.append(templateReplace(template,v, locale=self.locale, 
+                                            formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
+                        return joiner.join(result)
                     elif as_name in self.df_templates:
                         templatepath = self.df_templates[as_name]
                         template = self.data[templatepath]
@@ -120,7 +119,7 @@ try:
                                                 noneIsBlank=self.noneIsBlank,emptyMode=True)
                         return result if result!=empty else ''
                     else:
-                        return value.getFormattedValue(joiner='<br/>');
+                        return value.getFormattedValue(joiner='<br/>')
                 else:
                     valueNode = self.data.getNode(k)
                     if valueNode:
@@ -971,6 +970,54 @@ def jsquote(str_or_unicode):
     >>> print jsquote(u'pippo')
     'pippo'"""
     return json.dumps(str_or_unicode)
+
+def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
+    """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
+    :param mystring: string to measure
+    :param narrow_coeff: the coefficent for narrow characters (default 0.5 -> narrow char is considered half)
+    :param upper_coeff: the coefficent for uppercase characters that aren't narrow 
+        (default 1-> upper char aren't weighted by default)
+    :returns: weightedLen (int)"""
+
+    narrow_coeff = narrow_coeff or 0.5
+    upper_coeff = upper_coeff or 1
+    normal=0
+    narrow=0
+    upper=0
+    from math import ceil
+    for c in mystring:
+        if c in NARROW_CHARACTERS:
+            narrow=narrow+1
+        elif c.isupper():
+            upper=upper+1
+        else:
+            normal=normal+1
+    return ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
+
+
+
+def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
+    """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
+    :param mystring: string to measure
+    :param narrow_coeff: the coefficent for narrow characters (default 0.5 -> narrow char is considered half)
+    :param upper_coeff: the coefficent for uppercase characters that aren't narrow 
+        (default 1-> upper char aren't weighted by default)
+    :returns: weightedLen (int)"""
+
+    narrow_coeff = narrow_coeff or 0.5
+    upper_coeff = upper_coeff or 1
+    normal=0
+    narrow=0
+    upper=0
+    from math import ceil
+    for c in mystring:
+        if c in NARROW_CHARACTERS:
+            narrow=narrow+1
+        elif c.isupper():
+            upper=upper+1
+        else:
+            normal=normal+1
+    return ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
 
         
 if __name__ == '__main__':

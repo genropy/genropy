@@ -17,6 +17,7 @@ class Table(object):
         tbl.aliasColumn('tag_code',relation_path='@tag_id.hierarchical_code')
         tbl.aliasColumn('tag_description',relation_path='@tag_id.description')
         tbl.aliasColumn('tag_note',relation_path='@tag_id.note')
+        tbl.aliasColumn('linked_table',relation_path='@tag_id.linked_table', static=True)
         tbl.formulaColumn('user_or_group',"COALESCE($user,$group_code)")
 
         #tbl.aliases(relation='@user_id',user='username')
@@ -26,17 +27,14 @@ class Table(object):
     
     def trigger_onUpdated(self, record_data, old_record):
         self.setUserAuthTags(record_data)
-    
+
     def trigger_onDeleted(self, record):
         self.setUserAuthTags(record)
-    
+
     def setUserAuthTags(self,record):
         user_id = record.get('user_id')
         if not user_id:
             return
-        rows = self.query(where='$user_id=:u_id',u_id=user_id,columns='$tag_code',addPkeyColumn=False).fetch()
-        tags = ','.join([r['tag_code'] for r in rows])
-        self.db.table('adm.user').batchUpdate(dict(auth_tags=tags),where='$id=:pkey',pkey=user_id)
 
-
+        self.db.deferToCommit(self.db.table('adm.user').onChangedTags, user_id=user_id, _deferredId=user_id)
         

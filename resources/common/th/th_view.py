@@ -4,6 +4,7 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 from builtins import str
+from xml.sax import handler
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -61,14 +62,16 @@ class TableHandlerView(BaseComponent):
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
+        pkglist = list(self.db.packages.keys())
         for side in ('top','bottom','left','right'):
             hooks = self._th_hook(side,mangler=frameCode,asDict=True)
-            for k in sorted(hooks.keys()):
-                hooks[k](getattr(view,side))
+            for packagename,h in sorted([(getattr(handler,'__mixin_pkg',0),handler) for handler in hooks.values()],key=lambda x:pkglist.index(x[0])):
+                h(getattr(view,side))
         viewhook = self._th_hook('view',mangler=frameCode)
         if viewhook:
             viewhook(view)
         self._th_view_printEditorDialog(view)
+        self._th_userObjectEditorDialog(view)
 
         if structure_field:
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
@@ -96,6 +99,51 @@ class TableHandlerView(BaseComponent):
                                     table=gridattr['table'],
                                     th_root=th_root)
 
+
+
+
+    def _th_userObjectEditorDialog(self,view):
+        th_root = view.attributes['th_root']
+        dlgId = '{th_root}_userobject_editor_dlg'.format(th_root=th_root)
+        gridattr = view.grid.attributes
+        gridattr['selfsubscribe_open_userobject_editor'] = """
+                                                        var dlg = genro.nodeById("{dlgId}");
+                                                        var userobject_id = $1.userobject_id;
+                                                        dlg.setRelativeData('.start_userobject_id',userobject_id);
+                                                        dlg.setRelativeData('.objtype',$1.objtype);
+                                                        dlg.widget.show();
+                                                        dlg.widget.setTitle('Edit '+$1.objtype);
+                                                        """.format(dlgId=dlgId)
+        gridattr['selfsubscribe_close_userobject_editor'] = 'genro.wdgById("{dlgId}").hide()'.format(dlgId=dlgId)
+
+        dlg = view.dialog(title='!!Userobject Editor',nodeId=dlgId,datapath='.dynamic_userobject_editor',
+                            closable=True,windowRatio=.9,noModal=True)
+
+        dlg.contentPane().remote(self._th_remoteUserObjectEditor,
+                                    table=gridattr['table'],
+                                    objtype='=.objtype',
+                                    th_root=th_root)
+
+
+    @public_method
+    def _th_remoteUserObjectEditor(self,pane,table=None,th_root=None,objtype=None):
+        th = pane.borderTableHandler(table='adm.userobject',
+                            nodeId='{th_root}_userobject_editor'.format(th_root=th_root),
+                            condition='$objtype=:ob AND $tbl=:tb',
+                            condition_ob=objtype,
+                            condition_tb=table,
+                            view_store__onBuilt=True,
+                            vpane_region='left',
+                            vpane_width='450px',
+                            addrow=False,
+                            viewResource='View_{}'.format(objtype),
+                            formResource='Form_{}'.format(objtype))
+        pane.dataController("myform.goToRecord(start_userobject_id)",
+                            start_userobject_id='^.start_userobject_id',_if='start_userobject_id',
+                            _onBuilt=True,myform=th.form.js_form)
+
+
+
     @public_method
     def _th_buildPrintEditor(self,pane,table=None,th_root=None):
         pane.printGridEditor(frameCode='{th_root}_print_editor'.format(th_root=th_root),
@@ -111,32 +159,53 @@ class TableHandlerView(BaseComponent):
         bar = view.top.slotToolbar('fb,*',childname='queryBySample')
         bar.dataController("""
             var where = new gnr.GnrBag();
-            var mainIdx = 0;
+            var parnames = {};
             var op;
-            queryBySample.forEach(function(n){
+            queryBySample.getNodes().forEach(function(n,mainIdx){
                 var value = n.getValue();
                 if(!value){
                     return;
                 }
+                var parname;
+                if(n.attr._valuelabel){
+                    parname =  n.attr._valuelabel;
+                }else{
+                    parname = n.attr.column;
+                }
+                parname = flattenString(parname,true);
+                if(parname in parnames){
+                    var parcount = parnames[parname];
+                    parcount+=1;
+                    parnames[parname] = parcount;
+                    parnames[`${parname}_${parcount}`] = 1;
+                }else{
+                    parnames[parname] = 1;
+                }
+                var value_caption;
+                if(value && typeof(value)=='string' && value.startsWith('?')){
+                    value_caption = value;
+                    value = null;
+                }
                 op = n.attr.op || 'contains';
-                if(typeof(value)!='string'){
+                if(!value_caption && typeof(value)!='string'){
                     op = n.attr.op  || 'equal';
                 }
-                if(typeof(value)=='string' && value.indexOf(',')>=0){
+                if(typeof(value)=='string' && value.indexOf(',')>=0 && op!='in'){
                     var subwhere = new gnr.GnrBag();
                     value.split(',').forEach(function(chunk,idx){
                         if(chunk){
                             subwhere.setItem('c_'+idx,chunk.trim(),{column_dtype:n.attr.column_dtype,
-                                                                    op:op,jc:'or',column:n.attr.column});
+                                                                    op:op,jc:'or',column:n.attr.column,
+                                                                    value_caption:value_caption,
+                                                                    parname:`${parname}_${idx}`});
                         }
                     })
                     if(subwhere.len()){
                         where.setItem('c_'+mainIdx,subwhere,{jc:'and'});
                     }
                 }else{
-                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column})
+                    where.setItem('c_'+mainIdx,value,{column_dtype:n.attr.column_dtype,op:op,jc:'and',column:n.attr.column,value_caption:value_caption,parname:parname})
                 }
-                mainIdx++;
             });
             SET .query.where = where;
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
@@ -334,11 +403,17 @@ class TableHandlerView(BaseComponent):
                                            genro.nodeById('{rootNodeId}').widget.reload();""".format(rootNodeId=rootNodeId))
         b.rowchild(label='!!Totals count',action='SET #{rootNodeId}.#parent.tableRecordCount= !GET #{rootNodeId}.#parent.tableRecordCount;'.format(rootNodeId=rootNodeId),
                             checked='^#{rootNodeId}.#parent.tableRecordCount'.format(rootNodeId=rootNodeId))
+        b.rowchild(label='!![en]Save external query',
+                    action="FIRE #{rootNodeId}.#parent.saveRpcQuery;".format(rootNodeId=rootNodeId))
+
+        b.rowchild(label='!![en]External query editor',
+                    action="genro.nodeById('{rootNodeId}').publish('open_userobject_editor',{{objtype:'rpcquery'}})".format(rootNodeId=rootNodeId))
         if statsEnabled:
             b.rowchild(label='-')
             b.rowchild(label='!!Group by',action='SET .statsTools.selectedPage = "groupby"; SET .viewPage= "statsTools";')
             if self.ths_pandas_available():
                 b.rowchild(label='!!Pivot table',action='SET .statsTools.selectedPage = "pandas"; SET .viewPage= "statsTools";')
+        
         if self.db.package('biz'):
             self._th_addDashboardCommands(b,rootNodeId,table)
         return b
@@ -561,9 +636,9 @@ class TableHandlerView(BaseComponent):
     
     def _th_buildSectionsGui(self,pane,parent=None,multiButton=None,sectionsBag=None,
                             multivalue=None,mandatory=None,
-                            extra_section_kwargs=None,lbl=None,lbl_kwargs=None,
+                            lbl=None,lbl_kwargs=None,
                             exclude_fields=None,sections=None,
-                            isMain=None,th_root=None,depending_condition=None,
+                            isMain=None,depending_condition=None,
                             depending_condition_kwargs=None,dflt=None,variable_struct=None,**kwargs):
         
         inattr = parent.getInheritedAttributes()
@@ -576,8 +651,7 @@ class TableHandlerView(BaseComponent):
         pane.data('.data',sectionsBag)
         pane.data('.variable_struct',variable_struct)
         if sectionsBag:
-            if not dflt:
-                
+            if mandatory and dflt is None:
                 dflt = sectionsBag.getNode('#0').label
             pane.data('.current',dflt)
 
@@ -643,36 +717,47 @@ class TableHandlerView(BaseComponent):
         """,__mb=mb,enabled='^.enabled',excluded='^.excluded',
         _onBuilt=True,_delay=1)
         pane.dataController("""
-            genro.assert(currentSection,'missing current section for sections %s')
-            var sectionNode = sectionbag.getNode(currentSection);
+            var sectionNode = currentSection?sectionbag.getNode(currentSection):null;
             if(isMain){
                 FIRE .#parent.#parent.clearStore;
-                SET .#parent.#parent.excludeDraft = !sectionNode.attr.includeDraft;
+                SET .#parent.#parent.excludeDraft = sectionNode?!sectionNode.attr.includeDraft:true;
             } 
             FIRE .#parent.#parent.sections_changed;
-            """ %sections
+            """
             ,isMain=isMain,_onBuilt=True if sectionsBag else False,
             currentSection='^.current',sectionbag='=.data',
-            _delay=1,
+            _delay=100,
             th_root=th_root)
 
-    def th_distinctSections(self,table,field=None,allPosition=True,**kwargs):
+    def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
         allsection = [dict(code='all',caption='!!All')]
         sections = []
         f = self.db.table(table).query(columns='$%s' %field,addPkeyColumn=True,distinct=True,**kwargs).fetch()
         for i,r in enumerate(f):
             if r[field]:
-                sections.append(dict(code='c_%i' %i,caption=r[field],condition="$%s=:v" %field,condition_v=r[field]))
+                sections.append(dict(code='c_%i' %i,caption=r[field],
+                                condition="$%s=:v" %field,condition_v=r[field],isDefault=r[field]==defaultValue))
         if allPosition:
             return allsection+sections if allPosition!='last' else sections+allsection
         return sections
  
-    def th_monthlySections(self,column=None,dtstart=None,count=3,allPosition=True,over='>=',**kwargs):
+    def th_monthlySections(self, column=None, dtstart=None, 
+                            n_previous=None, n_following=3,
+                            all_previous=None, all_following=None,
+                            allPosition=None, 
+                            **kwargs):
         sections = []
         import datetime
         from dateutil import rrule
+        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
-        dtstart = datetime.date(dtstart.year,dtstart.month,1)
+        dtstart = dtstart.replace(day=1)
+        default_date = dtstart
+        
+        count = n_following+1
+        if n_previous:
+            dtstart = dtstart + relativedelta(months=-n_previous)
+            count = count+n_previous
         for idx,dt in enumerate(rrule.rrule(rrule.MONTHLY, 
                                 dtstart=dtstart, 
                                 count=count)):
@@ -682,13 +767,24 @@ class TableHandlerView(BaseComponent):
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
-                            isDefault=idx==0,
+                            isDefault=(currdate==default_date),
                             caption=self.toText(currdate,format='MMMM')))
         endlast = nextMonth(currdate)
-        if over:
-            sections.append(dict(code='after',condition='{column}>=:endlast'.format(column=column),
+        if all_following:
+            sections.append(dict(code='all_following',condition='{column}>=:endlast'.format(column=column),
                                 condition_endlast=endlast,
-                                caption='!![en]Next months'))
+                                caption='!![en]Following months'))
+        if all_previous:
+            all_prev_section = dict(code='all_previous',condition='{column}<:dtstart'.format(column=column),
+                                condition_dtstart=dtstart,
+                                caption='!![en]Previous months')
+            sections.insert(0,all_prev_section)
+        if allPosition:
+            all_section = dict(code='all',caption='!![en]All')
+            if all_section=='first':
+                sections.insert(0,all_section)
+            else:
+                sections.append(all_section)
         return sections
 
     @struct_method
@@ -1054,7 +1150,10 @@ class TableHandlerView(BaseComponent):
         store_kwargs.setdefault('weakLogicalDeleted',options.get('weakLogicalDeleted'))
         multiStores = store_kwargs.pop('multiStores',None)
         frame.data('.query.limit',store_kwargs.pop('limit',None))
+        sqlContextName = store_kwargs.pop('sqlContextName','standard_list')
+
         store = frame.grid.selectionStore(table=table,
+                               saveRpcQuery='^.saveRpcQuery',
                                chunkSize=chunkSize,childname='store',
                                where='=.query.where',
                                queryMode='=.query.queryMode', 
@@ -1066,7 +1165,8 @@ class TableHandlerView(BaseComponent):
                                _cleared='^.clearStore',
                                _onError="""return error;""", 
                                selectionName=selectionName, recordResolver=False, condition=condition,
-                               sqlContextName='standard_list', totalRowCount='=.tableRecordCount',
+                               sqlContextName=sqlContextName, 
+                               totalRowCount='=.tableRecordCount',
                                row_start='0',
                                allowLogicalDelete=allowLogicalDelete,
                                excludeLogicalDeleted='=.excludeLogicalDeleted',
@@ -1091,7 +1191,15 @@ class TableHandlerView(BaseComponent):
                                httpMethod='WSK' if self.extraFeatures['wsk_grid'] else None,
                                _onCalling="""
                                %s
-                               delete this._currentGrouper;
+                               var gridNode = genro.nodeById("%s");
+                               if( _use_grouper){
+                                   if(kwargs.query_reason=='grouper'){
+                                       return
+                                   }else{
+                                       this.fireEvent('.reloadGrouper',true);
+                                       return false;
+                                   }
+                               }
                                if(kwargs.fkey && this.form && this.form.isLogicalDeleted()){
                                    kwargs.excludeLogicalDeleted = 'mark';
                                }
@@ -1105,24 +1213,58 @@ class TableHandlerView(BaseComponent):
                                     var where = kwargs['where'];
                                     where.walk(function(n){
                                         var p = n.getFullpath(null,where);
+                                        var newNode = newwhere.getNode(p);
+                                        var value_caption = newwhere.getNode(p).attr.value_caption;
                                         if(p.indexOf('parameter_')==0){
                                             newwhere.popNode(p);
                                             kwargs[n.label.replace('parameter_','')] = n._value;
                                         }else{
                                             objectPop(newwhere.getNode(p).attr,'value_caption');
                                         }
+                                        if(saveRpcQuery && !newNode.attr.parname){
+                                            if(value_caption && value_caption.startsWith('?')){
+                                                newNode.attr.parname = flattenString(value_caption.split('|')[0].slice(1),true);
+                                            }else if(newNode.attr.column_caption){
+                                                newNode.attr.parname = flattenString(newNode.attr.column_caption,true);
+                                            }
+                                        }
                                     });
                                     kwargs['where'] = newwhere;
                                }
-                               if( _use_grouper){
-                                   this._currentGrouper = th_grouper_manager.onCalling(kwargs);
+                               if(saveRpcQuery){
+                                   kwargs.gridVisibleColumns = gridNode.widget.getSqlVisibleColumns();
                                }
+                               kwargs.formulaVariants = gridNode.widget.getFormulaVariants();
                                """
-                               %self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
+                               %(self._th_hook('onQueryCalling',mangler=th_root,dflt='')(),
+                                    gridattr['nodeId']),
                                **store_kwargs)
         store.addCallback("""FIRE .queryEnd=true; 
                             return result;
                             """) 
+        store.addCallback("""if(result.attr.rpcquery){
+            SET .lastRpcQuery = new gnr.GnrBag();
+            var datapath = this.absDatapath('.lastRpcQuery');
+            var table = this.attr.table;
+            var data = new gnr.GnrBag(result.attr.rpcquery);
+            var saveCb = function(dlg) {
+                var metadata = genro.getData(datapath);
+                if (!metadata.getItem('code')){
+                    genro.publish('floating_message',{message:_T('Missing code'),messageType:'error'});
+                    return;
+                }
+                genro.serverCall('_table.adm.userobject.saveUserObject',
+                {'objtype':'rpcquery','table':table,'data':data,metadata:metadata},
+                function(result) {
+                    dlg.close_action();
+                    let userobject_id = result.attr.id;
+                    genro.nodeById(rootNodeId).publish('open_userobject_editor',{objtype:'rpcquery',userobject_id:userobject_id})
+                });
+            };
+            genro.dev.userObjectDialog('Save New External Query',datapath,saveCb);
+        }; 
+        return result;
+        """,rootNodeId=gridattr['nodeId']) 
         frame.dataController("""
             var reason,caption,tooltip;
             if(pkeys){
@@ -1148,7 +1290,7 @@ class TableHandlerView(BaseComponent):
                 syncSelectionCaption='!!In sync with ',
                 linkedSelectionPars='=.linkedSelectionPars',_fired='^.queryEnd',_delay=1,
                 currentReason='=.internalQuery.reason') 
-        frame.data('.internalQuery.reason',None)      
+        frame.data('.internalQuery.reason',None) 
         frame.dataController("""
             genro.dom.setClass(fn,'filteredGrid',internalQueryReason);
             SET .query.queryAttributes.extended = internalQueryReason!=null;
@@ -1503,7 +1645,6 @@ class THViewUtils(BaseComponent):
         frame.data('.linkedSelectionPars',None,serverpath='linkedSelectionPars.%s' %frame.store.attributes['selectionName'].replace('*',''))
         gridattr['selfsubscribe_refreshLinkedSelection'] = """SET .#parent.linkedSelectionPars.pkeys = null;
                                                                FIRE .#parent.runQueryDo;"""
-
 
 
 

@@ -271,7 +271,7 @@ class TableBase(object):
     @extract_kwargs(counter=True)
     def sysFields(self, tbl, id=True, ins=True, upd=True, full_upd=False, ldel=True, user_ins=None, user_upd=None, 
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
-                  counter=None,hierarchical=None,hierarchical_virtual_roots=False,
+                  counter=None,relidx=None,hierarchical=None,hierarchical_virtual_roots=False,
                     hierarchical_root_id=False,hdepth=None,useProtectionTag=None,
                   group='zzz', group_name='!![en]System',
                   df=None,counter_kwargs=None,**kwargs):
@@ -335,7 +335,7 @@ class TableBase(object):
                                                                                         one_name='!![en]Parent',many_name='!![en]Children',
                                                                                         deferred=True,
                                                                                         one_group=group,many_group=group)
-            tbl.formulaColumn('child_count','(SELECT count(*) FROM %s.%s_%s AS children WHERE children.parent_id=#THIS.id)' %(pkg,pkg,tblname),group='*')
+            tbl.formulaColumn('child_count','(SELECT count(*) FROM %s.%s_%s AS children WHERE children.parent_id=#THIS.id)' %(pkg,pkg,tblname),group='*', dtype='L')
             tbl.formulaColumn('hlevel',"""length($hierarchical_pkey)-length(replace($hierarchical_pkey,'/',''))+1""",group='*')
             if hierarchical_root_id:
                 tbl.column('root_id',sql_value="substring(:hierarchical_pkey from 1 for 22)",
@@ -394,6 +394,13 @@ class TableBase(object):
             else:
                 self.sysFields_counter(tbl,'_row_count',counter=counter,group=group,name_long='!![en]Counter')
                 tbl.attributes.setdefault('order_by','$_row_count')
+    
+        if relidx:
+            tbl.attributes['relidx'] = relidx
+            self.sysFields_relidx(tbl,'_relidx',relidx=relidx,group=group,name_long='!![en]Rel.Idx')
+            self.db.model.deferOnBuilding(self.addRelXtdRelidxColumn,
+                        reltbl='{}.{}'.format(tbl.parentNode.parentNode.parentNode.label,
+                                                tbl.parentNode.label),relidx=relidx)
         if counter_kwargs:
             for k,v in counter_kwargs.items():
                 self.sysFields_counter(tbl,'_row_count_%s' %k,counter=v,group=group,name_long='!![en]Counter %s' %k)
@@ -429,7 +436,8 @@ class TableBase(object):
                     r.append('%s.__is_invalid' %rel)
             tbl.formulaColumn('__is_invalid', ' ( %s ) '  %' OR '.join(r), dtype='B',aggregator='OR')
         if df:
-            self.sysFields_df(tbl)
+            df = df if df is not True else dict()
+            self.sysFields_df(tbl,**df)
         tbl.formulaColumn('__protecting_reasons',sql_formula=True,group=group,name_long='!![en]Protecting reasons',_sysfield=True)
         tbl.formulaColumn('__is_protected_row',"$__protecting_reasons!=''",group=group,name_long='!![en]Row Protected',_sysfield=True)
 
@@ -450,6 +458,7 @@ class TableBase(object):
                                 group=group)
         self.sysFields_extra(tbl,_sysfield=True,group=group)
         
+        
 
     def _sysFields_defaults(self,user_ins=None,user_upd=None):
         if user_ins is None:
@@ -467,10 +476,10 @@ class TableBase(object):
                                                     END ) """,dtype='B',_sysfield=True)
         #doctor,staff,superadmin               ,doctor,staff,superadmin, LIKE %%,admin,%%
 
-    def sysFields_df(self,tbl):
+    def sysFields_df(self,tbl,templates=None,**kwargs):
         tbl.column('df_fields',dtype='X',group='_',_sendback=True)
         tbl.column('df_fbcolumns','L',group='_')
-        tbl.column('df_custom_templates','X',group='_')
+        tbl.column('df_custom_templates','X',group='_',templates=templates)
         tbl.column('df_colswidth',group='_')
 
 
@@ -478,6 +487,27 @@ class TableBase(object):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRowCounter',counter=True,
                             _counter_fkey=counter,group=group,_sysfield=True)
     
+    def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
+        tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
+                        _relidx_fkey=relidx,group=group,_sysfield=True,
+                        format='0000')
+
+    def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
+        model = self.db.model
+        pkg,tblname = reltbl.split('.')
+        masterpkg = pkg
+        c = model.src['packages.{}.tables.{}.columns.{}.relation'.format(pkg,tblname,relidx)]
+        master_table_link = c.attributes['related_column'].split('.')
+        if len(master_table_link)==2:
+            mastertbl,masterpkey = master_table_link
+        else:
+            masterpkg,mastertbl,masterpkey = master_table_link
+        rel_tbl_src = model.src['packages.{}.tables.{}'.format(pkg,tblname)]
+        xtd_tbl_src = model.src['packages.{}.tables.{}_xtd'.format(masterpkg,mastertbl)]
+        xtd_tbl_src.column('{}_relidx'.format(reltbl.replace('.','_')),dtype='L',
+                            name_long='{name_long} relidx count'.format(**rel_tbl_src.attributes))
+
+
     def sysFields_extra(self,tbl,**kwargs):
         for m in [k for k in dir(self) if k.startswith('sysFields_extra_') and not k[-1]=='_']:
             getattr(self,m)(tbl,**kwargs)
@@ -743,10 +773,14 @@ class TableBase(object):
             return 'Missing %s' %','.join(errors)
     
     def importerInsertRow(self,row,import_mode=None):
+        record = self.importerRecordFromRow(row)
         if import_mode=='insert_or_update':
-            self.insertOrUpdate(row)
+            self.insertOrUpdate(record)
         else:
-            self.insert(row)
+            self.insert(record)
+    
+    def importerRecordFromRow(self,row):
+        return self.newrecord(**dict(row))
 
 
     @public_method
@@ -791,7 +825,22 @@ class TableBase(object):
                                     **wherekw).fetch()
         last_counter = last_counter_fetch[0].get(fldname) or 1 if last_counter_fetch else 0
         record[fldname] = last_counter +1
-        
+    
+    def trigger_xtdDeletedRecord(self,record,fldname,**kwargs):
+        return self.xtd.onDeletedMain(record)
+
+    def trigger_setRelidx(self,record,fldname,**kwargs):
+        """field trigger used for manage rowCounter field"""
+        if record.get(fldname) is not None:
+            return
+        relidx_fkey = self.column(fldname).attributes.get('_relidx_fkey')
+        mastertable = self.column(relidx_fkey).relatedTable().dbtable
+        keyrelidx = '{}_relidx'.format(self.fullname.replace('.','_'))
+        with mastertable.xtd.recordToUpdate(record[relidx_fkey],insertMissing=True) as xtd:
+            xtd['main_id'] = record[relidx_fkey]
+            xtd[keyrelidx] = (xtd[keyrelidx] or 0) + 1
+        record[fldname] = xtd[keyrelidx]
+
     def trigger_setTSNow(self, record, fldname,**kwargs):
         """This method is triggered during the insertion (or a change) of a record. It returns
         the insertion date as a value of the dict with the key equal to ``record[fldname]``,
@@ -872,9 +921,12 @@ class TableBase(object):
 
     def dbo_onInserting(self,record=None,**kwargs):
         self.checkDiagnostic(record)
+        self.checkChangelog(record)
 
     def dbo_onUpdating(self,record=None,old_record=None,pkey=None,**kwargs):
         self.checkDiagnostic(record)
+        self.checkChangelog(record,old_record=old_record)
+
         if self.draftField:
             if hasattr(self,'protect_draft'):
                 record[self.draftField] = self.protect_draft(record)
@@ -883,6 +935,18 @@ class TableBase(object):
             self.onArchivingRecord(record,record.get(logicalDeletionField))
             if not record.get(logicalDeletionField) and record.get('__moved_related'):
                 self.restoreUnifiedRecord(record)
+    
+    def checkChangelog(self,record=None,old_record=None,**kwargs):
+        chlog = self.attributes.get('chlog')
+        if not chlog:
+            return
+        if chlog is True:
+            self.xtd.mainChangelog(record=record,old_record=old_record)
+        else:
+            self.xtd.relatedChangelog(self,record=record,old_record=old_record)
+
+    def dbo_onDeleting(self,record,**kwargs):
+        self.checkChangelog(None,old_record=record)
 
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
@@ -1039,9 +1103,12 @@ class TableBase(object):
             kwargs['df_templates'] = tpl.getItem('main?df_templates')
             kwargs['dtypes'] = tpl.getItem('main?dtypes')
             #virtual_columns = tpl.getItem('main?virtual_columns')
-        r = Bag(dict(record))
+        r = record
         if not isinstance(record,Bag):
-            tpl['main'] = tpl['main'].replace('@','_').replace('.','_')
+            for col in tpl.getAttr('main','columns').split(','):
+                if col.startswith('@'):
+                    tpl['main'] = tpl['main'].replace(col, col.replace('@','_').replace('.','_'))
+            r = Bag(dict(record))
         return templateReplace(tpl,r,**kwargs)
 
 
@@ -1245,6 +1312,50 @@ class HostedTable(GnrDboTable):
         if mode=='slave' and self.db.application.hostedBy:
             tbl.attributes['readOnly'] = True
 
+class XTDTable(GnrDboTable):
+    """XTDTable"""
+    def xtd_options(self):
+        return dict(onDelete='cascade')
+
+    def use_dbstores(self, **kwargs):
+        return self.db.table(tblname=self.fullname[0:-4]).use_dbstores()
+
+    def config_db(self,pkg):
+        tblname = self._tblname
+        tbl = pkg.table(tblname,pkey='main_id')
+        mastertbl = '%s.%s' %(pkg.parentNode.label,tblname.replace('_xtd',''))
+        pkgname,mastertblname = mastertbl.split('.')
+        tblname = '%s_xtd' %mastertblname
+        assert tbl.parentNode.label == tblname,'table name must be %s' %tblname
+        model = self.db.model
+        mastertbl =  model.src['packages.%s.tables.%s' %(pkgname,mastertblname)]
+        master_attr = mastertbl.attributes
+        master_attr['xtdtable'] = '%s.%s' %(pkgname,tblname)
+        mastertbl_name_long = master_attr.get('name_long')        
+        tbl.attributes.setdefault('caption_field','description')
+        tbl.attributes.setdefault('rowcaption','$description')
+        tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
+        tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
+        #self.sysFields(tbl,id=False, ins=False, upd=False)
+        masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
+        tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
+            relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),
+                        onDelete=self.xtd_options().get('onDelete'),
+                        one_one=True,relation_name='xtd',
+                        one_name='!![en]Main',
+                        many_name='!![en]XTD')
+        if master_attr.get('copy_deleted_record'):
+            tbl.column('deleted_record',dtype='X',name_long='!![it]Deleted record')
+        if master_attr.get('chlog'):
+            tbl.column('chlog_sessions',dtype='X',name_long='!![it]Changelog')
+            tbl.column('chlog_owner_user')
+
+        self.onTableConfig(tbl)
+    
+    def onTableConfig(self,tbl):
+        pass
+
+
 class AttachmentTable(GnrDboTable):
     """AttachmentTable"""
 
@@ -1268,7 +1379,8 @@ class AttachmentTable(GnrDboTable):
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Attachments' %mastertbl_name_long)
 
-        self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
+        self.sysFields(tbl, counter='maintable_id')
+        #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
                     onInserted='convertDocFile',
@@ -1282,7 +1394,11 @@ class AttachmentTable(GnrDboTable):
                     name_long='!![en][Is foreign document]',
                     name_short='!![en]Ext')
         tbl.column('maintable_id',size='22',group='*',name_long=mastertblname).relation('%s.%s.%s' %(pkgname,mastertblname,mastertbl.attributes.get('pkey')), 
-                    mode='foreignkey', onDelete_sql='cascade',onDelete='cascade', relation_name='atc_attachments',
+                    mode='foreignkey', 
+                    onDelete_sql='cascade',
+                    onDelete='cascade',
+                    relation_name='atc_attachments',
+                    onDuplicate=False,
                     one_group='_',many_group='_',deferred=True)
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
@@ -1317,7 +1433,7 @@ class AttachmentTable(GnrDboTable):
         site = self.db.application.site
         record = self.record(pkey=pkey,for_update=True).output('dict')
         old_record = dict(record)
-        text_content = site.extractTextContent(self._atcStorageNode(record))
+        text_content = site.extractTextContent(self._atcStorageNode(record).internal_path)
         if text_content:
             record['text_content'] = text_content
             self.update(record,old_record=old_record)
@@ -1512,8 +1628,10 @@ class TotalizeTable(GnrDboTable):
         addFromCurrent = (record is not None) and (self.totalize_exclude(record) is not True)
         subtractFromOld = (old_record is not None) and (self.totalize_exclude(old_record) is not True)
         self.tt_totalize_allowed(record,old_record=old_record)
-        with self.recordToUpdate(self.pkeyValue(tot_record),insertMissing=True,**tot_record) as tot:
-            for totalizer_field,pars in list(tot_fields.items()):
+        totkey = self.pkeyValue(tot_record)
+        with self.recordToUpdate(totkey,insertMissing=True,**tot_record) as tot:
+            tot_before_changes = dict(tot)
+            for totalizer_field,pars in tot_fields.items():
                 if addFromCurrent:
                     value = self.tt_getvalue(record,pars) or 0
                     tot[totalizer_field] = (tot[totalizer_field] or value.__class__(0)) + value
@@ -1522,6 +1640,12 @@ class TotalizeTable(GnrDboTable):
                     tot[totalizer_field] = (tot[totalizer_field] or old_value.__class__(0)) - old_value
             if not tot['_refcount'] is None and tot['_refcount']<=0:
                 tot[self.pkey] = False
+        if (addFromCurrent or subtractFromOld) and hasattr(self,'onCommit_totalize'):
+            deferkw = self.db.deferToCommit(self.onCommit_totalize,_deferredId=totkey,
+                                        _deferredBlock='_totalizeDeferreds')
+            if 'record_before_changes' not in deferkw:
+                deferkw['record_before_changes'] = tot_before_changes
+            deferkw['record_after_changes'] = tot
     
     def tt_totalize_allowed(self,record=None,old_record=None):
         pass

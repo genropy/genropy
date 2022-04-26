@@ -41,6 +41,8 @@ from gnr.core.gnrdict import dictExtract
 #from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
+from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
+
 from gnr.sql.gnrsql import GnrSqlException
 from datetime import datetime
 import logging
@@ -229,6 +231,8 @@ class SqlTable(GnrObject):
         self._lock = threading.RLock()
         if tblobj.attributes.get('hierarchical'):
             self.hierarchicalHandler = HierarchicalHandler(self)
+        if tblobj.attributes.get('xtdtable'):
+            self.xtd = XTDHandler(self)
         
     def use_dbstores(self,**kwargs):
         pass
@@ -573,6 +577,8 @@ class SqlTable(GnrObject):
                     if dtype and isinstance(v, basestring):
                         if dtype not in ['T', 'A', 'C', 'X']:
                             v = converter.fromText(record[k], dtype)
+                            if isinstance(v,tuple):
+                                v = v[0]
                     if 'rjust' in colattr:
                         v = v.rjust(int(colattr['size']), colattr['rjust'])
                         
@@ -644,25 +650,41 @@ class SqlTable(GnrObject):
             newrecord.setItem(fld, v, info)
         return newrecord
         
-    def newrecord(self, assignId=False, resolver_one=None, resolver_many=None, _fromRecord=None, **kwargs):
+    def recordCopy(self,fromRecord):
+        """"returns a copy of a record, exluding columns that are
+            - unique
+            - _sysfield (except draftfield or parent_id)
+            - ignoreOnCopy
+        """
+        result = dict()
+        
+        for colname,obj in self.model.columns.items():
+            fieldMode = obj.attributes.get('fieldMode')
+            if fieldMode not in (None,'D'):
+                continue
+            #should continue or set None??
+            if obj.attributes.get('unique'):
+                continue
+            if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
+                continue
+            result[colname] = fromRecord.get(colname)
+        return result
+
+
+
+    def newrecord(self, assignId=False, resolver_one=None, 
+                resolver_many=None, 
+                _fromRecord=None, **kwargs):
         """TODO
         
         :param assignId: TODO
         :param resolver_one: TODO
         :param resolver_many: TODO"""
         
-        defaultValues = dict()
+        defaultValues = self.defaultValues() or {}
         if _fromRecord:
-            for colname,obj in self.model.columns.items():
-                if  obj.attributes.get('unique'):
-                    continue
-                if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
-                    continue
-                defaultValues[colname] = _fromRecord[colname]
-        else:
-            defaultValues = self.defaultValues() or {}
+            defaultValues.update(self.recordCopy(_fromRecord))
         defaultValues.update(kwargs)
-
         newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one, resolver_many=resolver_many)
         if assignId:
             newrecord[self.pkey] = self.newPkeyValue(record=newrecord)
@@ -932,14 +954,18 @@ class SqlTable(GnrObject):
         howmany = howmany or 1
         howmany = str(howmany)
         original_record = self.recordAs(recordOrKey,mode='dict')
+        original_pkey = original_record.get(self.pkey,None)
+
+        #---should use recordCopy START
         record = dict(original_record)
-        pkey = record.get(self.pkey,None)
         record[self.pkey] = None
         for colname,obj in self.model.columns.items():
             if (colname == self.draftField) or (colname == 'parent_id'):
                 continue
             if obj.attributes.get('unique') or obj.attributes.get('_sysfield'):
                 record[colname] = None
+        #---should use recordCopy END
+
         if hasattr(self,'onDuplicating'):
             self.onDuplicating(record)
         if howmany.isdigit():
@@ -967,7 +993,10 @@ class SqlTable(GnrObject):
                 fkey = rellist[-1]
                 subtable ='.'.join(rellist[:-1])
                 manytable = self.db.table(subtable)
-                rows = manytable.query(where="$%s=:p" %fkey,p=pkey,addPkeyColumn=False,bagFields=True).fetch()
+                if hasattr(manytable,'getRowsForDuplication'):
+                    rows = manytable.getRowsForDuplication(original_pkey)
+                else:
+                    rows = manytable.query(where="$%s=:p" %fkey,p=original_pkey,addPkeyColumn=False,bagFields=True).fetch()
                 for dupRec in duplicatedRecords:
                     for r in rows:
                         r = dict(r)
@@ -977,13 +1006,14 @@ class SqlTable(GnrObject):
             self.onDuplicated(duplicated_records=duplicatedRecords,original_record=original_record)
         return duplicatedRecords[0]
             
+
     def recordAs(self, record, mode='bag', virtual_columns=None,ignoreMissing=True):
         """Accept and return a record as a bag, dict or primary pkey (as a string)
         
         :param record: a bag, a dict or a string (i.e. the record's pkey)
         :param mode: 'dict' or 'bag' or 'pkey'
         :param virtual_columns: TODO"""
-        if isinstance(record, basestring):
+        if not hasattr(record,'items'): #ducktyping
             if mode == 'pkey':
                 return record
             else:
@@ -1308,7 +1338,9 @@ class SqlTable(GnrObject):
         newkey = False
         if pkeyValue in (None, ''):
             newkey = True
-            record[self.pkey] = self.newPkeyValue(record=record)
+            pkeyValue = self.newPkeyValue(record=record)
+            if pkeyValue is not None:
+                record[self.pkey] = pkeyValue
         return newkey
         
     def empty(self, truncate=None):
@@ -1537,7 +1569,10 @@ class SqlTable(GnrObject):
         for rel in self.relations_many:
             defaultOnDelete = 'raise' if rel.getAttr('mode')=='foreignkey' else 'ignore'
             onDelete = rel.getAttr('onDelete', defaultOnDelete).lower()
-            if onDelete and not (onDelete in ('i', 'ignore')):
+            raiseMessage = '!!Record referenced in table %(reltable)s'
+            if ':' in onDelete:
+                onDelete,raiseMessage = onDelete.split(':')
+            if onDelete and  (onDelete not in ('i', 'ignore')):
                 mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
                 opkg, otbl, ofld = rel.attr['one_relation'].split('.')
                 relatedTable = self.db.table(mtbl, pkg=mpkg)
@@ -1550,13 +1585,13 @@ class SqlTable(GnrObject):
                                          excludeLogicalDeleted=False).fetch()
                 if sel:
                     if onDelete in ('r', 'raise'):
-                        raise self.exception('delete', record=record, msg='!!Record referenced in table %(reltable)s',
+                        raise self.exception('delete', record=record, msg=raiseMessage,
                                              reltable=relatedTable.fullname)
                     elif onDelete in ('c', 'cascade'):
-                        for row in sel:
+                        for row in self.db.quickThermo(sel):
                             relatedTable.delete(row)
                     elif onDelete in ('n','setnull'):
-                        for row in sel:
+                        for row in self.db.quickThermo(sel):
                             rel_rec = dict(row)
                             rel_rec.pop('pkey',None)
                             oldrec = dict(rel_rec)
@@ -1772,7 +1807,7 @@ class SqlTable(GnrObject):
                 return record['__syscode'].ljust(int(size),'_')
             else:
                 return record['__syscode']
-        else:
+        elif pkeycol.dtype in ('T','A','C') and pkeycol.attributes.get('size') in ('22',':22',None):
             return getUuid()
             
     def baseViewColumns(self):
@@ -2097,7 +2132,7 @@ class SqlTable(GnrObject):
                     and relatedTable.relations_one.getAttr('#0','onDelete')=="cascade"):
                 continue
             many_history_set = history[tablename]['many']
-            sel = relatedTable.query(columns='*', where='%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
+            sel = relatedTable.query(columns='*', where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
                                          rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False).fetch()
             if sel:
@@ -2388,6 +2423,23 @@ class SqlTable(GnrObject):
     
     def onLogChange(self,evt,record,old_record=None):
         pass
+
+
+
+    def menu_dynamicMenuContent(self,columns=None,label_field=None,title_field=None,**kwargs):
+        label_field = label_field or self.attributes.get('caption_field')
+
+        columns = columns or '*'
+        collist = columns.split(',')
+        label_field = label_field or self.attributes.get('caption_field')
+        if label_field and f'${label_field}' not in collist:
+            collist.append(f'${label_field}')
+        if title_field and f'${title_field}' not in collist:
+            collist.append(f'${title_field}')
+        return self.query(columns=','.join(collist),**kwargs).fetch()
+    
+    def menu_dynamicMenuLine(self,record,**kwargs):
+        return {}
     
     @property
     def totalizers(self):
@@ -2410,6 +2462,7 @@ class SqlTable(GnrObject):
             record = None
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
+
             
 if __name__ == '__main__':
     pass

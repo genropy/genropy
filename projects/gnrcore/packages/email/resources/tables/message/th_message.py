@@ -9,17 +9,15 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('subject',width='30em')
+        r.fieldcell('subject',width='auto')
         r.fieldcell('to_address',width='18em')
-        r.fieldcell('from_address',width='18em')
         r.fieldcell('cc_address',width='18em')
         r.fieldcell('bcc_address',width='18em')
         r.fieldcell('uid',width='7em')
-        r.fieldcell('send_date',width='7em')
+        r.fieldcell('__ins_ts',width='7em')
         #r.fieldcell('sent',width='7em') #use send_date instead
         #r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='12em')
-
 
     def th_queryBySample(self):
         return dict(fields=[dict(field='send_date',lbl='!!Send date',width='7em'),
@@ -43,13 +41,23 @@ class View(BaseComponent):
 
     def th_struct_sending_error(self,struct):
         r = struct.view().rows()
-        r.fieldcell('subject',width='30em')
+        r.fieldcell('subject',width='auto')
         r.fieldcell('to_address',width='18em')
         r.fieldcell('cc_address',width='18em')
         r.fieldcell('bcc_address',width='18em')
         r.fieldcell('error_msg',width='10em')
         r.fieldcell('error_ts',width='8em')
-        #r.fieldcell('user_id',width='35em')
+        r.fieldcell('__ins_ts',width='7em')
+        r.fieldcell('account_id',width='12em')
+
+    def th_struct_sent(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('subject',width='auto')
+        r.fieldcell('to_address',width='18em')
+        r.fieldcell('cc_address',width='18em')
+        r.fieldcell('bcc_address',width='18em')
+        r.fieldcell('__ins_ts',width='7em')        
+        r.fieldcell('send_date',width='8em')
         r.fieldcell('account_id',width='12em')
 
     @metadata(isMain=True,_if='inout=="o"',_if_inout='^.in_out.current', variable_struct=True)
@@ -57,7 +65,7 @@ class View(BaseComponent):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
-                dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
+                dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
                 dict(code='all',caption='All',includeDraft=True)]
 
 
@@ -144,7 +152,7 @@ class Form(BaseComponent):
         r.cell('error',name='Error', width='100%')
 
     def th_form(self, form):
-        bc = form.center.borderContainer()
+        bc = form.center.borderContainer(margin='5px')
         top = bc.contentPane(region='top',datapath='.record')
         fb = top.div(margin_right='20px').formbuilder(cols=4,border_spacing='3px',
                                                     fld_width='100%',
@@ -156,42 +164,31 @@ class Form(BaseComponent):
         fb.field('from_address',colspan=2)
         fb.field('cc_address',colspan=2)
         fb.field('bcc_address',colspan=2)
-        
-
-        #fb.field('uid')
-        fb.field('send_date')
-        #fb.field('sent',html_label=True)
+        fb.field('send_date', tag='div')
         fb.field('html',html_label=True)
-        fb.field('__is_draft', lbl='Draft')
+        fb.field('__is_draft', lbl='!![en]Draft')
 
-
-        #fb.field('user_id')
-        #fb.field('account_id', colspan=2)
-        
-        fb.field('error_msg', colspan=4)
-        fb.field('error_ts', colspan=4)
-        
-
-        fb.button('Send message', hidden='^.send_date',fire='#FORM.send_message')
-        fb.button('Clear errors', hidden='^.send_date',fire='#FORM.clear_errors')
-
-        fb.dataRpc(None,self.db.table('email.message').sendMessage, _fired='^#FORM.send_message',pkey='=#FORM.record.id')
-        fb.dataRpc(None,self.db.table('email.message').clearErrors, _fired='^#FORM.clear_errors',pkey='=#FORM.record.id')
-        
-        tc = bc.tabContainer(region='center',margin='2px')
+        tc = bc.tabContainer(region='center', margin_top='15px')
         tc.contentPane(title='Body').simpleTextArea(value='^.record.body',editor=True)
         sc = tc.stackContainer(title='Attachments')
         sc.plainTableHandler(relation='@attachments',pbl_classes=True)
         sc.attachmentGrid(pbl_classes=True)
         tc.dataController("sc.switchPage(in_out=='O'?1:0)",sc=sc.js_widget,in_out='^#FORM.record.in_out')
-        tc.contentPane(title='Body plain').simpleTextArea(value='^.record.body_plain',height='100%')
+        tc.contentPane(title='Body plain', hidden='^.record.body_plain?=!#v').simpleTextArea(value='^.record.body_plain',height='100%')
         errors_pane = tc.contentPane(title='Errors', region='center', datapath='.record')
-        errors_pane.bagGrid(frameCode='sending_attempts',title='Attempts',datapath='#FORM.errors',
+        errors_bg = errors_pane.bagGrid(frameCode='sending_attempts',title='Attempts',datapath='#FORM.errors',
                                                             struct=self.attemptStruct,
                                                             storepath='#FORM.record.sending_attempt',
                                                             pbl_classes=True,margin='2px',
-                                                            addrow=False,delrow=False,datamode='attr')
+                                                            delrow=False,datamode='attr')
+        errors_bg.top.bar.replaceSlots('addrow','clearerr,2')
+        errors_bg.top.bar.clearerr.slotButton('Clear errors').dataRpc(
+                    self.db.table('email.message').clearErrors, pkey='=#FORM.record.id', _onResult='this.form.reload();')
 
+    def th_top_custom(self,top):
+        bar = top.bar.replaceSlots('form_delete','send_button,5,form_delete')
+        bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
+                    self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
 
 class FormFromDashboard(Form):
 

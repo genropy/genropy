@@ -18,6 +18,7 @@ class OrganizerComponent(BaseComponent):
     def td_annotationTableHandler(self,pane,linked_entity=None,user_kwargs=None,configurable=True,
                                 parentForm=False,nodeId=None,viewResource=None,formResource=None,**kwargs):
         pid = id(pane)
+        pane.attributes.setdefault('titleCounter',True)
         if not linked_entity:
             parentTable = pane.getInheritedAttributes()['table']
             tblobj = self.db.table(parentTable)

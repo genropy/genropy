@@ -24,7 +24,7 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 from past.builtins import basestring
-import os,sys,math
+import os,math,re
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlSrc
@@ -33,6 +33,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import  splitAndStrip, slugify,templateReplace
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import getUuid
 
 
 def page_proxy(*args,**metadata):
@@ -262,8 +263,59 @@ class GnrTableScriptHtmlSrc(GnrHtmlSrc):
                         border_width=border_width, 
                         **kwargs)
 
+class BagToHtmlWeb(BagToHtml):
+    client_locale = False
+    record_template = None
 
-class TableScriptToHtml(BagToHtml):
+    def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,resource_table=None,record_template=None,**kwargs):
+        super(BagToHtmlWeb, self).__init__(**kwargs)
+        self.page = page
+        self.parent = parent
+        self.tblobj = table or resource_table
+        self.maintable = None
+        if self.tblobj:
+            self.maintable = self.tblobj.fullname if self.tblobj else None
+        self.db = self.page.db if page else self.tblobj.db
+        self.site = self.db.application.site
+        self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
+        self.letterhead_sourcedata = letterhead_sourcedata
+        self.print_handler = self.site.getService('htmltopdf')
+        self.pdf_handler = self.site.getService('pdf')
+        self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
+        self.record_template = record_template or self.record_template
+        self.record = None
+
+    def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
+        virtual_columns=None
+        page = self.page or self.db.currentPage
+        if not template and page and self.record_template:
+            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
+        if isinstance(template,Bag):
+            kwargs['locale'] = locale or template.getItem('main?locale')
+            kwargs['masks'] = template.getItem('main?masks')
+            kwargs['formats'] = template.getItem('main?formats')
+            kwargs['df_templates'] = template.getItem('main?df_templates')
+            kwargs['dtypes'] = template.getItem('main?dtypes')
+            virtual_columns = template.getItem('main?virtual_columns')
+        self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
+        return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
+                    localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
+                    **kwargs)
+                    
+    @extract_kwargs(pdf=True)
+    def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
+        pdfpath = pdfpath or self.filepath.replace('.html','.pdf')
+        self.print_handler.htmlToPdf(self.filepath,pdfpath, orientation=self.orientation(),pdf_kwargs=pdf_kwargs)
+        return pdfpath   
+
+class TableTemplateToHtml(BagToHtmlWeb):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
+        if not htmlContent:
+            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
+            record = self.record
+        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
+
+class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
     rows_table = None
     virtual_columns = None
@@ -271,31 +323,17 @@ class TableScriptToHtml(BagToHtml):
     pdf_folder = 'page:pdf'
     cached = None
     css_requires = 'print_stylesheet'
-    client_locale = False
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
-
+    record_template = None
 
     def __init__(self, page=None, resource_table=None, parent=None, **kwargs):
-        super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,**kwargs)
-        self.parent = parent
-        self.page = page
-        self.site = page.site
-        self.db = page.db
-        self.locale = self.page.locale if self.client_locale else self.site.server_locale
-        self.tblobj = resource_table
-        self.maintable = resource_table.fullname if resource_table else None
-        self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
+        super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,page=page,table=resource_table,parent=parent,**kwargs)
         self.thermo_wrapper = self.page.btc.thermo_wrapper
-        self.print_handler = self.page.getService('htmltopdf')
-        self.pdf_handler = self.page.getService('pdf')
-        self.letterhead_sourcedata = None
         self._gridStructures = {}
-        self.record = None
-        
 
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
-                    language=None,locale=None,**kwargs):
+                    language=None,locale=None, htmlContent=None, **kwargs):
         if not record:
             return
         self.thermo_kwargs = thermo
@@ -314,7 +352,9 @@ class TableScriptToHtml(BagToHtml):
                                         languageUPPER=self.language.upper())
         elif self.locale:
             self.language = self.locale.split('-')[0].lower()
-        result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, **kwargs)
+        if self.record_template:
+            htmlContent = self.contentFromTemplate(record=record)
+        result = super(TableScriptToHtml, self).__call__(record=record, folder=html_folder, htmlContent=htmlContent, **kwargs)
         if not result:
             return False
         if not pdf:
@@ -591,14 +631,90 @@ class TableScriptToHtml(BagToHtml):
         rowtblobj = self.db.table(self.row_table)
         if self.grid_subtotal_order_by:
             parameters['order_by'] = self.grid_subtotal_order_by
-        sel = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters
-                                ).selection(_aggregateRows=True)
-
-
+        query = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters)
+        sel = query.selection(_aggregateRows=True)
         if not parameters.get('order_by') and self.record['selectionPkeys']: #same case of line 493
             sel.data.sort(key = lambda r : self.record['selectionPkeys'].index(r['pkey']))
+        if self.parent and self.parent.export_mode:
+            return sel.output('dictlist')
         return sel.output('grid',recordResolver=False)
 
+    def getExportData(self,record=None,language=None, parent=None,idx=None,**kwargs):
+        if record is None:
+            record = Bag()
+        self.parent = parent
+        self._data = Bag()
+        self._parameters = Bag()
+        for k, v in list(kwargs.items()):
+            self._parameters[k] = v
+        self.language = language
+        self._rows = dict()
+        self._gridsColumnsBag = Bag()
+        self.record = record
+        self.record_idx = idx or None
+        self.prepareTemplates()
+        data = self.gridData()
+        if isinstance(data,Bag):
+            if self.row_mode=='attribute':
+                data = [dict(n.attr) for n in data]
+            else:
+                data = [n.value.asDict() for n in data]
+        return dict(name=self.getExportCaption(),
+                    identifier=self.getExportIdentifier(),
+                    struct=self.getExportParsFromStruct(),rows=data)
+    
+    def getExportCaption(self):
+        if self.record['selectionPkeys']:
+            return self.parameter('export_name') or f'export_{self.tblobj.name}'
+        elif self.record is not None:
+            return self.tblobj.recordCaption(self.record)
+        return self.getExportIdentifier()
+
+    def getExportIdentifier(self):
+        if self.record['selectionPkeys']:
+            return f'export_{getUuid()}'
+        elif self.record is not None:
+            return self.record[self.tblobj.pkey]
+        return getUuid()
+
+
+    def getExportParsFromStruct(self):
+        struct = self.getStruct()
+        info = struct.pop('info')
+        columnsets = {}
+        columns = []
+        headers = []
+        groups = []
+        coltypes = {}
+        result = {'columns':columns,'headers':headers,'groups':groups,'coltypes':coltypes}
+        if info:
+            columnsets[None]=''
+            for columnset in (info['columnsets'] or []):
+                columnsets[columnset.getAttr('code')]=columnset.getAttr('name')
+        for view in list(struct.values()):
+            for row in list(view.values()):
+                curr_columnset = dict(start=0, name='')
+                curr_column = 0
+                for curr_column,cell in enumerate(row):
+                    if cell.getAttr('hidden') is True:
+                        continue
+                    col = self.db.colToAs(cell.getAttr('caption_field') or cell.getAttr('field'))
+                    if cell.getAttr('group_aggr'):
+                        col = '%s_%s' %(col,re.sub("\\W", "_",cell.getAttr('group_aggr').lower()))
+                    columns.append(col)
+                    headers.append(self.localize(cell.getAttr('name')))
+                    coltypes[col] = cell.getAttr('dtype')
+                    columnset = cell.getAttr('columnset')
+                    columnset_name = columnsets.get(columnset)
+                    if columnset_name!=curr_columnset.get('name'):
+                        curr_columnset['end']=curr_column-1
+                        if curr_columnset.get('name'):
+                            groups.append(curr_columnset)
+                        curr_columnset = dict(start=curr_column, name=columnset_name)
+                curr_columnset['end']=curr_column
+                if curr_columnset.get('name'):
+                    groups.append(curr_columnset)
+        return result
 
     @property
     def grid_sqlcolumns(self):
@@ -626,6 +742,7 @@ class TableScriptToHtml(BagToHtml):
         """TODO"""
         return self.site.storageNode(self.pdf_folder, *args).url(**kwargs)
         
+        
     def outputDocName(self, ext=''):
         """TODO
         :param ext: TODO"""
@@ -640,44 +757,7 @@ class TableScriptToHtml(BagToHtml):
         doc_name = '%s_%s%s' % (self.tblobj.name, caption, ext)
         return doc_name
 
-class TableTemplateToHtml(BagToHtml):
-    def __init__(self, table=None,letterhead_sourcedata=None, **kwargs):
-        super(TableTemplateToHtml, self).__init__(**kwargs)
-        self.db = table.db
-        self.site = self.db.application.site
-        self.tblobj = table
-        self.maintable = table.fullname
-        self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
-        self.letterhead_sourcedata = letterhead_sourcedata
-        self.print_handler = self.site.getService('htmltopdf')
-        self.pdf_handler = self.site.getService('pdf')
-        self.record = None
 
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
-        if not htmlContent:
-            htmlContent = self.contentFromTemplate(record,template,locale=locale)
-            record = self.record
-        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
-
-    def contentFromTemplate(self,record,template,locale=None,**kwargs):
-        virtual_columns=None
-        if isinstance(template,Bag):
-            kwargs['locale'] = locale or template.getItem('main?locale')
-            kwargs['masks'] = template.getItem('main?masks')
-            kwargs['formats'] = template.getItem('main?formats')
-            kwargs['df_templates'] = template.getItem('main?df_templates')
-            kwargs['dtypes'] = template.getItem('main?dtypes')
-            virtual_columns = template.getItem('main?virtual_columns')
-        self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
-        return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
-                    localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
-                    **kwargs)
-
-    @extract_kwargs(pdf=True)
-    def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
-        pdfpath = pdfpath or self.filepath.replace('.html','.pdf')
-        self.print_handler.htmlToPdf(self.filepath,pdfpath, orientation=self.orientation(),pdf_kwargs=pdf_kwargs)
-        return pdfpath
 
         
 

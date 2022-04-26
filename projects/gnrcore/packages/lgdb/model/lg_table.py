@@ -12,7 +12,7 @@ class Table(object):
                         name_plural='Legacy tables',
                         caption_field='sqlname')
         self.sysFields(tbl)
-        tbl.column('lg_pkg', name_long='Package').relation('lg_pkg.code',
+        tbl.column('lg_pkg',size=':15', name_long='Package').relation('lg_pkg.code',
                                                             relation_name='lg_tables', 
                                                             mode='foreignkey',
                                                             onDelete='cascade',

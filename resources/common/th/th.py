@@ -34,7 +34,8 @@ class TableHandler(BaseComponent):
                     th/th_stats:TableHandlerStats,th/th_groupth:TableHandlerGroupBy,
                   th/th_form:TableHandlerForm,th/th_lib:TableHandlerCommon,th/th:ThLinker,
                   th/th:MultiButtonForm,th/th:THBusinessIntelligence,
-                  gnrcomponents/userobject/userobject_editor:PrintGridEditor
+                  gnrcomponents/userobject/userobject_editor:PrintGridEditor,
+                  gnrcomponents/userobject/userobject_editor:RpcQueryEditor
                   """
     
     @extract_kwargs(condition=True,grid=True,view=True,picker=True,export=True,addrowmenu=True,hider=True,preview=True,relation=True)
@@ -60,7 +61,6 @@ class TableHandler(BaseComponent):
                                                     condition_kwargs=condition_kwargs,
                                                     relation_kwargs=relation_kwargs,
                                                     default_kwargs=default_kwargs,original_kwargs=kwargs)
-
         if 'inheritLock' in kwargs:
             view_kwargs['store_inheritLock'] = kwargs['inheritLock']
             form_kwargs['form_inheritLock'] = kwargs.pop('inheritLock')
@@ -89,6 +89,9 @@ class TableHandler(BaseComponent):
             datapath = datapath or '.{}'.format(th_root)
         viewCode='V_{}'.format(th_root)
         formCode='F_{}'.format(th_root)
+        if not pane.attributes.get('nodeId'):
+            pane.attributes['nodeId'] = 'C_{}'.format(th_root)
+        view_kwargs['grid_rootPaneNodeId'] = pane.attributes.get('nodeId')
         defaultModule = 'th_{}'.format(table.split('.')[1])
         unlinkdict = kwargs.pop('store_unlinkdict',None)
         store_excludeDraft = kwargs.pop('store_excludeDraft',None)
@@ -961,3 +964,14 @@ class THBusinessIntelligence(BaseComponent):
                             dashboardGalleryId=dashboardGalleryId,table=table,tablepkey=self.db.table(table).pkey)
         parent.dashboardGallery(pkg=pkg,code=code or formId,nodeId=dashboardGalleryId,from_table=inattr['table'],
                                 from_pkey='=#FORM.pkey',**kwargs)
+
+
+    @extract_kwargs(user=True)
+    @struct_method
+    def th_formLinkedAnnotations(self,parent,linked_entity=None,user_kwargs=None,configurable=True,
+                                parentForm=False,nodeId=None,viewResource=None,formResource=None,**kwargs):
+        if not self.db.package('orgn'):
+            return
+        self.mixinComponent('orgn_components:OrganizerComponent')
+        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,user_kwargs=user_kwargs,configurable=configurable,
+                                        parentForm=parentForm,nodeId=nodeId,viewResource=viewResource,formResource=formResource)

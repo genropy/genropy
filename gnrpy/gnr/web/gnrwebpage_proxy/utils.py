@@ -23,6 +23,8 @@ from gnr.core.gnrlist import getReader
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport, objectExtract
 from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrlang import GnrException
+
 
 EXPORT_PDF_TEMPLATE = """
 <html lang="en">
@@ -85,7 +87,7 @@ class GnrWebUtils(GnrBaseProxy):
                 else:
                     lbl = v
             elif labelfield:
-                if labelfield in v:
+                if v is not None and labelfield in v:
                     lbl = v[labelfield]
                 else:
                     lbl = '%s %s' %(labelfield,idx)
@@ -235,10 +237,9 @@ class GnrWebUtils(GnrBaseProxy):
             importerStructure = importerStructure or self.page.db.table(table).importerStructure()
             checkCb = checkCb or self.page.db.table(table).importerCheck
         try:
-            reader = self.getReader(file_path,filetype=filetype)
+            reader = self.getReader(file_path,filetype=filetype, **kwargs)
         except Exception as e:
-            self.page.clientPublish('floating_message',message='Reader error %s' %str(e),messageType='error')
-
+            raise GnrException('Reader error %s' %str(e),messageType='error')
         
         importerStructure = importerStructure or dict()
         mainsheet = importerStructure.get('mainsheet')
@@ -307,7 +308,9 @@ class GnrWebUtils(GnrBaseProxy):
             sheets = importerStructure.get('sheets')
             if not sheets:
                 sheets = [dict(sheet=importerStructure.get('mainsheet'),struct=importerStructure)]
-            results = []
+            result = Bag()
+            errors = []
+            warnings = []
             for sheet in sheets:
                 if sheet.get('sheet') is not None:
                     reader.setMainSheet(sheet['sheet'])
@@ -315,18 +318,31 @@ class GnrWebUtils(GnrBaseProxy):
                 match_index = tblobj.importerMatchIndex(reader,struct=struct)
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
-                res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
+                importer = struct.get('importer')
+                if importer:
+                    res = getattr(tblobj,importer)(reader)
+                else:
+                    res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
                                                 match_index=match_index,
                                                 import_mode=import_mode,
                                                 sql_mode=sql_mode,constants=constants,
                                                 mandatories=struct.get('mandatories'))
-                results.append(res)
-                errors = [r for r in results if r!='OK']
+                if res!='OK':
+                    if isinstance(res,str):
+                        errors.append(res)
+                    else:
+                        if res.get('errors'):
+                            errors.append(res['errors'])
+                        if res.get('warnings'):
+                            warnings.append(res['warnings'])
                 if errors:
-                    return 'ER'
+                    result['errors'] = ','.join(errors)
+                if warnings:
+                    result['warnings'] = ','.join(warnings)
+                return result
         elif import_method:
             handler = getattr(tblobj,'importer_%s' %import_method)
-            return handler(reader)
+            return handler(reader,  **constant_kwargs)
         
         if match_index:
             return self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
@@ -444,6 +460,7 @@ class GnrWebUtils(GnrBaseProxy):
                                     description = getattr(handler, 'description', ''),
                                     tip=getattr(handler, 'tip', None),
                                     disabled=getattr(handler,'disabled',None),
+                                    hidden=getattr(handler,'hidden',None),
                                     askParameters=getattr(handler,'askParameters',None),
                                     _lockScreen=getattr(handler,'_lockScreen',None),
                                     _onResult=getattr(handler,'_onResult',None),

@@ -320,7 +320,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         treeattr.getLabelClass=function(item){
             var dtype = item.attr.dtype;
             var _class = [];
-            if(!dtype || dtype=='RM' || dtype=='RO' || item.attr.subfields){
+            if(!dtype || dtype=='RM' || dtype=='RO' || item.attr.subfields || item.getResolver()){
                 _class.push('fieldsTree_folder');
             }
             dtype = dtype || (item.attr.isRoot?'root':'group');
@@ -496,6 +496,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                             searchOn:true,tree_inspect:'shift',tree_labelAttribute:null,editable:true});
         genro.setDataFromRemote('gnr.palettes.dbmodel.store', "app.dbStructure",{checkPermission:true});
         this.sqlDebugPalette(pg);
+        this.cssDebugPalette(pg);
         this.devUtilsPalette(pg);
         node.unfreeze();
     },
@@ -523,6 +524,60 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return h?h[field]:'';
     },
 
+    cssSourceTree:function(){
+        let sources = new gnr.GnrBag();
+        for (let stylesheet of document.styleSheets){
+            for(let rule of stylesheet.cssRules){
+                if(rule instanceof CSSImportRule){
+                    let pathlist = rule.href.split('?');
+                    pathlist = pathlist[0].replaceAll('.','_').split('/').filter(n=>n);
+                    sources.addItem(pathlist,null,{'href':rule.href});
+                }
+            }
+        }
+        return sources;
+    },
+    cssOpenStylesheet:function(href){
+        for (let stylesheet of document.styleSheets){
+            for(let rule of stylesheet.cssRules){
+                if(rule instanceof CSSImportRule && rule.href==href){
+                    let cssbag = genro.dom.cssStyleRulesToBag(rule.styleSheet.cssRules);
+                    if(!cssbag){
+                        return;
+                    }
+                    cssbag.setBackRef();
+                    cssbag.subscribe('styleTrigger',{'any':dojo.hitch(genro.dom, "styleTrigger")});
+                    return cssbag;
+                }
+            }
+        }
+
+    },
+
+    cssDebugPalette:function(parent){
+        var bc = parent._('palettePane',{'paletteCode':'devCSSDebug',title:'CSS Tool',
+                                contentWidget:'borderContainer',
+                                frameCode:'devCSSDebug',margin:'2px',rounded:4});
+        let left = bc._('contentPane',{region:'left',width:'200px'});
+        bc.getParentNode().setRelativeData('.source_css',this.cssSourceTree());
+        left._('tree',{
+            'storepath':'.source_css',
+            'hideValues':true,
+            'selectedLabelClass':'selectedTreeNode',
+            'connect_onClick':function(item){
+                if(item.attr.href){ 
+                    this.setRelativeData('.current_stylesheet',genro.dev.cssOpenStylesheet(item.attr.href));
+                }
+            }
+        });
+        let grid = bc._('contentPane',{
+            'region':'center'
+        })._('quickGrid',{value:'^.current_stylesheet'});
+        grid._('column',{field:'selectorText',name:'Selector',width:'20em'});
+        grid._('column',{field:'cssContent',name:'Content',width:'100%',cellStyles:'white-space: pre;',edit:true});
+
+
+    },
     sqlDebugPalette:function(parent){
         var bc = parent._('palettePane',{'paletteCode':'devSqlDebug',title:'Sql',contentWidget:'borderContainer',frameCode:'devSqlDebug',margin:'2px',rounded:4});
         bc._('dataController',{'script':"genro.debug_sql=sqldebug",'sqldebug':'^gnr.debugger.sqldebug'});
@@ -558,7 +613,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
 
 
-        genro.setData('gnr.debugger.rpccall_grid.struct.view_0.row_0', rowstruct);
+        genro.setData('gnr.debugger.rpccall_grid.struct.view_0.rows_0', rowstruct);
         var rpcgrid = top._('includedView',{nodeId:'sql_debugger_grid_rpccall',storepath:'gnr.debugger.main',
                                     structpath:'gnr.debugger.rpccall_grid.struct',datapath:'gnr.debugger.rpccall_grid',
                                     selectedIndex:'gnr.debugger.rpccall_grid.currentRowIndex',relativeWorkspace:true});
@@ -1118,6 +1173,31 @@ dojo.declare("gnr.GnrDevHandler", null, {
         pane._('div',{innerHTML:'==genro.dev.formatErrors(_errors)',_errors:'^gnr.errors',padding:'5px',
                     border:'1px solid silver',background:'whitesmoke',rounded:6,margin:'5px'});
         parent.unfreeze();
+    },
+    currDataExplorer:function(kw){
+       let kwargs = {}
+       kwargs.method = function(params){
+           let data =  genro.getData(params.fieldPath);
+           let result =  data.deepCopy();
+           result.walk(function(n){
+               let v=n.getValue('static')
+               if (v instanceof gnr.GnrBag){
+                   return
+               }
+               let dtype = v!==null?guessDtype(v):'T' ;
+               n.setValue(null);
+               n.attr.fieldpath= n.getFullpath();
+               n.attr.dtype=n.attr.dtype || dtype;
+               n.attr.fullcaption = n.attr.caption || n.attr.fieldpath.replaceAll('.','/');
+           },'static');
+
+           return result;
+       }
+       kwargs.parameters = kw;
+       //kwargs.cacheTime = 5000;
+       if(kw.fieldPath){
+            return new gnr.GnrBagCbResolver(kwargs,null,5000);
+       }
     },
 
     formatErrors:function(errorbag){

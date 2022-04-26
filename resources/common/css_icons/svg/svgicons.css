@@ -8,6 +8,10 @@
 		background: url(16/delete_row.svg) no-repeat center center;
 	}
 
+	.popup{
+		background: url(16/popup.svg) no-repeat center center;
+	}
+
 	.batch_assignment{
 		background: url(16/batch_assignment.svg) no-repeat center center;
 	}
@@ -153,6 +157,9 @@
 
 	.unlocked_padlock{
 		background: url(16/unlocked_padlock.svg) no-repeat center center;
+	}
+	.wrench{
+		background: url(16/wrench.svg) no-repeat center center;
 	}
 /* @end */
 

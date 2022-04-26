@@ -54,6 +54,7 @@ class Service(HtmlToPdfService):
         service = destPath.service
         result = service.call(args)  # wkhtmlto pdf -O Landscape fdfsdfds.html ddasda.pdf
 
+
        #if sys.platform.startswith('linux'):
        #    result = call(['wkhtmltopdf', '-q', '-O', orientation, srcPath, destPath])
        #else:

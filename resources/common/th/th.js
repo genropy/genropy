@@ -30,7 +30,12 @@ var th_view_batch_caller = function(kw){
     if(kw.resource){
         genro.publish("table_script_run",kw);
     }else if(kw.rpcmethod){
-        return th_handle_rpcmenu(grid.sourceNode.getParentNode(),objectPop(kw,'rpcmethod'),kw);
+        kw._sourceNode = grid.sourceNode.getParentNode();
+        genro.lockScreen(true,kw.gridId,{thermo:true});
+        kw.timeout = 0;
+        genro.serverCall(objectPop(kw,'rpcmethod'),kw,function(){
+            genro.lockScreen(false,kw.gridId);
+        });
     }
    
 };
@@ -133,48 +138,6 @@ var th_dash_tableviewer = {
         genro.serverCall('_table.adm.userobject.deleteUserObject',{pkey:pkey},function(){
             sourceNode.setRelativeData('.dashboardMeta',new gnr.GnrBag());
         });
-    }
-};
-
-var th_grouper_manager = {
-    prepareSqlCol:function(cell){
-        let f;
-        if(cell.queryfield){
-            f = cell.queryfield.split(' AS ')[0];
-        }else{
-            f = cell.original_field;
-        }
-        f = f.startsWith('@')?f : '$'+f;
-        let group_aggr = cell.group_aggr;
-        if(!group_aggr){
-            return f;
-        }
-        if(['D','DH','DHZ'].indexOf(cell.dtype)>=0){
-            f = ` (to_char(${f},'${group_aggr}')) `;
-            return f;
-        }
-    },
-
-    onCalling:function(kwargs){
-        if(isNullOrBlank(kwargs.grouper_row)){
-            return;
-        }
-        let row = kwargs.grouper_row;
-        let cols = kwargs._grouper_cols;
-        let condition = [];
-        if(kwargs.condition){
-            condition.push(kwargs.condition);
-        }
-        cols.forEach(function(cell,idx){
-            let sqlcol = th_grouper_manager.prepareSqlCol(cell);
-            if(sqlcol){
-                condition.push(`${sqlcol} = :grouper_cnd_${idx}`);
-                kwargs[`grouper_cnd_${idx}`] = row[cell.field_getter];
-            }
-        });
-        kwargs._current_grouper = row._thgroup_pkey;
-        kwargs.condition = condition.join(' AND ');
-        return kwargs.grouper_row;
     }
 };
 
@@ -481,7 +444,7 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
         var pageName;
         var formUrl = dbname?'/'+dbname+this.formUrl:this.formUrl;
         var recyclablePage = null;
-        for (var k in this.pages_dict){
+        for (let k in this.pages_dict){
             var pagePkey = this.pages_dict[k];
             if(pagePkey==pkey){
                 this.indexgenro.publish('selectIframePage',{pageName:k});
@@ -503,8 +466,8 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
         }
         var kw = objectUpdate({file:formUrl,pageName:pageName,label:this.loadingTitle},this.page_kw);
         if(pkey=='*newrecord*'){
-            default_kwargs = this.sourceNode.evaluateOnNode(this.default_kwargs);
-            for (var k in default_kwargs){
+            let default_kwargs = this.sourceNode.evaluateOnNode(this.default_kwargs);
+            for (let k in default_kwargs){
                 kw['url_default_'+k] = default_kwargs[k];
             }
         }
@@ -519,12 +482,12 @@ dojo.declare("gnr.pageTableHandlerJS",null,{
                                         that.pages_dict[pageName] = kw.pkey;
                                         indexgenro.publish('changeFrameLabel',{pageName:pageName,title:kw.data?kw.data.attr.caption:'loading...'});
                                     });
-            iframegenro.dojo.subscribe('onDeletingIframePage',function(pageName){
+            iframegenro.dojo.subscribe('onDeletingIframePage',function(pn){
                 if(that.recyclablePages){
-                    that.pages_dict[pageName] = null;
+                    that.pages_dict[pn] = null;
                     form.norecord();
                 }else{
-                    objectPop(that.pages_dict,pageName);
+                    objectPop(that.pages_dict,pn);
                 }
             });
             form.store.parentStore = that.viewStore;

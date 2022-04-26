@@ -58,6 +58,8 @@ from __future__ import print_function
 
 #import weakref
 from past.builtins import cmp
+from functools import cmp_to_key
+
 from future import standard_library
 standard_library.install_aliases()
 from builtins import zip
@@ -233,7 +235,10 @@ class BagNode(object):
         """
         if self.locked:
             raise BagNodeException("Locked node %s" % self.label)
-        if isinstance(value, BagNode):
+        if isinstance(value,BagResolver):
+            self.resolver = value
+            value = None
+        elif isinstance(value, BagNode):
             _attributes = _attributes or {}
             _attributes.update(value.attr)
             value = value._value
@@ -652,8 +657,17 @@ class Bag(GnrObject):
         """TODO
         
         :param pars: TODO None: label ascending"""
+        def safeCmp(a, b):
+            if a is None:
+                if b is None:
+                    return 0
+                return -1
+            elif b is None:
+                return 1
+            else:
+                return cmp(a, b)
+
         if not isinstance(pars, basestring):
-            print(pars)
             self._nodes.sort(key=pars)
         else:
             levels = pars.split(',')
@@ -669,12 +683,15 @@ class Bag(GnrObject):
                 if what == '#k':
                     self._nodes.sort(key=lambda a: a.label.lower(), reverse=reverse)
                 elif what == '#v':
-                    self._nodes.sort(key=lambda a: a.value, reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.value, b.value)
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
                 elif what.startswith('#a'):
                     attrname = what[3:]
-                    self._nodes.sort(key=lambda a: a.getAttr(attrname), reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.getAttr(attrname), b.getAttr(attrname))
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
                 else:
-                    self._nodes.sort(key=lambda a:a.value[what], reverse=reverse)
+                    cmp_func = lambda a, b: safeCmp(a.value[what], b.value[what])
+                    self._nodes.sort(key=cmp_to_key(cmp_func), reverse=reverse)
         return self
         
     def sum(self, what='#v'):
@@ -1970,7 +1987,8 @@ class Bag(GnrObject):
         if len(source) > 300:
             #if source is longer than 300 chars it cannot be a path or an URI
             return source, False, 'unknown' #it is a long not xml string
-        if sys.platform == "win32" and ":\\" in source:
+        if sys.platform == "win32" and ((isinstance(source,bytes) and b":\\" in source) or\
+            (isinstance(source,str) and ":\\" in source)):
             urlparsed = ('file', None, source)
         else:
             urlparsed = urllib.parse.urlparse(source)
@@ -1984,6 +2002,10 @@ class Bag(GnrObject):
                         return source, True, 'pickle'
                     elif fext in ['xml', 'html', 'xhtml', 'htm']:
                         return source, True, 'xml'
+                    elif fext == 'yaml':
+                        return source, True, 'yaml'
+                    elif fext == 'json':
+                        return source, True, 'json'
                     elif fext=='xsd':
                         return source,True,'xsd'
                     else:
@@ -2006,6 +2028,27 @@ class Bag(GnrObject):
         #    return urlobj.read(), False, 'xsd' #it is an url of type xml
         return source, False, 'direct' #urlresolver
 
+
+    def fromYaml(self,y,listJoiner=None):
+        import yaml
+        if os.path.isfile(y):
+            with open(y,'rb') as f :
+                doc = yaml.safe_load_all(f)
+                self._nodes[:] = self._fromYaml(doc,listJoiner=listJoiner)._nodes
+        else:
+            doc = yaml.safe_load_all(y)
+            self._nodes[:] = self._fromYaml(doc,listJoiner=listJoiner)._nodes
+        
+    def _fromYaml(self,yamlgen,listJoiner=None):
+        result = Bag()
+        i = 0
+        for r in yamlgen:
+            b = Bag()
+            b.fromJson(r,listJoiner=listJoiner)
+            result.addItem(f'r_{i:04}',b,_autolist=True)
+        return result
+
+
     def fromJson(self,json,listJoiner=None):
         if isinstance(json,basestring):
             json = gnrstring.fromJson(json)
@@ -2022,7 +2065,7 @@ class Bag(GnrObject):
             if listJoiner and all([isinstance(r,basestring) and not converter.isTypedText(r) for r in json]):
                 return listJoiner.join(json)
             for n,v in enumerate(json):
-                result.setItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
+                result.addItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
 
         elif isinstance(json,dict):
             if not json:
@@ -2036,7 +2079,8 @@ class Bag(GnrObject):
         return result
 
     #-------------------- fromXml --------------------------------
-    def fromXml(self, source, catalog=None, bagcls=None, empty=None):
+    def fromXml(self, source, catalog=None, bagcls=None, empty=None, 
+            attrInValue=None, avoidDupLabel=None):
         """Fill a Bag with values read from an XML string or file or URL
         
         :param source: the XML source to be loaded in the Bag
@@ -2045,12 +2089,16 @@ class Bag(GnrObject):
         :param empty: TODO"""
         source, fromFile, mode = self._sourcePrepare(source)
         self._nodes[:] = self._fromXml(source, fromFile, catalog=catalog,
-                                       bagcls=bagcls, empty=empty)
+                                       bagcls=bagcls, empty=empty,
+                                       attrInValue=attrInValue,
+                                       avoidDupLabel=avoidDupLabel)
 
-    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None):
+    def _fromXml(self, source, fromFile, catalog=None, bagcls=None, empty=None,
+                attrInValue=None, avoidDupLabel=None):
         from gnr.core.gnrbagxml import BagFromXml
 
-        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty)
+        return BagFromXml().build(source, fromFile, catalog=catalog, bagcls=bagcls, empty=empty,
+                                    attrInValue=attrInValue,avoidDupLabel=avoidDupLabel)
 
     def _fromXsd(self, source, fromFile, catalog=None, bagcls=None, empty=None):
         dirname = os.path.dirname(source)
@@ -2638,6 +2686,7 @@ class BagResolver(object):
         attr['resolvermodule'] = self.__class__.__module__
         attr['args'] = self._initArgs
         attr['kwargs'] = self._initKwargs
+        attr['kwargs']['cacheTime'] = self.cacheTime
         return attr
         
     def __getitem__(self, k):
@@ -2752,6 +2801,9 @@ class VObjectBag(Bag):
                 
                 
 class GeoCoderBag(Bag):
+    def __init__(self, source=None,api_key=None, **kwargs):
+        super().__init__(source, **kwargs)
+        self.api_key = api_key
     def setGeocode(self, key, address, language='it'):
         """TODO
 
@@ -2760,7 +2812,9 @@ class GeoCoderBag(Bag):
         urlparams = dict(address=address,sensor='false')
         if language:
             urlparams['language']=language
-        url = "http://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
+        if self.api_key:
+            urlparams['key'] = self.api_key
+        url = "https://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
         self._result = Bag()
         answer = Bag(url)
         if answer['GeocodeResponse.status']=='OK':
@@ -3226,7 +3280,6 @@ class TraceBackResolver(BagResolver):
         if limit is None:
             if hasattr(sys, 'tracebacklimit'):
                 limit = sys.tracebacklimit
-        list = []
         n = 0
         tb = sys.exc_info()[2]
         while tb is not None and (limit is None or n < limit):
@@ -3246,7 +3299,7 @@ class TraceBackResolver(BagResolver):
             tb_bag['lineno'] = lineno
             tb_bag['name'] = name
             tb_bag['line'] = line
-            tb_bag['locals'] = Bag(list(f.f_locals.items()))
+            tb_bag['locals'] = Bag({k:str(v) for k,v in f.f_locals.items()})
             tb = tb.tb_next
             n = n + 1
             result['%s method: %s line: %s' % (tb_bag['module'], name, lineno)] = tb_bag

@@ -372,9 +372,17 @@ class GnrHtmlBuilder(object):
             regions = self.letterhead_layer(letterhead_root,b,height=height,width=width,count=i)
         return regions['center_center']
 
+    @property
+    def current_page_number(self):
+        if self.parent:
+            return self.parent.current_page_number +1
+        return len(self.body)
+
+
     def letterhead_layer(self,letterhead_root,letterheadBag,width=None,height=None,count=None):
         layout = letterhead_root.layout(top=0,left=0,border=0,width=width,height=height,z_index=count)
         regions = dict(center_center=layout)
+        curpage = str(self.current_page_number)
         if letterheadBag['main.design'] == 'headline':
             for region in ('top', 'center', 'bottom'):
                 height = float(letterheadBag['layout.%s?height' % region] or 0)
@@ -385,6 +393,8 @@ class GnrHtmlBuilder(object):
                         if subregion == 'center' or width:
                             innerHTML = letterheadBag['layout.%s.%s.html' % (region, subregion)] or None
                             if innerHTML:
+                                innerHTML = innerHTML.replace('#pp','#TOTPAGE')
+                                innerHTML = innerHTML.replace('#p',curpage)
                                 innerHTML = "%s::HTML" % innerHTML
                             regions['%s_%s' % (region, subregion)] = row.cell(content=innerHTML, width=width, border=0,
                                                                                 overflow='hidden')
@@ -400,6 +410,8 @@ class GnrHtmlBuilder(object):
                             row = col.row(height=height)
                             innerHTML = letterheadBag['layout.%s.%s.html' % (region, subregion)] or None
                             if innerHTML:
+                                innerHTML = innerHTML.replace('#pp','#TOTPAGE')
+                                innerHTML = innerHTML.replace('#p',curpage)
                                 innerHTML = "%s::HTML" % innerHTML
                             regions['%s_%s' % (region, subregion)] = row.cell(content=innerHTML, border=0,overflow='hidden')
         return regions
@@ -412,7 +424,7 @@ class GnrHtmlBuilder(object):
             
     def newPage(self):
         """Create a new page"""
-        firstpage = (len(self.body) == 0)
+        firstpage = len(self.body) == 0
         border_color = 'white'
         extra_style= ''
         if self.page_debug:
@@ -438,6 +450,7 @@ class GnrHtmlBuilder(object):
         if self.htmlTemplate:
             if not firstpage and self.nextLetterhead:
                 self.htmlTemplate = self.nextLetterhead
+                self.adaptParentSizes()
             self.nextLetterhead = self.htmlTemplate.pop('next_letterhead')
             letterhead_root = self.prepareTplLayout(letterhead_root)
         else:
@@ -448,6 +461,22 @@ class GnrHtmlBuilder(object):
             letterhead_root.div(self.print_button, _class='no_print', id='printButton', onclick='window.print();')
         return letterhead_root
             
+    def adaptParentSizes(self):
+        parent = getattr(self,'parent')
+        if not parent:
+            return
+        top_layer =  self.htmlTemplate['#%i' %(len(self.htmlTemplate)-1)]
+        parent = self.parent
+        parent.page_margin_top = float(top_layer['main.page.top'] or parent.page_margin_top)
+        parent.page_margin_left = float(top_layer['main.page.left'] or parent.page_margin_left)
+        parent.page_margin_right = float( top_layer['main.page.right'] or parent.page_margin_right)
+        parent.page_margin_bottom = float(top_layer['main.page.bottom'] or parent.page_margin_bottom)
+        parent.page_header_height = float( top_layer['layout.top?height'] or parent.page_header_height)
+        parent.page_footer_height = float(top_layer['layout.bottom?height'] or parent.page_footer_height)
+        parent.page_leftbar_width = float(top_layer['layout.left?width'] or parent.page_leftbar_width)
+        parent.page_rightbar_width = float(top_layer['layout.right?width'] or parent.page_rightbar_width)
+
+
     def styleForLayout(self):
         """TODO"""
         self.head.style(""".x_br{border-top:none!important;border-left:none!important;}

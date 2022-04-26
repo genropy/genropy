@@ -47,10 +47,8 @@ from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.core.gnrstring import fromJson
 from tornado import version_info
 
-if version_info[0]>=4 and version_info[1]>=2:
-    from tornado import queues
-else:
-    import toro as queues
+from tornado import queues
+
 
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 3
     
@@ -369,8 +367,6 @@ class GnrWebSocketHandler(websocket.WebSocketHandler,GnrBaseHandler):
             if isinstance(v, basestring):
                 try:
                     v = catalog.fromTypedText(v)
-                    if isinstance(v, basestring):
-                        v = v.decode('utf-8')
                     result[k] = v
                 except Exception:
                     raise
@@ -658,8 +654,8 @@ class SharedStatus(SharedObject):
             conndata=userdata['connections'][page.connection_id]
             pagedata=conndata['pages'][page_id]
             pagedata['lastEventAge']=lastEventAge
-            conndata['lastEventAge']=min(conndata['pages'].digest('#v.lastEventAge'))
-            userdata['lastEventAge']=min(userdata['connections'].digest('#v.lastEventAge'))
+            conndata['lastEventAge']=min(conndata['pages'].digest('#v.lastEventAge'), key = lambda i:i or 0 )
+            userdata['lastEventAge']=min(userdata['connections'].digest('#v.lastEventAge'),key = lambda i:i or 0 )
   
             
     def onUserEvent(self, page_id, event):
@@ -894,6 +890,8 @@ class GnrBaseAsyncServer(object):
         if self.port:
             server.listen(int(self.port))
         sockets_dir = os.path.join(self.gnrsite.site_path, 'sockets')
+        if len(sockets_dir)>90:
+            sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.site_path), 'gnr_sock')
         print('sockets_dir',sockets_dir)
         if not os.path.exists(sockets_dir):
             os.mkdir(sockets_dir)
@@ -922,7 +920,7 @@ class GnrBaseAsyncServer(object):
         io_loop = self.io_loop
         def stop_loop():
             now = time.time()
-            if now < deadline and (io_loop._callbacks or io_loop._timeouts):
+            if now < deadline:
                 io_loop.add_timeout(now + 1, stop_loop)
             else:
                 io_loop.stop()

@@ -10,7 +10,6 @@ from datetime import datetime
 import re
 import os
 import sys
-from datetime import datetime
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -24,7 +23,6 @@ caption = 'Export to sphinx'
 description = 'Export to sphinx'
 tags = '_DEV_'
 
-
 class Main(BaseResourceBatch):
     dialog_height = '450px'
     dialog_width = '650px'
@@ -35,20 +33,22 @@ class Main(BaseResourceBatch):
     batch_steps = 'prepareRstDocs,buildHtmlDocs'
 
     def pre_process(self):
-
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
         self.doctable=self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
         self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.sphinxNode = self.handbookNode.child('sphinx')
+        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.batch_parameters['download_zip'] else None
+        self.sphinxNode = self.handbookNode.child('sphinx') if not self.localHandbookNode else self.localHandbookNode.child('sphinx')
         self.sphinxNode.delete()
         self.sourceDirNode = self.sphinxNode.child('source')
         confSn = self.sourceDirNode.child('conf.py')
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        html_baseurl =self.db.application.getPreference('.sphinx_baseurl',pkg='docu')
+        html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + 'docs/' 
+        #DP202111 Default url set to /docs
+        self.handbook_url = html_baseurl + self.handbook_record['name']
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
@@ -68,15 +68,9 @@ class Main(BaseResourceBatch):
             self.examples_root_local = '%(examples_local_site)s/webpages/%(examples_directory)s' %self.handbook_record
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
-        self.handbook_url = html_baseurl + self.handbook_record['name']
-
-        if self.db.package('genrobot'):
-            if self.batch_parameters.get('send_notification'):
-                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
-                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
-                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
-                notification_bot = self.batch_parameters['bot_token']
-                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
+        #DP202112 Check if there are active redirects
+        self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
+                        h_id=self.handbook_id).selection().output('pkeylist')
 
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
@@ -97,6 +91,9 @@ class Main(BaseResourceBatch):
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
+            if self.batch_parameters.get('skip_images'): 
+                continue
+            #DP202112 Useful for local debugging
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
@@ -110,12 +107,12 @@ class Main(BaseResourceBatch):
     def step_buildHtmlDocs(self):
         "Build HTML docs"
         self.resultNode = self.sphinxNode.child('build')
+        ogp_image = self.page.externalUrl(self.handbook_record['ogp_image']) if self.handbook_record['ogp_image'] else None
         build_args = dict(project=self.handbook_record['title'],
                           version=self.handbook_record['version'],
-                          #author=self.handbook_record['author'],
-                          author="-",
+                          author=self.handbook_record['author'],
+                          ogp_image=ogp_image,
                           release=self.handbook_record['release'],
-        # DAVIDE modificato mapping 'release' che non era utilizzato e verrà utilizzato invece nel tema per l'autore
                           language=self.handbook_record['language'])
         template_variables = dict()
         args = []
@@ -132,17 +129,34 @@ class Main(BaseResourceBatch):
         with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
             jsfile.write(self.defaultJSCustomization().encode())
         self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path , self.resultNode.internal_path, *args)
-        
+
     def post_process(self):
         if self.batch_parameters['download_zip']:
-            self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
+            self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
             self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
             self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
-        with self.tblobj.recordToUpdate(self.handbook_id) as record:
-            record['last_exp_ts'] = datetime.now()
-            record['handbook_url'] = self.handbook_url
+            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+                record['local_handbook_zip'] = self.result_url
+        else: 
+            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+                record['last_exp_ts'] = datetime.now()
+                record['handbook_url'] = self.handbook_url
         self.db.commit()
-    
+
+        if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
+            #DP202112 Make redirect files
+            redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
+            for redirect_pkey in self.redirect_pkeys:
+                redirect_rec = redirect_recs[redirect_pkey]
+                self.db.table('docu.redirect').makeRedirect(redirect_rec)
+
+        if self.db.package('genrobot'):
+            if self.batch_parameters.get('send_notification'):
+                #DP202101 Send notification message via Telegram (gnrextra genrobot required)
+                notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
+                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
+                notification_bot = self.batch_parameters['bot_token']
+                self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
 
     def result_handler(self):
         resultAttr = dict()
@@ -168,50 +182,59 @@ class Main(BaseResourceBatch):
             self.curr_sourcebag = Bag(record['sourcebag'])
             toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
-            if n.attr['child_count']>0:
-                result.append('%s/%s.rst' % (name,name))
-                if v:
-                    toc_elements=self.prepare(v, pathlist+toc_elements)
-                    self.curr_pathlist = pathlist+[name]
-                    tocstring = self.createToc(elements=toc_elements,
-                            hidden=not record['sphinx_toc'],
-                            titlesonly=True,
-                            maxdepth=1)
-            else:
-                result.append(name)
-                self.curr_pathlist=pathlist
-                tocstring=''
             lbag=docbag[self.handbook_record['language']] or Bag()
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'])
             if df_rst:
-                rst = '%s'%rst + '<hr>' + '\n\n**Parameters:**\n\n%s'%df_rst 
+                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Parameters:**\n\n%s'%df_rst 
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                rst = '%s'%rst + '<hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
+                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
+            
+            if self.examples_root and self.curr_sourcebag:
+                        rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
+            if n.attr['child_count']>0:
+                if v:
+                    toc_elements=self.prepare(v, pathlist+toc_elements)
+                    self.curr_pathlist = pathlist+[name]
+            else:
+                self.curr_pathlist=pathlist
 
             rst = IMAGEFINDER.sub(self.fixImages,rst)
             rst = LINKFINDER.sub(self.fixLinks, rst)
-            if self.examples_root and self.curr_sourcebag:
-                rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
+
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
             if record['author']:
                 footer = '\n.. sectionauthor:: %s\n'%record['author']
             else:
                 footer= ''
+                
+            if n.attr['child_count']>0:
+                result.append('%s/%s.rst' % (name,name))
+                if v:
+                    tocstring = self.createToc(elements=toc_elements,
+                                                    hidden=not record['sphinx_toc'],
+                                                    titlesonly=True,
+                                                    maxdepth=1)
+            else:
+                result.append(name)
+                tocstring=''
+                
             self.createFile(pathlist=self.curr_pathlist, name=name,
                             title=lbag['title'], 
                             rst=rst,
                             tocstring=tocstring,
                             hname=record['hierarchical_name'], footer=footer)
+            
         return result
 
     def fixExamples(self, m):
         example_label = m.group(1)
         example_name = m.group(2)
-        
+        print('**EXAMPLE**', example_name)
         sourcedata = self.curr_sourcebag[example_name] or Bag()
-     
+        print(sourcedata)
         return '.. raw:: html\n\n %s' %self.exampleHTMLChunk(sourcedata,example_label=example_label,example_name=example_name)
         
     def exampleHTMLChunk(self,sourcedata,example_label=None,example_name=None):
@@ -228,7 +251,7 @@ class Main(BaseResourceBatch):
             parsstring = '?_source_viewer=%s&_source_toolbar=%s' %(source_region,source_region_inspector)
             if source_theme:
                 parsstring = '%s&cm_theme=%s' %(parsstring,source_theme)
-
+        
         iframekw = dict(height=height,width=width or '100%',examples_root = self.examples_root,
                         examples_root_local = self.examples_root_local,
                         example_folder = self.hierarchical_name,parsstring=parsstring,
@@ -242,7 +265,6 @@ class Main(BaseResourceBatch):
             <div></div>
         </div> 
         """  %(dumps(iframekw),iframekw['example_label'])
-
 
     def fixImages(self, m):
         old_filepath = m.group(1)
@@ -297,7 +319,6 @@ class Main(BaseResourceBatch):
         for recipient in notification_recipients:
             result = socialservice.publishPost(message=notification_message, 
                                             bot_token=notification_bot, page_id_code=recipient)
-            print(result)
              
     def createFile(self, pathlist=None, name=None, title=None, rst=None, hname=None, tocstring=None, footer=''):
         reference_label='.. _%s:\n' % hname if hname else ''
@@ -311,6 +332,9 @@ class Main(BaseResourceBatch):
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         fb.checkbox(lbl='Download Zip', value='^.download_zip')
+        fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
+        #DP202112 Useful for local debugging 
+        #fb.checkbox(lbl='Skip images', value='^.skip_images')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
@@ -340,9 +364,6 @@ class Main(BaseResourceBatch):
    }
 }
 
-.gnrexamplebox{
-
-}
 .gnrexamplebox_title{
     color:#2980B9;
     cursor:pointer;

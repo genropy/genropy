@@ -45,7 +45,7 @@ from gnr.core.gnrclasses import GnrClassCatalog
 #                                      GnrSqlSaveException,GnrSqlDeleteException
 #
 #from gnr.sql.adapters import *
-from datetime import datetime
+from datetime import datetime, date
 import re
 import _thread
 import locale
@@ -349,7 +349,7 @@ class GnrSqlDb(GnrObject):
 
     def _get_workdate(self):
         """currentEnv TempEnv. Return the workdate used in the current thread"""
-        return self.currentEnv.get('workdate') or datetime.today()
+        return self.currentEnv.get('workdate') or date.today()
         
     def _set_workdate(self, workdate):
         """Allow to set the workdate"""
@@ -466,9 +466,12 @@ class GnrSqlDb(GnrObject):
         """
         # transform list and tuple parameters in named values.
         # Eg.   WHERE foo IN:bar ----> WHERE foo in (:bar_1, :bar_2..., :bar_n)
-        envargs = dict([('env_%s' % k, v) for k, v in list(self.currentEnv.items()) if not k.startswith('dbevents')])
-        if not 'env_workdate' in envargs:
-            envargs['env_workdate'] = self.workdate
+        env_pars_match = re.findall(r':env_(\S\w*)(\W|$)', sql)
+        envargs = {f'env_{k}':self.currentEnv.get(k) for k,chunk in env_pars_match}
+        if 'env_workdate' in envargs:
+            envargs['env_workdate'] = envargs['env_workdate'] or self.workdate
+        if self.currentEnv.get('storename'):
+            envargs['env_storename'] = self.currentEnv['storename']
         envargs.update(sqlargs or {})
         if storename is False:
             storename = self.rootstore
@@ -479,7 +482,7 @@ class GnrSqlDb(GnrObject):
                 v=v.decode('utf-8')
                 sqlargs[k] = v
             if isinstance(v,basestring):
-                if (v.startswith('$') or v.startswith('@')):
+                if (v.startswith(r'\$') or v.startswith(r'\@')):
                     sqlargs[k] = v[1:]
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False:
             storename = self.rootstore
@@ -607,6 +610,7 @@ class GnrSqlDb(GnrObject):
         tblobj._doExternalPkgTriggers('onUpdating', record, old_record=old_record)
         if hasattr(tblobj,'dbo_onUpdating'):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
+
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
         self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
@@ -631,6 +635,9 @@ class GnrSqlDb(GnrObject):
         tblobj.trigger_onDeleting(record)
         tblobj._doExternalPkgTriggers('onDeleting', record)
         tblobj.deleteRelated(record)
+        if hasattr(tblobj,'dbo_onDeleting'):
+            tblobj.dbo_onDeleting(record,**kwargs)
+            
         self.adapter.delete(tblobj, record,**kwargs)
         self._onDbChange(tblobj,'D',record=record,**kwargs)
         tblobj._doFieldTriggers('onDeleted', record)
@@ -647,32 +654,47 @@ class GnrSqlDb(GnrObject):
             if not connections:
                 break
             connection = connections[0]
-            with self.tempEnv(storename=connection.storename):
+            with self.tempEnv(storename=connection.storename,onCommittingStep=True):
                 self.onCommitting()
+            pending_exceptions = self.currentEnv.get('_pendingExceptions')
+            if pending_exceptions:
+                raise  GnrException('\n'.join([str(exception) for exception in pending_exceptions]))
             connection.commit()
             connection.committed = True
         self.onDbCommitted()
 
     def onCommitting(self):
-        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
-        with self.tempEnv(onCommittingStep=True):
-            while deferreds:
-                node =  deferreds.popNode('#0')
-                cb,args,kwargs = node.value
-                cb(*args,**kwargs)
-                allowRecursion = getattr(cb,'deferredCommitRecursion',False)
-                if not allowRecursion:
-                    deferreds.popNode(node.label) #pop again because during triggers it could adding the same key to deferreds bag
+        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
+        while deferreds_blocks:
+            deferreds_blocks.sort()
+            self.executeDeferred(deferreds_blocks.pop('#0'))
+
+
+    def executeDeferred(self,deferreds):
+        while deferreds:
+            node =  deferreds.popNode('#0')
+            cb,args,kwargs = node.value
+            cb(*args,**kwargs)
+            allowRecursion = getattr(cb,'deferredCommitRecursion',False)
+            if not allowRecursion:
+                deferreds.popNode(node.label) 
+
+    def deferredRaise(self,exception):
+        self.currentEnv.setdefault('_pendingExceptions',[]).append(exception)
 
     def deferToCommit(self,cb,*args,**kwargs):
-        deferreds = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
+        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        if deferredBlock not in deferreds_blocks:
+            deferreds_blocks[deferredBlock] = Bag()
+        deferreds = deferreds_blocks[deferredBlock]
         deferredId = kwargs.pop('_deferredId',None)
         if not deferredId:
             deferredId = getUuid()
         deferkw = kwargs
         deferredKey = '{}/{}'.format(id(cb),deferredId)
         if deferredKey not in deferreds:
-            deferreds.setItem(deferredKey,(cb,args,deferkw))
+            deferreds.setItem(deferredKey,(cb,args,deferkw),deferredBlock=deferredBlock)
         else:
             cb,args,deferkw = deferreds[deferredKey]
         return deferkw

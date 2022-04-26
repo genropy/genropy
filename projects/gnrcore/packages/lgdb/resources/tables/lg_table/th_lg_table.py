@@ -122,4 +122,4 @@ class Form(BaseComponent):
 
 
     def th_options(self):
-        return dict(dialog_height='600px', dialog_width='800px' )
+        return dict(dialog_parentRatio=0.9)

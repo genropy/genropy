@@ -131,12 +131,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
-        if kwargs.get('database','').startswith('dsn:'):
-            kwargs['dsn'] = kwargs.get('dsn') or kwargs['database'].replace('dsn:','')
+        dsn = kwargs.get('dsn') or kwargs.get('database')
         try:
-            conn = pyodbc.connect(**kwargs)
+            conn = pyodbc.connect(dsn=dsn)
         except Exception as e:
-            raise GnrNonExistingDbException(kwargs.get('dsn') or kwargs['database'].replace('dsn:',''))
+            raise GnrNonExistingDbException(dsn)
         return DictConnectionWrapper(connection=conn)
 
     def adaptSqlName(self,name):
@@ -160,8 +159,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sqlargs = []
         def subArgs(m):
             key = m.group(1)
+            print(m.group(2))
             sqlargs.append(kwargs[key])
-            return '?{}'.format(m.group(2))
+            return '? '
         #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
         sql = RE_SQL_PARAMS.sub(subArgs, sql)
         sql= sql.replace('REGEXP', '~*')

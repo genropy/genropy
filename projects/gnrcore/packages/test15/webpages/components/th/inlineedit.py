@@ -61,3 +61,20 @@ class GnrCustomWebPage(object):
         r.cell('codice', width='20em',name='Codice')
         r.cell('descrizione',width='3em',name='Descrizione',hidden='^main.tiponascondi?=#v=="AA"')
 
+
+    def sentence_struct(self,struct):
+        r = struct.view().rows()
+        r.cell('sentence', width='20em',name='Sentence',edit=True)
+
+
+    def test_5_pastegrid(self, pane):
+        bc = pane.borderContainer(height='400px')
+        bc.contentPane(region='left',width='300px').simpleTextArea(
+             value='^.sentences'
+        ,height='200px',width='90%')
+        bc.bagGrid(struct=self.sentence_struct,region='center',
+                    grid_onpaste=r"""
+                let txt = event.clipboardData.getData('text');
+                let rows = txt.split('\n').map(function(chunk){return {'sentence':chunk}});
+                this.gridEditor.addNewRows(rows)
+                """)

@@ -158,8 +158,6 @@ class GnrWebRpc(GnrBaseProxy):
                 continue
             action_runner = getattr(self.page, 'fileaction_%s' % command_name)
             if action_runner:
-                for action_param in action_params:
-                    action_params[str(action_param)] = action_params.pop(action_param)
                 action_results[action_name] = action_runner(file_url=file_url, file_path=file_path, file_ext=file_ext,
                                                             action_name=action_name, **action_params)
         if onUploadedMethod:

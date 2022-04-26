@@ -1,0 +1,3 @@
+WEB
+1
+http://0.0.0.0:8080/test/services/query_excel/ext_query?table=glbl.comune&query_name=comuni_regione&view_name=prova&regione=["regione","Regione"]

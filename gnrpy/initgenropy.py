@@ -1,9 +1,17 @@
 import os
-import sys
+import argparse
+
 from gnr.app.gnrdeploy import initgenropy
 
+def getOptions():
+    usage = "\ninitgenropy"
+    parser = argparse.ArgumentParser(usage)
+    parser.add_argument('gnrdaemon_password',nargs='?')
+    parser.add_argument('-N', '--no_user',help="Avoid base user",action='store_true',)
+    arguments= parser.parse_args()
+    return arguments.__dict__
 
 if __name__ == '__main__':
-    import sys
-    gnrdaemon_password=sys.argv[1] if len(sys.argv)>1 else None
-    initgenropy(gnrpy_path=os.path.dirname(os.path.realpath(__file__)),gnrdaemon_password=gnrdaemon_password)
+    options = getOptions()
+    initgenropy(gnrpy_path=os.path.dirname(os.path.realpath(__file__)),gnrdaemon_password=options.get('gnrdaemon_password'),
+                    avoid_baseuser=options.get('no_user'))

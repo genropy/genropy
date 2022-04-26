@@ -210,8 +210,8 @@ class SqlQueryCompiler(object):
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
-        if not fld in list(curr.keys()):
-            fldalias = curr_tblobj.model.virtual_columns[fld]
+        if not fld in curr.keys():
+            fldalias = curr_tblobj.model.getVirtualColumn(fld,sqlparams=self.sqlparams)
             if fldalias == None:
                 raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
@@ -462,7 +462,7 @@ class SqlQueryCompiler(object):
                 elif v.startswith('$'):
                     doreplace = v[1:] in self.tblobj.columns.keys() + self.tblobj.virtual_columns.keys()
                 if doreplace:
-                    sql = re.sub('(:%s)(\W|$)' % k, lambda m: '%s%s' %(v,m.group(2)), sql)
+                    sql = re.sub(r'(:%s)(\W|$)' % k, lambda m: '%s%s' %(v,m.group(2)), sql)
                 #else:
                 #    print(x)
         return sql
@@ -540,7 +540,6 @@ class SqlQueryCompiler(object):
                 else:
                     new_col_list.append(col)
             columns = ','.join(new_col_list)
-            
         # translate @relname.fldname in $_relname_fldname and add them to the relationDict
         currentEnv = self.db.currentEnv
         context_subtables = currentEnv.get('context_subtables',Bag()).getItem(self.tblobj.fullname)
@@ -595,16 +594,15 @@ class SqlQueryCompiler(object):
             else:
                 colbody, as_ = col.split(' AS ', 1)
                 # leave the col as is, but save the AS name to recover the db column original name from selection result
-                as_ = as_.strip()
+                as_ = self.db.adapter.asTranslator(as_.strip())
                 self.cpl.aliasDict[as_] = colbody.strip()
             col_dict[as_] = col
         # build the clean and complete sql string for the columns, but still all fields are expressed as $fieldname
         as_col_values = col_dict.values()
         columns = ',\n'.join(as_col_values)
-        
         # translate all fields and related fields from $fldname to t0.fldname, t1.fldname... and prepare the JOINs
         colPars = {}
-        for key, value in list(self.cpl.relationDict.items()):
+        for key, value in self.cpl.relationDict.items():
             # self._currColKey manage exploding columns in recursive getFieldAlias without add too much parameters
             self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
@@ -725,7 +723,7 @@ class SqlQueryCompiler(object):
     def _handle_virtual_columns(self, virtual_columns):
         if isinstance(virtual_columns, basestring):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
-        virtual_columns = (virtual_columns or []) + self.tblobj.static_virtual_columns.keys()
+        virtual_columns = (virtual_columns or []) + list(self.tblobj.static_virtual_columns.keys())
         if not virtual_columns:
             return
         virtual_columns = uniquify([v[1:] if v.startswith('$') else v for v in virtual_columns])
@@ -944,10 +942,6 @@ class SqlQuery(object):
         self.dbtable = dbtable
         self.sqlparams = sqlparams or {}
         columns = columns or '*'
-        self.querypars = dict(columns=columns, where=where, order_by=order_by,
-                              distinct=distinct, group_by=group_by,
-                              limit=limit, offset=offset,for_update=for_update,
-                              having=having)
         self.subtable = subtable
         self.joinConditions = joinConditions or {}
         self.sqlContextName = sqlContextName
@@ -962,17 +956,32 @@ class SqlQuery(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix
-        
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
-        for r in rels:                             # for each $name in the query
-            if r not in params:                    # if name is also present as :name skip
-                if r in self.sqlparams:            # if name is present in kwargs
-                    if r not in self.relationDict: # if name is not yet defined in relationDict
-                        self.relationDict[r] = self.sqlparams.pop(r)
+        #removed old features for setting fieldpath in relationDict
+       #for r in rels:                             # for each $name in the query
+       #    if r not in params:                    # if name is also present as :name skip
+       #        if r in self.sqlparams:            # if name is present in kwargs
+       #            if r not in self.relationDict: # if name is not yet defined in relationDict
+       #                parval = self.sqlparams.get(r)
+       #                if isinstance(parval,dict):
+       #                    continue
+       #                print('setting in relation dict',r)
+       #                self.relationDict[r] = self.sqlparams.pop(r)
                         
         self.bagFields = bagFields or for_update
+        self.querypars = dict(columns=columns, where=where, order_by=order_by,
+                              distinct=distinct, group_by=group_by,
+                              limit=limit, offset=offset,for_update=for_update,
+                              having=having,bagFields=self.bagFields,
+                            excludeLogicalDeleted=self.excludeLogicalDeleted,
+                            excludeDraft=self.excludeDraft,
+                            addPkeyColumn=self.addPkeyColumn,
+                            ignorePartition=self.ignorePartition,
+                            ignoreTableOrderBy=self.ignoreTableOrderBy,
+                            storename=self.storename,
+                            subtable=self.subtable)
         self.db = self.dbtable.db
         self._compiled = None
         
@@ -1014,16 +1023,8 @@ class SqlQuery(object):
                                 sqlContextName=self.sqlContextName,
                                 sqlparams=self.sqlparams,
                                 aliasPrefix=self.aliasPrefix,
-                                locale=self.locale).compiledQuery(relationDict=self.relationDict,
-                                                                  count=count,
-                                                                  bagFields=self.bagFields,
-                                                                  excludeLogicalDeleted=self.excludeLogicalDeleted,
-                                                                  excludeDraft=self.excludeDraft,
-                                                                  addPkeyColumn=self.addPkeyColumn,
-                                                                  ignorePartition=self.ignorePartition,
-                                                                  ignoreTableOrderBy=self.ignoreTableOrderBy,
-                                                                  storename=self.storename,
-                                                                  subtable=self.subtable,
+                                locale=self.locale).compiledQuery(count=count,
+                                                                  relationDict=self.relationDict,
                                                                   **self.querypars)
                                                                   
     def cursor(self):
@@ -1165,8 +1166,11 @@ class SqlQuery(object):
         :param sortedBy: TODO
         :param _aggregateRows: boolean. TODO"""
         index, data = self._dofetch(pyWhere=pyWhere)
+        querypars = dict(self.querypars)
+        querypars.update(self.sqlparams)
         return SqlSelection(self.dbtable, data,
                             index=index,
+                            querypars=querypars,
                             colAttrs=self._prepColAttrs(index),
                             joinConditions=self.joinConditions,
                             sqlContextName=self.sqlContextName,
@@ -1257,10 +1261,12 @@ class SqlSelection(object):
     can :meth:`freeze()` it into a file. You can also use the :meth:`sort()` and the :meth:`filter()` methods
     on a SqlSelection."""
     def __init__(self, dbtable, data, index=None, colAttrs=None, key=None, sortedBy=None,
-                 joinConditions=None, sqlContextName=None, explodingColumns=None, checkPermissions=None,_aggregateRows=False,_aggregateDict=None):
+                 joinConditions=None, sqlContextName=None, explodingColumns=None, checkPermissions=None,
+                 querypars=None,_aggregateRows=False,_aggregateDict=None):
         self._frz_data = None
         self._frz_filtered_data = None
         self.dbtable = dbtable
+        self.querypars = querypars
         self.tablename = dbtable.fullname
         self.colAttrs = colAttrs or {}
         self.explodingColumns = explodingColumns
@@ -2088,13 +2094,26 @@ class SqlSelection(object):
             colattr = self.colAttrs.get(colname, dict())
             headers.append(translate(colattr.get('label', colname)))
         return headers
-            
+
+    def out_html(self, outsource):
+        """TODO
+        
+        :param outsource: TODO"""
+        
+        columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
+        result = ['<table><thead>',''.join(['<th>{}<th>'.format(h) for h in self.colHeaders]),'</thead>','<tbody>']
+        for row in outsource:
+            row = dict(row)
+            result.append('<tr>{}</tr>'.format(''.join(['<td>{}<td>'.format('&nbsp;' if row[col] is None else row[col]) for col in columns])))
+        result.append('</tbody></table>')
+        return '\n'.join(result)
+
     def out_tabtext(self, outsource):
         """TODO
         
         :param outsource: TODO"""
         
-        headers = self.colHeaders()
+        headers = self.colHeaders
         columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
         result = ['\t'.join(headers)]
         for row in outsource:
@@ -2103,16 +2122,26 @@ class SqlSelection(object):
                     '\t'.join([r[col].replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') for col in columns]))
         return '\n'.join(result)
         
-    def out_xls(self, outsource, filepath=None):
+    def out_xls(self, outsource, filepath=None,headers=None):
         """TODO
         
         :param outsource: TODO
-        :param filePath: boolean. TODO. """
-        from gnr.core.gnrxls import XlsWriter
-        
+        :param filePath: boolean. TODO. """        
+        try:
+            import openpyxl
+            from gnr.core.gnrxls import XlsxWriter as ExcelWriter
+        except ImportError:
+            from gnr.core.gnrxls import XlsWriter as ExcelWriter
+
         columns = [c for c in self.columns if not c in ('pkey', 'rowidx')]
-        coltypes = dict([(k, v['dataType']) for k, v in list(self.colAttrs.items())])
-        writer = XlsWriter(columns=columns, coltypes=coltypes, headers=self.colHeaders, filepath=filepath,
+        coltypes = dict([(k, v['dataType']) for k, v in self.colAttrs.items()])
+        if headers is None:
+            headers = self.colHeaders
+        elif headers is False:
+            headers = columns
+        writer = ExcelWriter(columns=columns, coltypes=coltypes, 
+                            headers=headers, 
+                            filepath=filepath,
                            font='Times New Roman',
                            format_float='#,##0.00', format_int='#,##0')
         writer(data=outsource)

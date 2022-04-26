@@ -4,9 +4,9 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
         this._domtag = 'div';
     },
 
-    _beforeCreation: function(attributes, sourceNode) {
+    _beforeCreation: function(original_attr, sourceNode) {
         sourceNode.gnrwdg = objectUpdate({'gnr':this,'sourceNode':sourceNode},objectExtract(this,'gnrwdg_*',true));
-        attributes = sourceNode.attr;
+        var attributes = sourceNode.attr;
         sourceNode._saved_attributes = objectUpdate({},attributes);
         sourceNode.attr = {};
         sourceNode.attr.tag = objectPop(attributes,'tag');
@@ -179,6 +179,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
         var disabled = objectPop(kw,'disabled');
         var parentForm = objectPop(kw,'parentForm');
         var value = objectPop(kw,'value');
+        var colorWhite = objectPop(kw,'colorWhite');
 
         buttonkw.hidden = objectPop(kw,'hidden');
 
@@ -201,7 +202,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             for(let k in styleKw){
                 sourceStyleKw[k.replace('-','_')] = styleKw[k];
             }
-            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:'menudiv_text'},sourceStyleKw));
+            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:colorWhite?'menudiv_text menudiv_text_white':'menudiv_text'},sourceStyleKw));
             let value_path = value.slice(1);
             let caption_path = objectPop(kw,'caption_path') || `${value_path}?label`;
             let key = objectPop(kw,'key') || 'fullpath';
@@ -213,6 +214,7 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
 
         kw._class = kw._class || 'smallmenu';
         kw.modifiers = kw.modifiers || '*';
+        kw.attachTo = box.getParentNode();
         return box._('menu',kw);
     }
 });
@@ -580,7 +582,7 @@ dojo.declare("gnr.widgets.TooltipMultivalue", gnr.widgets.TooltipPane, {
     },
     cleanMultivalueData:function(data){
         if(data){
-            dojo.forEach(data.getNodes(),function(n){
+            data.getNodes().forEach(function(n){
                 var r = n.getValue();
                 if(!r || !r.getItem('mv_value')){
                     data.popNode(n.label);
@@ -803,7 +805,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 n.attr.nodeId = frameCode+'_target';
             }
         },'static');
-        dojo.forEach(sides,function(side){
+        sides.forEach(function(side){
             slot = children.popNode(side);
             slotcontent = null;
             sidepane = null;
@@ -821,7 +823,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 sideKw = slot?objectUpdate(slot.attr,{'region':side}):{'region':side};
                 sideKw.splitter = sideKw.splitter || objectPop(node.attr,'splitter');
                 objectPop(node.attr,'side');
-                dojo.forEach(corners[side],function(c){
+                corners[side].forEach(function(c){
                     v=objectPop(rounded_corners,c);
                     if(v){
                         node.attr['rounded_'+c] = v;
@@ -832,7 +834,7 @@ dojo.declare("gnr.widgets.FramePane", gnr.widgets.gnrwdg, {
                 sidepane.setItem('#id',node._value,node.attr);
             }
             if(sidepane && slotcontent && slotcontent.len()>0){
-                dojo.forEach(slotcontent.getNodes(),function(n){
+                slotcontent.getNodes().forEach(function(n){
                     n.attr['frameCode'] = frameCode;
                     sidepane.setItem('#id',n._value,n.attr);
                 });
@@ -1154,9 +1156,14 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         sourceNode._registerNodeId();
         gnrwdg.matchColumns = objectPop(kw,'matchColumns');
         gnrwdg.importButtonKw = objectExtract(kw,'importButton_*');
-        gnrwdg.importMethod = objectPop(kw,'rpcmethod');
+        gnrwdg.rpcMethod = objectPop(kw,'rpcmethod');
+        gnrwdg.importerMethod = objectPop(kw,'importerMethod')
+
         var errorCb = objectPop(kw,'errorCb');
+        var resultCb = objectPop(kw,'resultCb');
         gnrwdg.errorCb = errorCb? funcCreate(errorCb,'error',sourceNode):null;
+        gnrwdg.resultCb = resultCb? funcCreate(resultCb,'result_data,kw',sourceNode):null;
+
         gnrwdg.batchParameters = objectExtract(kw,'batch_*');
         gnrwdg.uploaderId = sourceNode.attr.nodeId +'_uploader';
         gnrwdg.constant_kwargs = objectExtract(kw,'constant_*',false,true);
@@ -1175,7 +1182,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         var bar = frame._('SlotBar',{'side':'top',slots:slots,searchOn:true,_class:'pbl_roundedGroupLabel'});
         bar._('div','prevtitle',{innerHTML:"==_current_title || 'Import'",_current_title:'^.current_title',color:'#666'});
         if(!filetype){
-            bar._('filteringSelect','importselector',{value:'^.filetype',width:'4em',values:'excel,csv,tab,xml',margin_top:'2px'});
+            bar._('filteringSelect','importselector',{value:'^.filetype',width:'4em',values:'excel,csv,csv_auto,tab,xml',margin_top:'2px'});
         }else{
             bar._('div','importseletor')
         }
@@ -1197,6 +1204,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         dropAreaKw.rpc_row_tag= '=.row_tag';
 
         objectUpdate(dropAreaKw,objectExtract(kw,'drop_*',false,true));
+        objectUpdate(dropAreaKw,objectExtract(kw,'rpc_*',false,true));
         dropAreaKw.onResult = function(result){
                                 if(result.currentTarget.responseText){
                                     gnrwdg.onImportCheck(new gnr.GnrBag(result.currentTarget.responseText));
@@ -1238,6 +1246,12 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         gnrwdg.rootNode = bcnode;
 
         sourceNode.subscribe('onResult',function(kw){
+            var result_data = null;
+            if(kw instanceof gnr.GnrBagNode){
+                result_data = kw.getValue();
+                kw = kw.attr;
+            }
+
             if(kw instanceof gnr.GnrBag){
                 kw = {
                     error:kw.pop('error'),
@@ -1253,6 +1267,9 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                 }
             }
             else{
+                if(gnrwdg.resultCb){
+                    gnrwdg.resultCb(result_data,kw);
+                }
                 this.gnrwdg.resetImporter();
                 var closeCb = function(){
                     genro.wdgById(frameCode+'_floating').hide()
@@ -1273,7 +1290,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         var frame = bc._('FramePane',{frameCode:this.uploaderId+'_matchframe',_anchor:true,
                                         region:'left',_class:'pbl_roundedGroup',margin:'2px',
                                         drawer:'close',width:'320px',splitter:true})
-        bar = frame._('slotBar',{slots:'2,matchtitle,*',side:'top',_class:'pbl_roundedGroupLabel'});
+        let bar = frame._('slotBar',{slots:'2,matchtitle,*',side:'top',_class:'pbl_roundedGroupLabel'});
         bar._('div','matchtitle',{innerHTML:'Match columns'});
        //bar._('div','lbl_action',{innerHTML:'Action'});
        //bar._('filteringSelect','action_filter',{values:'insert,update',
@@ -1281,14 +1298,17 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         bar = frame._('slotBar',{slots:'2,fbbottom,*',side:'bottom',_class:'slotbar_dialog_footer'});
 
         var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{border_spacing:'1px'});
-        fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
-                                        lbl_text_align:'right',
-                                        lbl_class:'gnrfieldlabel',
-                                        lbl:_T('Method'),
-                                        values:'^.methodlist',
-                                        lbl_hidden:'^.methodlist?=!#v',
-                                        hidden:'^.methodlist?=!#v',
-                                        parentForm:false});
+        if(!gnrwdg.importerMethod){
+            fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
+                lbl_text_align:'right',
+                lbl_class:'gnrfieldlabel',
+                lbl:_T('Method'),
+                values:'^.methodlist',
+                lbl_hidden:'^.methodlist?=!#v',
+                hidden:'^.methodlist?=!#v',
+                parentForm:false});
+        }
+
         fb.addField('filteringSelect',{value:'^.import_mode',width:'7em',
                     lbl_text_align:'right',
                     lbl_class:'gnrfieldlabel',
@@ -1403,7 +1423,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         genro.lockScreen(true,'import_data',{thermo:true});
         var importerKw = {table:this.table,file_path:'=.imported_file_path',
             match_index:match_index,
-            import_method:'=.import_method',
+            import_method:this.importerMethod || '=.import_method',
             import_mode:'=.import_mode',
             filetype:'=.filetype',
             sql_mode:this.sql_mode || '=.sql_mode',
@@ -1413,12 +1433,22 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
             objectUpdate(importerKw,this.constant_kwargs);
         }
 
-        genro.serverCall(this.importMethod || 'utils.tableImporterRun',importerKw,function(result){
-            
+        genro.serverCall(this.rpcMethod || 'utils.tableImporterRun',importerKw,function(result){
+            result = result || {};
+            if(result instanceof gnr.GnrBag){
+                result = result.asDict();
+            }
+            if(result.errors){
+                genro.dlg.alert(result.errors, 'Errors');
+                return
+            }
             genro.dlg.floatingMessage(that.rootNode,{message:_T('Import finished')});
             if(result && result.warnings){
-                genro.dlg.floatingMessage(that.rootNode,{message:result.warnings});
-
+                if(result.warning_mode=='alert'){
+                    genro.dlg.alert(result.warnings, 'Warning');
+                }else{
+                    genro.dlg.floatingMessage(that.rootNode,{message:result.warnings,messageType:'warning'});
+                }
             }
             that.resetImporter();
             genro.lockScreen(false,'import_data');
@@ -1710,6 +1740,8 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw) {
         var gnrwdg = sourceNode.gnrwdg;
         var path = objectPop(kw,'path');
+        var nodeField = objectPop(kw,'nodeField') || 'field';
+
         var toolskw = objectExtract(kw,'addrow,delrow');
 
         var multiValuePars = objectExtract(kw,'origin,exclude');
@@ -1743,7 +1775,7 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
         };
         objectUpdate(grid_attr,objectExtract(kw,'grid_*'));
         var g = left._('quickGrid','nodeListGrid',grid_attr);
-        g._('column',{field:'field',name:'Cells',width:'100%'});
+        g._('column',{field:nodeField,name:'Cells',width:'100%'});
         var t = [];
         if(toolskw.delrow){
             t.push('delrow');
@@ -1763,6 +1795,7 @@ dojo.declare("gnr.widgets.FlatBagEditor", gnr.widgets.gnrwdg, {
         }
         //multiValuePars.tools_position = 'BL';
         multiValuePars.tools_title = _T('Attributes');
+        multiValuePars.exclude = nodeField;
         var mve = bc._('ContentPane',{region:'center',margin:'2px',overflow:'hidden'
                                         })._('MultiValueEditor','mve',multiValuePars);
         gnrwdg.mveNode = mve.getParentNode();
@@ -1866,7 +1899,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
             databag.setItem('menu_auto', menubag);
         }
         else {
-            dojo.forEach(searchOn.split(','), function(col) {
+            searchOn.split(',').forEach(function(col) {
                 col = dojo.trim(col);
                 var caption = col;
                 if (col.indexOf(':') >= 0) {
@@ -1969,8 +2002,11 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var value = objectPop(kw,'value');
+        var contentCss = objectPop(kw,'contentCss');
+
         kw.border = kw.border || 0;
         sourceNode.attr.value = value;
+        sourceNode.attr.contentCss = contentCss
         var iframe = sourceNode._('iframe',kw);
         var gnrwdg = sourceNode.gnrwdg;
         gnrwdg.zoom = objectPop(kw,'zoom');
@@ -1983,8 +2019,12 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
-    }
+    },
 
+    gnrwdg_setContentCss:function(value,kw,trigger_reason){
+        let contentCss = this.sourceNode.getAttributeFromDatasource('contentCss');
+        this.iframeNode.domNode.contentWindow.document.head.innerHTML = `<style>${contentCss}</style>`;
+    }
 });
 
 dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
@@ -2011,6 +2051,60 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
         colattr['constrain_overflow'] = 'hidden'
         colattr['height'] = colattr['height'] || '18px';
     }
+
+});
+
+dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let containerkw = objectExtract(kw,'height,width,region,title,margin');
+        objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
+        let bc = sourceNode._('borderContainer',containerkw);
+        let ckeditor_pars = objectExtract(kw,'ckeditor_*');
+        let value = objectPop(kw,'value');
+        let css_value = objectPop(kw,'css_value');
+        ckeditor_pars.value = value;
+        ckeditor_pars.height = '100%';
+        ckeditor_pars.width = '100%';
+        ckeditor_pars.contentStyles = css_value;
+        let html_pars = {}
+        html_pars.value = value;
+        html_pars.height = '100%';
+        html_pars.width = '100%';
+        html_pars.config_mode='htmlembedded';
+        html_pars.config_lineNumbers=true;
+        html_pars.config_keyMap='softTab';
+        objectUpdate(html_pars,objectExtract(kw,'html_*'));
+        bc._('contentPane',{region:'center',overflow:'hidden'})._('ckeditor',objectUpdate(kw,ckeditor_pars));
+        let leftbc = bc._('borderContainer',{region:'right',width:'50%','splitter':true,
+                            closable:'close',
+                            closable_background:'rgba(222, 255, 0, 1)',
+                            closable_top:'10px',
+                            closable_width:'14px',
+                            closable_left:'-20px',
+                            closable_height:'14px',
+                            closable_padding:'2px',
+                            closable_opacity:'1',
+                            closable_iconClass:'smalliconbox create_edit_html_template',
+                            border_left:'1px solid silver'})
+        leftbc._('contentPane',{region:'center',overflow:'hidden'})._('codemirror',html_pars);
+        if(css_value){
+            let css_pars = {}
+            css_pars.value = css_value;
+            css_pars.height = '100%';
+            css_pars.width = '100%';
+            css_pars.config_mode='css';
+            css_pars.config_lineNumbers=true;
+            css_pars.config_keyMap='softTab';
+            objectUpdate(css_pars,objectExtract(kw,'css_*'));
+            leftbc._('contentPane',{region:'bottom',splitter:true,
+                            height:'50%',overflow:'hidden',
+                            'border_top':'1px solid silver',
+                            })._('codemirror',css_pars);
+
+        }
+        return bc;
+    }
+
 
 });
 
@@ -2158,7 +2252,7 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
             gnrwdg.headerNode = box._('div',{_class:'treeGridHeader'}).getParentNode();
         }
         if(gnrwdg.footers){
-            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter'}).getParentNode();
+            gnrwdg.footerNode = box._('div',{_class:'treeGridFooter selectable'}).getParentNode();
         }
         var center = box._('div',{_class:'treeGridCenter'});
         gnrwdg.scrollerNode = box._('div',{_class:'treeGridScroller'}).getParentNode();
@@ -2580,7 +2674,7 @@ dojo.declare("gnr.widgets.VideoPlayer", gnr.widgets.gnrwdg, {
                                                 }
                                             }
                                             if(_querystring){
-                                                dojo.forEach(cues,function(c){
+                                                cues.forEach(function(c){
                                                     if(c.startTime<range_start || c.startTime>range_end){
                                                         return;
                                                     }
@@ -2687,7 +2781,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
         }
 
         if(showcase){
-            bar = bc._('ContentPane',{region:'bottom',_class:'showcase_bar'})._('slotBar',{slots:'5,toggle,15,prev,5,next,*,slide_cnt,2',side:'bottom'});
+            let bar = bc._('ContentPane',{region:'bottom',_class:'showcase_bar'})._('slotBar',{slots:'5,toggle,15,prev,5,next,*,slide_cnt,2',side:'bottom'});
             bar._('lightbutton','toggle',{tip:_T('!!Toggle'),action:function(){
                 rootnode.publish('toggle_grid');
             },_class:'showcase_button showcase_toggle'});
@@ -2796,7 +2890,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
        //if(showcase){
        //    vtop._('div',{position:'absolute',top:'5px',right:'5px',_class:'iconbox comment',hidden:'^.comment?=!#v'})._('tooltipPane')._('div',{innerHTML:'^.comment',min_height:'150px',width:'200px'});
        //}
-        centerframe = viewer._('ContentPane',{region:'center',overflow:'hidden'});
+        let centerframe = viewer._('ContentPane',{region:'center',overflow:'hidden'});
         var iframecontainer = centerframe._('div',{_class:'gallery_iframe_container',hidden:'^.iframe_src?=!#v'});
         var iframe = iframecontainer._('iframe',{src:'^.iframe_src',height:'100%',width:'100%',border:0,
                                                 onLoad:function(){
@@ -2830,7 +2924,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
 
     createContent:function(sourceNode, kw,children,subTagItems) {
-        value = objectPop(kw,'value')        
+        let value = objectPop(kw,'value')        
         var valuepath = value?sourceNode.absDatapath(value):null;
         kw.remote_field = objectPop(kw,'field') || valuepath.split('.').slice(-1)[0];
         kw.remote_resource = objectPop(kw,'resource');
@@ -2843,19 +2937,20 @@ dojo.declare("gnr.widgets.BagField",gnr.widgets.gnrwdg,{
         kw.remote_valuepath = valuepath;
         kw.overflow = 'hidden';
         kw.remote = 'bagFieldDispatcher'
+        kw.enableEdit = genro.isDeveloper && false
         kw.min_height= kw.min_height || '1px';
         kw.min_width = kw.min_width || '1px';
         kw.remote_async = true;
         kw.remote__waitingMessage = true;
         var root = sourceNode;
-        if(genro.isDeveloper){
+        if(kw.enableEdit){
             root = sourceNode._('tabContainer');
             kw.pageName = 'view';
             kw.title = 'View';
             kw.remote__onRemote = "this.setRelativeData('.$_source',this._value.getNode('#0').attr.bagfieldmodule)"
         }
         var result = root._('contentPane','bagFieldRemote',kw);
-        if(genro.isDeveloper){
+        if(kw.enableEdit){
             root._('contentPane',{pageName:'edit',title:'Edit',overflow:'hidden'}
                     )._('codeEditor',{'value':'^.$_source',height:'100%',readOnly:false});
         }
@@ -2944,7 +3039,9 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
         var tools = subTagItems.tools;
         var gridRoot= tools.len()? this.toolsGridRoot(sourceNode,kw,tools.getAttr('#0')) : sourceNode;
         kw.datapath = kw.controllerPath;
-        kw.gridplugins = false;
+        if(!('gridplugins' in kw)){
+            kw.gridplugins = false;
+        }
         var grid = gridRoot._('newIncludedView',kw);
         gnrwdg.gridNode = grid.getParentNode();
         gnrwdg.setColumns(sourceNode.getRelativeData(columns));
@@ -3021,7 +3118,7 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
     gnrwdg_guessDtypeAndWidth:function(rows,fields){
         var types={}
         var sizes={}
-        var w,dtype,v
+        var w,dtype;
         if(!rows || rows.len()==0){
             return {types:null,sizes:null};
         }
@@ -3336,10 +3433,11 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             if(lnumber>max_lnumber){
                 lnumber = max_lnumber;
             }
-            var letterhead_page = letterheads.getItem('#'+lnumber);
+            var letterhead_page = letterheads.getItem('#'+lnumber).replaceAll('#p','$p');
             this.sourceBag.setItem('p',rn.childElementCount+1);
+            
             p.innerHTML = dataTemplate(letterhead_page,this.sourceBag,null,true);
-            var p = p.children[0];
+            p = p.children[0];
             content_node = dojo.query('div[content_node=t]',p)[0];
         }else{
             genro.dom.addClass(p,'pe_pages');
@@ -3397,8 +3495,9 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
                 node = src.removeChild(children[0]);
                 node.setAttribute('orig_idx',idx);
                 genro.dom.addClass(node,'pe_node');
-                dest.appendChild(node);                
-                if((dest.clientHeight+this.extra_bottom>=page.clientHeight) || (node.innerHTML.indexOf('--//--')>=0)){
+                dest.appendChild(node);        
+                let pageBreakNode = node.innerHTML.indexOf('--//--')>=0 || node.style.pageBreakBefore || node.style.pageBreakAfter || node.getAttribute('page_break_before');
+                if((dest.clientHeight+this.extra_bottom>=page.clientHeight) || pageBreakNode){
                     node = dest.removeChild(node);
                     page = this.addPage();
                     dest = document.createElement('div');
@@ -3423,7 +3522,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(!curr_vc){
             curr_vc = tpl_vc;
         }else{
-            dojo.forEach(tpl_vc,function(c){
+            tpl_vc.forEach(function(c){
                 if(dojo.indexOf(curr_vc,c)<0){
                     curr_vc.push(c)
                 }
@@ -3435,11 +3534,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     loadTemplateEditData:function(sourceNode){
         var paletteNode = sourceNode._connectedPalette;
         var templateHandler = sourceNode._templateHandler;
-        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag()); 
+        paletteNode.setRelativeData('.data',templateHandler.data?templateHandler.data.deepCopy():new gnr.GnrBag({varsbag:new gnr.GnrBag(),content:'',content_css:''})); 
         var respath = templateHandler.dataInfo.respath;
         if(respath && respath.indexOf('_custom')>=0){
             paletteNode.setRelativeData('.data.metadata.custom',true);
         }
+        paletteNode.setRelativeData('.status','info');
     },
     gnrwdg_setTemplate:function(templateBag){
         if(this.chunkNode._connectedPalette){
@@ -3456,12 +3556,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         var paletteId = paletteCode+'_floating';
 
         if(sourceNode._connectedPalette){
-            var paletteNode = sourceNode._connectedPalette;
+            let paletteNode = sourceNode._connectedPalette;
             paletteNode.getWidget().show();
         }else{
             var table = tplpars.table;
-            var remote_datasourcepath =  sourceNode.absDatapath(sourceNode.attr.datasource);
-            var showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
+            var remote_datasourcepath = sourceNode.attr.datasource? sourceNode.absDatapath(sourceNode.attr.datasource):null;
+            showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,
@@ -3469,21 +3569,27 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote:'te_chunkEditorPane',
                     remote_table:table,
                     remote_paletteId:paletteId,
+                    remote_plainText:sourceNode.attr.plainText,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
                     remote_editorConstrain: editorConstrain
                     };  
-            kw.remote__onRemote = function(){
+           //kw.remote__onRemote = function(){
+           //    sourceNode._editorReady = true;
+           //    handler.loadTemplateEditData(sourceNode);
+           //}
+
+            kw.selfsubscribe_showing = function(){
                 handler.loadTemplateEditData(sourceNode);
-            }
-            kw.palette_selfsubscribe_savechunk = function(){
+            };
+            kw.palette_selfsubscribe_savechunk = function(publishkw){
                 tplpars = sourceNode.evaluateOnNode(tplpars);
                 var template = tplpars.template || new gnr.GnrBag();
                 var data = this.getRelativeData('.data').deepCopy();
                 var custom = data.pop('metadata.custom');
                 if(typeof(template)=='string'){
-                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom);
+                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom,publishkw);
                     templateHandler.dataInfo.respath = respath;
                 }else{
                     var tplpath = sourceNode.attr._tplpars.template;
@@ -3500,8 +3606,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 sourceNode.publish('onChunkEdit');
                 this.widget.hide();
             }
-            var palette = sourceNode._('palettePane',kw);
-            var paletteNode = palette.getParentNode();  
+            let palette = sourceNode._('palettePane',kw);
+            let paletteNode = palette.getParentNode();  
             sourceNode._connectedPalette = paletteNode; 
         }
     },
@@ -3550,13 +3656,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return {template:result};
     },
     
-    saveTemplate:function(sourceNode,data,kw,custom){
+    saveTemplate:function(sourceNode,data,kw,custom,savekw){
         var template_address = (kw.table || '')+':'+kw.template;
-        var templateHandler = sourceNode._templateHandler;
         if(custom){
             template_address = template_address+',custom'
         }
-        return genro.serverCall("saveTemplate",{template_address:template_address,data:data},null,null,'POST');
+        return genro.serverCall("saveTemplate",{template_address:template_address,data:data,inMainResource:savekw.inMainResource},function(){});
     },
     
     
@@ -3569,6 +3674,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         tplpars.table = tplpars.table || '';
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
+
+        var safeMode = objectPop(kw,'safeMode');
+        if(safeMode){
+            kw.overflow = 'hidden';
+        }
         if(typeof(showLetterhead)=='string'){
             showLetterhead = sourceNode.absDatapath(showLetterhead);
         }
@@ -3591,7 +3701,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         kw._tplpars.editable = kw._tplpars.editable || (genro.isDeveloper? 'developer':false);
         kw._tplpars.showAlways = kw._tplpars.editable===true;
         kw._tplpars.asSource =  kw._tplpars.editable!=null;
+        
         kw._class = (kw._class || '') + ' selectable'
+        if(kw.plainText){
+            kw._class += ' plainTextChunk';
+        }
         var dataProvider = objectPop(kw,'dataProvider');
         if(dataProvider){
             dataProvider = sourceNode.currentFromDatasource(dataProvider);
@@ -3603,7 +3717,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 handler.openTemplatePalette(this,editorConstrain,showLetterhead);
             }
             kw.connect_ondblclick = function(evt){
-                if(tplpars.editable==true || evt.shiftKey){
+                if(tplpars.editable===true || evt.shiftKey){
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
@@ -3613,7 +3727,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var templateHandler=this._templateHandler
             templateHandler.showAlways = showAlways;
             if(record_id){
-                handler.createServerChunk(this,record_id,tplpars);
+                handler.createServerChunk(this,record_id,tplpars,safeMode);
             }
             else{
                 handler.createClientChunk(this,dataProvider,tplpars);
@@ -3652,7 +3766,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                this.template = this.template || '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                this.template = this.template || emptychunk;
             }
         };
         sourceNode.updateTemplate = function(){
@@ -3667,24 +3782,49 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         sourceNode.attr.template = templateHandler;
         sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
     },
+    
 
-    createServerChunk:function(sourceNode,record_id,tplpars){
+    createServerChunk:function(sourceNode,record_id,tplpars,safeMode){
         var templateHandler = sourceNode._templateHandler;
+
+        var setter = function(html){
+            sourceNode.domNode.innerHTML = html;
+        };
+        if(safeMode){
+            setter = function(html){
+                let iframe = sourceNode._('htmliframe','safeIframe',{height:'100%',width:'100%',border:0})
+                iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
+            };
+        }
+        var onResult = function(resultNode){
+            var r = resultNode.getValue();
+            templateHandler.dataInfo = resultNode.attr;
+            if(r instanceof gnr.GnrBag){
+                let rendered = r.getItem('rendered');
+                setter(rendered);
+                let template_data_node = r.popNode('template_data');
+                templateHandler.data = template_data_node?template_data_node.getValue(): new gnr.GnrBag();
+            }else{
+                setter(r);
+                templateHandler.data = new gnr.GnrBag();
+            }
+        };
         sourceNode.updateTemplate = function(pkey){
-            var that = this;
+            let nodeVal = sourceNode.getValue();
+            if(nodeVal){
+                nodeVal.popNode('safeIframe');
+            }
             if(pkey){
-                genro.serverCall('te_renderChunk',{record_id:pkey,template_address:tplpars.table+':'+tplpars.template,_sourceNode:sourceNode},function(resultNode){
-                    var r = resultNode.getValue();
-                    templateHandler.dataInfo = resultNode.attr;
-                    if(r instanceof gnr.GnrBag){
-                        that.domNode.innerHTML = r.getItem('rendered');
-                        templateHandler.data = r.popNode('template_data').getValue();
-                    }else{
-                        that.domNode.innerHTML = r;
-                        templateHandler.data = new gnr.GnrBag();
-                    }
-                    
-                },null,'POST');
+                let template = this.currentFromDatasource(tplpars.template);
+                let template_address;
+                let template_bag;
+                if(template instanceof gnr.GnrBag){
+                    template_bag = template;
+                }else{
+                    template_address = tplpars.table+':'+tplpars.template
+                }
+                genro.serverCall('te_renderChunk',{record_id:pkey,
+                    template_address:template_address,template_bag:template_bag,_sourceNode:sourceNode},onResult,null,'POST');
             }else{
                 sourceNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};
@@ -3741,13 +3881,13 @@ dojo.declare("gnr.widgets.DropUploaderGrid", gnr.widgets.gnrwdg, {
                                         },
                                         onDrop:function(dropInfo,files){
                                             var filebag = this.widget.storebag();
-                                            files.forEach(function(f){
+                                            for(let f of files){
                                                 let row = {_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:nodeId};
-                                                let label = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
-                                                if(filebag.index(label)<0){
-                                                    filebag.addItem(label,new gnr.GnrBag(row));
+                                                let ll = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
+                                                if(filebag.index(ll)<0){
+                                                    filebag.addItem(ll,new gnr.GnrBag(row));
                                                 }
-                                            });
+                                            }
                                         }});
         grid._('column',{name:_T('Filename'),field:'_name',width:'15em',edit:true});
         grid._('column',{name:_T('Size'),field:'_size',width:'5em','dtype':'L'});
@@ -3763,7 +3903,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var gnrwdg = sourceNode.gnrwdg;
         var uploaderPars = objectExtract(kw,'onUploadedMethod,onUploadingMethod');
-        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort');
+        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort,_lockScreen');
         objectUpdate(uploaderPars,objectExtract(kw,'rpc_*'));
         var nodeId = objectPop(kw,'nodeId') || 'uploader_'+genro.getCounter()
         uploaderKw.uploadPath = uploaderKw.uploadPath || 'page:'+nodeId;
@@ -3793,15 +3933,27 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 gnrwdg.fakeinputNode.domNode.click();
             }
         }
+        if(label && label.startsWith('!!')){
+            label = _T(label)
+        }
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         onUploadingCb = funcCreate(onUploadingCb,'dropInfo,data',sourceNode);
         var progressBar = objectPop(kw,'progressBar',true);
-        if(uploaderKw.onResult){
-            uploaderKw.onResult = funcCreate(uploaderKw.onResult,'evt',sourceNode);
+        var onResult = uploaderKw.onResult;
+        if(onResult){
+            onResult = funcCreate(onResult,'evt',sourceNode);
         }
+        uploaderKw.onResult = function(evt){
+            if(uploaderKw._lockScreen){
+                genro.lockScreen(false,nodeId);
+            }
+            if(onResult){
+                return onResult(evt);
+            }
+        };
         if(uploaderKw.onError){
             uploaderKw.onError = funcCreate(uploaderKw.onError,'evt',sourceNode);
         }
@@ -3827,6 +3979,9 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             if(doUpload===false){
                 return false;
             }
+            if(uploaderKw._lockScreen){
+                genro.lockScreen(true,nodeId)
+            }
             return genro.rpc.uploadMultipart_oneFile(data,objectUpdate({},uploaderPars),objectUpdate({filename:data.name},uploaderKw));
         }
         var onFiles  = function(dropInfo,files){
@@ -3837,9 +3992,9 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             }
             var totSize = 0;
             if(maxsize){
-                dojo.forEach(function(f){
+                for(let f of files){
                     totSize += f.size;
-                });
+                }
                 if (totSize>maxsize){
                     var size_kb = maxsize/1000
                     genro.dlg.alert("File exeeds size limit ("+size_kb+"KB)",'Error');
@@ -3848,7 +4003,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             }
             var c = 0;
             var height = Math.round(100/files.length)
-            dojo.forEach(files,function(f){
+            for(let f of files){
                 var h = cbOnDropData(dropInfo,f);
                 if(h){
                     gnrwdg.pendingHandlers.push(h);
@@ -3865,7 +4020,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                     }
                     c+=1;
                 }
-            });
+            }
         };
         dropAreaKw.onDrop = onFiles;
         containerKw._class =containerKw._class ||  'dropUploaderBox' ;
@@ -4022,8 +4177,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
         var containerKw = {_class:'multibutton_container'};
+        var btn_action;
         if (sticky){
-            var btn_action = function(event){
+            btn_action = function(_kwargs){
+                let event = _kwargs.event;
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4046,9 +4203,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             };
         }else{
-            var btn_action = function(_kwargs){
+            btn_action = function(_kwargs){
                 var event=_kwargs.event
-
                 var sn = event.target?genro.dom.getBaseSourceNode(event.target):null;
                 if(sn){
                     var mcode = sn.getInheritedAttributes()['multibutton_code'];
@@ -4073,6 +4229,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         return multibutton;
     },
 
+    gnrwdg_isDisabled:function(){
+        return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
+    },
     gnrwdg_itemsFromValues:function(values){
         var result = new gnr.GnrBag();
         if(!values){
@@ -4177,18 +4336,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         items = items || new gnr.GnrBag();
         var sourceNode = this.sourceNode;
         var mb = this.multibuttonSource;
-        var child_count = items.len();
-        var deleteAction = this.deleteAction;
-        var customDelete;
-        var gnrwdg = this;
         mb.clear(true);
         if (mb){
-            var btn,content_kw,btn_class,code,caption,kw;
-            var firstItem = items.getNode('#0');
             var currentSelected = sourceNode.getRelativeData(sourceNode.attr.value);
-            //if(!currentSelected && this.mandatory && firstItem){
-            //    currentSelected = firstItem.attr[gnrwdg.identifier] || firstItem.label;
-            //}
             var that = this;
             this.childItemsPrev.forEach(function(n){
                 that.oneButton(n,currentSelected,'code','caption');
@@ -4207,7 +4357,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 }
             }
             sourceNode.setRelativeData(sourceNode.attr.value,currentSelected);
-
         }
     },
     gnrwdg_oneButton:function(n,currentSelected,identifier,caption){
@@ -4219,6 +4368,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         var codeKey = identifier || this.identifier;
         var caption = kw[captionKey];
         var code = kw[codeKey] || n.label;
+        kw[codeKey] =code;
+        if(!kw.disabled){
+            kw.parentDisabled = true;
+        }
         var btn_class = code==currentSelected?'multibutton multibutton_selected':'multibutton';
         var customDelete = kw.deleteAction;
         if(typeof(customDelete)=='string'){
@@ -4311,7 +4464,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         sn.delayedCall(function(){
             var cn = sn._stackButtonsNodes;
             if(cn){
-                dojo.forEach(cn,function(c){
+                cn.forEach(function(c){
                     that.makeTabButton(c,child.sourceNode,sn);
                 });
             }
@@ -4326,7 +4479,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         }
         var paneId = this.getPaneId(child.sourceNode);
         setTimeout(function(){
-            dojo.forEach(controllerNodes,function(c){
+            controllerNodes.forEach(function(c){
                 c._value.popNode(paneId);
             });
         },1)
@@ -4339,7 +4492,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
             return;
         }
         var paneId = this.getPaneId(child.sourceNode);
-        dojo.forEach(controllerNodes,function(c){
+        controllerNodes.forEach(function(c){
             genro.dom.setClass(c._value.getNode(paneId),'hidden',value)
         })
     },
@@ -4354,7 +4507,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         if((!controllerNodes) || sn._isBuilding){
             return;
         }
-        dojo.forEach(controllerNodes,function(c){
+        controllerNodes.forEach(function(c){
             genro.dom.setClass(c._value.getNode(paneId),'multibutton_selected',st)
         })
         
@@ -4369,7 +4522,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
         }
         stackNode._value.forEach(function(n){
             if(n.getWidget()){
-                dojo.forEach(controllerNodes,function(c){
+                controllerNodes.forEach(function(c){
                     that.makeTabButton(c,n,stackNode);
                 });
             }
@@ -4752,7 +4905,7 @@ dojo.declare("gnr.widgets.UserObjectLayout", gnr.widgets.gnrwdg, {
         var instanceCode = this.sourceNode.getRelativeData('#WORKSPACE.metadata.code');
         var data = this.userObjectData();
         var that = this;
-        saveCb = function(dlg,event,counter,modifiers) {
+        var saveCb = function(dlg,event,counter,modifiers) {
             var metadata = genro.getData(datapath);
             metadata.setItem('flags',that.userObjectPars.flags);
             genro.serverCall('_table.adm.userobject.saveUserObject',
@@ -4926,18 +5079,36 @@ dojo.declare("gnr.widgets.ComboMenu", gnr.widgets.gnrwdg, {
     }
 });
 
+dojo.declare("gnr.widgets.TextboxMenu", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode,kw,childSourceNode){
+        var menupars = objectExtract(kw,'values,storepath');
+        menupars._class = 'smallmenu'
+        var separator = objectPop(kw,'separator',',')
+        var valuekey = objectPop(kw,'valuekey','fullpath')
+        var tb = sourceNode._('textbox',kw);
+        menupars.action = function(linekw,ctx){
+            var cv = this.attr.attachTo.widget.getValue();
+            this.attr.attachTo.widget.setValue(cv?cv+separator+linekw[valuekey]:linekw[valuekey],true);
+        }
+        tb._('comboMenu',menupars);
+        return tb;
+    }
+});
+
+
 dojo.declare("gnr.widgets.MultiLineTextbox", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         var tb = sourceNode._('textbox',kw);
         var tbNode = tb.getParentNode();
         var valuepath = tbNode.absDatapath(kw.value);
+        var separator = objectPop(kw,'separator',',')
         tb._('comboArrow',{connect_onclick:function(){
             var curval = tbNode.widget.getValue();
             var dflt = curval?curval.replace(/\,/g,'\n'):null
             genro.dlg.prompt(_T('Multiline value'),{
                 widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
                 action:function(value){
-                    tbNode.setRelativeData(valuepath,value.replace(/\n/g,','));
+                    tbNode.setRelativeData(valuepath,value.replace(/\n/g,separator));
                 },dflt:dflt,onEnter:null});
         }});
         return tb;
@@ -4969,6 +5140,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         gnrwdg.remoteValuesRpc = objectPop(kw,'remoteValues');
         gnrwdg.valuesCb = objectPop(kw,'valuesCb');
         gnrwdg.tree_extrakw = objectExtract(kw,'tree_*');
+        
         var onOpening;
         if(codeSeparator!==false){
             codeSeparator =  codeSeparator || ':'
@@ -5128,7 +5300,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
                         checked_pkey:valuepath,
                         checkedPaths:this.checkedpath,
                         checked_caption:valuepath+'?_displayedValue',
-                        onChecked:true};
+                        onChecked:true,
+                        _valuelabel:this._valuelabel};
         objectUpdate(treekw,this.tree_extrakw);
         var tree = this.rootNode._('tree',treekw);
         this.treeNode = tree.getParentNode();
@@ -5274,7 +5447,7 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var ghrwdg = this;
         ghrwdg.captionDict = {};
         ghrwdg.valuesDict = {};
-        dojo.forEach(valuelist,function(v){
+        valuelist.forEach(function(v){
             if(v=='/'){
                 curr_row =  tblNode._('tr',row_kw);
                 i = 1;
@@ -5318,11 +5491,10 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         var i = 0;
         var labels = [];
         var codes = [];
-        var rows = sourceNode.getValue().getItem('#0');
         var sourceNodes = dojo.query('.dijitCheckBoxInput',this.tblNode.domNode).map(function(n){
             return dijit.getEnclosingWidget(n).sourceNode
         });
-        dojo.forEach(sourceNodes,function(cbNode){
+        sourceNodes.forEach(function(cbNode){
             if(cbNode.widget.checked){
                 if(has_code){
                     codes.push(cbNode.attr._code);
@@ -5368,6 +5540,7 @@ dojo.declare("gnr.widgets.RadioButtonText", gnr.widgets.CheckBoxText, {
     }
 });
 
+
 dojo.declare("gnr.widgets.FieldsTree", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
         return attributes;
@@ -5396,7 +5569,7 @@ dojo.declare("gnr.widgets.FieldsTree", gnr.widgets.gnrwdg, {
         genro.dev.fieldsTree(box,table,kw);
         return box;
     }
-})
+});
 
 dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
@@ -5409,7 +5582,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
 
         attributes.orientation=orientation;
         var buildKw={};
-        dojo.forEach(['table','row','cell','lbl'],function(k){
+        ['table','row','cell','lbl'].forEach(function(k){
             buildKw[k] = objectExtract(attributes,k+'_*');
             buildKw[k]['_class'] = (buildKw[k]['_class'] || '') + ' slotbar_'+k;
         });
@@ -5461,7 +5634,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var slots = objectPop(kw,'slots');
         var orientation = objectPop(kw,'orientation');
         var result = this['createContent_'+orientation](sourceNode,kw,kw.slotbarCode,slots,children);
-        dojo.forEach(children._nodes,function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
+        children._nodes.forEach(function(n){if(n.attr.tag=='slot'){children.popNode(n.label);}});
         return result;
     },
     
@@ -5479,14 +5652,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             rlabel=  table._('tr');
         }
         var attr,cell,slotNode,slotValue,slotKw,slotValue;
-        var children = children || new gnr.GnrBag();
+        children = children || new gnr.GnrBag();
         var that = this;
-        var attr,kwLbl,lbl,labelCell,k;
+        var kwLbl,lbl,labelCell,k;
         var slotArray = splitStrip(slots);
         var counterSpacer = dojo.filter(slotArray,function(s){return s=='*';}).length;
         var spacerWidth = counterSpacer? 100/counterSpacer:100;
         var cellKwLbl = buildKw.lbl_cell;
-        dojo.forEach(slotArray,function(slot){
+        slotArray.forEach(function(slot){
             if(rlabel){
                 labelCell = rlabel._('td',cellKwLbl);
             }else if(lblPos=='L'){
@@ -5568,18 +5741,11 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         var table = sourceNode._('div',kw)._('table',buildKw.table)._('tbody');
 
         var attr,row,cell,slotNode,slotValue,slotKw,slotValue;
-        var children = children || new gnr.GnrBag();
+        children = children || new gnr.GnrBag();
         var that = this;
-        var attr,kwLbl,lbl,labelCell,k;
+        var kwLbl,lbl,labelCell,k;
         var slotArray = splitStrip(slots);
-        var cellKwLbl = buildKw.lbl_cell;
-        dojo.forEach(slotArray,function(slot){
-            /*if(rlabel){
-                labelCell = rlabel._('td',cellKwLbl);
-            }else if(lblPos=='L'){
-                cellKwLbl['width'] = cellKwLbl['width'] || '1px'
-                labelCell = r._('td',cellKwLbl)
-            }*/
+        slotArray.forEach(function(slot){
             if(slot=='*'){
                 table._('tr');
                 return;
@@ -5595,10 +5761,6 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             
             row = table._('tr',buildKw.row)
             cell = row._('td',objectUpdate({_slotname:slot,position:'relative'},buildKw.cell));
-            /*if(lblPos=='R'){
-                cellKwLbl['width'] = cellKwLbl['width'] || '1px';
-                labelCell = r._('td',cellKwLbl)
-            }*/
             slotNode = children.popNode(slot);
             if (slotNode){
                 slotValue = slotNode.getValue();
@@ -5609,10 +5771,6 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
                         kwLbl = objectExtract(attr,'lbl_*');
                         lbl = objectPop(attr,'lbl');
                         cell.setItem(n.label,n._value,n.attr);
-                        /*if((k==0)&&labelCell){
-                            kwLbl = objectUpdate(objectUpdate({},buildKw.lbl),kwLbl);
-                            labelCell._('div',objectUpdate({'innerHTML':lbl,'text_align':'center'},kwLbl));
-                        }*/
                         k++;
                     });
                 }
@@ -5651,6 +5809,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
                             'width':objectPop(slotKw,'width'),search_kw:slotKw});
     },
+
+    slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
+        pane._('menudiv',{iconClass:'iconbox popup',storepath:'gnr.parentBranchMenu.root',
+                            action:function(kw){
+                                genro.mainGenroWindow.genro.publish('selectIframePage',kw);
+                            }})
+    },
+
     slot_stackButtons:function(pane,slotValue,slotKw,frameCode){
         var scNode = objectPop(slotKw,'stackNode');
         if(scNode){
@@ -5782,7 +5948,7 @@ dojo.declare("gnr.widgets.SelectionStore", gnr.widgets.gnrwdg, {
                }
            }
         }
-        if(!'_POST' in kw){
+        if(!('_POST' in kw)){
             kw['_POST'] = true;
         }
         var selectionStore = sourceNode._('dataRpc',kw);
@@ -5944,6 +6110,12 @@ dojo.declare("gnr.stores._Collection",null,{
         return this.linkedGrids().some(function(grid){
             return genro.dom.isVisible(grid.sourceNode);
         });
+    },
+    hasTitleCounterClients:function(){
+        return this.linkedGrids().some(function(grid){
+            let rootPane = grid.getRootPane();
+            return rootPane?rootPane.attr.titleCounter:false;
+        })
     },
 
     runQuery:function(cb,runKwargs){
@@ -6217,6 +6389,13 @@ dojo.declare("gnr.stores._Collection",null,{
     isFiltered:function(){
         return this._filtered !==null;
     },
+
+    gridRowByIndex:function(inRowIndex,bagFields,ignoreFilter){
+        if(ignoreFilter){
+            return this.rowFromItem(this.getItems()[inRowIndex],bagFields);
+        }
+        return this.rowByIndex(inRowIndex,bagFields);
+    },
     
     compileFilter:function(grid,value,filterColumn,colType){
         var cbsearch;
@@ -6241,7 +6420,7 @@ dojo.declare("gnr.stores._Collection",null,{
                     } else if (colType == 'DH') {
                         val = dojo.date.locale.parse(toSearch[4], {formatLength: "short"});
                     }                
-                    cbsearch = function(rowdata, index, array) {
+                    cbsearch = function(rowdata, index) {
                         return genro.compare(op,rowdata[filterColumn],val);
                     };
                 }
@@ -6273,27 +6452,33 @@ dojo.declare("gnr.stores._Collection",null,{
         var that = this;
         var sn = grid.sourceNode
         sn.__evaluated_attrs = sn.evaluateOnNode(sn.attr)
-        dojo.forEach(this.getItems(), 
-                    function(n,index,array){
-                        var rowdata = that.rowFromItem(n);
-                        var result = cb? cb.apply(sn, [rowdata,index,array]):true; 
-                        var include;
-                        if(result){
-                            if(filteringMode=='exclude'){
-                                include =  ((!filteringList)||(dojo.indexOf(filteringList, rowdata[grid.excludeCol]) == -1));
-                            }else if(filteringMode=='disabled'){
-                                include = true;
-                            }else{
-                                include =filteringList && (dojo.indexOf(filteringList, rowdata[grid.excludeCol]) >= 0);
-                            }
-                            if(include){
-                                filtered.push(index);
-                            }
-                        }
-                    });
+        var filterCb = function(n,index){
+            var rowidx = 'rowidx' in n.attr? n.attr.rowidx:index;
+            var rowdata = that.rowFromItem(n);
+            var result = cb? cb.apply(sn, [rowdata,rowidx]):true; 
+            var include;
+            if(result){
+                if(filteringMode=='exclude'){
+                    include =  ((!filteringList)||(dojo.indexOf(filteringList, rowdata[grid.excludeCol]) == -1));
+                }else if(filteringMode=='disabled'){
+                    include = true;
+                }else{
+                    include =filteringList && (dojo.indexOf(filteringList, rowdata[grid.excludeCol]) >= 0);
+                }
+                if(include){
+                    filtered.push(rowidx);
+                }
+            }
+        };
+        this.iterfilterCb(filterCb);
         this._filtered=filtered;
         this._filterToRebuild=false;
     },
+
+    iterfilterCb:function(filterCb){
+        this.getItems().forEach(filterCb);
+    },
+
     linkedGrids:function(){
         if(this._linkedGrids){
             return this._linkedGrids;
@@ -6325,7 +6510,7 @@ dojo.declare("gnr.stores._Collection",null,{
 dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
     loadData:function(data,selfUpdate){
         if(selfUpdate){
-            dojo.forEach(this.linkedGrids(),function(grid){
+            this.linkedGrids().forEach(function(grid){
                 grid.selectionKeeper('save');
                 grid._batchUpdating = true;
             });
@@ -6336,7 +6521,7 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
             this.sort();
         }
         if(selfUpdate){
-            dojo.forEach(this.linkedGrids(),function(grid){
+            this.linkedGrids().forEach(function(grid){
                 grid.applyFilter(true);
                 grid._batchUpdating = false;
                 grid.restoreSelectedRows();
@@ -6347,10 +6532,6 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
 
     getRowByIdx:function(idx){
         return ;
-    },
-    getItems:function(){
-        var data=this.getData();
-        return data?data.getNodes():[];
     },
 
     deleteRows:function(pkeys,protectPkeys){
@@ -6453,7 +6634,7 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
         }
         var data = this.getData();
         var sl = [];
-        dojo.forEach(this.sortedBy.split(','),function(n){
+        this.sortedBy.split(',').forEach(function(n){
             sl.push(n);
         });
         sl = sl.join(',');
@@ -6497,7 +6678,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         }
         var data = this.getData();
         var sl = [];
-        dojo.forEach(this.sortedBy.split(','),function(n){
+        this.sortedBy.split(',').forEach(function(n){
             if(n.slice(0,3)!='#a.'){
                 n = '#a.'+n;
             }
@@ -6615,7 +6796,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                     return;
                 }
                 var isExternal = from_page_id!=genro.page_id;
-                dojo.forEach(kw.changelist,function(c){
+                kw.changelist.forEach(function(c){
                     c._isExternal = isExternal;
                     that.pendingChanges.push(c);
                 });
@@ -6666,6 +6847,9 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         var that = this;
         this.pendingLoading = true;
         if(!(this.isEnabledStore())){
+            if(this.hasTitleCounterClients()){
+                this.loadingDataDo(objectUpdate({countOnly:true},runKwargs));
+            }
             this.storeNode.watch('isEnabledStore',function(){
                 return that.isEnabledStore();
             },function(){
@@ -6688,6 +6872,10 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             that.loadingData = false;
             that.gridBroadcast(function(grid){
                 grid.sourceNode.publish('loadingData',{loading:false});
+                if(result && result.attr){
+                    //result as bagNode;
+                    grid.updateShowCount(result.attr.totalrows)
+                }
             });
         };
         this.onLoading();
@@ -6776,8 +6964,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
     },
     
     onExternalChange:function(changelist){
-        var eventdict = {};
-        var dbevt,pkeys,wasInSelection,willBeInSelection;
+        var willBeInSelection;
         var insOrUpdKeys = [];
         var delKeys = [];
         var data = this.getData();
@@ -6786,7 +6973,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             return;
         }
         var isExternalDict = {};
-        dojo.forEach(changelist,function(change){
+        changelist.forEach(function(change){
             if (change['dbevent']=='D'){
                 if (dojo.indexOf(delKeys,change.pkey)<0){
                      delKeys.push(change.pkey);
@@ -6817,12 +7004,15 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                 return;
             }
             this.runQuery(function(result){
-                                            willBeInSelection={};
-                                            result.getValue().forEach(function(n){
-                                                willBeInSelection[n.attr['_pkey']] = n;
-                                            },'static');
-                                            that.checkExternalChange(delKeys,insOrUpdKeys,willBeInSelection,isExternalDict);
-                                            return result;
+                                        if(!result){
+                                            return;
+                                        }
+                                        willBeInSelection={};
+                                        result.getValue().forEach(function(n){
+                                            willBeInSelection[n.attr['_pkey']] = n;
+                                        },'static');
+                                        that.checkExternalChange(delKeys,insOrUpdKeys,willBeInSelection,isExternalDict);
+                                        return result;
                                     },{store_chpkeys:chpkeys,condition:condition,applymethod:null});
 
 
@@ -6841,7 +7031,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         var selectedPkeysDict = {};
         var selectedIndex,selectedPkey;
         var data = this.getData();
-        dojo.forEach(linkedGrids,function(grid){
+        linkedGrids.forEach(function(grid){
             //grid.batchUpdating(true);
             genro.dom.removeClass(grid.sourceNode,'onExternalChanged');
             selectedIndex = grid.selection.selectedIndex;
@@ -6885,7 +7075,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             }
         }
         if(insOrUpdKeys.length>0){
-            dojo.forEach(insOrUpdKeys,function(pkey){
+            insOrUpdKeys.forEach(function(pkey){
                 wasInSelectionNode = insOrUpdKeys_wasInSelection[pkey];
                 willBeInSelectionNode = willBeInSelection[pkey];
                 if(wasInSelectionNode){
@@ -6899,7 +7089,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                 changedRows[rowNode.attr._pkey] = rowNode;
                                 if(!isEqual(rowNode.attr[attrname],willBeInSelectionNode.attr[attrname])){
                                     if(rowValue instanceof gnr.GnrBag){
-                                        var editedNode = rowValue.getNode(attrname);
+                                        let editedNode = rowValue.getNode(attrname);
                                         if(editedNode){
                                             editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                         }
@@ -6908,7 +7098,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                         newattr['_customClass_'+attrname] = 'externalChangedCell';
                                     }
                                  }else if(rowValue instanceof gnr.GnrBag){
-                                     var editedNode = rowValue.getNode(attrname);
+                                     let editedNode = rowValue.getNode(attrname);
                                      if(editedNode){
                                         editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                      }
@@ -6917,7 +7107,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                         }
                         rowNode.updAttributes(newattr,true);
                         if(selectedPkeysDict[pkey]){
-                            dojo.forEach(selectedPkeysDict[pkey],function(grid){
+                            selectedPkeysDict[pkey].forEach(function(grid){
                                 grid.sourceNode.publish('updatedSelectedRow');
                             });
                         }
@@ -6937,7 +7127,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             this.mustBeSorted = true;
         } 
         var that = this;
-        dojo.forEach(linkedGrids,function(grid){
+        linkedGrids.forEach(function(grid){
             //grid.batchUpdating(false);   
             if(toUpdate){
                 if (!grid.gnrediting){
@@ -7042,6 +7232,9 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         return;
     },
     len:function(filtered){
+        if(filtered && this._filtered){
+            return this._filtered.length;
+        }
         var data = this.getData();
         if(!data){
             return 0;
@@ -7066,7 +7259,6 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             return;
         }
         this.clearBagCache();
-        var selection = result.getValue(); 
         var data = new gnr.GnrBag();
         var resultattr = result.attr;
         data.setItem('P_0',result.getValue(),{pageIdx:0}); 
@@ -7077,32 +7269,45 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         if(resultattr.prevSelectedIdx && resultattr.prevSelectedIdx.length>0){
             var pagetoload = {};
             var cs = this.chunkSize;
-            dojo.forEach(resultattr.prevSelectedIdx,function(idx){
+            resultattr.prevSelectedIdx.forEach(function(idx){
                 pagetoload[(idx - idx % cs) / cs]=true;
             });
             for(var page in pagetoload){
                 this.loadBagPageFromServer(page,true,data);
             }
-            this.gridBroadcast(function(grid){
-                grid.selection.select(resultattr.prevSelectedIdx);
-                grid.scrollToRow(resultattr.prevSelectedIdx);
-            });
         }
         return result;
     },
-    
+
+    iterfilterCb:function(filterCb){
+        this.getItems().forEach(function(pageNode,pageidx,pagesarray){
+            if(!pageNode._value){
+                return;
+            }
+            pageNode._value.getNodes().forEach(filterCb);
+        });
+    },
+
+
+    gridRowByIndex:function(inRowIndex,bagFields,ignoreFilter){
+        if(ignoreFilter){
+            return this.rowFromItem(this.getData().getNodeByAttr('rowidx',inRowIndex));
+        }
+        return this.rowByIndex(inRowIndex,bagFields);
+    },
+
     onExternalChangeResult:function(changelist){
         if(changelist.length>0){
             var that = this;
             this.externalChangedKeys = this.externalChangedKeys || {};
-            dojo.forEach(changelist,function(n){
+            changelist.forEach(function(n){
                 if(n._isExternal){
                     that.externalChangedKeys[n.pkey] = true;
                 }
             });
             var prevSelected = {};
-            dojo.forEach(this.linkedGrids(),function(grid){
-                dojo.forEach(grid.selection.getSelected(), function(idx) {
+            this.linkedGrids().forEach(function(grid){
+                grid.selection.getSelected().forEach(function(idx) {
                     prevSelected[grid.rowIdByIndex(idx)] = true;
                 });
                 grid._saved_selections = grid.selectionKeeper('save');
@@ -7110,7 +7315,7 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
             this.storeNode.setRelativeData('.query.prevSelectedDict',prevSelected);
             var that = this;
             var cb = function(result){
-                dojo.forEach(that.linkedGrids(),function(grid){
+                that.linkedGrids().forEach(function(grid){
                     grid.sourceNode.publish('onExternalChanged');
                 });
                 return result;
@@ -7178,18 +7383,20 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         this.currCachedPage = null;
     },
 
+
     itemByIdx:function(idx,sync) {
+        idx = this.absIndex(idx);
         var delta = idx-this.lastIdx;
         this.lastIdx = idx;
         var dataPage;
         var rowIdx = idx % this.chunkSize;
         var pageIdx = (idx - rowIdx) / this.chunkSize;
         if (this.currCachedPageIdx != pageIdx) {
-            if(!sync){
+            if(!sync && !this._filtered){
                 dataPage=this.getDataChunk(pageIdx);
             }else{
                 dataPage=this.getData().getItem('P_' + pageIdx);
-                if (!dataPage){
+                if (!dataPage && !this._filtered){
                     dataPage = this.loadBagPageFromServer(pageIdx,sync);
                 }
             }
@@ -7232,7 +7439,7 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
     },
 
     getDataChunk:function(pageIdx){
-        if (pageIdx in this.pendingPages){
+        if ((pageIdx in this.pendingPages) || this._filtered){
             return;
         }else{
             var pageData=this.getData().getItem('P_' + pageIdx);

@@ -50,7 +50,7 @@ class Service(QueueService):
         while running.value:
 
             time.sleep(2)
-            print 'ciao'
+            print ('ciao')
     
     def handle_messagges(self, message):
 

@@ -50,7 +50,9 @@ def toDHZ(date,time,timezone=None):
         timezone = localtz.tzname(ts)
     timezone = timezone or 'UTC'
     tz = pytz.timezone(timezone)
-    return tz.localize(ts) 
+    #result =  tz.localize(ts) 
+    result = ts.replace(tzinfo=tz)
+    return result
 
 def checkDateKeywords(keywords,datestr,locale):
     return anyWordIn(gnrlocale.getDateKeywords(keywords, locale), datestr) or anyWordIn(
@@ -141,6 +143,15 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
                            various separators are admitted: 28-4-08, 28/4/08, 28 4 08"""
     
     datestr = datestr.lower()
+    timeSplitters = gnrlocale.getTimeSplitKeywords('at', locale)
+    timestr = None
+    for sep in timeSplitters:
+        sep = f' {sep} '
+        if sep in datestr:
+            datestr,timestr = datestr.split(sep)
+            break
+
+
     def addToDay(datestr, date):
         if '+' in datestr:
             days = int(datestr.split('+')[1].strip())
@@ -247,10 +258,11 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
             dateStart = datetime.date(*[int(el) for el in wordSplit(datestr)[0:3]])
         else:                                                                   # a date in local format
             dateStart = gnrlocale.parselocal(datestr, datetime.date, locale)
-        if isEndPeriod and dateEnd:
-            return dateEnd
-        else:
-            return dateStart
+        dateResult = dateEnd if isEndPeriod and dateEnd else dateStart
+        if timestr:
+            time =  gnrlocale.parselocal(timestr, datetime.time, locale)
+            return datetime.datetime.combine(dateResult,time)
+        return dateResult
             
 def periodCaption(dateFrom=None, dateTo=None, locale=None):
     """Convert two dates to a string in the specified locale that
@@ -304,12 +316,10 @@ def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtyp
     months = gnrlocale.getMonthNames(locale)
     days = gnrlocale.getDayNames(locale)
     datestr = datestr or ''
-    datestr = datestr.lower().strip().replace(',', ';').replace(':', ';')
-    exercise = False  # TODO
-
+    datestr = datestr.lower().strip()
+    datestr = datestr.replace(',', ';')
     dateStart = None
     dateEnd = None
-
     localNoPeriod = gnrlocale.getDateKeywords('no period', locale)
     localTo = gnrlocale.getDateKeywords('to', locale)
     localFrom = gnrlocale.getDateKeywords('from', locale)
@@ -380,13 +390,13 @@ def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtyp
     if max_date and (dateEnd is None or dateEnd>max_date):
         dateEnd = max_date
 
-    if dtype == 'DH':
-        dateStart = datetime.datetime(dateStart.year, dateStart.month, dateStart.day)
-        dateEnd = datetime.datetime(dateEnd.year, dateEnd.month, dateEnd.day)
-
+    if dtype in ('DH','DHZ'):
+        if not isinstance(dateStart,datetime.datetime):
+            dateStart = datetime.datetime(dateStart.year, dateStart.month, dateStart.day)
+        if not isinstance(dateEnd,datetime.datetime):
+            dateEnd = datetime.datetime(dateEnd.year, dateEnd.month, dateEnd.day)
     if returnDate:
         return (dateStart, dateEnd)
-
     if dateStart == dateEnd:
         return str(dateStart or '')
     else:

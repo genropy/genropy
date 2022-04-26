@@ -32,6 +32,7 @@ class FrameGridTools(BaseComponent):
                                 ask=dict(title='Export selection',skipOn='Shift',
                                         fields=[dict(name='opt_downloadAs',lbl='Download as',placeholder=placeholder),
                                                 dict(name='opt_export_mode',wdg='filteringSelect',values='xls:Excel,csv:CSV',lbl='Mode'),
+                                                dict(name='opt_csv_colseparator', lbl='Separator',width='4em', hidden="^.opt_export_mode?=#v!='csv'"),
                                                 dict(name='opt_allRows',label='All rows',wdg='checkbox'),
                                                 dict(name='opt_localized_data',wdg='checkbox',label='Localized data')]),
                                 **kwargs) 
@@ -223,11 +224,21 @@ class FrameGridTools(BaseComponent):
         bc = view.grid_envelope.borderContainer(region='left',
                                         width=width or '300px',
                                         closable=closable,
+                                        closable_background='rgba(222, 255, 0, 1)',
+                                        closable_bottom='2px',
+                                        closable_width='14px',
+                                        closable_right='-20px',
+                                        closable_height='14px',
+                                        closable_padding='2px',
+                                        closable_opacity='1',
+                                        closable_iconClass='smalliconbox statistica_tools',
                                         splitter=True,border_right='1px solid silver',
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **kwargs)
         if closable !='close':
             bc.data('.use_grouper',True)
+
+        
         inattr = view.getInheritedAttributes()
         bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
@@ -237,29 +248,16 @@ class FrameGridTools(BaseComponent):
     @public_method
     def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
-        onTreeNodeSelected = """var item = p_0.item;
-                                var grouper_cols = [];
-                                var currItem = item;
-                                var row = {{}};
-                                while(currItem.label != 'treestore'){{
-                                    let cell = currItem.attr._cell;
-                                    grouper_cols.push(cell)
-                                    row[cell.field_getter] = currItem.attr.value;
-                                    currItem = currItem.getParentNode();
-                                }}
-                                var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                                groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
-        """.format(groupedTh=groupedTh)
-        gth = pane.groupByTableHandler(table=table,frameCode='{groupedTh}_grouper'.format(groupedTh=groupedTh),
-                            #grid_autoSelect=True,
+        tree_nodeId = f'{groupedTh}_grouper_tree'
+        gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
                             configurable=False,
                             grid_configurable=True,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__thgroup_pkey='.currentGrouperPkey',
+                            grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            tree_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            tree_nodeId = tree_nodeId,
                             linkedTo=groupedTh,
-                            pbl_classes=True,margin='2px',
-                            tree_selfsubscribe_onSelected=onTreeNodeSelected,
-                            **kwargs)
+                            pbl_classes=True,margin='2px',grouper=True,**kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
         if(_reason=='node'){
@@ -268,33 +266,43 @@ class FrameGridTools(BaseComponent):
         }
         """,struct='^.grid.struct')
         if self.application.checkResourcePermission('admin', self.userTags):
-            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable=False)
-        gth.grid.dataController("""
-                            if(!currentGrouperPkey){{
+            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
+        gth.dataController(f"""
+            SET .selectedIndex = null;
+            SET #{tree_nodeId}.currentGroupPath = null;
+            SET #{groupedTh}_grid.grouperPkeyList = null;
+    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',)   
+
+        pane.dataController(f"""
+                            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
+                            if(!grouperPkeyList){{
+                                groupedStore.store.clear();
                                 return;
                             }}
-                            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
-                            var row = grid.rowByIndex(selectedIndex);
-                            var cols = grid.getColumnInfo().getNodes();
-                            var grouper_cols = cols.map(n=>objectExtract(n.attr.cell,'field,original_field,group_aggr,field_getter,dtype,queryfield',true));
-                            groupedStore.store.loadData({{'grouper_row':row,'_grouper_cols':grouper_cols}});
-                            """.format(groupedTh=groupedTh),
-                            selectedIndex='^.selectedIndex',
-                            currentGrouperPkey='^.currentGrouperPkey',
-                            _if='currentGrouperPkey',_delay=1,grid=gth.grid.js_widget)
+                            var queryvars = {{}};
+                            queryvars.condition = '$pkey IN :currpkeylist';
+                            queryvars.currpkeylist = grouperPkeyList.split(',');
+                            queryvars.query_reason = 'grouper';
+                            groupedStore.store.loadData(queryvars);
+                            """,
+                            grouperPkeyList=f'^#{groupedTh}_grid.grouperPkeyList')
 
-        bar = gth.top.bar.replaceSlots('#','2,viewsSelect,*,configuratorPalette,2,searchOn,confMenu,2')
-        fcode = gth.attributes.get('frameCode')
-        self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
+        downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
+        downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+        #fcode = gth.attributes.get('frameCode')
+        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
-        bar = gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,confMenu,2')
-        self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
+        tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
+        tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
 
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
                             values='grid:Flat,tree:Hierarchical,conf:Toggle configurator',
-                            action="""
+                            action=f"""
                             let output;
                             if($1.fullpath=='conf'){{
                                 SET .output = 'grid';
@@ -303,7 +311,7 @@ class FrameGridTools(BaseComponent):
                                 return;
                             }}
                             SET .output = $1.fullpath;
-                        """.format(frameCode=frameCode))
+                        """)
                 
         #groupSelector,*,searchOn,2,ingranaggio
 
@@ -324,15 +332,20 @@ class FrameGridTools(BaseComponent):
         gridId = grid.attributes.get('nodeId')
         if toolbar:
             confBar = right.contentPane(region='top')
-            confBar = confBar.slotToolbar('viewsMenu,currviewCaption,*,defView,saveView,deleteView',background='whitesmoke',height='20px')
+            confBar = confBar.slotToolbar('2,viewsMenu,currviewCaption,*,optionMenu,2',background='whitesmoke',height='20px')
             confBar.currviewCaption.div('^.grid.currViewAttrs.caption',font_size='.9em',color='#666',line_height='16px')
-            confBar.defView.slotButton('!!Favorite View',iconClass='th_favoriteIcon iconbox star',
-                                            action='genro.grid_configurator.setCurrentAsDefault(gridId);',gridId=gridId)
-            confBar.saveView.slotButton('!!Save View',iconClass='iconbox save',
-                                            action='genro.grid_configurator.saveGridView(gridId);',gridId=gridId)
-            confBar.deleteView.slotButton('!!Delete View',iconClass='iconbox trash',
-                                        action='genro.grid_configurator.deleteGridView(gridId);',
+            menu = confBar.optionMenu.menudiv(iconClass='iconbox menubox gear',
+                                        tip='!![en]Commands')
+            menu.menuline('!!Favorite View',iconClass='th_favoriteIcon iconbox star',
+                                            action='genro.grid_configurator.setCurrentAsDefault(this.attr.gridId);',gridId=gridId)
+            menu.menuline('!!Save View',iconClass='iconbox save',
+                                            action='genro.grid_configurator.saveGridView(this.attr.gridId);',gridId=gridId)
+            menu.menuline('!!Delete View',iconClass='iconbox trash',
+                                        action='genro.grid_configurator.deleteGridView(this.attr.gridId);',
                                         gridId=gridId,disabled='^.grid.currViewAttrs.pkey?=!#v')
+            menu.menuline('!!Full configurator',iconClass='iconbox spanner',
+                                        action='genro.nodeById(this.attr.gridId).publish("configuratorPalette");',
+                                        gridId=gridId)
         if queryLimit is not False and (table==getattr(self,'maintable',None) or configurable=='*'):
             footer = right.contentPane(region='bottom',height='25px',border_top='1px solid silver',overflow='hidden').formbuilder(cols=1,font_size='.8em',
                                                 fld_color='#555',fld_font_weight='bold')
@@ -349,12 +362,14 @@ class FrameGridTools(BaseComponent):
 
 class FrameGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGridTools'
-    @extract_kwargs(top=True,grid=True,columnset=dict(slice_prefix=False,pop=True),footer=dict(slice_prefix=False,pop=True))
+    @extract_kwargs(top=True,grid=True,columnset=dict(slice_prefix=False,pop=True),footer=dict(slice_prefix=False,pop=True),editor=dict(slice_prefix=False))
     @struct_method
     def fgr_frameGrid(self,pane,frameCode=None,struct=None,storepath=None,dynamicStorepath=None,structpath=None,
                     datamode=None,table=None,viewResource=None,grid_kwargs=True,top_kwargs=None,iconSize=16,
                     footer_kwargs=None,columnset_kwargs=None,footer=None,columnset=None,fillDown=None,
-                    _newGrid=None,selectedPage=None,configurable=None,printRows=None,groupable=False,extendedLayout=True,**kwargs):
+                    _newGrid=None,selectedPage=None,configurable=None,printRows=None,
+                    groupable=False,extendedLayout=True,
+                    editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
         frame.center.stackContainer(selectedPage=selectedPage)
@@ -374,6 +389,7 @@ class FrameGrid(BaseComponent):
         grid_kwargs['selfsubscribe_archive'] = grid_kwargs.get('selfsubscribe_archive','this.widget.archiveSelectedRows();')
         #grid_kwargs['selfsubscribe_setSortedBy'] = """console.log($1.event);"""
         grid_kwargs.setdefault('selectedId','.selectedId')
+        grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
                                             title=grid_kwargs.pop('title','!!Grid'))
         grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,
@@ -472,14 +488,47 @@ class FrameGrid(BaseComponent):
         return frame
 
     @public_method
-    def remoteRowControllerBatch(self,handlerName=None,rows=None,**kwargs):
-        handler = self.getPublicMethod('rpc',handlerName)
+    def remoteRowControllerBatch(self,handlerName=None,rows=None,selectedQueries=None,rowIdentifier=None,**kwargs):
+        handler = self.getPublicMethod('rpc',handlerName) if handlerName else None
         result = Bag()
-        if not handler:
+        if not (handler or selectedQueries):
             return
-        for r in rows:
-            result.setItem(r.label,handler(row=r.value,row_attr=r.attr,**kwargs))
+        for r in self.utils.quickThermo(rows,maxidx=len(rows)):
+            value = r.value
+            if value is None:
+                value = Bag(r.attr)
+            value[rowIdentifier] = value[rowIdentifier] or r.attr.get(rowIdentifier)
+            if selectedQueries:
+                for queryNode in selectedQueries:
+                    self.handleSelectedParsQuery(value,queryNode)
+            value = value if not handler else handler(row=value,row_attr=r.attr,**kwargs)
+            result.setItem(r.label,value)
         return result
+
+    def handleSelectedParsQuery(self,value,queryNode):
+        qattr = dict(queryNode.attr)
+        columns = qattr.pop('columns')
+        table = qattr.pop('table')
+        if not columns:
+            return
+        pkey = value[qattr.pop('pkey')]
+        if not pkey:
+            return
+        tblobj = self.db.table(table)
+        columns = ','.join(tblobj.columnsFromString(columns))
+        dbenv_kw = dictExtract(qattr,'dbenv_',True)
+        qattr['pkey'] = pkey
+        with self.db.tempEnv(**dbenv_kw):
+            f = tblobj.query(columns=columns,where='${}=:pk'.format(tblobj.pkey),pk=pkey).fetch()
+        if not f:
+            return
+        kw = f[0]
+        for column,path in queryNode.value.items():
+            if not path.startswith('.'):
+                continue
+            resvalue = kw.get(column)
+            if resvalue is not None and resvalue!='':
+                value[path[1:]] = resvalue
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'

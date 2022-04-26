@@ -25,14 +25,14 @@
 Some useful operations on lists.
 """
 from __future__ import print_function
-from past.builtins import cmp
+from past.builtins import cmp,basestring
 from functools import cmp_to_key
 from builtins import range
-from past.builtins import basestring
 #from builtins import object
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
+from gnr.core.gnrexporter import BaseWriter
 import datetime
 import csv
 
@@ -346,7 +346,10 @@ class XlsReader(object):
                 row_types = sheet.row_types(lineno)
                 for i,c in enumerate(line):
                     if row_types[i] == self.XL_CELL_DATE:
-                        line[i] = datetime.datetime(*self.xldate_as_tuple(c,sheet.book.datemode))
+                        try:
+                            line[i] = datetime.datetime(*self.xldate_as_tuple(c,sheet.book.datemode))
+                        except:
+                            line[i] = None
                     if line[i]=='':
                         line[i] = None
                 last_line_empty = False
@@ -356,8 +359,125 @@ class XlsReader(object):
             elif self.compressEmptyRows:
                 if not last_line_empty:
                     last_line_empty = True
-                    print('b yield empty row')
                     yield []
+
+
+class XlsxReader(object):
+    """Read an XLSX file"""
+
+    def __init__(self, docname, mainsheet=None, compressEmptyRows=None, allEmptyRows=None, **kwargs):
+        from openpyxl import load_workbook
+        import os.path
+    #    self.XL_CELL_DATE = xlrd.XL_CELL_DATE
+    #    self.xldate_as_tuple = xlrd.xldate_as_tuple
+        self.docname = docname
+        self.dirname = os.path.dirname(docname)
+        self.basename, self.ext = os.path.splitext(os.path.basename(docname))
+        self.ext = self.ext.replace('.', '')
+        self.book = load_workbook(filename=self.docname,
+                                  read_only=True,
+                                  data_only=True,
+                                  keep_links=False)
+            # :param data_only: controls whether cells with formulae have either the formula (default) or the value stored the last time Excel read the sheet
+
+            # Unlike a normal workbook, a read-only workbook will use lazy loading.
+            # The workbook must be explicitly closed with the close() method.
+        self.compressEmptyRows = compressEmptyRows
+        self.allEmptyRows = allEmptyRows
+        self.sheets = {}
+
+        for sheetname in self.book.sheetnames:
+            self.addSheet(sheetname)
+            
+        mainsheet_name = self.book.active.title
+        self.setMainSheet(mainsheet_name)
+
+    def setMainSheet(self,sheetname):
+        if isinstance(sheetname, int):
+            sheetname = self.book.worksheets(sheetname).title
+        self.sheet_base_name = sheetname
+
+    def addSheet(self,sheetname):
+        sheet = self.book[sheetname]
+        linegen = self._sheetlines(sheet)
+        firstline = next(linegen)
+        headers = [slugify(header, sep='_') for header in firstline if header]
+        colindex = dict([(i,True)for i,h in enumerate(headers) if h])
+        index = dict()
+        errors = None
+        for i,k in enumerate(headers):
+            if k in index:
+                errors = 'duplicated column %s' %k
+            else:
+                index[k] = i
+        self.sheets[sheetname] = {'sheet': sheet,
+                                   'headers':headers,
+                                   'colindex':colindex,
+                                   'index':index,
+                                    'ncols':len(headers),
+                                    'nrows':0, #we dont pre-allocate sheet size
+                                    'errors':errors,
+                                    'linegen':linegen}
+
+    @property
+    def sheet(self):
+        return self.sheets[self.sheet_base_name]['sheet']
+
+    @property
+    def headers(self):
+        return self.sheets[self.sheet_base_name]['headers']
+
+    @property
+    def colindex(self):
+        return self.sheets[self.sheet_base_name]['colindex']
+
+    @property
+    def index(self):
+        return self.sheets[self.sheet_base_name]['index']
+
+    @property
+    def ncols(self):
+        return self.sheets[self.sheet_base_name]['ncols']
+
+    @property
+    def nrows(self):
+        return self.sheets[self.sheet_base_name]['nrows']
+
+    def __call__(self,sheetname=None):
+        s = self.sheets[sheetname or self.sheet_base_name]
+        for line in s['linegen']:
+            #row = [self.sheet.cell_value(r, c) for c in range(self.ncols)]
+            yield GnrNamedList(s['index'], [c for i,c in enumerate(line) if i in s['colindex']])
+            
+    def _sheetlines(self,sheet):
+        # itera tra le righe
+        last_line_empty = False
+        for lineno, line in enumerate(sheet.rows):
+            result = []
+            empty_flag = True
+            for cell in line:
+                value = cell.value  # cell attr:  is_date , data_type => s:string,n:null e numeric,d:date  
+                if value:
+                    # nota: il precedente [elem for elem in line if elem] considera anche gli zeri
+                    empty_flag = False
+
+                if value=='':
+                    result.append(None)
+                else:
+                    result.append(value)
+
+            if empty_flag:
+                # self.allEmptyRows e self.compressEmptyRows non possono essere entrambi False
+                if self.allEmptyRows:
+                    yield []
+                elif self.compressEmptyRows:
+                    if not last_line_empty:
+                        last_line_empty = True
+                        print('b yield empty row')
+                        yield []
+            else:
+                last_line_empty = False
+                yield result 
 
 
 class CsvReader(object):
@@ -554,17 +674,30 @@ class GnrNamedList(list):
             return list(self.values())     
 
 
-def getReader(file_path,filetype=None,delimiter=None,**kwargs):
+def getReader(file_path,filetype=None,**kwargs):
     import os.path
     filename,ext = os.path.splitext(file_path)
     if filetype=='excel' or not filetype and ext in ('.xls','.xlsx'):
-        reader = XlsReader(file_path,**kwargs)
+        if ext=='.xls':
+            reader = XlsReader(file_path,**kwargs)
+        else: # .xlsx
+            try:
+                import openpyxl
+                reader = XlsxReader(file_path,**kwargs)
+            except ImportError:
+                import sys
+                print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
+                reader = XlsReader(file_path,**kwargs)
     elif ext=='.xml':
         reader = XmlReader(file_path,**kwargs)
     else:
         dialect = None
         if filetype=='tab' or ext=='.tab':
             dialect = 'excel-tab'
-        reader = CsvReader(file_path,dialect=dialect,delimiter=delimiter,**kwargs)
-        reader.index = {slugify(k):v for k,v in list(reader.index.items())}
+        elif filetype == 'csv_auto':
+            with open(file_path) as csv_test:
+                dialect = csv.Sniffer().sniff(csv_test.read(1024))
+
+        reader = CsvReader(file_path,dialect=dialect,**kwargs)
+        reader.index = {slugify(k):v for k,v in reader.index.items()}
     return reader

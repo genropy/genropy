@@ -115,7 +115,7 @@ class FormHandler(BaseComponent):
         gridsubscribers = dict()
         if link_kwargs.get('event'):
             if self.isMobile:
-                gridattr['selfsubscribe_doubletap'] = """
+                gridattr['selfsubscribe_press'] = """
                             var rowIndex= $1.event.rowIndex;
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];
@@ -414,8 +414,10 @@ class FormHandler(BaseComponent):
 
 
     @struct_method          
-    def fh_slotbar_form_duplicate(self,pane,parentForm=True,**kwargs):
+    def fh_slotbar_form_duplicate(self,pane,parentForm=None,disabled=None,**kwargs):
+        disabled = disabled or '^#FORM.controller.locked'
         pane.formButton('!!Duplicate',iconClass='iconbox copy duplicate_record',opt_howmany=1,
+                            disabled=disabled,
                         ask=dict(title='How many copies',askOn='Shift',
                                         fields=[dict(name='opt_howmany',lbl='How many')]),
                        topic='navigationEvent',command='duplicate',parentForm=parentForm)

@@ -33,6 +33,7 @@ import os
 import re
 import time
 from datetime import datetime
+from gnr.core.gnrdict import dictExtract
 
 from gnr.core.gnrlang import gnrImport
 
@@ -714,7 +715,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                          sortedBy=None, excludeLogicalDeleted=True,excludeDraft=True,hardQueryLimit=None,
                          savedQuery=None,savedView=None, externalChanges=None,prevSelectedDict=None,
                          checkPermissions=None,queryBySample=False,weakLogicalDeleted=False,
-                         customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,**kwargs):
+                         customOrderBy=None,queryExtraPars=None,joinConditions=None,multiStores=None,
+                         saveRpcQuery=None,gridVisibleColumns=None,formulaVariants=None,countOnly=False,**kwargs):
         """TODO
         
         ``getSelection()`` method is decorated with the :meth:`public_method
@@ -771,6 +773,17 @@ class GnrWebAppHandler(GnrBaseProxy):
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
         wherebag = where if isinstance(where,Bag) else None
+        if formulaVariants:
+            for k,v in formulaVariants.items():
+                kwargs[k] = v.asDict()
+        if saveRpcQuery:
+            rpcquery = self._prepareRpcQuery(tblobj=tblobj, distinct=distinct, 
+                                            columns=gridVisibleColumns or columns, 
+                                             where=where, condition=condition,
+                              order_by=order_by, limit=limit,group_by=group_by, having=having,
+                              excludeLogicalDeleted=excludeLogicalDeleted,
+                              excludeDraft=excludeDraft,**kwargs)
+            return Bag(),dict(rpcquery=rpcquery.toXml())
         resultAttributes = {}
         if checkPermissions is True:
             checkPermissions = self.page.permissionPars
@@ -794,7 +807,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             debug = 'fromDb'
             if savedQuery:            
                 userobject_tbl = self.db.table('adm.userobject')
-                where = userobject_tbl.loadUserObject(code=savedQuery, 
+                where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery, 
                                 objtype='query', tbl=tblobj.fullname)[0]
                 if where['where']:
                     limit = where['queryLimit']
@@ -803,7 +816,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                     where = where['where']
             if savedView:
                 userobject_tbl = self.db.table('adm.userobject')
-                columns = userobject_tbl.loadUserObject(code=savedView, objtype='view', tbl=tblobj.fullname)[0]
+                columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView, objtype='view', tbl=tblobj.fullname)[0]
             if selectmethod:
                 selecthandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
@@ -823,17 +836,20 @@ class GnrWebAppHandler(GnrBaseProxy):
             if joinConditions:
                 joinConditions = self._decodeJoinConditions(tblobj,joinConditions,kwargs)
                 kwargs['joinConditions'] = joinConditions
+            
             selection_pars = dict(tblobj=tblobj, table=table, distinct=distinct, columns=columns, where=where,
                                       condition=condition,queryMode=queryMode,
                                       order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                                       relationDict=relationDict, sqlparams=sqlparams,
                                       recordResolver=recordResolver, selectionName=selectionName, 
                                       pkeys=pkeys, sortedBy=sortedBy, excludeLogicalDeleted=excludeLogicalDeleted,
-                                      excludeDraft=excludeDraft,checkPermissions=checkPermissions ,filteringPkeys=filteringPkeys,**kwargs)
-
+                                      excludeDraft=excludeDraft,checkPermissions=checkPermissions,
+                                      filteringPkeys=filteringPkeys,countOnly=countOnly,**kwargs)
             selection = selecthandler(**selection_pars)
+            if countOnly:
+                return Bag(),dict(table=table,selectionName=selectionName,totalrows=selection)
             if selection is False:
-                return Bag()
+                return Bag(),dict(table=table,selectionName=selectionName)
             elif selectmethod and isinstance(selection,list):
                 self._default_getSelection()
 
@@ -945,6 +961,59 @@ class GnrWebAppHandler(GnrBaseProxy):
 
         return columns,external_queries
     
+    def _prepareRpcQuery(self,tblobj=None, distinct=None, columns=None, where=None, condition=None,
+                              order_by=None, limit=None,group_by=None, having=None,
+                              excludeLogicalDeleted=True,excludeDraft=True,**kwargs):
+        query_pars = dict(distinct=distinct, condition=condition,
+                            columns=columns, 
+                            order_by=order_by, limit=limit, 
+                            group_by=group_by, 
+                            having=having,
+                            excludeLogicalDeleted=excludeLogicalDeleted,
+                            excludeDraft=excludeDraft,**kwargs)
+        decoded_query_pars = dict(query_pars)
+        where_pars = {}
+        condition_pars = {}
+        def findPars(n):
+            if n.attr.get('parname'):
+                where_pars[n.attr.get('parname')] = n.getValue()
+        textwhere, decoded_query_pars = self.app._decodeWhereBag(tblobj, where, decoded_query_pars)
+        where.walk(findPars)
+        if condition:
+            textwhere = '({}) AND ({})'.format(textwhere,condition)
+
+        q = tblobj.query(where=textwhere,**decoded_query_pars)
+        currenv = dict(self.db.currentEnv)
+        sqltext = q.sqltext
+        allpars = re.findall(r':(\S\w*)(\W|$)', q.sqltext)
+        env_pars = {k[4:]:currenv[k[4:]] for k,chunk in allpars if k[4:] in currenv}
+        if condition:
+            for par,chunk in re.findall(r':(\S\w*)(\W|$)', condition):
+                condition_pars[par] = query_pars[par]
+        if not where_pars:
+            for par,chunk in allpars:
+                if par in decoded_query_pars and  par not in env_pars and par not in condition_pars:
+                    where_pars[par] = decoded_query_pars[par]
+        other_pars = {}
+        for k,v in query_pars.items():
+            if k not in where_pars and\
+                k not in condition_pars and \
+                k not in env_pars:
+                other_pars[k] = v
+        rpcquery = Bag()
+        rpcquery['columns'] = columns
+        rpcquery['query_where'] = where
+        rpcquery['query_condition'] = condition
+        rpcquery['query_pars'] = Bag(query_pars)
+        rpcquery['where_pars'] = Bag(where_pars)
+        rpcquery['condition_pars'] = Bag(condition_pars)
+        rpcquery['env_pars'] = Bag(env_pars)
+        rpcquery['other_pars'] = Bag(other_pars)
+        rpcquery['where_as_html'] = self.db.whereTranslator.toHtml(tblobj,where)
+        rpcquery['sqlquery'] = sqltext
+        return rpcquery
+
+
     def _externalQueries(self,selection=None,external_queries=None):
         storedict = dict()
         for r in selection.data:
@@ -1011,9 +1080,9 @@ class GnrWebAppHandler(GnrBaseProxy):
                               relationDict=None, sqlparams=None,recordResolver=None, selectionName=None,
                                pkeys=None,filteringPkeys=None, queryMode=None,
                               sortedBy=None, sqlContextName=None,
-                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,
-                              **kwargs):
+                              excludeLogicalDeleted=True,excludeDraft=True,_aggregateRows=True,countOnly=False,**kwargs):
         sqlContextBag = None
+        _qmpkeys = None
         if sqlContextName:
             sqlContextBag = self._getSqlContextConditions(sqlContextName)
 
@@ -1037,16 +1106,6 @@ class GnrWebAppHandler(GnrBaseProxy):
             where, kwargs = self._decodeWhereBag(tblobj, where, kwargs)
         if condition and not pkeys:
             where = ' ( %s ) AND ( %s ) ' % (where, condition) if where else condition
-        if queryMode in ('U','I','D'):
-            _qmpkeys = self.page.freezedPkeys(tblobj,selectionName)
-            queryModeCondition = '( $%s IN :_qmpkeys )' %tblobj.pkey
-            kwargs['_qmpkeys'] = _qmpkeys
-            if queryMode == 'U':
-                where =' ( %s ) OR ( %s ) ' % (where, queryModeCondition)
-            elif queryMode == 'I':
-                where =' ( %s ) AND ( %s ) ' % (where, queryModeCondition)
-            elif queryMode == 'D':
-                where =' ( %s ) AND NOT ( %s ) ' % (queryModeCondition,where)  
         if filteringPkeys:
             if isinstance(filteringPkeys,basestring):
                 filteringWhere = None
@@ -1079,9 +1138,27 @@ class GnrWebAppHandler(GnrBaseProxy):
                              order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                              relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
                              excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
+        if countOnly:
+            return query.count()
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
         selection = query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
+        if queryMode in ('U','I','D'):
+            _qmpkeys = set(self.page.freezedPkeys(tblobj,selectionName))
+            currentpkeys = set(selection.output('pkeylist'))
+            if queryMode=='U':
+                rpkeys = _qmpkeys.union(currentpkeys)
+            elif queryMode=='I':
+                rpkeys = _qmpkeys.intersection(currentpkeys)
+            else:
+                rpkeys = _qmpkeys.difference(currentpkeys)
+            query = tblobj.query(columns=columns, distinct=distinct, where='${} IN :_rpkeys'.format(tblobj.pkey),
+                              _rpkeys=rpkeys,
+                             order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
+                             relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
+                             excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
+            selection = query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
+
         #if sqlContextBag:
         #    THIS BLOCK SHOULD ALLOW US TO HAVE AN APPLYMETHOD INSIDE SQLCONTEXT.
         #    IT DOES NOT WORK BUT WE THINK IT'S USELESS
@@ -1153,6 +1230,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
                     if row[fld]:
+                        _class = row[fld] if _class is True else _class
                         _customClasses.append(_class)
 
             if numberedRows or not pkey:
@@ -1262,8 +1340,8 @@ class GnrWebAppHandler(GnrBaseProxy):
                         if '_loadedValue' in n.attr:
                             row[n.label] = n.value
         if updated:
-            pkeys = [pkey for pkey in list(updated.keys()) if pkey]
-            tblobj.batchUpdate(cb,where='$%s IN :pkeys' %pkeyfield,pkeys=pkeys,bagFields=True)
+            pkeys = [pkey for pkey in updated.keys() if pkey]
+            tblobj.batchUpdate(cb,_pkeys=pkeys,bagFields=True)
         if inserted:
             for k,r in list(inserted.items()):
                 tblobj.insert(r)
@@ -1366,9 +1444,11 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def insertRecord(self,table=None,record=None,**kwargs):
         tblobj = self.db.table(table)
-        tblobj.insert(record)
+        newrecord = tblobj.newrecord()
+        newrecord.update(record)
+        tblobj.insert(newrecord)
         self.db.commit()
-        return record[tblobj.pkey]
+        return newrecord[tblobj.pkey]
 
     @public_method
     def duplicateRecord(self,pkey=None,table=None,**kwargs):
@@ -1837,7 +1917,8 @@ class GnrWebAppHandler(GnrBaseProxy):
     def updateRecord(self,table=None,pkey=None,record=None,**kwargs):
         tblobj = self.db.table(table)
         with tblobj.recordToUpdate(pkey) as recToUpd:
-            recToUpd.update(record)
+            for k,v in record.items():
+                recToUpd[k] = v
         self.db.commit()
 
 
@@ -1849,7 +1930,10 @@ class GnrWebAppHandler(GnrBaseProxy):
             table = query.attr.pop('table')
             tblobj = self.db.table(table)
             columns = ','.join(tblobj.columnsFromString(columns))
-            result[query.label] = tblobj.query(columns=columns,**query.attr).fetchAsBag('pkey')
+            qattr = dict(query.attr)
+            dbenv_kw = dictExtract(qattr,'dbenv_',True)
+            with self.db.tempEnv(**dbenv_kw):
+                result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
     @public_method
@@ -2028,11 +2112,11 @@ class GnrWebAppHandler(GnrBaseProxy):
         return self.page.rmlTemplate(path=template, record=record)
 
     @public_method
-    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,
+    def includedViewAction(self, action=None, export_mode=None, respath=None, table=None, data=None,columns=None,
+                                selectedPkeys=None,hiddencolumns=None,
                                selectionName=None, struct=None,datamode=None,localized_data=None, downloadAs=None,
-                               selectedRowidx=None, **kwargs):
+                               selectedRowidx=None,limit=None, sortBy=None,**kwargs):
         """TODO
-        
         :param action: TODO
         :param export_mode: TODO
         :param respath: TODO
@@ -2055,10 +2139,17 @@ class GnrWebAppHandler(GnrBaseProxy):
             respath = 'action/_common/%s' % action
         res_obj = self.page.site.loadTableScript(page=self.page, table=table,respath=respath, class_name='Main')
         if selectionName:
-            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx).output('grid')
+            data = self.page.getUserSelection(selectionName=selectionName,selectedRowidx=selectedRowidx,limit=limit,sortBy=sortBy)
+        elif selectedPkeys and columns:
+            query_columns = [columns]
+            if hiddencolumns:
+                query_columns.append(hiddencolumns)
+                res_obj.hiddencolumns = hiddencolumns.split(',')
+            res_obj.selectedPkeys = selectedPkeys
+            data = res_obj.get_selection(columns=','.join(query_columns))
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
-                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table)
+                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table,**kwargs)
 
 
 class BatchExecutor(object):
