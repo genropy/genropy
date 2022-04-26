@@ -2148,7 +2148,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             data = res_obj.get_selection(columns=','.join(query_columns))
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
-                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table)
+                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table,**kwargs)
 
 
 class BatchExecutor(object):

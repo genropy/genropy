@@ -32,6 +32,7 @@ class FrameGridTools(BaseComponent):
                                 ask=dict(title='Export selection',skipOn='Shift',
                                         fields=[dict(name='opt_downloadAs',lbl='Download as',placeholder=placeholder),
                                                 dict(name='opt_export_mode',wdg='filteringSelect',values='xls:Excel,csv:CSV',lbl='Mode'),
+                                                dict(name='opt_csv_colseparator', lbl='Separator',width='4em', hidden="^.opt_export_mode?=#v!='csv'"),
                                                 dict(name='opt_allRows',label='All rows',wdg='checkbox'),
                                                 dict(name='opt_localized_data',wdg='checkbox',label='Localized data')]),
                                 **kwargs) 
