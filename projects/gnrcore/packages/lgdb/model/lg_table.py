@@ -63,7 +63,13 @@ class Table(object):
 
 
     @public_method(caption='Update legacy count',_lockScreen=dict(thermo=True))
-    def actionMenu_updateLegacyCount(self,pkey=None,selectedPkeys=None,**kwargs):            
+    def actionMenu_updateLegacyCount(self,pkey=None,selectedPkeys=None,
+                    selectionName=None,selectedRowidx=None,**kwargs):   
+        if selectionName:
+            selection = self.db.currentPage.getUserSelection(selectionName=selectionName,
+                                                    selectedRowidx=selectedRowidx, 
+                                                    table=self)
+            selectedPkeys = selection.output('pkeylist')
         f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys,for_update=True).fetch()  
         legacy_db = f[0]['legacy_db']
         legacy_schema = f[0]['legacy_schema']
@@ -84,8 +90,15 @@ class Table(object):
         self.update(tbl,oldtbl)
 
     @public_method(caption='Import columns and relations',_lockScreen=dict(thermo=True))
-    def actionMenu_importColumns(self,pkey=None,selectedPkeys=None,**kwargs):
-        selectedPkeys = selectedPkeys or [pkey]
+    def actionMenu_importColumns(self,pkey=None,selectedPkeys=None,
+                    selectionName=None,selectedRowidx=None,**kwargs):
+        if selectionName:
+            selection = self.db.currentPage.getUserSelection(selectionName=selectionName,
+                                                    selectedRowidx=selectedRowidx, 
+                                                    table=self)
+            selectedPkeys = selection.output('pkeylist')
+        else:
+            selectedPkeys = selectedPkeys or [pkey]
         f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys).fetch()
         legacy_db = f[0]['legacy_db']
         legacy_schema = f[0]['legacy_schema']
