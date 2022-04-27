@@ -3,7 +3,10 @@
 #
 import sys
 from pdf2image import convert_from_path
-from PIL import Image
+try:
+    from PIL import Image
+except:
+    raise Exception('PIL is missing. "pip install Pillow" is required')
 import zbarlight
 import requests
 from backports import tempfile
