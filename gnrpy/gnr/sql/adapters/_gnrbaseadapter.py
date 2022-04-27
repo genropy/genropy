@@ -423,6 +423,12 @@ class SqlDbAdapter(object):
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
+    @property
+    def colcache(self):
+        if not hasattr(self, '_colcache'):
+            self._colcache = dict()
+        return self._colcache
+
     def update(self, dbtable, record_data, pkey=None,**kwargs):
         """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
@@ -439,7 +445,11 @@ class SqlDbAdapter(object):
             sqlcolname = tblobj.sqlnamemapper.get(k)
             sql_par_prefix = ':'
             if sqlcolname:
-                sql_value = tblobj.column(k).attributes.get('sql_value')
+                if sqlcolname in self.colcache:
+                    sql_value = self.colcache[sqlcolname]
+                else:
+                    sql_value = tblobj.column(k).attributes.get('sql_value')
+                    self.colcache[sqlcolname] = sql_value
                 if sql_value:
                     sql_par_prefix = ''
                     k = sql_value

@@ -76,6 +76,7 @@ class DictCursorWrapper(Cursor):
         for key in list(args.keys()):
             if not isinstance(args[key], (int,str,list,tuple, bool, float, Decimal)):
                 args[key] = None
+        print(operation, args)
         return super(DictCursorWrapper, self).execute(operation, args)
 
     def _build_index(self):
@@ -117,9 +118,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #kwargs['charset']='utf8'
         #conn = pymssql.connect(**kwargs)
         kwargs['server']=kwargs.pop('host')
+        kwargs.pop('implementation', None)
         try:
             conn = _mssql.connect(**kwargs)
         except Exception as e:
+            raise
             raise GnrNonExistingDbException(kwargs['database'])
         return DictConnectionWrapper(conn, False, False)
         
@@ -446,10 +449,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
 
 class GnrWhereTranslator(GnrWhereTranslator_base):
-    def op_startswith(self, column, value, dtype, sqlArgs,tblobj):
+    def op_startswith(self, column, value, dtype, sqlArgs,tblobj, parname=None):
         "Starts with"
-        return '%s LIKE :%s' % (column, self.storeArgs('%s%%' % value, dtype, sqlArgs))
+        return '%s LIKE :%s' % (column, self.storeArgs('%s%%' % value, dtype, sqlArgs, parname=parname))
 
-    def op_contains(self, column, value, dtype, sqlArgs,tblobj):
+    def op_contains(self, column, value, dtype, sqlArgs,tblobj, parname=None):
         "Contains"
-        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs))
+        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs, parname=parname))
