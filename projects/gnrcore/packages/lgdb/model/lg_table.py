@@ -28,6 +28,7 @@ class Table(object):
         tbl.column('legacy_count',dtype='L',name_long='Leg.Count')
         tbl.aliasColumn('legacy_db','@lg_pkg.legacy_db',static=True)
         tbl.aliasColumn('legacy_schema','@lg_pkg.legacy_schema',static=True)
+        tbl.formulaColumn('full_name',"$lg_pkg || '.'|| $name",static=True)
         tbl.formulaColumn('n_columns',dtype='L',
             select=dict(table='lgdb.lg_column',
             columns='COUNT(*)', where='$lg_table_id = #THIS.id'),
@@ -144,13 +145,15 @@ class Table(object):
             decimals = col_dict.pop('decimals', 0)
             description = col_dict.pop('description', None)
             dtype = col_dict['dtype']
-            if dtype == 'A':
+            if dtype == 'A' and length>0:
                 col_dict['size'] = '0:%s' % length
             elif dtype == 'C':
                 col_dict['dtype'] = 'A'
                 col_dict['size'] = length
-            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'], description=description,
-                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=legacy_schema,tbl=tbl_name,name=colname),
+            colname = colname.lower()
+            colname = colname.replace(' ','_').replace('.','_')
+            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],size=col_dict.get('size'), description=description,
+                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=tbl['lg_pkg'],tbl=tbl_name,name=colname),
                                                 lg_table_id=tbl['id']))
 
 

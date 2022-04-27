@@ -11,6 +11,7 @@ class View(BaseComponent):
         r.fieldcell('lg_table_id')
         r.fieldcell('name', width='8em')
         r.fieldcell('data_type', name='T', width='3em')
+        r.fieldcell('size',name='Size',width='4em')
         r.fieldcell('old_type', name='OT', width='3em')
         r.fieldcell('description', width='15em', edit=True)
         r.fieldcell('notes', width='40em', edit=dict(tag='simpleTextArea', height='80px'))

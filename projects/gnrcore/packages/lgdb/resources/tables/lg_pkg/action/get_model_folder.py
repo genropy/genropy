@@ -22,6 +22,7 @@ class Main(BaseResourceAction):
         pkg = self.get_selection_pkeys()[0]
         self.resultNode= self.page.site.storageNode('page:{}'.format(pkg))
         self.zipNode= self.page.site.storageNode('page:{}.zip'.format(pkg))
+        self.tables_records = self.db.table('lgdb.lg_table').query(where='$lg_pkg=:pkg',pkg=pkg).fetch()
         self.columns_records = self.db.table('lgdb.lg_column'
                                 ).query(where='@lg_table_id.lg_pkg=:pkg',
                                         pkg=pkg,

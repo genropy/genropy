@@ -527,7 +527,7 @@ class SqlDbAdapter(object):
         self.dbroot.execute('VACUUM ANALYZE %s;' % table)
 
     def string_agg(self,fieldpath,separator):
-        return f"string_agg({fieldpath},'{separator}')"
+        return f"STRING_AGG({fieldpath},'{separator}')"
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
