@@ -138,7 +138,6 @@ class Table(object):
         gnrlist.sortByItem(columns, 'position')
         lg_column = self.db.table('lgdb.lg_column')
         lg_column.deleteSelection('lg_table_id',tbl['id'])
-        print(x)
         for col_dict in columns:
             col_dict.pop('position')
             colname = col_dict.pop('name')
