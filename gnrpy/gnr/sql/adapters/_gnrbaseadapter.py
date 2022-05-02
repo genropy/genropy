@@ -529,6 +529,11 @@ class SqlDbAdapter(object):
     def string_agg(self,fieldpath,separator):
         return f"STRING_AGG({fieldpath},'{separator}')"
 
+    def cast_to_varchar(self,fieldpath,n=None):
+        if not n:
+            return f'CAST({fieldpath} AS TEXT)'
+        return f'CAST({fieldpath} AS VARCHAR({n}))'
+
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
         m_pkg, m_tbl, c_name, m_fld, o_pkg, o_tbl, o_fld)

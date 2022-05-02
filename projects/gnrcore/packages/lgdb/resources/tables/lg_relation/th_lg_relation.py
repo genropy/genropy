@@ -22,6 +22,22 @@ class View(BaseComponent):
         return dict(column='relation_column', op='contains', val='')
 
 
+class ViewFromRelatingColumn(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('related_column', width='20em', name='To column',edit=True)
+        r.fieldcell('rel_name', name='Relation name', width='8em',edit=True)
+        r.fieldcell('rel_mode',edit=True)
+        r.fieldcell('rel_on_delete', width='8em',edit=True)
+
+    def th_order(self):
+        return 'related_column'
+
+    def th_query(self):
+        return dict(column='relation_column', op='contains', val='')
+
+
+
 class Form(BaseComponent):
 
     def th_form(self, form):

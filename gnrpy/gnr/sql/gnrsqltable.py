@@ -32,9 +32,8 @@ from past.utils import old_div
 #from builtins import object
 import os
 import re
-
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
+from gnr.core.gnrlang import GnrObject,importModule,getUuid,uniquify, MinValue
 from gnr.core.gnrdecorator import deprecated,extract_kwargs
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract

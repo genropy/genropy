@@ -425,7 +425,10 @@ class TableHandlerGroupBy(BaseComponent):
         if not group_list:
             return False
         if keep_pkeys:
-            pkeylist_column = self.db.adapter.string_agg(f'CAST(${self.db.table(table).pkey} AS TEXT)',',')
+            tblobj = self.db.table(table)
+            with self.db.tempEnv(currentImplementation=tblobj.dbImplementation):
+                castcol = self.db.adapter.cast_to_varchar(f'${tblobj.pkey}')
+                pkeylist_column = self.db.adapter.string_agg(castcol,',')
             columns_list.append(f"{pkeylist_column} AS _pkeylist")
         kwargs['columns'] = ','.join(columns_list)
         kwargs['group_by'] = ','.join(group_list)
