@@ -8,3 +8,4 @@ _static
 *.pyo
 gnrpy/.cache
 .vscode
+.python-version

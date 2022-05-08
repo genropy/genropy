@@ -23,25 +23,12 @@ from future import standard_library
 standard_library.install_aliases()
 #from builtins import object
 #import gnr.web.gnrcookie as Cookie
-from gnr.web.secure_cookie.securecookie import SecureCookie
+
+from gnr.web.gnrcookie import BaseCookie, MarshalCookie
 #from six.moves.http_cookies import SimpleCookie
 import marshal
 # import apache
 
-class BaseCookie(object):
-    def __init__(self, value=None):
-        self._value = value
-
-    def output(self):
-        return self.value.encode('ascii')
-
-class MarshalCookie(SecureCookie):
-    serialization_method = marshal
-
-    def output(self):
-        return self.serialize()
-
-    
 
 
 cookie_types = {'marshal': MarshalCookie,
@@ -141,7 +128,8 @@ class GnrWebResponse(object):
 
     def add_cookie(self, cookie, **kw):
         res = self._response
-        if not res.headers.has_key("Set-Cookie"):
+        print(res.headers)
+        if "Set-Cookie" in res.headers:
             res.headers.add("Cache-Control", 'no-cache="set-cookie"')
         for k in ("version", "path", "domain", "secure",
             "comment",  "max_age", "expires",
