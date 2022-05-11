@@ -167,8 +167,6 @@ class GnrWebPage(GnrBaseWebPage):
         self.response.add_header('Pragma', 'no-cache')
         if self.site.config['x_frame_options']:
             self.response.add_header('X-Frame-Options', self.site.config['x_frame_options'])
-        elif not boolean(self.site.config['x_frame_options?disable']):
-            self.response.add_header('X-Frame-Options', 'SAMEORIGIN')
         self._htmlHeaders = []
         self._pendingContext = []
         self.local_datachanges = []
