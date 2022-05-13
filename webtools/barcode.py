@@ -16,7 +16,10 @@ from pystrich.code128 import Code128Encoder
 from pystrich.datamatrix import DataMatrixEncoder
 from pystrich.qrcode import QRCodeEncoder
 from pystrich.ean13 import EAN13Encoder
-from PIL import Image
+try:
+    from PIL import Image
+except:
+    raise Exception('PIL is missing. "pip install Pillow" is required')
 import tempfile
 import mimetypes
 from io import BytesIO

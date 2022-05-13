@@ -3,7 +3,9 @@
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from time import sleep
-from imdb import IMDb
+
+from gnr.core.gnrlang import GnrException
+
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
@@ -54,6 +56,10 @@ class GnrCustomWebPage(object):
 
     @public_method
     def getMovieId(self,_querystring=None,**kwargs):
+        try:
+            from imdb import IMDb
+        except:
+            raise GnrException('This test requires library imdb')
         ia = IMDb()
         result = Bag()
         movies = ia.search_movie(_querystring)
@@ -79,3 +85,20 @@ class GnrCustomWebPage(object):
         for day in weekdays:
             result.setItem('w_%s' %(day), None, caption=day, _pkey='%s' %(day))
         return result,dict(columns='caption', headers='Weekday')
+
+    def test_4_remoteSelect_files(self,pane):
+        "Define a Rpc method and use it in remoteSelect to get package name"
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.filteringSelect(value='^.dirname', lbl='Directory name', values='alpha:Alpha,beta:Beta')
+        fb.remoteSelect(value='^.file',width='25em',lbl='File',
+                        condition_dirname='=.dirname',
+                        method=self.getFiles,
+                        hasDownArrow=True)
+
+    @public_method
+    def getFiles(self,dirname=None,**kwargs):
+        result=Bag()
+        dirnode = self.site.storageNode('rsrc:pkg_test','tables','prov_test','remote_test',dirname)
+        for fn in dirnode.children():
+            result.setItem(fn.cleanbasename, None, caption=fn.cleanbasename.title(), _pkey=fn.basename)
+        return result,dict(columns='caption', headers='File')
