@@ -1,14 +1,18 @@
 # encoding: utf-8
-def config(root,application=None):
-    test = root.branch(u"!!Tests", tags="_DEV_")
-    test.branch("Batch", pkg="test", dir='batch')
-   #test.branch("Components", pkg="test", dir='components')
-   #test.branch("Datastore elements", pkg="test", dir='datastore')
-   #test.branch("Dojo", pkg="test", dir='dojo')
-   #test.branch("Drag & Drop", pkg="test", dir='drag_drop')
-   #test.branch("HTML", pkg="test", dir='html')
-   #test.branch("Input fields", pkg="test", dir='inputfields')
-   #test.branch("Layout", pkg="test", dir='layout')
-   #test.branch("Path", pkg="test", dir='path')
-   #test.branch("Services", pkg="test", dir='services')
-   #test.branch("Websocket", pkg="test", dir='websocket')
+class Menu(object):
+    def config(self,root,**kwargs):
+        tests = root.branch("!!Tests", tags="_DEV_")
+        tests.directoryBranch("Batch", folder="batch")
+        tests.directoryBranch("Components", folder="components")
+        tests.directoryBranch("Datastore elements", folder="datastore")
+        tests.directoryBranch("Dojo", folder="dojo")
+        tests.directoryBranch("Drag & Drop", folder="drag_drop")
+        tests.directoryBranch("Gnr widgets", folder="gnrwdg")
+        tests.directoryBranch("HTML", folder="html")
+        tests.directoryBranch("Input fields", folder="inputfields")
+        tests.directoryBranch("Layout", folder="layout")
+        tests.directoryBranch("Path", folder="path")
+        tests.directoryBranch("Services", folder="services")
+        tests.directoryBranch("Tools", folder="tools")
+        tests.directoryBranch("Websocket", folder="websocket")
+

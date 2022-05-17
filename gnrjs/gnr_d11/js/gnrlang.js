@@ -2126,6 +2126,9 @@ function getRandomColor() {
 }
 
 function flattenString(str,forbidden,replacer){
+    if(forbidden===true){
+        return str.replace(/[^\w\s]/gi, ' ').trim().replaceAll(' ','_').toLowerCase();
+    }
     replacer = replacer || '_';
     forbidden = forbidden || ['.'];
     var result = str;
@@ -2136,6 +2139,7 @@ function flattenString(str,forbidden,replacer){
     });
     return result;
 }
+
 
 function canAccessIFrame(iframe) {
     var html = null;

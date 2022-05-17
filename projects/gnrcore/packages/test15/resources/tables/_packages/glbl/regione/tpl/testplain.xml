@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><varsbag><g86porrn9l _pkey="g86porrn9l"><fieldpath dtype="::NN">nome</fieldpath>
+<dtype dtype="::NN">A</dtype>
+<fieldname dtype="::NN">Nome</fieldname>
+<varname dtype="::NN">nome</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></g86porrn9l></varsbag>
+<content>Benvenuto 
+nella regione $nome</content>
+<content_css></content_css>
+<metadata><email><subject _T="NN"></subject>
+<to_address _T="NN"></to_address>
+<from_address _T="NN"></from_address>
+<cc_address _T="NN"></cc_address>
+<bcc_address _T="NN"></bcc_address>
+<attachments _T="NN"></attachments></email></metadata>
+<parametersbag _T="NN"></parametersbag>
+<email><attached_reports _T="BAG"></attached_reports></email>
+<compiled><main maintable="glbl.regione" locale="it-IT" virtual_columns="" columns="$nome" formats="{}::JS" masks="{}::JS" editcols="{}::JS" df_templates="{}::JS" dtypes='{"nome": "A"}::JS'>Benvenuto 
+nella regione $nome</main></compiled></GenRoBag>

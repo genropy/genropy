@@ -3277,11 +3277,49 @@ dojo.declare("gnr.widgets._BaseTextBox", gnr.widgets.baseDojo, {
             this.displayMessage_replaced(message);
         }
     },
+
+    handleSwitch:function(widget){
+        let sourceNode = widget.sourceNode;
+        var sw = objectExtract(sourceNode.attr,'switch_*',true);
+        var switches = {};
+        for(var k in sw){
+            var ks = k.split('_');
+            if(ks.length==1){
+                switches[k] = {'search':new RegExp(sw[k])};
+                objectUpdate(switches[k],objectExtract(sourceNode.attr,'switch_'+k+'_*',true));
+                if(switches[k].action){
+                    switches[k].action = funcCreate(switches[k].action,'match',sourceNode);
+                }
+            }
+        }
+
+        switches = objectNotEmpty(switches)?switches:null;
+        if(switches){
+            widget._switches = switches;
+            dojo.connect(widget.focusNode,'onkeydown',widget,'checkSwitchKey');
+        }
+        
+    },
+
     connectFocus: function(widget, savedAttrs, sourceNode) {
         if (sourceNode.attr._autoselect && !genro.isMobile) {
             dojo.connect(widget, 'onFocus', widget, function(e) {
                 setTimeout(dojo.hitch(this, 'selectAllInputText'), 1);
             });
+        }
+    },
+    mixin_checkSwitchKey:function(evt){
+        let currval = this.getValue()+evt.key;
+        for (var sw in this._switches){
+            var sobj = this._switches[sw];
+            var m = currval.match(sobj.search);
+            if(m){
+                dojo.stopEvent(evt);
+                evt.preventDefault();
+                if(sobj.action){
+                    sobj.action(m);
+                }
+            }
         }
     },
 
@@ -3305,6 +3343,7 @@ dojo.declare("gnr.widgets._BaseTextBox", gnr.widgets.baseDojo, {
             widget.focusNode.setAttribute('autocomplete','off');
             widget.focusNode.setAttribute('autocorrect','off');
         }
+        this.handleSwitch(widget);
         this.connectFocus(widget, savedAttrs, sourceNode);
         if(savedAttrs.shortcuts){
             setTimeout(function(){
@@ -3577,6 +3616,25 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
         this._domtag = 'input';
         this._dojotag = 'NumberTextBox';
     },
+
+    /*onBuilding:function(sourceNode){
+        if(!sourceNode.attr.formulaBox){
+            return;
+        }
+        sourceNode.freeze();
+        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let box = cm._('menuItem',{})._('div',{'padding':'5px'});
+        var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px',inMenuLine:true});
+        let formulaValue = `${sourceNode.attr.value}?_formula`;
+        fb.addField('textbox',{value:formulaValue,width:'20em',
+                            lbl:_T('Formula')});
+        sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
+                                         formula:'funcApply(f)',
+                                         f:formulaValue,_if:'f'});
+        sourceNode.unfreeze(true);
+
+    },*/
+
     creating: function(attributes, sourceNode) {
         attributes._class = attributes._class ? attributes._class + ' numberTextBox' : 'numberTextBox';
         var format = objectPop(attributes,'format');

@@ -1204,6 +1204,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         dropAreaKw.rpc_row_tag= '=.row_tag';
 
         objectUpdate(dropAreaKw,objectExtract(kw,'drop_*',false,true));
+        objectUpdate(dropAreaKw,objectExtract(kw,'rpc_*',false,true));
         dropAreaKw.onResult = function(result){
                                 if(result.currentTarget.responseText){
                                     gnrwdg.onImportCheck(new gnr.GnrBag(result.currentTarget.responseText));
@@ -3432,10 +3433,11 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             if(lnumber>max_lnumber){
                 lnumber = max_lnumber;
             }
-            var letterhead_page = letterheads.getItem('#'+lnumber);
+            var letterhead_page = letterheads.getItem('#'+lnumber).replaceAll('#p','$p');
             this.sourceBag.setItem('p',rn.childElementCount+1);
+            
             p.innerHTML = dataTemplate(letterhead_page,this.sourceBag,null,true);
-            var p = p.children[0];
+            p = p.children[0];
             content_node = dojo.query('div[content_node=t]',p)[0];
         }else{
             genro.dom.addClass(p,'pe_pages');
@@ -3567,6 +3569,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote:'te_chunkEditorPane',
                     remote_table:table,
                     remote_paletteId:paletteId,
+                    remote_plainText:sourceNode.attr.plainText,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
@@ -3700,6 +3703,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         kw._tplpars.asSource =  kw._tplpars.editable!=null;
         
         kw._class = (kw._class || '') + ' selectable'
+        if(kw.plainText){
+            kw._class += ' plainTextChunk';
+        }
         var dataProvider = objectPop(kw,'dataProvider');
         if(dataProvider){
             dataProvider = sourceNode.currentFromDatasource(dataProvider);
@@ -3760,7 +3766,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                this.template = this.template || '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
+                this.template = this.template || emptychunk;
             }
         };
         sourceNode.updateTemplate = function(){
@@ -6957,8 +6964,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
     },
     
     onExternalChange:function(changelist){
-        var eventdict = {};
-        var dbevt,pkeys,wasInSelection,willBeInSelection;
+        var willBeInSelection;
         var insOrUpdKeys = [];
         var delKeys = [];
         var data = this.getData();
@@ -7083,7 +7089,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                 changedRows[rowNode.attr._pkey] = rowNode;
                                 if(!isEqual(rowNode.attr[attrname],willBeInSelectionNode.attr[attrname])){
                                     if(rowValue instanceof gnr.GnrBag){
-                                        var editedNode = rowValue.getNode(attrname);
+                                        let editedNode = rowValue.getNode(attrname);
                                         if(editedNode){
                                             editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                         }
@@ -7092,7 +7098,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
                                         newattr['_customClass_'+attrname] = 'externalChangedCell';
                                     }
                                  }else if(rowValue instanceof gnr.GnrBag){
-                                     var editedNode = rowValue.getNode(attrname);
+                                     let editedNode = rowValue.getNode(attrname);
                                      if(editedNode){
                                         editedNode.updAttributes({'_loadedValue':objectPop(newattr,attrname)},false);
                                      }

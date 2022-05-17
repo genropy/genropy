@@ -75,17 +75,20 @@ class Form(BaseComponent):
         fb.field('description',colspan=2)
         fb.field('deadline_days',width='6em')
         fb.field('default_priority',width='10em')
+        fb.br()
         fb.field('default_tag',condition='$child_count = 0 AND $isreserved IS NOT TRUE',
                 tag='dbselect',
                 dbtable='adm.htag',
                 alternatePkey='hierarchical_code',
                 hasDownArrow=True,
                 validate_notnull=True)
-
+        fb.field('show_to_all_tag',html_label=True)
+        implementors = self.db.table('orgn.action_type').action_implementors()
+        fb.field('implementor',tag='filteringSelect',values=','.join([f'{key}:{name}' for key,name,handler in implementors]))
         restrictions = self.db.table('orgn.annotation').getLinkedEntities()
         if restrictions:
-            fb.field('restrictions',tag='checkBoxText',values=restrictions,popup=True,cols=1,colspan=2,width='100%')
-        fb.field('show_to_all_tag',html_label=True)
+            fb.field('restrictions',tag='checkBoxText',values=restrictions,popup=True,cols=1,colspan=3,width='100%')
+
         fb.field('extended_description',tag='simpleTextArea',lbl='!!Extended description',colspan=3,width='100%')
         fb.div(height='17px',width='4em',lbl='Background',
                border='1px solid gray',
@@ -96,7 +99,21 @@ class Form(BaseComponent):
 
         topright = topbc.roundedGroupFrame(title='!!Text template',region='center'
                             ).center.contentPane(overflow='hidden')
-        topright.simpleTextArea(value='^.text_template',position='absolute',top=0,left=0,right=0,bottom=0,border=0)
+        #topright.simpleTextArea(value='^.text_template',position='absolute',top=0,left=0,right=0,bottom=0,border=0)
+       #        paper = pane.div(height='297mm',width='210mm',margin='10px',border='1px dotted silver')
+        
+        record_rpc = bc.dataRecord('#FORM.sample_annotation.record','orgn.annotation',
+                            pkey='"*newrecord*"',ignoreMissing=True,
+                            default_action_type_id='^#FORM.pkey')
+
+        topright.templateChunk(template='^#FORM.record.text_template',
+                            table='orgn.annotation',editable=True,
+                            dataProvider=record_rpc,
+                            plainText=True,
+                            datasource='^#FORM.sample_annotation.record',
+                            selfsubscribe_onChunkEdit='this.form.save();')
+
+        
         tc = bc.tabContainer(region='center',margin='2px')
         tc.contentPane(title='!!Outcomes',datapath='#FORM').inlineTableHandler(relation='@outcomes',addrow=False,margin='2px',
                                                                             picker_viewResource='ViewPicker',
@@ -108,16 +125,13 @@ class Form(BaseComponent):
                                 picker_condition_restriction='^#FORM.record.restrictions',
                                 pbl_classes=True,searchOn=False,configurable=False,viewResource='ViewFromActionType')
         tc.contentPane(title='!!Action fields').fieldsGrid(title='!!Fields',pbl_classes=True,margin='2px')
-        self.fullTemplate(tc.contentPane(title='!!Full template'))
+        self.fullTemplate(tc.contentPane(title='!!Full template'),record_rpc=record_rpc)
 
-    def fullTemplate(self,pane):
-        rpc = pane.dataRecord('#FORM.sample_annotation.record','orgn.annotation',
-                            pkey='"*newrecord*"',ignoreMissing=True,
-                            default_action_type_id='^#FORM.pkey')
+    def fullTemplate(self,pane,record_rpc=None):
         paper = pane.div(height='297mm',width='210mm',margin='10px',border='1px dotted silver')
         paper.templateChunk(template='^#FORM.record.full_template',
                             table='orgn.annotation',editable=True,
-                            dataProvider=rpc,
+                            dataProvider=record_rpc,
                             datasource='^#FORM.sample_annotation.record',
                             selfsubscribe_onChunkEdit='this.form.save();')
 

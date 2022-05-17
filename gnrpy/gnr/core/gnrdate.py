@@ -50,7 +50,9 @@ def toDHZ(date,time,timezone=None):
         timezone = localtz.tzname(ts)
     timezone = timezone or 'UTC'
     tz = pytz.timezone(timezone)
-    return tz.localize(ts) 
+    #result =  tz.localize(ts) 
+    result = ts.replace(tzinfo=tz)
+    return result
 
 def checkDateKeywords(keywords,datestr,locale):
     return anyWordIn(gnrlocale.getDateKeywords(keywords, locale), datestr) or anyWordIn(
@@ -310,7 +312,6 @@ def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtyp
     * a single expression representing a period: e.g. 2007 returns ``'2007-01-01;2007-12-31'``
     * a single expression representing a single date: e.g. today returns ``'2008-04-28'``
     """
-    print('decodeDatePeriod',datestr)
     workdate = workdate or datetime.date.today()
     months = gnrlocale.getMonthNames(locale)
     days = gnrlocale.getDayNames(locale)

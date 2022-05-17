@@ -29,14 +29,16 @@ from gnr.core.gnrbag import Bag
 class TableHandlerGroupBy(BaseComponent):
     js_requires = 'gnrdatasets,th/th_groupth'
 
-    @extract_kwargs(condition=True,store=True,grid=True,tree=dict(slice_prefix=False))
+    @extract_kwargs(condition=True,store=True,grid=True,tree=dict(slice_prefix=False), details=True)
     @struct_method
     def th_groupByTableHandler(self,pane,frameCode=None,title=None,table=None,linkedTo=None,
                                 struct=None,where=None,viewResource=None,
                                 condition=None,condition_kwargs=None,store_kwargs=None,datapath=None,
                                 treeRoot=None,configurable=True,
                                 dashboardIdentifier=None,static=False,pbl_classes=None,
-                                grid_kwargs=None,tree_kwargs=None,groupMode=None,grouper=False,**kwargs):
+                                grid_kwargs=None,tree_kwargs=None,groupMode=None,grouper=False,
+                                details_kwargs=None,
+                                **kwargs):
         inattr = pane.getInheritedAttributes()
         table = table or inattr.get('table')
         if not (dashboardIdentifier or where or condition):
@@ -61,10 +63,28 @@ class TableHandlerGroupBy(BaseComponent):
             grid_kwargs.setdefault('selected__pkeylist','#ANCHOR.details_pkeylist')
             tree_kwargs.setdefault('tree_selected__pkeylist','#ANCHOR.details_pkeylist')
             stack_kwargs.setdefault('grid_selected__pkeylist','#ANCHOR.details_pkeylist')
-            bc.contentPane(closable='close',height='250px',region='bottom',
-                            splitter=True,_class='showInnerToolbar'
-                            ).remote(self._thg_details_rows,table=table,
-                                        rootNodeId=rootNodeId,linkedTo=linkedTo)
+            region= details_kwargs.get('region') or 'bottom'
+            if region in ('top','bottom'):
+                height = details_kwargs.get('height') or '250px'
+                width = None
+            else:
+                width = details_kwargs.get('width') or '250px',
+                height=None
+            if 'closable' in details_kwargs:
+                closable = details_kwargs.get('closable')
+            else:
+                closable = 'close'
+            details_pane = bc.contentPane(closable=closable,
+                                        region=region,
+                                        height = height,
+                                        width = width,
+                                        splitter=True,
+                                        _class='showInnerToolbar')
+
+            details_pane.remote(self._thg_details_rows,table=table,
+                                        rootNodeId=rootNodeId,
+                                        linkedTo=linkedTo,
+                                        viewResource=details_kwargs.get('viewResource'))
         sc = bc.stackContainer(selectedPage='^.output',region='center',
                                 nodeId=rootNodeId,_forcedGroupMode=groupMode,_linkedTo =linkedTo,table=table,
                                 selfsubscribe_viewMode="""
@@ -313,14 +333,14 @@ class TableHandlerGroupBy(BaseComponent):
             changets_stackedview = '^.changets.stackedview',
             groupMode='^.groupMode',
             output='^.output',
-            treeRoot='^.treeRootName',**tree_kwargs)
+            treeRoot='^.treeRootName',_delay=1,**tree_kwargs)
         return frame
 
     @public_method
-    def _thg_details_rows(self,pane,table=None,rootNodeId=None,linkedTo=None):
+    def _thg_details_rows(self,pane,table=None,rootNodeId=None,linkedTo=None, viewResource=None):
         view = self.site.virtualPage(table=table,table_resources='th_{}:View'.format(table.split('.')[1]))
         th = pane.plainTableHandler(table=table,datapath='.tree_details',searchOn=True,export=True,
-                                        viewResource='THGViewTreeDetail',
+                                        viewResource=viewResource or 'THGViewTreeDetail',
                                         view_structCb=view.th_struct,
                                         count=True,view_store_liveUpdate='PAGE',
                                         nodeId='{rootNodeId}_details'.format(rootNodeId=rootNodeId))

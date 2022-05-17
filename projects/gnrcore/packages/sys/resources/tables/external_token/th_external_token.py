@@ -77,8 +77,8 @@ class ViewFromUserobject(BaseComponent):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        pane = form.record
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        bc = form.center.borderContainer()
+        fb = bc.contentPane(region='top').formbuilder(cols=2, border_spacing='4px',datapath='#FORM.record')
         fb.field('datetime')
         fb.field('expiry')
         fb.field('allowed_user')
@@ -87,8 +87,8 @@ class Form(BaseComponent):
         fb.field('allowed_host')
         fb.field('page_path')
         fb.field('method')
-        fb.field('parameters')
         fb.field('exec_user')
+        bc.roundedGroupFrame(title='Parameters',region='center').multiValueEditor(value='^#FORM.record.parameters')
 
 
     def th_options(self):

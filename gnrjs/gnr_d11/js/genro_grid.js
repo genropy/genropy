@@ -338,7 +338,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var value = objectPop(item,'value');
             if(item.footerCell && !value){
                 if(cell.totalize){
-                    if(isNumericType(cell.dtype)){
+                    if(isNumericType(cell.dtype) || cell.dtype == 'B'){
                         value = '^'+cell.totalize;
                         item._totalized_value = value;
                         item._filtered_totalized_value = '^.filtered_totalize.'+cell.field;
@@ -3672,7 +3672,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             }else if (this.changeManager){
                 this.changeManager.delFormulaColumn(cellmap[k].field);
             }
-            if(cell.totalize && isNumericType(cell.dtype)){
+            if(cell.totalize && (isNumericType(cell.dtype) || cell.dtype=='B') ){
                 var snode = genro.nodeById(this.sourceNode.attr.store+'_store');
                 var virtualStore = snode.attr.selectionName && snode.attr.row_count;
                 var selectionStore = snode.attr.method == 'app.getSelection';
@@ -3729,6 +3729,10 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         selectedIdx.forEach(function(idx){
             that.onCheckedColumn_one(idx,fieldname,checked,kw,evt);
         });
+        if(kw.totalize && this.changeManager){
+            this.changeManager.updateTotalizer(fieldname);
+            this.changeManager.calculateFilteredTotals();
+        }
     },
 
     mixin_onCheckedColumn_one:function(idx,fieldname,checked,cellkw,evt) {
@@ -4613,15 +4617,19 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return this.collectionStore().isFiltered();
     },
     
-    
-    mixin_currentData:function(nodes, rawData,filtered){
+
+    mixin_currentData:function(nodes, rawData,applyFilter){
         nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
+        var filtered = [];
         if (rawData===true){
-            filtered = this.collectionStore()._filtered || [];
             if(nodes=='all'){
+                if(applyFilter){
+                    filtered = this.collectionStore()._filtered || [];
+                }
                 nodes = this.collectionStore().getData().getNodes();
             }else if(nodes=='selected'){
+                //selectedNodes apply the current filter
                 nodes = this.getSelectedNodes();
             }
             nodes.forEach(function(n,idx){

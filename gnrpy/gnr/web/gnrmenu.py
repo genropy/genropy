@@ -226,6 +226,8 @@ class MenuResolver(BagResolver):
 
     @property
     def indexMenu(self):
+        if self._page.userMenu:
+            return self._page.userMenu
         instanceMenu = self.getInstanceMenu()
         if instanceMenu:
             return instanceMenu
@@ -234,7 +236,12 @@ class MenuResolver(BagResolver):
             return self.legacyMenuFromPkgList(pkgMenus)
         result = self.pkgMenu(self._page.package.name)
         if len(result) == 1:
-            result = result['#0']
+            baseNode = result.getNode('#0')
+            if not self.allowedNode(baseNode):
+                return Bag()
+            result = baseNode.value
+            baseattr = baseNode.attr
+            self.basepath = baseattr.get('basepath')
         return result
 
     def legacyMenuFromPkgList(self,pkgMenus):
@@ -401,6 +408,8 @@ class MenuResolver(BagResolver):
             raise NotAllowedException('Not allowed page')
         aux_instance = attributes.get('aux_instance') or self.aux_instance
         attributes['webpage'] = attributes['filepath']
+        if self.basepath and not attributes['webpage'].startswith('/'):
+            attributes['webpage'] = f"{self.basepath}/{attributes['webpage']}" 
         attributes['url_aux_instance'] = aux_instance
         self.checkExternalSite(attributes)
         return None,attributes

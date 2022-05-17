@@ -7,6 +7,7 @@
 #Copyright (c) 2011 Softwell. All rights reserved.
 
 #from builtins import object
+from gnr.core.gnrdict import dictExtract
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrexporter import getWriter
@@ -34,6 +35,7 @@ class BaseResourceExport(BaseResourceBatch):
     def gridcall(self, data=None, struct=None, export_mode=None, datamode=None,selectedRowidx=None,filename=None,
                     localized_data=None,**kwargs):
         self.batch_parameters = dict(export_mode=export_mode, filename=filename,localized_data=localized_data)
+        self.batch_parameters.update(kwargs)
         self.prepareExportCols(data,struct=struct)
         if not isinstance(data,Bag):
             data = data.output('grid')
@@ -114,7 +116,9 @@ class BaseResourceExport(BaseResourceBatch):
                         filepath=self.filepath, groups=self.groups,
                         locale= self.locale if self.localized_data else None)
         extraPars = objectExtract(self,f'{self.export_mode}_')
+        modeParameters = dictExtract(self.batch_parameters,f'{self.export_mode}_')
         writerPars.update(extraPars)
+        writerPars.update(modeParameters)
         self.writer = getWriter(self.export_mode)(**writerPars)
     
 

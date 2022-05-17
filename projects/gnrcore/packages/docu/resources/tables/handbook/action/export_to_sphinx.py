@@ -186,10 +186,10 @@ class Main(BaseResourceBatch):
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'])
             if df_rst:
-                rst = '%s'%rst + '<hr>' + '\n\n**Parameters:**\n\n%s'%df_rst 
+                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Parameters:**\n\n%s'%df_rst 
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                rst = '%s'%rst + '<hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
+                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
             
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)

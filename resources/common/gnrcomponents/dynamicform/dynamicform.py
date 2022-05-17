@@ -49,7 +49,7 @@ class DynamicFormBagManager(BaseComponent):
 
     @customizable
     def df_fieldsBagForm(self,form):
-        form.top.slotToolbar('2,navigation,*,delete,add,save,semaphore,locker,2')
+        form.top.slotToolbar('2,navigation,*,delete,add,copypaste,save,semaphore,locker,2')
         form.dataController('SET #FORM.ftitle = desc || newfield;',desc='=#FORM.record.description',newfield='!!New Field',_fired='^#FORM.controller.loaded')
         bc = form.center.borderContainer(datapath='.record')
         pane = bc.contentPane(region='center')
@@ -227,7 +227,6 @@ class DynamicForm(BaseComponent):
         else:
             th = self.df_fieldsBagGrid(center,mastertable=mastertable,**kwargs)
         bar = th.view.top.bar.replaceSlots('*,delrow','fbfields,showpreview,*,delrow')
-        bar.replaceSlots('addrow','addrow,duprow')
         bar.showpreview.checkbox(value='^#FORM.dynamicFormTester.showpreview',label='Preview')
         bc.dataController("bc.setRegionVisible('bottom',prev)",bc=bc.js_widget,prev='^#FORM.dynamicFormTester.showpreview')
         fb = bar.fbfields.formbuilder(cols=2, border_spacing='2px')

@@ -1554,7 +1554,10 @@ class SqlTable(GnrObject):
         for rel in self.relations_many:
             defaultOnDelete = 'raise' if rel.getAttr('mode')=='foreignkey' else 'ignore'
             onDelete = rel.getAttr('onDelete', defaultOnDelete).lower()
-            if onDelete and not (onDelete in ('i', 'ignore')):
+            raiseMessage = '!!Record referenced in table %(reltable)s'
+            if ':' in onDelete:
+                onDelete,raiseMessage = onDelete.split(':')
+            if onDelete and  (onDelete not in ('i', 'ignore')):
                 mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
                 opkg, otbl, ofld = rel.attr['one_relation'].split('.')
                 relatedTable = self.db.table(mtbl, pkg=mpkg)
@@ -1567,7 +1570,7 @@ class SqlTable(GnrObject):
                                          excludeLogicalDeleted=False).fetch()
                 if sel:
                     if onDelete in ('r', 'raise'):
-                        raise self.exception('delete', record=record, msg='!!Record referenced in table %(reltable)s',
+                        raise self.exception('delete', record=record, msg=raiseMessage,
                                              reltable=relatedTable.fullname)
                     elif onDelete in ('c', 'cascade'):
                         for row in self.db.quickThermo(sel):

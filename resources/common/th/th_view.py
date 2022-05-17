@@ -168,10 +168,11 @@ class TableHandlerView(BaseComponent):
                 }
                 var parname;
                 if(n.attr._valuelabel){
-                    parname =  n.attr._valuelabel.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                    parname =  n.attr._valuelabel;
                 }else{
-                    parname = n.attr.column.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                    parname = n.attr.column;
                 }
+                parname = flattenString(parname,true);
                 if(parname in parnames){
                     var parcount = parnames[parname];
                     parcount+=1;
@@ -635,9 +636,9 @@ class TableHandlerView(BaseComponent):
     
     def _th_buildSectionsGui(self,pane,parent=None,multiButton=None,sectionsBag=None,
                             multivalue=None,mandatory=None,
-                            extra_section_kwargs=None,lbl=None,lbl_kwargs=None,
+                            lbl=None,lbl_kwargs=None,
                             exclude_fields=None,sections=None,
-                            isMain=None,th_root=None,depending_condition=None,
+                            isMain=None,depending_condition=None,
                             depending_condition_kwargs=None,dflt=None,variable_struct=None,**kwargs):
         
         inattr = parent.getInheritedAttributes()
@@ -650,8 +651,7 @@ class TableHandlerView(BaseComponent):
         pane.data('.data',sectionsBag)
         pane.data('.variable_struct',variable_struct)
         if sectionsBag:
-            if not dflt:
-                
+            if mandatory and dflt is None:
                 dflt = sectionsBag.getNode('#0').label
             pane.data('.current',dflt)
 
@@ -717,14 +717,13 @@ class TableHandlerView(BaseComponent):
         """,__mb=mb,enabled='^.enabled',excluded='^.excluded',
         _onBuilt=True,_delay=1)
         pane.dataController("""
-            genro.assert(currentSection,'missing current section for sections %s')
-            var sectionNode = sectionbag.getNode(currentSection);
+            var sectionNode = currentSection?sectionbag.getNode(currentSection):null;
             if(isMain){
                 FIRE .#parent.#parent.clearStore;
-                SET .#parent.#parent.excludeDraft = !sectionNode.attr.includeDraft;
+                SET .#parent.#parent.excludeDraft = sectionNode?!sectionNode.attr.includeDraft:true;
             } 
             FIRE .#parent.#parent.sections_changed;
-            """ %sections
+            """
             ,isMain=isMain,_onBuilt=True if sectionsBag else False,
             currentSection='^.current',sectionbag='=.data',
             _delay=100,
@@ -1221,9 +1220,9 @@ class TableHandlerView(BaseComponent):
                                         }
                                         if(saveRpcQuery && !newNode.attr.parname){
                                             if(value_caption && value_caption.startsWith('?')){
-                                                newNode.attr.parname = value_caption.split('|')[0].slice(1).replace(/[\/.\s#@]/g,'_').toLowerCase();
+                                                newNode.attr.parname = flattenString(value_caption.split('|')[0].slice(1),true);
                                             }else if(newNode.attr.column_caption){
-                                                newNode.attr.parname = newNode.attr.column_caption.replace(/[\/.\s#@]/g,'_').toLowerCase();
+                                                newNode.attr.parname = flattenString(newNode.attr.column_caption,true);
                                             }
                                         }
                                     });

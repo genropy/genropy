@@ -3,29 +3,30 @@
 
 from gnr.lib.services.rms import RMS
 from optparse import OptionParser
-from gnr.app.gnrconfig import getRmsOptions,setRmsOptions
-from gnr.app.gnrconfig import updateGnrEnvironment
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrdeploy import PathResolver
-import os
+from gnr.app.gnrconfig import setRmsOptions
 
 
-def main(instance,**kwargs):
+def register_instance(instance,**kwargs):
     rms = RMS()
     rms.registerInstance(instance,**kwargs)
 
-def init_env(pod=None, service_url=None):
-    setRmsOptions(code=pod, url=service_url)
+def register_pod(pod=None, service_url=None,customer_code=None,rebuild=None):
+    setRmsOptions(code=pod,customer_code=customer_code, url=service_url,rebuild=rebuild)
+    rms = RMS()
+    rms.registerPod()
 
 if __name__ == '__main__':
     usage = """
 
     """
-
     parser = OptionParser(usage)
     parser.add_option('--pod','-p',
                 dest='pod',
                 help="Pod")
+    parser.add_option('--rebuild','-r',
+                dest='rebuild',
+                action='store_true',
+                help="Rebuild conf")
     parser.add_option('--service_url',
                 dest='service_url',
                 help="Service url")
@@ -39,11 +40,11 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     instance = args[0] if args else None
     if instance:
-        main(instance,domain=options.domain, customer_code=options.customer_code)
+        register_instance(instance,domain=options.domain, customer_code=options.customer_code)
     else:
         pod = options.pod
         service_url = options.service_url or "https://deploy.softwell.it/deploy/rms_endpoint"
         if pod:
-            init_env(pod=pod, service_url=service_url)
+            register_pod(pod=pod, service_url=service_url, customer_code=options.customer_code, rebuild=options.rebuild)
         else:
             print('Missing pod code')

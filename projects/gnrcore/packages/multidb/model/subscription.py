@@ -101,7 +101,7 @@ class Table(object):
             else:
                 return
         with self.db.tempEnv(storename=storename,_systemDbEvent=True,_multidbSync=True):
-            f = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,for_update=True,
+            f = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,for_update=True,ignorePartition=True,
                             addPkeyColumn=False,bagFields=True,excludeLogicalDeleted=False,
                             subtable='*').fetch()
             if event == 'I':

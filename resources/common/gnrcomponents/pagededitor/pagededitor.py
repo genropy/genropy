@@ -54,9 +54,9 @@ class PagedEditor(BaseComponent):
                                         self_closed_tags=['meta', 'br', 'img'])
         result.setItem('page_base',basehtml)
         if next_letterhead_id:
-            next = letterheadtbl.getHtmlBuilder(letterhead_pkeys=next_letterhead_id)
-            base.finalize(next.body)
-            nexthtml = next.root.getItem('#0.#1').toXml(omitRoot=True,autocreate=True,forcedTagAttr='tag',docHeader=' ',
+            nextbuilder = letterheadtbl.getHtmlBuilder(letterhead_pkeys=next_letterhead_id)
+            base.finalize(nextbuilder.body)
+            nexthtml = nextbuilder.root.getItem('#0.#1').toXml(omitRoot=True,autocreate=True,forcedTagAttr='tag',docHeader=' ',
                                         addBagTypeAttr=False, typeattrs=False, 
                                         self_closed_tags=['meta', 'br', 'img'])
             result.setItem('page_next',nexthtml)

@@ -19,7 +19,6 @@ smart_open==4.2.0
 tornado<5
 gunicorn
 supervisor
-futures
 lxml
 openpyxl
 psutil

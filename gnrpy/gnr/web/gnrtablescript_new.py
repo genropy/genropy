@@ -497,9 +497,9 @@ class RecordToHtmlNew(RecordToHtmlPage):
                                   text-indent:1mm;
                                   width:auto;
                                   font-weight: normal;
-                                  line-height:auto;
+                                  #line-height:auto;
                                   line-height:3mm;
-                                  height:3mm;""")
+                                  height:3mm;}""")
 
         self.body.style("""
                         .extrasmall {font-size:6pt;text-align:left;line-height:3mm;}

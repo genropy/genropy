@@ -13,6 +13,10 @@ from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebstruct import struct_method
 import os
+try:
+    from PIL import Image
+except:
+    raise Exception('PIL is missing. "pip install Pillow" is required')
 
 class DropUploaderBase(BaseComponent):
     @struct_method
@@ -180,7 +184,6 @@ class DropUploaderBase(BaseComponent):
 
     def fileaction_resize(self, file_path=None, file_url=None, file_ext=None, height=None, width=None, filetype=None,
                           action_name=None, dest_dir=None, **kwargs):
-        from PIL import Image
         sn = self.site.storageNode(file_path)
         with sn.open(mode='rb') as image_file:
             try:

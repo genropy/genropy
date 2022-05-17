@@ -46,6 +46,8 @@ class Table(object):
         tbl.column('linked_entity',name_long='!!Linked entity')
         tbl.column('linked_fkey',name_long='!!Linked fkey')
         tbl.column('delay_history',dtype='X',group='*',name_long='!!Delay history',_sendback=True)
+        tbl.column('implementor_data', dtype='X', name_long='Implementor data')
+        tbl.column('implementor_result', dtype='X', name_long='Implementor result')
 
         tbl.aliasColumn('assigned_username','@assigned_user_id.username',name_long='!!Assigned username')
         tbl.aliasColumn('action_type_description','@action_type_id.description',group='*')
@@ -265,6 +267,13 @@ class Table(object):
         if self.fieldsChanged('annotation_date,annotation_time',record_data,old_record):
             self.setAnnotationTs(record_data)
 
+
+    def recordLinkedEntity(self,record):
+        for colname,colobj in list(self.columns.items()):
+            fkey_value = record[colname]
+            if colobj.attributes.get('linked_entity') and fkey_value is not None:
+                return colname,fkey_value
+
     def getLinkedEntities(self):
         result = []
         for colname,colobj in list(self.columns.items()):
@@ -327,3 +336,10 @@ class Table(object):
             return '!!New annotation'
         else:
             return '!!New action'
+
+
+    def entityLinker(self,tbl=None,zoomMode=None,zoomUrl=None,
+                    formResource=None,pivot_date=None,**kwargs):
+        return dict(tbl=tbl,zoomMode=zoomMode,zoomUrl=zoomUrl,
+                        formResource=formResource,pivot_date=pivot_date,
+                        **kwargs)

@@ -108,12 +108,14 @@ class Table(object):
            
     @public_method
     def receive_imap(self, page=None, account=None, remote_mailbox='Inbox', local_mailbox='Inbox'):
-        print('RECEIVE IMAP')
         from gnrpkg.email.imap import ImapReceiver
         if isinstance(account, basestring):
             account = self.db.table('email.account').record(pkey=account).output('bag')
+        print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
+        print('RECEIVING', account['account_name'])
         imap_checker.receive()
+        print('RECEIVED', account['account_name'])
         #check_imap(page=page, account=account, remote_mailbox=remote_mailbox, local_mailbox=local_mailbox)
 
 

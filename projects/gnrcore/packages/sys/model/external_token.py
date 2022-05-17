@@ -7,8 +7,8 @@ from gnr.core.gnrbag import Bag
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('external_token', pkey='id', name_long='!!Messages',
-                        name_plural='!!Messages')
+        tbl = pkg.table('external_token', pkey='id', name_long='!!External Token',
+                        name_plural='!!External Tokens')
         tbl.column('id', size='22', name_long='!!id')
         tbl.column('datetime', 'DHZ', name_long='!!Date and Time')
         tbl.column('expiry', 'DHZ', name_long='!!Expiry')
@@ -47,16 +47,18 @@ class Table(object):
         return record['id']
 
     def use_token(self, token, host=None, commit=False):
-        record = self.record(id=token, ignoreMissing=True).output('bag')
-        record = self.check_token(record, host)
-        if record:
-            if record['max_usages']:
-                self.db.table('sys.external_token_use').insert(
-                        dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
-                if commit:
-                    self.db.commit()
-            user = record['exec_user']
-            return record['method'], [], dict(record['parameters'] or {}), user
+        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+            record = self.record(id=token, ignoreMissing=True).output('bag')
+            record = self.check_token(record, host)
+            if record:
+                if record['max_usages']:
+                    self.db.table('sys.external_token_use').insert(
+                            dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
+                    if commit:
+                        self.db.commit()
+                user = record['exec_user']
+                
+                return record['method'], [], dict(record['parameters'] or {}), user
         return None, None, None, None
 
     def check_token(self, record, host=None):
@@ -65,7 +67,7 @@ class Table(object):
             return False
         if host:
             pass
-        if record['expiry'] and record['expiry'] >= dt.now(pytz.utc):
+        if record['expiry'] and record['expiry'] < dt.now(pytz.utc):
             return False
         if record['max_usages']:
             uses = self.db.table('sys.external_token_use').query(where='external_token_id =:cid',
@@ -74,6 +76,11 @@ class Table(object):
                 return False
         return record
         
+
+    def expand_token_url(self,gnrtoken):
+        valid_token_record = self.check_token(gnrtoken)
+        if not valid_token_record:
+            raise self.exception('business_logic',msg='Invalid token')
 
     def authenticatedUser(self,token):
         token_record = self.check_token(token)

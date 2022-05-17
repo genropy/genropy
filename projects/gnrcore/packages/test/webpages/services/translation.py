@@ -8,7 +8,7 @@ class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_translationtest(self, pane):
-        "Please configure a blank translation service and then test it here"
+        "Please configure a blank translation service (aws or yandex) and then test it here"
         bc = pane.borderContainer(height='250px')
         left = bc.contentPane(region='left', width='40%')
         fb_l = left.formbuilder(cols=1,border_spacing='3px')

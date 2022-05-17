@@ -17,7 +17,6 @@ from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrstring import boolean
-from gnr.lib.services.rms import RMS
 import atexit
 import os
 import time
@@ -137,8 +136,6 @@ class GnrDaemon(object):
     def start(self,use_environment=False,**kwargs):
         if use_environment:
             options =  getFullOptions(options=kwargs)
-        rms = RMS()
-        rms.registerPod()
         self.do_start(**options)
 
     def do_start(self, host=None, port=None, socket=None, hmac_key=None,
