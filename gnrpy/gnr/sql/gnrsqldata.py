@@ -51,7 +51,6 @@ from gnr.core.gnranalyzingbag import AnalyzingBag
 from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, RecordDuplicateError,\
     RecordNotExistingError, RecordSelectionError,\
     GnrSqlMissingField, GnrSqlMissingColumn
-import six
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"(\W|^)(\@([\w.@:]+))")
@@ -455,8 +454,10 @@ class SqlQueryCompiler(object):
         
     def embedFieldPars(self,sql):
         for k,v in list(self.sqlparams.items()):
-            if isinstance(v,basestring):
-                v = six.ensure_str(v)
+            if isinstance(v,(str,bytes)):
+                if isinstance(v, bytes):
+                    v = v.decode()
+                #v = six.ensure_str(v)
                 doreplace=False
                 if v.startswith('@'):
                     doreplace = v.split('.')[0] in self.tblobj.relations

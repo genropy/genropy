@@ -17,7 +17,6 @@ import io
 detach_dir = '.'
 import os
 import re
-import six
 BASE_RE = re.compile('<base .*?>')
 wait = 600
 
@@ -143,9 +142,13 @@ class ImapReceiver(object):
         if not filename:
             filename = 'part-%03d%s' % (counter, 'bin')
             counter += 1
-        filename  = six.ensure_str(filename)
+        if isinstance(filename, bytes):
+            filename = filename.decode()
+        #filename  = six.ensure_str(filename)
         filename,enc = email.header.decode_header(filename)[0]
-        filename  = six.ensure_str(filename)
+        if isinstance(filename, bytes):
+            filename = filename.decode()
+        
         #filename = filename.decode(enc)
         if part.get_content_type().startswith('message/'):
             att_data = self.getMessagePayload(part)
@@ -162,7 +165,8 @@ class ImapReceiver(object):
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
         with attachmentNode.open('wb') as attachment_file:
-            att_data = six.ensure_binary(att_data)
+            if isinstance(att_data, str):
+                att_data = att_data.encode()
             attachment_file.write(att_data)
 
         self.attachments_table.insert(new_attachment)
