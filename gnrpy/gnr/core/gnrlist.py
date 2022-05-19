@@ -482,15 +482,17 @@ class XlsxReader(object):
 
 class CsvReader(object):
     """Read an csv file"""
-    def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,**kwargs):
+    def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
+                encoding=None,**kwargs):
         import os.path
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
         encoding = None
-        if detect_encoding:
+        if detect_encoding and not encoding:
             encoding = self.detect_encoding()
+        if encoding:
             self.filecsv = open(docname,'r', encoding=encoding)
         else:
             self.filecsv = open(docname,'r')
