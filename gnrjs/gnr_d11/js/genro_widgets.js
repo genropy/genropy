@@ -201,6 +201,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         savedAttrs.connectedMenu = objectPop(attributes, 'connectedMenu');
         savedAttrs.onEnter = objectPop(attributes, 'onEnter');
         savedAttrs._watchOnVisible = objectPop(attributes,'_watchOnVisible');
+        savedAttrs.autocomplete = objectPop(attributes,'autocomplete');
         objectUpdate(savedAttrs, this.creating(attributes, sourceNode));
         var formId = objectPop(attributes, 'formId');
         if (attributes._for) {
@@ -276,6 +277,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             sourceNode.attr_kw = objectExtract(sourceNode.attr,'attr_*',true);
         }
         this.created(newobj, savedAttrs, sourceNode);
+        if(savedAttrs.autocomplete && newobj.focusNode){
+            newobj.focusNode.setAttribute('autocomplete',savedAttrs.autocomplete)
+        }
         if(savedAttrs._watchOnVisible){
             sourceNode.watch('_watchOnVisible',function(){
                 return genro.dom.isVisible(sourceNode);
