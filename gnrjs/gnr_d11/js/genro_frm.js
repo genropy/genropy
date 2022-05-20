@@ -1559,7 +1559,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
-            if(kw.updattr && kw.changedAttr){
+            if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];
                 var newvalue = kw.node.attr[cattr];
