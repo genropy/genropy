@@ -482,13 +482,20 @@ class XlsxReader(object):
 
 class CsvReader(object):
     """Read an csv file"""
-    def __init__(self, docname,dialect=None,delimiter=None,**kwargs):
+    def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
+                encoding=None,**kwargs):
         import os.path
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
-        self.filecsv = open(docname,'rU')
+        encoding = None
+        if detect_encoding and not encoding:
+            encoding = self.detect_encoding()
+        if encoding:
+            self.filecsv = open(docname,'r', encoding=encoding)
+        else:
+            self.filecsv = open(docname,'r')
         self.rows = csv.reader(self.filecsv,dialect=dialect,delimiter=delimiter or ',')
         self.headers = next(self.rows)
         self.index = dict([(k, i) for i, k in enumerate(self.headers)])
@@ -498,6 +505,25 @@ class CsvReader(object):
         for r in self.rows:
             yield GnrNamedList(self.index, r)
         self.filecsv.close()
+
+    def detect_encoding(self):
+        try:
+            import cchardet as chardet
+        except ImportError:
+            try:
+                import chardet
+            except ImportError:
+                print('either cchardet or chardet are required to detect encoding')
+                return
+        from chardet.universaldetector import UniversalDetector
+        detector = UniversalDetector()
+        detector.reset()
+        with open(self.docname, 'rb') as f:
+            for row in f:
+                detector.feed(row)
+                if detector.done: break
+        detector.close()
+        return detector.result.get('encoding')
 
 
 class XmlReader(object):
