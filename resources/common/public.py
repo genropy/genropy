@@ -33,7 +33,7 @@ class PublicBase(BaseComponent):
         pane.dataController()
         if not self.isGuest and userTable:
             pane.dataRemote('gnr.user_record', 'app.getRecord', username=self.user,table=userTable)
-        if not getattr(self,'public_partitioned',None) and self.rootenv['partition_kw']:
+        if not getattr(self,'public_partitioned',None) and self.rootenv and self.rootenv['partition_kw']:
             partition_kw = self.rootenv['partition_kw']
             partition_path = partition_kw['path']
             partition_field = partition_kw['field']
