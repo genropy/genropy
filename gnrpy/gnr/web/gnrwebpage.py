@@ -447,7 +447,7 @@ class GnrWebPage(GnrBaseWebPage):
     workdate = property(_get_workdate, _set_workdate)
 
     def _get_language(self):
-        if not getattr(self,'_language'):
+        if not getattr(self,'_language',None):
             self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
         return self._language
 
