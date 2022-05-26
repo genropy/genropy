@@ -5082,13 +5082,18 @@ dojo.declare("gnr.widgets.ComboMenu", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.TextboxMenu", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         var menupars = objectExtract(kw,'values,storepath');
+        objectUpdate(menupars,objectExtract(kw,'selected_*',false,true))
         menupars._class = 'smallmenu'
         var separator = objectPop(kw,'separator',',')
         var valuekey = objectPop(kw,'valuekey','fullpath')
         var tb = sourceNode._('textbox',kw);
         menupars.action = function(linekw,ctx){
-            var cv = this.attr.attachTo.widget.getValue();
-            this.attr.attachTo.widget.setValue(cv?cv+separator+linekw[valuekey]:linekw[valuekey],true);
+            let cv = this.attr.attachTo.widget.getValue();
+            let newValue = linekw[valuekey];
+            if(cv && separator){
+                newValue = cv+separator+newValue;
+            }
+            this.attr.attachTo.widget.setValue(newValue,true);
         }
         tb._('comboMenu',menupars);
         return tb;
