@@ -296,7 +296,8 @@ class LoginComponent(BaseComponent):
             fb.textbox(value='^.current_password',lbl='!!Password',type='password')
         else:
             fb.data('.gnrtoken',gnrtoken)
-        fb.textbox(value='^.password',lbl='!!New password',type='password')
+        fb.textbox(value='^.password',lbl='!!New password',type='password',
+                    validate_remote=self.db.table('adm.user').validateNewPassword)
         fb.textbox(value='^.password_confirm',lbl='!!Confirm password',type='password',
                     validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
         fb.div(width='100%',position='relative',row_hidden=False).button('!!Send',action='FIRE set_new_password',position='absolute',right='-5px',top='8px')

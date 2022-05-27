@@ -2,6 +2,7 @@
 # encoding: utf-8
 from builtins import object
 import os
+import re
 from gnr.core.gnrdecorator import metadata, public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
@@ -210,3 +211,12 @@ class Table(object):
             result['warnings']=','.join(warnings)
         self.db.commit()
         return result
+
+    @public_method
+    def validateNewPassword(self,value,**kwargs):
+        if not value:
+            return Bag(dict(errorcode='Empty password'))
+        password_regex = self.db.application.getPreference('general.password_regex',pkg='adm')
+        if password_regex and not re.match(password_regex,value):
+            return Bag(dict(errorcode='Invalid new password'))
+        return True
