@@ -70,7 +70,7 @@ class Main(BaseResourceAction):
                         sn.copy(destpath)
                         #shutil.copy(sn,destpath)        
         archive.makePicklable()
-        archive.toXml('%s.xml' %self.archive_path)
+        archive.pickle('%s.pik' %self.archive_path)
         self.page.site.zipFiles(self.source_folder,self.result_path)
 
        #zipPath = '%s.gz' %self.archive_path
