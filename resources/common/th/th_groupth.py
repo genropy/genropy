@@ -26,6 +26,9 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 
 
+def flatCol(c):
+    return c.replace('@','_').replace('.','_').replace('$','_')
+    
 class TableHandlerGroupBy(BaseComponent):
     js_requires = 'gnrdatasets,th/th_groupth'
 
@@ -358,7 +361,8 @@ class TableHandlerGroupBy(BaseComponent):
 
 
     @public_method
-    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,keep_pkeys=True,table=None,**kwargs):
+    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,
+                    keep_pkeys=True,table=None,**kwargs):
         columns_list = list()
         group_list = list()
         having_list = list()
@@ -374,6 +378,7 @@ class TableHandlerGroupBy(BaseComponent):
         def asName(field,group_aggr):
             return '%s_%s' %(field.replace('.','_').replace('@','_').replace('-','_'),
                     group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
+        empty_placeholders = {}
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
@@ -403,6 +408,7 @@ class TableHandlerGroupBy(BaseComponent):
                 if len(having_chunk):
                     having_list.append(' AND '.join(having_chunk))
             else:
+                empty_placeholders[flatCol(col)] = v.get('group_empty') or '[NP]'
                 if group_aggr:
                     if dtype in ('D','DH','DHZ'):
                         col =  "to_char(%s,'%s')" %(col,group_aggr)
@@ -437,10 +443,17 @@ class TableHandlerGroupBy(BaseComponent):
             kwargs['limit'] = groupLimit
         selection = self.app._default_getSelection(_aggregateRows=False,**kwargs)
         #_thgroup_pkey column 
-        group_list_keys = [c.replace('@','_').replace('.','_').replace('$','_') for c in group_list]
+        group_list_keys = [flatCol(c) for c in group_list]
         def cb(row):
             resdict = {}
-            resdict['_thgroup_pkey'] = '|'.join([str(row.get(c) or '_') for c in group_list_keys])
+            keylist = []
+            for col in group_list_keys:
+                keyvalue = row[col] 
+                if keyvalue in ('',None):
+                    keyvalue = empty_placeholders.get(col)
+                    resdict[col] = keyvalue
+                keylist.append(str(keyvalue or '_'))
+            resdict['_thgroup_pkey'] = '|'.join(keylist)
             return resdict
         selection.apply(cb)
         
