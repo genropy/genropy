@@ -133,7 +133,30 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         return;
                     }
                 };
+                dojox.grid.headerBuilder.prototype.getCellX = function(e){
+                    var x = e.clientX - e.target.getBoundingClientRect().left;
+                    if(dojo.isMoz){
+                        var n = dojox.grid.ascendDom(e.target, dojox.grid.makeNotTagName("th"));
+                        x -= (n && n.offsetLeft) || 0;
+                        var t = e.sourceView.getScrollbarWidth();
+                        if(!dojo._isBodyLtr() && e.sourceView.headerNode.scrollLeft < t)
+                            x -= t;
+                        //x -= getProp(ascendDom(e.target, mkNotTagName("td")), "offsetLeft") || 0;
+                    }
+                    var n = dojox.grid.ascendDom(e.target, function(){
+                        if(!n || n == e.cellNode){
+                            return false;
+                        }
+                        // Mozilla 1.8 (FF 1.5) has a bug that makes offsetLeft = -parent border width
+                        // when parent has border, overflow: hidden, and is positioned
+                        // handle this problem here ... not a general solution!
+                        x += (n.offsetLeft < 0 ? 0 : n.offsetLeft);
+                        return true;
+                    });
+                    return x;
+                };
             }
+
         }
     },
     patch__textSizeChanged:function(){
@@ -809,6 +832,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             sourceNode.registerDynAttr('filterset');
         }
         //dojo.subscribe(gridId+'_searchbox_keyUp',this,function(v){console.log(v)});
+        //var searchCode = sourceNode.attr.searchCode===false?false: sourceNode.attr.searchCode || (sourceNode.getInheritedAttributes().frameCode || nodeId);
+
         var searchBoxCode =(sourceNode.attr.frameCode || nodeId)+'_searchbox';
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
