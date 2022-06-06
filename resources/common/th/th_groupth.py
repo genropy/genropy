@@ -379,13 +379,13 @@ class TableHandlerGroupBy(BaseComponent):
             return '%s_%s' %(field.replace('.','_').replace('@','_').replace('-','_'),
                     group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
         empty_placeholders = {}
+        group_list_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):
                 col = '$%s' %col
-            
             dtype = v.get('dtype')
             group_aggr =  v.get('group_aggr') 
             if dtype in ('N','L','I','F','R') and group_aggr is not False:
@@ -408,24 +408,33 @@ class TableHandlerGroupBy(BaseComponent):
                 if len(having_chunk):
                     having_list.append(' AND '.join(having_chunk))
             else:
-                empty_placeholders[flatCol(col)] = v.get('group_empty') or '[NP]'
+                col_as = col
+                group_empty = v.get('group_empty') or '[NP]'
                 if group_aggr:
                     if dtype in ('D','DH','DHZ'):
                         col =  "to_char(%s,'%s')" %(col,group_aggr)
                         group_list.append(col)
-                        col = '%s AS %s' %(col, asName(v['field'],group_aggr))
+                        col_as = asName(v['field'],group_aggr)
+                        colgetter = flatCol(col_as)
+                        group_list_keys.append(colgetter)
+                        empty_placeholders[colgetter] = group_empty
+                        col = '%s AS %s' %(col, col_as)
                     #if dtype in ('T','C','A'):
                 else:
                     groupcol = col
                     if ' AS ' in col:
-                        groupcol,asname = col.split(' AS ')
+                        groupcol,col_as = col.split(' AS ')
                     group_list.append(groupcol)
+                    colgetter = flatCol(col_as)
                     caption_field = v.get('caption_field')
                     if caption_field:
                         if not caption_field.startswith('@'):
                             caption_field = '$%s' %caption_field
                         group_list.append(caption_field)
+                        colgetter = flatCol(caption_field)
                         columns_list.append(caption_field)
+                    empty_placeholders[colgetter] = group_empty
+                    group_list_keys.append(colgetter)
             columns_list.append(col)
         columns_list.append('count(*) AS _grp_count_sum')
         if not group_list:
@@ -443,7 +452,6 @@ class TableHandlerGroupBy(BaseComponent):
             kwargs['limit'] = groupLimit
         selection = self.app._default_getSelection(_aggregateRows=False,**kwargs)
         #_thgroup_pkey column 
-        group_list_keys = [flatCol(c) for c in group_list]
         def cb(row):
             resdict = {}
             keylist = []
@@ -457,6 +465,7 @@ class TableHandlerGroupBy(BaseComponent):
             return resdict
         selection.apply(cb)
         
+
         return selection    
 
 
