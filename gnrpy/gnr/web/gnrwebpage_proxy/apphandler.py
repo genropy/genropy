@@ -1228,10 +1228,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 _customClasses.append('logicalDeleted')
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
-                    if row[fld]:
+                    if isinstance(_class,dict):
+                        _class = _class.get(row[fld])
+                    elif row[fld]:
                         _class = row[fld] if _class is True else _class
+                    if _class:
                         _customClasses.append(_class)
-
             if numberedRows or not pkey:
                 row_key = 'r_%i' % j
             else:
