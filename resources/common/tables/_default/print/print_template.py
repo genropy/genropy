@@ -39,6 +39,7 @@ class Main(BaseResourcePrint):
                                     formats=self.compiledTemplate.getItem('main?formats'),
                                     masks=self.compiledTemplate.getItem('main?masks'),
                                     dtypes=  self.compiledTemplate.getItem('main?dtypes'),
+                                    df_templates=self.compiledTemplate.getItem('main?df_templates'),
                                     localizer=self.page.localizer,
                                     urlformatter=self.page.externalUrl)
         result = self.htmlMaker(htmlContent=htmlContent,
