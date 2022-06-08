@@ -748,8 +748,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var menuNode = gridContent.getNodeByAttr('tag', 'menu',true);
         if(!menuNode && sourceNode.attr.gridplugins!==false){
             let controllerData = sourceNode.getRelativeData();
-            var contextMenuBag = sourceNode.getRelativeData('.contextMenu');
-            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{sourceNode:sourceNode,contextMenuBag:contextMenuBag});
+            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{gridNodeId:sourceNode.attr.nodeId});
             sourceNode._('menu','contextMenu',{storepath:'.contextMenu',_class:'smallmenu'},{doTrigger:false});
             gridContent = sourceNode.getValue();
             menuNode = gridContent.getNode('contextMenu');
@@ -1112,7 +1111,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     pluginContextMenuBag:function(kw){
-        var sourceNode = kw.sourceNode;
+        let gridNodeId = kw.gridNodeId;
+        let sourceNode = genro.nodeById(gridNodeId);
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
             gridplugins = 'export_xls,print';
@@ -1121,9 +1121,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
         }
         gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
-        var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
+        var contextMenuBag = sourceNode.getRelativeData('.contextMenuBase');
+        contextMenuBag = contextMenuBag?contextMenuBag.deepCopy(): new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
-        var widget = sourceNode.widget;
         if(gridplugins){
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){

@@ -378,7 +378,7 @@ class TableHandlerView(BaseComponent):
         if self.application.checkResourcePermission('superadmin', self.userTags):
             b.rowchild(label='-')
             b.rowchild(label='!!User Configuration',action='genro.dev.tableUserConfiguration($2.attr.table);')
-        frame.grid.data('.contextMenu',b)
+        frame.grid.data('.contextMenuBase',b)
         
         frame.dataRemote('.advancedTools',self._th_advancedToolsMenu,cacheTime=5,table=table,
                             rootNodeId=nodeId,_fired='^.refreshAdvancedToolsMenu',statsEnabled=statsEnabled)
