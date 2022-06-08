@@ -1128,6 +1128,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){
                 let keyplugin = 'cm_plugin_'+cm_plugin;
+                let sourceNode = genro.nodeById(gridNodeId);
+                let widget = sourceNode.widget;
                 if (keyplugin in widget.gnr){
                     widget.gnr[keyplugin](sourceNode,contextMenuBag);
                 }else{
