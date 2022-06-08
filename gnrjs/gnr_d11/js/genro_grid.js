@@ -1112,7 +1112,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     pluginContextMenuBag:function(kw){
-        var sourceNode = kw.sourceNode;
+        let sourceNode = kw.sourceNode;
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
             gridplugins = 'export_xls,print';
@@ -1123,11 +1123,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
         var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
-        var widget = sourceNode.widget;
+        var gridNodeId = sourceNode.attr.nodeId;
         if(gridplugins){
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){
                 let keyplugin = 'cm_plugin_'+cm_plugin;
+                let sourceNode = genro.nodeById(gridNodeId);
+                let widget = sourceNode.widget;
                 if (keyplugin in widget.gnr){
                     widget.gnr[keyplugin](sourceNode,contextMenuBag);
                 }else{
