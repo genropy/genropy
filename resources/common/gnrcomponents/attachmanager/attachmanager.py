@@ -306,12 +306,15 @@ class AttachManager(BaseComponent):
 
 
     @struct_method
-    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,**kwargs):
+    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,**kwargs):
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
-                            caption='description',
+                            caption='description',parentForm=parentForm,
                             formResource= formResource or 'gnrcomponents/attachmanager/attachmanager:Form',
                             multibutton_deleteAction="""
+                                if(this.form && this.form.isDisabled()){
+                                    return;
+                                }
                                 var s = this._value.getNode('store').gnrwdg.store;
                                 s.deleteAsk([value]);
                             """,
@@ -319,7 +322,7 @@ class AttachManager(BaseComponent):
                             store_order_by='$_row_count')
         frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
-                parentForm=True,deleteAction=False,disabled='==!_store || _store.len()==0 || _flock',
+                parentForm=parentForm,deleteAction=False,disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
                 _store='^.store',_flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
         bar = frame.top.bar.replaceSlots('mbslot','mbslot,15,changeName,5,previewZoom,externalUrl')

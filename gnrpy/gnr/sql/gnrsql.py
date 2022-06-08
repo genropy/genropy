@@ -658,7 +658,6 @@ class GnrSqlDb(GnrObject):
             self.executeDeferred(block)
             deferreds_blocks.pop('#0')
 
-
     def executeDeferred(self,deferreds):
         while deferreds:
             node =  deferreds.popNode('#0')

@@ -43,9 +43,9 @@ class FrameGridTools(BaseComponent):
                         publish='printRows',**kwargs)
 
     @struct_method
-    def fgr_slotbar_batchAssign(self,pane,**kwargs):
+    def fgr_slotbar_batchAssign(self,pane,disabled='^.disabledButton',**kwargs):
         pane.slotButton('!!Batch Assign',iconClass='iconbox paint',
-                        publish='batchAssign',
+                        publish='batchAssign',disabled=disabled,
                         hidden='^.grid.batchAssignHidden')
 
 
@@ -130,9 +130,9 @@ class FrameGridTools(BaseComponent):
         pane.slotButton('!!Locker',publish='viewlocker',iconClass='==_locked?"iconbox lock":"iconbox unlock";',_locked='^.locked',**kwargs)
     
     @struct_method
-    def fgr_slotbar_updrow(self,pane,_class='icnBaseEdit',enable=None,parentForm=True,**kwargs):
+    def fgr_slotbar_updrow(self,pane,_class='icnBaseEdit',enable=None,disabled='^.disabledButton',parentForm=True,**kwargs):
         kwargs.setdefault('visible',enable)
-        return pane.slotButton(label='!!Update',publish='updrow',iconClass=_class,parentForm=parentForm,**kwargs)
+        return pane.slotButton(label='!!Update',publish='updrow',disabled=disabled,iconClass=_class,parentForm=parentForm,**kwargs)
 
     @struct_method
     def fgr_slotbar_gridreload(self,pane,_class='icnFrameRefresh box16',frameCode=None,**kwargs):
