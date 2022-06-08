@@ -27,7 +27,7 @@ from gnr.core.gnrbag import Bag
 
 
 def flatCol(c):
-    return c.replace('@','_').replace('.','_').replace('$','_')
+    return c.replace('@','_').replace('.','_').replace('$','')
     
 class TableHandlerGroupBy(BaseComponent):
     js_requires = 'gnrdatasets,th/th_groupth'
