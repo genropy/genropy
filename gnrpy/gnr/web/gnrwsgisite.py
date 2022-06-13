@@ -1538,7 +1538,7 @@ class GnrWsgiSite(object):
             file_ext = original_ext
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         file_path = file_node.fullpath
-        file_url = file_node.url()
+        file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
             outfile.write(content)
         return file_path,file_url
