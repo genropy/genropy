@@ -3778,6 +3778,8 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         var cellsetter;
         var currpath;
         var changedFields = [];
+        var assignedValue = cellkw.assignedValue;
+
         if(gridEditor){
             cellsetter = function(idx,cellname,value){
                 gridEditor.setCellValue(idx,cellname,value);
@@ -3810,6 +3812,10 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                     }
                 }
                 cellsetter(idx,fieldname,true);
+            }else if(!isNullOrBlank(assignedValue)){
+                if(newval){
+                    cellsetter(idx,cellkw.radioButton,evt.shiftKey?null:assignedValue);
+                }
             }else{
                 for (var c in this.cellmap){
                     var s_cell = this.cellmap[c];
@@ -3819,9 +3825,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                     }
                 }
             }
-
-
-
         }else{
             cellsetter(idx,cellkw.original_field,!checked);
         }
@@ -3917,15 +3920,22 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         celldata['classes'] = kw.classes || 'row_checker';
         celldata['format_falseclass'] = kw.falseclass || (radioButton?'radioOff':'checkboxOff'); //mettere classi radio
         celldata['calculated'] = kw.calculated;
-        celldata['checkedId'] = kw.checkedId;
-        celldata['checkedField'] = kw.checkedField;
-        celldata['action'] = kw.action ? funcCreate(kw.action,'changes',sourceNode):null;
-        celldata['action_delay'] = kw.action_delay;
-        if (kw.remoteUpdate && sourceNode.attr.table){
-            celldata.action = function(changes){
-                genro.serverCall("app.updateCheckboxPkeys",{table:sourceNode.attr.table,field:fieldname,changesDict:changes});
+        var assignedValue = celldata.assignedValue;
+        if(!isNullOrBlank(assignedValue)){
+            celldata._customGetter = function(rowdata,rowIdx){
+                return rowdata[celldata.radioButton] === assignedValue;
             };
-            celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
+        }else{
+            celldata['checkedId'] = kw.checkedId;
+            celldata['checkedField'] = kw.checkedField;
+            celldata['action'] = kw.action ? funcCreate(kw.action,'changes',sourceNode):null;
+            celldata['action_delay'] = kw.action_delay;
+            if (kw.remoteUpdate && sourceNode.attr.table){
+                celldata.action = function(changes){
+                    genro.serverCall("app.updateCheckboxPkeys",{table:sourceNode.attr.table,field:fieldname,changesDict:changes});
+                };
+                celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
+            }
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
         return celldata;
