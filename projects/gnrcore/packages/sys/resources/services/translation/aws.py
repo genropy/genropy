@@ -25,7 +25,6 @@ class Main(TranslationService):
         except Exception:
             self.client = None
             self.enabled = False
-
         
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:

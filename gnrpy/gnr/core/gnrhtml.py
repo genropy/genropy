@@ -450,6 +450,7 @@ class GnrHtmlBuilder(object):
         if self.htmlTemplate:
             if not firstpage and self.nextLetterhead:
                 self.htmlTemplate = self.nextLetterhead
+                self.adaptParentSizes()
             self.nextLetterhead = self.htmlTemplate.pop('next_letterhead')
             letterhead_root = self.prepareTplLayout(letterhead_root)
         else:
@@ -460,6 +461,22 @@ class GnrHtmlBuilder(object):
             letterhead_root.div(self.print_button, _class='no_print', id='printButton', onclick='window.print();')
         return letterhead_root
             
+    def adaptParentSizes(self):
+        parent = getattr(self,'parent')
+        if not parent:
+            return
+        top_layer =  self.htmlTemplate['#%i' %(len(self.htmlTemplate)-1)]
+        parent = self.parent
+        parent.page_margin_top = float(top_layer['main.page.top'] or parent.page_margin_top)
+        parent.page_margin_left = float(top_layer['main.page.left'] or parent.page_margin_left)
+        parent.page_margin_right = float( top_layer['main.page.right'] or parent.page_margin_right)
+        parent.page_margin_bottom = float(top_layer['main.page.bottom'] or parent.page_margin_bottom)
+        parent.page_header_height = float( top_layer['layout.top?height'] or parent.page_header_height)
+        parent.page_footer_height = float(top_layer['layout.bottom?height'] or parent.page_footer_height)
+        parent.page_leftbar_width = float(top_layer['layout.left?width'] or parent.page_leftbar_width)
+        parent.page_rightbar_width = float(top_layer['layout.right?width'] or parent.page_rightbar_width)
+
+
     def styleForLayout(self):
         """TODO"""
         self.head.style(""".x_br{border-top:none!important;border-left:none!important;}

@@ -1,5 +1,6 @@
 # encoding: utf-8
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 
 class Table(object):
     def config_db(self,pkg):
@@ -43,12 +44,13 @@ class Table(object):
         sms_service_name = self.db.application.getPreference('sms_service',pkg='orgn') or 'sms'
         sms_service = self.db.application.site.getService('sms',sms_service_name)
         result = sms_service.sendsms(destination_number=sms_number,message_content=sms_content)
+        return Bag(result)
 
     def _SMS_get_number(self,action_id=None):
         annotation_tbl = self.db.table('orgn.annotation')
         record_action = annotation_tbl.record(action_id).output('bag')
         fkey,fkey_value = annotation_tbl.recordLinkedEntity(record_action)
-        sms_number_path = annotation_tbl.column(fkey).attributes.get('linked_sms_number')
+        sms_number_path = annotation_tbl.column(fkey).attributes.get('sms_number')
         return record_action[f'@{fkey}.{sms_number_path}']
 
     def _SMS_get_content(self,action_id=None):
@@ -60,7 +62,7 @@ class Table(object):
 
     def SMS_pane(self,pane=None,action_id=None,**kwargs):
         frame = pane.framePane()
-        bc = frame.center.borderContainer(datapath='#FORM.impl_sms')
+        bc = frame.center.borderContainer(datapath='#FORM.record.implementor_data')
         annotation_tbl = self.db.table('orgn.annotation')
         record_action = annotation_tbl.record(action_id).output('bag')
         sms_number = self._SMS_get_number(action_id)
@@ -69,13 +71,22 @@ class Table(object):
         bc.simpleTextArea(value='^.sms_content',region='center')
         template = record_action['@action_type_id.text_template']
         renderedTemplate = self.db.currentPage.renderTemplate(record_id=action_id,table='orgn.annotation',template=template['compiled'])
-        bc.data('.sms_content',renderedTemplate)
+        bc.data('#FORM.record.implementor_data.sms_content',renderedTemplate)
         footer = frame.bottom.slotBar('*,sendSms,5',border_top='1px solid silver',height='22px')
-        footer.sendSms.button('Send SMS').dataRpc(self.runImplementor,
+        footer.sendSms.button('Send SMS').dataRpc('#FORM.record.implementor_result',self.runImplementor,
                                                 implementor='SMS',
                                                 action_id='=#FORM.record.id',
-                                                sms_number='=#FORM.impl_sms.sms_number',
-                                                sms_content='=#FORM.impl_sms.sms_content')
+                                                sms_number='=#FORM.record.implementor_data.sms_number',
+                                                sms_content='=#FORM.record.implementor_data.sms_content',
+                                                _onResult="""
+                                                if(result.getItem('message_id')){
+                                                    genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:_T('Sms sent')});
+                                                    this.setRelativeData('#FORM.record.exit_status','action_confirmed');
+                                                    this.setRelativeData('#FORM.record.description', `MSG:${kwargs.sms_content} \nRECEIVER:${kwargs.sms_number} \nMESSAGE ID:${result.getItem("message_id")}`);
+                                                }else if(result.getItem('error')){
+                                                    genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:_T(result.getItem('error')),messageType:'error'});
+                                                }
+                                                """)
 
 
     def impl_email(self,action_id=None,**kwargs):

@@ -15,7 +15,8 @@ from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
 from collections import defaultdict
-from gnr.app.gnrconfig import MenuStruct,IniConfStruct
+from gnr.web.gnrmenu import MenuStruct
+from gnr.app.gnrconfig import IniConfStruct
 from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
 
 class GnrConfigException(Exception):

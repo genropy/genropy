@@ -134,13 +134,17 @@ class Form(BaseComponent):
     
     @public_method
     def groupMenuSource(self,packages=None):
+        #da adattare urgentemente
         if not packages:
             return
         result = Bag()
         packages = packages.split(',')
         for pkgid,pkgobj in self.db.application.packages.items():
-            if pkgid in packages and pkgobj.pkgMenu:
-                result[pkgid] = Bag(pkgobj.pkgMenu)
+            if pkgid in packages:
+                menuBag = self.menu.getRoot(pkg=pkgid)
+                if not menuBag:
+                    continue
+                result[pkgid] = Bag(menuBag)
         return result
 
     def msource_onDrag(self):

@@ -229,7 +229,7 @@ class ActionOutcomeForm(BaseComponent):
     def orgnActionConfirmed(self,pane):
         fb = pane.div(margin='10px',margin_right='20px').formbuilder(cols=2,border_spacing='3px',
                             width='100%',colswidth='auto',datapath='.record',fld_width='100%')
-        fb.field('description',lbl='!!Action result',width='100%',tag='simpleTextArea',colspan=2)
+        fb.field('description',lbl='!!Action result',width='100%',height='150px',tag='simpleTextArea',colspan=2)
 
         fb.dbSelect(value='^.outcome_id',hidden='^.@action_type_id.@outcomes?=(!#v || #v.len()===0)',
                     dbtable='orgn.action_outcome',hasDownArrow=True,condition='$action_type_id=:aid',

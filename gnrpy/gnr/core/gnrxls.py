@@ -100,6 +100,7 @@ class XlsWriter(BaseXls):
        #self.columns = columns
         self.sheets = {}
         self.filepath = filepath
+        self.workbook = xlwt.Workbook()
         if sheet_base_name is not False:
             self.sheet_base_headers = headers
             self.sheet_base_groups = groups
@@ -210,6 +211,7 @@ class XlsWriter(BaseXls):
                 sheet.write(current_row, c, value)
             colsizes[c] = max(colsizes.get(c, 0), self.fitwidth(value))
             
+
     def fitwidth(self, data, bold=False):
         """Try to autofit Arial 10
         

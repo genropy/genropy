@@ -695,7 +695,9 @@ dojo.declare('gnr.GenroClient', null, {
                 sn.widget.setValue(stored_value,false)
             }
         });
-        dojo.subscribe("setWindowTitle",function(title){genro.dom.windowTitle(title);});
+        dojo.subscribe("setWindowTitle",function(title){
+            genro.dom.windowTitle(title);
+        });
         genro.setData('gnr.debugger.debug_sql',this.debug_sql);
         //genro.setData('gnr.debugger.debug_py',this.debug_py);
         this._registerUserEvents();
@@ -912,6 +914,10 @@ dojo.declare('gnr.GenroClient', null, {
     },
     getValueFromFrame: function(object_name, attribute_name, dtype){
         return asTypedTxt(window[object_name][attribute_name],dtype);
+    },
+
+    selectIframePage:function(kw){
+        genro.mainGenroWindow.genro.publish('selectIframePage',kw);
     },
 
     getServerLastTs:function(){
@@ -1865,6 +1871,13 @@ dojo.declare('gnr.GenroClient', null, {
         return convertFromText(value);
     },
 
+    getParentBranchMenuByIdentifier:function(kw){
+        let appmenu = genro.mainGenroWindow.genro.getData('gnr.appmenu').toXml();
+        appmenu = new gnr.GnrBag(appmenu);
+        appmenu.walk(function(n){objectPop(n.attr,'tag')});
+        let branchNode = appmenu.getNodeByAttr('branchIdentifier',kw.branchIdentifier);
+        return branchNode.getValue().deepCopy();
+    },
 
     addParamsToUrl: function(url, params) {
         if(!url){

@@ -159,12 +159,12 @@ class GnrCustomWebPage(object):
         #bc.framePane(frameCode='pippo',region='right',width='200px')
 
         bc.chartPane(value='^.glbl_provincia.view.store',
-                    filter='^.glbl_provincia.view.grid.righe_pkeys',
+                    #filter='^.glbl_provincia.view.grid.righe_pkeys',
                     region='bottom',height='500px',
                     captionField='sigla',
                     configurator=True,
                     datasetFields="tot_superficie",
-                    chartType='bar',nodeId='mychart')
+                    chartType='line',nodeId='mychart')
 
         bc.contentPane(region='center').plainTableHandler(table='glbl.provincia',
                                                 condition='$regione=:reg',

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><content>&lt;div&gt;
+	La provincia di &lt;strong&gt;$nome&lt;/strong&gt; conta &lt;strong&gt;$n_abitanti &lt;/strong&gt;abitanti, in una superficie di &lt;strong&gt;$superficie&lt;/strong&gt; km2.&lt;/div&gt;
+&lt;div&gt;
+	&amp;nbsp;&lt;/div&gt;
+&lt;div&gt;
+	I comuni della provincia, in ordine alfabetico, sono:&lt;/div&gt;
+&lt;ul&gt;
+  &lt;li row_datasource="@comuni"&gt;
+	$comuni_denominazione&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+<content_css _T="NN"></content_css>
+<varsbag><ga1kxlhept _pkey="ga1kxlhept"><fieldpath dtype="::NN">nome</fieldpath>
+<dtype dtype="::NN">A</dtype>
+<fieldname dtype="::NN">Nome</fieldname>
+<varname dtype="::NN">nome</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></ga1kxlhept>
+<ga1kxnfbox _pkey="ga1kxnfbox"><fieldpath dtype="::NN">numero_abitanti</fieldpath>
+<dtype dtype="::NN">L</dtype>
+<fieldname dtype="::NN">N.Abitanti</fieldname>
+<varname dtype="::NN">n_abitanti</varname>
+<virtual_column _T="B">True</virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></ga1kxnfbox>
+<ga1kxo70lt _pkey="ga1kxo70lt"><fieldpath dtype="::NN">tot_superficie</fieldpath>
+<dtype dtype="::NN">L</dtype>
+<fieldname dtype="::NN">Superficie</fieldname>
+<varname dtype="::NN">superficie</varname>
+<virtual_column _T="B">True</virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></ga1kxo70lt>
+<ga1kxqafvt _pkey="ga1kxqafvt"><fieldpath dtype="::NN">@comuni.denominazione</fieldpath>
+<dtype dtype="::NN">T</dtype>
+<fieldname dtype="::NN">Comuni/Denominazione</fieldname>
+<varname dtype="::NN">comuni_denominazione</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></ga1kxqafvt></varsbag>
+<parametersbag _T="NN"></parametersbag>
+<metadata><email><subject _T="NN"></subject>
+<to_address _T="NN"></to_address>
+<from_address _T="NN"></from_address>
+<cc_address _T="NN"></cc_address>
+<bcc_address _T="NN"></bcc_address>
+<attachments _T="NN"></attachments></email></metadata>
+<email><attached_reports _T="BAG"></attached_reports></email>
+<compiled><_comuni _tag="@comuni">&lt;li row_datasource="@comuni"&gt;
+	$denominazione&lt;/li&gt;
+</_comuni>
+<main maintable="glbl.provincia" locale="it-IT" virtual_columns="numero_abitanti,tot_superficie" columns="$nome,$numero_abitanti,$tot_superficie,@comuni.denominazione" formats="{}::JS" masks="{}::JS" editcols="{}::JS" df_templates="{}::JS" dtypes='{"nome": "A", "n_abitanti": "L", "superficie": "L", "comuni_denominazione": "T"}::JS'>&lt;div&gt;
+	La provincia di &lt;strong&gt;$nome&lt;/strong&gt; conta &lt;strong&gt;$numero_abitanti &lt;/strong&gt;abitanti, in una superficie di &lt;strong&gt;$tot_superficie&lt;/strong&gt; km2.&lt;/div&gt;
+
+&lt;div&gt;
+	&amp;#160;&lt;/div&gt;
+
+&lt;div&gt;
+	I comuni della provincia, in ordine alfabetico, sono:&lt;/div&gt;
+
+&lt;ul&gt;
+  
+$@comuni
+&lt;/ul&gt;
+</main></compiled></GenRoBag>

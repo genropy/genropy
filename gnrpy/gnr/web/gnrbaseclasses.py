@@ -651,7 +651,6 @@ class TableScriptToHtml(BagToHtmlWeb):
         self._rows = dict()
         self._gridsColumnsBag = Bag()
         self.record = record
-        self.htmlTemplate = None
         self.record_idx = idx or None
         self.prepareTemplates()
         data = self.gridData()

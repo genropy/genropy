@@ -748,6 +748,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
     },
     windowTitle:function(title) {
         document.title = title;
+        let mainGenro = genro.mainGenroWindow.genro;
+        if(mainGenro.framedIndexManager){
+            if(window.frameElement && window.frameElement.sourceNode){
+                let pageName = window.frameElement.sourceNode.attr.rootPageName;
+                mainGenro.framedIndexManager.changeFrameLabel({pageName:pageName,title:title,lazy:true});
+            }
+        }
     },
     styleTrigger:function(kw) {
         var parentNode = kw.node.getParentNode();
@@ -1410,7 +1417,6 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
         return result;
     },
-
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
         var max_height = kw.max_height || '180px';
@@ -1523,7 +1529,6 @@ dojo.declare("gnr.GnrDomHandler", null, {
             setTimeout(cb, 1);
         }
     },
-
     
     setTextInSelection:function(sourceNode,valueToPaste){
         var fn = sourceNode.widget.focusNode;

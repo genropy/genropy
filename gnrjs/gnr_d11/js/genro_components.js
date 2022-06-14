@@ -1204,6 +1204,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
         dropAreaKw.rpc_row_tag= '=.row_tag';
 
         objectUpdate(dropAreaKw,objectExtract(kw,'drop_*',false,true));
+        objectUpdate(dropAreaKw,objectExtract(kw,'rpc_*',false,true));
         dropAreaKw.onResult = function(result){
                                 if(result.currentTarget.responseText){
                                     gnrwdg.onImportCheck(new gnr.GnrBag(result.currentTarget.responseText));
@@ -3913,7 +3914,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
-        var uploadhandler_key = genro.isMobile? 'selfsubscribe_doubletap':'connect_ondblclick'
+        var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick'
         dropAreaKw[uploadhandler_key] = function(){
             if(gnrwdg.pendingHandlers.length){
                 genro.dlg.ask(_T("Abort upload"),
@@ -5081,13 +5082,18 @@ dojo.declare("gnr.widgets.ComboMenu", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.TextboxMenu", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         var menupars = objectExtract(kw,'values,storepath');
+        objectUpdate(menupars,objectExtract(kw,'selected_*',false,true))
         menupars._class = 'smallmenu'
         var separator = objectPop(kw,'separator',',')
         var valuekey = objectPop(kw,'valuekey','fullpath')
         var tb = sourceNode._('textbox',kw);
         menupars.action = function(linekw,ctx){
-            var cv = this.attr.attachTo.widget.getValue();
-            this.attr.attachTo.widget.setValue(cv?cv+separator+linekw[valuekey]:linekw[valuekey],true);
+            let cv = this.attr.attachTo.widget.getValue();
+            let newValue = linekw[valuekey];
+            if(cv && separator){
+                newValue = cv+separator+newValue;
+            }
+            this.attr.attachTo.widget.setValue(newValue,true);
         }
         tb._('comboMenu',menupars);
         return tb;
@@ -5808,6 +5814,14 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
                             'width':objectPop(slotKw,'width'),search_kw:slotKw});
     },
+
+    slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
+        pane._('menudiv',{iconClass:'iconbox popup',storepath:'gnr.parentBranchMenu.root',
+                            action:function(kw){
+                                genro.mainGenroWindow.genro.publish('selectIframePage',kw);
+                            }})
+    },
+
     slot_stackButtons:function(pane,slotValue,slotKw,frameCode){
         var scNode = objectPop(slotKw,'stackNode');
         if(scNode){

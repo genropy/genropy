@@ -208,15 +208,13 @@ class BagToHtml(object):
             self.pages_folder = os.path.splitext(self.filepath)[0]
             self.splittedPages_data = []
         self.showTemplate(hideTemplate is not True)
-        self.htmlTemplate = None
-        self.prepareTemplates()
         self.page_debug = page_debug or self.page_debug
         self.newBuilder()
         result = self.createHtml(filepath=self.filepath,body_attributes=self.body_attributes)
         return result
 
     def newBuilder(self):
-        
+        self.prepareTemplates()
         self.builder = GnrHtmlBuilder(page_width=self.page_width, page_height=self.page_height,
                                     page_margin_top=self.page_margin_top, page_margin_bottom=self.page_margin_bottom,
                                     page_margin_left=self.page_margin_left, page_margin_right=self.page_margin_right,
@@ -247,11 +245,12 @@ class BagToHtml(object):
     def prepareTemplates(self):
         """Set the correct value of every measure of the page: height, width, header, footer, margins"""
         top_layer = Bag()
-        if not self.htmlTemplate:
-            self.htmlTemplate = self.templateLoader(letterhead_id=self.letterhead_id,name=self.templates)
-            if self.htmlTemplate:
-                self.htmlTemplate.walk(self.fillLetterheadSourceData)
-                top_layer =  self.htmlTemplate['#%i' %(len(self.htmlTemplate)-1)]
+        self.htmlTemplate = self.templateLoader(letterhead_id=self.letterhead_id,name=self.templates)
+        if self.htmlTemplate:
+            baseTemplate = Bag(self.htmlTemplate)
+            baseTemplate.pop('next_letterhead')
+            baseTemplate.walk(self.fillLetterheadSourceData)
+            top_layer =  baseTemplate['#%i' %(len(baseTemplate)-1)]
         d = self.__dict__
         paper_height = float(d.get('page_height') or top_layer['main.page.height'] or self.paperHeight)
         paper_width = float(d.get('page_width') or top_layer['main.page.width'] or self.paperWidth)
@@ -674,9 +673,10 @@ class BagToHtml(object):
         sheetTotalizers = filter(lambda t: t, [tot for tot in self.columnsBag.digest('#a.totalize')])
         if captions_kw and sheetTotalizers:
             caption = captions_kw.pop('caption')
-            rowData[self._caption_column] = caption
-            for k,v in captions_kw.items():
-                rowData['%s_%s' %(self._caption_column,k)] = v
+            if self._caption_column:
+                rowData[self._caption_column] = caption
+                for k,v in captions_kw.items():
+                    rowData['%s_%s' %(self._caption_column,k)] = v
         return rowData
 
     def subtotalCaption(self,col_breaker,breaker_value):
@@ -1252,9 +1252,9 @@ class BagToHtml(object):
                                   text-indent:1mm;
                                   width:auto;
                                   font-weight: normal;
-                                  line-height:auto;
+                                  #line-height:auto;
                                   line-height:3mm;
-                                  height:3mm;""")
+                                  height:3mm;}""")
 
 
         self.body.style("""

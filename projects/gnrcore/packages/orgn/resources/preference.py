@@ -31,4 +31,4 @@ class AppPref(object):
         fb.checkbox(value='^.orgn_author_only',label='!!Upd author only',attr_dbenv=True)
         fb.dbSelect(value='^.sms_service',lbl='Sms service',dbtable='sys.service',
                     condition='$service_type=:st',condition_st='sms',caption_field='service_name',
-                    alternatePkey='$service_name')
+                    alternatePkey='service_name')

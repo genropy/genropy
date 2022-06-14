@@ -2408,6 +2408,23 @@ class SqlTable(GnrObject):
     
     def onLogChange(self,evt,record,old_record=None):
         pass
+
+
+
+    def menu_dynamicMenuContent(self,columns=None,label_field=None,title_field=None,**kwargs):
+        label_field = label_field or self.attributes.get('caption_field')
+
+        columns = columns or '*'
+        collist = columns.split(',')
+        label_field = label_field or self.attributes.get('caption_field')
+        if label_field and f'${label_field}' not in collist:
+            collist.append(f'${label_field}')
+        if title_field and f'${title_field}' not in collist:
+            collist.append(f'${title_field}')
+        return self.query(columns=','.join(collist),**kwargs).fetch()
+    
+    def menu_dynamicMenuLine(self,record,**kwargs):
+        return {}
     
     @property
     def totalizers(self):
@@ -2430,6 +2447,7 @@ class SqlTable(GnrObject):
             record = None
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
+
             
 if __name__ == '__main__':
     pass

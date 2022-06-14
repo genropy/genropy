@@ -44,6 +44,7 @@ from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
@@ -166,8 +167,6 @@ class GnrWebPage(GnrBaseWebPage):
         self.response.add_header('Pragma', 'no-cache')
         if self.site.config['x_frame_options']:
             self.response.add_header('X-Frame-Options', self.site.config['x_frame_options'])
-        elif not boolean(self.site.config['x_frame_options?disable']):
-            self.response.add_header('X-Frame-Options', 'SAMEORIGIN')
         self._htmlHeaders = []
         self._pendingContext = []
         self.local_datachanges = []
@@ -448,7 +447,7 @@ class GnrWebPage(GnrBaseWebPage):
     workdate = property(_get_workdate, _set_workdate)
 
     def _get_language(self):
-        if not getattr(self,'_language'):
+        if not getattr(self,'_language',None):
             self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
         return self._language
 
@@ -667,10 +666,10 @@ class GnrWebPage(GnrBaseWebPage):
             return result,{'respath':path}
 
     @public_method
-    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,**kwargs):
+    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,record=None,**kwargs):
         from gnr.web.gnrbaseclasses import TableTemplateToHtml
         htmlbuilder = TableTemplateToHtml(table=self.db.table(table))
-        return htmlbuilder.contentFromTemplate(record=record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
+        return htmlbuilder.contentFromTemplate(record=record or record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
 
     @public_method
     def loadTemplate(self,template_address,asSource=False,missingMessage=None,**kwargs):
@@ -1258,8 +1257,9 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def device_mode(self):
-        default_device_mode = 'mobile' if self.isMobile else 'std'
-        return self.getPreference('theme.device_mode',pkg='sys') or default_device_mode
+        if self.isMobile:
+            return 'mobile'
+        return self.getUserPreference('theme.device_mode',pkg='sys') or 'std'
 
     def get_bodyclasses(self):   #  is still necessary _common_d11?
         """TODO"""
@@ -1381,6 +1381,13 @@ class GnrWebPage(GnrBaseWebPage):
             self._app = GnrWebAppHandler(self)
         return self._app
         
+    @property
+    def menu(self):
+        """TODO"""
+        if not hasattr(self, '_menu'):
+            self._menu = GnrMenuProxy(self)
+        return self._menu
+
     @property
     def btc(self):
         """TODO"""
@@ -1925,7 +1932,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,_parent_page_id=None,_root_page_id=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -1952,14 +1959,16 @@ class GnrWebPage(GnrBaseWebPage):
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
-        page.data('gnr.windowTitle', self.windowTitle())
+        page.data('gnr.windowTitle',windowTitle or self.windowTitle())
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
-
-
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
         page.dataRemote('server.pageStore',self.getPageStoreData,cacheTime=1)
-        page.dataRemote('server.userStore',self.getUserStoreData,cacheTime=1)
+        if branchIdentifier:
+            page.dataController(""" let b = new gnr.GnrBag();
+                                    b.setCallBackItem('root',genro.getParentBranchMenuByIdentifier,{branchIdentifier:branchIdentifier});
+                                    SET gnr.parentBranchMenu = b;
+                                """,branchIdentifier=branchIdentifier,_onStart=True)
 
         page.dataRemote('server.dbEnv',self.dbCurrentEnv,cacheTime=1)
         page.dataController(""" var changelist = copyArray(_node._value);
@@ -1998,19 +2007,23 @@ class GnrWebPage(GnrBaseWebPage):
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
             page.dataRemote('gnr.shortcuts.store', self.getShortcuts)
 
-        #page.dataController("""
-        #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
-        #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
-        #    var kw = {'rotate':rotate_val,'invert':invert_val};
-        #    var styledict = {font_family:app_theme_font_family};
-        #    genro.dom.css3style_filter(null,kw,styledict);
-        #    dojo.style(dojo.body(),styledict);
-        #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
-        #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
-        #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
-        #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
-        #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
-        #        _onStart=True)
+       #page.dataController("""
+       #    var rotate_val = user_theme_filter_rotate || app_theme_filter_rotate || 0;
+       #    var invert_val = user_theme_filter_invert || app_theme_filter_invert || 0;
+       #    var kw = {'rotate':rotate_val,'invert':invert_val};
+       #    var styledict = {font_family:app_theme_font_family,font_size:app_theme_font_size,zoom:app_theme_zoom};
+       #    genro.dom.css3style_filter(null,kw,styledict);
+       #    dojo.style(dojo.body(),styledict);
+       #    """,app_theme_filter_rotate='^gnr.app_preference.sys.theme.body.filter_rotate',
+       #        user_theme_filter_rotate='^gnr.user_preference.sys.theme.body.filter_rotate',
+       #        app_theme_filter_invert='^gnr.app_preference.sys.theme.body.filter_invert',
+       #        app_theme_zoom='^gnr.app_preference.sys.theme.body.zoom',
+
+       #        user_theme_filter_invert='^gnr.user_preference.sys.theme.body.filter_invert',
+       #        app_theme_font_family='^gnr.app_preference.sys.theme.body.font_family',
+       #    app_theme_font_size='^gnr.app_preference.sys.theme.body.font_size',
+
+       #        _onStart=True)
 
 
 

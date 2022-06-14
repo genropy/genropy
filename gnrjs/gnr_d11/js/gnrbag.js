@@ -2114,6 +2114,15 @@ dojo.declare("gnr.GnrBag", null, {
                         newBagNode._status = 'loaded';
                         resolver.lastUpdate = new Date();
                         objectUpdate(newBagNode.attr,js_resolvedInfo);
+                    }else if(resolverPars){
+                        resolverPars = genro.evaluate(resolverPars);
+                        let cacheTime = 'cacheTime' in attributes ? attributes.cacheTime : resolverPars.kwargs['cacheTime'];
+                        resolverPars['cacheTime'] = 0;
+                        let resolver = genro.rpc.remoteResolver('resolverRecall', {'resolverPars':resolverPars}, {'cacheTime':cacheTime});
+                        newBagNode.setResolver(resolver);
+                        newBagNode._status = 'loaded';
+                        resolver.lastUpdate = new Date();
+                        objectUpdate(newBagNode.attr,js_resolvedInfo);
                     }
                     newBag.fromXmlDoc(node, clsdict);
                 }

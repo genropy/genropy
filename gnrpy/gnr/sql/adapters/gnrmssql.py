@@ -22,8 +22,8 @@
 
 from builtins import range
 import re
-
-import _mssql
+from decimal import Decimal
+from pymssql import _mssql
 import pymssql
 from pymssql import Connection, Cursor
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
@@ -58,7 +58,7 @@ class DictCursorWrapper(Cursor):
             res = super(DictCursorWrapper, self).fetchmany(size)
         if self._query_executed:
             self._build_index()
-        return res
+        return [GnrNamedList(self.index, values=r) for r in res]
 
     def __next__(self):
         if self._query_executed:
@@ -73,6 +73,9 @@ class DictCursorWrapper(Cursor):
     def execute(self, operation, args=()):
         self.index = {}
         self._query_executed = 1
+        for key in list(args.keys()):
+            if not isinstance(args[key], (int,str,list,tuple, bool, float, Decimal)):
+                args[key] = None
         return super(DictCursorWrapper, self).execute(operation, args)
 
     def _build_index(self):
@@ -137,7 +140,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :param sql: the sql string to execute
         :param kwargs: the params dict
         :returns: tuple (sql, kwargs)"""
-        return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
+        sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
+        return sql, kwargs
 
     def columnSqlDefinition(self, sqlname, dtype, size, notnull, pkey, unique):
         """Return the statement string for creating a table's column

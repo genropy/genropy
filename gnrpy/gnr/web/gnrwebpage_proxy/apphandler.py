@@ -807,7 +807,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             debug = 'fromDb'
             if savedQuery:            
                 userobject_tbl = self.db.table('adm.userobject')
-                where = userobject_tbl.loadUserObject(code=savedQuery, 
+                where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery, 
                                 objtype='query', tbl=tblobj.fullname)[0]
                 if where['where']:
                     limit = where['queryLimit']
@@ -816,7 +816,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                     where = where['where']
             if savedView:
                 userobject_tbl = self.db.table('adm.userobject')
-                columns = userobject_tbl.loadUserObject(code=savedView, objtype='view', tbl=tblobj.fullname)[0]
+                columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView, objtype='view', tbl=tblobj.fullname)[0]
             if selectmethod:
                 selecthandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
@@ -1228,10 +1228,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 _customClasses.append('logicalDeleted')
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
-                    if row[fld]:
+                    if isinstance(_class,dict):
+                        _class = _class.get(row[fld])
+                    elif row[fld]:
                         _class = row[fld] if _class is True else _class
+                    if _class:
                         _customClasses.append(_class)
-
             if numberedRows or not pkey:
                 row_key = 'r_%i' % j
             else:
@@ -2148,7 +2150,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             data = res_obj.get_selection(columns=','.join(query_columns))
         return res_obj.gridcall(data=data, struct=struct, export_mode=export_mode,
                                     localized_data=localized_data, datamode=datamode,
-                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table)
+                                    selectedRowidx=selectedRowidx,filename=downloadAs,table=table,**kwargs)
 
 
 class BatchExecutor(object):
