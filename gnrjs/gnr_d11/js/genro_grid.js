@@ -3814,8 +3814,12 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 cellsetter(idx,fieldname,true);
             }else if(!isNullOrBlank(assignedValue)){
                 if(newval){
+                    if(evt.shiftKey){
+                        assignedValue = null;
+                    }
                     cellsetter(idx,cellkw.radioButton,evt.shiftKey?null:assignedValue);
                 }
+                cellsetter(idx,`_status_${cellkw.radioButton}`,storebag.getItem(rowpath+sep+cellkw.radioButton)!==null);
             }else{
                 for (var c in this.cellmap){
                     var s_cell = this.cellmap[c];

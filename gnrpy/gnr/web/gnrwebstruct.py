@@ -2450,7 +2450,7 @@ class GnrGridStruct(GnrStructData):
         :param headerClasses: TODO"""
         return self.child('rows', classes=classes, cellClasses=cellClasses, headerClasses=headerClasses, **kwargs)
         
-    def columnset(self,code=None,name=None,**kwargs):
+    def columnset(self,code=None,name=None,columns=None,**kwargs):
         columnsets = self
         if self.attributes['tag']=='rows':
             structroot = columnsets.parent.parent
@@ -2460,7 +2460,15 @@ class GnrGridStruct(GnrStructData):
                 if not info:
                     info = structroot.info()
                 columnsets = info.columnsets()
-        return columnsets.child('columnset',code=code, name=name, childname=code,**kwargs)
+        result = columnsets.child('columnset',code=code, name=name, childname=code,**kwargs)
+        if columns:
+            cellskw = dictExtract(kwargs,'cells_')
+            for c in columns:
+                defaultkw = dict(cellskw)
+                tag = defaultkw.pop('tag','cell')
+                c.update(defaultkw)
+                getattr(result,tag)(**c)
+        return result
 
     def cell(self, field=None, name=None, width=None, dtype=None, classes=None, cellClasses=None, 
             headerClasses=None,**kwargs):

@@ -558,3 +558,159 @@ class TemplateGrid(BaseComponent):
 
 
         
+class RadioButtonGrid(BaseComponent):
+    
+    @extract_kwargs(condition=True,store=True,field=True)
+    @struct_method
+    def rbg_radioButtonGrid(self,pane,value=None,title=None,searchOn=False,table=None,struct=None,frameCode=None,datapath=None,addrow=False,delrow=False,
+                        condition=None,condition_kwargs=None,store_kwargs=None,items=None,field_kwargs=None,
+                        **kwargs):
+        frameCode = frameCode or (f'{table.replace(".","_")}_rg' if table else f'V_{id(pane)}_rg')
+        datapath = datapath or f'#FORM.{frameCode}'
+        if not struct:
+            struct = self.rbg_struct(**field_kwargs)
+        frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect',
+                    title=title,searchOn=searchOn,
+                    struct=struct,storepath='.store',addrow=addrow,delrow=delrow,
+                    datamode='attr',**kwargs)
+        if table:
+            if not condition_kwargs:
+                store_kwargs['_onBuilt'] = True
+            store_kwargs.update(condition_kwargs)
+            frame.dataSelection('.store',where=condition,table=table,**store_kwargs)
+        elif items:
+            self._rgb_itemsStore(frame,items,store_kwargs)
+        self._rbg_loader(frame,value)
+        self._rbg_saver(frame,value)
+
+    def rbg_struct(self,values=None,dtype=None,name=None,caption=None):
+        struct = self.newGridStruct()
+        columns = []
+        dtype = dtype or 'T'
+        if isinstance(values,str):
+            for c in values.split(','):
+                val,n = c.split(':')
+                columns.append(dict(name=n,value=self.catalog.fromText(val,dtype)))
+        r=struct.view().rows()
+        field = name or 'value'
+        r.cell(f'_status_{field}',_customGetter=f"""
+            function(row){{
+                return row["_status_{field}"]?"✔":null;
+            }}
+        """,name=' ',width='2em')
+        r.cell('code',hidden=True)
+        r.cell('description',name='!![en]Description',width='100%')
+        caption = caption or '!![en]Value'
+        r.columnset(code=field,name=caption ,cells_width='4em',
+                        cells_radioButton = field,
+                        cells_tag='checkboxcolumn',
+                        #radioButton = '0:No,1:Low,2:Medium,3:Good,4:Excellent'
+                        columns=columns)
+        r.cell(field,name=caption,width='4em',dtype=dtype)
+        return struct
+
+
+    def _rgb_itemsStore(self,frame,items,store_kwargs):
+        if ',' in items:
+            frame.data('.items',items)
+            items = '^.items'
+            store_kwargs['_onBuilt'] = True
+        frame.dataController("""
+            let store = new gnr.GnrBag();
+            if (items instanceof gnr.GnrBag){
+                for(let n of items.getNodes()){
+                    let value = n.getValue();
+                    if(value){
+                        value = value.asDict();
+                    }else{
+                        value = objectUpdate({},n.attr);
+                    }
+                    value['_pkey'] = value['_pkey'] || n.label;
+                    store.addItem(value['_pkey'],null,value);
+                }
+            }else{
+                for(let item of items.split(',')){
+                    let value = {}
+                    if(item.includes(':')){
+                        item = item.split(':');
+                        value.code = item[0];
+                        value._pkey = value.code;
+                        value.description = item[1];
+                    }else{
+                        value._pkey = item;
+                        value.description = item;
+                    }
+                    store.addItem(value['_pkey'],null,value);
+                }
+            }
+            SET .store = store;
+        """,items=items,**store_kwargs)
+
+    def _rbg_saver(self,frame,value):
+        frame.dataController(
+            """
+            let changedAttr = _triggerpars.kw.changedAttr;
+             if(!changedAttr){
+                return
+             }
+             let newvalue = null;
+             if(!value){
+                newvalue = new gnr.GnrBag();
+                value = newvalue;
+             }
+             var valuelabels = {};
+             let cellmap = grid.cellmap;
+             for (let cell_label in cellmap){
+                let kw = cellmap[cell_label]
+                if(kw.radioButton){
+                    valuelabels[kw.radioButton] = null;
+                }
+             }
+             if(!(changedAttr in valuelabels)){
+                return;
+             }
+             let changedAttrValue = _node.attr[changedAttr];
+             let valueNode = value.getNode(_node.attr._pkey);
+             if(valueNode && isNullOrBlank(changedAttrValue)){
+                value.popNode(valueNode.label);
+             }else if(!isNullOrBlank(changedAttrValue)){
+                if(valueNode){
+                    valueNode.getValue().setItem(changedAttr,changedAttrValue);
+                }else{
+                    value.addItem(_node.attr._pkey,new gnr.GnrBag(_node.attr));
+                }
+             }
+             if(newvalue){
+                SET %s = newvalue;
+             }
+             
+            """ %value.replace('^',''),
+            value=value.replace('^','='),grid=frame.grid.js_widget,store='^.store',_if='store'
+        )
+
+    def _rbg_loader(self,frame,value):
+        frame.dataController("""
+
+            value = value || new gnr.GnrBag();
+            store = store || new gnr.GnrBag();
+            var cellmap = grid.cellmap;
+            var valuelabels = {};
+            for (let cell_label in cellmap){
+                let kw = cellmap[cell_label]
+                if(kw.radioButton){
+                    valuelabels[kw.radioButton] = null;
+                }
+            }
+            store.getNodes().forEach(function(n){
+                let updattr = {};
+                let v = value.getItem(n.attr._pkey) || new gnr.GnrBag();
+                for (let valuelabel in valuelabels){
+                    let rv = v.getItem(valuelabel);
+                    updattr[valuelabel] = rv;
+                    updattr['_status_'+valuelabel] = !isNullOrBlank(rv);
+                }
+                n.updAttributes(updattr,false);
+            });
+        """,value=value,store='^.store',_delay=100,
+        grid=frame.grid.js_widget)
+
