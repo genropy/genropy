@@ -1228,9 +1228,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 _customClasses.append('logicalDeleted')
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
+                    val = row.get(fld)
+                    if val in (None,''):
+                        continue
                     if isinstance(_class,dict):
                         _class = _class.get(row[fld])
-                    elif row[fld]:
+                    else:
                         _class = row[fld] if _class is True else _class
                     if _class:
                         _customClasses.append(_class)
