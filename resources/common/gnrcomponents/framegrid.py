@@ -588,7 +588,8 @@ class EvaluationGrid(BaseComponent):
 
 
     def _evlg_struct(self,values=None,dtype=None,name=None,
-                        caption=None,aggr=None):
+                        caption=None,aggr=None,
+                        hidden=True,totalize=False):
         struct = self.newGridStruct()
         r=struct.view().rows()
         field = name or 'value'
@@ -604,7 +605,7 @@ class EvaluationGrid(BaseComponent):
             r.checkBoxSet(field,name=caption,cells_width='4em', values=values, dtype=dtype, aggr=aggr)
         else:
             r.radioButtonSet(field, name=caption, cells_width='4em', values=values, dtype=dtype)
-        r.cell(field,name=caption,width='4em',dtype=dtype)
+        r.cell(field,name=caption,width='4em',dtype=dtype,hidden=hidden,totalize=totalize)
         return struct
 
     def _evgl_itemsStore(self,frame,items,store_kwargs):
