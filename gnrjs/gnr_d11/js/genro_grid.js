@@ -3778,6 +3778,8 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         var currpath;
         var changedFields = [];
         var assignedValue = cellkw.assignedValue;
+        var checkBoxMultiValueField = cellkw.checkBox;
+        var checkBoxAggr = cellkw.checkBoxAggr;
         var storeCellSetter = function(idx,cellname,value){
             currpath = '#'+grid.absIndex(idx)+sep+cellname;
             storebag.setItem(currpath,value,null,{lazySet:true});
@@ -3797,9 +3799,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
         var newval = !checked;
         if(cellkw.radioButton){
-            if(checked && !evt.shiftKey){
-                return;
-            }
             if(cellkw.radioButton===true){
                 var oldcheckedpath; 
                 for (var i=0; i<storebag.len(); i++){
@@ -3814,25 +3813,65 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                     }
                 }
                 cellsetter(idx,fieldname,true);
-            }else if(!isNullOrBlank(assignedValue)){
-                let currentAssignedValue = storebag.getItem(rowpath+sep+cellkw.radioButton);
-                let valueToAssign = assignedValue;
-                if(currentAssignedValue===valueToAssign){
-                    valueToAssign = null;
-                }
-                cellsetter(idx,cellkw.radioButton,valueToAssign);
-                cellsetter(idx,`_status_${cellkw.radioButton}`,valueToAssign!==null);
             }else{
-                for (var c in this.cellmap){
-                    var s_cell = this.cellmap[c];
+                if(!isNullOrBlank(assignedValue)){
+                    let currentAssignedValue = storebag.getItem(rowpath+sep+cellkw.radioButton);
+                    let valueToAssign = assignedValue;
+                    if(currentAssignedValue===valueToAssign){
+                        valueToAssign = null;
+                        newval = false;
+                    }
+                    cellsetter(idx,cellkw.radioButton,valueToAssign);
+                    cellsetter(idx,`_status_${cellkw.radioButton}`,valueToAssign!==null);
+                }
+                for (let c in this.cellmap){
+                    let s_cell = this.cellmap[c];
                     if(s_cell.radioButton==cellkw.radioButton){
                         changedFields.push(s_cell.original_field);
-                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && !evt.shiftKey);
+                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && newval);
                     }
                 }
             }
         }else{
-            cellsetter(idx,cellkw.original_field,!checked);
+            if(checkBoxMultiValueField){
+                let currentAssignedValue = storebag.getItem(rowpath+sep+checkBoxMultiValueField);
+                let valueToAssign = currentAssignedValue;
+                if(typeof(assignedValue)=='string'){
+                    checkBoxAggr = checkBoxAggr || ',';
+                    valueToAssign = valueToAssign?valueToAssign.split(checkBoxAggr):[];
+                    if(newval){
+                        valueToAssign.push(assignedValue);
+                    }else{
+                        valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
+                    }
+                    valueToAssign = valueToAssign.join(checkBoxAggr) || null;
+                }else{
+                    checkBoxAggr = checkBoxAggr || '+'; //+ or *
+                    if(checkBoxAggr=='+'){
+                        if(newval){
+                            valueToAssign += assignedValue;
+                        }else{
+                            valueToAssign -= assignedValue;
+                        }
+                        valueToAssign = valueToAssign || null;
+                    }else{
+                        if(newval){
+                            valueToAssign = valueToAssign*assignedValue;
+                        }else{
+                            valueToAssign = valueToAssign/assignedValue;
+                        }
+                        valueToAssign = valueToAssign==1?null:valueToAssign;
+                    }
+                }
+                cellsetter(idx,checkBoxMultiValueField,valueToAssign);
+                cellsetter(idx,`_status_${checkBoxMultiValueField}`,valueToAssign!==null);
+                cellsetter(idx,cellkw.original_field,newval);
+
+            }else{
+                console.log('setting',idx,cellkw.original_field,!checked)
+                cellsetter(idx,cellkw.original_field,!checked);
+            }
+            
         }
         if(cellkw.checkedId){
             var checkedKeys = this.getCheckedId(fieldname,checkedField) || '';
@@ -3926,22 +3965,15 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         celldata['classes'] = kw.classes || 'row_checker';
         celldata['format_falseclass'] = kw.falseclass || (radioButton?'radioOff':'checkboxOff'); //mettere classi radio
         celldata['calculated'] = kw.calculated;
-        var assignedValue = celldata.assignedValue;
-        if(!isNullOrBlank(assignedValue)){
-            celldata._customGetter = function(rowdata,rowIdx){
-                return rowdata[celldata.radioButton] === assignedValue;
+        celldata['checkedId'] = kw.checkedId;
+        celldata['checkedField'] = kw.checkedField;
+        celldata['action'] = kw.action ? funcCreate(kw.action,'changes',sourceNode):null;
+        celldata['action_delay'] = kw.action_delay;
+        if (kw.remoteUpdate && sourceNode.attr.table){
+            celldata.action = function(changes){
+                genro.serverCall("app.updateCheckboxPkeys",{table:sourceNode.attr.table,field:fieldname,changesDict:changes});
             };
-        }else{
-            celldata['checkedId'] = kw.checkedId;
-            celldata['checkedField'] = kw.checkedField;
-            celldata['action'] = kw.action ? funcCreate(kw.action,'changes',sourceNode):null;
-            celldata['action_delay'] = kw.action_delay;
-            if (kw.remoteUpdate && sourceNode.attr.table){
-                celldata.action = function(changes){
-                    genro.serverCall("app.updateCheckboxPkeys",{table:sourceNode.attr.table,field:fieldname,changesDict:changes});
-                };
-                celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
-            }
+            celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
         return celldata;

@@ -2476,7 +2476,7 @@ class GnrGridStruct(GnrStructData):
         if isinstance(values,str):
             for i,c in enumerate(values.split(',')):
                 val,n = c.split(':')
-                columns.append(dict(field=f'{code}_{i:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
         return self.columnset(code=code,name=name ,
                         cells_radioButton = code,
                         cells_tag='checkboxcolumn',
@@ -2488,7 +2488,7 @@ class GnrGridStruct(GnrStructData):
         if isinstance(values,str):
             for i,c in enumerate(values.split(',')):
                 val,n = c.split(':')
-                columns.append(dict(field=f'{code}_{i:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
         return self.columnset(code=code,name=name ,
                         cells_checkBoxAggr = aggr,
                         cells_checkBox = code,

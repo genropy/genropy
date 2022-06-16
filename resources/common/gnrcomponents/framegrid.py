@@ -627,7 +627,7 @@ class EvaluationGrid(BaseComponent):
                 }
             }else{
                 for(let item of items.split(',')){
-                    let value = {}
+                    let value = {};
                     if(item.includes(':')){
                         item = item.split(':');
                         value.code = item[0];
@@ -656,36 +656,63 @@ class EvaluationGrid(BaseComponent):
                 value = newvalue;
              }
              var valuelabels = {};
+             var cbcells = {};
              let cellmap = grid.cellmap;
              for (let cell_label in cellmap){
                 let kw = cellmap[cell_label]
-                if(kw.radioButton){
-                    valuelabels[kw.radioButton] = null;
+                let groupCode = kw.radioButton || kw.checkBox;
+                if(groupCode){
+                    if(!valuelabels[groupCode]){
+                        valuelabels[groupCode] = cellmap[groupCode];
+                    }
+                    cbcells[kw.original_field] = kw;
                 }
              }
-             if(!(changedAttr in valuelabels)){
+             if(!(changedAttr in cbcells)){
                 return;
              }
-             let changedAttrValue = _node.attr[changedAttr];
-             let valueNode = value.getNode(_node.attr._pkey);
-             if(valueNode && isNullOrBlank(changedAttrValue)){
-                value.popNode(valueNode.label);
-             }else if(!isNullOrBlank(changedAttrValue)){
-                if(valueNode){
-                    valueNode.getValue().setItem(changedAttr,changedAttrValue,null,{doTrigger:'cbsave'});
-                }else{
-                    let kw = objectUpdate({},_node.attr);
-                    for(let lb in valuelabels){
-                        objectPop(kw,'_status_'+lb);
+             let currentAttributes = _node.attr;
+             let removeLine = true;
+             for(let l in valuelabels){
+                if(!isNullOrBlank(currentAttributes[l])){
+                    removeLine = false;
+                }
+             }
+             if(removeLine){
+                value.popNode(currentAttributes._pkey);
+             }else{
+                let n = value.getNode(currentAttributes._pkey);
+                let row = objectUpdate({},currentAttributes);
+                for(let l in valuelabels){
+                    objectPop(row,'_status_'+l);
+                }
+                for(let l in cbcells){
+                    if(!row[l]){
+                        objectPop(row,l);
                     }
-                    value.addItem(_node.attr._pkey,new gnr.GnrBag(kw),null,{doTrigger:'cbsave'});
+                }
+                if(n){
+                    let nodeValue = n.getValue();
+                    for(let fn of nodeValue.getNodes()){
+                        if(!(fn.label in row)){
+                            nodeValue.popNode(fn.label,'evlg_saver');
+                        }else{
+                            nodeValue.setItem(fn.label,objectPop(row,fn.label),null,{doTrigger:'evlg_saver'});
+                        }
+                    }
+                    if(objectNotEmpty(row)){
+                        nodeValue.update(row,null,'evlg_saver');
+                    }
+                }else{
+                    value.setItem(currentAttributes._pkey,new gnr.GnrBag(row),null,{doTrigger:'evlg_saver'})
                 }
              }
              if(newvalue){
-                SET %s = newvalue;
+                this.setRelativeData(valuepath, newvalue,null,{doTrigger:'evlg_saver'});
              }
              
-            """ %value.replace('^',''),
+            """,valuepath=value.replace('^',''),
+            _delay=1,
             value=value.replace('^','='),grid=frame.grid.js_widget,store='^.store',_if='store'
         )
 
@@ -694,17 +721,23 @@ class EvaluationGrid(BaseComponent):
             if(_triggerpars.kw.changedAttr){
                 return;
             }
-            if(_triggerpars.kw.reason=='cbsave'){
+            if(_triggerpars.kw.reason=='evlg_saver'){
+                console.log('evito')
                 return;
             }
             value = value || new gnr.GnrBag();
             store = store || new gnr.GnrBag();
-            var cellmap = grid.cellmap;
+            var cbcells = {};
             var valuelabels = {};
+            let cellmap = grid.cellmap;
             for (let cell_label in cellmap){
                 let kw = cellmap[cell_label]
-                if(kw.radioButton){
-                    valuelabels[kw.radioButton] = null;
+                let groupCode = kw.radioButton || kw.checkBox;
+                if(groupCode){
+                    if(!valuelabels[groupCode]){
+                        valuelabels[groupCode] = cellmap[groupCode];
+                    }
+                    cbcells[kw.original_field] = kw;
                 }
             }
             store.getNodes().forEach(function(n){
@@ -714,6 +747,10 @@ class EvaluationGrid(BaseComponent):
                     let rv = v.getItem(valuelabel);
                     updattr[valuelabel] = rv;
                     updattr['_status_'+valuelabel] = !isNullOrBlank(rv);
+                }
+                for (let cbcell in cbcells){
+                    let rv = v.getItem(cbcell);
+                    updattr[cbcell] = rv || false;
                 }
                 n.updAttributes(updattr,false);
             });
