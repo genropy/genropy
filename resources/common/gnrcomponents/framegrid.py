@@ -558,17 +558,20 @@ class TemplateGrid(BaseComponent):
 
 
         
-class RadioButtonGrid(BaseComponent):
+class EvaluationGrid(BaseComponent):
     
     @extract_kwargs(condition=True,store=True,field=True)
     @struct_method
-    def rbg_radioButtonGrid(self,pane,value=None,title=None,searchOn=False,table=None,struct=None,frameCode=None,datapath=None,addrow=False,delrow=False,
-                        condition=None,condition_kwargs=None,store_kwargs=None,items=None,field_kwargs=None,
+    def evlg_evaluationGrid(self,pane,value=None,title=None,searchOn=False,
+                        table=None,struct=None,frameCode=None,
+                        datapath=None,addrow=False,delrow=False,
+                        condition=None,condition_kwargs=None,
+                        store_kwargs=None,items=None,field_kwargs=None,
                         **kwargs):
         frameCode = frameCode or (f'{table.replace(".","_")}_rg' if table else f'V_{id(pane)}_rg')
         datapath = datapath or f'#FORM.{frameCode}'
         if not struct:
-            struct = self.rbg_struct(**field_kwargs)
+            struct = self._evlg_struct(**field_kwargs)
         frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect',
                     title=title,searchOn=searchOn,
                     struct=struct,storepath='.store',addrow=addrow,delrow=delrow,
@@ -579,18 +582,14 @@ class RadioButtonGrid(BaseComponent):
             store_kwargs.update(condition_kwargs)
             frame.dataSelection('.store',where=condition,table=table,**store_kwargs)
         elif items:
-            self._rgb_itemsStore(frame,items,store_kwargs)
-        self._rbg_loader(frame,value)
-        self._rbg_saver(frame,value)
+            self._evgl_itemsStore(frame,items,store_kwargs)
+        self._evlg_loader(frame,value)
+        self._evlg_saver(frame,value)
 
-    def rbg_struct(self,values=None,dtype=None,name=None,caption=None):
+
+    def _evlg_struct(self,values=None,dtype=None,name=None,
+                        caption=None,aggr=None):
         struct = self.newGridStruct()
-        columns = []
-        dtype = dtype or 'T'
-        if isinstance(values,str):
-            for c in values.split(','):
-                val,n = c.split(':')
-                columns.append(dict(name=n,value=self.catalog.fromText(val,dtype)))
         r=struct.view().rows()
         field = name or 'value'
         r.cell(f'_status_{field}',_customGetter=f"""
@@ -601,16 +600,14 @@ class RadioButtonGrid(BaseComponent):
         r.cell('code',hidden=True)
         r.cell('description',name='!![en]Description',width='100%')
         caption = caption or '!![en]Value'
-        r.columnset(code=field,name=caption ,cells_width='4em',
-                        cells_radioButton = field,
-                        cells_tag='checkboxcolumn',
-                        #radioButton = '0:No,1:Low,2:Medium,3:Good,4:Excellent'
-                        columns=columns)
+        if aggr:
+            r.checkBoxSet(field,name=caption,cells_width='4em', values=values, dtype=dtype, aggr=aggr)
+        else:
+            r.radioButtonSet(field, name=caption, cells_width='4em', values=values, dtype=dtype)
         r.cell(field,name=caption,width='4em',dtype=dtype)
         return struct
 
-
-    def _rgb_itemsStore(self,frame,items,store_kwargs):
+    def _evgl_itemsStore(self,frame,items,store_kwargs):
         if ',' in items:
             frame.data('.items',items)
             items = '^.items'
@@ -646,7 +643,7 @@ class RadioButtonGrid(BaseComponent):
             SET .store = store;
         """,items=items,**store_kwargs)
 
-    def _rbg_saver(self,frame,value):
+    def _evlg_saver(self,frame,value):
         frame.dataController(
             """
             let changedAttr = _triggerpars.kw.changedAttr;
@@ -675,9 +672,13 @@ class RadioButtonGrid(BaseComponent):
                 value.popNode(valueNode.label);
              }else if(!isNullOrBlank(changedAttrValue)){
                 if(valueNode){
-                    valueNode.getValue().setItem(changedAttr,changedAttrValue);
+                    valueNode.getValue().setItem(changedAttr,changedAttrValue,null,{doTrigger:'cbsave'});
                 }else{
-                    value.addItem(_node.attr._pkey,new gnr.GnrBag(_node.attr));
+                    let kw = objectUpdate({},_node.attr);
+                    for(let lb in valuelabels){
+                        objectPop(kw,'_status_'+lb);
+                    }
+                    value.addItem(_node.attr._pkey,new gnr.GnrBag(kw),null,{doTrigger:'cbsave'});
                 }
              }
              if(newvalue){
@@ -688,9 +689,14 @@ class RadioButtonGrid(BaseComponent):
             value=value.replace('^','='),grid=frame.grid.js_widget,store='^.store',_if='store'
         )
 
-    def _rbg_loader(self,frame,value):
+    def _evlg_loader(self,frame,value):
         frame.dataController("""
-
+            if(_triggerpars.kw.changedAttr){
+                return;
+            }
+            if(_triggerpars.kw.reason=='cbsave'){
+                return;
+            }
             value = value || new gnr.GnrBag();
             store = store || new gnr.GnrBag();
             var cellmap = grid.cellmap;
@@ -711,6 +717,5 @@ class RadioButtonGrid(BaseComponent):
                 }
                 n.updAttributes(updattr,false);
             });
-        """,value=value,store='^.store',_delay=100,
-        grid=frame.grid.js_widget)
+        """,value=value,store='^.store',grid=frame.grid.js_widget)
 

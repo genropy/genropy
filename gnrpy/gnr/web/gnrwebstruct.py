@@ -2470,6 +2470,33 @@ class GnrGridStruct(GnrStructData):
                 getattr(result,tag)(**c)
         return result
 
+    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
+        columns = []
+        dtype = dtype or 'T'
+        if isinstance(values,str):
+            for i,c in enumerate(values.split(',')):
+                val,n = c.split(':')
+                columns.append(dict(field=f'{code}_{i:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+        return self.columnset(code=code,name=name ,
+                        cells_radioButton = code,
+                        cells_tag='checkboxcolumn',
+                        columns=columns,**kwargs)
+    
+    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,**kwargs):
+        columns = []
+        dtype = dtype or 'T'
+        if isinstance(values,str):
+            for i,c in enumerate(values.split(',')):
+                val,n = c.split(':')
+                columns.append(dict(field=f'{code}_{i:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+        return self.columnset(code=code,name=name ,
+                        cells_checkBoxAggr = aggr,
+                        cells_checkBox = code,
+                        cells_tag='checkboxcolumn',
+                        columns=columns,**kwargs)
+
+
+
     def cell(self, field=None, name=None, width=None, dtype=None, classes=None, cellClasses=None, 
             headerClasses=None,**kwargs):
         """Return a :ref:`cell`

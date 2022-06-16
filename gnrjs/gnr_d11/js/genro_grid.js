@@ -3775,19 +3775,21 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         var action_delay = cellkw.action_delay;
         var sourceNode = this.sourceNode;
         var gridEditor = this.gridEditor;
-        var cellsetter;
         var currpath;
         var changedFields = [];
         var assignedValue = cellkw.assignedValue;
-
+        var storeCellSetter = function(idx,cellname,value){
+            currpath = '#'+grid.absIndex(idx)+sep+cellname;
+            storebag.setItem(currpath,value,null,{lazySet:true});
+        }
+        var cellsetter = storeCellSetter;
         if(gridEditor){
             cellsetter = function(idx,cellname,value){
-                gridEditor.setCellValue(idx,cellname,value);
-            }
-        }else{
-            cellsetter = function(idx,cellname,value){
-                currpath = '#'+grid.absIndex(idx)+sep+cellname;
-                storebag.setItem(currpath,value,null,{lazySet:true});
+                if(cellname in grid.cellmap){
+                    gridEditor.setCellValue(idx,cellname,value);
+                }else{
+                    storeCellSetter(idx,cellname,value);
+                }
             }
         }
         if (currNode.attr.disabled) {
@@ -3813,13 +3815,13 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 }
                 cellsetter(idx,fieldname,true);
             }else if(!isNullOrBlank(assignedValue)){
-                if(newval){
-                    if(evt.shiftKey){
-                        assignedValue = null;
-                    }
-                    cellsetter(idx,cellkw.radioButton,evt.shiftKey?null:assignedValue);
+                let currentAssignedValue = storebag.getItem(rowpath+sep+cellkw.radioButton);
+                let valueToAssign = assignedValue;
+                if(currentAssignedValue===valueToAssign){
+                    valueToAssign = null;
                 }
-                cellsetter(idx,`_status_${cellkw.radioButton}`,storebag.getItem(rowpath+sep+cellkw.radioButton)!==null);
+                cellsetter(idx,cellkw.radioButton,valueToAssign);
+                cellsetter(idx,`_status_${cellkw.radioButton}`,valueToAssign!==null);
             }else{
                 for (var c in this.cellmap){
                     var s_cell = this.cellmap[c];
