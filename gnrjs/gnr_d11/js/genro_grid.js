@@ -3844,7 +3844,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                     }else{
                         valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
                     }
-                    valueToAssign = valueToAssign.join(checkBoxAggr) || null;
+                    valueToAssign = valueToAssign.sort().join(checkBoxAggr) || null;
                 }else{
                     checkBoxAggr = checkBoxAggr || '+'; //+ or *
                     if(checkBoxAggr=='+'){
@@ -3868,7 +3868,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 cellsetter(idx,cellkw.original_field,newval);
 
             }else{
-                console.log('setting',idx,cellkw.original_field,!checked)
                 cellsetter(idx,cellkw.original_field,!checked);
             }
             

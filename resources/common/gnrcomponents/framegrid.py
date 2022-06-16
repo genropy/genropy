@@ -722,7 +722,6 @@ class EvaluationGrid(BaseComponent):
                 return;
             }
             if(_triggerpars.kw.reason=='evlg_saver'){
-                console.log('evito')
                 return;
             }
             value = value || new gnr.GnrBag();
