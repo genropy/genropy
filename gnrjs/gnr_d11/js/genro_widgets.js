@@ -911,6 +911,9 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode) {
+
+
+
         if(sourceNode.attr.currentTime || sourceNode.attr.playing){
             dojo.connect(newobj,'play',function(evt){
                 var d = evt.target;
@@ -952,24 +955,22 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        var onErr=function(e){
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function(stream) {
+            if(onAccept){
+                funcApply(onAccept,{},sourceNode);
+            }
+            sourceNode.domNode.srcObject = stream;
+            sourceNode.domNode.play();
+        })
+        .catch(function(err) {
+            console.log("An error occurred: " + err);
             if(onErrorGetUserMedia){
                 funcApply(onErrorGetUserMedia,{e:e});
             }else{
                 genro.dlg.alert('Not allowed video capture '+e,'Error');
             }
-        };
-        var onOk=function(stream){
-            if(onAccept){
-                funcApply(onAccept,{},sourceNode);
-            }
-            sourceNode.domNode.src=window.URL? window.URL.createObjectURL(stream):stream;
-        };
-        if(navigator.webkitGetUserMedia){
-            navigator.webkitGetUserMedia(capture_kw,onOk,onErr);
-        }else{
-            navigator.getUserMedia(capture_kw,onOk,onErr);
-        }
+        });
     },
     setCurrentTime:function(domNode,currentTime,kw){
         var roundedCT = Math.round(domNode.currentTime*10)/10;
@@ -4903,29 +4904,32 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
          })
     },
      onMouseDown:function(e){
-         var that=this;
-         var modifiers=genro.dom.getEventModifiers(e);
-         var sourceNode=e.target.sourceNode;
-         sourceNode.edit_mode= (modifiers === '') ? 'move' : (modifiers=='Shift') ? 'zoom':(modifiers=='Alt') ? 'rotate' :null 
-         if(sourceNode.edit_mode){
-             e.stopPropagation();
-             e.preventDefault();
-             var src=sourceNode.getAttributeFromDatasource('src');
-             if(!src || (sourceNode.form && sourceNode.form.isDisabled())){
-                 return;
-             }
-             sourceNode.s_x=e.clientX;
-             sourceNode.s_y=e.clientY;
-             var domnode=sourceNode.domNode;
-             sourceNode.editConnections=[
-                                        dojo.connect(domnode, "onmousemove",function(e){
-                                            that.onEditImage(sourceNode,e);
-                                            }),
-                                        dojo.connect(document, "onmouseup",  function(e){
-                                            that.onEndEdit(sourceNode);
-                                        })
-                                        ];
-         };
+        if(genro.isMobile){
+            return;
+        }
+        var that=this;
+        var modifiers=genro.dom.getEventModifiers(e);
+        var sourceNode=e.target.sourceNode;
+        sourceNode.edit_mode= (modifiers === '') ? 'move' : (modifiers=='Shift') ? 'zoom':(modifiers=='Alt') ? 'rotate' :null 
+        if(sourceNode.edit_mode){
+            e.stopPropagation();
+            e.preventDefault();
+            var src=sourceNode.getAttributeFromDatasource('src');
+            if(!src || (sourceNode.form && sourceNode.form.isDisabled())){
+                return;
+            }
+            sourceNode.s_x=e.clientX;
+            sourceNode.s_y=e.clientY;
+            var domnode=sourceNode.domNode;
+            sourceNode.editConnections=[
+                                       dojo.connect(domnode, "onmousemove",function(e){
+                                           that.onEditImage(sourceNode,e);
+                                           }),
+                                       dojo.connect(document, "onmouseup",  function(e){
+                                           that.onEndEdit(sourceNode);
+                                       })
+                                       ];
+        };
     },
         
     decodeUrl:function(sourceNode,url){
