@@ -570,6 +570,10 @@ class EvaluationGrid(BaseComponent):
                         **kwargs):
         frameCode = frameCode or (f'{table.replace(".","_")}_rg' if table else f'V_{id(pane)}_rg')
         datapath = datapath or f'#FORM.{frameCode}'
+        columns = '*'
+        if table:
+            tblobj = self.db.table(table)
+            columns = f'${tblobj.attributes.get("caption_field")} AS description,${tblobj.pkey} AS code, ${tblobj.pkey} AS _pkey'
         if not struct:
             struct = self._evlg_struct(**field_kwargs)
         frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect',
@@ -581,7 +585,7 @@ class EvaluationGrid(BaseComponent):
             if not condition_kwargs:
                 store_kwargs['_onBuilt'] = True
             store_kwargs.update(condition_kwargs)
-            frame.dataSelection('.store',where=condition,table=table,**store_kwargs)
+            frame.dataSelection('.store',where=condition,table=table,columns=columns,**store_kwargs)
         elif items:
             self._evgl_itemsStore(frame,items,store_kwargs)
         self._evlg_loader(frame,value)

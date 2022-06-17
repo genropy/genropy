@@ -4764,11 +4764,6 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             that.centerImage(sourceNode,cropAttr);
                         };
                     }
-                    var filename = sourceNode.currentFromDatasource(uploadAttr.filename);
-                    if(!filename){
-                        genro.dlg.alert("Missing info to upload the image",'Warning');
-                        return false;
-                    }
                     if(uploadAttr.folder=='*'){
                         var reader = new FileReader();
                         reader.onload = function(event){
@@ -4776,6 +4771,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         }
                         reader.readAsDataURL(data);
                     }else{
+                        var filename = sourceNode.currentFromDatasource(uploadAttr.filename);
+                        if(!filename){
+                            genro.dlg.alert("Missing info to upload the image",'Warning');
+                            return false;
+                        }
                         genro.rpc.uploadMultipart_oneFile(data,null,{uploadPath:sourceNode.currentFromDatasource(uploadAttr.folder),
                             filename:filename,
                             onResult:function(result){
@@ -4793,7 +4793,18 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 });
                 var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
                 attr[uploadhandler_key] = function(){
-                    this.getValue().getNode('fakeinput').domNode.click();
+                    var elem = this;
+                    let uploadCb = function(){
+                        elem.getValue().getNode('fakeinput').domNode.click();
+                    };
+                    let tacePicCb = function(){
+                        that.takePicktureDialog(sourceNode);
+                    };
+                    if(sourceNode.attr.edit=='camera'){
+                        that.uploadOptionsDialog(uploadCb,tacePicCb);
+                    }else{
+                        uploadCb();
+                    }
                 };
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
@@ -4806,6 +4817,73 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
 
         }
     },
+
+    uploadOptionsDialog:function(uploadCb,takePicktureDialog){
+        var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
+        dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
+
+        var slotbar = dlg.bottom._('slotBar',{slots:'*,upload,10,takePicture,5',
+                                               action:function(){
+                                                   dlg.close_action();
+                                                   if(this.attr.command=='upload'){
+                                                        uploadCb()
+                                                   }else{
+                                                        takePicktureDialog();
+                                                   }
+                                                   
+                                               }});
+        slotbar._('button','upload',{label:'Upload',command:'upload'});
+        slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+        dlg.show_action();
+     },
+
+
+     takePicktureDialog:function(sourceNode){
+        let frameCode = 'pd_'+sourceNode.getStringId();
+        var videoNodeId = frameCode+'_video';
+        var canvasNodeId = frameCode+'_canvas'
+        const videoHeight = 300;
+        const videoWidth = 400; 
+        let clientWidth = sourceNode.domNode.clientWidth;
+        let clientHeight = sourceNode.domNode.clientHeight;
+        var dlg = genro.dlg.quickDialog(_T('Take pickture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
+                        connect_show:function(){
+                            genro.nodeById(videoNodeId).publish('startCapture');
+                        }});
+        var sc = dlg.center._('StackContainer',{height:videoHeight+42+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
+        let video = sc._('contentPane',{pageName:'video'});
+        var preview = sc._('ContentPane',{pageName:'preview'});
+        video._('video',{autoplay:true,margin:'10px',
+                            border:'1px solid silver',
+                            height:videoHeight+'px',
+                            width:videoWidth+'px',
+                            nodeId:videoNodeId,
+                        selfsubscribe_takePicture:function(){
+                            var c = preview._('canvas','currentCanvas',{height:videoHeight+'px',nodeId:canvasNodeId,
+                                                border:'1px solid silver',
+                                                width:videoWidth+'px',display:'block',margin:'10px',hidden:false})     
+                            c.getParentNode().takePhoto(this);
+                            this.setRelativeData('#WORKSPACE.selectedPage','preview');
+                        },selfsubscribe_startCapture:function(){this.startCapture({video:true})}});
+        var slotbar = dlg.bottom._('slotBar',{slots:'*,takePicture,5,confirmImage,5'});
+        slotbar._('button','takePicture',{label:'Take picture',action:function(){
+            let currentPage = this.getRelativeData('#WORKSPACE.selectedPage');
+            if(currentPage=='preview'){
+                this.setRelativeData('#WORKSPACE.selectedPage','video');
+            }else{
+                genro.nodeById(videoNodeId).publish('takePicture');
+            }
+        }});
+        slotbar._('button','confirmImage',{label:'Confirm',
+                        action:function(){
+                            let dataUrl = genro.nodeById(canvasNodeId).domNode.toDataURL('image/png');
+                            sourceNode.setAttributeInDatasource('src',dataUrl,true);
+                            dlg.close_action();
+                        },hidden:'^#WORKSPACE.selectedPage?=#v!="preview"'});
+        dlg.show_action();
+     },
+
+
     
     creating: function(attributes, sourceNode) {
         var edit=objectPop(attributes,'edit');
