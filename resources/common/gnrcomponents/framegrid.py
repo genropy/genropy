@@ -575,6 +575,7 @@ class EvaluationGrid(BaseComponent):
         frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect',
                     title=title,searchOn=searchOn,
                     struct=struct,storepath='.store',addrow=addrow,delrow=delrow,
+                    batchAssign=False,
                     datamode='attr',**kwargs)
         if table:
             if not condition_kwargs:
