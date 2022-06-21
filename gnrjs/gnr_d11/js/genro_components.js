@@ -1263,7 +1263,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
                 if (gnrwdg.errorCb){
                     gnrwdg.errorCb(kw.error);
                 }else{
-                    genro.dlg.floatingMessage(bcnode,{message:kw.error,messageType:'error'});
+                    genro.dlg.alert(kw.error,_T('Errors'));
                 }
             }
             else{
