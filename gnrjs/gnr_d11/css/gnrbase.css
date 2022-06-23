@@ -1523,6 +1523,11 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 /* @end */
+
+.isRootItem .add_sibling {
+    display: none;
+}
+
 .tableTreeNode {
     font-weight: bold;
 }

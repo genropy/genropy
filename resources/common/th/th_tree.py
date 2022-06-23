@@ -347,10 +347,6 @@ class TableHandlerHierarchicalView(BaseComponent):
         pane.dataController("genro.dom.setClass(breadroot.getParentNode(),'lockedToolbar',locked)",
                             locked='^#FORM.controller.locked',breadroot=breadroot)
         
-        pane.dataController("""genro.dom.setClass(breadroot.getParentNode(),'isLeafItem',isLeafItem)""",
-                            isLeafItem='^#FORM.record?_isLeafItem',
-                            breadroot=breadroot)
-
         pane.dataController("""
                            if(this.form.isNewRecord()){
                                 return;

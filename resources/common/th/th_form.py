@@ -245,6 +245,12 @@ class TableHandlerForm(BaseComponent):
                 default_slots= default_slots.replace('form_add','form_add,form_duplicate')
             if hierarchical:
                 default_slots = 'dismiss,hbreadcrumb,%s' %default_slots
+                options['form_add__class'] = 'add_sibling'
+                options['form_duplicate__class'] = 'add_sibling'
+                form.dataController("""genro.dom.setClass(this.form.sourceNode,'isLeafItem',isLeafItem)""",
+                            isLeafItem='^#FORM.record?_isLeafItem')
+                form.dataController("""genro.dom.setClass(this.form.sourceNode,'isRootItem',isLeafItem)""",
+                            isLeafItem='^#FORM.record?_isRootItem')
             elif navigation:
                 default_slots = 'navigation,%s' %default_slots
             if selector:
