@@ -28,7 +28,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
 class TableHandlerTreeResolver(BagResolver):
-    classKwargs = {'cacheTime': 300,
+    classKwargs = {'cacheTime': -1,
                    'table':None,
                    'parent_id': None,
                    'root_id':None,
