@@ -706,13 +706,22 @@
 .lockedToolbar .bread_add{
     display:none;
 }
-
+.isLeafItem .bread_add{
+    display:none;
+}
+.isLeafItem .last_bread_middle.bread_middle{
+    background: url(16/_reserved/bread_last.png) no-repeat center center;
+    height: 16px;
+    width: 16px;
+    opacity:.7;
+}
 .lockedToolbar .last_bread_middle.bread_middle{
     background: url(16/_reserved/bread_last.png) no-repeat center center;
     height: 16px;
     width: 16px;
     opacity:.7;
 }
+
 /*.last_bread_middle{
     background: url(16/_reserved/bread_last.png) no-repeat center center;
     height: 16px;
