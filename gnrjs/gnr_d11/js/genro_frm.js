@@ -596,10 +596,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(kw.destPkey=='*newrecord*' && defaultPrompt){
             var that = this;
             kw.default_kw = kw.default_kw || {};
-            kw.default_kw = objectUpdate(objectExtract(that.store.prepareDefaults(kw.default_kw),'default_*',true),kw.default_kw); 
+            objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
-                dflt:new gnr.GnrBag(kw.default_kw),
+                dflt:new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw)),
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
                 action:function(result){

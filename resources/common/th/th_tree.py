@@ -346,6 +346,11 @@ class TableHandlerHierarchicalView(BaseComponent):
         breadroot = pane.div()
         pane.dataController("genro.dom.setClass(breadroot.getParentNode(),'lockedToolbar',locked)",
                             locked='^#FORM.controller.locked',breadroot=breadroot)
+        
+        pane.dataController("""genro.dom.setClass(breadroot.getParentNode(),'isLeafItem',isLeafItem)""",
+                            isLeafItem='^#FORM.record?_isLeafItem',
+                            breadroot=breadroot)
+
         pane.dataController("""
                            if(this.form.isNewRecord()){
                                 return;
@@ -390,6 +395,7 @@ class TableHandlerHierarchicalView(BaseComponent):
                                hpkey = '=.form.record.hierarchical_pkey',
                                _fired='^.form.controller.loaded',
                                add_label='!!Add')
+
     @extract_kwargs(relation=True,condition=True)
     @struct_method
     def ht_relatedTableHandler(self,tree,th,dropOnRoot=True,

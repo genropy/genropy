@@ -2011,7 +2011,7 @@ class SqlSelection(object):
                                                    virtual_columns=virtual_columns,
                                                    sqlContextName=self.sqlContextName)
 
-            result.addItem('%s' % spkey, content, _pkey=spkey, _attributes=dict(row), _removeNullAttributes=False)
+            result.addItem('%s' % spkey.replace('.','_'), content, _pkey=spkey, _attributes=dict(row), _removeNullAttributes=False)
         return result
         
     def out_fullgrid(self, outsource, recordResolver=True):
