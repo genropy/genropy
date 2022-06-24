@@ -2,7 +2,8 @@
 
 class Table(object):
     def config_db(self,pkg):
-        tbl=pkg.table('shorturl', pkey='codekey',pkey_values='$domain,$key', name_long='Shorturl', name_plural='Shorturl',caption_field='shorturl')
+        tbl=pkg.table('shorturl', pkey='codekey',pkey_values='$domain,$key', 
+                    name_long='Shorturl', name_plural='Shorturl',caption_field='shorturl')
         self.sysFields(tbl)
         tbl.column('codekey', size=':100', name_long='Codekey')
         tbl.column('service_identifier',size=':60', group='_', name_long='Service'
