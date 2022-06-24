@@ -2,9 +2,9 @@
 
 class Table(object):
     def config_db(self,pkg):
-        tbl=pkg.table('shorturl', pkey='codekey',pkey_values='$domain,$key', 
+        tbl=pkg.table('shorturl', pkey='codekey',pkey_columns='$domain,$key', 
                     name_long='Shorturl', name_plural='Shorturl',caption_field='shorturl')
-        self.sysFields(tbl)
+        self.sysFields(tbl,id=False)
         tbl.column('codekey', size=':100', name_long='Codekey')
         tbl.column('service_identifier',size=':60', group='_', name_long='Service'
                     ).relation('service.service_identifier', relation_name='urls', 
