@@ -213,9 +213,9 @@ class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
     css_requires='public'
     @struct_method
-    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,**kwargs):
+    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,datasourcepath=None,**kwargs):
         sc = self._te_mainstack(pane,table=maintable)
-        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable)
+        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable,datasourcepath=datasourcepath)
         self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain,plainText=plainText))
         self._te_framePreview(sc.framePane(title='!!Preview',pageName='preview',childname='preview'),table=maintable)
         #self._te_frameHelp(sc.framePane(title='!!Help',pageName='help',childname='help'))
@@ -354,11 +354,12 @@ class TemplateEditor(TemplateEditorBase):
                                 parentForm=False,
                                 selfDragRows=True,**kwargs)
         
-    def _te_frameInfo(self,frame,table=None):
+    def _te_frameInfo(self,frame,table=None,datasourcepath=None,**kwargs):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
         self._te_info_top(bc.contentPane(region='top'))
-        self._te_info_vars(bc,table=table,region='bottom',height='60%')
+        self._te_info_vars(bc,table=table,region='bottom',height='60%',
+                fieldsTree_currRecordPath=datasourcepath)
         self._te_info_parameters(bc,region='center')
         
     def _te_pickers(self,tc):
