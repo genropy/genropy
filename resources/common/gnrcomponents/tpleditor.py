@@ -619,6 +619,7 @@ class PaletteTemplateEditor(TemplateEditor):
 
     @public_method
     def te_loadBagFieldTemplate(self,table=None,respath=None,custom=False):
+        respath = f'bagfields/{respath}.xml'
         return Bag(self.packageResourcePath(table=table,filepath=respath,custom=custom))
 
 
