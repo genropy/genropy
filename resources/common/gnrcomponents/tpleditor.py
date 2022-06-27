@@ -612,6 +612,16 @@ class PaletteTemplateEditor(TemplateEditor):
         self.saveTemplate(template_address=template_address,data=data,inMainResource=inMainResource)
 
     @public_method
+    def te_saveBagFieldTemplate(self,table=None,respath=None,data=None,custom=False):
+        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
+        data.toXml(self.packageResourcePath(table=table,filepath=respath,custom=custom),autocreate=True)
+
+    @public_method
+    def te_loadBagFieldTemplate(self,table=None,respath=None,custom=False):
+        return Bag(self.packageResourcePath(table=table,filepath=respath,custom=custom))
+
+
+    @public_method
     def te_saveTemplate(self,pkey=None,data=None,tplmode=None,table=None,metadata=None,**kwargs):
         record = None
         if data['metadata.email']:
