@@ -1176,9 +1176,12 @@ dojo.declare("gnr.GnrDevHandler", null, {
     },
     currDataExplorer:function(kw){
        let kwargs = {}
+       var bagfieldpath = kw.fieldPath;
        kwargs.method = function(params){
            let data =  genro.getData(params.fieldPath);
+           let fieldlabel = params.fieldPath.split('.').slice(-1);
            let result =  data.deepCopy();
+           result.setBackRef(true);
            result.walk(function(n){
                let v=n.getValue('static')
                if (v instanceof gnr.GnrBag){
@@ -1186,7 +1189,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                }
                let dtype = v!==null?guessDtype(v):'T' ;
                n.setValue(null);
-               n.attr.fieldpath= n.getFullpath();
+               n.attr.fieldpath= fieldlabel+'.'+n.getFullpath();
                n.attr.dtype=n.attr.dtype || dtype;
                n.attr.fullcaption = n.attr.caption || n.attr.fieldpath.replaceAll('.','/');
            },'static');
@@ -1195,7 +1198,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
        }
        kwargs.parameters = kw;
        //kwargs.cacheTime = 5000;
-       if(kw.fieldPath){
+       if(bagfieldpath){
             return new gnr.GnrBagCbResolver(kwargs,null,5000);
        }
     },

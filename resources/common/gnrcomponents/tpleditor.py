@@ -613,6 +613,7 @@ class PaletteTemplateEditor(TemplateEditor):
 
     @public_method
     def te_saveBagFieldTemplate(self,table=None,respath=None,data=None,custom=False):
+        respath = f'bagfields/{respath}'
         data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
         data.toXml(self.packageResourcePath(table=table,filepath=f'{respath}.xml',custom=custom),autocreate=True)
 
