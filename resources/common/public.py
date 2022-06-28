@@ -360,7 +360,7 @@ class TableHandlerMain(BaseComponent):
         kwargs['th_pkey'] = th_kwargs.pop('pkey',None)
         archive = False
         if self.tblobj.logicalDeletionField:
-            default_archivable = self.getPreference('tblconf.archivable_tag',pkg='sys')
+            default_archivable = self.getPreference('tblconf.archivable_tag',pkg='sys') or False
             archive = self.tblobj.attributes.get('archivable',default_archivable)
         th_options = dict(formResource=None,viewResource=None,formInIframe=False,widget=thRootWidget,
                         readOnly=False,virtualStore=True,public=True,archive=archive,partitioned=False)

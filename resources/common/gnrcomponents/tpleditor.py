@@ -4,6 +4,7 @@
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
+import os
 from builtins import str
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent,TableScriptToHtml
@@ -620,7 +621,10 @@ class PaletteTemplateEditor(TemplateEditor):
     @public_method
     def te_loadBagFieldTemplate(self,table=None,respath=None,custom=False):
         respath = f'bagfields/{respath}.xml'
-        return Bag(self.packageResourcePath(table=table,filepath=respath,custom=custom))
+        fullpath = self.packageResourcePath(table=table,filepath=respath,custom=custom)
+        if os.path.exists(fullpath):
+            return Bag(fullpath)
+        return Bag()
 
 
     @public_method
