@@ -63,7 +63,7 @@ class LoginComponent(BaseComponent):
                 FIRE _login.checkAvatar;
             }
             
-            """,_fired='^do_login_check',user='=_login.user',avatar_user='gnr.avatar.user',
+            """,_fired='^do_login_check',user='=_login.user',avatar_user='=gnr.avatar.user',
                         tbuser=tbuser,tbpwd=tbpwd,
                         pwd='=_login.password')
 
