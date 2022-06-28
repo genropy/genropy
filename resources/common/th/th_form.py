@@ -300,7 +300,9 @@ class TableHandlerForm(BaseComponent):
                 treeslots = '2,left_placeholder,searchOn,*,treePicker,right_placeholder,2'
             tree_searchbar = bar.htreeSearchbar.slotToolbar(treeslots,searchOn=True,searchOn_searchCode=searchCode)
             tree_kwargs['searchCode'] = searchCode
-            tree = bar.htreeSlot.treeViewer(_class='hview',**tree_kwargs)
+            treeviewclass = tree_kwargs.get('_class')
+            tree_kwargs['_class'] = f'{treeviewclass} hview' if treeviewclass else 'hview'
+            tree = bar.htreeSlot.treeViewer(**tree_kwargs)
             if hviewPicker:
                 self.th_hviewTreePicker(tree,search_bar=tree_searchbar,table=table,**tree_kwargs)
             
