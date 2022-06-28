@@ -1536,9 +1536,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     background-color: #feffe2
 }
 .siblingSorting .hview .canBeDropped{
-    padding-bottom:20px;
+    padding-bottom:18px;
     background-color: transparent !important;
-    background: linear-gradient(to bottom, transparent 64%, rgba(0, 255, 0, 0.3) 64%); 
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 0, 0.3) 50%); 
 
 }
 
