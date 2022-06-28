@@ -138,17 +138,17 @@ class HTableTree(BaseComponent):
         return d
 
     @public_method    
-    def ht_moveHierarchical(self,table=None,pkey=None,into_pkey=None,parent_id=None,into_parent_id=None,modifiers=None):
+    def ht_moveHierarchical(self,table=None,pkey=None,into_pkey=None,parent_id=None,into_parent_id=None,siblingSorting=False):
         tblobj = self.db.table(table)
-        if not modifiers:
+        if not siblingSorting:
             into_pkey = into_pkey or None
             tblobj.batchUpdate(dict(parent_id=into_pkey),where='$id=:pkey',pkey=pkey,bagFields=True)
             self.db.commit()
-        elif (modifiers == 'Shift' or modifiers == 'Shift,Meta') and (into_parent_id==parent_id) and tblobj.column('_row_count') is not None:
+        elif (into_parent_id==parent_id) and tblobj.column('_row_count') is not None:
             where='$parent_id=:p_id' if parent_id else '$parent_id IS NULL'
             f = tblobj.query(where=where,p_id=parent_id,for_update=True,order_by='$_row_count',bagFields=True,addPkeyColumn=False).fetch()
             b = Bag([(r['id'],dict(r)) for r in f])
-            pref = '>' if modifiers == 'Shift' else '<'
+            pref = '>'
             b.setItem(pkey,b.pop(pkey),_position='%s%s' %(pref,into_pkey))
             for k,r in enumerate(b.values()):
                 counter = k+1
@@ -157,6 +157,7 @@ class HTableTree(BaseComponent):
                     r['_row_count'] = counter
                     tblobj.update(r,old_rec)
             self.db.commit()
+
 
     @extract_kwargs(condition=dict(slice_prefix=False),related=True,store=True)
     @struct_method
@@ -188,11 +189,12 @@ class HTableTree(BaseComponent):
                                     modifiers = genro.dom._lastDragInfo.modifiers;
                                     //fix firefox debian
                                 }
+                                let siblingSorting = this.getRelativeData('#FORM.siblingSorting');
                                genro.serverCall("ht_moveHierarchical",{table:'%s',pkey:pkey,
                                                                         into_pkey:into_pkey,
                                                                         parent_id:parent_id,
                                                                         into_parent_id:into_parent_id,
-                                                                        modifiers:modifiers},
+                                                                        siblingSorting:siblingSorting},
                                                 function(result){
                                                 });""" %table
             treeattr['dropTargetCb']="""return this.form? this.form.locked?false:THTree.dropTargetCb(this,dropInfo):THTree.dropTargetCb(this,dropInfo);"""  
@@ -336,6 +338,24 @@ class TableHandlerHierarchicalView(BaseComponent):
                 tblobj.insert(record)
         self.db.commit()
     
+
+    @struct_method
+    def ht_slotbar_treeSortingTool(self,pane,**kwargs):
+        table = pane.getInheritedAttributes().get('table')
+        tblobj = self.db.table(table)
+        if tblobj.column('_row_count') is None:
+            return 
+        btn = pane.slotButton(iconClass='iconbox sortTree',**kwargs)
+        btn.dataController("""
+            siblingSorting = !siblingSorting;
+            genro.dom.setClass(this.form.sourceNode,'siblingSorting',siblingSorting);
+            SET .siblingSorting = siblingSorting;
+            """,
+            siblingSorting = '=.siblingSorting'
+        )
+        
+
+
 
     @struct_method
     def ht_slotbar_form_hbreadcrumb(self,pane,**kwargs):
@@ -625,5 +645,6 @@ class TableHandlerHierarchicalView(BaseComponent):
                                 hierarchical_pkey='^.structuretree.hierarchical_pkey',
                                 selected_pkey='^.structuretree.pkey',_delay=500)
         return structureTree
+
 
 

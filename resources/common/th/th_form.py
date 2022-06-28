@@ -289,20 +289,21 @@ class TableHandlerForm(BaseComponent):
                     leftkw['closable'] = 'open'      
             if hierarchical=='closed':
                 leftkw['closable'] = 'close'
-            if fkeyfield and not 'condition' in tree_kwargs:
+            if fkeyfield and  'condition' not in tree_kwargs:
                 tree_kwargs['condition'] = '${fkeyfield}=:curr_{fkeyfield}'.format(fkeyfield=fkeyfield)
                 tree_kwargs['condition_curr_{fkeyfield}'.format(fkeyfield=fkeyfield)] = '^#FORM/parent/#FORM.pkey'
             bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid silver',**leftkw)
             searchCode = form.attributes['frameCode']
-            treeslots = '2,searchOn,*'
+            treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,right_placeholder,2'
             hviewPicker = tree_kwargs.get('picker')
             if hviewPicker:
-                treeslots = '2,searchOn,*,treePicker,2'
+                treeslots = '2,left_placeholder,searchOn,*,treePicker,right_placeholder,2'
             tree_searchbar = bar.htreeSearchbar.slotToolbar(treeslots,searchOn=True,searchOn_searchCode=searchCode)
             tree_kwargs['searchCode'] = searchCode
-            tree = bar.htreeSlot.treeViewer(**tree_kwargs)
+            tree = bar.htreeSlot.treeViewer(_class='hview',**tree_kwargs)
             if hviewPicker:
                 self.th_hviewTreePicker(tree,search_bar=tree_searchbar,table=table,**tree_kwargs)
+            
 
 
         for side in ('top','bottom','left','right'):
