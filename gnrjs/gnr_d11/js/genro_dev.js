@@ -1184,7 +1184,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
            result.setBackRef(true);
            result.walk(function(n){
                let v=n.getValue('static')
-               if (v instanceof gnr.GnrBag){
+               if (v instanceof gnr.GnrBag && v.len()>0){
                    return
                }
                let dtype = v!==null?guessDtype(v):'T' ;
@@ -1199,7 +1199,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
        kwargs.parameters = kw;
        //kwargs.cacheTime = 5000;
        if(bagfieldpath){
-            return new gnr.GnrBagCbResolver(kwargs,null,5000);
+            return new gnr.GnrBagCbResolver(kwargs,null,1);
        }
     },
 
