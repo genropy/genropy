@@ -885,10 +885,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var structbag = grid.structbag();
         var cellattr = structbag.getNode('view_0.rows_0.#'+cellIndex).attr;
         var zoomAttr = objectExtract(cellattr,'zoom_*',true);
-        zoomAttr['pkey'] = grid.currRenderedRow[(zoomAttr['pkey'] ? zoomAttr['pkey'] : grid._identifier).replace(/\./g, '_').replace(/@/g, '_')];
+        let row = grid.rowByIndex(rowIndex);
+        zoomAttr['pkey'] = row[(zoomAttr['pkey'] ? zoomAttr['pkey'] : grid._identifier).replace(/\./g, '_').replace(/@/g, '_')];
         zoomAttr['main_call'] = 'main_form';
         zoomAttr['evt'] = evt;
-        zoomAttr['title'] = grid.currRenderedRow[(cellattr['caption_field'] || cellattr['field']).replace(/\W/g, '_')]
+        zoomAttr['title'] = row[(cellattr['caption_field'] || cellattr['field']).replace(/\W/g, '_')]
         zoomAttr['url_th_linker'] =zoomAttr.linker || true;
         zoomAttr['paletteCode']  = zoomAttr['pkey']+(zoomAttr['formResource'] || '');
         zoomAttr = grid.sourceNode.evaluateOnNode(zoomAttr);
