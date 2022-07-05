@@ -39,10 +39,11 @@ class GnrCustomWebPage(object):
     def test_3_checkbox_sum(self, pane):
         "evaluationGrid can be used as quiz system as well to sum votes and totalize global evaluation."
         pane.evaluationGrid(value='.evaluation', 
-                            title="How do you rate Genropy's evaluationGrid? (max 2 options)",
-                            items="It is useful for  ", 
-                            field_values="1:Bad,2:Adequate,3:Good,4:Excellent",
+                            title="Which Genropy grids are more suitable for these situations? (max 2 options)",
+                            items="Watch and edit table records,Evaluate items with specific values,Rapidly list items in a grid,List items in a grid with a custom and more elaborated struct", 
+                            field_values="1:TableHandler,1:evaluationGrid,2:quickGrid,3:bagGrid",
                             field_aggr='+',
                             field_totalize=True,
-                            field_name="features", field_caption="Appreciated features",
+                            field_name='components',
+                            field_caption="Gnr components",
                             height='250px', width='100%')

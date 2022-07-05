@@ -4798,7 +4798,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         elem.getValue().getNode('fakeinput').domNode.click();
                     };
                     let tacePicCb = function(){
-                        that.takePicktureDialog(sourceNode);
+                        that.takePictureDialog(sourceNode);
                     };
                     if(sourceNode.attr.edit=='camera'){
                         that.uploadOptionsDialog(uploadCb,tacePicCb);
@@ -4830,7 +4830,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             });
         });
     },
-    uploadOptionsDialog:function(uploadCb,takePicktureDialog){
+    uploadOptionsDialog:function(uploadCb,takePictureDialog){
         var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
         dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
         this.loadCroppie();
@@ -4840,7 +4840,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                                                    if(this.attr.command=='upload'){
                                                         uploadCb();
                                                    }else{
-                                                        takePicktureDialog();
+                                                        takePictureDialog();
                                                    }
                                                    
                                                }});
@@ -4850,7 +4850,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
      },
 
 
-     takePicktureDialog:function(sourceNode){
+     takePictureDialog:function(sourceNode){
         let frameCode = 'pd_'+sourceNode.getStringId();
         var videoNodeId = frameCode+'_video';
         var canvasNodeId = frameCode+'_canvas';
@@ -4859,7 +4859,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         const videoWidth = 400; 
         let clientWidth = sourceNode.domNode.clientWidth;
         let clientHeight = sourceNode.domNode.clientHeight;
-        var dlg = genro.dlg.quickDialog(_T('Take pickture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
+        var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
                         connect_show:function(){
                             genro.nodeById(videoNodeId).publish('startCapture');
                         }});
