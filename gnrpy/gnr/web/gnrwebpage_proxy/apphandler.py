@@ -1388,7 +1388,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         try:
             tblobj = self.db.table(table)
             rows = tblobj.query(where='$%s IN :pkeys' %tblobj.pkey, pkeys=pkeys,excludeLogicalDeleted=False,
-                                for_update=True,addPkeyColumn=False,excludeDraft=False).fetch()
+                                for_update=True,addPkeyColumn=False,excludeDraft=False,subtable='*').fetch()
             now = datetime.now()
             caption_field = tblobj.attributes.get('caption_field')
             if not rows:
