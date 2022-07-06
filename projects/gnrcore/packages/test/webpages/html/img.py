@@ -26,7 +26,18 @@ class GnrCustomWebPage(object):
                     upload_filename='test_image', 
                     upload_folder='site:tests/image')
 
-    def test_2_uploadImageAndRemove(self, pane):
+    def test_2_uploadCamera(self,pane):
+        "Upload image from camera."
+        pane.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit='camera', 
+                    placeholder=True,
+                    upload_filename='test_image', 
+                    upload_folder='*')
+
+    def test_3_uploadImageAndRemove(self, pane):
         "Upload image and display it, but with possibility to remove data and file on server"
         pane.div('Double click or drag image and video here to upload')
         fb = pane.formbuilder(cols=1, margin_top='10px')
