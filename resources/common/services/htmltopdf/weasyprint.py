@@ -1,4 +1,3 @@
-#!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
 from builtins import str

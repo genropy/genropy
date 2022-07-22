@@ -19,7 +19,9 @@ class HtmlToPdfError(GnrException):
 
 class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
-        return dict(implementation='wk')
+        weasyprint = self.site.gnrapp.getPreference('pdf_render.weasyprint',pkg='sys') 
+        default_implementation = 'weasyprint' if weasyprint else 'wk'
+        return dict(implementation=default_implementation)
 
 
 class HtmlToPdfService(GnrBaseService):
