@@ -19,7 +19,10 @@ class HtmlToPdfError(GnrException):
 
 class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
-        weasyprint = self.site.gnrapp.getPreference('pdf_render.weasyprint',pkg='sys') 
+        try:
+            import weasyprint
+        except ImportError:
+            weasyprint = False
         default_implementation = 'weasyprint' if weasyprint else 'wk'
         return dict(implementation=default_implementation)
 
@@ -62,7 +65,7 @@ class HtmlToPdfService(GnrBaseService):
 
     @extract_kwargs(pdf=True)
     def htmlToPdf(self, srcPath, destPath, orientation=None, page_height=None, 
-                page_width=None, pdf_kwargs=None,htmlTemplate=None,bodyStyle=None): #srcPathList per ridurre i processi?
+                page_width=None, pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs): #srcPathList per ridurre i processi?
             
         """TODO
         
@@ -72,7 +75,7 @@ class HtmlToPdfService(GnrBaseService):
 
         if not isinstance(srcPath, StorageNode) and '<' in srcPath:
             srcPath = self.createTempHtmlFile(srcPath,htmlTemplate=htmlTemplate,bodyStyle=bodyStyle)
-            self.htmlToPdf(srcPath,destPath,orientation,pdf_kwargs=pdf_kwargs)
+            self.htmlToPdf(srcPath,destPath,orientation,pdf_kwargs=pdf_kwargs,**kwargs)
             os.remove(srcPath)
             return
         srcNode = self.parent.storageNode(srcPath)
@@ -98,7 +101,7 @@ class HtmlToPdfService(GnrBaseService):
 
         return self.writePdf(srcPath, destPath, orientation=orientation, page_height=page_height, 
                     page_width=page_width, pdf_kwargs=pdf_kwargs,
-                    htmlTemplate=htmlTemplate,bodyStyle=bodyStyle)
+                    htmlTemplate=htmlTemplate,bodyStyle=bodyStyle,**kwargs)
         
     
     def writePdf(self,srcPath, destPath, orientation=None, page_height=None, page_width=None, 

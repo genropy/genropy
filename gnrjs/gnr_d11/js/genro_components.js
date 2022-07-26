@@ -2007,7 +2007,8 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         kw.border = kw.border || 0;
         sourceNode.attr.value = value;
         sourceNode.attr.contentCss = contentCss
-        var iframe = sourceNode._('iframe',kw);
+        //kw.src = false;
+        var iframe = sourceNode._('htmliframe',kw);
         var gnrwdg = sourceNode.gnrwdg;
         gnrwdg.zoom = objectPop(kw,'zoom');
         gnrwdg.iframeNode = iframe.getParentNode();
@@ -2018,6 +2019,7 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         if(this.zoom){
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
+        console.log('setting value',value)
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
     },
 
@@ -3435,7 +3437,7 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             }
             var letterhead_page = letterheads.getItem('#'+lnumber).replaceAll('#p','$p');
             this.sourceBag.setItem('p',rn.childElementCount+1);
-            
+            console.log('letterhead_page',letterhead_page)
             p.innerHTML = dataTemplate(letterhead_page,this.sourceBag,null,true);
             p = p.children[0];
             content_node = dojo.query('div[content_node=t]',p)[0];
@@ -3512,7 +3514,11 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
         }
         
         this.sourceNode.setRelativeData(this.pagedTextPath,pagesDomNode.innerHTML,null,null,this.pagesRoot);
+    },
+    gnrwdg_cssPageSize:function(){
+        return '<style>@page{margin:0;size:A4;}</style>';
     }
+
 });
 
 dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {

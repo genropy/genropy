@@ -571,7 +571,18 @@ def updateStringList(s1, s2, sep=','):
     l1 = set(splitAndStrip(s1))
     l2 = set(splitAndStrip(s2))
     s = set()
-    
+
+def unicodeTranslitterate(txt,char_mapping=None):
+    import unidecode
+    char_mapping = dict(char_mapping or {u'€':u'&#128;', u"“":u'&#34;',u'–':'-',
+                            u"”":u'&#34;', u"‘":u'&#39;',u"’":u'&#39;'})
+    for i in range(161,255):
+        replaced = chr(i)
+        char_mapping[replaced] = u"&#{};".format(i)
+    for to_change, replacement in char_mapping.items():
+        txt = txt.replace(to_change, replacement)
+    return unidecode.unidecode(txt)  
+
 def makeSet(*args, **kwargs):
     """TODO
     """

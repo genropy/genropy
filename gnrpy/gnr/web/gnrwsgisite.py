@@ -30,7 +30,6 @@ import pickle
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs
 
-from gnr.core.gnrprinthandler import PrintHandler
 from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode

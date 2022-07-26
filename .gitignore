@@ -9,3 +9,4 @@ _static
 gnrpy/.cache
 .vscode
 gnrpy/gnr/lib/.DS_Store
+gnrpy/gnr/lib/services/.DS_Store
