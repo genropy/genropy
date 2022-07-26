@@ -3513,10 +3513,16 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             this.onPaginated();
         }
         
-        this.sourceNode.setRelativeData(this.pagedTextPath,pagesDomNode.innerHTML,null,null,this.pagesRoot);
+        this.sourceNode.setRelativeData(this.pagedTextPath,this.getPageSizeSelector()+pagesDomNode.innerHTML,null,null,this.pagesRoot);
     },
-    gnrwdg_cssPageSize:function(){
-        return '<style>@page{margin:0;size:A4;}</style>';
+    gnrwdg_getPageSizeSelector:function(){
+        let result = '';
+        let letterheads = this.sourceNode.getRelativeData(this.letterheadsPath);    
+        let firstattr = letterheads.getAttr('#0') || {};
+        if(firstattr.page_height && firstattr.page_width){
+            result = `<style>@page{margin:0; size:${firstattr.page_width}mm ${firstattr.page_height}mm;}</style>`+result;
+        }
+        return result;
     }
 
 });
