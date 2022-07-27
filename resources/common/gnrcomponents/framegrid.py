@@ -714,7 +714,7 @@ class EvaluationGrid(BaseComponent):
                 }
              }
              if(newvalue){
-                this.setRelativeData(valuepath, newvalue,null,{doTrigger:'evlg_saver'});
+                this.setRelativeData(valuepath, newvalue,null,null,'evlg_saver');
              }
              
             """,valuepath=value.replace('^',''),
