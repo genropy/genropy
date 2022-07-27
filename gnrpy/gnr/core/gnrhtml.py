@@ -307,7 +307,7 @@ class GnrHtmlBuilder(object):
         self.root.builder = self
         self.htmlBag = self.root.html()
         self.head = self.htmlBag.head()
-        self.body = self.htmlBag.body(**body_attributes)
+        self.body = self.htmlBag.body(margin='0mm',**body_attributes)
         self.head.meta(http_equiv="Content-Type", content="text/html; charset=UTF-8")
         for css_require in self.css_requires:
             self.head.csslink(href=css_require)
