@@ -15,12 +15,15 @@ class TableScriptRunner(BaseComponent):
         
     @oncalled
     def table_script_dialogs(self,pane,batch_dict=None,extra_parameters=None,**kwargs):
-        if not self.application.checkResourcePermission(batch_dict.get('plan_tag','admin'),self.userTags):
+        schedulable = batch_dict.get('schedulable','admin')
+        if isinstance(schedulable,str):
+            schedulable = self.application.checkResourcePermission(schedulable,self.userTags)
+        if not schedulable:
             return
-        optionsEnabled =  batch_dict.get('batch_ask_options')
+        optionsEnabled =  batch_dict.get('ask_options')
         if optionsEnabled is None:
             optionsEnabled = True
-        elif isinstance(optionsEnabled,basestring):
+        elif isinstance(optionsEnabled,str):
             optionsEnabled = self.db.application.allowedByPreference(optionsEnabled)
         hasOptions = hasattr(self, 'table_script_option_pane') and optionsEnabled
         hasParameters = hasattr(self, 'table_script_parameters_pane')
