@@ -2031,7 +2031,6 @@ dojo.declare("gnr.GridChangeManager", null, {
         var totvalue = this.grid.storebag().sum(this.grid.datamode=='bag'?k:'#a.'+k,this.grid.cellmap[k].totalize_strict);
         if(!isNullOrBlank(totvalue)){
             let cellformat = this.grid.cellmap[k]._formats? this.grid.cellmap[k]._formats.format:undefined;        ;
-            console.log('updateTotalizer cellformat',cellformat)
             totvalue = Math.round10(totvalue,cellformat);
         }
         this.sourceNode.setRelativeData(this.grid.cellmap[k].totalize,totvalue);
