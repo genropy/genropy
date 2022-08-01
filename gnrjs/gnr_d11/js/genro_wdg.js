@@ -2030,7 +2030,8 @@ dojo.declare("gnr.GridChangeManager", null, {
         }
         var totvalue = this.grid.storebag().sum(this.grid.datamode=='bag'?k:'#a.'+k,this.grid.cellmap[k].totalize_strict);
         if(!isNullOrBlank(totvalue)){
-            totvalue = Math.round10(totvalue);
+            let cellformat = this.grid.cellmap[formulaKey]._formats? this.grid.cellmap[formulaKey]._formats.format:undefined;        ;
+            totvalue = Math.round10(totvalue,cellformat);
         }
         this.sourceNode.setRelativeData(this.grid.cellmap[k].totalize,totvalue);
         this.sourceNode.publish('onUpdateTotalize',{'column':k,'value':totvalue});
