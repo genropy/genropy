@@ -282,15 +282,14 @@ class BagToHtmlWeb(BagToHtml):
         self.site = self.db.application.site
         self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
         self.letterhead_sourcedata = letterhead_sourcedata
-        self.print_handler = self.site.getService('htmltopdf') 
-        #self.pdf_handler = self.site.getService('pdf')
+        self.pdf_handler = self.site.getService('pdf')
         self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
         self.record_template = record_template or self.record_template
         self.record = None
 
     @property
-    def pdf_handler(self):
-        return self.site.getService('pdf',self.pdf_handler)
+    def print_handler(self):
+        return self.site.getService('htmltopdf',self.pdf_service)
 
     def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
         virtual_columns=None
