@@ -559,12 +559,14 @@ class TemplateGrid(BaseComponent):
 
         
 class EvaluationGrid(BaseComponent):
-    
+    py_requires = "gnrcomponents/framegrid:FrameGrid"
+
     @extract_kwargs(condition=True,store=True,field=True)
     @struct_method
     def evlg_evaluationGrid(self,pane,value=None,title=None,searchOn=False,
                         table=None,struct=None,frameCode=None,
                         datapath=None,addrow=False,delrow=False,
+                        showValue=None, choice_width=None, value_width=None, 
                         condition=None,condition_kwargs=None,
                         store_kwargs=None,items=None,field_kwargs=None,
                         **kwargs):
@@ -575,8 +577,8 @@ class EvaluationGrid(BaseComponent):
             tblobj = self.db.table(table)
             columns = f'${tblobj.attributes.get("caption_field")} AS description,${tblobj.pkey} AS code, ${tblobj.pkey} AS _pkey'
         if not struct:
-            struct = self._evlg_struct(**field_kwargs)
-        frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect',
+            struct = self._evlg_struct(showValue=showValue,value_width=value_width, choice_width=choice_width,**field_kwargs)
+        frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect evaluation_grid',
                     title=title,searchOn=searchOn,
                     struct=struct,storepath='.store',addrow=addrow,delrow=delrow,
                     batchAssign=False,
@@ -593,8 +595,8 @@ class EvaluationGrid(BaseComponent):
 
 
     def _evlg_struct(self,values=None,dtype=None,name=None,
-                        caption=None,aggr=None,
-                        hidden=True,totalize=False):
+                        caption=None, aggr=None, choice_width=None, value_width=None,
+                        hidden=None,totalize=False,showValue=None):
         struct = self.newGridStruct()
         r=struct.view().rows()
         field = name or 'value'
@@ -607,10 +609,12 @@ class EvaluationGrid(BaseComponent):
         r.cell('description',name='!![en]Description',width='100%')
         caption = caption or '!![en]Value'
         if aggr:
-            r.checkBoxSet(field,name=caption,cells_width='4em', values=values, dtype=dtype, aggr=aggr)
+            cs = r.checkBoxSet(field,name=caption,cells_width=choice_width or '4em', values=values, dtype=dtype, aggr=aggr)
         else:
-            r.radioButtonSet(field, name=caption, cells_width='4em', values=values, dtype=dtype)
-        r.cell(field,name=caption,width='4em',dtype=dtype,hidden=hidden,totalize=totalize)
+            cs = r.radioButtonSet(field, name=caption, cells_width=choice_width or '4em', values=values, dtype=dtype)
+        if hidden is None:
+            hidden = not showValue
+        cs.cell(field,name=' ',width=value_width or '4em',dtype=dtype,hidden=hidden,totalize=totalize)
         return struct
 
     def _evgl_itemsStore(self,frame,items,store_kwargs):
