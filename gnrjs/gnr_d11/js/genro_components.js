@@ -2088,7 +2088,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
                             closable_opacity:'1',
                             closable_iconClass:'smalliconbox create_edit_html_template',
                             border_left:'1px solid silver'})
-        leftbc._('contentPane',{region:'center',overflow:'hidden'})._('codemirror',html_pars);
+        leftbc._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',html_pars);
         if(css_value){
             let css_pars = {}
             css_pars.value = css_value;
@@ -2098,7 +2098,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
             css_pars.config_lineNumbers=true;
             css_pars.config_keyMap='softTab';
             objectUpdate(css_pars,objectExtract(kw,'css_*'));
-            leftbc._('contentPane',{region:'bottom',splitter:true,
+            leftbc._('contentPane',{region:'bottom',splitter:true,_lazyBuild:true,
                             height:'50%',overflow:'hidden',
                             'border_top':'1px solid silver',
                             })._('codemirror',css_pars);

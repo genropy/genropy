@@ -21,8 +21,13 @@ class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
         try:
             import weasyprint
+            pdf_pref = self.site.getPreference('.pdf_render',pkg='sys') if self.site else None
+            enable_weasyprint = pdf_pref['weasyprint']
+            if not enable_weasyprint:
+                weasyprint = False
         except ImportError:
             weasyprint = False
+        weasyprint
         default_implementation = 'weasyprint' if weasyprint else 'wk'
         return dict(implementation=default_implementation)
 
