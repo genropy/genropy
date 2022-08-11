@@ -447,7 +447,7 @@ class GnrWebPage(GnrBaseWebPage):
     workdate = property(_get_workdate, _set_workdate)
 
     def _get_language(self):
-        if not getattr(self,'_language'):
+        if not getattr(self,'_language',None):
             self._language = self.pageStore().getItem('rootenv.language') or self.locale.split('-')[0].upper()
         return self._language
 
@@ -666,10 +666,10 @@ class GnrWebPage(GnrBaseWebPage):
             return result,{'respath':path}
 
     @public_method
-    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,**kwargs):
+    def renderTemplate(self,table=None,record_id=None,letterhead_id=None,tplname=None,missingMessage=None,template=None,record=None,**kwargs):
         from gnr.web.gnrbaseclasses import TableTemplateToHtml
         htmlbuilder = TableTemplateToHtml(table=self.db.table(table))
-        return htmlbuilder.contentFromTemplate(record=record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
+        return htmlbuilder.contentFromTemplate(record=record or record_id,template=template or self.loadTemplate('%s:%s' %(table,tplname),missingMessage=missingMessage))
 
     @public_method
     def loadTemplate(self,template_address,asSource=False,missingMessage=None,**kwargs):
@@ -1890,8 +1890,8 @@ class GnrWebPage(GnrBaseWebPage):
 
 
     @public_method          
-    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None):
-        self.setInClientData(msg_path or 'gnr.servermsg', message,
+    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None):
+        self.setInClientData(msg_path or 'gnr.servermsg', message,fired=fired,
                                          page_id=pageId, filters=filters,
                                          attributes=dict(from_user=self.user, from_page=self.page_id))
 
@@ -1951,14 +1951,14 @@ class GnrWebPage(GnrBaseWebPage):
         data = Bag(dict(root_page_id=self.root_page_id,parent_page_id=self.parent_page_id,rootenv=rootenv,prefenv=prefenv))
         self.pageStore().update(data)
         self._db = None #resetting db property after setting dbenv
-        if hasattr(self, 'main_root'):
-            self.main_root(page, **kwargs)
-            return (page, pageattr)
         google_mapkey = self.application.config['google?mapkey']
         api_keys = Bag(self.application.config['api_keys'])
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
+        if hasattr(self, 'main_root'):
+            self.main_root(page, **kwargs)
+            return (page, pageattr)
         page.data('gnr.windowTitle',windowTitle or self.windowTitle())
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
@@ -2389,7 +2389,7 @@ class GnrWebPage(GnrBaseWebPage):
             nodeattr['fullcaption'] = concat(prevCaption, self._(nodeattr['caption']), '/')
 
             if nodeattr.get('one_relation'):
-                innerCurrRecordPath = '%s.%s' %(node.label,currRecordPath) if currRecordPath else ''
+                innerCurrRecordPath = '%s.%s' %(currRecordPath,node.label) if currRecordPath else ''
                 nodeattr['_T'] = 'JS'
                 if nodeattr['mode'] == 'O':
                     relpkg, reltbl, relfld = nodeattr['one_relation'].split('.')

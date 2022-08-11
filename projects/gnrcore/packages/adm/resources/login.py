@@ -41,7 +41,7 @@ class LoginComponent(BaseComponent):
         topbar.wtitle.div(wtitle)  
         if hasattr(self,'loginSubititlePane'):
             self.loginSubititlePane(box.div())
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
+        fb = box.div(margin='10px',margin_right='20px',padding='10px').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
@@ -50,9 +50,9 @@ class LoginComponent(BaseComponent):
         if doLogin:
             start = 2
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
-                                nodeId='tb_login_user')
+                                nodeId='tb_login_user',autocomplete='username')
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False,
-                                nodeId='tb_login_pwd')
+                                nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dataController("""if(user && pwd && avatar_user){
                 FIRE do_login;
             }else{
@@ -63,7 +63,7 @@ class LoginComponent(BaseComponent):
                 FIRE _login.checkAvatar;
             }
             
-            """,_fired='^do_login_check',user='=_login.user',avatar_user='gnr.avatar.user',
+            """,_fired='^do_login_check',user='=_login.user',avatar_user='=gnr.avatar.user',
                         tbuser=tbuser,tbpwd=tbpwd,
                         pwd='=_login.password')
 
@@ -296,7 +296,8 @@ class LoginComponent(BaseComponent):
             fb.textbox(value='^.current_password',lbl='!!Password',type='password')
         else:
             fb.data('.gnrtoken',gnrtoken)
-        fb.textbox(value='^.password',lbl='!!New password',type='password')
+        fb.textbox(value='^.password',lbl='!!New password',type='password',
+                    validate_remote=self.db.table('adm.user').validateNewPassword)
         fb.textbox(value='^.password_confirm',lbl='!!Confirm password',type='password',
                     validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
         fb.div(width='100%',position='relative',row_hidden=False).button('!!Send',action='FIRE set_new_password',position='absolute',right='-5px',top='8px')

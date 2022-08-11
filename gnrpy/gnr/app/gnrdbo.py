@@ -339,7 +339,7 @@ class TableBase(object):
             tbl.formulaColumn('hlevel',"""length($hierarchical_pkey)-length(replace($hierarchical_pkey,'/',''))+1""",group='*')
             if hierarchical_root_id:
                 tbl.column('root_id',sql_value="substring(:hierarchical_pkey from 1 for 22)",
-                            group='*',size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
+                            group='*',_sysfield=True,size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
                                                     mode='foreignkey',one_name='!![en]Root',
                                                     many_name='!![en]Grandchildren',
                                                     onDelete='ignore')

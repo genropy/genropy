@@ -596,10 +596,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(kw.destPkey=='*newrecord*' && defaultPrompt){
             var that = this;
             kw.default_kw = kw.default_kw || {};
-            objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.default_kw),'default_*',true)); 
+            objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
-                dflt:new gnr.GnrBag(kw.default_kw),
+                dflt:new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw)),
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
                 action:function(result){
@@ -1559,7 +1559,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
-            if(kw.updattr && kw.changedAttr){
+            if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];
                 var newvalue = kw.node.attr[cattr];

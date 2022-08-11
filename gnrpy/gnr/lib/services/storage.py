@@ -730,7 +730,7 @@ class BaseLocalService(StorageService):
 
 
     def children(self, *args, **kwargs):
-        directory = os.listdir(self.internal_path(*args))
+        directory = sorted(os.listdir(self.internal_path(*args)))
         out = []
         for d in directory:
             subpath = os.path.join(os.path.join(*args),d)

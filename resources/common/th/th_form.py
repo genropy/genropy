@@ -245,6 +245,12 @@ class TableHandlerForm(BaseComponent):
                 default_slots= default_slots.replace('form_add','form_add,form_duplicate')
             if hierarchical:
                 default_slots = 'dismiss,hbreadcrumb,%s' %default_slots
+                options['form_add__class'] = 'add_sibling'
+                options['form_duplicate__class'] = 'add_sibling'
+                form.dataController("""genro.dom.setClass(this.form.sourceNode,'isLeafItem',isLeafItem)""",
+                            isLeafItem='^#FORM.record?_isLeafItem')
+                form.dataController("""genro.dom.setClass(this.form.sourceNode,'isRootItem',isLeafItem)""",
+                            isLeafItem='^#FORM.record?_isRootItem')
             elif navigation:
                 default_slots = 'navigation,%s' %default_slots
             if selector:
@@ -283,20 +289,23 @@ class TableHandlerForm(BaseComponent):
                     leftkw['closable'] = 'open'      
             if hierarchical=='closed':
                 leftkw['closable'] = 'close'
-            if fkeyfield and not 'condition' in tree_kwargs:
+            if fkeyfield and  'condition' not in tree_kwargs:
                 tree_kwargs['condition'] = '${fkeyfield}=:curr_{fkeyfield}'.format(fkeyfield=fkeyfield)
                 tree_kwargs['condition_curr_{fkeyfield}'.format(fkeyfield=fkeyfield)] = '^#FORM/parent/#FORM.pkey'
             bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid silver',**leftkw)
             searchCode = form.attributes['frameCode']
-            treeslots = '2,searchOn,*'
+            treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,right_placeholder,2'
             hviewPicker = tree_kwargs.get('picker')
             if hviewPicker:
-                treeslots = '2,searchOn,*,treePicker,2'
+                treeslots = '2,left_placeholder,searchOn,*,treePicker,right_placeholder,2'
             tree_searchbar = bar.htreeSearchbar.slotToolbar(treeslots,searchOn=True,searchOn_searchCode=searchCode)
             tree_kwargs['searchCode'] = searchCode
+            treeviewclass = tree_kwargs.get('_class')
+            tree_kwargs['_class'] = f'{treeviewclass} hview' if treeviewclass else 'hview'
             tree = bar.htreeSlot.treeViewer(**tree_kwargs)
             if hviewPicker:
                 self.th_hviewTreePicker(tree,search_bar=tree_searchbar,table=table,**tree_kwargs)
+            
 
 
         for side in ('top','bottom','left','right'):

@@ -201,6 +201,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         savedAttrs.connectedMenu = objectPop(attributes, 'connectedMenu');
         savedAttrs.onEnter = objectPop(attributes, 'onEnter');
         savedAttrs._watchOnVisible = objectPop(attributes,'_watchOnVisible');
+        savedAttrs.autocomplete = objectPop(attributes,'autocomplete');
         objectUpdate(savedAttrs, this.creating(attributes, sourceNode));
         var formId = objectPop(attributes, 'formId');
         if (attributes._for) {
@@ -276,6 +277,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             sourceNode.attr_kw = objectExtract(sourceNode.attr,'attr_*',true);
         }
         this.created(newobj, savedAttrs, sourceNode);
+        if(savedAttrs.autocomplete && newobj.focusNode){
+            newobj.focusNode.setAttribute('autocomplete',savedAttrs.autocomplete)
+        }
         if(savedAttrs._watchOnVisible){
             sourceNode.watch('_watchOnVisible',function(){
                 return genro.dom.isVisible(sourceNode);
@@ -907,6 +911,9 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode) {
+
+
+
         if(sourceNode.attr.currentTime || sourceNode.attr.playing){
             dojo.connect(newobj,'play',function(evt){
                 var d = evt.target;
@@ -948,24 +955,22 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        var onErr=function(e){
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function(stream) {
+            if(onAccept){
+                funcApply(onAccept,{},sourceNode);
+            }
+            sourceNode.domNode.srcObject = stream;
+            sourceNode.domNode.play();
+        })
+        .catch(function(err) {
+            console.log("An error occurred: " + err);
             if(onErrorGetUserMedia){
                 funcApply(onErrorGetUserMedia,{e:e});
             }else{
                 genro.dlg.alert('Not allowed video capture '+e,'Error');
             }
-        };
-        var onOk=function(stream){
-            if(onAccept){
-                funcApply(onAccept,{},sourceNode);
-            }
-            sourceNode.domNode.src=window.URL? window.URL.createObjectURL(stream):stream;
-        };
-        if(navigator.webkitGetUserMedia){
-            navigator.webkitGetUserMedia(capture_kw,onOk,onErr);
-        }else{
-            navigator.getUserMedia(capture_kw,onOk,onErr);
-        }
+        });
     },
     setCurrentTime:function(domNode,currentTime,kw){
         var roundedCT = Math.round(domNode.currentTime*10)/10;
@@ -4759,11 +4764,6 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             that.centerImage(sourceNode,cropAttr);
                         };
                     }
-                    var filename = sourceNode.currentFromDatasource(uploadAttr.filename);
-                    if(!filename){
-                        genro.dlg.alert("Missing info to upload the image",'Warning');
-                        return false;
-                    }
                     if(uploadAttr.folder=='*'){
                         var reader = new FileReader();
                         reader.onload = function(event){
@@ -4771,6 +4771,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         }
                         reader.readAsDataURL(data);
                     }else{
+                        var filename = sourceNode.currentFromDatasource(uploadAttr.filename);
+                        if(!filename){
+                            genro.dlg.alert("Missing info to upload the image",'Warning');
+                            return false;
+                        }
                         genro.rpc.uploadMultipart_oneFile(data,null,{uploadPath:sourceNode.currentFromDatasource(uploadAttr.folder),
                             filename:filename,
                             onResult:function(result){
@@ -4788,7 +4793,18 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 });
                 var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
                 attr[uploadhandler_key] = function(){
-                    this.getValue().getNode('fakeinput').domNode.click();
+                    var elem = this;
+                    let uploadCb = function(){
+                        elem.getValue().getNode('fakeinput').domNode.click();
+                    };
+                    let tacePicCb = function(){
+                        that.takePictureDialog(sourceNode);
+                    };
+                    if(sourceNode.attr.edit=='camera'){
+                        that.uploadOptionsDialog(uploadCb,tacePicCb);
+                    }else{
+                        uploadCb();
+                    }
                 };
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
@@ -4801,6 +4817,106 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
 
         }
     },
+    loadCroppie:function(cb){
+        var cb = cb || function(){
+            console.log('loadedCroppie');
+        };
+        if(window.Croppie){
+            cb()
+        }
+        genro.dom.loadJs('/_rsrc/js_libs/croppie/croppie.min.js',function(){
+            genro.dom.loadCss('/_rsrc/js_libs/croppie/croppie.css','croppie',function(){
+                cb();
+            });
+        });
+    },
+    uploadOptionsDialog:function(uploadCb,takePictureDialog){
+        var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
+        dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
+        this.loadCroppie();
+        var slotbar = dlg.bottom._('slotBar',{slots:'*,upload,10,takePicture,5',
+                                               action:function(){
+                                                   dlg.close_action();
+                                                   if(this.attr.command=='upload'){
+                                                        uploadCb();
+                                                   }else{
+                                                        takePictureDialog();
+                                                   }
+                                                   
+                                               }});
+        slotbar._('button','upload',{label:'Upload',command:'upload'});
+        slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+        dlg.show_action();
+     },
+
+
+     takePictureDialog:function(sourceNode){
+        let frameCode = 'pd_'+sourceNode.getStringId();
+        var videoNodeId = frameCode+'_video';
+        var canvasNodeId = frameCode+'_canvas';
+        var cropperNodeId = frameCode+'_cropper';
+        const videoHeight = 300;
+        const videoWidth = 400; 
+        let clientWidth = sourceNode.domNode.clientWidth;
+        let clientHeight = sourceNode.domNode.clientHeight;
+        var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
+                        connect_show:function(){
+                            genro.nodeById(videoNodeId).publish('startCapture');
+                        }});
+        var sc = dlg.center._('StackContainer',{height:videoHeight+42+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
+        let video = sc._('contentPane',{pageName:'video'});
+        var preview = sc._('ContentPane',{pageName:'preview'});
+        var cropPage = sc._('ContentPane',{pageName:'crop'});
+        video._('video',{autoplay:true,margin:'10px',
+                            border:'1px solid silver',
+                            height:videoHeight+'px',
+                            width:videoWidth+'px',
+                            nodeId:videoNodeId,
+                        selfsubscribe_takePicture:function(){
+                            var preview_canvas = preview._('canvas','currentCanvas',{height:videoHeight+'px',nodeId:canvasNodeId,
+                                                border:'1px solid silver',
+                                                width:videoWidth+'px',display:'block',margin:'10px',hidden:false})     
+                            preview_canvas.getParentNode().takePhoto(this);
+                            let cropperBox = cropPage._('div',{height:videoHeight+'px',width:videoWidth+'px',nodeId:cropperNodeId});
+                            var c = new Croppie(cropperBox.getParentNode().domNode, {
+                                boundary: {
+                                    width: videoWidth,
+                                    height: videoHeight
+                                },
+                                viewport:{
+                                    width: clientWidth,
+                                    height: clientHeight
+                                },
+                                showZoomer:true,
+                                enableOrientation:true
+                            });
+                            c.bind({url:genro.nodeById(canvasNodeId).domNode.toDataURL('image/png')});
+                            cropPage.getParentNode()._croppie = c;
+                            this.setRelativeData('#WORKSPACE.selectedPage','crop');
+                        },selfsubscribe_startCapture:function(){this.startCapture({video:true})}});
+        var slotbar = dlg.bottom._('slotBar',{slots:'*,takePicture,5,confirmImage,5'});
+        slotbar._('button','takePicture',{label:'Take picture',action:function(){
+            let currentPage = this.getRelativeData('#WORKSPACE.selectedPage');
+            if(currentPage=='crop'){
+                this.setRelativeData('#WORKSPACE.selectedPage','video');
+            }else{
+                genro.nodeById(videoNodeId).publish('takePicture');
+            }
+        }});
+        slotbar._('button','confirmImage',{label:'Confirm',
+                        action:function(){
+                            cropPage.getParentNode()._croppie.result({
+                                    'type':'base64'
+                                }
+                            ).then(function(dataUrl){
+                                sourceNode.setAttributeInDatasource('src',dataUrl,true);
+                                dlg.close_action();
+                            })
+                        },hidden:'^#WORKSPACE.selectedPage?=#v!="crop"'});
+        dlg.show_action();
+     },
+
+
     
     creating: function(attributes, sourceNode) {
         var edit=objectPop(attributes,'edit');
@@ -4899,29 +5015,32 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
          })
     },
      onMouseDown:function(e){
-         var that=this;
-         var modifiers=genro.dom.getEventModifiers(e);
-         var sourceNode=e.target.sourceNode;
-         sourceNode.edit_mode= (modifiers === '') ? 'move' : (modifiers=='Shift') ? 'zoom':(modifiers=='Alt') ? 'rotate' :null 
-         if(sourceNode.edit_mode){
-             e.stopPropagation();
-             e.preventDefault();
-             var src=sourceNode.getAttributeFromDatasource('src');
-             if(!src || (sourceNode.form && sourceNode.form.isDisabled())){
-                 return;
-             }
-             sourceNode.s_x=e.clientX;
-             sourceNode.s_y=e.clientY;
-             var domnode=sourceNode.domNode;
-             sourceNode.editConnections=[
-                                        dojo.connect(domnode, "onmousemove",function(e){
-                                            that.onEditImage(sourceNode,e);
-                                            }),
-                                        dojo.connect(document, "onmouseup",  function(e){
-                                            that.onEndEdit(sourceNode);
-                                        })
-                                        ];
-         };
+        if(genro.isMobile){
+            return;
+        }
+        var that=this;
+        var modifiers=genro.dom.getEventModifiers(e);
+        var sourceNode=e.target.sourceNode;
+        sourceNode.edit_mode= (modifiers === '') ? 'move' : (modifiers=='Shift') ? 'zoom':(modifiers=='Alt') ? 'rotate' :null 
+        if(sourceNode.edit_mode){
+            e.stopPropagation();
+            e.preventDefault();
+            var src=sourceNode.getAttributeFromDatasource('src');
+            if(!src || (sourceNode.form && sourceNode.form.isDisabled())){
+                return;
+            }
+            sourceNode.s_x=e.clientX;
+            sourceNode.s_y=e.clientY;
+            var domnode=sourceNode.domNode;
+            sourceNode.editConnections=[
+                                       dojo.connect(domnode, "onmousemove",function(e){
+                                           that.onEditImage(sourceNode,e);
+                                           }),
+                                       dojo.connect(document, "onmouseup",  function(e){
+                                           that.onEndEdit(sourceNode);
+                                       })
+                                       ];
+        };
     },
         
     decodeUrl:function(sourceNode,url){

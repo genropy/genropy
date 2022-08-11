@@ -667,8 +667,9 @@ class GnrSqlDb(GnrObject):
         deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
         while deferreds_blocks:
             deferreds_blocks.sort()
-            self.executeDeferred(deferreds_blocks.pop('#0'))
-
+            block = deferreds_blocks['#0']
+            self.executeDeferred(block)
+            deferreds_blocks.pop('#0')
 
     def executeDeferred(self,deferreds):
         while deferreds:

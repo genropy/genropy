@@ -90,7 +90,7 @@ var genro_plugin_groupth = {
             row = objectUpdate({},n.attr);
             group_by_cols.forEach(function(cell){
                 let k = cell.field_getter;
-                value = objectPop(row,k) || '[NP]';
+                value = objectPop(row,k);
                 description = value;
                 if(typeof(value)!='string'){
                     description = _F(description);
@@ -340,8 +340,12 @@ var genro_plugin_groupth = {
                 this.attr.attachTo.widget.setValue(cv?cv+'-'+kw.fullpath:kw.fullpath,true);
             }});
             fb.addField('checkbox',{value:prefix+'group_nobreak',label:_T('No break')});
+            fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
+                                    hidden:prefix+'group_nobreak',placeholder:'[NP]'})
         }else{
             fb.addField('checkbox',{value:prefix+'group_nobreak',label:_T('No break')});
+            fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
+                                    hidden:prefix+'group_nobreak',placeholder:'[NP]'})
         }
     },
 

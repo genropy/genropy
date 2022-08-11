@@ -14,7 +14,7 @@ from reportlab.lib.units import mm, cm
 from gnr.core.gnrdecorator import public_method
 from io import BytesIO
 
-from gnr.pdf.gnrrml import GnrPdf
+from gnr.xtnd.gnrrml import GnrPdf
 
 
 PAGE_HEIGHT = defaultPageSize[1]

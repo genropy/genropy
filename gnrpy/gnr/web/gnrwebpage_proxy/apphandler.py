@@ -1229,10 +1229,15 @@ class GnrWebAppHandler(GnrBaseProxy):
                 _customClasses.append('logicalDeleted')
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
-                    if row[fld]:
+                    val = row.get(fld)
+                    if val in (None,''):
+                        continue
+                    if isinstance(_class,dict):
+                        _class = _class.get(row[fld])
+                    else:
                         _class = row[fld] if _class is True else _class
+                    if _class:
                         _customClasses.append(_class)
-
             if numberedRows or not pkey:
                 row_key = 'r_%i' % j
             else:
@@ -1384,7 +1389,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         try:
             tblobj = self.db.table(table)
             rows = tblobj.query(where='$%s IN :pkeys' %tblobj.pkey, pkeys=pkeys,excludeLogicalDeleted=False,
-                                for_update=True,addPkeyColumn=False,excludeDraft=False).fetch()
+                                for_update=True,addPkeyColumn=False,excludeDraft=False,subtable='*').fetch()
             now = datetime.now()
             caption_field = tblobj.attributes.get('caption_field')
             if not rows:

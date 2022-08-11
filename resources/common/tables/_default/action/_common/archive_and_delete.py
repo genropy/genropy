@@ -31,7 +31,7 @@ class Main(BaseResourceAction):
         self.archive_path = self.page.site.getStaticPath('site:export_archive','source',name,'records',autocreate=True)
         self.files_to_copy = self.page.site.getStaticPath('site:export_archive','source',name,'files',autocreate=True)
         self.result_path = self.page.site.getStaticPath('site:export_archive','results','%s.zip' %name,autocreate=-1)
-        self.result_url = self.page.site.getStaticUrl('site:archived_records','results','%s.zip' %name)
+        self.result_url = self.page.site.getStaticUrl('site:export_archive','results','%s.zip' %name)
         self.tableDependencies = self.tblobj.dependenciesTree(self.curr_records)
         self.index_tables = list(self.db.tablesMasterIndex(hard=True)['_index_'].keys())
         self.mode = self.batch_parameters.get('mode')
@@ -57,7 +57,6 @@ class Main(BaseResourceAction):
             archivingTable = self.db.table(tablename)         
             if hasattr(archivingTable,'onArchiveExport') and (t in archive):
                 files = defaultdict(list)
-                filelist = []
                 reltblobj.onArchiveExport(archive[t],files=files)
                 for pkey,pathlist in list(files.items()):
                     destfolder = os.path.join(self.files_to_copy,tablename,pkey)

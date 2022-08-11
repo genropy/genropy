@@ -1,8 +1,8 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+# encoding: utf-8
+class Menu(object):
+    def config(self,root,**kwargs):
+        organizer = root.branch(u"!!Organizer", tags="admin")
+        organizer.thpage(u"!!Annotations", table="orgn.annotation", tags="")
+        organizer.thpage(u"!!Action types", table="orgn.action_type", tags="")
+        organizer.thpage(u"!!Annotation types", table="orgn.annotation_type", tags="")
 
-def config(root,application=None):
-    orgn = root.branch('!!Organizer',tags='admin')
-    orgn.thpage('!!Annotations',table='orgn.annotation')
-    orgn.thpage('!!Action types',table='orgn.action_type')
-    orgn.thpage('!!Annotation types',table='orgn.annotation_type')

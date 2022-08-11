@@ -7,8 +7,7 @@ import os
 from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError
 
 class Service(HtmlToPdfService):
-    def writePdf(self,srcPath, destPath, orientation=None, page_height=None, page_width=None,
-                        pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs):
+    def writePdf(self,srcPath, destPath, orientation=None,pdf_kwargs=None,**kwargs):
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         destPath = self.parent.storageNode(destPath, parent=self.parent)
 

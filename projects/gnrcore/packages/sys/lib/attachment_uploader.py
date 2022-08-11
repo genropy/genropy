@@ -10,7 +10,7 @@ except:
 import zbarlight
 import requests
 from backports import tempfile
-from PyPDF2 import PdfFileWriter, PdfFileReader
+from PyPDF2 import PdfWriter, PdfFileReader
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 import time
@@ -80,7 +80,7 @@ class ScannedFileParser(object):
         """"Given and input pdf outputs a pdf containing the specified pages numbers
             a StringIO is returned if no out_path is specified"""
         inputfile = PdfFileReader(open(inputpdf, "rb"))
-        output = PdfFileWriter()
+        output = PdfWriter()
         for page_no in page_list:
             output.addPage(inputfile.getPage(page_no))
         if out_path:

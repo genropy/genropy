@@ -26,6 +26,9 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 
 
+def flatCol(c):
+    return c.replace('@','_').replace('.','_').replace('$','')
+    
 class TableHandlerGroupBy(BaseComponent):
     js_requires = 'gnrdatasets,th/th_groupth'
 
@@ -358,7 +361,8 @@ class TableHandlerGroupBy(BaseComponent):
 
 
     @public_method
-    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,keep_pkeys=True,table=None,**kwargs):
+    def _thg_selectgroupby(self,struct=None,groupLimit=None,groupOrderBy=None,
+                    keep_pkeys=True,table=None,**kwargs):
         columns_list = list()
         group_list = list()
         having_list = list()
@@ -374,13 +378,14 @@ class TableHandlerGroupBy(BaseComponent):
         def asName(field,group_aggr):
             return '%s_%s' %(field.replace('.','_').replace('@','_').replace('-','_'),
                     group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
+        empty_placeholders = {}
+        group_list_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):
                 col = '$%s' %col
-            
             dtype = v.get('dtype')
             group_aggr =  v.get('group_aggr') 
             if dtype in ('N','L','I','F','R') and group_aggr is not False:
@@ -403,23 +408,33 @@ class TableHandlerGroupBy(BaseComponent):
                 if len(having_chunk):
                     having_list.append(' AND '.join(having_chunk))
             else:
+                col_as = col
+                group_empty = v.get('group_empty') or '[NP]'
                 if group_aggr:
                     if dtype in ('D','DH','DHZ'):
                         col =  "to_char(%s,'%s')" %(col,group_aggr)
                         group_list.append(col)
-                        col = '%s AS %s' %(col, asName(v['field'],group_aggr))
+                        col_as = asName(v['field'],group_aggr)
+                        colgetter = flatCol(col_as)
+                        group_list_keys.append(colgetter)
+                        empty_placeholders[colgetter] = group_empty
+                        col = '%s AS %s' %(col, col_as)
                     #if dtype in ('T','C','A'):
                 else:
                     groupcol = col
                     if ' AS ' in col:
-                        groupcol,asname = col.split(' AS ')
+                        groupcol,col_as = col.split(' AS ')
                     group_list.append(groupcol)
+                    colgetter = flatCol(col_as)
                     caption_field = v.get('caption_field')
                     if caption_field:
                         if not caption_field.startswith('@'):
                             caption_field = '$%s' %caption_field
                         group_list.append(caption_field)
+                        colgetter = flatCol(caption_field)
                         columns_list.append(caption_field)
+                    empty_placeholders[colgetter] = group_empty
+                    group_list_keys.append(colgetter)
             columns_list.append(col)
         columns_list.append('count(*) AS "_grp_count_sum"')
         if not group_list:
@@ -440,13 +455,20 @@ class TableHandlerGroupBy(BaseComponent):
             kwargs['limit'] = groupLimit
         selection = self.app._default_getSelection(_aggregateRows=False,**kwargs)
         #_thgroup_pkey column 
-        group_list_keys = [c.replace('@','_').replace('.','_').replace('$','_') for c in group_list]
         def cb(row):
             resdict = {}
-            resdict['_thgroup_pkey'] = '|'.join([str(row.get(c) or '_') for c in group_list_keys])
+            keylist = []
+            for col in group_list_keys:
+                keyvalue = row[col] 
+                if keyvalue in ('',None):
+                    keyvalue = empty_placeholders.get(col)
+                    resdict[col] = keyvalue
+                keylist.append(str(keyvalue or '_'))
+            resdict['_thgroup_pkey'] = '|'.join(keylist)
             return resdict
         selection.apply(cb)
         
+
         return selection    
 
 
