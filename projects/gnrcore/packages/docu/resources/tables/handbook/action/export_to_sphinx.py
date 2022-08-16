@@ -137,8 +137,6 @@ class Main(BaseResourceBatch):
                 self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
                 self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
                 record['local_handbook_zip'] = self.result_url
-                self.db.table('docu.handbook_atc').addAttachment(maintable_id=record['id'], origin_filepath=self.result_url, 
-                                                                                                    is_foreign_document=True)
             else:
                 record['last_exp_ts'] = datetime.now()
                 record['handbook_url'] = self.handbook_url
