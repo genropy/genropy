@@ -140,6 +140,7 @@ class Main(BaseResourceBatch):
             else:
                 record['last_exp_ts'] = datetime.now()
                 record['handbook_url'] = self.handbook_url
+                self.result_url = None
         self.db.commit()
 
         if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
