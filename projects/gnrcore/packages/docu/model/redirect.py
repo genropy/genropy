@@ -3,7 +3,8 @@ import os
 
 class Table(object):
     def config_db(self,pkg):
-        tbl=pkg.table('redirect', pkey='id', name_long='Redirect', name_plural='Redirects',caption_field='page_name')
+        tbl=pkg.table('redirect', pkey='id', name_long='Redirect', name_plural='Redirects',caption_field='page_name',
+                                    checkpref='docu.manage_redirects')
         self.sysFields(tbl)
         
         tbl.column('page_id',size='22',name_long='!![en]Moved Page').relation('documentation.id',

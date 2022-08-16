@@ -26,10 +26,11 @@ class AppPref(object):
     def prefpane_docu(self, parent,**kwargs): 
         pane = parent.contentPane(**kwargs)
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.textbox('^.sphinx_path', lbl='Sphinx project path', placeholder='Default: site:handbooks')
-        fb.textbox('^.sphinx_baseurl', lbl='Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
+        fb.textbox('^.sphinx_path', lbl='!![en]Sphinx project path', placeholder='Default: site:handbooks')
+        fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
+        fb.checkbox('^.manage_redirects', lbl='', label='!![en]Manage redirects')
         if self.db.package('genrobot'):
-            fb.checkBox(value='^.telegram_notification', lbl='Enable Telegram Notification')
+            fb.checkBox(value='^.telegram_notification', lbl='', label='Enable Telegram Notification')
             fb.dbselect('^.bot_token', lbl='Default BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
                             colspan=3, hasDownArrow=True, hidden='^.telegram_notification?=!#v')
             

@@ -20,6 +20,7 @@ class Table(object):
         tbl.column('toc_roots', name_long='Toc roots')
         tbl.column('language',size=':2',name_long='Base language').relation('docu.language.code',mode='foreignkey')
         tbl.column('sphinx_path', name_long='Sphinx path')
+        tbl.column('is_local_handbook', dtype='B', name_long='Is local handbook')
         tbl.column('local_handbook_zip', name_long='Local handbook zip')
         tbl.column('version', name_long='Version')
         tbl.column('author', name_long='Author')
@@ -41,11 +42,11 @@ class Table(object):
                 file.delete()
     
     def trigger_onInserting(self, record):
-        if not record['sphinx_path']:
+        if not record['is_local_handbook'] and not record['sphinx_path']:
             self.checkSphinxPath(record)
     
     def trigger_onUpdating(self, record, old_record=None):
-        if not record['sphinx_path'] or record['name']!=old_record['name'] :
+        if not record['is_local_handbook'] and not record['sphinx_path'] or record['name']!=old_record['name'] :
             self.checkSphinxPath(record)
     
     def checkSphinxPath(self, record):
@@ -56,4 +57,6 @@ class Table(object):
         handbook_name=record['name']
         record['sphinx_path'] = current_path + '/' + handbook_name
                             
-                            
+    def atc_getAttachmentPath(self,pkey):
+        name = self.readColumns(pkey, columns='$name')
+        return 'home:local_handbooks/%s' % name

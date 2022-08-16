@@ -38,7 +38,7 @@ class Main(BaseResourceBatch):
         self.doctable=self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
         self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.batch_parameters['download_zip'] else None
+        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.handbook_record['is_local_handbook'] else None
         self.sphinxNode = self.handbookNode.child('sphinx') if not self.localHandbookNode else self.localHandbookNode.child('sphinx')
         self.sphinxNode.delete()
         self.sourceDirNode = self.sphinxNode.child('source')
@@ -130,15 +130,16 @@ class Main(BaseResourceBatch):
             jsfile.write(self.defaultJSCustomization().encode())
         self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path , self.resultNode.internal_path, *args)
 
-    def post_process(self):
-        if self.batch_parameters['download_zip']:
-            self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
-            self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
-            self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
-            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+    def post_process(self):                
+        with self.tblobj.recordToUpdate(self.handbook_id) as record:
+            if record['is_local_handbook']:
+                self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
+                self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
                 record['local_handbook_zip'] = self.result_url
-        else: 
-            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+                self.db.table('docu.handbook_atc').addAttachment(maintable_id=record['id'], origin_filepath=self.result_url, 
+                                                                                                    is_foreign_document=True)
+            else:
                 record['last_exp_ts'] = datetime.now()
                 record['handbook_url'] = self.handbook_url
         self.db.commit()
@@ -159,8 +160,8 @@ class Main(BaseResourceBatch):
                 self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
 
     def result_handler(self):
-        resultAttr = dict()
-        if self.batch_parameters['download_zip']:
+        resultAttr = dict() 
+        if self.result_url:
             resultAttr['url'] = self.result_url
         return 'Export done', resultAttr
 
@@ -331,10 +332,10 @@ class Main(BaseResourceBatch):
     
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
-        fb.checkbox(lbl='Download Zip', value='^.download_zip')
-        fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202112 Useful for local debugging 
-        #fb.checkbox(lbl='Skip images', value='^.skip_images')
+        fb.checkbox(lbl='Skip images', value='^.skip_images')
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
