@@ -24,7 +24,7 @@ class View(BaseComponent):
         return dict(column='title',op='contains', val='')
 
     def th_top_upperslotbar(self,top):
-        top.slotToolbar('5,sections@is_local,*',childname='upper',_position='<bar')
+        top.slotToolbar('5,sections@is_local,*,sections@language,5',childname='upper',_position='<bar')
 
     def th_sections_is_local(self):
         return [dict(code='all',caption='!![en]All'),
@@ -34,18 +34,17 @@ class View(BaseComponent):
 
 
 class Form(BaseComponent):
-    py_requires="gnrcomponents/attachmanager/attachmanager:AttachManager"
 
     def th_form(self, form):
         tc = form.center.tabContainer(datapath='#FORM.record')
         main = tc.contentPane(title='!![en]Info')
-        frame = tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
+        www_frame = tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
                                                 handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook')
-        atc = tc.contentPane(title='!![en]Attachments', datapath='#FORM', hidden='^#FORM.record.is_local_handbook?=#v!=true')
+        zip_frame = tc.contentPane(title='!![en]Zip', hidden='^.is_local_handbook?=#v!=true')
 
         self.handbookInfo(main)
-        self.handbookPreview(frame)
-        self.handbookAttachments(atc)
+        self.handbookPreview(www_frame)
+        self.handbookZip(zip_frame)
 
     def handbookInfo(self, main):
         main_bc = main.borderContainer()
@@ -117,8 +116,12 @@ class Form(BaseComponent):
                             target='_blank', hidden='^.handbook_url?=!#v')
         frame_bc.contentPane(region='center', overflow='hidden').iframe(src='^.handbook_url', width='100%', height='100%')
     
-    def handbookAttachments(self, atc):
-        atc.attachmentMultiButtonFrame()
+    def handbookZip(self, frame):
+        frame_bc = frame.borderContainer()
+        frame_bc.contentPane(region='top', height='30px', overflow='hidden').formbuilder(margin='2px').a(
+                            '^.local_handbook_zip', lbl='!![en]Doc url:', href='^.local_handbook_zip', 
+                            target='_blank', hidden='^.local_handbook_zip?=!#v')
+        frame_bc.contentPane(region='center', overflow='hidden').iframe(src='^.local_handbook_zip', width='100%', height='100%')
 
     def th_top_exportButton(self, top):
         bar = top.bar.replaceSlots('*','*,export_button')
