@@ -123,8 +123,8 @@ class Table(object):
             return
         params_name_lbl, params_type_lbl, params_desc_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
                             lang=language, columns='$params_name_lbl,$params_type_lbl,$params_desc_lbl')
-        params_name_lbl = params_name_lbl or 'Parameters'
-        params_type_lbl = params_type_lbl or 'Attachments'
+        params_name_lbl = params_name_lbl or 'Parameter name'
+        params_type_lbl = params_type_lbl or 'Type'
         params_desc_lbl = params_desc_lbl or 'Description'
         fdict = dict()
         for r in rows:
