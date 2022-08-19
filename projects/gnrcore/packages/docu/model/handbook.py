@@ -56,7 +56,3 @@ class Table(object):
             current_path = 'site:handbooks'
         handbook_name=record['name']
         record['sphinx_path'] = current_path + '/' + handbook_name
-                            
-    def atc_getAttachmentPath(self,pkey):
-        name = self.readColumns(pkey, columns='$name')
-        return 'home:local_handbooks/%s' % name

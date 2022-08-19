@@ -117,10 +117,15 @@ class Table(object):
             result.append(tpl % atc)
         return '\n'.join(result)
 
-    def dfAsRstTable(self,pkey):
+    def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)
         if not rows:
             return
+        params_name_lbl, params_type_lbl, params_desc_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
+                            lang=language, columns='$params_name_lbl,$params_type_lbl,$params_desc_lbl')
+        params_name_lbl = params_name_lbl or 'Parameters'
+        params_type_lbl = params_type_lbl or 'Attachments'
+        params_desc_lbl = params_desc_lbl or 'Description'
         fdict = dict()
         for r in rows:
             page = r.pop('page',None) or 'Main'
@@ -136,7 +141,7 @@ class Table(object):
         ltemplate = '|%s|%s|%s|' 
         l1 = '+%s+%s+%s+' %(24*'=',6*'=',50*'=')
         result = [l0]
-        result.append(ltemplate %('Parameter name'.center(24),'Type'.center(6),'Description'.center(50)))
+        result.append(ltemplate %(f'{params_name_lbl}'.center(24),f'{params_type_lbl}'.center(6),f'{params_desc_lbl}'.center(50)))
         result.append(l1)
         for k,p in enumerate(pages):
             if k>0:
