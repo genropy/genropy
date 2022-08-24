@@ -86,7 +86,7 @@ class Form(BaseComponent):
         fb.field('notes', tag='simpleTextArea',colspan=2, height='90px')
         tc = bc.tabContainer(region='center')
 
-        tc.contentPane(title='Columns').inlineTableHandler(relation='@columns')
+        tc.contentPane(title='Columns').dialogTableHandler(relation='@columns', viewResource='ViewFromTable')
 
         tc.contentPane(title='Outgoing Relations').plainTableHandler(table='lgdb.lg_relation',
                                                             nodeId='outgoing_relations',

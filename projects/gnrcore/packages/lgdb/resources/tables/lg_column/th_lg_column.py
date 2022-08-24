@@ -12,12 +12,12 @@ class View(BaseComponent):
         r.fieldcell('name', width='8em')
         r.fieldcell('data_type', name='T', width='3em')
         r.fieldcell('old_type', name='OT', width='3em')
-        r.fieldcell('description', width='15em', edit=True)
-        r.fieldcell('notes', width='40em', edit=dict(tag='simpleTextArea', height='80px'))
-        r.fieldcell('group', width='8em', edit=True)
+        r.fieldcell('description', width='15em')
+        r.fieldcell('notes', width='40em')
+        r.fieldcell('group', width='8em')
 
     def th_order(self):
-        return 'lg_table_id'
+        return 'name'
 
     def th_query(self):
         return dict(column='name', op='contains', val='')
@@ -62,7 +62,37 @@ class View(BaseComponent):
         
         return result
 
+class ViewFromTable(View):
+    
+    #def th_struct(self,struct):
+    #    r = struct.view().rows()
+    #    r.fieldcell('lg_table_id')
+    #    r.fieldcell('name', width='8em')
+    #    r.fieldcell('data_type', name='T', width='3em')
+    #    r.fieldcell('old_type', name='OT', width='3em')
+    #    r.fieldcell('description', width='15em', edit=True)
+    #    r.fieldcell('notes', width='40em', edit=dict(tag='simpleTextArea', height='80px'))
+    #    r.fieldcell('group', width='8em', edit=True)
+        
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('lg_table_id')
+        r.fieldcell('name', width='8em')
+        r.fieldcell('data_type', name='T', width='3em')
+        r.fieldcell('old_type', name='OT', width='3em')
+        r.fieldcell('description', width='15em')
+        r.fieldcell('notes', width='40em')
+        r.fieldcell('group', width='8em')
 
+
+    def th_top_custom(self, top):
+        bar = top.bar.replaceSlots('count','count,batchAssign')
+        
+    def th_options(self):
+        return dict(addrow=False)
+
+        
+    
 class Form(BaseComponent):
 
     def th_form(self, form):
