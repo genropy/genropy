@@ -22,8 +22,8 @@ class ServiceType(BaseServiceType):
         try:
             import weasyprint
             pdf_pref = self.site.getPreference('.pdf_render',pkg='sys') if self.site else None
-            enable_weasyprint = pdf_pref['weasyprint']
-            if not enable_weasyprint:
+            legacy_mode = pdf_pref['wk_legacy']
+            if legacy_mode:
                 weasyprint = False
         except ImportError:
             weasyprint = False

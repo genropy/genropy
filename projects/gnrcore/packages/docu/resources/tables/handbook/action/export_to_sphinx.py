@@ -336,7 +336,7 @@ class Main(BaseResourceBatch):
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
         #DP202112 Useful for local debugging 
-        fb.checkbox(lbl='Skip images', value='^.skip_images')
+        #fb.checkbox(lbl='Skip images', value='^.skip_images')
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
             fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202101 Ask for Telegram notification option if enabled in docu settings

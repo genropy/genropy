@@ -46,7 +46,7 @@ class AppPref(object):
         fb.checkBoxText(value='^.print.modes',values='pdf:PDF,server_print:Server Print,mail_pdf:PDF Mail,mail_deliver:Mail Deliver',lbl='Print modes')
         fb.checkbox(value='^.print.enable_pdfform',label='Enable pdf forms (Requires pdftk)')
         fb = pdfpane.roundedGroup(title='PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
-        fb.checkbox(value='^.weasyprint',label='Weasyprint')
+        fb.checkbox(value='^.wk_legacy',label='Legacy mode (use wkhtmltopdf)')
 
         fb.textbox(value='^.margin_top',lbl='Margin top')
         fb.textbox(value='^.margin_bottom',lbl='Margin bottom')
