@@ -30,50 +30,10 @@ class View(BaseComponent):
                     cols=4, 
                     isDefault=True)
 
-    def th_top_sup(self,top):
-        top.slotToolbar('10,sections@types,*,sections@groups,5',
-                       childname='superiore',
-                       sections_types_remote=self.sectionTypes,
-                       sections_groups_remote=self.sectionGroups,
-                       _position='<bar',gradient_from='#999',gradient_to='#666')
-
-    @public_method
-    def sectionTypes(self):
-        types = self.db.table('lgdb.lg_column').query('$data_type', distinct=True, 
-                                                where= '$data_type IS NOT NULL').fetch()
-
-        result=[]
-        result.append(dict(code='all', caption='!![en]All'))
-        for t in types:
-            result.append(dict(code=t['data_type'], caption=t['data_type'], condition='$data_type= :tp', condition_tp=t['data_type']))
-        result.append(dict(code='no_type', caption='!![en]No type', condition='$data_type IS NULL'))
-        return result
-
-    @public_method
-    def sectionGroups(self):
-        groups= self.db.table('lgdb.lg_column').query('$group',distinct=True, 
-                                                where= '$group IS NOT NULL').fetch()
-
-        result=[]
-        result.append(dict(code='all', caption='!![en]All'))
-        result.append(dict(code='no_group', caption='!![en]No group', condition='$group IS NULL'))
-        for g in groups:
-            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
-        
-        return result
+    
 
 class ViewFromTable(View):
-    
-    #def th_struct(self,struct):
-    #    r = struct.view().rows()
-    #    r.fieldcell('lg_table_id')
-    #    r.fieldcell('name', width='8em')
-    #    r.fieldcell('data_type', name='T', width='3em')
-    #    r.fieldcell('old_type', name='OT', width='3em')
-    #    r.fieldcell('description', width='15em', edit=True)
-    #    r.fieldcell('notes', width='40em', edit=dict(tag='simpleTextArea', height='80px'))
-    #    r.fieldcell('group', width='8em', edit=True)
-        
+
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('lg_table_id')
@@ -86,10 +46,45 @@ class ViewFromTable(View):
 
 
     def th_top_custom(self, top):
-        bar = top.bar.replaceSlots('count','count,batchAssign')
+        top.bar.replaceSlots('count','count,batchAssign')
+        top.slotToolbar('10,sections@types,*,sections@groups,5',
+                       childname='superiore',
+                       sections_types_remote=self.sectionTypes,
+                       sections_groups_remote=self.sectionGroups,
+                       _position='<bar')
         
     def th_options(self):
         return dict(addrow=False)
+
+    @public_method
+    def sectionTypes(self):
+        types = self.db.table('lgdb.lg_column').query('$data_type', distinct=True, 
+                                                where= '$data_type IS NOT NULL').fetch()
+
+        result=[]
+        result.append(dict(code='all', caption='!![en]All'))
+        for t in types:
+            result.append(dict(code=t['data_type'], caption=t['data_type'], condition='$data_type= :tp', condition_tp=t['data_type']))
+        result.append(dict(code='no_type', caption='!![en]No type', condition='$data_type IS NULL'))
+        return result
+    
+    @public_method(remote_table_id='^#FORM.record.id')
+    def sectionGroups(self, table_id, **kwargs):
+        if not table_id:
+            return []
+        groups= self.db.table('lgdb.lg_column').query('$group',
+                                                      distinct=True, 
+                                                where= '$group IS NOT NULL AND $lg_table_id=:tbl_id',
+                                                tbl_id=table_id).fetch()
+        
+        result=[]
+        
+        result.append(dict(code='all', caption='!![en]All'))
+        result.append(dict(code='no_group', caption='!![en]No group', condition='$group IS NULL'))
+        for g in groups:
+            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+        
+        return result
 
         
     
