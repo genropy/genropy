@@ -82,10 +82,10 @@ class ViewFromTable(View):
         result.append(dict(code='all', caption='!![en]All'))
         result.append(dict(code='no_group', caption='!![en]No group', condition='$group IS NULL'))
         for g in groups:
-            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+            gname = g['group'].lower()
+            result.append(dict(code=gname.replace(' ','_'), caption=g['group'], condition='LOWER($group)= :gr', condition_gr=gname))
         
         return result
-
         
     
 class Form(BaseComponent):
