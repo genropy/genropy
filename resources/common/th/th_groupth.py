@@ -380,7 +380,7 @@ class TableHandlerGroupBy(BaseComponent):
                     group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
         empty_placeholders = {}
         group_list_keys = []
-        for v in struct['#0.#0'].digest('#a'):
+        for idx,v in enumerate(struct['#0.#0'].digest('#a')):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
             col = v.get('queryfield') or v['field']
@@ -419,7 +419,14 @@ class TableHandlerGroupBy(BaseComponent):
                         group_list_keys.append(colgetter)
                         empty_placeholders[colgetter] = group_empty
                         col = '%s AS %s' %(col, col_as)
-                    #if dtype in ('T','C','A'):
+                    if dtype in ('T','C','A'):
+                        col =  self.db.adapter.string_agg(col,group_aggr)
+                        group_list.append(col)
+                        col_as = asName(v['field'],f'aggregated_{idx}')
+                        colgetter = flatCol(col_as)
+                        group_list_keys.append(colgetter)
+                        empty_placeholders[colgetter] = group_empty
+                        col = '%s AS %s' %(col, col_as)
                 else:
                     groupcol = col
                     if ' AS ' in col:
