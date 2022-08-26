@@ -420,13 +420,9 @@ class TableHandlerGroupBy(BaseComponent):
                         empty_placeholders[colgetter] = group_empty
                         col = '%s AS %s' %(col, col_as)
                     if dtype in ('T','C','A'):
-                        col =  self.db.adapter.string_agg(col,group_aggr)
-                        group_list.append(col)
-                        col_as = asName(v['field'],f'aggregated_{idx}')
-                        colgetter = flatCol(col_as)
-                        group_list_keys.append(colgetter)
-                        empty_placeholders[colgetter] = group_empty
-                        col = '%s AS %s' %(col, col_as)
+                        col_asname = asName(v['field'],f'straggr_{idx}')
+                        grouped_col = self.db.adapter.string_agg(col,group_aggr)
+                        col = '%s AS %s' %(grouped_col,col_asname)
                 else:
                     groupcol = col
                     if ' AS ' in col:
