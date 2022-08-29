@@ -53,7 +53,7 @@ class LoginComponent(BaseComponent):
                                 nodeId='tb_login_user',autocomplete='username')
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False,
                                 nodeId='tb_login_pwd',autocomplete='current-password')
-            fb.dataController("""if(user && pwd && avatar_user){
+            fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
@@ -226,6 +226,8 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
+    def isDeveloper(self):
+        return True
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
