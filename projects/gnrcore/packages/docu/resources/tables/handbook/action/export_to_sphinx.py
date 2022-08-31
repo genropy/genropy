@@ -8,7 +8,6 @@ from gnr.core.gnrbag import Bag
 from json import dumps
 from datetime import datetime
 import re
-import os
 import sys
 
 if sys.version_info[0] == 3:
@@ -35,13 +34,15 @@ class Main(BaseResourceBatch):
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
-        self.doctable=self.db.table('docu.documentation')
+        self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.handbook_record['is_local_handbook'] else None
-        self.sphinxNode = self.handbookNode.child('sphinx') if not self.localHandbookNode else self.localHandbookNode.child('sphinx')
-        self.sphinxNode.delete()
+        #DP202208 Temporary node to build files, moved after creation to definitive folder
+        self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
+        self.sphinxNode = self.handbookNode.child('sphinx') 
         self.sourceDirNode = self.sphinxNode.child('source')
+        #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
+        self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
+        self.publishedDocNode.delete()
         confSn = self.sourceDirNode.child('conf.py')
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
@@ -128,19 +129,25 @@ class Main(BaseResourceBatch):
             cssfile.write(customStyles.encode())
         with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
             jsfile.write(self.defaultJSCustomization().encode())
-        self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path , self.resultNode.internal_path, *args)
+        self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path, self.resultNode.internal_path, *args)
 
     def post_process(self):                
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
-                self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
-                self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
-                self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
+                self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
+                #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
+                destNode = self.publishedDocNode.child(self.zipNode.basename)
+                self.zipNode.move(destNode)
+                self.result_url = self.zipNode.url()
                 record['local_handbook_zip'] = self.result_url
             else:
+                #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
+                self.resultNode.move(self.publishedDocNode)
                 record['handbook_url'] = self.handbook_url
                 self.result_url = None
+        self.sphinxNode.delete()
         self.db.commit()
 
         if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
@@ -345,8 +352,8 @@ class Main(BaseResourceBatch):
             fb.dbselect('^.bot_token', lbl='BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
                         colspan=3, hasDownArrow=True, default=self.db.application.getPreference('.bot_token',pkg='docu'),
                         hidden='^.send_notification?=!#v')                
-            fb.simpleTextArea(lbl='Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
-                    default="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
+            fb.simpleTextArea(lbl='!![en]Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
+                    default="!![en]Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
                     height='60px', width='200px')
             #pane.inlineTableHandler(table='genrobot.bot_contact', datapath='.notification_recipients',
             #                title='!![en]Notification recipients', 

@@ -36,7 +36,7 @@ class View(BaseComponent):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        tc = form.center.tabContainer(datapath='#FORM.record')
+        tc = form.center.tabContainer(datapath='.record')
         main = tc.contentPane(title='!![en]Info')
         www_frame = tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
                                                 handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook')
@@ -58,9 +58,6 @@ class Form(BaseComponent):
         fb.field('title', validate_notnull=True)
         fb.div('^.sphinx_path', lbl='!![en]Sphinx path', hidden='==(handbook_url || local)', 
                                                 handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook')
-        fb.dataController("SET .sphinx_path=current_path+'/'+handbook_name;", 
-                            current_path=self.db.application.getPreference('.sphinx_path',pkg='docu'),
-                            handbook_name='^.name', _userChanges=True, _if='current_path')
         fb.field('docroot_id', hasDownArrow=True, validate_notnull=True, tag='hdbselect', folderSelectable=True)
         fb.checkBoxText(value='^.toc_roots',
                         table='docu.documentation', popup=True, cols=4,lbl='!![en]TOC roots',
@@ -87,7 +84,7 @@ class Form(BaseComponent):
                 crop_rounded=6,
                 placeholder=True,
                 edit=True, 
-                upload_folder='site:handbooks_images',
+                upload_folder='documentation:handbooks_images',
                 upload_filename='=#FORM.record.name')
         right.span('Recommended file size: 1200x628', font_size='10px', font_style='italic', margin='5px')
         right.button('Remove', hidden='^.ogp_image?=!#v', margin='5px').dataController('SET .ogp_image = null;')
