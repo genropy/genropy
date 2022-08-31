@@ -183,4 +183,5 @@ class Table(object):
         "Update after S3 configuration"
         for doc_lang in record['docbag']:
             if doc_lang.value['rst']:
+                doc_lang.value['rst'] = doc_lang.value['rst'].replace('_vol:docu_documentation', 'documentation:attachments')
                 doc_lang.value['rst'] = doc_lang.value['rst'].replace('home:docu_documentation', 'documentation:attachments')
