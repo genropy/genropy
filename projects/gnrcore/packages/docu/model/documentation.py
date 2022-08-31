@@ -2,7 +2,7 @@
 # encoding: utf-8
 from builtins import object
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method, metadata
 import textwrap
 
 class Table(object):
@@ -44,6 +44,8 @@ class Table(object):
             result.append(dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l))
         return result
 
+    def atc_getAttachmentPath(self,pkey):
+        return 'documentation:attachments'
 
     def trigger_onUpdating(self,record,old_record):
         record['sourcebag'] = record['sourcebag'] or None
@@ -176,3 +178,9 @@ class Table(object):
         for c in children:
             pass
     
+    @metadata(doUpdate=True)
+    def touch_updateRstMediaFile(self,record,old_record=None):
+        "Update after S3 configuration"
+        for doc_lang in record['docbag']:
+            if doc_lang.value['rst']:
+                doc_lang.value['rst'] = doc_lang.value['rst'].replace('home:docu_documentation', 'documentation:attachments')
