@@ -679,7 +679,7 @@ dojo.declare('gnr.GenroClient', null, {
                 return;
             }
             var sn = wdg.sourceNode;
-            if(isNullOrBlank(sn.widget.getValue())){
+            if(!isNullOrBlank(sn.widget.getValue())){
                 return;
             }
             if(sn.grid){
