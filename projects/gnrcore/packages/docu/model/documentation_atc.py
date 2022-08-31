@@ -11,4 +11,5 @@ class Table(AttachmentTable):
     @metadata(doUpdate=True)
     def touch_updateAtcFilepath(self,record,old_record=None):
         "Update after S3 configuration"
+        record['filepath'] = record['filepath'].replace('docu_documentation', 'documentation:attachments')
         record['filepath'] = record['filepath'].replace('home:docu_documentation', 'documentation:attachments')
