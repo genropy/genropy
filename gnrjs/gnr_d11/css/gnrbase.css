@@ -624,6 +624,10 @@ cursorZoom_plus{
     color: #707070;
 }
 
+.tundra .mobilefields .dijitButtonNode.dijitArrowButton{
+    background: none;
+}
+
 .gnrfield label{
     color: #707070;
     padding-right: 10px;
