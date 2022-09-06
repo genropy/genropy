@@ -616,7 +616,10 @@ cursorZoom_plus{
     padding-right: 3px;
     padding-top: 1px;
 }
-
+.tundra .mobilefields .dijitInputField{
+    font-size:12pt;
+    padding:1px;
+}
 .gnrfield.tag_checkbox label{
     color: #707070;
 }
@@ -1895,7 +1898,14 @@ div.dojoxDock {
     overflow: hidden;
     white-space: pre;
 }
-
+.templateGrid .cellContent{
+    padding-top:0;
+    padding-bottom:0;
+    padding-left:0;
+    padding-right:0;
+    margin:0;
+    line-height: normal;
+}
 
 .plainTextChunk{
     white-space: pre;
@@ -5368,6 +5378,11 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
+
+.bodySize_phone .templateGrid .dojoxGrid{
+    font-family: inherit;
+}
+
 .detached_placeholder{
     position: relative;
 }

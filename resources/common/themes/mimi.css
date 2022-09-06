@@ -979,6 +979,23 @@ body.tundra.mimi {
 }
 
 
+
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-selected .dojoxGrid-cell{
+    border-left: 0px !important;
+    border-top: 0 !important;
+    border-right: 0px solid #DDDDDD;
+    border-bottom: 0px !important;
+    /*height: 21px;*/
+    height:0px;
+    padding-top:0px;
+    padding-bottom:0px;
+    background:none;
+    vertical-align:top;
+}
+
+
 .tundra._common_d11 .dojoxGrid-content>div{
     border-bottom: 1px solid #DDDDDD;
 }
@@ -1325,6 +1342,7 @@ body.tundra.mimi {
     /*background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EEEEEE), to(#EDEDEE));
     background-image: -moz-linear-gradient(-90deg, #EEEEEE, #EDEDEE);*/
 }
+
 .fakeButton{
     background-image: none;
     background-color: #E4E4E4;
@@ -1405,6 +1423,12 @@ body.tundra.mimi {
 .mimi .archive_record, .mimi .box{
     background: url(/_rsrc/common/css_icons/svg/16/archive_record.svg) no-repeat center center;
 }
+
+
+.mimi .alarm, .mimi .bell{
+    background: url(/_rsrc/common/css_icons/svg/16/alarm.svg) no-repeat center center;
+}
+
 
 .mimi .delete_row{
     background: url(/_rsrc/common/css_icons/svg/16/delete_row.svg) no-repeat center center;
