@@ -2478,7 +2478,7 @@ dojo.declare("gnr.formstores.Base", null, {
 
         return kw;
     },
-    duplicateRecord:function(srcPkey, howmany){
+    duplicateRecord:function(srcPkey, howmany,kw){
         var form=this.form;
         var that = this;
         var srcPkey = srcPkey || this.form.getCurrentPkey();
@@ -2493,7 +2493,9 @@ dojo.declare("gnr.formstores.Base", null, {
             return
         }
         genro.assert(this.table,'only form with table allow duplicate');
-        genro.serverCall('app.duplicateRecord',{table:this.table,pkey:srcPkey,howmany:howmany},function(resultPkey){
+        kw = kw || {}
+        objectUpdate(kw,{table:this.table,pkey:srcPkey,howmany:howmany})
+        genro.serverCall('app.duplicateRecord',kw,function(resultPkey){
             form.doload_store({destPkey:resultPkey});
             
         })
