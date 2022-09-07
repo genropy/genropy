@@ -1423,6 +1423,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.indexByCb(cb) >= 0;
     },
     mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        this.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+    },
+
+    mixin_selectByRowAttrDo:function(attrName, attrValue, op,scrollTo,default_idx) {
         var selection = this.selection;
         var idx = -1;
         if (attrValue instanceof Array && attrValue.length==1){
@@ -1431,7 +1435,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (attrValue instanceof Array) {
             selection.unselectAll();
             var grid = this;
-            dojo.forEach(attrValue, function(v) {
+            attrValue.forEach(function(v) {
                 var idx = grid.indexByRowAttr(attrName, v);
                 if(idx>=0){
                     selection.addToSelection(idx);
@@ -4558,6 +4562,19 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
     mixin_refreshSort:function(){
         this.setSortedBy(this.sortedBy);
+    },
+
+    mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        var that = this;
+        this.sourceNode.watch('pendingStore',function(){
+            let cs = that.collectionStore();
+            if(!cs){
+                return;
+            }
+            return !(cs.runningQuery || cs.loadingData);
+        },function(){
+            that.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+        });
     },
 
     mixin_collectionStore:function(){

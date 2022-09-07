@@ -6136,12 +6136,16 @@ dojo.declare("gnr.stores._Collection",null,{
     },
 
     runQuery:function(cb,runKwargs){
+        var that = this;
+        this.runningQuery = true;
         var result =  this.storeNode.fireNode(runKwargs);
         if(result instanceof dojo.Deferred){
             result.addCallback(function(r){
+                that.runningQuery = false;
                 cb(r)
             });
         }else{
+            that.runningQuery = false;
             result = cb(result);
         }
         return result;
