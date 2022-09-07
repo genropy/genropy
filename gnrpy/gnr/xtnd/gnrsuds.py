@@ -29,20 +29,23 @@ class GnrSudsClient(object):
         if self.xmlns:
             call_bag.setAttr(request_tag, xmlns=self.xmlns)
         xml_body =  call_bag.toXml(docHeader=False, omitRoot=True, typeattrs=False, typevalue=False)
-        xml_envelope = self.envelope_template.format(xml_body=xml_body)
+        xml_envelope = self.envelope_template.format(xml_body=xml_body).replace('\n','').replace('\t','')
+        
         xml_envelope = byte_str(xml_envelope)
         return dict(msg=xml_envelope)
 
-
+    def service_handler(self, method):
+        return getattr(self.client.service, method, None)
+        
     def __call__(self, method=None, **kwargs):
-        service_handler = getattr(self.client.service, method, None)
+        service_handler = self.service_handler(method)
         if service_handler:
             if True:
                 envelope = self._prepareEnvelope(method=method, **kwargs)
                 r = service_handler(__inject=envelope)
-                answer = Bag(success=True, result=r, statuscode='SUCCESS')
+                answer = Bag(success=True, result=r, envelope=envelope['msg'], statuscode=r)
             #except Exception as e:
-            #    answer = Bag(dict(success=False, result=None, error=str(e), statuscode='SOAP ERROR'))
+            #    answer = Bag(dict(success=False, result=None, error=str(e), statuscode='SOAP ERROR',envelope=envelope['msg']))
         else:
             answer = Bag(dict(success=False, result=None, statuscode='METHOD NOT FOUND'))
         return answer
