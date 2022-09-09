@@ -45,7 +45,7 @@ class Table(object):
         return result
 
     def atc_getAttachmentPath(self,pkey):
-        return 'documentation:attachments'
+        return 'documentation:attachments/{pkey}'
 
     def trigger_onUpdating(self,record,old_record):
         record['sourcebag'] = record['sourcebag'] or None
