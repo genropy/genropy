@@ -70,7 +70,8 @@ class Main(BaseResourceBatch):
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
         #DP202112 Check if there are active redirects
-        self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
                         h_id=self.handbook_id).selection().output('pkeylist')
 
     def step_prepareRstDocs(self):
@@ -150,12 +151,13 @@ class Main(BaseResourceBatch):
         self.sphinxNode.delete()
         self.db.commit()
 
-        if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            if self.redirect_pkeys or not self.batch_parameters.get['skip_redirects']:
             #DP202112 Make redirect files
-            redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-            for redirect_pkey in self.redirect_pkeys:
-                redirect_rec = redirect_recs[redirect_pkey]
-                self.db.table('docu.redirect').makeRedirect(redirect_rec)
+                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
+                for redirect_pkey in self.redirect_pkeys:
+                    redirect_rec = redirect_recs[redirect_pkey]
+                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
 
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
