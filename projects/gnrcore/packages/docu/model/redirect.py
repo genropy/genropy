@@ -25,14 +25,12 @@ class Table(object):
         old_url = redirect_rec['old_url']
         old_page_to_red = old_url.replace(redirect_rec['old_handbook_url'],'')
         old_page_path = '/sphinx/build' + old_page_to_red
-        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path']+old_page_path)
+        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path']+old_page_path, autocreate=True)
         new_url = redirect_rec['new_url']
         html_text = self.defaultHtmlRedirect(new_url)
 
-        #Check if folder exists, otherwise create it 
-        os.makedirs(os.path.dirname(sn.internal_path), exist_ok=True)
-        with open(sn.internal_path,"w") as html_file:
-            html_file.write(html_text)
+        with sn.open(mode='wb') as html_file:
+            html_file.write(html_text.encode())
 
     def defaultHtmlRedirect(self, new_url):
         return """<html>

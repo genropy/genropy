@@ -132,7 +132,15 @@ class Main(BaseResourceBatch):
             jsfile.write(self.defaultJSCustomization().encode())
         self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path, self.resultNode.internal_path, *args)
 
-    def post_process(self):                
+    def post_process(self):     
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            if self.redirect_pkeys or not self.batch_parameters.get['skip_redirects']:
+            #DP202112 Make redirect files
+                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
+                for redirect_pkey in self.redirect_pkeys:
+                    redirect_rec = redirect_recs[redirect_pkey]
+                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
+
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
@@ -150,14 +158,6 @@ class Main(BaseResourceBatch):
                 self.result_url = None
         self.sphinxNode.delete()
         self.db.commit()
-
-        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            if self.redirect_pkeys or not self.batch_parameters.get['skip_redirects']:
-            #DP202112 Make redirect files
-                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-                for redirect_pkey in self.redirect_pkeys:
-                    redirect_rec = redirect_recs[redirect_pkey]
-                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
 
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
