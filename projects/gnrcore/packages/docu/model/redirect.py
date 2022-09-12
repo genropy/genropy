@@ -24,8 +24,7 @@ class Table(object):
     def makeRedirect(self, redirect_rec):
         old_url = redirect_rec['old_url']
         old_page_to_red = old_url.replace(redirect_rec['old_handbook_url'],'')
-        old_page_path = '/sphinx/build' + old_page_to_red
-        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path']+old_page_path, autocreate=True)
+        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path']+old_page_to_red, autocreate=True)
         new_url = redirect_rec['new_url']
         html_text = self.defaultHtmlRedirect(new_url)
 
