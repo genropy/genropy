@@ -132,7 +132,7 @@ class Main(BaseResourceBatch):
             jsfile.write(self.defaultJSCustomization().encode())
         self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path, self.resultNode.internal_path, *args)
 
-    def post_process(self):                
+    def post_process(self):     
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
             record['last_exp_ts'] = datetime.now()
             if record['is_local_handbook']:
@@ -158,7 +158,7 @@ class Main(BaseResourceBatch):
                 for redirect_pkey in self.redirect_pkeys:
                     redirect_rec = redirect_recs[redirect_pkey]
                     self.db.table('docu.redirect').makeRedirect(redirect_rec)
-
+                    
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
