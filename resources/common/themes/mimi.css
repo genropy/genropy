@@ -1565,6 +1565,11 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/plus_square_grey.svg) no-repeat center center;
 }
 
+.mimi .plus_grey{
+    background: url(/_rsrc/common/css_icons/svg/16/plus_grey.svg) no-repeat center center;
+}
+
+
 .mimi .previous_record, .mimi .previous{
     background: url(/_rsrc/common/css_icons/svg/16/previous_record.svg) no-repeat center center;
 }
