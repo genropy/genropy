@@ -5204,11 +5204,11 @@ div[disabled='true'], div[disabled='disabled']{
     background-color: #AEC7E3;
 }
 
-._common_d11 .no_selected .dojoxGrid-row .dojoxGrid-cell {
+._common_d11 .noselect .dojoxGrid-row .dojoxGrid-cell {
     background-color: whitesmoke;
 }
 
-._common_d11 .no_selected .dojoxGrid-row-selected .dojoxGrid-cell {
+._common_d11 .noselect .dojoxGrid-row-selected .dojoxGrid-cell {
     background-color: whitesmoke;
 }
 /* @end */

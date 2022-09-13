@@ -1000,6 +1000,11 @@ body.tundra.mimi {
     border-bottom: 1px solid #DDDDDD;
 }
 
+.tundra._common_d11 .templateGrid .dojoxGrid-content>div{
+    border-bottom: 1px solid transparent;
+}
+
+
 .tundra._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
 .tundra._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected{
     background-color: #F3F6FA;
