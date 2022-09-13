@@ -152,7 +152,7 @@ class Main(BaseResourceBatch):
         self.db.commit()
 
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            if self.redirect_pkeys or not self.batch_parameters.get['skip_redirects']:
+            if self.redirect_pkeys or not self.batch_parameters.get('skip_redirects'):
             #DP202112 Make redirect files
                 redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
                 for redirect_pkey in self.redirect_pkeys:
