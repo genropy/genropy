@@ -1004,6 +1004,9 @@ body.tundra.mimi {
     border-bottom: 1px solid transparent;
 }
 
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child{
+    border-right-width:0px;
+}
 
 .tundra._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
 .tundra._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected{
