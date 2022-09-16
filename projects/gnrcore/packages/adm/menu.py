@@ -22,7 +22,7 @@ class Menu(object):
 
 
     def userSubmenu(self,root,**kwargs):
-        root.webpage(u"!!Users", filepath="/adm/user_page")
+        root.thpage(u"!!Users", table="adm.user")
         root.thpage(u"!!Auth tags", table="adm.htag")
         root.thpage(u"!!Group", table="adm.group")
         root.thpage(u"!!Access groups", table="adm.access_group",tags='_DEV_,superadmin')

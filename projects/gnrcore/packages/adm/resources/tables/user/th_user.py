@@ -5,7 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method,customizable
 
 
 class View(BaseComponent):
@@ -59,19 +59,65 @@ class ViewPicker(BaseComponent):
         r.fieldcell('group_code',name='Group',width='10em')
 
 class Form(BaseComponent):
-    def th_form(self, form):
-        pane = form.record
-        pane.div('!!Login Data', _class='pbl_roundedGroupLabel')
-        fb = pane.div(margin='5px').formbuilder(cols=2, border_spacing='6px',width='100%',fld_width='100%')
+    
+    #def th_form(self, form):
+    #    pane = form.record
+    #    pane.div('!!Login Data', _class='pbl_roundedGroupLabel')
+    #    fb = pane.div(margin='5px').formbuilder(cols=2, border_spacing='6px',width='100%',fld_width='100%')
+    #    fb.field('firstname',lbl='!!Firstname')
+    #    fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Existing')
+    #    fb.field('lastname',lbl='!!Lastname')
+    #    fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+    #    fb.field('status', tag='filteringSelect', values='!!conf:Confirmed,wait:Waiting', 
+    #             validate_notnull=True, validate_notnull_error='!!Required')
+    #    fb.field('group_code')
+    #    fb.field('email', lbl='!!Email')
+    
+    def th_form(self,form,**kwargs):
+        bc = form.center.borderContainer()
+        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
+        self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
+
+        
+        
+    def loginData(self,pane):
+        fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px',colswidth='12em')
         fb.field('firstname',lbl='!!Firstname')
-        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Existing')
         fb.field('lastname',lbl='!!Lastname')
+
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
         fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
-        fb.field('status', tag='filteringSelect', values='!!conf:Confirmed,wait:Waiting', 
+        
+        fb.field('status', tag='filteringSelect', # values='!!conf:Confirmed,wait:Waiting', 
                  validate_notnull=True, validate_notnull_error='!!Required')
         fb.field('group_code')
-        fb.field('email', lbl='!!Email')
+        fb.field('locale', lbl='!!Locale')
+        fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page')
+        fb.field('email', lbl='!!Email',colspan=2,width='100%')
+        fb.field('sms_login', html_label=True)
+        fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='100%')
+        
+    @customizable
+    def adm_user_maintc(self,tc):
+        self.userAuth(tc.contentPane(title='Auth'))
+        self.userConfigView(tc.contentPane(title='Config'))
+        
+    def th_form(self,form,**kwargs):
+        bc = form.center.borderContainer()
+        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
+        self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
 
+    def userAuth(self,pane):
+        pane.inlineTableHandler(relation='@tags',viewResource='ViewFromUser',
+                            pbl_classes=True,margin='2px',addrow=True,picker='tag_id',
+                            picker_condition='$child_count=0',
+                            picker_viewResource=True)
+
+    def userConfigView(self,pane):
+        pane.dialogTableHandler(table='adm.user_config',margin='2px',
+                                viewResource='ViewFromUser',
+                                formResource='FormFromUser')
+        
 
 class ExtUserForm(BaseComponent):
     def th_form(self, form):
