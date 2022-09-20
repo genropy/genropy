@@ -141,7 +141,7 @@ class Main(BaseResourceBatch):
                 #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
                 destNode = self.publishedDocNode.child(self.zipNode.basename)
                 self.zipNode.move(destNode)
-                self.result_url = self.zipNode.internal_url()
+                self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
                 record['local_handbook_zip'] = self.result_url
             else:
                 #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
