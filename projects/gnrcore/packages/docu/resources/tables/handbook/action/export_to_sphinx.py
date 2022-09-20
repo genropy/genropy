@@ -49,7 +49,7 @@ class Main(BaseResourceBatch):
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
         html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + 'docs/' 
         #DP202111 Default url set to /docs
-        self.handbook_url = html_baseurl + self.handbook_record['name']
+        self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
@@ -141,7 +141,7 @@ class Main(BaseResourceBatch):
                 #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
                 destNode = self.publishedDocNode.child(self.zipNode.basename)
                 self.zipNode.move(destNode)
-                self.result_url = self.zipNode.url()
+                self.result_url = self.zipNode.internal_url()
                 record['local_handbook_zip'] = self.result_url
             else:
                 #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
