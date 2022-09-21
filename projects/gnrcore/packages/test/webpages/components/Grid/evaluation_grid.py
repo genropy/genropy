@@ -18,10 +18,10 @@ class GnrCustomWebPage(object):
                             height='250px', width='100%')
     
     def test_1_radioButton_items(self, pane):
-        "evaluationGrid permits items evaluation through radioButtons. Items can be a string of comma separated items."
+        "evaluationGrid permits items evaluation through radioButtons. Items can be a string of \n separated items."
         pane.evaluationGrid(value='^.evaluation', 
                             title="Italian pizza restaurants evaluation",
-                            items="Luciano's, Domino's, Pizza Hut", 
+                            items="Luciano's\n Domino's\n Pizza Hut", 
                             field_values="1:Bad,2:Good,3:Awesome",
                             field_name="level", 
                             field_caption="Level",
