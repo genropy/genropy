@@ -281,6 +281,11 @@ class StartupDataManager(BaseComponent):
         return result
 
     @public_method
+    def sd_removeDbTemplate(self, filepath=None):
+        os.remove(filepath)
+
+        
+    @public_method
     def sd_loadDbTemplate(self, filepath=None):
         extractpath = filepath.replace('.zip', '')
         if not os.path.isdir(filepath):
