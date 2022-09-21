@@ -618,7 +618,10 @@ class EvaluationGrid(BaseComponent):
         return struct
 
     def _evgl_itemsStore(self,frame,items,store_kwargs):
-        if ',' in items:
+        items_separator = ','
+        if '\n' in items:
+            items_separator = '\n'
+        if items_separator in items:
             frame.data('.items',items)
             items = '^.items'
             store_kwargs['_onBuilt'] = True
@@ -636,7 +639,7 @@ class EvaluationGrid(BaseComponent):
                     store.addItem(value['_pkey'],null,value);
                 }
             }else{
-                for(let item of items.split(',')){
+                for(let item of items.split(items_separator)){
                     let value = {};
                     if(item.includes(':')){
                         item = item.split(':');
@@ -651,7 +654,7 @@ class EvaluationGrid(BaseComponent):
                 }
             }
             SET .store = store;
-        """,items=items,**store_kwargs)
+        """,items=items,items_separator=items_separator,**store_kwargs)
 
     def _evlg_saver(self,frame,value):
         frame.dataController(
