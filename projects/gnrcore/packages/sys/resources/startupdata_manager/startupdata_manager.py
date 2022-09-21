@@ -150,8 +150,7 @@ class _StartupDataDbTemplates(BaseComponent):
 
         bc.dataRpc(self.sd_removeDbTemplate,
                       subscribe_sd_removeDbTemplate=True,_lockScreen=True,
-                      _onCalling='genro.bp(true)',
-                      _onResult='FIRE .reload_current_dbtemplates;',_ask='Are you sure to delete this template')
+                      _onResult='FIRE .reload_current_dbtemplates;')
 
         bottom = frame.bottom.slotToolbar('*,bottomUploader,*')
         bottom.bottomUploader.dropUploader(label='Upload',
