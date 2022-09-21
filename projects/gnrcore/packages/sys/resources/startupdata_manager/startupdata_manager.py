@@ -160,9 +160,9 @@ class _StartupDataDbTemplates(BaseComponent):
         g = bc.contentPane(region='center').quickGrid('^.current_dbtemplates')
         g.column('caption', name='Template', width='100%')
         g.column('fileurl', name='Download', width='5em', format='download')
-        g.column('remove', name="Remove", calculated=True, width='3em',
+        g.column('remove', name=" ", calculated=True, width='3em',
                  cellClasses='cellbutton',
-                 format_buttonclass='run buttonIcon',
+                 format_buttonclass='delete_row buttonIcon',
                  format_isbutton=True, format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
                                                       genro.publish('sd_removeDbTemplate', {filepath:row.filepath}); 
                                                       """,
@@ -284,7 +284,7 @@ class StartupDataManager(BaseComponent):
     def sd_removeDbTemplate(self, filepath=None):
         os.remove(filepath)
 
-        
+
     @public_method
     def sd_loadDbTemplate(self, filepath=None):
         extractpath = filepath.replace('.zip', '')
