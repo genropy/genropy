@@ -1161,6 +1161,8 @@ class TableBase(object):
 
     def isInStartupData(self):
         inStartupData = self.attributes.get('inStartupData')
+        if self.attributes.get('totalize_maintable'):
+            return False
         if inStartupData is False:
             return False
         elif inStartupData is not None:
