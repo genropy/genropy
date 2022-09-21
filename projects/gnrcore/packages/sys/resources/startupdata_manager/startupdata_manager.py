@@ -164,7 +164,6 @@ class _StartupDataDbTemplates(BaseComponent):
                  cellClasses='cellbutton',
                  format_buttonclass='delete_row buttonIcon',
                  format_isbutton=True, format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
-                                                        genro.bp(true);
                                                       genro.publish('sd_removeDbTemplate', {filepath:row.filepath}); 
                                                       """,
                  _tags='_DEV_')
