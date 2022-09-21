@@ -160,13 +160,15 @@ class _StartupDataDbTemplates(BaseComponent):
         g = bc.contentPane(region='center').quickGrid('^.current_dbtemplates')
         g.column('caption', name='Template', width='100%')
         g.column('fileurl', name='Download', width='5em', format='download')
-        g.column('remove', name=" ", calculated=True, width='3em',
+        g.column('rem', name=" ", calculated=True, width='3em',
                  cellClasses='cellbutton',
                  format_buttonclass='delete_row buttonIcon',
                  format_isbutton=True, format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
+                                                        genro.bp(true);
                                                       genro.publish('sd_removeDbTemplate', {filepath:row.filepath}); 
                                                       """,
                  _tags='_DEV_')
+
 
     def sd_treeStartupSource(self, frame):
         bar = frame.bottom.slotToolbar('*,saveDbTemplate,5')
