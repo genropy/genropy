@@ -944,6 +944,7 @@ class DbTableObj(DbModelObj):
         return self['columns']
         
     columns = property(_get_columns)
+
         
     def _get_indexes(self):
         """Returns an SqlIndexedList"""
@@ -964,6 +965,10 @@ class DbTableObj(DbModelObj):
             if foreignkey and reltbl!=self.fullname:
                 r.append((reltbl,deferred or onDelete=='setnull'))
         return r
+
+    def pluggedColumns(self,packages=None):
+        pkgId = self.pkg.id
+        return [colname for colname,colobj in self.columns.items() if (colobj.attributes.get('_owner_package',pkgId)!=pkgId and (not packages or pkgId in packages))]
 
     def getVirtualColumn(self,fld,sqlparams=None):
         result = self.virtual_columns[fld]
