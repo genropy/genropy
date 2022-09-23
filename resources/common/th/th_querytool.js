@@ -1,6 +1,6 @@
 dojo.declare("gnr.FakeTableHandler",null,{
-    constructor: function(sourceNode) {
-        this.table = objectPop(sourceNode.attr,'query_table');
+    constructor: function(sourceNode,table) {
+        this.table = table || objectPop(sourceNode.attr,'query_table');
         this.sourceNode = sourceNode;
         this.th_root = sourceNode.attr.nodeId || sourceNode.getStringId();
         var faketh = TH(this.th_root);
@@ -55,6 +55,7 @@ dojo.declare("gnr.FakeTableHandler",null,{
 dojo.declare("gnr.QueryManager", null, {
     constructor: function(th,sourceNode, maintable,faketh) {
         this.th = th;
+        this.faketh = faketh;
         this.sourceNode = sourceNode;
         this.maintable = maintable;
         this.tablecode = maintable.replace('.','_');
@@ -103,10 +104,10 @@ dojo.declare("gnr.QueryManager", null, {
     },
     
     createMenuesQueryEditor: function() {
-        genro.src.getNode()._('div', this.relativeId('_qbmenues'));
-        var node = genro.src.getNode(this.relativeId('_qbmenues'));
-        node.clearValue();
-        node.freeze();
+        let relid = this.relativeId('_qbmenues');
+        genro.src.getNode()._('div', relid);
+        var node = genro.src.getNode(relid);
+        node._isComponentNode = true;
         node._('menu', {modifiers:'*',_class:'smallmenu',storepath:'gnr.qb.sqlop.queryModes',
                                         id:this.relativeId('qb_queryModes_menu'),
                                        action:'$2.setRelativeData(".#parent.queryMode",$1.fullpath,{caption:$1.caption})'});
@@ -114,7 +115,8 @@ dojo.declare("gnr.QueryManager", null, {
         node._('menu', {modifiers:'*',_class:'smallmenu',storepath:'gnr.qb.sqlop.not',id:this.relativeId('qb_not_menu')});
         var querymanager = this;
         node._('tree', {storepath:'gnr.qb.'+this.tablecode+'.fieldsmenu',
-                        popup_id:this.relativeId('qb_fields_menu'),popup:true,
+                        popup_id:this.relativeId('qb_fields_menu'),
+                        popup:true,
                         popup_closeEvent:'onClick',
                         connect__updateSelect:function(item,node,evt){
                             if(item.attr.dtype=='RM'){
@@ -123,14 +125,12 @@ dojo.declare("gnr.QueryManager", null, {
                             var originalContextNode = this.widget.originalContextTarget.sourceNode;
                             querymanager.onChangedQueryColumn(originalContextNode,item.attr,originalContextNode.attr.relpath);
                         }});
-
         node._('menu', {modifiers:'*',_class:'smallmenu',storepath:'gnr.qb.sqlop.op',id:this.relativeId('qb_op_menu')});
         var opmenu_types = ['alpha','alpha_phonetic','date','number','other','boolean','unselected_column'];
         for (var i = 0; i < opmenu_types.length; i++) {
             node._('menu', {modifiers:'*',_class:'smallmenu',
                 storepath:'gnr.qb.sqlop.op_spec.' + opmenu_types[i],id:this.relativeId('qb_op_menu_') + opmenu_types[i]});
         }
-        node.unfreeze();
     },
 
     getOpMenuId: function(dtype) {
