@@ -85,7 +85,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'textarea':null,
             'datetextbox':null,
             'geocoderfield':null,
-            'ckeditor':null
+            'ckeditor':null,
+            'datetimetextbox':null
         };
         
         this.checkLastSavedTags = {
@@ -98,6 +99,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'dbselect':null,
             'dbcombobox':null,
             'datetextbox':null,
+            'datetimetextbox':null
         };
 
 
