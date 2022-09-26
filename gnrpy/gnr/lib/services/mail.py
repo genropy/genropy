@@ -216,7 +216,7 @@ class MailService(GnrBaseService):
                                         # This is used to prevent explicit "charset = None" to be passed
         attachments = attachments or []
         if not html and not attachments:
-            msg = MIMEText(body, 'text', charset)
+            msg = MIMEText(body, 'plain', charset)
             msg['Subject'] = subject
             return msg
         if html:
