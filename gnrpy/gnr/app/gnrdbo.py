@@ -556,10 +556,9 @@ class TableBase(object):
         return readOnly
 
     def formulaColumn_allowedForPartition(self):
-
         partitionParameters = self.partitionParameters
         sql_formula = None
-        if partitionParameters:
+        if partitionParameters and (f'allowed_{partitionParameters["path"]}' in self.db.currentEnv):
             sql_formula = "( $%(field)s IN :env_allowed_%(path)s )" %partitionParameters
         else:
             sql_formula = "TRUE"
