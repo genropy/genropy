@@ -13,7 +13,11 @@ import inspect
 import os
 import sys
 from gnr.core.gnrsys import expandpath
-from urllib.parse import urlparse
+import six
+if six.PY2:
+    from urllib2 import urlparse
+else:
+    from urllib.parse import urlparse
 from paste import fileapp
 from paste.httpheaders import ETAG
 import random

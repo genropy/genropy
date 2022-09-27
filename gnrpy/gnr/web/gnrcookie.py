@@ -1,352 +1,421 @@
-import base64
-import pickle
-import warnings
-from hashlib import sha1 as _default_hash
-from time import time
-import sys
-from datetime import date, datetime
-from werkzeug.urls import url_quote_plus
-from werkzeug.urls import url_unquote_plus
-import  marshal
+# vim: set sw=4 expandtab :
+#
+# Copyright 2004 Apache Software Foundation
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you
+# may not use this file except in compliance with the License.  You
+# may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# Originally developed by Gregory Trubetskoy.
+#
+# $Id: Cookie.py 472053 2006-11-07 10:11:01Z grahamd $
+# Ported to WebOb
+
+"""
+This module contains classes to support HTTP State Management
+Mechanism, also known as Cookies. The classes provide simple
+ways for creating, parsing and digitally signing cookies, as
+well as the ability to store simple Python objects in Cookies
+(using marshalling).
+
+The behaviour of the classes is designed to be most useful
+within mod_python applications.
+
+The current state of HTTP State Management standardization is
+rather unclear. It appears that the de-facto standard is the
+original Netscape specification, even though already two RFC's
+have been put out (RFC2109 (1997) and RFC2965 (2000)). The
+RFC's add a couple of useful features (e.g. using Max-Age instead
+of Expires, but my limited tests show that Max-Age is ignored
+by the two browsers tested (IE and Safari). As a result of this,
+perhaps trying to be RFC-compliant (by automatically providing
+Max-Age and Version) could be a waste of cookie space...
+"""
+from __future__ import print_function
+
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+#from builtins import object
+import time
+import re
 import hmac
-from werkzeug.datastructures import CallbackDict
+import marshal
+import base64
+from future.utils import with_metaclass
 
-class ModificationTrackingDict(CallbackDict):
-    __slots__ = ("modified",)
+from gnr.web.secure_cookie.securecookie import SecureCookie
+# import apache
 
-    def __init__(self, *args, **kwargs):
-        def on_update(self):
-            self.modified = True
-
-        self.modified = False
-        super(ModificationTrackingDict, self).__init__(on_update=on_update)
-        dict.update(self, *args, **kwargs)
-
-    def copy(self):
-        """Create a flat copy of the dict."""
-        missing = object()
-        result = object.__new__(self.__class__)
-        for name in self.__slots__:
-            val = getattr(self, name, missing)
-            if val is not missing:
-                setattr(result, name, val)
-        return result
-
-    def __copy__(self):
-        return self.copy()
-
-
-
-_epoch_ord = date(1970, 1, 1).toordinal()
-iteritems = lambda d, *args, **kwargs: iter(d.items(*args, **kwargs))
-
-str_to_bytes = lambda s: s.encode("utf-8") if isinstance(s, str) else s
-safe_str_cmp = lambda a, b: hmac.compare_digest(str_to_bytes(a), str_to_bytes(b))
-
-def _date_to_unix(arg):
-    if isinstance(arg, datetime):
-        arg = arg.utctimetuple()
-    elif isinstance(arg, (float,int)):
-        return int(arg)
-    year, month, day, hour, minute, second = arg[:6]
-    days = date(year, month, 1).toordinal() - _epoch_ord + day - 1
-    hours = days * 24 + hour
-    minutes = hours * 60 + minute
-    seconds = minutes * 60 + second
-    return seconds
-
-def to_bytes(x, charset=sys.getdefaultencoding(), errors="strict"):
-    if x is None:
-        return None
-    if isinstance(x, (bytes, bytearray, memoryview)):  # noqa
-        return bytes(x)
-    if isinstance(x, str):
-        return x.encode(charset, errors)
-    raise TypeError("Expected bytes")
-def to_native(x, charset=sys.getdefaultencoding(), errors="strict"):
-    if x is None or isinstance(x, str):
-        return x
-    return x.decode(charset, errors)
-
-
-
-class UnquoteError(Exception):
-    """Internal exception used to signal failures on quoting."""
-
-
-class SecureCookie(ModificationTrackingDict):
-    """Represents a secure cookie. You can subclass this class and
-    provide an alternative mac method. The import thing is that the mac
-    method is a function with a similar interface to the hashlib.
-    Required methods are :meth:`update` and :meth:`digest`.
-
-    Example usage:
-
-    >>> x = SecureCookie({"foo": 42, "baz": (1, 2, 3)}, "deadbeef")
-    >>> x["foo"]
-    42
-    >>> x["baz"]
-    (1, 2, 3)
-    >>> x["blafasel"] = 23
-    >>> x.should_save
-    True
-
-    :param data: The initial data. Either a dict, list of tuples, or
-        ``None``.
-    :param secret_key: The secret key. If not set ``None`` or not
-        specified it has to be set before :meth:`serialize` is called.
-    :param new: The initial value of the ``new`` flag.
-    """
-
-    #: The hash method to use. This has to be a module with a new
-    #: function or a function that creates a hashlib object, such as
-    #: func:`hashlib.md5`. Subclasses can override this attribute. The
-    #: default hash is sha1. Make sure to wrap this in
-    #: :func:`staticmethod` if you store an arbitrary function there
-    #: such as :func:`hashlib.sha1` which might be implemented as a
-    #: function.
-    hash_method = staticmethod(_default_hash)
-
-    #: The module used for serialization. Should have a ``dumps`` and a
-    #: ``loads`` method that takes bytes. The default is :mod:`pickle`.
-    #:
-    #: .. versionchanged:: 0.1
-    #:     The default of ``pickle`` will change to :mod:`json` in 1.0.
-    serialization_method = pickle
-
-    #: If the contents should be base64 quoted. This can be disabled if
-    #: the serialization process returns cookie safe strings only.
-    quote_base64 = True
-
-    def __init__(self, data=None, secret_key=None, new=True):
-        ModificationTrackingDict.__init__(self, data or ())
-
-        if secret_key is not None:
-            secret_key = to_bytes(secret_key, "utf-8")
-
-        self.secret_key = secret_key
-        self.new = new
-
-        if self.serialization_method is pickle:
-            warnings.warn(
-                "The default SecureCookie.serialization_method will"
-                " change from pickle to json in 1.0. To upgrade"
-                " existing tokens, override unquote to try pickle if"
-                " json fails."
-            )
-
-    def __repr__(self):
-        return "<%s %s%s>" % (
-            self.__class__.__name__,
-            dict.__repr__(self),
-            "*" if self.should_save else "",
-        )
-
-    @property
-    def should_save(self):
-        """True if the session should be saved. By default this is only
-        true for :attr:`modified` cookies, not :attr:`new`.
-        """
-        return self.modified
-
-    @classmethod
-    def quote(cls, value):
-        """Quote the value for the cookie. This can be any object
-        supported by :attr:`serialization_method`.
-
-        :param value: The value to quote.
-        """
-        if cls.serialization_method is not None:
-            value = cls.serialization_method.dumps(value)
-
-        if cls.quote_base64:
-            value = b"".join(
-                base64.b64encode(to_bytes(value, "utf8")).splitlines()
-            ).strip()
-
-        return value
-
-    @classmethod
-    def unquote(cls, value):
-        """Unquote the value for the cookie. If unquoting does not work
-        a :exc:`UnquoteError` is raised.
-
-        :param value: The value to unquote.
-        """
-        try:
-            if cls.quote_base64:
-                value = base64.b64decode(value)
-
-            if cls.serialization_method is not None:
-                value = cls.serialization_method.loads(value)
-
-            return value
-        except Exception:
-            # Unfortunately pickle and other serialization modules can
-            # cause pretty much every error here. If we get one we catch
-            # it and convert it into an UnquoteError.
-            raise UnquoteError()
-
-    def serialize(self, expires=None):
-        """Serialize the secure cookie into a string.
-
-        If expires is provided, the session will be automatically
-        invalidated after expiration when you unseralize it. This
-        provides better protection against session cookie theft.
-
-        :param expires: An optional expiration date for the cookie (a
-            :class:`datetime.datetime` object).
-        """
-        if self.secret_key is None:
-            raise RuntimeError("no secret key defined")
-
-        if expires:
-            self["_expires"] = _date_to_unix(expires)
-
-        result = []
-        mac = hmac.new(self.secret_key, None, self.hash_method)
-
-        for key, value in sorted(self.items()):
-            result.append(
-                (
-                    "%s=%s" % (url_quote_plus(key), self.quote(value).decode("ascii"))
-                ).encode("ascii")
-            )
-            mac.update(b"|" + result[-1])
-
-        return b"?".join([base64.b64encode(mac.digest()).strip(), b"&".join(result)])
-
-    @classmethod
-    def unserialize(cls, string, secret_key):
-        """Load the secure cookie from a serialized string.
-
-        :param string: The cookie value to unserialize.
-        :param secret_key: The secret key used to serialize the cookie.
-        :return: A new :class:`SecureCookie`.
-        """
-        if isinstance(string, str):
-            string = string.encode("utf-8", "replace")
-
-        if isinstance(secret_key, str):
-            secret_key = secret_key.encode("utf-8", "replace")
-
-        try:
-            base64_hash, data = string.split(b"?", 1)
-        except (ValueError, IndexError):
-            items = ()
-        else:
-            items = {}
-            mac = hmac.new(secret_key, None, cls.hash_method)
-
-            for item in data.split(b"&"):
-                mac.update(b"|" + item)
-
-                if b"=" not in item:
-                    items = None
-                    break
-
-                key, value = item.split(b"=", 1)
-                # try to make the key a string
-                key = url_unquote_plus(key.decode("ascii"))
-
-                try:
-                    key = to_native(key)
-                except UnicodeError:
-                    pass
-
-                items[key] = value
-
-            # no parsing error and the mac looks okay, we can now
-            # sercurely unpickle our cookie.
-            try:
-                client_hash = base64.b64decode(base64_hash)
-            except TypeError:
-                items = client_hash = None
-
-            if items is not None and safe_str_cmp(client_hash, mac.digest()):
-                try:
-                    for key, value in iteritems(items):
-                        items[key] = cls.unquote(value)
-                except UnquoteError:
-                    items = ()
-                else:
-                    if "_expires" in items:
-                        if time() > items["_expires"]:
-                            items = ()
-                        else:
-                            del items["_expires"]
-            else:
-                items = ()
-        return cls(items, secret_key, False)
-
-    @classmethod
-    def load_cookie(cls, request, key="session", secret_key=None):
-        """Load a :class:`SecureCookie` from a cookie in the request. If
-        the cookie is not set, a new :class:`SecureCookie` instance is
-        returned.
-
-        :param request: A request object that has a `cookies` attribute
-            which is a dict of all cookie values.
-        :param key: The name of the cookie.
-        :param secret_key: The secret key used to unquote the cookie.
-            Always provide the value even though it has no default!
-        """
-        data = request.cookies.get(key)
-
-        if not data:
-            return cls(secret_key=secret_key)
-
-        return cls.unserialize(data, secret_key)
-
-    def save_cookie(
-        self,
-        response,
-        key="session",
-        expires=None,
-        session_expires=None,
-        max_age=None,
-        path="/",
-        domain=None,
-        secure=None,
-        httponly=True,
-        force=False,
-    ):
-        """Save the data securely in a cookie on response object. All
-        parameters that are not described here are forwarded directly
-        to :meth:`~BaseResponse.set_cookie`.
-
-        :param response: A response object that has a
-            :meth:`~BaseResponse.set_cookie` method.
-        :param key: The name of the cookie.
-        :param session_expires: The expiration date of the secure cookie
-            stored information. If this is not provided the cookie
-            ``expires`` date is used instead.
-        """
-        if force or self.should_save:
-            data = self.serialize(session_expires or expires)
-            response.set_cookie(
-                key,
-                data,
-                expires=expires,
-                max_age=max_age,
-                path=path,
-                domain=domain,
-                secure=secure,
-                httponly=httponly,
-            )
-
-
-class BaseCookie(object):
-    def __init__(self, value=None):
-        self._value = value
-
-    def output(self):
-        return self.value.encode('ascii')
+class JSONCookie(SecureCookie):
+    serialization_method = json
 
 class MarshalCookie(SecureCookie):
     serialization_method = marshal
 
-    def output(self):
-        return self.serialize()
+class CookieError(Exception):
+    pass
 
+class metaCookie(type):
+    def __new__(cls, clsname, bases, clsdict):
+        _valid_attr = (
+        "version", "path", "domain", "secure",
+        "comment", "max_age",
+        # RFC 2965
+        "commentURL", "discard", "port",
+        # Microsoft Extension
+        "httponly",
+        "samesite" )
+        
+        # _valid_attr + property values
+        # (note __slots__ is a new Python feature, it
+        # prevents any other attribute from being set)
+        __slots__ = _valid_attr + ("name", "value", "_value",
+                                   "_expires", "__data__")
+                                   
+        clsdict["_valid_attr"] = _valid_attr
+        clsdict["__slots__"] = __slots__
+        
+        def set_expires(self, value):
+            if type(value) == type(""):
+                # if it's a string, it should be
+                # valid format as per Netscape spec
+                try:
+                    t = time.strptime(value, "%a, %d-%b-%Y %H:%M:%S GMT")
+                except ValueError:
+                    raise ValueError("Invalid expires time: %s" % value)
+                t = time.mktime(t)
+            else:
+                # otherwise assume it's a number
+                # representing time as from time.time()
+                t = value
+                value = time.strftime("%a, %d-%b-%Y %H:%M:%S GMT",
+                                      time.gmtime(t))
+            self._expires = "%s" % value
+            
+        def get_expires(self):
+            return getattr(self,'_expires',None)
+            
+        clsdict["expires"] = property(fget=get_expires, fset=set_expires)
+            
+        return type.__new__(cls, clsname, bases, clsdict)
+            
+class Cookie(with_metaclass(metaCookie, object)):
+    """This class implements the basic Cookie functionality. Note that
+    unlike the Python Standard Library Cookie class, this class represents
+    a single cookie (not a list of Morsels).
+    """
     
+    DOWNGRADE = 0
+    IGNORE = 1
+    EXCEPTION = 3
+    
+    def parse(Class, str, secret=None, **kw):
+        """Parse a Cookie or Set-Cookie header value, and return
+        a dict of Cookies. Note: the string should NOT include the
+        header name, only the value.
+        
+        :param Class: TODO
+        :param str: TODO
+        :param secret: TODO. 
+        :returns: a dict of Cookies
+        """
+        dict = _parse_cookie(str, Class, **kw)
+        return dict
+            
+    parse = classmethod(parse)
+            
+    def __init__(self, name, value, **kw):
+        """This constructor takes at least a name and value as the
+        arguments, as well as optionally any of allowed cookie attributes
+        as defined in the existing cookie standards. 
+        """
+        self.name, self.value = name, value
+        
+        for k in kw:
+            setattr(self, k.lower(), kw[k])
+            
+        # subclasses can use this for internal stuff
+        self.__data__ = {}
+        
+    def __str__(self):
+        """Provide the string representation of the Cookie suitable for
+        sending to the browser. Note that the actual header name will
+        not be part of the string.
+        
+        This method makes no attempt to automatically double-quote
+        strings that contain special characters, even though the RFC's
+        dictate this. This is because doing so seems to confuse most
+        browsers out there.
+        """
+        result = ["%s=%s" % (self.name, self.value)]
+        for name in self._valid_attr:
+            if hasattr(self, name):
+                if name in ("secure", "discard", "httponly"):
+                    result.append(name)
+                else:
+                    result.append("%s=%s" % (name, getattr(self, name)))
+        return "; ".join(result)
+        
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__,
+                             str(self))
+                             
+class SignedCookie(Cookie):
+    """This is a variation of Cookie that provides automatic
+    cryptographic signing of cookies and verification. It uses
+    the HMAC support in the Python standard library. This ensures
+    that the cookie has not been tampered with the client side.
+    
+    Note that this class does not encrypt cookie data, thus it
+    is still plainly visible as part of the cookie.
+    """
+    def parse(Class, s, secret, mismatch=Cookie.DOWNGRADE, **kw):
+        """TODO
+        
+        :param Class: TODO
+        :param s: TODO
+        :param secret: TODO
+        :param mismatch: TODO. Default valus is ``Cookie.DOWNGRADE``
+        :returns: TODO
+        """
+        dict = _parse_cookie(s, Class, **kw)
+        
+        del_list = []
+        for k in dict:
+            c = dict[k]
+            try:
+                c.unsign(secret)
+            except CookieError:
+                if mismatch == Cookie.EXCEPTION:
+                    raise
+                elif mismatch == Cookie.IGNORE:
+                    del_list.append(k)
+                else:
+                    # downgrade to Cookie
+                    dict[k] = Cookie.parse(Cookie.__str__(c))[k]
+                    
+        for k in del_list:
+            del dict[k]
+            
+        return dict
+        
+    parse = classmethod(parse)
+        
+    def __init__(self, name, value, secret=None, **kw):
+        Cookie.__init__(self, name, value, **kw)
+        
+        self.__data__["secret"] = secret
+        
+    def hexdigest(self, str):
+        """TODO
+        
+        :param str: TODO
+        :returns: TODO
+        """
+        if not self.__data__["secret"]:
+            raise CookieError("Cannot sign without a secret")
+
+        secret = self.__data__["secret"].encode()
+        name = self.name.encode()
+        _hmac = hmac.new(secret, name)
+        _hmac.update(str)
+        return _hmac.hexdigest()
+        
+    def __str__(self):
+        result = ["%s=%s%s" % (self.name, self.hexdigest(self.value),
+                               self.value)]
+        for name in self._valid_attr:
+            if hasattr(self, name):
+                if name in ("secure", "discard", "httponly"):
+                    result.append(name)
+                else:
+                    result.append("%s=%s" % (name, getattr(self, name)))
+        return "; ".join(result)
+        
+    def unsign(self, secret):
+        """TODO
+        
+        :param secret: TODO
+        """
+        sig, val = self.value[:32], self.value[32:]
+        secret = secret.encode()
+        name = self.name.encode()
+        mac = hmac.new(secret, name)
+        mac.update(val.encode())
+        
+        if mac.hexdigest() == sig:
+            self.value = val
+            self.__data__["secret"] = secret
+        else:
+            raise CookieError("Incorrectly Signed Cookie: %s=%s" % (self.name, self.value))
+            
+class MarshalCookie(SignedCookie):
+    """This is a variation of SignedCookie that can store more than
+    just strings. It will automatically marshal the cookie value,
+    therefore any marshallable object can be used as value.
+    
+    The standard library Cookie module provides the ability to pickle
+    data, which is a major security problem. It is believed that unmarshalling
+    (as opposed to unpickling) is safe, yet we still err on the side of caution
+    which is why this class is a subclass of SignedCooke making sure what
+    we are about to unmarshal passes the digital signature test.
+    
+    Here is a link to a sugesstion that marshalling is safer than unpickling
+    http://groups.google.com/groups?hl=en&lr=&ie=UTF-8&selm=7xn0hcugmy.fsf%40ruckus.brouhaha.com
+    """
+    def parse(Class, s, secret, mismatch=Cookie.DOWNGRADE, **kw):
+        """TODO
+        
+        :parse Class: TODO
+        :parse s: TODO
+        :parse secret: TODO
+        :parse mismatch: TODO. Default valus is ``Cookie.DOWNGRADE``
+        :returns: TODO
+        """
+        dict = _parse_cookie(s, Class, **kw)
+        
+        del_list = []
+        for k in dict:
+            c = dict[k]
+            try:
+                c.unmarshal(secret)
+            except CookieError:
+                if mismatch == Cookie.EXCEPTION:
+                    raise
+                elif mismatch == Cookie.IGNORE:
+                    del_list.append(k)
+                else:
+                    # downgrade to Cookie
+                    dict[k] = Cookie.parse(Cookie.__str__(c))[k]
+                    
+        for k in del_list:
+            del dict[k]
+            
+        return dict
+        
+    parse = classmethod(parse)
+        
+    def __str__(self):
+        m = base64.encodestring(marshal.dumps(self.value))
+        # on long cookies, the base64 encoding can contain multiple lines
+        # separated by \n or \r\n
+        m = m.decode()
+        m = (''.join(m.split())).encode()
+        result = ["%s=%s%s" % (self.name, self.hexdigest(m), m)]
+        for name in self._valid_attr:
+            if hasattr(self, name):
+                if name in ("secure", "discard", "httponly"):
+                    result.append(name)
+                else:
+                    result.append("%s=%s" % (name, getattr(self, name)))
+        return "; ".join(result)
+        
+    def unmarshal(self, secret):
+        """TODO
+        
+        :param secret: TODO
+        """
+        self.unsign(secret)
+        
+        try:
+            data = base64.decodestring(self.value)
+        except:
+            raise CookieError("Cannot base64 Decode Cookie: %s=%s" % (self.name, self.value))
+            
+        try:
+            self.value = marshal.loads(data)
+        except (EOFError, ValueError, TypeError):
+            raise CookieError("Cannot Unmarshal Cookie: %s=%s" % (self.name, self.value))
+            
+# This is a simplified and in some places corrected
+# (at least I think it is) pattern from standard lib Cookie.py
+
+_cookiePattern = re.compile(
+        r"(?x)"                       # Verbose pattern
+        r"[,\ ]*"                     # space/comma (RFC2616 4.2) before attr-val is eaten
+        r"(?P<key>"                   # Start of group 'key'
+        r"[^;\ =]+"                   # anything but ';', ' ' or '='
+        r")"                          # End of group 'key'
+        r"\ *(=\ *)?"                 # a space, then may be "=", more space
+        r"(?P<val>"                   # Start of group 'val'
+        r'"(?:[^\\"]|\\.)*"'          # a doublequoted string
+        r"|"                          # or
+        r"[^;]*"                      # any word or empty string
+        r")"                          # End of group 'val'
+        r"\s*;?"                      # probably ending in a semi-colon
+        )
+        
+def _parse_cookie(str, Class, names=None):
+    # XXX problem is we should allow duplicate
+    # strings
+    result = {}
+        
+    matchIter = _cookiePattern.finditer(str)
+        
+    for match in matchIter:
+        key, val = match.group("key"), match.group("val")
+        
+        # We just ditch the cookies names which start with a dollar sign since
+        # those are in fact RFC2965 cookies attributes. See bug [#MODPYTHON-3].
+        if key[0] != '$' and names is None or key in names:
+            result[key] = Class(key, val)
+            
+    return result
+    
+def add_cookie(res, cookie, value="", **kw):
+    """Set a cookie in outgoing headers and add a cache
+    directive so that caches don't cache the cookie
+    
+    :param res: TODO
+    :param cookie: TODO
+    :param value: TODO. Default value is ``""``
+    """
+    # is this a cookie?
+    if not isinstance(cookie, Cookie):
+        # make a cookie
+        cookie = Cookie(cookie, value, **kw)
+        
+    if "Set-Cookie" not in res.headers:
+        res.headers.add("Cache-Control", 'no-cache="set-cookie"')
+        
+    res.headers.add("Set-Cookie", str(cookie))
+
+def get_cookies(req, Class=Cookie, **kw):
+    """A shorthand for retrieveing and parsing cookies given
+    a Cookie class. The class must be one of the classes from
+    this module.
+    
+    :param req: TODO
+    :param Class: TODO. Default value is ``Cookie``
+    :returns: TODO
+    """
+    if not "cookie" in req.headers:
+        return {}
+        
+    cookies = req.headers["cookie"]
+    if type(cookies) == type([]):
+        cookies = '; '.join(cookies)
+        
+    return Class.parse(cookies, **kw)
+        
+def get_cookie(req, name, Class=Cookie, **kw):
+    """TODO
+    
+    :param req: TODO
+    :param name: TODO
+    :param Class: TODO. Default valus is ``Cookie``
+    :returns: TODO
+    """
+    cookies = get_cookies(req, Class, names=[name], **kw)
+    if name in cookies:
+        return cookies[name]
+        

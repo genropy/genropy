@@ -80,6 +80,8 @@ import os.path
 import logging
 import sys
 import re
+import os
+import six
 gnrlogger = logging.getLogger(__name__)
 
 def normalizeItemPath(item_path):
@@ -1979,6 +1981,7 @@ class Bag(GnrObject):
         pickled bag. In any of this cases the method sets the value of the flag
         "mode" to xml, vcard or pickle and returns it with \"source\" and \"fromFile\""""
         originalsource = source
+        #source = six.ensure_binary(source, 'utf-8', 'replace')
         if (isinstance(source,bytes) and (source.startswith(b'<') or b'<?xml' in source)) or\
             (isinstance(source,str) and (source.startswith('<') or '<?xml' in source)):
             return source, False, 'xml'

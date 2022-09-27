@@ -16,7 +16,7 @@ redbaron
 future
 boto3
 smart_open==4.2.0
-tornado
+tornado<5
 gunicorn
 supervisor
 lxml

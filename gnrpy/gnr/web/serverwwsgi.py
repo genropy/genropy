@@ -1,4 +1,3 @@
-#from builtins import object
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -15,13 +14,11 @@ import logging
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
 from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
-from gnr.app.gnrdeploy import PathResolver
+logger = logging.getLogger('werkzeug')
+logger.setLevel(logging.DEBUG)
 import re
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
-
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
 
 wsgi_options = dict(
         port=8080,
@@ -38,31 +35,13 @@ wsgi_options = dict(
         remote_edit=None,
         remotesshdb=None,
         gzip=None,
-        websocket=True,
-        tornado=None
+        websocket=True
         )
 
 DNS_SD_PID = None
 
-
-def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
-        from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
-        import os
-        from gnr.core.gnrbag import Bag
-        sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
-        sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
-        sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
-        sitedaemon_bag = Bag()
-        sitedaemon_bag.setItem('params',None,
-            register_uri=sitedaemon.register_uri,
-            main_uri = sitedaemon.main_uri,
-            pid=os.getpid()
-            )
-        sitedaemon_bag.toXml(sitedaemon_xml_path)
-        sitedaemon.run()
-
 class GnrDebuggedApplication(DebuggedApplication):
-
+    
     def debug_application(self, environ, start_response):
         """Run the application and conserve the traceback frames."""
         app_iter = None
@@ -146,7 +125,10 @@ class Server(object):
     usage = '[start|stop|restart|status] [var=value]'
     summary = "Start this genropy application"
     description = """\
-    This command serves a genropy web application.
+    This command serves a genropy web application.  
+
+    If start/stop/restart is given, then --daemon is implied, and it will
+    start (normal operation), stop (--stop-daemon), or do both.
 
     """
 
@@ -160,7 +142,7 @@ class Server(object):
     parser = optparse.OptionParser(usage)
     parser.add_option('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
                       help="Logging level",
-                      choices=list(LOGGING_LEVELS.keys()),
+                      choices=LOGGING_LEVELS.keys(),
                       default="warning")
     parser.add_option('--log-file',
                       dest='log_file',
@@ -190,11 +172,6 @@ class Server(object):
                       dest='websocket',
                       action='store_true',
                       help="Use websocket")
-    parser.add_option('-t','--tornado',
-                      dest='tornado',
-                      action='store_true',
-                      help="Serve using tornado")
-
     parser.add_option('--reload-interval',
                       dest='reload_interval',
                       default=1,
@@ -211,7 +188,14 @@ class Server(object):
     parser.add_option('-H', '--host',
                       dest='host',
                       help="Sets server listening address (Default: 0.0.0.0)")
-
+    parser.add_option('--monitor-restart',
+                      dest='monitor_restart',
+                      action='store_true',
+                      help="Auto-restart server if it dies")
+    parser.add_option('--status',
+                      action='store_true',
+                      dest='show_status',
+                      help="Show the status of the (presumably daemonized) server")
     parser.add_option('--restore',
                       dest='restore',
                       help="Restore from path")
@@ -227,6 +211,30 @@ class Server(object):
                       dest='gzip',
                       action='store_true',
                       help="Enable gzip compressions")
+
+
+   #parser.add_option('--remotesshdb',
+   #                  dest='remotesshdb',
+   #                  help="""Allow remote db connections over ssh tunnels.
+   #                  use connection string in the form: ssh_user@ssh_host:ssh_port/db_user:db_password@db_host:db_port
+   #                  if db part in the connection string is omitted the defaults from instanceconfig are used.
+   #                  ssh_port is defaulted to 22 if omitted""")
+
+    if hasattr(os, 'setuid'):
+    # I don't think these are available on Windows
+        parser.add_option('--user',
+                          dest='set_user',
+                          metavar="USERNAME",
+                          help="Set the user (usually only possible when run as root)")
+        parser.add_option('--group',
+                          dest='set_group',
+                          metavar="GROUP",
+                          help="Set the group (usually only possible when run as root)")
+
+    parser.add_option('--stop-daemon',
+                      dest='stop_daemon',
+                      action='store_true',
+                      help='Stop a daemonized server (given a PID file, or default paster.pid file)')
 
     parser.add_option('--verbose',
                       dest='verbose',
@@ -267,10 +275,8 @@ class Server(object):
         else:
             self.config_path = gnrConfigPath()
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
-
+        
         self.site_name = self.options.site_name or (self.args and self.args[0]) or os.getenv('GNR_CURRENT_SITE')
-        if not self.site_name:
-            self.site_name = os.path.basename(os.path.dirname(site_script))
         self.remote_db = ''
         if self.site_name:
             if ':' in self.site_name:
@@ -278,12 +284,10 @@ class Server(object):
             if not self.gnr_config:
                 raise ServerException(
                         'Error: no ~/.gnr/ or /etc/gnr/ found')
-            self.site_path = self.site_name_to_path(self.site_name)
+            self.site_path, self.site_template = self.site_name_to_path(self.site_name)
             self.site_script = os.path.join(self.site_path, 'root.py')
             if not os.path.isfile(self.site_script):
-                self.site_script = os.path.join(self.site_path, '..','root.py')
-                if not os.path.exists(self.site_script):
-                    raise ServerException(
+                raise ServerException(
                         'Error: no root.py in the site provided (%s)' % self.site_name)
         else:
             self.site_path = os.path.dirname(os.path.realpath(site_script))
@@ -293,28 +297,56 @@ class Server(object):
         return self.options.verbose and self.options.verbose>level
 
     def site_name_to_path(self, site_name):
-        return PathResolver().site_name_to_path(site_name)
+        path_list = []
+        if 'sites' in self.gnr_config['gnr.environment_xml']:
+            path_list.extend([(expandpath(path), site_template) for path, site_template in
+                              self.gnr_config['gnr.environment_xml.sites'].digest('#a.path,#a.site_template') if
+                              os.path.isdir(expandpath(path))])
+        if 'projects' in self.gnr_config['gnr.environment_xml']:
+            projects = [(expandpath(path), site_template) for path, site_template in
+                        self.gnr_config['gnr.environment_xml.projects'].digest('#a.path,#a.site_template') if
+                        os.path.isdir(expandpath(path))]
+            for project_path, site_template in projects:
+                sites = glob.glob(os.path.join(project_path, '*/sites'))
+                path_list.extend([(site_path, site_template) for site_path in sites])
+        for path, site_template in path_list:
+            site_path = os.path.join(path, site_name)
+            if os.path.isdir(site_path):
+                return site_path, site_template
+        raise ServerException(
+                'Error: no site named %s found' % site_name)
 
 
     def init_options(self):
         self.siteconfig = self.get_config()
         options = self.options.__dict__
         envopt = dictExtract(os.environ,'GNR_WSGI_OPT_')
-        for option in list(options.keys()):
+        for option in options.keys():
             if options.get(option, None) is None: # not specified on the command-line
                 site_option = self.siteconfig['wsgi?%s' % option]
                 self.options.__dict__[option] = site_option or wsgi_options.get(option) or envopt.get(option)
 
     def get_config(self):
-        return PathResolver().get_siteconfig(self.site_name)
+        site_config_path = os.path.join(self.site_path, 'siteconfig.xml')
+        base_site_config = Bag(site_config_path)
+        site_config = self.gnr_config['gnr.siteconfig.default_xml'] or Bag()
+        template = site_config['site?template'] or getattr(self, 'site_template', None)
+        if template:
+            site_config.update(self.gnr_config['gnr.siteconfig.%s_xml' % template] or Bag())
+        if 'sites' in self.gnr_config['gnr.environment_xml']:
+            for path, site_template in self.gnr_config.digest('gnr.environment_xml.sites:#a.path,#a.site_template'):
+                if path == os.path.dirname(self.site_path):
+                    site_config.update(self.gnr_config['gnr.siteconfig.%s_xml' % site_template] or Bag())
+        site_config.update(base_site_config)
+        return site_config
 
-    @property
+    @property 
     def site_config(self):
         if not hasattr(self, '_site_config'):
             self._site_config = self.get_config()
         return self._site_config
 
-    @property
+    @property 
     def instance_config(self):
         if not hasattr(self, '_instance_config'):
             self._instance_config = self.get_instance_config()
@@ -342,63 +374,20 @@ class Server(object):
     def run(self):
         self.reloader = not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        self.start_sitedaemon()
         self.serve()
 
-    def start_sitedaemon(self):
-        from gnr.app.gnrdeploy import PathResolver
-        import os
-        from multiprocessing import Process
-        path_resolver = PathResolver()
-        siteconfig = path_resolver.get_siteconfig(self.site_name)
-        daemonconfig = siteconfig.getAttr('gnrdaemon')
-        sitedaemonconfig = siteconfig.getAttr('sitedaemon') or {}
-        if not sitedaemonconfig:
-            return
-        sitepath = path_resolver.site_name_to_path(self.site_name)
-        sitedaemon_attr = dict(
-            sitepath = sitepath,
-            debug = sitedaemonconfig.get('debug',None),
-            host = sitedaemonconfig.get('host','localhost'),
-            socket = sitedaemonconfig.get('socket',None),
-            port = sitedaemonconfig.get('port','*'),
-            hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key'],
-            storage_path = os.path.join(sitepath, 'siteregister_data.pik')
-        )
-        sitedaemon_process = Process(name='sitedaemon_%s' %(self.site_name),
-                        target=run_sitedaemon, kwargs=sitedaemon_attr)
-        sitedaemon_process.daemon = True
-        sitedaemon_process.start()
-        print('sitedaemon started')
-        import time
-        time.sleep(1)
-
     def serve(self):
-        port = int(self.options.port)
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
-        host = self.options.host
         site_name='%s:%s' %(self.site_name,self.remote_db) if self.remote_db else self.site_name
-        if self.options.tornado:
-            host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
-
-            from gnr.web.gnrasync import GnrAsyncServer
-            site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
-                counter=getattr(self.options, 'counter', None),
-                noclean=self.options.noclean, options=self.options)
-            print(f'[{now}]\tStarting Tornado server - listening on http://127.0.0.1:{port}')
-            server=GnrAsyncServer(port=port,instance=site_name,
-                web=True, autoreload=self.options.reload, site_options=site_options)
-            server.start()
-        else:
-            gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
+        gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
                                     _gnrconfig=self.gnr_config,
                                     counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
                                     options=self.options)
-            atexit.register(gnrServer.on_site_stop)
-            if self.debug:
-                gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
-            print(f'[{now}]\tStarting server - listening on http://127.0.0.1:{port}')
-            run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
-                reloader_type='stat')
-
-
+        with gnrServer.register.globalStore() as gs:
+            gs.setItem('RESTART_TS',datetime.now())
+            #GnrReloaderMonitor.add_reloader_callback(gnrServer.on_reloader_restart)
+        atexit.register(gnrServer.on_site_stop)
+        if self.debug:
+            gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
+        run_simple(self.options.host, int(self.options.port), gnrServer, use_reloader=self.reloader)
+        #run_simple(self.options.host, int(self.options.port), gnrServer, use_debugger=self.debug, use_evalex=self.debug, use_reloader=self.reloader)
+        

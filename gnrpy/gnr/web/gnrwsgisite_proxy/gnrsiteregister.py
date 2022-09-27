@@ -38,7 +38,7 @@ from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.app.gnrconfig import gnrConfigPath
-
+import six
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
@@ -124,6 +124,8 @@ class RemoteStoreBag(object):
         self.rootpath = rootpath
         self.uri = uri
         self.proxy=Pyro4.Proxy(uri)
+        if six.PY2:
+            hmac_key = bytes(hmac_key)
         self.hmac_key = hmac_key
         if not OLD_HMAC_MODE:
             self.proxy._pyroHmacKey = hmac_key
@@ -1038,6 +1040,8 @@ class SiteRegisterClient(object):
         else:
             daemon_uri = 'PYRO:GnrDaemon@%(host)s:%(port)s' %daemonconfig
         daemon_hmac = daemonconfig['hmac_key']
+        if six.PY2:
+            daemon_hmac = bytes(daemon_hmac)
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = daemon_hmac
         self.gnrdaemon_proxy = Pyro4.Proxy(daemon_uri)
@@ -1235,6 +1239,8 @@ class GnrSiteRegisterServer(object):
                 pyrokw['port'] = int(port or PYRO_PORT)
         Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
         self.hmac_key= hmac_key = (hmac_key or PYRO_HMAC_KEY)
+        if six.PY2:
+            self.hmac_key= hmac_key = bytes(self.hmac_key)
         multiplex = multiplex or PYRO_MULTIPLEX
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = hmac_key

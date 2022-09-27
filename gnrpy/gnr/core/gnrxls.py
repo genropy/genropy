@@ -1,6 +1,7 @@
 from builtins import str
 #from builtins import object
 import xlwt
+import six
 try:
     import openpyxl
 except:
@@ -442,7 +443,10 @@ class XlsxWriter(BaseXls):
         # Note: if 'data' is a number the final rendering may provide commas and dots
         #       This case is not considered, column width may be too low for an exact fitting
         #       Same problem for date/datetime values
-        if not isinstance(data, str):
+        if six.PY2:
+            if not isinstance(data, (str, unicode)):
+                data = str(data)
+        elif not isinstance(data, str):
             data = str(data)
         
         rows = data.split('\n')
