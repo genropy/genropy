@@ -385,9 +385,8 @@ class BagToXml(object):
             result = result + self.buildTag('GenRoBag', self.bagToXmlBlock(bag,namespaces=[]), xmlMode=True, localize=False)
         if pretty:
             from xml.dom.minidom import parseString
-            result = parseString(result)
+            result = parseString(result.replace('\n',''))
             result = result.toprettyxml()
-            result = result.replace('\t\n','').replace('\t\n','')
         result = six.ensure_binary(result, encoding, 'replace')
         if filename:
             if hasattr(filename,'write'):

@@ -8,6 +8,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import objectExtract
 
 
 class PagedEditor(BaseComponent):
@@ -52,7 +53,7 @@ class PagedEditor(BaseComponent):
         basehtml = base.root.getItem('#0.#1').toXml(omitRoot=True,autocreate=True,forcedTagAttr='tag',docHeader=' ',
                                         addBagTypeAttr=False, typeattrs=False, 
                                         self_closed_tags=['meta', 'br', 'img'])
-        result.setItem('page_base',basehtml)
+        result.setItem('page_base',basehtml,**objectExtract(base,'page_',slicePrefix=False))
         if next_letterhead_id:
             nextbuilder = letterheadtbl.getHtmlBuilder(letterhead_pkeys=next_letterhead_id)
             base.finalize(nextbuilder.body)

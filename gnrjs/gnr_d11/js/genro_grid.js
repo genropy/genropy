@@ -133,7 +133,30 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         return;
                     }
                 };
+                dojox.grid.headerBuilder.prototype.getCellX = function(e){
+                    var x = e.clientX - e.target.getBoundingClientRect().left;
+                    if(dojo.isMoz){
+                        var n = dojox.grid.ascendDom(e.target, dojox.grid.makeNotTagName("th"));
+                        x -= (n && n.offsetLeft) || 0;
+                        var t = e.sourceView.getScrollbarWidth();
+                        if(!dojo._isBodyLtr() && e.sourceView.headerNode.scrollLeft < t)
+                            x -= t;
+                        //x -= getProp(ascendDom(e.target, mkNotTagName("td")), "offsetLeft") || 0;
+                    }
+                    var n = dojox.grid.ascendDom(e.target, function(){
+                        if(!n || n == e.cellNode){
+                            return false;
+                        }
+                        // Mozilla 1.8 (FF 1.5) has a bug that makes offsetLeft = -parent border width
+                        // when parent has border, overflow: hidden, and is positioned
+                        // handle this problem here ... not a general solution!
+                        x += (n.offsetLeft < 0 ? 0 : n.offsetLeft);
+                        return true;
+                    });
+                    return x;
+                };
             }
+
         }
     },
     patch__textSizeChanged:function(){
@@ -725,8 +748,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var menuNode = gridContent.getNodeByAttr('tag', 'menu',true);
         if(!menuNode && sourceNode.attr.gridplugins!==false){
             let controllerData = sourceNode.getRelativeData();
-            var contextMenuBag = sourceNode.getRelativeData('.contextMenu');
-            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{sourceNode:sourceNode,contextMenuBag:contextMenuBag});
+            controllerData.setCallBackItem('contextMenu',this.pluginContextMenuBag,null,{gridNodeId:sourceNode.attr.nodeId});
             sourceNode._('menu','contextMenu',{storepath:'.contextMenu',_class:'smallmenu'},{doTrigger:false});
             gridContent = sourceNode.getValue();
             menuNode = gridContent.getNode('contextMenu');
@@ -1089,7 +1111,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     pluginContextMenuBag:function(kw){
-        var sourceNode = kw.sourceNode;
+        let gridNodeId = kw.gridNodeId;
+        let sourceNode = genro.nodeById(gridNodeId);
         var gridplugins = sourceNode.getAttributeFromDatasource('gridplugins');
         if(!gridplugins){
             gridplugins = 'export_xls,print';
@@ -1098,13 +1121,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
         }
         gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
-        var contextMenuBag = kw.contextMenuBag?kw.contextMenuBag.deepCopy() : new gnr.GnrBag();
+        var contextMenuBag = sourceNode.getRelativeData('.contextMenuBase');
+        contextMenuBag = contextMenuBag?contextMenuBag.deepCopy(): new gnr.GnrBag();
         gridplugins = gridplugins?gridplugins.split(','):[];
-        var widget = sourceNode.widget;
         if(gridplugins){
             contextMenuBag.setItem('r_'+contextMenuBag.len(),null,{caption:'-'});
             gridplugins.forEach(function(cm_plugin){
                 let keyplugin = 'cm_plugin_'+cm_plugin;
+                let sourceNode = genro.nodeById(gridNodeId);
+                let widget = sourceNode.widget;
                 if (keyplugin in widget.gnr){
                     widget.gnr[keyplugin](sourceNode,contextMenuBag);
                 }else{
@@ -1398,6 +1423,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.indexByCb(cb) >= 0;
     },
     mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        this.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+    },
+
+    mixin_selectByRowAttrDo:function(attrName, attrValue, op,scrollTo,default_idx) {
         var selection = this.selection;
         var idx = -1;
         if (attrValue instanceof Array && attrValue.length==1){
@@ -1406,7 +1435,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (attrValue instanceof Array) {
             selection.unselectAll();
             var grid = this;
-            dojo.forEach(attrValue, function(v) {
+            attrValue.forEach(function(v) {
                 var idx = grid.indexByRowAttr(attrName, v);
                 if(idx>=0){
                     selection.addToSelection(idx);
@@ -3750,17 +3779,23 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         var action_delay = cellkw.action_delay;
         var sourceNode = this.sourceNode;
         var gridEditor = this.gridEditor;
-        var cellsetter;
         var currpath;
         var changedFields = [];
+        var assignedValue = cellkw.assignedValue;
+        var checkBoxMultiValueField = cellkw.checkBox;
+        var checkBoxAggr = cellkw.checkBoxAggr;
+        var storeCellSetter = function(idx,cellname,value){
+            currpath = '#'+grid.absIndex(idx)+sep+cellname;
+            storebag.setItem(currpath,value,null,{lazySet:true});
+        }
+        var cellsetter = storeCellSetter;
         if(gridEditor){
             cellsetter = function(idx,cellname,value){
-                gridEditor.setCellValue(idx,cellname,value);
-            }
-        }else{
-            cellsetter = function(idx,cellname,value){
-                currpath = '#'+grid.absIndex(idx)+sep+cellname;
-                storebag.setItem(currpath,value,null,{lazySet:true});
+                if(cellname in grid.cellmap){
+                    gridEditor.setCellValue(idx,cellname,value);
+                }else{
+                    storeCellSetter(idx,cellname,value);
+                }
             }
         }
         if (currNode.attr.disabled) {
@@ -3768,9 +3803,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
         var newval = !checked;
         if(cellkw.radioButton){
-            if(checked && !evt.shiftKey){
-                return;
-            }
             if(cellkw.radioButton===true){
                 var oldcheckedpath; 
                 for (var i=0; i<storebag.len(); i++){
@@ -3786,19 +3818,63 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 }
                 cellsetter(idx,fieldname,true);
             }else{
-                for (var c in this.cellmap){
-                    var s_cell = this.cellmap[c];
+                if(!isNullOrBlank(assignedValue)){
+                    let currentAssignedValue = storebag.getItem(rowpath+sep+cellkw.radioButton);
+                    let valueToAssign = assignedValue;
+                    if(currentAssignedValue===valueToAssign){
+                        valueToAssign = null;
+                        newval = false;
+                    }
+                    cellsetter(idx,cellkw.radioButton,valueToAssign);
+                    cellsetter(idx,`_status_${cellkw.radioButton}`,valueToAssign!==null);
+                }
+                for (let c in this.cellmap){
+                    let s_cell = this.cellmap[c];
                     if(s_cell.radioButton==cellkw.radioButton){
                         changedFields.push(s_cell.original_field);
-                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && !evt.shiftKey);
+                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && newval);
                     }
                 }
             }
-
-
-
         }else{
-            cellsetter(idx,cellkw.original_field,!checked);
+            if(checkBoxMultiValueField){
+                let currentAssignedValue = storebag.getItem(rowpath+sep+checkBoxMultiValueField);
+                let valueToAssign = currentAssignedValue;
+                if(typeof(assignedValue)=='string'){
+                    checkBoxAggr = checkBoxAggr || ',';
+                    valueToAssign = valueToAssign?valueToAssign.split(checkBoxAggr):[];
+                    if(newval){
+                        valueToAssign.push(assignedValue);
+                    }else{
+                        valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
+                    }
+                    valueToAssign = valueToAssign.sort().join(checkBoxAggr) || null;
+                }else{
+                    checkBoxAggr = checkBoxAggr || '+'; //+ or *
+                    if(checkBoxAggr=='+'){
+                        if(newval){
+                            valueToAssign += assignedValue;
+                        }else{
+                            valueToAssign -= assignedValue;
+                        }
+                        valueToAssign = valueToAssign || null;
+                    }else{
+                        if(newval){
+                            valueToAssign = valueToAssign*assignedValue;
+                        }else{
+                            valueToAssign = valueToAssign/assignedValue;
+                        }
+                        valueToAssign = valueToAssign==1?null:valueToAssign;
+                    }
+                }
+                cellsetter(idx,checkBoxMultiValueField,valueToAssign);
+                cellsetter(idx,`_status_${checkBoxMultiValueField}`,valueToAssign!==null);
+                cellsetter(idx,cellkw.original_field,newval);
+
+            }else{
+                cellsetter(idx,cellkw.original_field,!checked);
+            }
+            
         }
         if(cellkw.checkedId){
             var checkedKeys = this.getCheckedId(fieldname,checkedField) || '';
@@ -4486,6 +4562,19 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
     mixin_refreshSort:function(){
         this.setSortedBy(this.sortedBy);
+    },
+
+    mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        var that = this;
+        this.sourceNode.watch('pendingStore',function(){
+            let cs = that.collectionStore();
+            if(!cs){
+                return;
+            }
+            return !(cs.runningQuery || cs.loadingData);
+        },function(){
+            that.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+        });
     },
 
     mixin_collectionStore:function(){

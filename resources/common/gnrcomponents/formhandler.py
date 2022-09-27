@@ -116,6 +116,7 @@ class FormHandler(BaseComponent):
         if link_kwargs.get('event'):
             if self.isMobile:
                 gridattr['selfsubscribe_press'] = """
+                            console.log('selfsubscribe_press')
                             var rowIndex= $1.event.rowIndex;
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];

@@ -50,7 +50,7 @@ class GnrCustomWebPage(object):
         fb.button('Save',action='canvas.savePhoto()',canvas=canvas)
         fb.button('Save server',action='canvas.savePhoto({uploadPath:path,filename:"supertest})',canvas=canvas,path='site:test/myimage')
 
-    def test_3_video_capture(self,pane):
+    def test_3_video_capture_palette(self,pane):
         frame = pane.framePane(height='340px',width='420px',border='1px solid silver')
         top = frame.top.slotToolbar('*,pickerImage,5',height='20px')
         top.pickerImage.videoPickerPalette()
@@ -59,5 +59,11 @@ class GnrCustomWebPage(object):
                         upload_folder='site:test/photo',edit=True,
                         upload_filename='foto_test_grabber',crop_border='1px solid #ddd',crop_rounded=8,crop_margin='9px',
                        zoomWindow=True)
+
+
+    def test_4_video_capture_nopalette(self,pane):
+        pane.img(src='^.currUrl',width='400px',height='300px',border='2px solid gray',
+                        placeholder=self.getResourceUri('images/missing_photo.png'),
+                        upload_folder='*',edit=True,camera=True)
 
 

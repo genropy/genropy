@@ -21,6 +21,7 @@ class Main(BaseResourceAction):
             try:
                 tblmessage.receive_imap(account=r)  
             except Exception as e:
+                raise
                 print('ERROR IN RECEIVING IMAP receive_email batch', str(e))
 
     def table_script_parameters_pane(self, pane, **kwargs):

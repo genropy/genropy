@@ -442,14 +442,18 @@ class DbModelSrc(GnrStructData):
                           fullname='%s.%s' %(pkg,name),
                           **kwargs)
 
-    def subtable(self, name,condition=None, **kwargs):
+    def subtable(self, name,condition=None,name_long=None, **kwargs):
         """Insert a :ref:`subtable` into a :ref:`table`
         
         :param name: the subtable name
         """
         if not 'subtables' in self:
             self.child('subtable_list', 'subtables')
-        return self.child('subtable', 'subtables.%s' % name, condition=condition,**kwargs)
+        condition_kwargs = dictExtract(kwargs,'condition_')
+        self.attributes.setdefault('group_subtables','!![en]Subtables')
+        self.formulaColumn(f'subtable_{name}',condition,
+        name_long=name_long or name,group='subtables',_addClass=f'subtable_{name}',**{f'var_{k}':v for k,v in condition_kwargs.items()})
+        return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
     
     @extract_kwargs(variant=dict(slice_prefix=False)) 
     def column(self, name, dtype=None, size=None,
@@ -944,6 +948,7 @@ class DbTableObj(DbModelObj):
         return self['columns']
         
     columns = property(_get_columns)
+
         
     def _get_indexes(self):
         """Returns an SqlIndexedList"""
@@ -964,6 +969,10 @@ class DbTableObj(DbModelObj):
             if foreignkey and reltbl!=self.fullname:
                 r.append((reltbl,deferred or onDelete=='setnull'))
         return r
+
+    def pluggedColumns(self,packages=None):
+        pkgId = self.pkg.id
+        return [colname for colname,colobj in self.columns.items() if (colobj.attributes.get('_owner_package',pkgId)!=pkgId and (not packages or pkgId in packages))]
 
     def getVirtualColumn(self,fld,sqlparams=None):
         result = self.virtual_columns[fld]

@@ -22,11 +22,14 @@ class GnrCustomWebPage(object):
         fb.geoCoderField(value='^.geodesc',
                         width='100%',
                         lbl='Full Address',
-                        selected_street_address='.street_address',selected_locality='.locality',
+                        selected_street_address='.street_address',
+                        selected_locality='.locality',
+                        selected_administrative_area_level_2='.state',
                         selected_postal_code='.zip',
                         selected_position='.geocoder')
         fb.textbox(value='^.street_address',lbl='Route')
         fb.textbox(value='^.locality',lbl='Locality')
+        fb.textbox(value='^.state',lbl='State')
         fb.textbox(value='^.zip',lbl='Zip')
         center=bc.contentPane(region='center', margin='5px')
         center.GoogleMap(height='200px', 

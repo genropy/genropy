@@ -28,5 +28,6 @@ werkzeug<2.0
 webob
 six
 tzlocal
-openpyxl
 pyyaml
+chardet
+openpyxl

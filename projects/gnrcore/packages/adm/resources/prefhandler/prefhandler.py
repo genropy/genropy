@@ -46,7 +46,7 @@ class BasePreferenceTabs(BaseComponent):
                 auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
             panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
             if panecb and auth:
-                panecb(tc, title=pkg.attributes.get('name_full'), datapath='.%s' % pkg.id, nodeId=pkg.id,
+                panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
                         pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
         return tc
 

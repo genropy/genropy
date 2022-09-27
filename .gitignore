@@ -8,3 +8,7 @@ _static
 *.pyo
 gnrpy/.cache
 .vscode
+gnrpy/gnr/lib/.DS_Store
+gnrpy/gnr/lib/services/.DS_Store
+.DS_Store
+docker/*

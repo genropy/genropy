@@ -571,7 +571,18 @@ def updateStringList(s1, s2, sep=','):
     l1 = set(splitAndStrip(s1))
     l2 = set(splitAndStrip(s2))
     s = set()
-    
+
+def unicodeTranslitterate(txt,char_mapping=None):
+    import unidecode
+    char_mapping = dict(char_mapping or {u'€':u'&#128;', u"“":u'&#34;',u'–':'-',
+                            u"”":u'&#34;', u"‘":u'&#39;',u"’":u'&#39;'})
+    for i in range(161,255):
+        replaced = chr(i)
+        char_mapping[replaced] = u"&#{};".format(i)
+    for to_change, replacement in char_mapping.items():
+        txt = txt.replace(to_change, replacement)
+    return unidecode.unidecode(txt)  
+
 def makeSet(*args, **kwargs):
     """TODO
     """
@@ -971,30 +982,6 @@ def jsquote(str_or_unicode):
     'pippo'"""
     return json.dumps(str_or_unicode)
 
-def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
-    """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
-    :param mystring: string to measure
-    :param narrow_coeff: the coefficent for narrow characters (default 0.5 -> narrow char is considered half)
-    :param upper_coeff: the coefficent for uppercase characters that aren't narrow 
-        (default 1-> upper char aren't weighted by default)
-    :returns: weightedLen (int)"""
-
-    narrow_coeff = narrow_coeff or 0.5
-    upper_coeff = upper_coeff or 1
-    normal=0
-    narrow=0
-    upper=0
-    from math import ceil
-    for c in mystring:
-        if c in NARROW_CHARACTERS:
-            narrow=narrow+1
-        elif c.isupper():
-            upper=upper+1
-        else:
-            normal=normal+1
-    return ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
-
-
 
 def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
     """Since some characters are more narrow then others, this len consider them counting less than 1 by a coefficent
@@ -1003,7 +990,8 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
     :param upper_coeff: the coefficent for uppercase characters that aren't narrow 
         (default 1-> upper char aren't weighted by default)
     :returns: weightedLen (int)"""
-
+    if not mystring:
+        return 0
     narrow_coeff = narrow_coeff or 0.5
     upper_coeff = upper_coeff or 1
     normal=0

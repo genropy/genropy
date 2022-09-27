@@ -339,7 +339,7 @@ class TableBase(object):
             tbl.formulaColumn('hlevel',"""length($hierarchical_pkey)-length(replace($hierarchical_pkey,'/',''))+1""",group='*')
             if hierarchical_root_id:
                 tbl.column('root_id',sql_value="substring(:hierarchical_pkey from 1 for 22)",
-                            group='*',size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
+                            group='*',_sysfield=True,size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
                                                     mode='foreignkey',one_name='!![en]Root',
                                                     many_name='!![en]Grandchildren',
                                                     onDelete='ignore')
@@ -556,10 +556,9 @@ class TableBase(object):
         return readOnly
 
     def formulaColumn_allowedForPartition(self):
-
         partitionParameters = self.partitionParameters
         sql_formula = None
-        if partitionParameters:
+        if partitionParameters and (f'allowed_{partitionParameters["path"]}' in self.db.currentEnv):
             sql_formula = "( $%(field)s IN :env_allowed_%(path)s )" %partitionParameters
         else:
             sql_formula = "TRUE"
@@ -1161,6 +1160,8 @@ class TableBase(object):
 
     def isInStartupData(self):
         inStartupData = self.attributes.get('inStartupData')
+        if self.attributes.get('totalize_maintable'):
+            return False
         if inStartupData is False:
             return False
         elif inStartupData is not None:

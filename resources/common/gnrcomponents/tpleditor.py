@@ -4,6 +4,7 @@
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
+import os
 from builtins import str
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent,TableScriptToHtml
@@ -213,9 +214,9 @@ class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
     css_requires='public'
     @struct_method
-    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,**kwargs):
+    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,datasourcepath=None,**kwargs):
         sc = self._te_mainstack(pane,table=maintable)
-        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable)
+        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable,datasourcepath=datasourcepath)
         self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain,plainText=plainText))
         self._te_framePreview(sc.framePane(title='!!Preview',pageName='preview',childname='preview'),table=maintable)
         #self._te_frameHelp(sc.framePane(title='!!Help',pageName='help',childname='help'))
@@ -354,11 +355,12 @@ class TemplateEditor(TemplateEditorBase):
                                 parentForm=False,
                                 selfDragRows=True,**kwargs)
         
-    def _te_frameInfo(self,frame,table=None):
+    def _te_frameInfo(self,frame,table=None,datasourcepath=None,**kwargs):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
         self._te_info_top(bc.contentPane(region='top'))
-        self._te_info_vars(bc,table=table,region='bottom',height='60%')
+        self._te_info_vars(bc,table=table,region='bottom',height='60%',
+                fieldsTree_currRecordPath=datasourcepath)
         self._te_info_parameters(bc,region='center')
         
     def _te_pickers(self,tc):
@@ -609,6 +611,21 @@ class PaletteTemplateEditor(TemplateEditor):
                                                                     varsbag=data['varsbag'],parametersbag=data['parameters'])
         data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
         self.saveTemplate(template_address=template_address,data=data,inMainResource=inMainResource)
+
+    @public_method
+    def te_saveBagFieldTemplate(self,table=None,respath=None,data=None,custom=False):
+        respath = f'bagfields/{respath}'
+        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
+        data.toXml(self.packageResourcePath(table=table,filepath=f'{respath}.xml',custom=custom),autocreate=True)
+
+    @public_method
+    def te_loadBagFieldTemplate(self,table=None,respath=None,custom=False):
+        respath = f'bagfields/{respath}.xml'
+        fullpath = self.packageResourcePath(table=table,filepath=respath,custom=custom)
+        if os.path.exists(fullpath):
+            return Bag(fullpath)
+        return Bag()
+
 
     @public_method
     def te_saveTemplate(self,pkey=None,data=None,tplmode=None,table=None,metadata=None,**kwargs):

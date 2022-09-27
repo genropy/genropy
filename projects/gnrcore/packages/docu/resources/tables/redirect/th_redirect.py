@@ -42,7 +42,7 @@ class Form(BaseComponent):
         fb.field('new_url')
 
     def th_top_custom(self, top):
-        bar = top.bar.replaceSlots('form_archive','make_redirect,5,form_archive')
+        bar = top.bar.replaceSlots('right_placeholder','right_placeholder,5,make_redirect')
         bar.make_redirect.slotButton('!![en]Make redirect').dataController("""genro.publish('table_script_run',
                                                                             {table:'docu.redirect',
                                                                             res_type:'action',

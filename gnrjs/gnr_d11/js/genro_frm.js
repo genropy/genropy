@@ -85,7 +85,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'textarea':null,
             'datetextbox':null,
             'geocoderfield':null,
-            'ckeditor':null
+            'ckeditor':null,
+            'datetimetextbox':null
         };
         
         this.checkLastSavedTags = {
@@ -98,6 +99,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'dbselect':null,
             'dbcombobox':null,
             'datetextbox':null,
+            'datetimetextbox':null
         };
 
 
@@ -596,10 +598,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(kw.destPkey=='*newrecord*' && defaultPrompt){
             var that = this;
             kw.default_kw = kw.default_kw || {};
-            objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.default_kw),'default_*',true)); 
+            objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
-                dflt:new gnr.GnrBag(kw.default_kw),
+                dflt:new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw)),
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
                 action:function(result){
@@ -1559,7 +1561,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
-            if(kw.updattr && kw.changedAttr){
+            if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];
                 var newvalue = kw.node.attr[cattr];
@@ -2478,7 +2480,7 @@ dojo.declare("gnr.formstores.Base", null, {
 
         return kw;
     },
-    duplicateRecord:function(srcPkey, howmany){
+    duplicateRecord:function(srcPkey, howmany,kw){
         var form=this.form;
         var that = this;
         var srcPkey = srcPkey || this.form.getCurrentPkey();
@@ -2493,7 +2495,9 @@ dojo.declare("gnr.formstores.Base", null, {
             return
         }
         genro.assert(this.table,'only form with table allow duplicate');
-        genro.serverCall('app.duplicateRecord',{table:this.table,pkey:srcPkey,howmany:howmany},function(resultPkey){
+        kw = kw || {}
+        objectUpdate(kw,{table:this.table,pkey:srcPkey,howmany:howmany})
+        genro.serverCall('app.duplicateRecord',kw,function(resultPkey){
             form.doload_store({destPkey:resultPkey});
             
         })

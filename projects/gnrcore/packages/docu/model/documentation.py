@@ -2,7 +2,7 @@
 # encoding: utf-8
 from builtins import object
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method, metadata
 import textwrap
 
 class Table(object):
@@ -44,6 +44,8 @@ class Table(object):
             result.append(dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l))
         return result
 
+    def atc_getAttachmentPath(self,pkey):
+        return f'documentation:attachments/{pkey}'
 
     def trigger_onUpdating(self,record,old_record):
         record['sourcebag'] = record['sourcebag'] or None
@@ -117,10 +119,15 @@ class Table(object):
             result.append(tpl % atc)
         return '\n'.join(result)
 
-    def dfAsRstTable(self,pkey):
+    def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)
         if not rows:
             return
+        params_name_lbl, params_type_lbl, params_desc_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
+                            lang=language, columns='$params_name_lbl,$params_type_lbl,$params_desc_lbl')
+        params_name_lbl = params_name_lbl or 'Parameter name'
+        params_type_lbl = params_type_lbl or 'Type'
+        params_desc_lbl = params_desc_lbl or 'Description'
         fdict = dict()
         for r in rows:
             page = r.pop('page',None) or 'Main'
@@ -136,7 +143,7 @@ class Table(object):
         ltemplate = '|%s|%s|%s|' 
         l1 = '+%s+%s+%s+' %(24*'=',6*'=',50*'=')
         result = [l0]
-        result.append(ltemplate %('Parameter name'.center(24),'Type'.center(6),'Description'.center(50)))
+        result.append(ltemplate %(f'{params_name_lbl}'.center(24),f'{params_type_lbl}'.center(6),f'{params_desc_lbl}'.center(50)))
         result.append(l1)
         for k,p in enumerate(pages):
             if k>0:
@@ -171,3 +178,11 @@ class Table(object):
         for c in children:
             pass
     
+    @metadata(doUpdate=True)
+    def touch_updateRstMediaFile(self,record,old_record=None):
+        "Update after S3 configuration"
+        for doc_lang in record['docbag']:
+            if doc_lang.value['rst']:
+                doc_lang.value['rst'] = doc_lang.value['rst'].replace('_vol:docu_documentation', 'documentation:attachments')
+                doc_lang.value['rst'] = doc_lang.value['rst'].replace('_vol/docu_documentation', 'documentation:attachments')
+                doc_lang.value['rst'] = doc_lang.value['rst'].replace('home:docu_documentation', 'documentation:attachments')

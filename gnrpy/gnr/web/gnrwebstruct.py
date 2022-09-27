@@ -2450,7 +2450,7 @@ class GnrGridStruct(GnrStructData):
         :param headerClasses: TODO"""
         return self.child('rows', classes=classes, cellClasses=cellClasses, headerClasses=headerClasses, **kwargs)
         
-    def columnset(self,code=None,name=None,**kwargs):
+    def columnset(self,code=None,name=None,columns=None,**kwargs):
         columnsets = self
         if self.attributes['tag']=='rows':
             structroot = columnsets.parent.parent
@@ -2460,7 +2460,42 @@ class GnrGridStruct(GnrStructData):
                 if not info:
                     info = structroot.info()
                 columnsets = info.columnsets()
-        return columnsets.child('columnset',code=code, name=name, childname=code,**kwargs)
+        result = columnsets.child('columnset',code=code, name=name, childname=code,**kwargs)
+        if columns:
+            cellskw = dictExtract(kwargs,'cells_')
+            for c in columns:
+                defaultkw = dict(cellskw)
+                tag = defaultkw.pop('tag','cell')
+                c.update(defaultkw)
+                getattr(result,tag)(**c)
+        return result
+
+    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
+        columns = []
+        dtype = dtype or 'T'
+        if isinstance(values,str):
+            for i,c in enumerate(values.split(',')):
+                val,n = c.split(':')
+                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+        return self.columnset(code=code,name=name ,
+                        cells_radioButton = code,
+                        cells_tag='checkboxcolumn',
+                        columns=columns,**kwargs)
+    
+    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,**kwargs):
+        columns = []
+        dtype = dtype or 'T'
+        if isinstance(values,str):
+            for i,c in enumerate(values.split(',')):
+                val,n = c.split(':')
+                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+        return self.columnset(code=code,name=name ,
+                        cells_checkBoxAggr = aggr,
+                        cells_checkBox = code,
+                        cells_tag='checkboxcolumn',
+                        columns=columns,**kwargs)
+
+
 
     def cell(self, field=None, name=None, width=None, dtype=None, classes=None, cellClasses=None, 
             headerClasses=None,**kwargs):
@@ -2487,14 +2522,18 @@ class GnrGridStruct(GnrStructData):
                           **kwargs)
                           
     
-    def checkboxcolumn(self,field='_checked',checkedId=None,radioButton=False,calculated=True,name=None,
-                        checkedField=None,action=None,action_delay=None,remoteUpdate=False,trueclass=None,falseclass=None,**kwargs):
-        if getattr(self,'tblobj',None):
+    def checkboxcolumn(self,field=None,checkedId=None,radioButton=False,calculated=True,name=None,
+                        checkedField=None,action=None,action_delay=None,
+                        remoteUpdate=False,trueclass=None,falseclass=None,value=None,**kwargs):
+        if not radioButton:
+            field = field or '_checked'
+        if field and getattr(self,'tblobj',None):
             calculated = self.tblobj.column(field) is None
         else:
             calculated = not remoteUpdate
         self.cell(field=field,checkBoxColumn=dict(checkedId=checkedId,radioButton=radioButton,checkedField=checkedField,action=action,
                                                   action_delay=action_delay,remoteUpdate=remoteUpdate,trueclass=trueclass,falseclass=falseclass),calculated=calculated,name=name,
+                                                  assignedValue=value,
                                                   **kwargs)
         
     def checkboxcell(self, field=None, falseclass=None,

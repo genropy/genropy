@@ -2030,7 +2030,8 @@ dojo.declare("gnr.GridChangeManager", null, {
         }
         var totvalue = this.grid.storebag().sum(this.grid.datamode=='bag'?k:'#a.'+k,this.grid.cellmap[k].totalize_strict);
         if(!isNullOrBlank(totvalue)){
-            totvalue = Math.round10(totvalue);
+            let cellformat = this.grid.cellmap[k]._formats? this.grid.cellmap[k]._formats.format:undefined;        ;
+            totvalue = Math.round10(totvalue,cellformat);
         }
         this.sourceNode.setRelativeData(this.grid.cellmap[k].totalize,totvalue);
         this.sourceNode.publish('onUpdateTotalize',{'column':k,'value':totvalue});
@@ -2087,6 +2088,7 @@ dojo.declare("gnr.GridChangeManager", null, {
         var formula = this.formulaColumns[formulaKey];
         var result;
         var pars = this.grid.rowFromBagNode(rowNode,true);
+        var cellformat = this.grid.cellmap[formulaKey]._formats? this.grid.cellmap[formulaKey]._formats.format:undefined;        ;
         if(formula.startsWith("+=") || formula.startsWith("%=")){
             var masterField = formula.slice(2).trim();
             var store = this.grid.collectionStore();
@@ -2095,14 +2097,14 @@ dojo.declare("gnr.GridChangeManager", null, {
             }
             if(formula.startsWith("+=")){
                 let idx = store.getIdxFromPkey(pars._pkey);
-                let prev_row_value = idx<=0? 0 : Math.round10((store.rowByIndex(idx-1)[formulaKey] || 0));
+                let prev_row_value = idx<=0? 0 : Math.round10((store.rowByIndex(idx-1)[formulaKey] || 0),cellformat);
                 formula = prev_row_value+' + '+masterField;
             }else if(formula.startsWith("%=")){
                 let masterTotal = store.sum(masterField);
                 if(masterTotal instanceof dojo.Deferred){
                     //console.log('wait')
                 }else{
-                    formula = 'Math.round10('+masterField+'/'+masterTotal+' * 100)';
+                    formula = cellformat? 'Math.round10('+masterField+'/'+masterTotal+' * 100,'+cellformat+')' :'Math.round10('+masterField+'/'+masterTotal+' * 100)';
                 }
             }
         }

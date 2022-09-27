@@ -33,7 +33,7 @@ class PublicBase(BaseComponent):
         pane.dataController()
         if not self.isGuest and userTable:
             pane.dataRemote('gnr.user_record', 'app.getRecord', username=self.user,table=userTable)
-        if not getattr(self,'public_partitioned',None) and self.rootenv['partition_kw']:
+        if not getattr(self,'public_partitioned',None) and self.rootenv and self.rootenv['partition_kw']:
             partition_kw = self.rootenv['partition_kw']
             partition_path = partition_kw['path']
             partition_field = partition_kw['field']
@@ -360,7 +360,7 @@ class TableHandlerMain(BaseComponent):
         kwargs['th_pkey'] = th_kwargs.pop('pkey',None)
         archive = False
         if self.tblobj.logicalDeletionField:
-            default_archivable = self.getPreference('tblconf.archivable_tag',pkg='sys')
+            default_archivable = self.getPreference('tblconf.archivable_tag',pkg='sys') or False
             archive = self.tblobj.attributes.get('archivable',default_archivable)
         th_options = dict(formResource=None,viewResource=None,formInIframe=False,widget=thRootWidget,
                         readOnly=False,virtualStore=True,public=True,archive=archive,partitioned=False)

@@ -244,8 +244,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :param filename: db name"""
         from subprocess import call
         dbname = dbname or self.dbroot.dbname
+        from multiprocessing import cpu_count
+
         if filename.endswith('.pgd'):
-            call(['pg_restore','--dbname',dbname,'-U',self.dbroot.user,filename])
+            host = self.dbroot.host or 'localhost'
+            port = self.dbroot.port or '5432'
+            call(['pg_restore', f"""--dbname=postgresql://{self.dbroot.user}:{self.dbroot.password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
         else:
             return call(['psql', "dbname=%s user=%s password=%s" % (dbname, self.dbroot.user, self.dbroot.password), '-f', filename])
         

@@ -54,6 +54,7 @@ class AppPref(object):
         #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
         fb.checkbox(value='^.forgot_password',label='Allow password recovery')
         fb.checkbox(value='^.new_user',label='New user registration')
+        fb.textbox(value='^.password_regex',lbl='Password validate regex')
         center = bc.tabContainer(region='center',margin='2px')
         self._auth_messages(center.contentPane(title='!!Authentication messages'))
         self._auth_email_confirm_template(center.borderContainer(title='!!Confirm user template'))

@@ -8,7 +8,6 @@ from gnr.core.gnrbag import Bag
 from json import dumps
 from datetime import datetime
 import re
-import os
 import sys
 
 if sys.version_info[0] == 3:
@@ -35,20 +34,22 @@ class Main(BaseResourceBatch):
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
         self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
-        self.doctable=self.db.table('docu.documentation')
+        self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
-        self.handbookNode= self.page.site.storageNode(self.handbook_record['sphinx_path'])
-        self.localHandbookNode= self.page.site.storageNode('local_'+self.handbook_record['sphinx_path']) if self.batch_parameters['download_zip'] else None
-        self.sphinxNode = self.handbookNode.child('sphinx') if not self.localHandbookNode else self.localHandbookNode.child('sphinx')
-        self.sphinxNode.delete()
+        #DP202208 Temporary node to build files, moved after creation to definitive folder
+        self.handbookNode = self.page.site.storageNode('site:handbooks', self.handbook_record['name'])
+        self.sphinxNode = self.handbookNode.child('sphinx') 
         self.sourceDirNode = self.sphinxNode.child('source')
+        #DP202208 publishedDocNode node is where the final documentation will be published, at beginning of the process we erase former docs
+        self.publishedDocNode = self.page.site.storageNode(self.handbook_record['sphinx_path'])
+        self.publishedDocNode.delete()
         confSn = self.sourceDirNode.child('conf.py')
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
         html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + 'docs/' 
         #DP202111 Default url set to /docs
-        self.handbook_url = html_baseurl + self.handbook_record['name']
+        self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
@@ -69,7 +70,8 @@ class Main(BaseResourceBatch):
         self.imagesDirNode = self.sourceDirNode.child(self.imagesPath)
         self.examplesDirNode = self.sourceDirNode.child(self.examplesPath)
         #DP202112 Check if there are active redirects
-        self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            self.redirect_pkeys = self.db.table('docu.redirect').query(where='$old_handbook_id=:h_id AND $is_active IS TRUE', 
                         h_id=self.handbook_id).selection().output('pkeylist')
 
     def step_prepareRstDocs(self):
@@ -128,28 +130,35 @@ class Main(BaseResourceBatch):
             cssfile.write(customStyles.encode())
         with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
             jsfile.write(self.defaultJSCustomization().encode())
-        self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path , self.resultNode.internal_path, *args)
+        self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path, self.resultNode.internal_path, *args)
 
-    def post_process(self):
-        if self.batch_parameters['download_zip']:
-            self.zipNode = self.localHandbookNode.child('%s.zip' % self.handbook_record['name'])
-            self.page.site.zipFiles([self.resultNode.internal_path], self.zipNode.internal_path)
-            self.result_url = self.page.site.getStaticUrl(self.zipNode.fullpath)
-            with self.tblobj.recordToUpdate(self.handbook_id) as record:
+    def post_process(self):     
+        with self.tblobj.recordToUpdate(self.handbook_id) as record:
+            record['last_exp_ts'] = datetime.now()
+            if record['is_local_handbook']:
+                self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
+                self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
+                #DP202208 Zip file will be moved to published Doc node after creation. Building folders will be deleted
+                destNode = self.publishedDocNode.child(self.zipNode.basename)
+                self.zipNode.move(destNode)
+                self.result_url = self.zipNode.internal_url().split('?')[0] #Remove ?download=True if present
                 record['local_handbook_zip'] = self.result_url
-        else: 
-            with self.tblobj.recordToUpdate(self.handbook_id) as record:
-                record['last_exp_ts'] = datetime.now()
+            else:
+                #DP202208 Html files will be moved to published Doc node after creation. Building folders will be deleted
+                self.resultNode.move(self.publishedDocNode)
                 record['handbook_url'] = self.handbook_url
+                self.result_url = None
+        self.sphinxNode.delete()
         self.db.commit()
 
-        if self.redirect_pkeys and not self.batch_parameters['skip_redirects']:
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            if self.redirect_pkeys or not self.batch_parameters.get('skip_redirects'):
             #DP202112 Make redirect files
-            redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
-            for redirect_pkey in self.redirect_pkeys:
-                redirect_rec = redirect_recs[redirect_pkey]
-                self.db.table('docu.redirect').makeRedirect(redirect_rec)
-
+                redirect_recs = self.db.table('docu.redirect').query(columns='*,$old_handbook_path,$old_handbook_url').fetchAsDict('id')
+                for redirect_pkey in self.redirect_pkeys:
+                    redirect_rec = redirect_recs[redirect_pkey]
+                    self.db.table('docu.redirect').makeRedirect(redirect_rec)
+                    
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
@@ -159,8 +168,8 @@ class Main(BaseResourceBatch):
                 self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
 
     def result_handler(self):
-        resultAttr = dict()
-        if self.batch_parameters['download_zip']:
+        resultAttr = dict() 
+        if self.result_url:
             resultAttr['url'] = self.result_url
         return 'Export done', resultAttr
 
@@ -183,13 +192,17 @@ class Main(BaseResourceBatch):
             toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
+            params_lbl, attachments_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
+                                            lang=self.handbook_record['language'], columns='$params_lbl,$attachments_lbl')
+            params_lbl = params_lbl or 'Parameters'
+            attachments_lbl = attachments_lbl or 'Attachments'
             rst = lbag['rst'] or ''
-            df_rst = self.doctable.dfAsRstTable(record['id'])
+            df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
             if df_rst:
-                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Parameters:**\n\n%s'%df_rst 
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params_lbl}:**\n\n{df_rst}' 
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                rst = '%s\n\n'%rst + '.. raw:: html\n\n <hr>' + '\n\n**Attachments:**\n\n%s'%atc_rst
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{attachments_lbl}:**\n\n{atc_rst}'
             
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)
@@ -331,18 +344,18 @@ class Main(BaseResourceBatch):
     
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
-        fb.checkbox(lbl='Download Zip', value='^.download_zip')
-        fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202112 Useful for local debugging 
         #fb.checkbox(lbl='Skip images', value='^.skip_images')
+        if self.db.application.getPreference('.manage_redirects',pkg='docu'):
+            fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
             fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
             fb.dbselect('^.bot_token', lbl='BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
                         colspan=3, hasDownArrow=True, default=self.db.application.getPreference('.bot_token',pkg='docu'),
                         hidden='^.send_notification?=!#v')                
-            fb.simpleTextArea(lbl='Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
-                    default="Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
+            fb.simpleTextArea(lbl='!![en]Notification content', value='^.notification_message', hidden='^.send_notification?=!#v',
+                    default="!![en]Genropy Documentation updated: {handbook_title} was modified @ {timestamp}. Check out what's new on {handbook_url}", 
                     height='60px', width='200px')
             #pane.inlineTableHandler(table='genrobot.bot_contact', datapath='.notification_recipients',
             #                title='!![en]Notification recipients', 

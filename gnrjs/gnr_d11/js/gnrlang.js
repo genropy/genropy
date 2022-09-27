@@ -974,7 +974,7 @@ function convertFromText(value, t, fromLocale) {
             if (value.length < 3) {
                 value.push('00');
             }
-            result = new Date(1971, null, null, Number(value[0]), Number(value[1]), Number(value[2]));
+            result = new Date(1970,0,1, Number(value[0]), Number(value[1]), Number(value[2]));
         }
         result._gnrdtype=t;
         return result;
@@ -1894,6 +1894,7 @@ function splitDateAndTime(dt){
     date._gnrdtype = 'D';
     let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
     time._gnrdtype = 'H'
+    console.log('time',time)
     return {_date:date,_time:time};
 }
 

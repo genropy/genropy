@@ -979,8 +979,33 @@ body.tundra.mimi {
 }
 
 
+
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell,
+.mode_mobile._common_d11 .templateGrid .dojoxGrid-row-selected .dojoxGrid-cell{
+    border-left: 0px !important;
+    border-top: 0 !important;
+    border-right: 0px solid #DDDDDD;
+    border-bottom: 0px !important;
+    /*height: 21px;*/
+    height:0px;
+    padding-top:0px;
+    padding-bottom:0px;
+    background:none;
+    vertical-align:top;
+}
+
+
 .tundra._common_d11 .dojoxGrid-content>div{
     border-bottom: 1px solid #DDDDDD;
+}
+
+.tundra._common_d11 .templateGrid .dojoxGrid-content>div{
+    border-bottom: 1px solid transparent;
+}
+
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child{
+    border-right-width:0px;
 }
 
 .tundra._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
@@ -1325,6 +1350,7 @@ body.tundra.mimi {
     /*background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#EEEEEE), to(#EDEDEE));
     background-image: -moz-linear-gradient(-90deg, #EEEEEE, #EDEDEE);*/
 }
+
 .fakeButton{
     background-image: none;
     background-color: #E4E4E4;
@@ -1405,6 +1431,12 @@ body.tundra.mimi {
 .mimi .archive_record, .mimi .box{
     background: url(/_rsrc/common/css_icons/svg/16/archive_record.svg) no-repeat center center;
 }
+
+
+.mimi .alarm, .mimi .bell{
+    background: url(/_rsrc/common/css_icons/svg/16/alarm.svg) no-repeat center center;
+}
+
 
 .mimi .delete_row{
     background: url(/_rsrc/common/css_icons/svg/16/delete_row.svg) no-repeat center center;
@@ -1541,6 +1573,19 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/plus_square_grey.svg) no-repeat center center;
 }
 
+.mimi .plus_grey{
+    background: url(/_rsrc/common/css_icons/svg/16/plus_grey.svg) no-repeat center center;
+}
+
+.mimi .minus_grey{
+    background: url(/_rsrc/common/css_icons/svg/16/minus_grey.svg) no-repeat center center;
+}
+
+.mimi .back_gray{
+    background: url(/_rsrc/common/css_icons/svg/16/back.svg) no-repeat center center;
+}
+
+
 .mimi .previous_record, .mimi .previous{
     background: url(/_rsrc/common/css_icons/svg/16/previous_record.svg) no-repeat center center;
 }
@@ -1656,6 +1701,24 @@ background: url(/_rsrc/common/css_icons/svg/16/form_status_grey.svg) no-repeat c
 .mimi.tundra .dijitDropDownButton .dijitArrowButtonInner{ 
     transform:rotate(0deg) scale(1);
 }
+.mimi .todolist{
+    background: url(/_rsrc/common/css_icons/svg/16/todolist.svg) no-repeat center center;
+
+}
+
+.mimi .sorting{
+    background: url(/_rsrc/common/css_icons/svg/16/sorting_tb.svg) no-repeat center center;
+}
+
+
+.mimi .sortTree{
+    background: url(/_rsrc/common/css_icons/svg/16/sorting_lr.svg) no-repeat center center;
+}
+
+.mimi .siblingSorting .sortTree{
+    background: url(/_rsrc/common/css_icons/svg/16/sorting_tb.svg) no-repeat center center;
+}
+
 
 .mimi .application_menu{ 
     background: url(/_rsrc/common/css_icons/svg/16/menu_icon.svg) no-repeat center center;

@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
-import os
-import shutil
-import textwrap
+from gnr.core.gnrdecorator import metadata
 
 class Table(object):
     def config_db(self, pkg):
@@ -20,6 +16,7 @@ class Table(object):
         tbl.column('toc_roots', name_long='Toc roots')
         tbl.column('language',size=':2',name_long='Base language').relation('docu.language.code',mode='foreignkey')
         tbl.column('sphinx_path', name_long='Sphinx path')
+        tbl.column('is_local_handbook', dtype='B', name_long='Is local handbook')
         tbl.column('local_handbook_zip', name_long='Local handbook zip')
         tbl.column('version', name_long='Version')
         tbl.column('author', name_long='Author')
@@ -41,19 +38,27 @@ class Table(object):
                 file.delete()
     
     def trigger_onInserting(self, record):
-        if not record['sphinx_path']:
-            self.checkSphinxPath(record)
+        self.checkSphinxPath(record)
     
     def trigger_onUpdating(self, record, old_record=None):
-        if not record['sphinx_path'] or record['name']!=old_record['name'] :
-            self.checkSphinxPath(record)
+        self.checkSphinxPath(record)
     
     def checkSphinxPath(self, record):
         "Sets default path to handbooks if not specified"
-        current_path = self.db.application.getPreference('.sphinx_path', pkg='docu')
-        if not current_path:
-            current_path = 'site:handbooks'
-        handbook_name=record['name']
-        record['sphinx_path'] = current_path + '/' + handbook_name
-                            
-                            
+        if record['is_local_handbook']:
+            current_path = self.db.application.getPreference('.local_path', pkg='docu') or 'documentation:local_handbooks'
+        else:
+            current_path = self.db.application.getPreference('.sphinx_path', pkg='docu') or 'documentation:handbooks'
+        record['sphinx_path'] = current_path + '/' + record['name']
+
+    @metadata(doUpdate=True)
+    def touch_updateOgpUrl(self,record,old_record=None):
+        "Update ogp image url after S3 configuration"
+        if record['ogp_image'] and '/_storage/site/handbooks_images' in record.get('ogp_image'):
+            record['ogp_image'] = record['ogp_image'].replace('site', 'documentation')
+    
+    @metadata(doUpdate=True)
+    def touch_fixHandbookPath(self,record,old_record=None):
+        "Fix handbook path after S3 configuration"
+        self.checkSphinxPath(record)
+        

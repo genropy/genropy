@@ -53,6 +53,9 @@ class Table(object):
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
 
+    def defaultValues(self):
+        return dict(account_id=self.db.currentEnv.get('current_account_id'))
+
     def trigger_onInserting(self, record_data):
         self.explodeAddressRelations(record_data)
         if record_data['in_out']=='I':

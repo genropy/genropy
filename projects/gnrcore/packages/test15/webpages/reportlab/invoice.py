@@ -1,4 +1,4 @@
-from gnr.pdf.gnrrml import GnrPdf
+from gnr.xtnd.gnrrml import GnrPdf
 
 #class GnrWebPDF(GnrPdf):
 #    

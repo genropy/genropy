@@ -21,7 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #from builtins import object
 try:
-    from gnr.pdf.gnrrml import GnrPdf
+    from gnr.xtnd.gnrrml import GnrPdf
     
     class GnrWebPDF(GnrPdf):
         def getPdf(self, table, record, filename=None, folder=None):

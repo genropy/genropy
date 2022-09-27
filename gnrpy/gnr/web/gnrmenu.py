@@ -629,10 +629,12 @@ class LookupBranchResolver(MenuResolver):
 
     
     def lookup_tables(self,pkg=None):
-        for tbl in self._page.db.model.package(pkg).tables.values():
-            tblattr = tbl.attributes
+        pkgtables = self._page.db.model.package(pkg).tables
+        for tblname in sorted(pkgtables.keys()):
+            tblobj = pkgtables[tblname]
+            tblattr = tblobj.attributes
             if tblattr.get('lookup') and self._page.db.application.allowedByPreference(**tblattr):
-                yield tbl.fullname
+                yield tblobj.fullname
 
     @property
     def valid_packages(self):
