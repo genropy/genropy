@@ -256,7 +256,7 @@ class FrameGridTools(BaseComponent):
                             grid_configurable=grid_configurable,
                             static=static,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            #grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_nodeId = tree_nodeId,
                             linkedTo=groupedTh,
@@ -268,6 +268,16 @@ class FrameGridTools(BaseComponent):
             SET .output = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols.length>1?'tree':'grid'
         }
         """,struct='^.grid.struct')
+        gth.dataController(f"""
+            var result = '';
+            var store = gth.storebag();
+            selectedLines.forEach(function(linePkey){{
+                result+=(','+store.getAttr(linePkey,'_pkeylist'));
+            }});
+            SET #{groupedTh}_grid.grouperPkeyList = result;
+        """,gth=gth.grid.js_widget,
+            selectedLines=f'^.grid.currentSelectedPkeys'
+        )
         if self.application.checkResourcePermission('admin', self.userTags):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         gth.dataController(f"""
