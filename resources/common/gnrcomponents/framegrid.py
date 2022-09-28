@@ -217,47 +217,50 @@ class FrameGridTools(BaseComponent):
                         caption_path=caption_path or '.currViewAttrs.caption',
                         placeholder=placeholder or '!![en]Base View',**kwargs)
 
-
+    @extract_kwargs(closable=dict(slice_prefix=False),border=dict(slice_prefix=False),box=True)
     @struct_method
-    def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None,**kwargs):
-       
-        bc = view.grid_envelope.borderContainer(region='left',
+    def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None
+                        ,splitter=True,closable_kwargs=None,groupedThViewResource=None,box_kwargs=None,**kwargs):
+        default_closable = dict(closable_background='rgba(222, 255, 0, 1)',
+            closable_bottom='2px',
+            closable_width='14px',
+            closable_right='-20px',
+            closable_height='14px',
+            closable_padding='2px',
+            closable_opacity='1',
+            closable_iconClass='smalliconbox statistica_tools')
+        default_closable.update(closable_kwargs)
+        box_kwargs.setdefault('border_right','1px solid silver')
+        box_kwargs.update(default_closable)
+        bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        closable_background='rgba(222, 255, 0, 1)',
-                                        closable_bottom='2px',
-                                        closable_width='14px',
-                                        closable_right='-20px',
-                                        closable_height='14px',
-                                        closable_padding='2px',
-                                        closable_opacity='1',
-                                        closable_iconClass='smalliconbox statistica_tools',
-                                        splitter=True,border_right='1px solid silver',
+                                        splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
-                                        **kwargs)
+                                        **box_kwargs)
         if closable !='close':
             bc.data('.use_grouper',True)
-
-        
         inattr = view.getInheritedAttributes()
         bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
-                                                groupedThViewResource=inattr.get('th_viewResource'),
-                                                table=table,store_is_grouper=True)
+                                                groupedThViewResource=groupedThViewResource or inattr.get('th_viewResource'),
+                                                table=table,store_is_grouper=True,**kwargs)
         
     @public_method
-    def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
+    def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
+                        grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
         tree_nodeId = f'{groupedTh}_grouper_tree'
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
-                            configurable=False,
-                            grid_configurable=True,
+                            configurable=configurable,
+                            grid_configurable=grid_configurable,
+                            static=static,
                             grid_selectedIndex='.selectedIndex',
                             grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_nodeId = tree_nodeId,
                             linkedTo=groupedTh,
-                            pbl_classes=True,margin='2px',grouper=True,**kwargs)
+                            pbl_classes=pbl_classes,margin=margin or '2px',grouper=True,**kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
         if(_reason=='node'){
@@ -269,9 +272,17 @@ class FrameGridTools(BaseComponent):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         gth.dataController(f"""
             SET .selectedIndex = null;
-            SET #{tree_nodeId}.currentGroupPath = null;
+            if(genro.nodeById(tree_nodeId)){{
+                SET #{tree_nodeId}.currentGroupPath = null;
+            }}
             SET #{groupedTh}_grid.grouperPkeyList = null;
-    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',)   
+            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
+            if(groupedStore.store.storeType=='VirtualSelection'){{
+                groupedStore.store.clear();
+            }}else{{
+                groupedStore.store.loadData();
+            }}
+    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
 
         pane.dataController(f"""
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
@@ -286,18 +297,19 @@ class FrameGridTools(BaseComponent):
                             groupedStore.store.loadData(queryvars);
                             """,
                             grouperPkeyList=f'^#{groupedTh}_grid.grouperPkeyList')
+        if not static:
+            gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
+            downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
+            downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+            #fcode = gth.attributes.get('frameCode')
+            #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
-        gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
-        downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
-        downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
-        #fcode = gth.attributes.get('frameCode')
-        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
-
-        gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
-        tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
-        tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
-        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
-
+            gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
+            tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
+            tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+            #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        else:
+            gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,5')
 
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
