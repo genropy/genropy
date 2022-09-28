@@ -3914,6 +3914,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     mixin_onSpeechEnd:function(){
         this.geocodevalue();
     },
+    
     mixin_geocodevalue:function(){
         var address = this.textbox.value;
         if (address == this.geocoder.resultAddress && address.length == 1){
@@ -3928,9 +3929,8 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
                     if(country){
                         geopars['componentRestrictions']={'country':country}
                     }
-                    
                 }
-              this.geocoder.geocode(geopars, dojo.hitch(this, 'handleGeocodeResults'));
+                this.geocoder.geocode(geopars, dojo.hitch(this, 'handleGeocodeResults'));
             }),200);
         
     },
@@ -3947,7 +3947,11 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         if(this._isShowingNow){
             pw.handleKey(evt);
         }
-        switch(evt.keyCode){
+        var evt_keycode = evt.keyCode;
+        if((evt_keycode==dk.UP_ARROW && evt.keyChar=='&') || (evt_keycode==dk.DOWN_ARROW && evt.keyChar=='(')){
+            evt_keycode = 0; //L.A. fix for evt.keyChar=='&'
+        }
+        switch(evt_keycode){
             case dk.PAGE_DOWN:
             case dk.DOWN_ARROW:
                 if(!this._isShowingNow||this._prev_key_esc){
@@ -4073,9 +4077,9 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         if (this._popupWidget && !this.item){
             this._popupWidget.highlightFirstOption();
             var highlighted = this._popupWidget.getHighlightedOption();
-            //if (highlighted.item){
-                this._popupWidget.setValue({ target: highlighted.item?highlighted.item:null }, true);
-            //}
+            this._popupWidget.setValue({ target: highlighted.item?highlighted:null }, true);
+        }else{
+            this._onBlur_replaced();
         }
         this.store.mainbag=new gnr.GnrBag();
     },
@@ -4097,7 +4101,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     },
     mixin_handleGeocodeResults: function(results, status){
         this.store.mainbag=new gnr.GnrBag();
-         if (status == google.maps.GeocoderStatus.OK) {
+        if (status == google.maps.GeocoderStatus.OK) {
              for (var i = 0; i < results.length; i++){
                  var formatted_address = results[i].formatted_address;
                  var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
@@ -4120,7 +4124,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
 
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
-             this._updateSelect(this.store.mainbag);
+            this._updateSelect(this.store.mainbag);
          };
          var firstline = this.store.mainbag.getItem('#0');
          if (false && firstline && firstline.len()==1){
@@ -4131,7 +4135,18 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
              this._startSearch("");
          }
         this.searchOnBlur=false;
-     }
+     },
+
+     patch_isValid: function(/*Boolean*/ isFocused){
+        if(isFocused){
+            return true;
+        }
+        let searchrows = this.store.mainbag.getItem('#0');
+        if(!searchrows || searchrows.len()===0){
+            return false;
+        }
+        return this.validator(this.textbox.value, this.constraints);
+    },
 
 });
 
