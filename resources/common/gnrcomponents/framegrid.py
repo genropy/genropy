@@ -784,7 +784,7 @@ class EvaluationGrid(BaseComponent):
                 }
                 for (let cbcell in cbcells){
                     let rv = v.getItem(cbcell);
-                    updattr[cbcell] = rv || false;
+                    updattr[cbcell] = rv;
                 }
                 n.updAttributes(updattr,false);
             });
