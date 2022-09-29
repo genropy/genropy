@@ -33,7 +33,7 @@ class GnrCustomWebPage(object):
         Aggregator can basically be a ',' or '+' to sum and '*'"""
         pane.evaluationGrid(value='^.features', 
                             title="Which features did you appreciate at most in these Italian pizza restaurants",
-                            items="Luciano's, Domino's, Pizza Hut", 
+                            items="LL:Luciano's,DD:Domino's,PH:Pizza Hut", 
                             field_values="L:Loc.,M:Menu,S:Service,P:Price",
                             #field_aggr=',',
                             field_name="features", 
