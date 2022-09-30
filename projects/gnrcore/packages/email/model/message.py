@@ -32,7 +32,7 @@ class Table(object):
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
-        tbl.column('html_box','B',name_long='!!Html Box')
+        tbl.column('extra_html','X',name_long='!!Html pars')
         tbl.column('subject',name_long='!!Subject')
         tbl.column('send_date','DH',name_long='!!Send date')
         tbl.column('sent','B',name_long='!!Sent')
@@ -203,12 +203,15 @@ class Table(object):
                   subject=None, body=None, cc_address=None, 
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
-                 html=False,html_box=False,doCommit=False,headers_kwargs=None,**kwargs):
+                 html=False,doCommit=False,headers_kwargs=None,html_kwargs=None,**kwargs):
         
         message_date = message_date or self.db.workdate
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
+        extra_html = None
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
+        if html_kwargs:
+            extra_html = Bag(html_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
         if weak_attachments and isinstance(weak_attachments,list):
             site = self.db.application.site
@@ -218,8 +221,9 @@ class Table(object):
         envkw = {}
         if dbstore and self.multidb and use_dbstores:
             envkw['storename'] = self.db.rootstore
-        if html_box:
+        if extra_html:
             html = True
+
         message_to_dispatch = self.newrecord(in_out='O',
                             account_id=account_id,
                             to_address=to_address,
@@ -230,7 +234,7 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,html_box=html_box,dbstore=dbstore,**kwargs)
+                            html=html,extra_html=extra_html,dbstore=dbstore,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -283,10 +287,11 @@ class Table(object):
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
-                html_box = message.get('html_box')
+                html_kwargs = message.get('extra_html')
+                if html_kwargs:
+                    html_kwargs = html_kwargs.asDict(ascii=True)
                 html = message['html']
-                if html_box:
-                    html = '*'
+
                 mail_handler.sendmail(to_address = message['to_address'],
                                 body=message['body'], subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
@@ -294,7 +299,7 @@ class Table(object):
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html=html, async_=False,
-                                scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
+                                scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True),html_kwargs=html_kwargs)
 
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address
