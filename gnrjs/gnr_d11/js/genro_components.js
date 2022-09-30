@@ -3734,6 +3734,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
+           sourceNode._('lightbutton',{action:`SET ${sourceNode.attr.template.slice(1)} = null;`,position:'absolute',bottom:'3px',right:'2px',_class:'iconbox trash'})
         }
         kw.onCreated = function(domnode,attributes){
             this._templateHandler = {};
