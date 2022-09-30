@@ -203,6 +203,10 @@ class MailService(GnrBaseService):
             to = to_address
         return to, cc, bcc
 
+    def build_letterbox_body(self,body):
+        letterbox_style = "box-shadow: gray 8px 8px 15px; margin: 10px;padding:30px;"
+        return f'<div style="{letterbox_style}">{body}</div>'
+
     def build_base_message(self, subject, body, attachments=None, html=None, charset=None):
         """Add???
 
@@ -222,6 +226,8 @@ class MailService(GnrBaseService):
         if html:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
+            if html=='*':
+                body = self.build_letterbox_body(body)
             msg.attach(MIMEText(clean_and_unescape(body), 'text', charset))
             if attachments:
                 multi_msg=MIMEMultipart()

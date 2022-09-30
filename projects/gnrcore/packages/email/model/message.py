@@ -32,6 +32,7 @@ class Table(object):
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
         tbl.column('html','B',name_long='!!Html')
+        tbl.column('html_box','B',name_long='!!Html Box')
         tbl.column('subject',name_long='!!Subject')
         tbl.column('send_date','DH',name_long='!!Send date')
         tbl.column('sent','B',name_long='!!Sent')
@@ -202,7 +203,8 @@ class Table(object):
                   subject=None, body=None, cc_address=None, 
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
-                 html=False,doCommit=False,headers_kwargs=None,**kwargs):
+                 html=False,html_box=False,doCommit=False,headers_kwargs=None,**kwargs):
+        
         message_date = message_date or self.db.workdate
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
         if headers_kwargs:
@@ -216,6 +218,8 @@ class Table(object):
         envkw = {}
         if dbstore and self.multidb and use_dbstores:
             envkw['storename'] = self.db.rootstore
+        if html_box:
+            html = True
         message_to_dispatch = self.newrecord(in_out='O',
                             account_id=account_id,
                             to_address=to_address,
@@ -226,7 +230,7 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,dbstore=dbstore,**kwargs)
+                            html=html,html_box=html_box,dbstore=dbstore,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -279,13 +283,17 @@ class Table(object):
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
+                html_box = message.get('html_box')
+                html = message['html']
+                if html_box:
+                    html = '*'
                 mail_handler.sendmail(to_address = message['to_address'],
                                 body=message['body'], subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html=message['html'], async_=False,
+                                ssl=mp['ssl'], tls=mp['tls'], html=html, async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
 
                 message['send_date'] = datetime.now()

@@ -3582,6 +3582,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_table:table,
                     remote_paletteId:paletteId,
                     remote_plainText:sourceNode.attr.plainText,
+                    remote_emailChunk : sourceNode.attr.emailChunk,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
