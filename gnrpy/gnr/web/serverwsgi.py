@@ -66,6 +66,8 @@ class GnrDebuggedApplication(DebuggedApplication):
     def debug_application(self, environ, start_response):
         """Run the application and conserve the traceback frames."""
         app_iter = None
+        if not hasattr(self,'tracebacks'):
+            self.tracebacks = {}
         try:
             app_iter = self.app(environ, start_response)
             for item in app_iter:

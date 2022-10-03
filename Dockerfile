@@ -10,7 +10,7 @@ RUN apk add python3
 RUN apk add py3-lxml
 RUN apk add py3-psutil
 RUN apk add py3-pip
-RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing py3-tzlocal
+RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community py3-tzlocal
 RUN apk add py3-psycopg2
 RUN addgroup -S genro &&  adduser -S -D genro -G genro
 COPY dojo_libs/dojo_11 /home/genro/genropy/dojo_libs/dojo_11

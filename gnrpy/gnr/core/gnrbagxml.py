@@ -106,9 +106,8 @@ class BagFromXml(object):
             infile =  open(source, 'rt')
             source = infile.read()
             infile.close()
-        if six.PY34 and isinstance(source,str):
-            source = source.encode('utf8')
-        source = source.decode()
+        if isinstance(source, bytes):
+            source = source.decode()
         for k in os.environ.keys():
             if k.startswith('GNR_'):
                 source = source.replace('{%s}' %k,os.environ[k])
