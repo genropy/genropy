@@ -203,13 +203,6 @@ class MailService(GnrBaseService):
             to = to_address
         return to, cc, bcc
 
-    def build_html_body(self,body,letterbox_style=None,**kwargs):
-        if letterbox_style is True:
-            letterbox_style = "box-shadow: gray 8px 8px 15px; margin: 10px;padding:30px;"
-        if letterbox_style:
-            body = f'<div style="{letterbox_style}">{body}</div>'
-        return body
-
     def build_base_message(self, subject, body, attachments=None, html=None, charset=None):
         """Add???
 
@@ -327,7 +320,7 @@ class MailService(GnrBaseService):
                  account=None,timeout=None,
                  from_address=None, smtp_host=None, port=None, user=None, password=None,message_id=None,message_date=None,
                  ssl=False, tls=False, html=False, charset='utf-8', async_=False,
-                 cb=None, cb_args=None, cb_kwargs=None, headers_kwargs=None, html_kwargs=None,**kwargs):
+                 cb=None, cb_args=None, cb_kwargs=None, headers_kwargs=None, **kwargs):
         """Send mail is a function called from the postoffice object to send an email.
 
         :param to_address: the email receiver
@@ -361,9 +354,6 @@ class MailService(GnrBaseService):
                                                  smtp_host=smtp_host, port=str(port) if port else None, user=user, password=password, ssl=ssl,
                                                  tls=tls,timeout=timeout)
         from_address = account_params['from_address']
-        if html_kwargs:
-            html = True
-            body = self.build_html_body(body,**html_kwargs)
         msg = self.build_base_message(subject, body, attachments=attachments, html=html, charset=charset)
         msg['From'] = from_address
         msg['To'] = to_address

@@ -21,8 +21,8 @@ class Service(AdmMailService):
     def set_smtp_account(self, email_account_id=None,**kwargs):
         self.smtp_account = dict(email_account_id=email_account_id)
     
-    @extract_kwargs(headers=True,html=True)
-    def sendmail(self,scheduler=None,account_id=None,attachments=None,headers_kwargs=None,html_kwargs=None,**kwargs):
+    @extract_kwargs(headers=True)
+    def sendmail(self,scheduler=None,account_id=None,attachments=None,headers_kwargs=None,**kwargs):
         db = self.parent.db
         account_id = account_id or self.getDefaultMailAccount()['account_id']
         if scheduler is None:
@@ -34,11 +34,10 @@ class Service(AdmMailService):
                     kwargs[k]=v
         if scheduler:
             new_message = db.table('email.message').newMessage(attachments=attachments,
-                                                    headers_kwargs=headers_kwargs,html_kwargs=html_kwargs,doCommit=True,**kwargs)
+                                                    headers_kwargs=headers_kwargs,doCommit=True,**kwargs)
             return new_message
         else:
             kwargs['headers_kwargs'] = headers_kwargs
-            kwargs['html_kwargs'] = html_kwargs
             return super(Service, self).sendmail(attachments=attachments,**kwargs)
 
 class ServiceParameters(BaseComponent):
