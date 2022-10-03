@@ -5367,12 +5367,12 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         this.alignCheckedValues();
     },
 
-    gnrwdg_isValidValue:function(value){
+    gnrwdg_isValidValue:function(value,splitter){
         if(!value){
             return true;
         }
         var valuesDict = this.valuesDict;
-        return value.split(this.separator).every(function(c){return (c in valuesDict)});
+        return value.split(splitter || this.separator).every(function(c){return (c in valuesDict)});
     },
 
     gnrwdg_getLabelsFromValue:function(value){
@@ -5408,13 +5408,13 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
     gnrwdg_alignCheckedValues:function(){
         var sourceNode = this.sourceNode;
         var textvalue =  sourceNode.getAttributeFromDatasource('value') || '';
-        if(!this.isValidValue(textvalue)){
-            return;
-        }
         var splitter = this.separator;
         var checkcodes = textvalue && this.has_code;  
         if(checkcodes){
             splitter = ',';
+        }
+        if(!this.isValidValue(textvalue,splitter)){
+            return;
         }
         var values = splitStrip(textvalue,splitter);
         var v;
