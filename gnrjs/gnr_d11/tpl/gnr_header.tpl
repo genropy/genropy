@@ -25,7 +25,13 @@
 % for jsname in js_requires:
         <script type="text/javascript" src="${jsname}"></script>
 % endfor
-
+        % if logo_url:
+            <style type="text/css">
+                :root {
+                    --client-logo: transparent url(${logo_url}) no-repeat center center;;
+                }
+            </style>
+        % endif
         <style type="text/css">
             % for cssname in css_dojo:
             @import url("${cssname}");  
