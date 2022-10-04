@@ -3854,6 +3854,9 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         for (var sel in selattr) {
             var path = this.sourceNode.attrDatapath('selected_' + sel);
             val = row[sel];
+            if(isNullOrBlank(val)){
+                val = null;
+            }
             if(this.sourceNode._selectedSetter){
                 this.sourceNode._selectedSetter(path, val);
             }
@@ -3927,6 +3930,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
                 if (this.sourceNode.attr.country){
                     var country=this.sourceNode.getAttributeFromDatasource('country')
                     if(country){
+                        console.log('componentRestrictions',country);
                         geopars['componentRestrictions']={'country':country}
                     }
                 }
@@ -4076,8 +4080,14 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     patch__onBlur: function(){
         if (this._popupWidget && !this.item){
             this._popupWidget.highlightFirstOption();
-            var highlighted = this._popupWidget.getHighlightedOption();
-            this._popupWidget.setValue({ target: highlighted.item?highlighted:null }, true);
+            let highlighted = this._popupWidget.getHighlightedOption();
+            let selectedItem = highlighted.item;
+            if(selectedItem){
+                this._popupWidget.setValue({ target: highlighted}, true);
+            }else{
+                this._updateSelect();
+            }
+            
         }else{
             this._onBlur_replaced();
         }
@@ -4100,7 +4110,7 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         genro.google().setGeocoder(widget);
     },
     mixin_handleGeocodeResults: function(results, status){
-        this.store.mainbag=new gnr.GnrBag();
+        this.store.mainbag = new gnr.GnrBag();
         if (status == google.maps.GeocoderStatus.OK) {
              for (var i = 0; i < results.length; i++){
                  var formatted_address = results[i].formatted_address;
@@ -4120,11 +4130,11 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
                  details['street_address_eng'] = street_number+' '+details['route_long'];
                  var position=results[i].geometry.location;
                  details['position']=position.lat()+','+position.lng();
-             this.store.mainbag.setItem('root.r_' + i, null, details);
+                this.store.mainbag.setItem('root.r_' + i, null, details);
 
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
-            this._updateSelect(this.store.mainbag);
+             //this._updateSelect(this.store.mainbag);
          };
          var firstline = this.store.mainbag.getItem('#0');
          if (false && firstline && firstline.len()==1){
@@ -4143,9 +4153,9 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         }
         let searchrows = this.store.mainbag.getItem('#0');
         if(!searchrows || searchrows.len()===0){
-            return false;
+            return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
         }
-        return this.validator(this.textbox.value, this.constraints);
+        return this.isValid_replaced(isFocused);
     },
 
 });
