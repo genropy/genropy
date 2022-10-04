@@ -3,6 +3,7 @@
 <script type="text/javascript">dojo.registerModulePath('gnr','${gnrModulePath}');</script>
 % if favicon:
      <link rel="icon" href="${favicon}" type="image/${favicon_ext}" />
+     <link rel="apple-touch-icon" href="${favicon}" />
 % endif
 % if google_fonts:
     <link href='http://fonts.googleapis.com/css?family=${google_fonts}' rel='stylesheet' type='text/css'>
