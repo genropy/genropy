@@ -122,11 +122,24 @@ class AppPref(object):
         fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',
                                                 tdl_width='10em')
         fb.textbox(value='^.owner_name', lbl='!!Owner name',livePreference=True)
-        fb.textbox(value='^.logo_url', lbl='Logo url')
-        pane.div(margin='10px',margin_left='20px').img(src='^.logo_url',height='200px',
-                        placeholder=self.getResourceUri('images/missing_photo.png'),
-                        upload_folder='site:img/logo',edit=True,
-                        upload_filename='clientlogo',livePreference=True)
+        fb.img(src='^.logo_url', lbl='!!Logo image', 
+                        border='2px dotted silver',
+                        crop_width='478px',
+                        crop_height='100px',
+                        edit=True,
+                        placeholder=True,
+                        upload_filename='logo',
+                        upload_folder='site:logo')
+        fb.button('!![en]Remove', hidden='^.logo_url?=!#v').dataController("SET .logo_url = null;")
+        fb.img(src='^.favicon_url', lbl='!!Favicon', 
+                        border='2px dotted silver',
+                        crop_width='256px',
+                        crop_height='256px',
+                        edit=True,
+                        placeholder=True,
+                        upload_filename='favicon',
+                        upload_folder='site:favicon')
+        fb.button('!![en]Remove', hidden='^.favicon_url?=!#v').dataController("SET .favicon_url = null;")
 
 
 class UserPref(object):

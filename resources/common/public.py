@@ -168,10 +168,11 @@ class PublicBase(BaseComponent):
         kwargs['src'] = kwargs.get('logo_url') or logo_url
         return pane.img(**kwargs)
 
-    #@struct_method
-    #def logo_icon_img(self, pane):
-    #    logo_url = self.app_logo_url
-    #    return pane.img(src=logo_url)
+    @struct_method
+    def public_logo_favicon(self, pane, **kwargs):
+        favicon_url = self.db.application.getPreference('instance_data.favicon_url', pkg='adm')
+        kwargs['src'] = kwargs.get('favicon_url') or favicon_url
+        return pane.img(**kwargs)
     
 class Public(PublicBase):
     """docstring for Public for common_d11: a complete restyling of Public of common_d10"""
