@@ -279,8 +279,7 @@ class Table(object):
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
-            #try:
-            if True:
+            try:
                 mail_handler.sendmail(to_address = message['to_address'],
                                 body=message['body'], subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
@@ -292,18 +291,18 @@ class Table(object):
 
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address
-           #except SMTPConnectError as e:
-           #    message['connection_retry'] = (message['connection_retry'] or 0) + 1
-           #    if message['connection_retry'] > 10:
-           #        message['error_msg'] = 'Connection failed more than 10 times'
-           #
-           #except Exception as e:
-           #    error_msg = str(e)
-           #    ts = datetime.now()
-           #    message['error_ts'] = ts
-           #    message['error_msg'] = error_msg
-           #    message['sending_attempt'] = message['sending_attempt'] or  Bag()
-           #    message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
+            except SMTPConnectError as e:
+                message['connection_retry'] = (message['connection_retry'] or 0) + 1
+                if message['connection_retry'] > 10:
+                    message['error_msg'] = 'Connection failed more than 10 times'
+            
+            except Exception as e:
+                error_msg = str(e)
+                ts = datetime.now()
+                message['error_ts'] = ts
+                message['error_msg'] = error_msg
+                message['sending_attempt'] = message['sending_attempt'] or  Bag()
+                message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
         self.db.commit()
         
     @public_method
