@@ -37,8 +37,9 @@ class PublicBase(BaseComponent):
             partition_kw = self.rootenv['partition_kw']
             partition_path = partition_kw['path']
             partition_field = partition_kw['field']
-            pane.dataController('SET current.%s = partition_value;' %partition_field,subscribe_public_changed_partition=True)
-            pane.data('current.%s' %partition_field,self.rootenv['current_%s' %partition_path] or self.rootenv[partition_path],
+            pane.dataController("""SET current.%s = partition_value;""" % partition_field,
+                                subscribe_public_changed_partition=True)
+            pane.data('current.%s' %partition_field,self.rootenv['current_%s' %partition_path],
                             serverpath='rootenv.current_%s' %partition_path,dbenv=True)
         pane.data('gnr.workdate', self.workdate)
         
@@ -166,8 +167,7 @@ class PublicBase(BaseComponent):
     def public_logo_full_img(self, pane, **kwargs):
         logo_url = self.db.application.getPreference('instance_data.logo_url', pkg='adm')
         kwargs['src'] = kwargs.get('logo_url') or logo_url
-        if logo_url:
-            return pane.img(**kwargs)
+        return pane.img(**kwargs)
 
     @struct_method
     def public_logo_favicon(self, pane, **kwargs):
