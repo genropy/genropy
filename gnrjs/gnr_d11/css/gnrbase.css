@@ -2472,14 +2472,31 @@ div.dojoxDock {
 }
 .index_loginbox .index_logintitle{
     font-variant:small-caps;
-    font-size:1.4em;
+    font-size:1.2em;
     padding-top:4px;
-
+    text-align: center;
 }
 
+.index_loginbox .index_loginsubtitle{
+    font-variant:small-caps;
+    font-size: .9em;
+    font-style: italic;
+}
+
+.login_option_btn{
+    color:gray;
+    font-size:12px;
+    height:15px;
+    cursor:pointer;
+    text-align:left;
+}
+.login_confirm_btn{
+    padding:2px;
+}
 ._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
     background: transparent;
     border: 0px;
+    padding:10px;
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
@@ -3503,7 +3520,18 @@ body *{
 
 /* @end */
 
+._common_d11 .loginDialog.lightboxDialog.dijitDialog{
+    box-shadow:none;
+    padding:0;
+}
 
+._common_d11 .loginDialog.lightboxDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+}
 
 .th_enableLinker .th_linkerField, .th_linkerAlwaysOpen .th_linkerField{
     display:block;

@@ -87,6 +87,8 @@ class AppPref(object):
     def _auth_messages(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.login_title',width='30em',lbl='Login title',)
+        fb.textbox(value='^.login_subtitle',width='30em',lbl='Login subtitle')
+
         fb.textbox(value='^.new_window_title',width='30em',lbl='New window title')
         fb.textbox(value='^.lost_password',width='30em',lbl='!!Lost password')
         fb.textbox(value='^.new_password',width='30em',lbl='New password')
@@ -94,6 +96,8 @@ class AppPref(object):
         fb.textbox(value='^.confirm_user_title',width='30em',lbl='Confirm user title')
         fb.textbox(value='^.confirm_user_message',width='30em',lbl='Confirm user message')
         fb.textbox(value='^.new_user_ok_message',width='30em',lbl='New user ok message')
+
+        fb.checkbox(value='^.login_flat',label='Flat login')
 
     def _adm_backups(self, pane):
         fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')

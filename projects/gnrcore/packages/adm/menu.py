@@ -1,6 +1,7 @@
 # encoding: utf-8
 class Menu(object):
     def config(self,root):
+        print(x)
         administration = root.branch(u"!!Administration", tags="admin")
         user_setup = administration.branch('!!Users setup')
         self.userSubmenu(user_setup)

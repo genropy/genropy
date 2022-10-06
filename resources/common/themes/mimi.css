@@ -1269,6 +1269,12 @@ body.tundra.mimi {
     background-color: #EDEDEE;
 }
 
+.mimi._common_d11 .lightboxDialog.loginDialog.dijitDialog{
+    padding: 0;
+    border:1px solid silver;
+    background:transparent;
+}
+
 .mimi._common_d11 .lightboxDialog.dijitDialog {
     padding: 2px;
     background: linear-gradient(to top, #efefef,white);;
@@ -1278,6 +1284,7 @@ body.tundra.mimi {
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
 }
+
 
 .dlg_alert.dijitDialog .dijitDialogPaneContent{
     background:linear-gradient(to top, #e4e4e4,white);

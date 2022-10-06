@@ -166,7 +166,8 @@ class PublicBase(BaseComponent):
     def public_logo_full_img(self, pane, **kwargs):
         logo_url = self.db.application.getPreference('instance_data.logo_url', pkg='adm')
         kwargs['src'] = kwargs.get('logo_url') or logo_url
-        return pane.img(**kwargs)
+        if logo_url:
+            return pane.img(**kwargs)
 
     @struct_method
     def public_logo_favicon(self, pane, **kwargs):
