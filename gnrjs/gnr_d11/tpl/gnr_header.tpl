@@ -1,7 +1,11 @@
 <!-- ================  Genropy Headers ================ -->
 <script type="text/javascript" src="${dojolib}" djConfig="${djConfig}"> </script>
 <script type="text/javascript">dojo.registerModulePath('gnr','${gnrModulePath}');</script>
-<link rel="manifest" crossorigin="use-credentials" href="/_site/pwa/manifest.json">
+% if pwa:
+    <link rel="manifest" crossorigin="use-credentials" href="/_site/pwa/manifest.json">
+    <script type="text/javascript" src="/_site/pwa/app.js"></script>
+% endif
+
 % if favicon:
      <link rel="icon" href="${favicon}" type="image/${favicon_ext}" />
      <link rel="apple-touch-icon" href="${favicon}" />

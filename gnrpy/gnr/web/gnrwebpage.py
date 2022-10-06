@@ -1115,6 +1115,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk else None
+        self.getPwaIntegration(arg_dict)
         self.getFaviconUrl(arg_dict)
         self.getLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
@@ -1172,6 +1173,11 @@ class GnrWebPage(GnrBaseWebPage):
         
         return arg_dict
     
+    def getPwaIntegration(self, arg_dict):
+        manifestNode = self.site.storageNode('site:pwa/manifest.json')
+        if manifestNode.exists:
+            arg_dict['pwa'] = True
+
     def getFaviconUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
         pref_favicon = self.getPreference('instance_data.favicon_url', pkg='adm')
