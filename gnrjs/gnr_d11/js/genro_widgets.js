@@ -4737,7 +4737,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var crop = objectExtract(attr, 'crop_*');
         var that = this;
         if(objectNotEmpty(crop)){
-            var innerImage=objectExtract(attr,'src,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
@@ -4819,14 +4819,15 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
                 attr[uploadhandler_key] = function(){
                     var elem = this;
+                    let src = sourceNode.getAttributeFromDatasource('src');
                     let uploadCb = function(){
                         elem.getValue().getNode('fakeinput').domNode.click();
                     };
-                    let tacePicCb = function(){
+                    let takePicCb = function(){
                         that.takePictureDialog(sourceNode);
                     };
-                    if(sourceNode.attr.edit=='camera'){
-                        that.uploadOptionsDialog(uploadCb,tacePicCb);
+                    if(uploadAttr.folder=='*' && (src || sourceNode.attr.edit=='camera')){
+                        that.uploadOptionsDialog(sourceNode,uploadCb,takePicCb);
                     }else{
                         uploadCb();
                     }
@@ -4855,24 +4856,84 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             });
         });
     },
-    uploadOptionsDialog:function(uploadCb,takePictureDialog){
+    uploadOptionsDialog:function(sourceNode,uploadCb,takePictureDialog){
         var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
         dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
         this.loadCroppie();
-        var slotbar = dlg.bottom._('slotBar',{slots:'*,upload,10,takePicture,5',
-                                               action:function(){
-                                                   dlg.close_action();
-                                                   if(this.attr.command=='upload'){
-                                                        uploadCb();
-                                                   }else{
-                                                        takePictureDialog();
-                                                   }
-                                                   
-                                               }});
+        let src = sourceNode.getAttributeFromDatasource('src');
+
+        var uploder = this;
+        var slotbar = dlg.bottom._('slotBar',{slots:'5,editCanvas,*,takePicture,5,upload,5',
+        action:function(){
+            dlg.close_action();
+            if(this.attr.command=='upload'){
+                 uploadCb();
+            }else if(this.attr.command=='takePicture'){
+                 takePictureDialog();
+            }else{
+                uploder.showCroppieDialog(sourceNode);
+            }
+            
+        }});
         slotbar._('button','upload',{label:'Upload',command:'upload'});
-        slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+        if(sourceNode.attr.edit=='camera'){
+            slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+        }
+        if(src){
+            slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+        }
         dlg.show_action();
+
      },
+     showCroppieDialog:function(sourceNode){
+        let frameCode = 'pd_'+sourceNode.getStringId();
+        var canvasNodeId = frameCode+'_canvas';
+        let clientWidth = sourceNode.domNode.clientWidth;
+        let clientHeight = sourceNode.domNode.clientHeight;
+        let boudaryWidth = clientWidth*2;
+        let boundaryHeight = clientHeight*2;
+        var dataUrl = sourceNode.getAttributeFromDatasource('src');
+        if(sourceNode.attr.src_back){
+            let backup = sourceNode.getAttributeFromDatasource('src_back');
+            dataUrl = backup || dataUrl;
+            if(!backup){
+                sourceNode.setAttributeInDatasource('src_back',dataUrl);
+            }
+        }
+        var dlg = genro.dlg.quickDialog(_T('Edit image'),{_showParent:true,_workspace:true,
+                                                    closable:true,width:boudaryWidth+40+'px',
+                                                    connect_show:function(){
+                                                        var cropPageSourceNode = genro.nodeById(frameCode+'_cropper');
+                                                        var croppie = new Croppie(cropPageSourceNode.widget.domNode, {
+                                                            url:dataUrl,
+                                                            boundary: {
+                                                                width: boudaryWidth,
+                                                                height: boundaryHeight
+                                                            },
+                                                            viewport:{
+                                                                width: clientWidth,
+                                                                height: clientHeight
+                                                            },
+                                                            showZoomer:true,
+                                                            enableOrientation:true
+                                                        });
+                                                        cropPageSourceNode._croppie = croppie;
+                                                    }});
+        var bc = dlg.center._('BorderContainer',{height:boundaryHeight+52+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
+        var cropPage = bc._('ContentPane',{region:'center',nodeId:frameCode+'_cropper'});
+        var slotbar = dlg.bottom._('slotBar',{slots:'*,5,confirmImage,5'});
+        slotbar._('button','confirmImage',{label:'Confirm',
+        action:function(){
+            cropPage.getParentNode()._croppie.result({
+                    'type':'base64'
+                }
+            ).then(function(dataUrl){
+                sourceNode.setAttributeInDatasource('src',dataUrl,true);
+                dlg.close_action();
+            })
+        }});
+        dlg.show_action();
+    },
 
 
      takePictureDialog:function(sourceNode){
