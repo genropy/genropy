@@ -32,7 +32,8 @@ class Service(HtmlToPdfService):
 
         pdf_kwargs.pop('page_height', None)
         pdf_kwargs.pop('page_width', None)
-
+        pdf_kwargs.pop('wk_legacy', None)
+        pdf_kwargs.pop('weasyprint', None)
         for k,v in list(pdf_kwargs.items()):
             if v is not False and v is not None and v!='':
                 args.append('--%s' %k.replace('_','-'))
