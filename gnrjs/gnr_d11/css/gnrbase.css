@@ -2481,6 +2481,7 @@ div.dojoxDock {
     font-variant:small-caps;
     font-size: .9em;
     font-style: italic;
+    text-align: center;
 }
 
 .login_option_btn{

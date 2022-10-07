@@ -4826,7 +4826,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                     let takePicCb = function(){
                         that.takePictureDialog(sourceNode);
                     };
-                    if(uploadAttr.folder=='*' && (src || sourceNode.attr.edit=='camera')){
+                    if(src || sourceNode.attr.edit=='camera'){
                         that.uploadOptionsDialog(sourceNode,uploadCb,takePicCb);
                     }else{
                         uploadCb();
@@ -4863,14 +4863,19 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         let src = sourceNode.getAttributeFromDatasource('src');
 
         var uploder = this;
-        var slotbar = dlg.bottom._('slotBar',{slots:'5,editCanvas,*,takePicture,5,upload,5',
+        var slotbar = dlg.bottom._('slotBar',{slots:'5,emptyValue,*,takePicture,editCanvas,upload,5',
         action:function(){
             dlg.close_action();
             if(this.attr.command=='upload'){
                  uploadCb();
             }else if(this.attr.command=='takePicture'){
                  takePictureDialog();
-            }else{
+            }else if(this.attr.command == 'emptyValue'){
+                sourceNode.setRelativeData(sourceNode.attr.src,null);
+                if(sourceNode.attr.src_back){
+                    sourceNode.setRelativeData(sourceNode.attr.src_back,null);
+                }
+            }else if(this.attr.command == 'editCanvas'){
                 uploder.showCroppieDialog(sourceNode);
             }
             
@@ -4880,7 +4885,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
         }
         if(src){
-            slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+                slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+            
+            slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
         }
         dlg.show_action();
 
@@ -4894,10 +4901,10 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         let boundaryHeight = clientHeight*2;
         var dataUrl = sourceNode.getAttributeFromDatasource('src');
         if(sourceNode.attr.src_back){
-            let backup = sourceNode.getAttributeFromDatasource('src_back');
+            let backup = sourceNode.getRelativeData(sourceNode.attr.src_back);
             dataUrl = backup || dataUrl;
             if(!backup){
-                sourceNode.setAttributeInDatasource('src_back',dataUrl);
+                sourceNode.setRelativeData(sourceNode.attr.src_back,dataUrl);
             }
         }
         var dlg = genro.dlg.quickDialog(_T('Edit image'),{_showParent:true,_workspace:true,

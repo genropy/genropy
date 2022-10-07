@@ -37,7 +37,7 @@ class LoginComponent(BaseComponent):
             dlg.div(_class='dlg_closebtn',connect_onclick='PUBLISH closeLogin;')
         login_title = self.loginPreference('login_title')
         logo_url = self.db.application.getPreference('instance_data.logo_url', pkg='adm')
-        new_window_title = self.loginPreference('login_subtitle')
+        new_window_title = self.loginPreference('new_window_title')
 
         if not logo_url:
             login_title = login_title or '!!Login'
@@ -425,7 +425,9 @@ class LoginComponent(BaseComponent):
 
     def loginPreference(self,path=None):
         if not hasattr(self,'_loginPreference'):
-            self._loginPreference = self.getPreference('general',pkg='adm') or Bag()
+            loginPreference = Bag(self.getPreference('general',pkg='adm'))
+            loginPreference.update(self.getPreference('gui_customization.login',pkg='adm'),ignoreNone=True)
+            self._loginPreference = loginPreference
         if not path:
             return self._loginPreference
         return self._loginPreference[path]

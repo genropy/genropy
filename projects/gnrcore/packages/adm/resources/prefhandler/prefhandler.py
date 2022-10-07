@@ -66,6 +66,84 @@ class AppPrefHandler(BasePreferenceTabs):
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
         self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
     
+
+    @struct_method
+    def ph_appGuiCustomization(self,parent,**kwargs):
+        tc = parent.tabContainer(**kwargs)
+        self._ph_appGuiCustomization_login(tc.tabContainer(title='!!Login personalizations',datapath='.login',margin='2px',tabPosition="left-h"))
+        self._ph_appGuiCustomization_ownerLogoAndName(tc.contentPane(title='!!Owner name and images',datapath='.owner'))
+        self._ph_appGuiCustomization_splashscreen(tc.contentPane(title='!!Splashscreen',datapath='.splashscreen'))
+        #tc.contentPane(title='Themes')
+
+    def _ph_appGuiCustomization_ownerLogoAndName(self, pane):
+        fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',
+                                                tdl_width='10em')
+        fb.textbox(value='^.owner_name', lbl='!!Owner name',livePreference=True)
+        fb.img(src='^.logo_url',src_back='.logo_original', 
+                        lbl='!!Logo image', 
+                        border='2px dotted silver',
+                        crop_width='478px',
+                        crop_height='100px',
+                        edit=True,
+                        placeholder=True,
+                        upload_folder='*')
+        fb.button('!![en]Remove', hidden='^.logo_url?=!#v').dataController("SET .logo_url = null;")
+        fb.img(src='^.favicon_url',
+                    src_back='.favicon_url_original',
+                     lbl='!!Favicon', 
+                        border='2px dotted silver',
+                        crop_width='256px',
+                        crop_height='256px',
+                        edit=True,
+                        placeholder=True,
+                        upload_filename='favicon',
+                        upload_folder='*')
+        fb.button('!![en]Remove', hidden='^.favicon_url?=!#v').dataController("SET .favicon_url = null;")
+
+
+    def _ph_appGuiCustomization_login(self,tc):
+        pane = tc.contentPane(title='Caption and messages')
+        fb = pane.formbuilder(cols=1,border_spacing='3px')
+
+        fb.textbox(value='^.login_title',width='30em',lbl='Login title',)
+        fb.textbox(value='^.login_subtitle',width='30em',lbl='Login subtitle')
+        fb.textbox(value='^.new_window_title',width='30em',lbl='New window title')
+        fb.textbox(value='^.lost_password',width='30em',lbl='!!Lost password')
+        fb.textbox(value='^.new_password',width='30em',lbl='New password')
+        fb.textbox(value='^.check_email',width='30em',lbl='Check email')
+        fb.textbox(value='^.confirm_user_title',width='30em',lbl='Confirm user title')
+        fb.textbox(value='^.confirm_user_message',width='30em',lbl='Confirm user message')
+        fb.textbox(value='^.new_user_ok_message',width='30em',lbl='New user ok message')
+        fb.checkbox(value='^.login_flat',label='Flat login')
+        self._auth_email_confirm_template(tc.borderContainer(title='!!Confirm user template'))
+        self._auth_new_password_template(tc.borderContainer(title='!!Confirm new password template'))
+
+    def _auth_email_confirm_template(self,bc):
+        fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
+        fb.dbSelect(value='^.tpl_userconfirm_id',lbl='!![en]Confirm user template',
+                        dbtable='adm.userobject',
+                        condition='$objtype=:tp AND $tbl=:searchtbl',
+                        condition_tp='template',
+                        condition_searchtbl='adm.user',
+                        hasDownArrow=True)
+        fb.textbox(value='^.confirm_user_subject',width='30em',lbl='!!Subject',
+                                                hidden='^.tpl_userconfirm_id')
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',editor=True)
+
+    def _auth_new_password_template(self,bc):
+        fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
+        fb.dbSelect(value='^.tpl_new_password_id',lbl='!![en]New password template',
+                        dbtable='adm.userobject',
+                        condition='$objtype=:tp AND $tbl=:searchtbl',
+                        condition_tp='template',
+                        condition_searchtbl='adm.user',
+                        hasDownArrow=True)
+        fb.textbox(value='^.confirm_password_subject',width='30em',lbl='!!Subject', hidden='^.tpl_new_password_id')
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True)
+
+    def _ph_appGuiCustomization_splashscreen(self,pane):
+        pass
+ 
 class UserPrefHandler(BasePreferenceTabs):
     py_requires='preference:UserPref,foundation/tools'
 
