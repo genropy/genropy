@@ -4737,16 +4737,20 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var crop = objectExtract(attr, 'crop_*');
         var that = this;
         if(objectNotEmpty(crop)){
+            crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
             var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
+            innerImage.height = innerImage.height || '100%';
+            
             innerImage['onerror'] = "this.sourceNode.setRelativeData(this.sourceNode.attr.src,null);"
             attr.tag = 'div';
             objectUpdate(attr,crop)
-            attr.overflow='hidden';
+            attr.cropper = true;
+            attr.text_align = 'center';
             sourceNode._(this._domtag,innerImage,{'doTrigger':false}) ;
         }else{
              var uploadAttr=objectExtract(attr,'upload_*');
@@ -4826,8 +4830,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                     let takePicCb = function(){
                         that.takePictureDialog(sourceNode);
                     };
-                    if(src || sourceNode.attr.edit=='camera'){
-                        that.uploadOptionsDialog(sourceNode,uploadCb,takePicCb);
+                    if(src || sourceNode.attr.takePicture){
+                        let cropSourceNode = sourceNode.getParentNode();
+                        let cropKw = {height:cropSourceNode.domNode.clientHeight,width:cropSourceNode.domNode.clientWidth};
+                        cropKw.boundaryRatio = cropAttr.boundaryRatio;
+                        that.uploadOptionsDialog(sourceNode,uploadCb,takePicCb,cropKw);
                     }else{
                         uploadCb();
                     }
@@ -4856,7 +4863,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             });
         });
     },
-    uploadOptionsDialog:function(sourceNode,uploadCb,takePictureDialog){
+    uploadOptionsDialog:function(sourceNode,uploadCb,takePictureDialog,cropkw){
         var dlg = genro.dlg.quickDialog(_T('Upload options'),{_showParent:true,width:'280px',closable:true});
         dlg.center._('div',{innerHTML:_T('Choose upload option'), text_align:'center',_class:'alertBodyMessage'});
         this.loadCroppie();
@@ -4876,29 +4883,29 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                     sourceNode.setRelativeData(sourceNode.attr.src_back,null);
                 }
             }else if(this.attr.command == 'editCanvas'){
-                uploder.showCroppieDialog(sourceNode);
+                uploder.showCroppieDialog(sourceNode,cropkw);
             }
             
         }});
         slotbar._('button','upload',{label:'Upload',command:'upload'});
-        if(sourceNode.attr.edit=='camera'){
+        if(sourceNode.attr.takePicture){
             slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
         }
         if(src){
-                slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
-            
+            slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
             slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
         }
         dlg.show_action();
 
      },
-     showCroppieDialog:function(sourceNode){
+     showCroppieDialog:function(sourceNode,cropkw){
         let frameCode = 'pd_'+sourceNode.getStringId();
-        var canvasNodeId = frameCode+'_canvas';
-        let clientWidth = sourceNode.domNode.clientWidth;
-        let clientHeight = sourceNode.domNode.clientHeight;
-        let boudaryWidth = clientWidth*2;
-        let boundaryHeight = clientHeight*2;
+        let boundaryRatio = cropkw.boundaryRatio || 2;
+        let boundaryHeight = cropkw.height * boundaryRatio;+ 40;
+        let boundaryWidth = cropkw.width * boundaryRatio;
+        let dialogHeight = boundaryHeight+ 60;
+        let dialogWidth = boundaryWidth+ 20;
+
         var dataUrl = sourceNode.getAttributeFromDatasource('src');
         if(sourceNode.attr.src_back){
             let backup = sourceNode.getRelativeData(sourceNode.attr.src_back);
@@ -4908,26 +4915,25 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             }
         }
         var dlg = genro.dlg.quickDialog(_T('Edit image'),{_showParent:true,_workspace:true,
-                                                    closable:true,width:boudaryWidth+40+'px',
+                                                    closable:true,width:dialogWidth+'px',
                                                     connect_show:function(){
                                                         var cropPageSourceNode = genro.nodeById(frameCode+'_cropper');
-                                                        var croppie = new Croppie(cropPageSourceNode.widget.domNode, {
+                                                        var croppie = new Croppie(cropPageSourceNode.domNode, {
                                                             url:dataUrl,
                                                             boundary: {
-                                                                width: boudaryWidth,
-                                                                height: boundaryHeight
+                                                                width: boundaryWidth,
+                                                                height:  boundaryHeight
                                                             },
                                                             viewport:{
-                                                                width: clientWidth,
-                                                                height: clientHeight
+                                                                width: cropkw.width,
+                                                                height: cropkw.height
                                                             },
                                                             showZoomer:true,
                                                             enableOrientation:true
                                                         });
                                                         cropPageSourceNode._croppie = croppie;
                                                     }});
-        var bc = dlg.center._('BorderContainer',{height:boundaryHeight+52+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
-        var cropPage = bc._('ContentPane',{region:'center',nodeId:frameCode+'_cropper'});
+        let cropPage = dlg.center._('div',{width:boundaryWidth+'px',height:(boundaryHeight+40)+'px',position:'relative',margin:'10px'})._('div',{nodeId:frameCode+'_cropper',position:'absolute',top:0,bottom:0,left:0,right:0});
         var slotbar = dlg.bottom._('slotBar',{slots:'*,5,confirmImage,5'});
         slotbar._('button','confirmImage',{label:'Confirm',
         action:function(){
@@ -5017,9 +5023,6 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         objectUpdate(attributes,this.decodeUrl(sourceNode,objectPop(attributes, 'src')));
         if ((!attributes.src) && ('placeholder' in sourceNode.attr )){
             attributes.src=sourceNode.getAttributeFromDatasource('placeholder');
-            if(sourceNode.attr.cr_height){
-                 attributes.style = "width:100%;height:100%";
-            }
         }
         return savedAttrs;
     },
@@ -5046,9 +5049,6 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var domnode = sourceNode.domNode;
         var src=sourceNode.getAttributeFromDatasource('placeholder');
         domnode.setAttribute('src',src);
-        if(sourceNode.attr.cr_height){
-            domnode.setAttribute('style',"width:100%;height:100%");
-        }
     },
     
     centerImage:function(sourceNode,cropAttr){

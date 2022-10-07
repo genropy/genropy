@@ -53,7 +53,6 @@ class AppPref(object):
         if 'email' in self.db.packages:
             fb.dbSelect(value='^.mail.email_account_id',lbl='Default smtp account',dbtable='email.account')
         #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
-
         bc.appGuiCustomization(region='center',margin='2px',datapath='.gui_customization')
        
 

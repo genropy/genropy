@@ -76,29 +76,28 @@ class AppPrefHandler(BasePreferenceTabs):
         #tc.contentPane(title='Themes')
 
     def _ph_appGuiCustomization_ownerLogoAndName(self, pane):
-        fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',
+        fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%',
                                                 tdl_width='10em')
-        fb.textbox(value='^.owner_name', lbl='!!Owner name',livePreference=True)
-        fb.img(src='^.logo_url',src_back='.logo_original', 
-                        lbl='!!Logo image', 
-                        border='2px dotted silver',
-                        crop_width='478px',
+        fb.textbox(value='^.owner_name', lbl='!!Owner name',livePreference=True,width='100%')
+        fb.img(src='^.cover_logo',src_back='.cover_logo_original', 
+                        lbl='!!Cover logo', 
+                        crop_border='2px dotted silver',
+                        crop_width='250px',
                         crop_height='100px',
                         edit=True,
                         placeholder=True,
                         upload_folder='*')
-        fb.button('!![en]Remove', hidden='^.logo_url?=!#v').dataController("SET .logo_url = null;")
-        fb.img(src='^.favicon_url',
-                    src_back='.favicon_url_original',
-                     lbl='!!Favicon', 
-                        border='2px dotted silver',
-                        crop_width='256px',
-                        crop_height='256px',
+        fb.img(src='^.square_logo',
+                    src_back='.square_logo_original',
+                     lbl='!!Square logo', 
+                        crop_border='2px dotted silver',
+                        crop_width='100px',
+                        crop_height='100px',
                         edit=True,
+                        takePicture=True,
                         placeholder=True,
                         upload_filename='favicon',
                         upload_folder='*')
-        fb.button('!![en]Remove', hidden='^.favicon_url?=!#v').dataController("SET .favicon_url = null;")
 
 
     def _ph_appGuiCustomization_login(self,tc):

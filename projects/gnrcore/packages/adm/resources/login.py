@@ -55,7 +55,7 @@ class LoginComponent(BaseComponent):
 
     def login_commonHeader(self,pane,title=None,subtitle=None):
         pane = pane.div(margin_top='10px')
-        pane.div(text_align='center').logo_full_img(height='30px')
+        pane.div(text_align='center').cover_logo(height='30px')
         if title:
             pane.div(title,_class='index_logintitle')
         if subtitle:
