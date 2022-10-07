@@ -426,7 +426,9 @@ class LoginComponent(BaseComponent):
     def loginPreference(self,path=None):
         if not hasattr(self,'_loginPreference'):
             loginPreference = Bag(self.getPreference('general',pkg='adm'))
-            loginPreference.update(self.getPreference('gui_customization.login',pkg='adm'),ignoreNone=True)
+            custom = self.getPreference('gui_customization.login',pkg='adm')
+            if custom:
+                loginPreference.update(custom,ignoreNone=True)
             self._loginPreference = loginPreference
         if not path:
             return self._loginPreference
