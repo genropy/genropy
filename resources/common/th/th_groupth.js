@@ -313,6 +313,7 @@ var genro_plugin_groupth = {
                 result.cell_group_aggr = false;
             }
             grid.addColumn(result, column,fieldcellattr);
+            grid.sourceNode.publish('group_added_column',{column:column});
         };
         genro.dlg.prompt(_T('Add column'),promptkw);
         
