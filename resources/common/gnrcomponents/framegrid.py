@@ -292,7 +292,14 @@ class FrameGridTools(BaseComponent):
             }}else{{
                 groupedStore.store.loadData();
             }}
-    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        gth.grid.attributes['selfsubscribe_group_added_column'] = f"""
+            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
+            if(groupedStore.store.storeType!='VirtualSelection'){{
+                console.log('reload_grouper');
+                genro.nodeById('{groupedTh}_frame').fireEvent('.reloadGrouper',{{_addedColumn:$1.column}});
+            }}
+        """
 
         pane.dataController(f"""
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
