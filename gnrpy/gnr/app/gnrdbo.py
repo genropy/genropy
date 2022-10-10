@@ -342,6 +342,7 @@ class TableBase(object):
                             group='*',_sysfield=True,size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
                                                     mode='foreignkey',one_name='!![en]Root',
                                                     many_name='!![en]Grandchildren',
+                                                    deferred=True,
                                                     onDelete='ignore')
             if hierarchical_virtual_roots:
                 tbl.column('_virtual_node',dtype='B',name_lomg="!![en]H.Virtual node",copyFromParent=True)
