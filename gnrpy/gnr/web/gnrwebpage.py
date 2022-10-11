@@ -518,8 +518,8 @@ class GnrWebPage(GnrBaseWebPage):
         auth = AUTH_OK
         if method not in ('doLogin', 'onClosePage'):
             auth = self._checkAuth(method=method, **kwargs)
-            if auth == AUTH_OK:
-                auth = self._checkRootPage()
+            #if auth == AUTH_OK:
+            #    auth = self._checkRootPage()
         try:
             self.db #init db property with env
             result = self.rpc(method=method, _auth=auth, **kwargs)
@@ -2109,6 +2109,7 @@ class GnrWebPage(GnrBaseWebPage):
                             _onStart=True,openMenu=pageOptions.get('openMenu',True))               
         
         if _auth == AUTH_OK:
+            _auth = self._checkRootPage()
             main_call = kwargs.pop('main_call', None)
             if main_call:
                 main_handler = self.getPublicMethod('rpc',main_call) 

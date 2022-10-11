@@ -194,22 +194,30 @@ dojo.declare("gnr.widgets.MenuDiv", gnr.widgets.gnrwdg, {
             //not well implemented
             box._('div',objectUpdate({innerHTML:label,display:'inline-block'},objectExtract(kw,'label_*')));
         }
-        else if(iconClass){
-            box._('div',{_class:iconClass});
-        }else if(value){
+        if(value){
             let styleKw = genro.dom.getStyleDict(kw);
             let sourceStyleKw = {};
             for(let k in styleKw){
                 sourceStyleKw[k.replace('-','_')] = styleKw[k];
             }
-            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:colorWhite?'menudiv_text menudiv_text_white':'menudiv_text'},sourceStyleKw));
+            let _class;
+            if(!iconClass){
+                _class = colorWhite?'menudiv_text menudiv_text_white':'menudiv_text';
+            }
+            box = box._('div',objectUpdate({font_weight:'bold',cursor:'pointer',_class:_class},sourceStyleKw));
             let value_path = value.slice(1);
             let caption_path = objectPop(kw,'caption_path') || `${value_path}?label`;
             let key = objectPop(kw,'key') || 'fullpath';
             let caption = objectPop(kw,'caption') || 'caption';
             let placeholder = objectPop(kw,'placeholder') || 'Empty';
-            box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
+            if(!iconClass){
+                box._('div',{innerHTML:`^${caption_path}?=#v||'${placeholder}'`});
+            }else{
+                box._('div',{_class:iconClass});
+            }
             kw.action = `this.setRelativeData('${value_path}',$1['${key}']);this.setRelativeData('${caption_path}',$1['${caption}'] || $1.label);`;
+        }else if(iconClass){
+            box._('div',{_class:iconClass});
         }
 
         kw._class = kw._class || 'smallmenu';
