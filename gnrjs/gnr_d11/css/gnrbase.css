@@ -3022,10 +3022,11 @@ body *{
     margin-right:22px;
 }
 
+/*
 .dijitTextBoxReadOnly.dijitReadOnly .comboArrow{
     display: none;
 }
-
+*/
 
 .tundra .dijitTextBoxFocused .formattedTextBox input, .tundra .dijitTextBoxActive .formattedTextBox input{
     min-width:90% !important;
