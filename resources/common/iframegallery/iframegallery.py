@@ -22,8 +22,10 @@ class IframeGallery(BaseComponent):
         pages = Bag()        
         mainbar.username.div(width='15em').div(self.user,font_weight='bold',text_align='right')
         box = mainbar.stackSwitch.div(width='15em')
-        box.div(width='20px').menudiv(value='^main.currentPage',storepath='main.availablePages',
-                                caption_path='main.currentPageTitle',iconClass='iconbox application_menu')
+        box.div(width='20px').menudiv(storepath='main.availablePages',
+                                selected_caption='main.currentPageTitle',
+                                selected_code='main.currentPage',
+                                iconClass='iconbox application_menu')
         mainbar.currentPageTitle.div('^main.currentPageTitle')
         mainsc = frame.center.stackContainer(selectedPage='^main.currentPage')
         for idx,conf in enumerate(configuration):

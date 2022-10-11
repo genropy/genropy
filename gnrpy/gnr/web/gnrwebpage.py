@@ -2127,7 +2127,6 @@ class GnrWebPage(GnrBaseWebPage):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth==AUTH_OK:
             _auth = self._checkRootPage()
-        print('_auth',_auth)
         if self.avatar:
             page.data('gnr.avatar', Bag(self.avatar.as_dict()))
         page.data('gnr.rootenv',self.rootenv)
