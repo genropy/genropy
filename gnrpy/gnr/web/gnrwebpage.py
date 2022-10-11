@@ -566,7 +566,8 @@ class GnrWebPage(GnrBaseWebPage):
     def _checkRootPage(self):
         if self.root_page_id or not self.avatar or not self.avatar.avatar_rootpage:
             return AUTH_OK
-        return AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        return result
         
     def pageAuthTags(self,method=None,**kwargs):
         return getattr(self,'auth_%s' %method,self.defaultAuthTags if method=='main' else None)
@@ -2109,7 +2110,7 @@ class GnrWebPage(GnrBaseWebPage):
                             _onStart=True,openMenu=pageOptions.get('openMenu',True))               
         
         if _auth == AUTH_OK:
-            _auth = self._checkRootPage()
+            
             main_call = kwargs.pop('main_call', None)
             if main_call:
                 main_handler = self.getPublicMethod('rpc',main_call) 
@@ -2124,6 +2125,9 @@ class GnrWebPage(GnrBaseWebPage):
             self.onMainCalls()
             if hasattr(self,'deferredMainPageAuthTags'):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
+        if _auth==AUTH_OK:
+            _auth = self._checkRootPage()
+        print('_auth',_auth)
         if self.avatar:
             page.data('gnr.avatar', Bag(self.avatar.as_dict()))
         page.data('gnr.rootenv',self.rootenv)
