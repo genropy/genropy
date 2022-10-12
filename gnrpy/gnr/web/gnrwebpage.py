@@ -1116,8 +1116,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk else None
         self.getPwaIntegration(arg_dict)
-        self.getFaviconUrl(arg_dict)
-        self.getLogoUrl(arg_dict)
+        self.getSquareLogoUrl(arg_dict)
+        self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
@@ -1178,25 +1178,26 @@ class GnrWebPage(GnrBaseWebPage):
         if manifestNode.exists:
             arg_dict['pwa'] = True
 
-    def getFaviconUrl(self, arg_dict):
+    def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
-        pref_favicon = self.getPreference('instance_data.favicon_url', pkg='adm')
+        pref_favicon = self.getPreference('gui_customization.owner.square_logo', pkg='adm')
         if not site_favicon and pref_favicon:
             arg_dict['favicon'] = pref_favicon
         elif not pref_favicon and site_favicon:
             arg_dict['favicon'] = self.site.getStaticUrl('site:favicon',site_favicon)
         else:
-            arg_dict['favicon'] = '_rsrc/common/icons/favicon.png'
-        arg_dict['favicon_ext'] = arg_dict['favicon'].split('.')[1]
+            arg_dict['favicon'] = self.getResourceUri('app_images/square_logo.svg',add_mtime=self.isDeveloper())
         return arg_dict
 
-    def getLogoUrl(self, arg_dict):
-        logo_url = self.getPreference('instance_data.logo_url', pkg='adm')
+    def getCoverLogoUrl(self, arg_dict):
+        logo_url = self.getPreference('gui_customization.owner.cover_logo', pkg='adm')
         clientlogo = self.site.storageNode(self.site.site_path,'/img/logo/clientlogo.png').exists
         if logo_url:
             arg_dict['logo_url'] = logo_url
         elif clientlogo:
             arg_dict['logo_url'] = '/_site/img/logo/clientlogo.png'
+        else:
+            arg_dict['logo_url'] = self.getResourceUri('app_images/cover_logo.svg',add_mtime=self.isDeveloper())
         return arg_dict
 
     def getGoogleFonts(self, arg_dict):

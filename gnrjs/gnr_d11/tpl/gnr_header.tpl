@@ -7,7 +7,7 @@
 % endif
 
 % if favicon:
-     <link rel="icon" href="${favicon}" type="image/${favicon_ext}" />
+     <link rel="icon" href="${favicon}" />
      <link rel="apple-touch-icon" href="${favicon}" />
 % endif
 % if google_fonts:
