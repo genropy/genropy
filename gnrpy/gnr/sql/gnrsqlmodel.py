@@ -556,7 +556,7 @@ class DbModelSrc(GnrStructData):
         :returns: an aliasColumn
         """
         return self.virtual_column(name, sql_formula=bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype), 
-                                dtype=dtype, **kwargs)
+                                dtype=dtype, bagcolumn=bagcolumn, itempath=itempath, **kwargs)
 
         
     def formulaColumn(self, name, sql_formula=None,select=None, exists=None,dtype='A', **kwargs):
