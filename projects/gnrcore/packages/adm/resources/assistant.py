@@ -4,10 +4,13 @@ from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class Assistant(BaseComponent):
-    
-    def getAssistantPages(self):
-        assistant_handlers = objectExtract(self,'assistant_')
-        result = Bag()
-        for key in sorted(assistant_handlers.keys()):
-            result.addItem(key,None,code=key,caption=assistant_handlers[key].__doc__)
+    py_requires = 'iframegallery/iframegallery:IframeGallery'
+
+    def configuration(self):
+        handlers = objectExtract(self,'assistant_')
+        result = []
+        for key in sorted(handlers.keys()):
+            kw = dict(handlers[key]())
+            kw.setdefault('pageName',key)
+            result.append(kw)
         return result

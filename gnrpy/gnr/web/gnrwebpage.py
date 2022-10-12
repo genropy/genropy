@@ -518,8 +518,8 @@ class GnrWebPage(GnrBaseWebPage):
         auth = AUTH_OK
         if method not in ('doLogin', 'onClosePage'):
             auth = self._checkAuth(method=method, **kwargs)
-            if auth == AUTH_OK:
-                auth = self._checkRootPage()
+            #if auth == AUTH_OK:
+            #    auth = self._checkRootPage()
         try:
             self.db #init db property with env
             result = self.rpc(method=method, _auth=auth, **kwargs)
@@ -566,7 +566,8 @@ class GnrWebPage(GnrBaseWebPage):
     def _checkRootPage(self):
         if self.root_page_id or not self.avatar or not self.avatar.avatar_rootpage:
             return AUTH_OK
-        return AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        return result
         
     def pageAuthTags(self,method=None,**kwargs):
         return getattr(self,'auth_%s' %method,self.defaultAuthTags if method=='main' else None)
@@ -1116,8 +1117,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk else None
         self.getPwaIntegration(arg_dict)
-        self.getFaviconUrl(arg_dict)
-        self.getLogoUrl(arg_dict)
+        self.getSquareLogoUrl(arg_dict)
+        self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
@@ -1178,25 +1179,26 @@ class GnrWebPage(GnrBaseWebPage):
         if manifestNode.exists:
             arg_dict['pwa'] = True
 
-    def getFaviconUrl(self, arg_dict):
+    def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
-        pref_favicon = self.getPreference('instance_data.favicon_url', pkg='adm')
+        pref_favicon = self.getPreference('gui_customization.owner.square_logo', pkg='adm')
         if not site_favicon and pref_favicon:
             arg_dict['favicon'] = pref_favicon
         elif not pref_favicon and site_favicon:
             arg_dict['favicon'] = self.site.getStaticUrl('site:favicon',site_favicon)
         else:
-            arg_dict['favicon'] = '_rsrc/common/icons/favicon.png'
-        arg_dict['favicon_ext'] = arg_dict['favicon'].split('.')[1]
+            arg_dict['favicon'] = self.getResourceUri('app_images/square_logo.svg',add_mtime=self.isDeveloper())
         return arg_dict
 
-    def getLogoUrl(self, arg_dict):
-        logo_url = self.getPreference('instance_data.logo_url', pkg='adm')
+    def getCoverLogoUrl(self, arg_dict):
+        logo_url = self.getPreference('gui_customization.owner.cover_logo', pkg='adm')
         clientlogo = self.site.storageNode(self.site.site_path,'/img/logo/clientlogo.png').exists
         if logo_url:
             arg_dict['logo_url'] = logo_url
         elif clientlogo:
             arg_dict['logo_url'] = '/_site/img/logo/clientlogo.png'
+        else:
+            arg_dict['logo_url'] = self.getResourceUri('app_images/cover_logo.svg',add_mtime=self.isDeveloper())
         return arg_dict
 
     def getGoogleFonts(self, arg_dict):
@@ -2106,8 +2108,9 @@ class GnrWebPage(GnrBaseWebPage):
                                     genro.publish({parent:true,topic:'setIndexLeftStatus'},openMenu);
                                }
                                """,
-                            _onStart=True,openMenu=pageOptions.get('openMenu',True))               
-        
+                            _onStart=True,openMenu=pageOptions.get('openMenu',True))   
+        if _auth == AUTH_OK:            
+            _auth = self._checkRootPage()
         if _auth == AUTH_OK:
             main_call = kwargs.pop('main_call', None)
             if main_call:
@@ -2123,6 +2126,18 @@ class GnrWebPage(GnrBaseWebPage):
             self.onMainCalls()
             if hasattr(self,'deferredMainPageAuthTags'):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
+        if _auth == AUTH_NOT_LOGGED:
+            root.clear()
+            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
+            self.loginDialog(root, **kwargs)
+        elif _auth == AUTH_FORBIDDEN:
+            redirect = self.forbiddenRedirectPage
+            if redirect:
+                return (page,dict(redirect=redirect))
+            root.clear()
+            self.forbiddenPage(root, **kwargs)
+        if not self.isGuest:
+            self.site.pageLog('open')
         if self.avatar:
             page.data('gnr.avatar', Bag(self.avatar.as_dict()))
         page.data('gnr.rootenv',self.rootenv)
@@ -2143,20 +2158,8 @@ class GnrWebPage(GnrBaseWebPage):
                             polling_enabled="^gnr.polling.polling_enabled",
                             _init=True)
         if self._pendingContext:
-            self.site.register.setPendingContext(self.page_id,self._pendingContext,register_name='page')                        
-        if not self.isGuest:
-            self.site.pageLog('open')
+            self.site.register.setPendingContext(self.page_id,self._pendingContext,register_name='page')            
 
-        if _auth == AUTH_NOT_LOGGED:
-            root.clear()
-            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
-            self.loginDialog(root, **kwargs)
-        elif _auth == AUTH_FORBIDDEN:
-            redirect = self.forbiddenRedirectPage
-            if redirect:
-                return (page,dict(redirect=redirect))
-            root.clear()
-            self.forbiddenPage(root, **kwargs)
         #if self.wsk:
         #    page_item_data = self.page_item['data']
         #    page_info = page_item_data['page_info']

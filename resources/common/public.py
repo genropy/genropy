@@ -165,7 +165,7 @@ class PublicBase(BaseComponent):
 
     @struct_method
     def public_cover_logo(self, pane, **kwargs): 
-        default_cover_logo = self.getResourceUri('app_images/cover_logo.png',add_mtime=self.isDeveloper())
+        default_cover_logo = self.getResourceUri('app_images/cover_logo.svg',add_mtime=self.isDeveloper())
         cover_logo = self.db.application.getPreference('gui_customization.owner.cover_logo', pkg='adm') 
         kwargs['src'] = cover_logo or default_cover_logo
         return pane.img(**kwargs)
@@ -173,7 +173,7 @@ class PublicBase(BaseComponent):
 
     @struct_method
     def public_square_logo(self, pane, **kwargs): 
-        default_square_logo = self.getResourceUri('app_images/square_logo.png',add_mtime=self.isDeveloper())
+        default_square_logo = self.getResourceUri('app_images/square_logo.svg',add_mtime=self.isDeveloper())
         square_logo = self.db.application.getPreference('gui_customization.owner.square_logo', pkg='adm') 
         kwargs['src'] = square_logo or default_square_logo
         return pane.img(**kwargs)
