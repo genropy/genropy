@@ -3778,6 +3778,11 @@ body *{
     opacity: 1;
 }
 
+.draggingElement{
+    /*chrome 106 bug it will be fixed in 108 */
+    transform: translate(0, 0);
+    z-index: 0;
+}
 /* @end */
 
 /* @group drag drop */
