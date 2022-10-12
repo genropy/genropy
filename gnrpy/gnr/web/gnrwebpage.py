@@ -2107,10 +2107,10 @@ class GnrWebPage(GnrBaseWebPage):
                                     genro.publish({parent:true,topic:'setIndexLeftStatus'},openMenu);
                                }
                                """,
-                            _onStart=True,openMenu=pageOptions.get('openMenu',True))               
-        
+                            _onStart=True,openMenu=pageOptions.get('openMenu',True))   
+        if _auth == AUTH_OK:            
+            _auth = self._checkRootPage()
         if _auth == AUTH_OK:
-            
             main_call = kwargs.pop('main_call', None)
             if main_call:
                 main_handler = self.getPublicMethod('rpc',main_call) 
@@ -2125,9 +2125,6 @@ class GnrWebPage(GnrBaseWebPage):
             self.onMainCalls()
             if hasattr(self,'deferredMainPageAuthTags'):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
-        if _auth==AUTH_OK:
-            _auth = self._checkRootPage()
-                    
         if _auth == AUTH_NOT_LOGGED:
             root.clear()
             self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
@@ -2138,7 +2135,6 @@ class GnrWebPage(GnrBaseWebPage):
                 return (page,dict(redirect=redirect))
             root.clear()
             self.forbiddenPage(root, **kwargs)
-            
         if not self.isGuest:
             self.site.pageLog('open')
         if self.avatar:
