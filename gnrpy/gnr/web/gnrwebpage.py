@@ -2127,6 +2127,20 @@ class GnrWebPage(GnrBaseWebPage):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth==AUTH_OK:
             _auth = self._checkRootPage()
+                    
+        if _auth == AUTH_NOT_LOGGED:
+            root.clear()
+            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
+            self.loginDialog(root, **kwargs)
+        elif _auth == AUTH_FORBIDDEN:
+            redirect = self.forbiddenRedirectPage
+            if redirect:
+                return (page,dict(redirect=redirect))
+            root.clear()
+            self.forbiddenPage(root, **kwargs)
+            
+        if not self.isGuest:
+            self.site.pageLog('open')
         if self.avatar:
             page.data('gnr.avatar', Bag(self.avatar.as_dict()))
         page.data('gnr.rootenv',self.rootenv)
@@ -2147,20 +2161,8 @@ class GnrWebPage(GnrBaseWebPage):
                             polling_enabled="^gnr.polling.polling_enabled",
                             _init=True)
         if self._pendingContext:
-            self.site.register.setPendingContext(self.page_id,self._pendingContext,register_name='page')                        
-        if not self.isGuest:
-            self.site.pageLog('open')
+            self.site.register.setPendingContext(self.page_id,self._pendingContext,register_name='page')            
 
-        if _auth == AUTH_NOT_LOGGED:
-            root.clear()
-            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
-            self.loginDialog(root, **kwargs)
-        elif _auth == AUTH_FORBIDDEN:
-            redirect = self.forbiddenRedirectPage
-            if redirect:
-                return (page,dict(redirect=redirect))
-            root.clear()
-            self.forbiddenPage(root, **kwargs)
         #if self.wsk:
         #    page_item_data = self.page_item['data']
         #    page_info = page_item_data['page_info']
