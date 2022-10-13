@@ -25,8 +25,16 @@ class Table(object):
         tbl.column('group', name_long='Group', batch_assign=True)
     
         tbl.column('multidb', name_long='Multi DB', values='*:Replicated on all databases,one:Replicated on one specific database,true:Only subscripted records')
+        tbl.column('legacy_count',dtype='L',name_long='Leg.Count')
         tbl.aliasColumn('legacy_db','@lg_pkg.legacy_db',static=True)
         tbl.aliasColumn('legacy_schema','@lg_pkg.legacy_schema',static=True)
+        tbl.formulaColumn('full_name',"$lg_pkg || '.'|| $name",static=True)
+        tbl.formulaColumn('n_columns',dtype='L',
+            select=dict(table='lgdb.lg_column',
+            columns='COUNT(*)', where='$lg_table_id = #THIS.id'),
+            name_long='!!N.Column')
+        
+
 
     @public_method
     def importTable(self, pkg_code=None,  tblobj=None, import_mode=None):
@@ -53,11 +61,45 @@ class Table(object):
 
         for col_obj in tblobj.columns.values():
             self.db.table('lgdb.lg_column').importColumn(tbl_record['id'], col_obj, import_mode=None)
-            
 
-    @public_method(caption='Import columns and relations')
-    def actionMenu_importColumns(self,pkey=None,selectedPkeys=None,**kwargs):
-        selectedPkeys = selectedPkeys or [pkey]
+
+    @public_method(caption='Update legacy count',_lockScreen=dict(thermo=True))
+    def actionMenu_updateLegacyCount(self,pkey=None,selectedPkeys=None,
+                    selectionName=None,selectedRowidx=None,**kwargs):   
+        if selectionName:
+            selection = self.db.currentPage.getUserSelection(selectionName=selectionName,
+                                                    selectedRowidx=selectedRowidx, 
+                                                    table=self)
+            selectedPkeys = selection.output('pkeylist')
+        f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys,for_update=True).fetch()  
+        legacy_db = f[0]['legacy_db']
+        legacy_schema = f[0]['legacy_schema']
+        if not legacy_db:
+            return
+        extdb = self.db.table('lgdb.lg_pkg').getLegacyDb(legacy_db)
+        for tbl in self.db.quickThermo(f,labelfield='tbl',
+                                        title='get count',
+                                        maxidx=len(f)):
+            self._updateLegCount(extdb,legacy_schema,tbl)
+            self.db.commit()
+    
+    def _updateLegCount(self,extdb,legacy_schema,tbl):
+        f = extdb.execute("""SELECT COUNT(*) AS "cnt" FROM {}""".format(tbl['name'])).fetchall()
+        cnt = 0 if not f else f[0]['cnt']
+        oldtbl = dict(tbl)
+        tbl['legacy_count'] = cnt
+        self.update(tbl,oldtbl)
+
+    @public_method(caption='Import columns and relations',_lockScreen=dict(thermo=True))
+    def actionMenu_importColumns(self,pkey=None,selectedPkeys=None,
+                    selectionName=None,selectedRowidx=None,**kwargs):
+        if selectionName:
+            selection = self.db.currentPage.getUserSelection(selectionName=selectionName,
+                                                    selectedRowidx=selectedRowidx, 
+                                                    table=self)
+            selectedPkeys = selection.output('pkeylist')
+        else:
+            selectedPkeys = selectedPkeys or [pkey]
         f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys).fetch()
         legacy_db = f[0]['legacy_db']
         legacy_schema = f[0]['legacy_schema']
@@ -65,9 +107,12 @@ class Table(object):
             return
         extdb = self.db.table('lgdb.lg_pkg').getLegacyDb(legacy_db)
         tblpkeys = []
-        for tbl in f:
+        for tbl in self.db.quickThermo(f,labelfield='tbl',
+                                        title='get count',
+                                        maxidx=len(f)):
             self._importColumnsFromTbl(extdb,legacy_schema,tbl)
             tblpkeys.append(tbl['id'])
+            self.db.commit()
         lg_rel_tbl = self.db.table('lgdb.lg_relation')
         lg_columns = self.db.table('lgdb.lg_column').query(where='$lg_table_id IN :tblpkeys',
                                                             tblpkeys=tblpkeys).fetchAsDict('full_name')
@@ -89,7 +134,7 @@ class Table(object):
     
     def _importColumnsFromTbl(self,extdb,legacy_schema,tbl):
         tbl_name = tbl['name']
-        columns = list(extdb.adapter.getColInfo(schema=legacy_schema, table=tbl_name)) 
+        columns = list(extdb.adapter.getColInfo(schema=legacy_schema, table=tbl_name))
         gnrlist.sortByItem(columns, 'position')
         lg_column = self.db.table('lgdb.lg_column')
         lg_column.deleteSelection('lg_table_id',tbl['id'])
@@ -98,14 +143,17 @@ class Table(object):
             colname = col_dict.pop('name')
             length = col_dict.pop('length', 0)
             decimals = col_dict.pop('decimals', 0)
+            description = col_dict.pop('description', None)
             dtype = col_dict['dtype']
-            if dtype == 'A':
+            if dtype == 'A' and length>0:
                 col_dict['size'] = '0:%s' % length
             elif dtype == 'C':
                 col_dict['dtype'] = 'A'
                 col_dict['size'] = length
-            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],
-                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=legacy_schema,tbl=tbl_name,name=colname),
+            colname = colname.lower()
+            colname = colname.replace(' ','_').replace('.','_')
+            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],size=col_dict.get('size'), description=description,
+                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=tbl['lg_pkg'],tbl=tbl_name,name=colname),
                                                 lg_table_id=tbl['id']))
 
 

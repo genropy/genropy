@@ -39,6 +39,32 @@ var th_view_batch_caller = function(kw){
     }
    
 };
+var th_handle_rpcmenu = function(sourceNode,rpcmethod,kw){
+    kw._sourceNode = sourceNode;
+    var onResult,onCalling,lockScreen;
+    lockScreen = objectPop(kw,'_lockScreen');
+    if (kw._onResult) {
+        onResult = funcCreate(objectPop(kw,'_onResult'), 'result,kwargs,old', this);
+    }
+    if (kw._onCalling) {
+        onCalling = funcCreate(objectPop(kw,'_onCalling'), 'kwargs', this);
+    }
+    
+    if(onCalling){
+        onCalling(kw);
+    }
+    if(lockScreen){
+        genro.lockScreen(true,sourceNode.getStringId(),lockScreen);
+    }
+    return genro.serverCall(rpcmethod,kw,function(result){
+        if(onResult){
+            onResult(result,kw);
+        }
+        if(lockScreen){
+            genro.lockScreen(false,sourceNode.getStringId());
+        }
+    });
+}
 
 var th_usersettings = function(th){
     var attr = th.attr;

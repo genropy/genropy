@@ -22,6 +22,14 @@ class Table(object):
         tbl.column('description', name_long='Description')
         tbl.column('notes', name_long='Notes')
         tbl.column('group', name_long='Group', batch_assign=True)
+        tbl.column('size', size=':10', name_long='Colsize')
+        tbl.formulaColumn('n_outgoing',select=dict(columns='COUNT(*)',
+                                                table='lgdb.lg_relation',
+                                                where='$relation_column=#THIS.full_name'))
+        tbl.formulaColumn('n_incoming',select=dict(columns='COUNT(*)',
+                                                table='lgdb.lg_relation',
+                                                where='$related_column=#THIS.full_name'))
+        tbl.aliasColumn('table_sqlname','@lg_table_id.sqlname',static=True)
 
 
     def importColumn(self, tbl_id, colobj, import_mode=None):

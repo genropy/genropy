@@ -436,11 +436,14 @@ class TableHandlerGroupBy(BaseComponent):
                     empty_placeholders[colgetter] = group_empty
                     group_list_keys.append(colgetter)
             columns_list.append(col)
-        columns_list.append('count(*) AS _grp_count_sum')
+        columns_list.append('count(*) AS "_grp_count_sum"')
         if not group_list:
             return False
         if keep_pkeys:
-            pkeylist_column = self.db.adapter.string_agg(f'CAST(${self.db.table(table).pkey} AS TEXT)',',')
+            tblobj = self.db.table(table)
+            with self.db.tempEnv(currentImplementation=tblobj.dbImplementation):
+                castcol = self.db.adapter.cast_to_varchar(f'${tblobj.pkey}')
+                pkeylist_column = self.db.adapter.string_agg(castcol,',')
             columns_list.append(f"{pkeylist_column} AS _pkeylist")
         kwargs['columns'] = ','.join(columns_list)
         kwargs['group_by'] = ','.join(group_list)

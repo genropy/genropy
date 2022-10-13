@@ -43,6 +43,7 @@ class Main(BaseResourceAction):
         table_data = Bag()
         table_data['name'] = tbl['name'].lower().replace(' ','_').replace('.','_')
         table_data['legacy_name'] = tbl['sqlname']
+        table_data['name_long'] = tbl['description']
         table_data['sqlname'] = tbl['sqlname']
         table_data['legacy_db'] = tbl['legacy_db']
         pkey = tbl['primary_key']
@@ -60,8 +61,8 @@ class Main(BaseResourceAction):
             dtype=colrec.get('data_type')
             if not caption_field and dtype in ('A','T','C') and colname!=pkey:
                 caption_field = colname
-            b = Bag(dict(name=colname,legacy_name=legacy_name,
-                                                name_long=None,dtype=dtype,
+            b = Bag(dict(name=colname,legacy_name=legacy_name,sqlname=legacy_name,
+                                                name_long=colrec.get('description'),dtype=dtype,
                                                 size=str(colrec.get('size')) if colrec.get('size') else None,
                                                 indexed=colrec.get('indexed'),
                                                 unique=colrec.get('unique')))
@@ -126,7 +127,7 @@ class Main(BaseResourceAction):
         for k,v in arguments.items():
             if v in ('',None):
                 continue
-            if isinstance(v,basestring):
+            if isinstance(v,str):
                 v = ("'%s'" if not "'" in v else 'u"%s"') %v
             elif isinstance(v, Bag):
                 v = "dict(%s)" %self.bagToArgString(v,prefix='')

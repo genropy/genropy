@@ -399,22 +399,9 @@ class TableHandlerForm(BaseComponent):
                                     objectUpdate(kw,_askResult);
                                 }
                                 if(menuattr.rpcmethod){
-                                    objectUpdate(kw,objectExtract($1,'rpc_*',true));
-                                    kw._sourceNode = sourceNode;
-                                    if(onCalling){
-                                        onCalling(kw);
-                                    }
-                                    if(menuattr.lockScreen){
-                                        genro.lockScreen(true,sourceNode.getStringId(),menuattr.lockScreen);
-                                    }
-                                    return genro.serverCall(menuattr.rpcmethod,kw,function(result){
-                                        if(onResult){
-                                            onResult(result,kw);
-                                        }
-                                        if(menuattr.lockScreen){
-                                            genro.lockScreen(false,sourceNode.getStringId());
-                                        }
-                                    });
+                                    objectUpdate(kw,objectExtract(menuattr,'rpc_*',true));
+                                    objectUpdate(kw,objectExtract(menuattr,'_lockScreen,_onCalling,_onResult',true));
+                                    return th_handle_rpcmenu(sourceNode,menuattr.rpcmethod,kw);
                                 }
                                 kw.resource = menuattr.resource;
                                 if(menuattr.template_id){

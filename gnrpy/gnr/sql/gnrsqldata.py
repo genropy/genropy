@@ -272,7 +272,7 @@ class SqlQueryCompiler(object):
             else:
                 raise GnrSqlMissingColumn('Invalid column %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
-        return '%s.%s' % (alias, curr_tblobj.column(fld).adapted_sqlname)
+        return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
         
     def _findRelationAlias(self, pathlist, curr, basealias, newpath):
         """Internal method: called by getFieldAlias to get the alias (t1, t2...) for the join table.
@@ -341,8 +341,7 @@ class SqlQueryCompiler(object):
         if (joiner.get('case_insensitive', False) == 'Y'):
             cnd = 'lower(%s.%s) = lower(%s.%s)' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
         else:
-            cnd = '%s.%s = %s.%s' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
-            
+            cnd = '"%s".%s = "%s".%s' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
         if self.joinConditions:
             from_fld, target_fld = self._tablesFromRelation(joiner)
             extracnd, one_one = self.getJoinCondition(target_fld, from_fld, alias,relation=relNode.label)
@@ -352,7 +351,7 @@ class SqlQueryCompiler(object):
                 cnd = '(%s AND %s)' % (cnd, extracnd)
                 if one_one:
                     manyrelation = False # if in the model a relation is defined as one_one 
-        self.cpl.joins.append('LEFT JOIN %s AS %s ON %s' %
+        self.cpl.joins.append('LEFT JOIN %s AS "%s" ON %s' %
                               (target_sqlfullname, alias, cnd))        
         # if a relation many is traversed the number of returned rows are more of the rows in the main table.
         # the columns causing the increment of rows number are saved for use by SqlSelection._aggregateRows
@@ -562,7 +561,7 @@ class SqlQueryCompiler(object):
             if excludeLogicalDeleted is True:
                 wherelist.append('${} IS NULL'.format(logicalDeletionField))
             elif excludeLogicalDeleted=='mark' and not (aggregate or count):
-                columns = '{columns},${logicalDeletionField} AS _isdeleted'.format(columns=columns, logicalDeletionField=logicalDeletionField) #add logicalDeletionField
+                columns = '{columns},${logicalDeletionField} AS "_isdeleted"'.format(columns=columns, logicalDeletionField=logicalDeletionField) #add logicalDeletionField
         
         if excludeDraft is True:
             draftField = self.tblobj.draftField
@@ -619,9 +618,9 @@ class SqlQueryCompiler(object):
             elif distinct:
                 pass            # leave columns as is to calculate distinct values
             else:
-                columns = 'count(*) AS gnr_row_count'  # use the sql count function istead of load all data
+                columns = 'count(*) AS "gnr_row_count"'  # use the sql count function istead of load all data
         elif addPkeyColumn and self.tblobj.pkey and not aggregate:
-            columns = columns + ',\n' + '%s.%s AS pkey' % (self.aliasCode(0),self.tblobj.pkey)  # when possible add pkey to all selections
+            columns = columns + ',\n' + '"%s"."%s" AS "pkey"' % (self.aliasCode(0),self.tblobj.column(self.tblobj.pkey).sqlname)  # when possible add pkey to all selections
             columns = columns.lstrip(',')                                   # if columns was '', now it starts with ','
         else:
             columns = columns.strip('\n').strip(',')
@@ -698,7 +697,8 @@ class SqlQueryCompiler(object):
             if 'joiner' in attrs:
                 xattrs['_relmode'] = self._getRelationMode(attrs['joiner'])
             else:
-                self.fieldlist.append('%s.%s AS %s_%s' % (self.aliasCode(0),fieldname, self.aliasCode(0),fieldname))
+                sqlname = attrs.get('sqlname') or fieldname
+                self.fieldlist.append('"%s"."%s" AS "%s_%s"' % (self.aliasCode(0),sqlname, self.aliasCode(0),fieldname))
                 xattrs['as'] = '%s_%s' %(self.aliasCode(0),fieldname)
             self.cpl.resultmap.setItem(fieldname,None,xattrs)
 
@@ -950,7 +950,7 @@ class SqlQuery(object):
         self.excludeLogicalDeleted = excludeLogicalDeleted
         self.excludeDraft = excludeDraft
         self.ignorePartition = ignorePartition
-        self.addPkeyColumn = addPkeyColumn
+        self.addPkeyColumn = addPkeyColumn and dbtable.pkey is not None
         self.ignoreTableOrderBy = ignoreTableOrderBy
         self.locale = locale
         self.storename = _storename
@@ -1029,8 +1029,9 @@ class SqlQuery(object):
                                                                   
     def cursor(self):
         """Get a cursor of the current selection."""
-        
-        return self.db.execute(self.sqltext, self.sqlparams, dbtable=self.dbtable.fullname,storename=self.storename)
+        with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
+            cursor = self.db.execute(self.sqltext, self.sqlparams, dbtable=self.dbtable.fullname,storename=self.storename)
+        return cursor
         
     def fetch(self):
         """Get a cursor of the current selection and fetch it"""
@@ -1234,8 +1235,9 @@ class SqlQuery(object):
         
     def count(self):
         """Return rowcount. It does not save a selection"""
-        compiledQuery = self.compileQuery(count=True)
-        cursor = self.db.execute(compiledQuery.get_sqltext(self.db), self.sqlparams, dbtable=self.dbtable.fullname,storename=self.storename)
+        with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
+            compiledQuery = self.compileQuery(count=True)
+            cursor = self.db.execute(compiledQuery.get_sqltext(self.db), self.sqlparams, dbtable=self.dbtable.fullname,storename=self.storename)
         if isinstance(cursor, list):
             n = 0
             for c in cursor:
@@ -1475,6 +1477,8 @@ class SqlSelection(object):
                 self._data = pickle.load(f)
 
     def _freeze_pkeys(self, readwrite):
+        if not self.dbtable.pkey:
+            return
         pik_path = '%s_pkeys.pik' % self.freezepath
         if readwrite == 'w':
             dumpfile_handle, dumpfile_path = tempfile.mkstemp(prefix='gnrselection_data',suffix='.pik')
@@ -2243,7 +2247,7 @@ class SqlRecord(object):
         elif self.pkey is not None:
             where = '$pkey = :pkey'
         else:
-            where = ' AND '.join(['%s0.%s=:%s' % (self.aliasPrefix,k, k) for k in list(self.sqlparams.keys())])
+            where = ' AND '.join(['"%s0".%s=:%s' % (self.aliasPrefix,k, k) for k in list(self.sqlparams.keys())])
         compiler = SqlQueryCompiler(self.dbtable.model, sqlparams=self.sqlparams,
                                   joinConditions=self.joinConditions,
                                   sqlContextName=self.sqlContextName,aliasPrefix=self.aliasPrefix)
@@ -2253,42 +2257,46 @@ class SqlRecord(object):
         
     def _get_result(self):
         if self._result is None:
-            if not self.compiled.where:
-                raise RecordSelectionError(
-                        "Insufficient parameters for selecting a record: %s" % (self.dbtable.fullname, ))
-            params = self.sqlparams
-            if self.pkey is not None:
-                params['pkey'] = self.pkey
-                #raise '%s \n\n%s' % (str(params), str(self.compiled.get_sqltext(self.db)))
-            cursor = self.db.execute(self.compiled.get_sqltext(self.db), params, dbtable=self.dbtable.fullname,storename=self.storename)
-            data = cursor.fetchall()
-            index = cursor.index
-            cursor.close()
-            if self.compiled.explodingColumns and len(data)>1:
-                data = self.aggregateRecords(data,index)
+            with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
+                self.adapterResult()
+        return self._result
+    
+    def adapterResult(self):
+        if not self.compiled.where:
+            raise RecordSelectionError(
+                    "Insufficient parameters for selecting a record: %s" % (self.dbtable.fullname, ))
+        params = self.sqlparams
+        if self.pkey is not None:
+            params['pkey'] = self.pkey
+            #raise '%s \n\n%s' % (str(params), str(self.compiled.get_sqltext(self.db)))
+        cursor = self.db.execute(self.compiled.get_sqltext(self.db), params, dbtable=self.dbtable.fullname,storename=self.storename)
+        data = cursor.fetchall()
+        index = cursor.index
+        cursor.close()
+        if self.compiled.explodingColumns and len(data)>1:
+            data = self.aggregateRecords(data,index)
+        if len(data) == 1:
+            self._result = data[0]
+        elif len(data) == 0:
+            if self.ignoreMissing:
+                self._result = Bag()
+            else:
+                raise RecordNotExistingError(
+                        "No record found in table %s for selection %s %s" % (self.dbtable.fullname,
+                                                                                self.compiled.get_sqltext(self.db),
+                                                                                params))
+        else:
+            if self.dbtable.logicalDeletionField:
+                data = [r for r in data if r['%s0_%s' %(self.aliasPrefix,self.dbtable.logicalDeletionField)] is None]
             if len(data) == 1:
                 self._result = data[0]
-            elif len(data) == 0:
-                if self.ignoreMissing:
-                    self._result = Bag()
-                else:
-                    raise RecordNotExistingError(
-                            "No record found in table %s for selection %s %s" % (self.dbtable.fullname,
-                                                                                 self.compiled.get_sqltext(self.db),
-                                                                                 params))
+            elif self.ignoreDuplicate:
+                self._result = data[0]
             else:
-                if self.dbtable.logicalDeletionField:
-                    data = [r for r in data if r['%s0_%s' %(self.aliasPrefix,self.dbtable.logicalDeletionField)] is None]
-                if len(data) == 1:
-                    self._result = data[0]
-                elif self.ignoreDuplicate:
-                    self._result = data[0]
-                else:
-                    raise RecordDuplicateError(
-                            "Found more than one record in table %s for selection %s %s" % (self.dbtable.fullname,
-                                                                                            self.compiled.get_sqltext(
-                                                                                                    self.db), params))
-        return self._result
+                raise RecordDuplicateError(
+                        "Found more than one record in table %s for selection %s %s" % (self.dbtable.fullname,
+                                                                                        self.compiled.get_sqltext(
+                                                                                                self.db), params))
 
 
     def aggregateRecords(self,data,index):

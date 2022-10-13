@@ -11,10 +11,13 @@ class View(BaseComponent):
         r.fieldcell('lg_table_id')
         r.fieldcell('name', width='8em')
         r.fieldcell('data_type', name='T', width='3em')
+        r.fieldcell('size',name='Size',width='4em')
         r.fieldcell('old_type', name='OT', width='3em')
         r.fieldcell('description', width='15em')
         r.fieldcell('notes', width='40em')
         r.fieldcell('group', width='8em')
+        r.fieldcell('n_outgoing')
+        r.fieldcell('n_incoming')
 
     def th_order(self):
         return 'name'
@@ -91,8 +94,8 @@ class ViewFromTable(View):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        pane = form.record
-        fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px', width='100%', fld_width='100%')
+        bc = form.center.borderContainer()
+        fb = bc.contentPane(region='top',datapath='.record').div(margin_right='10px').formbuilder(cols=2, border_spacing='4px', width='100%', fld_width='100%')
         fb.field('lg_table_id', readOnly=True, background='rgba(128, 128, 128, 0.125)' )
         fb.field('name')
         fb.field('data_type')
@@ -100,6 +103,13 @@ class Form(BaseComponent):
         fb.field('group')
         fb.field('description', colspan=2)
         fb.field('notes', tag='simpleTextArea', height='90px')
+        center = bc.borderContainer(region='center')
+        center.contentPane(region='left',width='50%').inlineTableHandler(relation='@from_relations',nodeId='outgoing_rel',
+                                datapath='#FORM.outgoing',title='Outgoing',
+                                viewResource='ViewFromRelatingColumn',pbl_classes=True,margin='2px')
+        center.contentPane(region='center').plainTableHandler(relation='@to_relations',nodeId='incoming_rel',
+                            datapath='#FORM.incoming',title='Incoming',pbl_classes=True,margin='2px')
+
 
     def th_options(self):
-        return dict(dialog_height='400px', dialog_width='600px' )
+        return dict(dialog_windowRatio=.8)
