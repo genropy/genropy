@@ -18,11 +18,11 @@ class GnrCustomWebPage(object):
                             height='250px', width='100%')
     
     def test_1_radioButton_items(self, pane):
-        "evaluationGrid permits items evaluation through radioButtons. Items can be a string of comma separated items."
+        "evaluationGrid permits items evaluation through radioButtons. Items can be a string of \n separated items."
         pane.evaluationGrid(value='^.evaluation', 
                             title="Italian pizza restaurants evaluation",
-                            items="Luciano's, Domino's, Pizza Hut", 
-                            field_values="1:Bad,2:Good,3:Awesome",
+                            items="Luciano's\n Domino's\n Pizza Hut", 
+                            field_values="B:Bad,G:Good,A:Awesome",
                             field_name="level", 
                             field_caption="Level",
                             choice_width='6em',
@@ -31,24 +31,25 @@ class GnrCustomWebPage(object):
     def test_2_checkbox_items(self, pane):
         """If an aggregator is present, checkbox is used instead of radioButton. 
         Aggregator can basically be a ',' or '+' to sum and '*'"""
-        pane.evaluationGrid(value='.features', 
+        pane.evaluationGrid(value='^.features', 
                             title="Which features did you appreciate at most in these Italian pizza restaurants",
-                            items="Luciano's, Domino's, Pizza Hut", 
-                            field_values="1:Loc.,2:Menu,3:Service,4:Price",
-                            field_aggr=',',
+                            items="LL:Luciano's,DD:Domino's,PH:Pizza Hut", 
+                            field_values="L:Loc.,M:Menu,S:Service,P:Price",
+                            #field_aggr=',',
                             field_name="features", 
                             field_caption="Appreciated features",
+                            showValue=True,
                             height='250px', width='100%')
 
     def test_3_checkbox_sum(self, pane):
         "evaluationGrid can be used as quiz system as well to sum votes and totalize global evaluation."
-        pane.evaluationGrid(value='.evaluation', 
+        pane.evaluationGrid(value='^.evaluation', 
                             title="Which Genropy grids are more suitable for these situations? (max 2 options)",
                             items="Watch and edit table records,Evaluate items with specific values,Rapidly list items in a grid,List items in a grid with a custom and more elaborated struct", 
                             field_values="1:TableHandler,1:evaluationGrid,2:quickGrid,3:bagGrid",
                             field_dtype='L',
-                            field_aggr='+',
-                            field_totalize=True,
+                            #field_aggr='+',
+                            #field_totalize=True,
                             field_name='components',
                             field_caption="Gnr components",
                             showValue=True,

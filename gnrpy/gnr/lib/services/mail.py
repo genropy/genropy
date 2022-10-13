@@ -216,12 +216,14 @@ class MailService(GnrBaseService):
                                         # This is used to prevent explicit "charset = None" to be passed
         attachments = attachments or []
         if not html and not attachments:
-            msg = MIMEText(body, 'text', charset)
+            msg = MIMEText(body, 'plain', charset)
             msg['Subject'] = subject
             return msg
         if html:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
+            if html=='*':
+                body = self.build_letterbox_body(body)
             msg.attach(MIMEText(clean_and_unescape(body), 'text', charset))
             if attachments:
                 multi_msg=MIMEMultipart()

@@ -1227,7 +1227,7 @@ class Bag(GnrObject):
             value = node.getStaticValue()
             if isinstance(value, Bag):
                 value = value.deepcopy()
-            result.setItem(node.label, value, dict(node.getAttr()))
+            result.addItem(node.label, value, dict(node.getAttr()))
         return result
 
     #-------------------- getNodeByAttr --------------------------------

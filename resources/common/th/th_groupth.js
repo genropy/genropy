@@ -103,15 +103,20 @@ var genro_plugin_groupth = {
             });
             objectUpdate(treedata.getAttr(kl),row);
         });
-        this.updateTreeTotals(result,formulalist);
+        result = this.updateTreeTotals(result,formulalist);
         return result;
     },
 
     updateTreeTotals:function(treeData,formulalist){
         var that = this;
+        let firstNode = treeData.getNode('#0');
+        if(treeData.len()==1 && firstNode.label=='[NP]'){
+            treeData = firstNode.getValue()
+        }
         treeData.forEach(function(n){
             that.updateBranchTotals(n,formulalist);
         });
+        return treeData;
     },
     
     updateBranchTotals:function(branchDataNode,formulalist){
@@ -121,6 +126,11 @@ var genro_plugin_groupth = {
         var branchdata = branchDataNode.getValue();
         if(!branchdata){
             return;
+        }
+        let firstNode = branchdata.getNode('#0');
+        if(branchdata.len()==1 && firstNode.label=='[NP]'){
+            branchdata = firstNode.getValue();
+            branchDataNode.setValue(branchdata)
         }
         branchdata.forEach(function(n){
             if(n.getValue()){
@@ -313,6 +323,7 @@ var genro_plugin_groupth = {
                 result.cell_group_aggr = false;
             }
             grid.addColumn(result, column,fieldcellattr);
+            grid.sourceNode.publish('group_added_column',{column:column});
         };
         genro.dlg.prompt(_T('Add column'),promptkw);
         

@@ -3582,6 +3582,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_table:table,
                     remote_paletteId:paletteId,
                     remote_plainText:sourceNode.attr.plainText,
+                    remote_emailChunk : sourceNode.attr.emailChunk,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
@@ -3733,6 +3734,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
+           if(sourceNode.attr.template[0]=='^'){
+                sourceNode._('lightbutton',{action:`SET ${sourceNode.attr.template.slice(1)} = null;`,position:'absolute',bottom:'3px',right:'2px',_class:'iconbox trash'})
+           }
         }
         kw.onCreated = function(domnode,attributes){
             this._templateHandler = {};
@@ -5004,7 +5008,7 @@ dojo.declare("gnr.widgets.ComboArrow", gnr.widgets.gnrwdg, {
         genro.dom.addClass(focusNode.parentNode,'comboArrowTextbox')
 
         var iconClass = objectPop(kw,'iconClass') || 'dijitArrowButtonInner';
-        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton',cursor:'pointer', width:'20px',
+        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton comboArrow',cursor:'pointer', width:'20px',
                                 position:'absolute',top:0,bottom:0,right:0,tabindex:-1},kw))
         box._('div','iconNode',{_class:iconClass,position:'absolute',top:0,bottom:0,left:0,right:0})
         return box;
@@ -5365,12 +5369,12 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         this.alignCheckedValues();
     },
 
-    gnrwdg_isValidValue:function(value){
+    gnrwdg_isValidValue:function(value,splitter){
         if(!value){
             return true;
         }
         var valuesDict = this.valuesDict;
-        return value.split(this.separator).every(function(c){return (c in valuesDict)});
+        return value.split(splitter || this.separator).every(function(c){return (c in valuesDict)});
     },
 
     gnrwdg_getLabelsFromValue:function(value){
@@ -5406,13 +5410,13 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
     gnrwdg_alignCheckedValues:function(){
         var sourceNode = this.sourceNode;
         var textvalue =  sourceNode.getAttributeFromDatasource('value') || '';
-        if(!this.isValidValue(textvalue)){
-            return;
-        }
         var splitter = this.separator;
         var checkcodes = textvalue && this.has_code;  
         if(checkcodes){
             splitter = ',';
+        }
+        if(!this.isValidValue(textvalue,splitter)){
+            return;
         }
         var values = splitStrip(textvalue,splitter);
         var v;

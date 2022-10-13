@@ -203,6 +203,7 @@ class Table(object):
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
+        
         message_date = message_date or self.db.workdate
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
         if headers_kwargs:
@@ -285,7 +286,7 @@ class Table(object):
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html=message['html'], async_=False,
+                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
 
                 message['send_date'] = datetime.now()

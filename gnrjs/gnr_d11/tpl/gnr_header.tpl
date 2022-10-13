@@ -1,8 +1,14 @@
 <!-- ================  Genropy Headers ================ -->
 <script type="text/javascript" src="${dojolib}" djConfig="${djConfig}"> </script>
 <script type="text/javascript">dojo.registerModulePath('gnr','${gnrModulePath}');</script>
+% if pwa:
+    <link rel="manifest" crossorigin="use-credentials" href="/_site/pwa/manifest.json">
+    <script type="text/javascript" src="/_site/pwa/app.js"></script>
+% endif
+
 % if favicon:
-     <link rel="icon" href="${favicon}" type="image/${favicon_ext}" />
+     <link rel="icon" href="${favicon}" />
+     <link rel="apple-touch-icon" href="${favicon}" />
 % endif
 % if google_fonts:
     <link href='http://fonts.googleapis.com/css?family=${google_fonts}' rel='stylesheet' type='text/css'>
@@ -25,7 +31,13 @@
 % for jsname in js_requires:
         <script type="text/javascript" src="${jsname}"></script>
 % endfor
-
+        % if logo_url:
+            <style type="text/css">
+                :root {
+                    --client-logo: transparent url(${logo_url}) no-repeat center center;;
+                }
+            </style>
+        % endif
         <style type="text/css">
             % for cssname in css_dojo:
             @import url("${cssname}");  

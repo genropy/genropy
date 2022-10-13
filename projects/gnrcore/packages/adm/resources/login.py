@@ -15,7 +15,6 @@ from gnr.app.gnrapp import GnrRestrictedAccessException
         
 class LoginComponent(BaseComponent):
     login_error_msg = '!!Invalid login'
-    login_title = '!!Login'
     new_window_title = '!!New Window'
     auth_workdate = 'admin'
     auth_page = 'user'
@@ -27,21 +26,57 @@ class LoginComponent(BaseComponent):
         doLogin = self.avatar is None and self.auth_page
         if doLogin and not self.closable_login and self.index_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
-            pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.index_url), border='0px')  
-        loginKwargs = dict(_class='lightboxDialog') 
+            #pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.index_url), border='0px') 
+        loginKwargs = dict(_class='lightboxDialog loginDialog' if self.loginPreference('login_flat') else 'lightboxDialog') 
         loginKwargs.update(self.loginBox_kwargs)
+
         dlg = pane.dialog(subscribe_openLogin="this.widget.show()",
                           subscribe_closeLogin="this.widget.hide()",**loginKwargs)
-       
         box = dlg.div(**self.loginboxPars())
         if self.closable_login:
             dlg.div(_class='dlg_closebtn',connect_onclick='PUBLISH closeLogin;')
-        topbar = box.div().slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
-        wtitle = (self.loginPreference('login_title') or self.login_title) if doLogin else (self.loginPreference('new_window_title') or '!!New Window') 
-        topbar.wtitle.div(wtitle)  
-        if hasattr(self,'loginSubititlePane'):
-            self.loginSubititlePane(box.div())
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
+        login_title = self.loginPreference('login_title')
+        logo_url = self.db.application.getPreference('instance_data.logo_url', pkg='adm')
+        new_window_title = self.loginPreference('new_window_title')
+
+        if not logo_url:
+            login_title = login_title or '!!Login'
+            new_window_title = new_window_title or '!!New Window'
+        wtitle =  login_title if doLogin else new_window_title
+        self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
+        self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg)
+        footer = self.login_commonFooter(box)
+        self.loginDialog_bottom_left(footer.leftbox,dlg)
+        self.loginDialog_bottom_right(footer.rightbox,dlg)
+
+    def login_commonFooter(self,pane):
+        return pane.slotBar('15,leftbox,*,rightbox,15',height='45px')
+
+
+    def login_commonHeader(self,pane,title=None,subtitle=None):
+        pane = pane.div(margin_top='10px')
+        pane.div(text_align='center').cover_logo(height='30px')
+        if title:
+            pane.div(title,_class='index_logintitle')
+        if subtitle:
+            pane.div(subtitle,_class='index_loginsubtitle')
+
+    def loginDialog_bottom_left(self,pane,dlg):
+        if self.loginPreference('forgot_password'):
+            pane.lightbutton('!!Lost password',action='FIRE lost_password_dlg;',
+                            _class='login_option_btn')
+            pane.dataController("dlg_login.hide();dlg_lp.show();",_fired='^lost_password_dlg',
+            dlg_login=dlg.js_widget,dlg_lp=self.login_lostPassword(pane,dlg).js_widget)
+        if self.loginPreference('new_user'):
+            self.login_newUser(pane)
+            pane.lightbutton('!!New User',action='genro.publish("closeLogin");genro.publish("openNewUser");',
+                            _class='login_option_btn')
+
+    def loginDialog_bottom_right(self,pane,dlg):
+        pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
+
+    def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None):
+        fb = pane.div(margin_right='20px',padding='10px').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
@@ -67,7 +102,7 @@ class LoginComponent(BaseComponent):
                         tbuser=tbuser,tbpwd=tbpwd,
                         pwd='=_login.password')
 
-            pane.dataRpc('dummy',self.login_checkAvatar,
+            pane.dataRpc(self.login_checkAvatar,
                         user='^_login.user',
                         password='^_login.password',
                         _fired='^_login.checkAvatar',
@@ -144,25 +179,12 @@ class LoginComponent(BaseComponent):
                             fb=fb)
 
 
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE do_login_check',position='absolute',right='-5px',top='8px')
         dlg.dataController("genro.dlg.floatingMessage(sn,{message:message,messageType:'error',yRatio:1.85})",subscribe_failed_login_msg=True,sn=dlg)
-
-        footer = box.div().slotBar('12,lost_password,*,new_user,12',height='18px',width='100%',tdl_width='6em')
-        lostpass = footer.lost_password.div()
-        new_user = footer.new_user.div()
-        if self.loginPreference('forgot_password'):
-            lostpass.div('!!Lost password',cursor='pointer',connect_onclick='FIRE lost_password_dlg;',
-                            color='gray',font_size='12px',height='15px')
-            lostpass.dataController("dlg_login.hide();dlg_lp.show();",_fired='^lost_password_dlg',dlg_login=dlg.js_widget,dlg_lp=self.login_lostPassword(pane,dlg).js_widget)
-        if self.loginPreference('new_user'):
-            self.login_newUser(pane)
-            new_user.div('!!New User',cursor='pointer',connect_onclick='genro.publish("closeLogin");genro.publish("openNewUser");',
-                            color='gray',font_size='12px',height='15px')
 
         pane.dataController("dlg_login.hide();dlg_cu.show();",dlg_login=dlg.js_widget,
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
 
-        footer.dataController("""
+        pane.dataController("""
         if(!avatar || !avatar.getItem('user') || avatar.getItem('error')){
             var error = avatar? (avatar.getItem('error') || error_msg):error_msg
             genro.publish('failed_login_msg',{'message':error});
@@ -211,6 +233,7 @@ class LoginComponent(BaseComponent):
             doLogin=doLogin,
             _delay=1)  
         return dlg
+        
 
     @public_method
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
@@ -226,8 +249,7 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
-    def isDeveloper(self):
-        return True
+ 
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
@@ -257,16 +279,14 @@ class LoginComponent(BaseComponent):
         return dict(width='320px',_class='index_loginbox')
 
     def login_lostPassword(self,pane,dlg_login):
-        dlg = pane.dialog(_class='lightboxDialog')
+        dlg = pane.dialog(_class='lightboxDialog loginDialog')
         box = dlg.div(**self.loginboxPars())
-        topbar = box.div().slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
-        topbar.wtitle.div('!!Lost password')  
+        self.login_commonHeader(box,'!!Lost password')
         fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE recover_password;',
                                 datapath='lost_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Recover',action='FIRE recover_password',position='absolute',right='-5px',top='8px')
-        fb.dataRpc("dummy",self.login_confirmNewPassword, _fired='^recover_password',_if='email',email='=.email',
+        fb.dataRpc(self.login_confirmNewPassword, _fired='^recover_password',_if='email',email='=.email',
                 _onResult="""if(result=="ok"){
                     FIRE recover_password_ok;
                 }else{
@@ -276,19 +296,18 @@ class LoginComponent(BaseComponent):
                             msg='!!Missing user for this email',_fired='^recover_password_err',sn=dlg)
         fb.dataController("""genro.dlg.floatingMessage(sn,{message:msg,yRatio:.95})""",
                             msg='!!Check your email for instruction',_fired='^recover_password_ok',sn=dlg)
-        footer = box.div().slotBar('12,loginbtn,*',height='18px',width='100%',tdl_width='6em')
-        footer.loginbtn.div('!!Login',cursor='pointer',connect_onclick='FIRE back_login;',
-                            color='gray',font_size='12px',height='15px')
+        footer = self.login_commonFooter(box)
+        footer.leftbox.lightButton('!!Login',action='FIRE back_login;',_class='login_option_btn')
+        footer.rightbox.button('!!Recover',action='FIRE recover_password',_class='login_confirm_btn')
+
         footer.dataController("dlg_lp.hide();dlg_login.show();",_fired='^back_login',
                         dlg_login=dlg_login.js_widget,dlg_lp=dlg.js_widget)
         return dlg
 
     def login_newPassword(self,pane,gnrtoken=None,dlg_login=None):
-        dlg = pane.dialog(_class='lightboxDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
+        dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
         box = dlg.div(**self.loginboxPars())
-        
-        topbar = box.div().slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
-        topbar.wtitle.div('!!New Password')  
+        self.login_commonHeader(box,'!!New password')
         fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE set_new_password;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
@@ -302,8 +321,7 @@ class LoginComponent(BaseComponent):
                     validate_remote=self.db.table('adm.user').validateNewPassword)
         fb.textbox(value='^.password_confirm',lbl='!!Confirm password',type='password',
                     validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Send',action='FIRE set_new_password',position='absolute',right='-5px',top='8px')
-        fb.dataRpc('dummy',self.login_changePassword,_fired='^set_new_password',
+        fb.dataRpc(self.login_changePassword,_fired='^set_new_password',
                     current_password='=.current_password',
                     password='=.password',password_confirm='=.password_confirm',
                     _if='password==password_confirm',_box=box,
@@ -313,16 +331,18 @@ class LoginComponent(BaseComponent):
                         return;
                     }
                     genro.publish("closeNewPwd");genro.publish("openLogin")""")
+        footer = self.login_commonFooter(box)
+        footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
         return dlg
 
 
     def login_confirmUserDialog(self,pane,gnrtoken=None,dlg_login=None):
-        dlg = pane.dialog(_class='lightboxDialog')
+        dlg = pane.dialog(_class='lightboxDialog loginDialog')
         sc = dlg.stackContainer(**self.loginboxPars())
         box = sc.contentPane()
-        sc.contentPane().div(self.loginPreference('check_email'),_class='index_logintitle',text_align='center',margin_top='50px')
-        topbar = box.div().slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
-        topbar.wtitle.div(self.loginPreference('confirm_user_title') or '!!Confirm User')  
+        confirmUserTitle = self.loginPreference('confirm_user_title') or '!!Confirm User'
+        self.login_commonHeader(box,confirmUserTitle)
+        self.login_commonHeader(sc.contentPane(),confirmUserTitle,self.loginPreference('check_email') or 'Please check your email')
         box.div(self.loginPreference('confirm_user_message'),padding='10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
         fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE confirm_email;',
                                 datapath='new_password',width='100%',
@@ -330,7 +350,7 @@ class LoginComponent(BaseComponent):
         fb.textbox(value='^.email',lbl='!!Email')
         fb.dataController("SET .email = avatar_email;",avatar_email='^gnr.avatar.email')
         fb.div(width='100%',position='relative',row_hidden=False).button('!!Send Email',action='FIRE confirm_email',position='absolute',right='-5px',top='8px')
-        fb.dataRpc('dummy',self.login_confirmUser,_fired='^confirm_email',email='=.email',user_id='=gnr.avatar.user_id',
+        fb.dataRpc(self.login_confirmUser,_fired='^confirm_email',email='=.email',user_id='=gnr.avatar.user_id',
                     _if='email',
                     _onCalling='_sc.switchPage(1);',
                     _sc=sc.js_widget,
@@ -340,22 +360,22 @@ class LoginComponent(BaseComponent):
         
         
     def login_newUser(self,pane,closable=False,**kwargs):
-        dlg = pane.dialog(_class='lightboxDialog',
+        dlg = pane.dialog(_class='lightboxDialog loginDialog',
                             subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord();',
                             subscribe_closeNewUser='this.widget.hide();')
 
         kw = self.loginboxPars()
         kw['width'] = '400px'
-        kw['height'] = '250px'
+        kw['height'] = '280px'
         kw.update(kwargs)
         form = dlg.frameForm(frameCode='newUser',datapath='new_user',store='memory',**kw)
         if closable:
             dlg.div(_class='dlg_closebtn',connect_onclick="genro.publish('closeNewUser')")
         form.dataController("PUT creating_new_user = false;",_fired='^#FORM.controller.loaded')
-        topbar = form.top.slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
-        topbar.wtitle.div('!!New User')  
+        top = form.top
+        self.login_commonHeader(top,'!!New User')
         self.login_newUser_form(form)
-        form.dataRpc('dummy',self.login_createNewUser,data='=#FORM.record',
+        form.dataRpc(self.login_createNewUser,data='=#FORM.record',
                     _do='^creating_new_user',_if='_do && this.form.isValid()',
                     _else='this.form.publish("message",{message:_error_message,messageType:"error"})',
                     _error_message='!!Missing data',
@@ -367,10 +387,10 @@ class LoginComponent(BaseComponent):
                         PUT creating_new_user = false;
                     }
                     """,_lockScreen=True)
+        footer = self.login_commonFooter(form.bottom)
         if not closable:
-            footer = form.bottom.slotBar('12,loginbtn,*',height='18px',width='100%',tdl_width='6em')
-            footer.loginbtn.div('!!Login',cursor='pointer',connect_onclick="genro.publish('closeNewUser');genro.publish('openLogin');",
-                            color='gray',font_size='12px',height='15px')
+            footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
+        footer.rightbox.button('!!Send',action='SET creating_new_user = true;',_class='login_confirm_btn')
         return dlg
 
     def login_newUser_form(self,form):
@@ -380,12 +400,10 @@ class LoginComponent(BaseComponent):
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
         fb.textbox(value='^.username',lbl='!!Username',validate_notnull=True,validate_nodup='adm.user.username',validate_len='4:')
-        fb.div(width='100%',position='relative',row_hidden=False).button('!!Send',action='SET creating_new_user = true;',position='absolute',right='-5px',top='8px')
 
     @public_method
     def login_createNewUser(self,data=None,**kwargs):
         tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
-        print(f'tplconferma {tpl_userconfirm_id}')
         mailservice = self.getService('mail')
         try:
             data['status'] = 'new'
@@ -407,7 +425,11 @@ class LoginComponent(BaseComponent):
 
     def loginPreference(self,path=None):
         if not hasattr(self,'_loginPreference'):
-            self._loginPreference = self.getPreference('general',pkg='adm') or Bag()
+            loginPreference = Bag(self.getPreference('general',pkg='adm'))
+            custom = self.getPreference('gui_customization.login',pkg='adm')
+            if custom:
+                loginPreference.update(custom,ignoreNone=True)
+            self._loginPreference = loginPreference
         if not path:
             return self._loginPreference
         return self._loginPreference[path]
@@ -492,11 +514,12 @@ class LoginComponent(BaseComponent):
 
     @struct_method
     def login_screenLockDialog(self,pane):
-        dlg = pane.dialog(_class='lightboxDialog',subscribe_screenlock="this.widget.show();this.setRelativeData('.password',null);",datapath='_screenlock')
+        dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_screenlock="this.widget.show();this.setRelativeData('.password',null);",datapath='_screenlock')
         box = dlg.div(**self.loginboxPars())
-        topbar = box.div().slotBar('*,wtitle,*',_class='index_logintitle',height='30px') 
+        box.div(text_align='center').logo_full_img(height='40px')
+
         wtitle = '!!Screenlock'
-        topbar.wtitle.div(wtitle)  
+        box.div(wtitle,_class='index_logintitle')  
         box.div('!!Insert password',text_align='center',font_size='.9em',font_style='italic')
         fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',

@@ -145,8 +145,13 @@ class _StartupDataDbTemplates(BaseComponent):
         frame.dataRpc('.current_dbtemplates', self.sd_listDbTemplates, _onStart=True,
                       _fired='^.reload_current_dbtemplates')
 
-        frame.dataRpc(None, self.sd_loadDbTemplate,
-                      subscribe_sd_loadDbTemplate=True,_lockScreen=True)
+       #frame.dataRpc(self.sd_loadDbTemplate,
+       #              subscribe_sd_loadDbTemplate=True,_lockScreen=True)
+
+        bc.dataRpc(self.sd_removeDbTemplate,
+                      subscribe_sd_removeDbTemplate=True,_lockScreen=True,
+                      _onResult='FIRE .reload_current_dbtemplates;')
+
         bottom = frame.bottom.slotToolbar('*,bottomUploader,*')
         bottom.bottomUploader.dropUploader(label='Upload',
                                            uploadPath=self.sd_startupdata_root(
@@ -155,13 +160,14 @@ class _StartupDataDbTemplates(BaseComponent):
         g = bc.contentPane(region='center').quickGrid('^.current_dbtemplates')
         g.column('caption', name='Template', width='100%')
         g.column('fileurl', name='Download', width='5em', format='download')
-        g.column('run', name="Run", calculated=True, width='3em',
+        g.column('rem', name=" ", calculated=True, width='3em',
                  cellClasses='cellbutton',
-                 format_buttonclass='run buttonIcon',
+                 format_buttonclass='delete_row buttonIcon',
                  format_isbutton=True, format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
-                                                      genro.publish('sd_loadDbTemplate', {filepath:row.filepath}); 
+                                                      genro.publish('sd_removeDbTemplate', {filepath:row.filepath}); 
                                                       """,
                  _tags='_DEV_')
+
 
     def sd_treeStartupSource(self, frame):
         bar = frame.bottom.slotToolbar('*,saveDbTemplate,5')
@@ -274,6 +280,11 @@ class StartupDataManager(BaseComponent):
                                filepath=os.path.join(folderpath, f),
                                fileurl=self.site.getStaticUrl(startup_data_root, 'dbtemplates', f))
         return result
+
+    @public_method
+    def sd_removeDbTemplate(self, filepath=None):
+        os.remove(filepath)
+
 
     @public_method
     def sd_loadDbTemplate(self, filepath=None):

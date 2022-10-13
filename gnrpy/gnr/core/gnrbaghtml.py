@@ -38,6 +38,7 @@ class BagToHtml(object):
     currencyFormat = u'#,###.00'
     encoding = 'utf-8'
     page_debug = False
+    page_styles = None
     page_format = 'A4'
     page_height = None
     page_width = None
@@ -167,7 +168,7 @@ class BagToHtml(object):
             return 'Portrait'
 
     def __call__(self, record=None, filepath=None, folder=None, filename=None, hideTemplate=False, rebuild=True,
-                 htmlContent=None,page_debug=None, is_draft=None,orientation=None, **kwargs):
+                 htmlContent=None,page_debug=None,page_styles=None,mail_letterbox=None, is_draft=None,orientation=None, **kwargs):
         """Return the html corresponding to a given record. The html can be loaded from
         a cached document or created as new if still doesn't exist"""
 
@@ -183,6 +184,9 @@ class BagToHtml(object):
         self._gridsColumnsBag = Bag()
         self.is_draft = is_draft
         self.record = record
+        self.page_styles = page_styles
+        if mail_letterbox:
+            self.page_styles = f'{self.page_styles} border:1px solid #efefef; box-shadow: gray 8px 8px 15px; margin: 10px;padding:30px;' if self.page_styles else 'border:1px solid #efefef; box-shadow: gray 8px 8px 15px; margin: 10px;padding:30px;'
         for k, v in list(kwargs.items()):
             self._parameters[k] = v
         if not filepath:
@@ -218,7 +222,7 @@ class BagToHtml(object):
         self.builder = GnrHtmlBuilder(page_width=self.page_width, page_height=self.page_height,
                                     page_margin_top=self.page_margin_top, page_margin_bottom=self.page_margin_bottom,
                                     page_margin_left=self.page_margin_left, page_margin_right=self.page_margin_right,
-                                    page_debug=self.page_debug, print_button=self.print_button,
+                                    page_debug=self.page_debug,page_styles=self.page_styles, print_button=self.print_button,
                                     htmlTemplate=self.htmlTemplate, css_requires=self.get_css_requires(),
                                     showTemplateContent=self.showTemplateContent,
                                     default_kwargs=self.defaultKwargs(),parent=self,
