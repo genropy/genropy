@@ -4928,6 +4928,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                                                                 width: cropkw.width,
                                                                 height: cropkw.height
                                                             },
+                                                            enforceBoundary:false,
                                                             showZoomer:true,
                                                             enableOrientation:true
                                                         });

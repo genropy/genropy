@@ -36,12 +36,10 @@ class LoginComponent(BaseComponent):
         if self.closable_login:
             dlg.div(_class='dlg_closebtn',connect_onclick='PUBLISH closeLogin;')
         login_title = self.loginPreference('login_title')
-        logo_url = self.db.application.getPreference('instance_data.logo_url', pkg='adm')
         new_window_title = self.loginPreference('new_window_title')
 
-        if not logo_url:
-            login_title = login_title or '!!Login'
-            new_window_title = new_window_title or '!!New Window'
+       #login_title = login_title or '!!Login'
+       #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
         self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg)
