@@ -248,6 +248,19 @@ class Server(object):
                       dest='counter',
                       help="Startup counter")
 
+    parser.add_option('--ssl_cert',
+                      dest='ssl_cert',
+                      help="SSL cert")
+
+    parser.add_option('--ssl_key',
+                      dest='ssl_key',
+                      help="SSL key")
+
+    parser.add_option('--ssl',
+                      dest='ssl',
+                      action='store_true',
+                      help="SSL")
+
     _scheme_re = re.compile(r'^[a-z][a-z]+:', re.I)
 
     default_verbosity = 1
@@ -400,7 +413,16 @@ class Server(object):
             if self.debug:
                 gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
             print(f'[{now}]\tStarting server - listening on http://127.0.0.1:{port}')
+            ssl_context=None
+            if self.options.ssl:
+                from gnr.app.gnrconfig import gnrConfigPath
+                cert_path = os.path.join(gnrConfigPath(),'localhost.pem')
+                key_path = os.path.join(gnrConfigPath(),'localhost-key.pem')
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    ssl_context = (cert_path, key_path)
+            if self.options.ssl_cert and self.options.ssl_cert:
+                ssl_context=(self.options.ssl_cert,self.options.ssl_cert)
             run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
-                reloader_type='stat')
+                reloader_type='stat', ssl_context=ssl_context)
 
 
