@@ -49,6 +49,7 @@ class TemplateEditorBase(BaseComponent):
     def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,plainText=False,**kwargs):
         result = Bag()
         empty_chunk ='Template not yet created' if plainText else '<div class="chunkeditor_emptytemplate">Template not yet created</div>'
+        empty_chunk = 'missing_template'
         if template_bag:
             data = template_bag
             compiled = template_bag['compiled']
