@@ -1,9 +1,9 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+# encoding: utf-8
+class Menu(object):
+    def config(self,root,**kwargs):
+        documentation = root.branch(u"!!Documentation", tags="_DOC_")
+        documentation.thpage(u"!!Documentation", table="docu.documentation", tags="")
+        documentation.thpage(u"!!Handbooks", table="docu.handbook", tags="")
+        documentation.thpage(u"!!Redirects", table="docu.redirect", tags="")
+        documentation.lookupBranch(u"!!Docu tables", pkg="docu")
 
-def config(root,application=None):
-    docu = root.branch('Documentation',tags='_DOC_')
-    docu.thpage('!!Documentation',table='docu.documentation')
-    docu.thpage('!!Handbooks',table='docu.handbook')
-    docu.thpage('!!Redirects',table='docu.redirect')
-    docu.lookups(u"!!Docu tables", lookup_manager="docu")

@@ -111,7 +111,7 @@ class Form(BaseComponent):
         frame_bc.contentPane(region='top', height='30px', overflow='hidden').formbuilder(margin='2px').a(
                             '^.handbook_url', lbl='!![en]Doc url:', href='^.handbook_url', 
                             target='_blank', hidden='^.handbook_url?=!#v')
-        frame_bc.contentPane(region='center', overflow='hidden').iframe(src='^.handbook_url', width='100%', height='100%')
+        frame_bc.contentPane(region='center', overflow='hidden').htmlIframe(src='^.handbook_url', width='100%', height='100%')
     
     def handbookZip(self, frame):
         frame_bc = frame.borderContainer()
