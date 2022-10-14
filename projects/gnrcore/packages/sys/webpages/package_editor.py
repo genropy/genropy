@@ -85,7 +85,7 @@ class GnrCustomWebPage(object):
                 if os.path.isfile(configpath):
                     b = Bag(configpath)
                     b.setItem('packages.%s' %package_name,'')
-                    b.setItem('menu',None,packages='*')
+                    b.setItem('menu',None,package='*')
                     b.toXml(configpath,typevalue=False,pretty=True)
                 if not is_main_package:
                     continue
