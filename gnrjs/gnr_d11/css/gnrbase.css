@@ -47,6 +47,14 @@ div,span{
     -ms-user-select: text !important;
     user-select: text !important;
 }
+.unselectable div, .unselectable span, .unselectable{
+    -webkit-touch-callout: none!important;
+    -webkit-user-select: none!important;
+    -khtml-user-select: none!important;
+    -moz-user-select: none!important;
+    -ms-user-select: none!important;
+    user-select: none!important;
+}
 
 *::-moz-focus-inner {border:0;}
 
@@ -4426,21 +4434,14 @@ p {
 }
 
 .chunkeditor_emptytemplate{
-    border-radius:6px;
-    margin:10px;
-    padding:5px;
-    border:1px solid silver;
     cursor:pointer;
-    background:white;
     text-align:center;
-    box-shadow:2px 2px 6px #555;
-    color:#666;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+    color:#999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    height: 100%;
 }
 .chunkeditor_varplaceholder{
     background:#555;

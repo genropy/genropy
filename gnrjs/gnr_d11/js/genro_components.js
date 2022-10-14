@@ -3734,9 +3734,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     handler.openTemplatePalette(this,editorConstrain,showLetterhead);
                 }
            };
-           if(sourceNode.attr.template[0]=='^'){
-                sourceNode._('lightbutton',{action:`SET ${sourceNode.attr.template.slice(1)} = null;`,position:'absolute',bottom:'3px',right:'2px',_class:'iconbox trash'})
-           }
         }
         kw.onCreated = function(domnode,attributes){
             this._templateHandler = {};
@@ -3755,7 +3752,16 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return chunk;
     },
 
-
+    emptyChunk:function(plainText,editable){
+        let emptyTextTitle = _T('!![en]Template not yet created');
+        let emptyTextSubtitle = _T('!![en]Double-click to create it');
+        shiftMode = editable===true? '':'Shift + ';
+        if(plainText){
+            return `${emptyTextTitle}\n${shiftMode}${emptyTextSubtitle}`;
+        }else{
+            return `<div class="chunkeditor_emptytemplate unselectable"><div style='display:block;'><div>${emptyTextTitle}</div><div style="font-size:70%;">${shiftMode}${emptyTextSubtitle}</div></div></div>`;
+        }
+    },
 
     createClientChunk:function(sourceNode,dataProvider,tplpars){
         var templateHandler = sourceNode._templateHandler;
@@ -3782,8 +3788,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
-                this.template = this.template || emptychunk;
+                this.template = this.template || cls.emptyChunk(sourceNode.attr.plainText,tplpars.editable);
             }
         };
         sourceNode.updateTemplate = function(){
@@ -3812,9 +3817,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
             };
         }
+        var cls = this;
         var onResult = function(resultNode){
             var r = resultNode.getValue();
             templateHandler.dataInfo = resultNode.attr;
+            if(r=='missing_template'){
+                r = cls.emptyChunk(sourceNode.attr.plainText, tplpars.editable)
+            }
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
                 setter(rendered);
