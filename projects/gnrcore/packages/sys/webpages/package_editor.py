@@ -85,6 +85,7 @@ class GnrCustomWebPage(object):
                 if os.path.isfile(configpath):
                     b = Bag(configpath)
                     b.setItem('packages.%s' %package_name,'')
+                    b.setItem('menu',None,packages='*')
                     b.toXml(configpath,typevalue=False,pretty=True)
                 if not is_main_package:
                     continue
@@ -95,6 +96,10 @@ class GnrCustomWebPage(object):
                     b = Bag(configpath)
                     n = b.getNode('wsgi')
                     n.attr['mainpackage'] = package_name
+                    b.toXml(configpath,typevalue=False,pretty=True)
+                else:
+                    b = Bag(configpath)
+                    b.setAttr('site.wsgi',mainpackage=package_name)
                     b.toXml(configpath,typevalue=False,pretty=True)
         return package_name
 
