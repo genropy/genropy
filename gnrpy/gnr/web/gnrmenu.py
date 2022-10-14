@@ -69,16 +69,14 @@ class MenuStruct(GnrStructData):
             getattr(menuinstance,self._getBranchMethod(page,menuinstance))(self,**kwargs)
         else:
             getattr(m,self._getBranchMethod(page,m))(self,application=page.application, **kwargs)
-            autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
-            if autoconvert and len([k for k in dir(m) if not k.startswith('__')])==1:
+            if len([k for k in dir(m) if not k.startswith('__')])==1:
                 self.toPython(filepath)
 
   
     def _handle_xml(self,filepath,page=None,**kwargs):
         self.fillFrom(filepath)
-        autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
 
-        if len(self) and autoconvert:
+        if len(self):
             self.toPython(filepath.replace('.xml','.py'))
 
     def _handleFilepath(self,filepath):
