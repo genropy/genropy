@@ -523,7 +523,7 @@ class MenuResolver(BagResolver):
         path = None
         if not value:
             return None,attributes
-        if len(value) == 1:
+        if len(value) == 1 and value['#0']:
             path = '#0'
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
