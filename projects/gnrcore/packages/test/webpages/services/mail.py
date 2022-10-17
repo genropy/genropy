@@ -33,6 +33,8 @@ class GnrCustomWebPage(object):
         "Send e-mail with template. You must configure a template and package email before testing"
         fb=pane.formbuilder(cols=3)
         fb.textBox(value='^.mail.to', lbl='To:')
+        fb.textBox(value='^.mail.cc', lbl='CC:')
+        fb.textBox(value='^.mail.bcc', lbl='BCC:')
         fb.textBox(value='^.mail.subject', lbl='Subject:')
         fb.dbSelect(value='^.tpl.template_id', lbl='Template', 
                         table='adm.userobject', hasDownArrow=True, condition='$objtype=:tpl', condition_tpl='template',
@@ -40,14 +42,17 @@ class GnrCustomWebPage(object):
         fb.dbSelect(value='^.mail.account_id', lbl='Mail account', table='email.account', hasDownArrow=True)
 
         send = fb.button('Send')
-        send.dataRpc(self.sendMessageFromTemplate, to_address='=.mail.to', subject='=.mail.subject', 
+        send.dataRpc(self.sendMessageFromTemplate, to_address='=.mail.to', cc_address='=.mail.cc', 
+                        bcc_address='=.mail.bcc', subject='=.mail.subject', 
                         template_id='=.tpl.template_id', account_id='=.mail.account_id', tbl='=.tpl.tbl')
     
     @public_method
-    def sendMessageFromTemplate(self, account_id=None, to_address=None, subject=None, template_id=None, tbl=None):
+    def sendMessageFromTemplate(self, account_id=None, to_address=None, cc_address=None, 
+                                        bcc_address=None, subject=None, template_id=None, tbl=None):
         msg_tbl = self.db.table('email.message')
         rnd_rec_id = self.db.table(tbl).query(columns='$id', limit=1).selection().output('pkeylist')
         new_msg = msg_tbl.newMessageFromUserTemplate(account_id=account_id, to_address=to_address, 
+                                                        cc_address=cc_address, bcc_address=bcc_address,
                                                         subject=subject, template_id=template_id, 
                                                         record_id=rnd_rec_id[0], doCommit=True)
 
