@@ -3,6 +3,7 @@
     "name": "Genropy",
     "description":"PWA genropy",
     "display":"minimal-ui",
+    "start_url":"/",
     "icons": [
       {
         "src": "/_rsrc/common/pwa/images/logo_512.png",
