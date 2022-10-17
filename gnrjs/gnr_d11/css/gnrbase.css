@@ -5582,6 +5582,13 @@ div[disabled='true'], div[disabled='disabled']{
     overflow: auto;
 }
 
+.ig_top{
+    color:#555;
+    font-size: 1.3em;
+}
+.ig_bottom{
+    border-top:1px solid #efefef;
+}
 
 .gallery_iframe_container{
     position: absolute;
