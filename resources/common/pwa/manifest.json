@@ -2,7 +2,6 @@
     "short_name": "Genropy",
     "name": "Genropy",
     "description":"PWA genropy",
-    "start_url":"/",
     "display":"minimal-ui",
     "icons": [
       {
