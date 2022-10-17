@@ -41,6 +41,8 @@ class Table(object):
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
+        tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
+        tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
         tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
 
@@ -48,7 +50,13 @@ class Table(object):
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
 
+    def pyColumn_cover_logo(self,record,**kwargs):
+        return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
     
+    def pyColumn_square_logo(self,record,**kwargs):
+        return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
+    
+
     def get_all_tags(self, record=None):
         alltags = self.db.table('adm.user_tag').query(where='$user_id=:uid OR $group_code=:gc',
                                                             uid=record['id'],
