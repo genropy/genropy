@@ -418,10 +418,9 @@ class MailService(GnrBaseService):
         email_address = []
         for dest in (to_address, cc_address, bcc_address):
             dest = dest or []
-            if isinstance(dest,(list, tuple)):
-                email_address.extend(dest)
-            else:
-                email_address.append(dest)
+            if isinstance(dest,str):
+                dest = dest.split(',')
+            email_address.extend(dest)
         smtp_connection.sendmail(from_address, email_address, msg_string)
         smtp_connection.close()
 
