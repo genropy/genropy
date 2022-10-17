@@ -2,8 +2,8 @@
 <script type="text/javascript" src="${dojolib}" djConfig="${djConfig}"> </script>
 <script type="text/javascript">dojo.registerModulePath('gnr','${gnrModulePath}');</script>
 % if pwa:
-    <link rel="manifest" crossorigin="use-credentials" href="/_site/pwa/manifest.json">
-    <script type="text/javascript" src="/_site/pwa/app.js"></script>
+    <link rel="manifest" crossorigin="use-credentials" href="/_rsrc/common/pwa/manifest.json">
+    <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
 
 % if favicon:

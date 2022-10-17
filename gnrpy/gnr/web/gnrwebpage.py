@@ -1175,8 +1175,8 @@ class GnrWebPage(GnrBaseWebPage):
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
-        manifestNode = self.site.storageNode('site:pwa/manifest.json')
-        if manifestNode.exists:
+        pwaEnabled = self.site.config['pwa?enabled']
+        if pwaEnabled:
             arg_dict['pwa'] = True
 
     def getSquareLogoUrl(self, arg_dict):

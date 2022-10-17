@@ -1,0 +1,14 @@
+{
+    "short_name": "Genropy",
+    "name": "Genropy",
+    "description":"PWA genropy",
+    "start_url":"/",
+    "display":"minimal-ui",
+    "icons": [
+      {
+        "src": "/_rsrc/common/pwa/images/logo_512.png",
+        "type": "image/png",
+        "sizes": "512x512"
+      }
+    ]
+}
