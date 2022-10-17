@@ -90,6 +90,7 @@ class Main(BaseResourceMail):
         to_address = templateReplace(self.mail_pars.getItem('to_address',''),record)
         subject = templateReplace(self.mail_pars.getItem('subject',''),record)
         cc_address = templateReplace(self.mail_pars.getItem('cc_address',''),record)
+        bcc_address = templateReplace(self.mail_pars.getItem('bcc_address',''),record)
         from_address = templateReplace(self.mail_pars.getItem('from_address',''),record)
 
         htmlContent=templateReplace(self.compiledTemplate,record, 
@@ -117,7 +118,7 @@ class Main(BaseResourceMail):
                 attachments = attachments or []
             self.appendAttachedReports(record=record,attachments=attachments)
             self.send_one_email(to_address=to_address,from_address=from_address,
-                                cc_address=cc_address,
+                                cc_address=cc_address, bcc_address=bcc_address, 
                                 subject=subject,body=body,attachments=attachments or None,
                                             _record_id=record[self.tblobj.pkey],
                                             html=not as_pdf)
