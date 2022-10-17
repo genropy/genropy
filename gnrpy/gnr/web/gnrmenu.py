@@ -69,8 +69,9 @@ class MenuStruct(GnrStructData):
             getattr(menuinstance,self._getBranchMethod(page,menuinstance))(self,**kwargs)
         else:
             getattr(m,self._getBranchMethod(page,m))(self,application=page.application, **kwargs)
-            if len([k for k in dir(m) if not k.startswith('__')])==1:
-                self.toPython(filepath)
+            # AUTOCONVERT
+            #if len([k for k in dir(m) if not k.startswith('__')])==1:
+            #    self.toPython(filepath)
 
   
     def _handle_xml(self,filepath,page=None,**kwargs):
@@ -220,6 +221,7 @@ class MenuResolver(BagResolver):
         menuinstance = os.path.join(self.app.instanceFolder, 'menu.py')
         if os.path.exists(menuinstance):
             return MenuStruct(menuinstance,page=self._page)
+
 
 
     @property
