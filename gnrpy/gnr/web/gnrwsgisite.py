@@ -840,6 +840,8 @@ class GnrWsgiSite(object):
         if path_list == ['favicon.ico']:
             path_list = ['_site', 'favicon.ico']
             self.log_print('', code='FAVICON')
+        if path_list == ['_pwa_worker.js']:
+            path_list = ['_site', 'pwa','sw.js']
             # return response(environ, start_response)
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
