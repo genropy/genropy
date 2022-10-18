@@ -1856,6 +1856,9 @@ dojo.declare('gnr.GenroClient', null, {
             key = this.pageHash+key;
         }
         var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+        if(isNullOrBlank(value)){
+            storage.removeItem(key);
+        }
         storage.setItem(key, asTypedTxt(value));
         //console.log('Stored in ' + sessionType + 'Storage at key:' + key + '  value:' + value);
     },
