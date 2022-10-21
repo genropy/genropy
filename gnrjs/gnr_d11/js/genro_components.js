@@ -3109,10 +3109,12 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                        'TL':{left:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
                         'BR':{right:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
                         'BL':{left:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}}   
-        var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
-        tools.split(',').forEach(function(t){
-            mb._('item',t,default_tools[t]);
-        });
+        if(tools){
+            var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
+            tools.split(',').forEach(function(t){
+                mb._('item',t,default_tools[t]);
+            });
+        }
         tpane._('datacontroller',{script:"genro.publish({topic:value.action,nodeId:target},value)",
                                  value:'^.command',target:kw.nodeId})
         return bc._('contentPane',centerkw)
