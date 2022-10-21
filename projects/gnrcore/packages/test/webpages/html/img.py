@@ -16,23 +16,24 @@ class GnrCustomWebPage(object):
                     width='180px', height='40px', padding='10px')
 
     def test_1_uploadImage(self,pane):
-        "Upload image and display it. Keep shift+clic pressed after upload to adjust cropping"
+        "Upload image or take picture and display it. Keep shift+clic pressed after upload to adjust cropping"
         pane.div(border='2px dotted silver', width='150px', height='150px').img(
                     src='^.image', 
                     crop_width='150px',
                     crop_height='150px',
                     edit=True, 
+                    takePicture=True,
                     placeholder=True,
                     upload_filename='test_image', 
                     upload_folder='site:tests/image')
 
     def test_2_uploadCamera(self,pane):
-        "Upload image from camera."
+        "Upload image from camera and advanced cropping procedure"
         pane.div(border='2px dotted silver', width='150px', height='150px').img(
                     src='^.image', 
                     crop_width='150px',
                     crop_height='150px',
-                    edit='camera', 
+                    edit=True,
                     placeholder=True,
                     upload_filename='test_image', 
                     upload_folder='*')
