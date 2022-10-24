@@ -142,15 +142,15 @@
 }
 
 .th_view_toolbar{
-    height: 21px;
+    min-height: 21px;
 }
 
 .th_view_toolbar.pbl_roundedGroupLabel{
-    height: 20px;
+    min-height: 20px;
 }
 
 .th_form_toolbar{
-    height: 21px;
+    min-height: 21px;
     padding-top: 1px;
 }
 

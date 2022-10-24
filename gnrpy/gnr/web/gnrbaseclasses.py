@@ -266,8 +266,10 @@ class GnrTableScriptHtmlSrc(GnrHtmlSrc):
 class BagToHtmlWeb(BagToHtml):
     client_locale = False
     record_template = None
+    pdf_service = None
 
-    def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,resource_table=None,record_template=None,**kwargs):
+    def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,
+                    resource_table=None,record_template=None,pdf_service=None,**kwargs):
         super(BagToHtmlWeb, self).__init__(**kwargs)
         self.page = page
         self.parent = parent
@@ -275,15 +277,19 @@ class BagToHtmlWeb(BagToHtml):
         self.maintable = None
         if self.tblobj:
             self.maintable = self.tblobj.fullname if self.tblobj else None
+        self.pdf_service = pdf_service or self.pdf_service
         self.db = self.page.db if page else self.tblobj.db
         self.site = self.db.application.site
         self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
         self.letterhead_sourcedata = letterhead_sourcedata
-        self.print_handler = self.site.getService('htmltopdf')
         self.pdf_handler = self.site.getService('pdf')
         self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
         self.record_template = record_template or self.record_template
         self.record = None
+
+    @property
+    def print_handler(self):
+        return self.site.getService('htmltopdf',self.pdf_service)
 
     def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
         virtual_columns=None

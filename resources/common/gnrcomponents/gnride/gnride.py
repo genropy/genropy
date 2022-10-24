@@ -111,9 +111,8 @@ class GnrIde(BaseComponent):
     def gi_sourceFoldersResolver(self,sourceFolders=None,**kwargs):
         result = Bag()
         for f in sourceFolders.split(','):
-            folderName = os.path.basename(f)
-            f = self.site.getStaticPath(f)                
-            result.setItem(folderName,DirectoryResolver(f,**DIRECTORY_RESOLVER_DEFAULT_PARS),caption=folderName)
+            sn = self.site.storageNode(f)
+            result.setItem(sn.basename,DirectoryResolver(sn.internal_path,**DIRECTORY_RESOLVER_DEFAULT_PARS),caption=sn.basename)
         return result
 
 

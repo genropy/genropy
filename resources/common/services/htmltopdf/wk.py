@@ -7,8 +7,7 @@ import os
 from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError
 
 class Service(HtmlToPdfService):
-    def writePdf(self,srcPath, destPath, orientation=None, page_height=None, page_width=None,
-                        pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs):
+    def writePdf(self,srcPath, destPath, orientation=None,pdf_kwargs=None,**kwargs):
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)
         destPath = self.parent.storageNode(destPath, parent=self.parent)
 
@@ -33,7 +32,8 @@ class Service(HtmlToPdfService):
 
         pdf_kwargs.pop('page_height', None)
         pdf_kwargs.pop('page_width', None)
-
+        pdf_kwargs.pop('wk_legacy', None)
+        pdf_kwargs.pop('weasyprint', None)
         for k,v in list(pdf_kwargs.items()):
             if v is not False and v is not None and v!='':
                 args.append('--%s' %k.replace('_','-'))

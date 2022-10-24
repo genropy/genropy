@@ -69,16 +69,15 @@ class MenuStruct(GnrStructData):
             getattr(menuinstance,self._getBranchMethod(page,menuinstance))(self,**kwargs)
         else:
             getattr(m,self._getBranchMethod(page,m))(self,application=page.application, **kwargs)
-            autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
-            if autoconvert and len([k for k in dir(m) if not k.startswith('__')])==1:
-                self.toPython(filepath)
+            # AUTOCONVERT
+            #if len([k for k in dir(m) if not k.startswith('__')])==1:
+            #    self.toPython(filepath)
 
   
     def _handle_xml(self,filepath,page=None,**kwargs):
         self.fillFrom(filepath)
-        autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
 
-        if len(self) and autoconvert:
+        if len(self):
             self.toPython(filepath.replace('.xml','.py'))
 
     def _handleFilepath(self,filepath):
@@ -222,6 +221,7 @@ class MenuResolver(BagResolver):
         menuinstance = os.path.join(self.app.instanceFolder, 'menu.py')
         if os.path.exists(menuinstance):
             return MenuStruct(menuinstance,page=self._page)
+
 
 
     @property
@@ -523,7 +523,7 @@ class MenuResolver(BagResolver):
         path = None
         if not value:
             return None,attributes
-        if len(value) == 1:
+        if len(value) == 1 and value['#0']:
             path = '#0'
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
@@ -629,10 +629,12 @@ class LookupBranchResolver(MenuResolver):
 
     
     def lookup_tables(self,pkg=None):
-        for tbl in self._page.db.model.package(pkg).tables.values():
-            tblattr = tbl.attributes
+        pkgtables = self._page.db.model.package(pkg).tables
+        for tblname in sorted(pkgtables.keys()):
+            tblobj = pkgtables[tblname]
+            tblattr = tblobj.attributes
             if tblattr.get('lookup') and self._page.db.application.allowedByPreference(**tblattr):
-                yield tbl.fullname
+                yield tblobj.fullname
 
     @property
     def valid_packages(self):

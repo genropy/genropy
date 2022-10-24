@@ -679,12 +679,15 @@ dojo.declare('gnr.GenroClient', null, {
                 return;
             }
             var sn = wdg.sourceNode;
+            if(!isNullOrBlank(sn.widget.getValue())){
+                return;
+            }
             if(sn.grid){
                 sn.grid.gridEditor.copyFromCellAbove(sn);
                 return;
             }
             if('_lastSavedValue' in sn){
-                if(sn.form && sn.form.isNewRecord() && isNullOrBlank(sn.widget.getValue())){
+                if(sn.form && sn.form.isNewRecord()){
                     sn.widget.setValue(sn._lastSavedValue,false);
                 }
                 return;
@@ -1853,6 +1856,9 @@ dojo.declare('gnr.GenroClient', null, {
             key = this.pageHash+key;
         }
         var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+        if(isNullOrBlank(value)){
+            storage.removeItem(key);
+        }
         storage.setItem(key, asTypedTxt(value));
         //console.log('Stored in ' + sessionType + 'Storage at key:' + key + '  value:' + value);
     },

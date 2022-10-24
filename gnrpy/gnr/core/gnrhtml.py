@@ -13,7 +13,6 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrprinthandler import PrintHandler
 from gnr.core.gnrdecorator import extract_kwargs
 
 import sys
@@ -276,7 +275,7 @@ class GnrHtmlBuilder(object):
     def __init__(self, page_height=None, page_width=None, page_margin_top=None,
                  page_margin_left=None, page_margin_right=None, page_margin_bottom=None,
                  showTemplateContent=None,
-                 htmlTemplate=None, page_debug=False, srcfactory=None, css_requires=None,
+                 htmlTemplate=None, page_debug=False,page_styles=None, srcfactory=None, css_requires=None,
                  print_button=None, bodyAttributes=None,parent=None,default_kwargs=None,**kwargs):
         self.srcfactory = srcfactory or GnrHtmlSrc
         self.htmlTemplate = htmlTemplate or Bag()
@@ -284,13 +283,16 @@ class GnrHtmlBuilder(object):
         if len(self.htmlTemplate):
             top_layer =  self.htmlTemplate['#%i' %(len(self.htmlTemplate)-1)]
         self.nextLetterhead = None
-        self.page_height = page_height or top_layer['main.page.height'] or 280
-        self.page_width = page_width or top_layer['main.page.width'] or 200
+        self.page_height = page_height or top_layer['main.page.height']
+        self.page_width = page_width or top_layer['main.page.width']
+        if not (self.page_height and self.page_width):
+            raise GnrHtmlSrcError('Missing page dimensions')
         self.page_margin_top = page_margin_top or top_layer['main.page.top'] or 0
         self.page_margin_left = page_margin_left or top_layer['main.page.left'] or 0
         self.page_margin_right = page_margin_right or top_layer['main.page.right'] or 0
         self.page_margin_bottom = page_margin_bottom or top_layer['main.page.bottom'] or 0
         self.page_debug = page_debug
+        self.page_styles = page_styles
         self.print_button = print_button
         self.css_requires = css_requires or []
         self.showTemplateContent = showTemplateContent
@@ -306,7 +308,7 @@ class GnrHtmlBuilder(object):
         self.root.builder = self
         self.htmlBag = self.root.html()
         self.head = self.htmlBag.head()
-        self.body = self.htmlBag.body(**body_attributes)
+        self.body = self.htmlBag.body(margin='0mm',**body_attributes)
         self.head.meta(http_equiv="Content-Type", content="text/html; charset=UTF-8")
         for css_require in self.css_requires:
             self.head.csslink(href=css_require)
@@ -360,7 +362,13 @@ class GnrHtmlBuilder(object):
                             font-family:courier;
                         }
                         """)
-                            
+
+        self.head.style(f"""
+            @page{{
+                margin:0;
+                size:{self.page_width}mm {self.page_height}mm;
+            }}
+        """)
 
 
     def prepareTplLayout(self,letterhead_root):
@@ -444,9 +452,10 @@ class GnrHtmlBuilder(object):
                                    top:%imm;
                                    left:%imm;
                                    right:%imm;
-                                   bottom:%imm;""" % (
+                                   bottom:%imm;%s""" % (
         self.page_margin_top, self.page_margin_left,
-        self.page_margin_right, self.page_margin_bottom))
+        self.page_margin_right, self.page_margin_bottom,
+        self.page_styles or ''))
         if self.htmlTemplate:
             if not firstpage and self.nextLetterhead:
                 self.htmlTemplate = self.nextLetterhead
@@ -456,7 +465,7 @@ class GnrHtmlBuilder(object):
         else:
             height = self.page_height - self.page_margin_top - self.page_margin_bottom
             width = self.page_width - self.page_margin_left - self.page_margin_right
-            letterhead_root = letterhead_root.layout(name='paper',top=0,left=0,border_width=0,width=width,height=height).row().cell()
+            letterhead_root = letterhead_root.layout(name='paper',top=0,left=0,border_width=0,width=width,height=height,_class='paper_layout').row().cell()
         if firstpage and self.print_button:
             letterhead_root.div(self.print_button, _class='no_print', id='printButton', onclick='window.print();')
         return letterhead_root
@@ -486,7 +495,7 @@ class GnrHtmlBuilder(object):
                         """)
                             
     def toHtml_(self, filepath=None):
-        if filepath:
+        if isinstance(filepath,str):
             filepath = expandpath(filepath)
         self.finalize(self.body)
         self.html = self.root.toXml(filename=filepath,
@@ -500,7 +509,7 @@ class GnrHtmlBuilder(object):
         """TODO
         
         :param filepath: TODO"""
-        if filepath:
+        if isinstance(filepath,str):
             filepath = expandpath(filepath)
         self.finalize(self.body)
         self.html = self.root.toXml(filename=filepath,
@@ -511,22 +520,12 @@ class GnrHtmlBuilder(object):
                                     docHeader='<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
         return self.html
 
-    def toPdf(self,filename,orientation=None,**kwargs):
-        html = self.root.toXml(omitRoot=True,
-                                    autocreate=True,
-                                    forcedTagAttr='tag',
-                                    addBagTypeAttr=False, typeattrs=False, self_closed_tags=['meta', 'br', 'img'],
-                                    docHeader='<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
-        if self.page_height<self.page_width:
-            self.orientation='Landscape'
-            page_height = self.page_width
-            page_width = self.page_height
-        else:
-            self.orientation='Portrait'
-            page_height = self.page_height
-            page_width = self.page_width
-        pc = PrintHandler()
-        return pc.htmlToPdf(html,filename, orientation=self.orientation,pdf_kwargs=kwargs)
+    def toPdf(self,filename,**kwargs):
+        from weasyprint import HTML
+        html_doc = HTML(string=self.html)
+        html_doc.write_pdf(target=filename)
+            
+
 
     def calculate_style(self, attr, um, **kwargs):
         """TODO

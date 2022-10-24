@@ -18,6 +18,8 @@ class Main(BaseResourcePrint):
     batch_title = None
     print_mode = 'pdf'
     
+    def table_script_extUrlButton(self,pane,**kwargs):
+        return 
     def pre_process(self):
         extra_parameters = self.batch_parameters.pop('extra_parameters')
         self.maintable = extra_parameters['table']

@@ -75,16 +75,21 @@ var THTree = {
         var dataTransfer = dropInfo.event.dataTransfer;
         var nodeattr = genro.dom.getFromDataTransfer(dataTransfer,'nodeattr');
         var dragged_record = convertFromText(nodeattr);
+        var siblingSorting = sourceNode.getRelativeData('#FORM.siblingSorting');
         var draggedNode = sourceNode.widget.storebag().getNodeByAttr('pkey',dragged_record.pkey);
         var dropNode = dropInfo.treeItem;
         if(!draggedNode){
             console.log('Resolver damaged');
             return false;
         }
+
         if(draggedNode.isAncestor(dropNode)){
             return false;
         }
         var ondrop_record = dropNode.attr;
+        if(siblingSorting && dragged_record.parent_id!=ondrop_record.parent_id){
+            return false;
+        }
         var ondrop_pkey = ondrop_record.pkey;
         var drop_fullrec = ondrop_record._record || {};
         var drag_fullrec = dragged_record._record || {};

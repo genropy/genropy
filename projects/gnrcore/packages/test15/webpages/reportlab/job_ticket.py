@@ -1,4 +1,4 @@
-from gnr.pdf.gnrrml import GnrRml
+from gnr.xtnd.gnrrml import GnrRml
 
 class Abba(object):
     def pdfa(self,filename):

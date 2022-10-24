@@ -1262,7 +1262,7 @@ class SqlTable(GnrObject):
         if record != old_record:
             self.update(record,old_record)
 
-    def readColumns(self, pkey=None, columns=None, where=None, **kwargs):
+    def readColumns(self, pkey=None, columns=None, where=None,subtable='*', **kwargs):
         """TODO
         
         :param pkey: the record :ref:`primary key <pkey>`
@@ -1275,7 +1275,7 @@ class SqlTable(GnrObject):
         kwargs.setdefault('ignoreTableOrderBy',True)
         fetch = self.query(columns=columns, limit=1, where=where,
                            pkey=pkey, addPkeyColumn=False,excludeDraft=False,
-                           ignorePartition=True,excludeLogicalDeleted=False, 
+                           ignorePartition=True,excludeLogicalDeleted=False,subtable=subtable,
                            **kwargs).fetch()
         if not fetch:
             row = [None for x in columns.split(',')]

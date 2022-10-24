@@ -4,6 +4,7 @@
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
+import os
 from builtins import str
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent,TableScriptToHtml
@@ -48,6 +49,7 @@ class TemplateEditorBase(BaseComponent):
     def te_renderChunk(self, record_id=None,template_address=None,templates=None,template_id=None,template_bag=None,plainText=False,**kwargs):
         result = Bag()
         empty_chunk ='Template not yet created' if plainText else '<div class="chunkeditor_emptytemplate">Template not yet created</div>'
+        empty_chunk = 'missing_template'
         if template_bag:
             data = template_bag
             compiled = template_bag['compiled']
@@ -128,7 +130,7 @@ class TemplateEditorBase(BaseComponent):
             
         
     @public_method
-    def te_compileTemplate(self,table=None,datacontent=None,content_css=None,varsbag=None,parametersbag=None,record_id=None,templates=None,template_id=None,**kwargs):
+    def te_compileTemplate(self,table=None,datacontent=None,content_css=None,varsbag=None,parametersbag=None,record_id=None,templates=None,template_id=None,email_meta=None,**kwargs):
         result = Bag()
         formats = dict()
         editcols = dict()
@@ -205,6 +207,9 @@ class TemplateEditorBase(BaseComponent):
                             maintable=table,locale=self.locale,virtual_columns=','.join(virtual_columns),
                             columns=','.join(columns),formats=formats,masks=masks,editcols=editcols,df_templates=df_templates,dtypes=dtypes)
         result.setItem('compiled',compiled)
+        if email_meta:
+            result.setItem('email_compiled',self.te_compileBagForm(table=table,sourcebag=email_meta,
+                                                                    varsbag=varsbag,parametersbag=parametersbag))
         if record_id:
             result.setItem('preview',self.te_getPreview(compiled=compiled,record_id=record_id,templates=templates,template_id=template_id))
         return result
@@ -213,9 +218,9 @@ class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
     css_requires='public'
     @struct_method
-    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,**kwargs):
+    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,datasourcepath=None,**kwargs):
         sc = self._te_mainstack(pane,table=maintable)
-        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable)
+        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable,datasourcepath=datasourcepath)
         self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain,plainText=plainText))
         self._te_framePreview(sc.framePane(title='!!Preview',pageName='preview',childname='preview'),table=maintable)
         #self._te_frameHelp(sc.framePane(title='!!Help',pageName='help',childname='help'))
@@ -354,11 +359,12 @@ class TemplateEditor(TemplateEditorBase):
                                 parentForm=False,
                                 selfDragRows=True,**kwargs)
         
-    def _te_frameInfo(self,frame,table=None):
+    def _te_frameInfo(self,frame,table=None,datasourcepath=None,**kwargs):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
         self._te_info_top(bc.contentPane(region='top'))
-        self._te_info_vars(bc,table=table,region='bottom',height='60%')
+        self._te_info_vars(bc,table=table,region='bottom',height='60%',
+                fieldsTree_currRecordPath=datasourcepath)
         self._te_info_parameters(bc,region='center')
         
     def _te_pickers(self,tc):
@@ -412,24 +418,28 @@ class TemplateEditor(TemplateEditorBase):
         r.cell('resource',name='!![en]Resource',width='15em',edit=True)
         r.cell('condition',name='!![en]Condition',width='15em',edit=True)
 
-    def _te_frameEdit(self,frame,editorConstrain=None,plainText=None):
+    def _te_frameEdit(self,frame,editorConstrain=None,plainText=None,emailChunk=None):
         frame.top.slotToolbar(slots='5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer(design='sidebar')
         self._te_pickers(frame.tabContainer(region='left',width='200px',splitter=True))                
         frame.dataController("bc.setRegionVisible('top',mail)",bc=bc.js_widget,mail='^.data.metadata.is_mail',_if='mail!==null')
-        top = bc.borderContainer(region='top',height='180px',hidden=True)
-        metadatapane = top.roundedGroup(region='left',title='!![en]Email metadata',width='500px',datapath='.data.metadata.email')
-        fb = metadatapane.div(margin_right='10px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',tdl_width='8em')
-        fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
-        fb.textbox(value='^.to_address', lbl='!!To',dropTypes = 'text/plain')
-        fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
-        fb.textbox(value='^.cc_address', lbl='!!CC',dropTypes = 'text/plain')
-        fb.textbox(value='^.bcc_address', lbl='!!BCC',dropTypes = 'text/plain')
-
-
-        fb.simpleTextArea(value='^.attachments', lbl='!!Attachments',dropTypes = 'text/html')
-
-        self._te_attachedReports(top.contentPane(region='center'))
+        
+        if emailChunk:
+            fb = bc.contentPane(region='top').div(margin_right='20px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',
+                                                        datapath='.data.metadata.email',colswidth='auto')
+            fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
+            fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
+        else:
+            top = bc.borderContainer(region='top',height='180px',hidden=True)
+            metadatapane = top.roundedGroup(region='left',title='!![en]Email metadata',width='500px',datapath='.data.metadata.email')
+            fb = metadatapane.div(margin_right='10px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',tdl_width='8em')
+            fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
+            fb.textbox(value='^.to_address', lbl='!!To',dropTypes = 'text/plain')
+            fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
+            fb.textbox(value='^.cc_address', lbl='!!CC',dropTypes = 'text/plain')
+            fb.textbox(value='^.bcc_address', lbl='!!BCC',dropTypes = 'text/plain')
+            fb.simpleTextArea(value='^.attachments', lbl='!!Attachments',dropTypes = 'text/html')
+            self._te_attachedReports(top.contentPane(region='center'))
 
         editorConstrain = editorConstrain or dict()
         constrain_height = editorConstrain.pop('constrain_height',False)
@@ -611,6 +621,21 @@ class PaletteTemplateEditor(TemplateEditor):
         self.saveTemplate(template_address=template_address,data=data,inMainResource=inMainResource)
 
     @public_method
+    def te_saveBagFieldTemplate(self,table=None,respath=None,data=None,custom=False):
+        respath = f'bagfields/{respath}'
+        data['compiled'] = self.te_compileTemplate(table=table,datacontent=data['content'],content_css=data['content_css'],varsbag=data['varsbag'],parametersbag=data['parameters'])['compiled']
+        data.toXml(self.packageResourcePath(table=table,filepath=f'{respath}.xml',custom=custom),autocreate=True)
+
+    @public_method
+    def te_loadBagFieldTemplate(self,table=None,respath=None,custom=False):
+        respath = f'bagfields/{respath}.xml'
+        fullpath = self.packageResourcePath(table=table,filepath=respath,custom=custom)
+        if os.path.exists(fullpath):
+            return Bag(fullpath)
+        return Bag()
+
+
+    @public_method
     def te_saveTemplate(self,pkey=None,data=None,tplmode=None,table=None,metadata=None,**kwargs):
         record = None
         if data['metadata.email']:
@@ -624,7 +649,7 @@ class PaletteTemplateEditor(TemplateEditor):
 class ChunkEditor(PaletteTemplateEditor):
     @public_method
     def te_chunkEditorPane(self,pane,table=None,resource_mode=None,paletteId=None,
-                            datasourcepath=None,showLetterhead=False,editorConstrain=None,plainText=False,**kwargs):
+                            datasourcepath=None,showLetterhead=False,editorConstrain=None,plainText=False,emailChunk=False,**kwargs):
         sc = self._te_mainstack(pane,table=table)
         self._te_frameChunkInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=table,datasourcepath=datasourcepath)
         bar = sc.info.top.bar
@@ -652,7 +677,7 @@ class ChunkEditor(PaletteTemplateEditor):
             bar.replaceSlots('#','#,savetpl,5')
         self._te_saveButton(bar.savetpl,table,paletteId)
         frameEdit = sc.framePane(title='!!Edit',pageName='edit',childname='edit')
-        self._te_frameEdit(frameEdit,editorConstrain=editorConstrain,plainText=plainText)
+        self._te_frameEdit(frameEdit,editorConstrain=editorConstrain,plainText=plainText,emailChunk=emailChunk)
         if showLetterhead:
             bar = frameEdit.top.bar.replaceSlots('parentStackButtons','parentStackButtons,letterhead_selector')
             fb = bar.letterhead_selector.formbuilder(cols=1,border_spacing='1px')
@@ -702,10 +727,12 @@ class ChunkEditor(PaletteTemplateEditor):
         
     def _te_saveButton(self,pane,table,paletteId):
         pane.slotButton('!!Save',action="""
-                                    var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,varsbag:vb,parametersbag:pb},null,null,'POST');
+                                    var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,email_meta:email_meta,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
+                                    data.setItem('metadata.email_compiled',result.getItem('email_compiled'));
                                     genro.nodeById(paletteId).publish("savechunk",{inMainResource:$1.shiftKey});""",
                             iconClass='iconbox save',paletteId=paletteId,table=table,dc='=.data.content',
+                            email_meta='=.data.metadata.email',
                             content_css='=.data.content_css',
                             vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')
         

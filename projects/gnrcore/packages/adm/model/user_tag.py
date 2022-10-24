@@ -29,6 +29,8 @@ class Table(object):
         self.setUserAuthTags(record_data)
 
     def trigger_onDeleted(self, record):
+        if self.currentTrigger.parent:
+            return
         self.setUserAuthTags(record)
 
     def setUserAuthTags(self,record):

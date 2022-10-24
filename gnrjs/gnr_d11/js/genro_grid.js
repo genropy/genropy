@@ -1423,6 +1423,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.indexByCb(cb) >= 0;
     },
     mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        this.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+    },
+
+    mixin_selectByRowAttrDo:function(attrName, attrValue, op,scrollTo,default_idx) {
         var selection = this.selection;
         var idx = -1;
         if (attrValue instanceof Array && attrValue.length==1){
@@ -1431,7 +1435,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (attrValue instanceof Array) {
             selection.unselectAll();
             var grid = this;
-            dojo.forEach(attrValue, function(v) {
+            attrValue.forEach(function(v) {
                 var idx = grid.indexByRowAttr(attrName, v);
                 if(idx>=0){
                     selection.addToSelection(idx);
@@ -3775,17 +3779,23 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         var action_delay = cellkw.action_delay;
         var sourceNode = this.sourceNode;
         var gridEditor = this.gridEditor;
-        var cellsetter;
         var currpath;
         var changedFields = [];
+        var assignedValue = cellkw.assignedValue;
+        var checkBoxMultiValueField = cellkw.checkBox;
+        var checkBoxAggr = cellkw.checkBoxAggr;
+        var storeCellSetter = function(idx,cellname,value){
+            currpath = '#'+grid.absIndex(idx)+sep+cellname;
+            storebag.setItem(currpath,value,null,{lazySet:true});
+        }
+        var cellsetter = storeCellSetter;
         if(gridEditor){
             cellsetter = function(idx,cellname,value){
-                gridEditor.setCellValue(idx,cellname,value);
-            }
-        }else{
-            cellsetter = function(idx,cellname,value){
-                currpath = '#'+grid.absIndex(idx)+sep+cellname;
-                storebag.setItem(currpath,value,null,{lazySet:true});
+                if(cellname in grid.cellmap){
+                    gridEditor.setCellValue(idx,cellname,value);
+                }else{
+                    storeCellSetter(idx,cellname,value);
+                }
             }
         }
         if (currNode.attr.disabled) {
@@ -3793,9 +3803,6 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
         var newval = !checked;
         if(cellkw.radioButton){
-            if(checked && !evt.shiftKey){
-                return;
-            }
             if(cellkw.radioButton===true){
                 var oldcheckedpath; 
                 for (var i=0; i<storebag.len(); i++){
@@ -3811,19 +3818,63 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 }
                 cellsetter(idx,fieldname,true);
             }else{
-                for (var c in this.cellmap){
-                    var s_cell = this.cellmap[c];
-                    if(s_cell.radioButton==cellkw.radioButton){
+                if(!isNullOrBlank(assignedValue)){
+                    let currentAssignedValue = storebag.getItem(rowpath+sep+cellkw.radioButton);
+                    let valueToAssign = assignedValue;
+                    if(currentAssignedValue===valueToAssign){
+                        valueToAssign = null;
+                        newval = false;
+                    }
+                    cellsetter(idx,cellkw.radioButton,valueToAssign);
+                    cellsetter(idx,`_status_${cellkw.radioButton}`,valueToAssign!==null);
+                }
+                for (let c in this.cellmap){
+                    let s_cell = this.cellmap[c];
+                    if(s_cell.radioButton==cellkw.radioButton && s_cell.original_field!=cellkw.radioButton){
                         changedFields.push(s_cell.original_field);
-                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && !evt.shiftKey);
+                        cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && newval);
                     }
                 }
             }
-
-
-
         }else{
-            cellsetter(idx,cellkw.original_field,!checked);
+            if(checkBoxMultiValueField){
+                let currentAssignedValue = storebag.getItem(rowpath+sep+checkBoxMultiValueField);
+                let valueToAssign = currentAssignedValue;
+                if(typeof(assignedValue)=='string'){
+                    checkBoxAggr = checkBoxAggr || ',';
+                    valueToAssign = valueToAssign?valueToAssign.split(checkBoxAggr):[];
+                    if(newval){
+                        valueToAssign.push(assignedValue);
+                    }else{
+                        valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
+                    }
+                    valueToAssign = valueToAssign.sort().join(checkBoxAggr) || null;
+                }else{
+                    checkBoxAggr = checkBoxAggr || '+'; //+ or *
+                    if(checkBoxAggr=='+'){
+                        if(newval){
+                            valueToAssign += assignedValue;
+                        }else{
+                            valueToAssign -= assignedValue;
+                        }
+                        valueToAssign = valueToAssign || null;
+                    }else{
+                        if(newval){
+                            valueToAssign = valueToAssign*assignedValue;
+                        }else{
+                            valueToAssign = valueToAssign/assignedValue;
+                        }
+                        valueToAssign = valueToAssign==1?null:valueToAssign;
+                    }
+                }
+                cellsetter(idx,checkBoxMultiValueField,valueToAssign);
+                cellsetter(idx,`_status_${checkBoxMultiValueField}`,valueToAssign!==null);
+                cellsetter(idx,cellkw.original_field,newval);
+
+            }else{
+                cellsetter(idx,cellkw.original_field,!checked);
+            }
+            
         }
         if(cellkw.checkedId){
             var checkedKeys = this.getCheckedId(fieldname,checkedField) || '';
@@ -4511,6 +4562,19 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
     mixin_refreshSort:function(){
         this.setSortedBy(this.sortedBy);
+    },
+
+    mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
+        var that = this;
+        this.sourceNode.watch('pendingStore',function(){
+            let cs = that.collectionStore();
+            if(!cs){
+                return;
+            }
+            return !(cs.runningQuery || cs.loadingData);
+        },function(){
+            that.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+        });
     },
 
     mixin_collectionStore:function(){

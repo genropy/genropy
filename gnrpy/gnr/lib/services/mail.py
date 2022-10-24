@@ -216,12 +216,14 @@ class MailService(GnrBaseService):
                                         # This is used to prevent explicit "charset = None" to be passed
         attachments = attachments or []
         if not html and not attachments:
-            msg = MIMEText(body, 'text', charset)
+            msg = MIMEText(body, 'plain', charset)
             msg['Subject'] = subject
             return msg
         if html:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
+            if html=='*':
+                body = self.build_letterbox_body(body)
             msg.attach(MIMEText(clean_and_unescape(body), 'text', charset))
             if attachments:
                 multi_msg=MIMEMultipart()
@@ -375,17 +377,18 @@ class MailService(GnrBaseService):
             unique ='%012i' %int(time.time())
             message_id = "<%s_%s@%s>" %(message_id,unique,domain)
             msg['Message-ID'] = message_id
-        if type(cc_address).__name__ in ['list', 'tuple']:
-            msg['Cc'] = cc_address and ','.join(cc_address)
-        else:
-            msg['Cc'] = cc_address
+        cc_address = cc_address or []
+        if isinstance(cc_address,str):
+            cc_address = [addr for addr in cc_address.split(',') if addr]
+        if cc_address:
+            msg['Cc'] = ','.join(cc_address)
         system_bcc = account_params.pop('system_bcc',None)
+        if isinstance(bcc_address,str):
+            bcc_address = [addr for addr in bcc_address.split(',') if addr]
+        bcc_address = bcc_address or []
         if system_bcc:
-            if isinstance(bcc_address,str):
-                bcc_address = [addr for addr in bcc_address.split(',') if addr]
-            bcc_address = bcc_address or []
             bcc_address.append(system_bcc)
-            bcc_address = ','.join(bcc_address)
+        bcc_address = ','.join(bcc_address)
         debug_to_address = account_params.pop('system_debug_address',None)
         to_address = debug_to_address or to_address
         msg_string = msg.as_string()
@@ -396,7 +399,6 @@ class MailService(GnrBaseService):
                 cb_args = cb_args or ()
                 cb_kwargs = cb_kwargs or {}
                 cb(*cb_args, **cb_kwargs)
-
         else:
             thread_params = dict(call=self._sendmail, call_args=sendmail_args, cb=cb, cb_args=cb_args, cb_kwargs=cb_kwargs)
             _thread.start_new_thread(self._send_with_cb,(),thread_params)
@@ -416,10 +418,9 @@ class MailService(GnrBaseService):
         email_address = []
         for dest in (to_address, cc_address, bcc_address):
             dest = dest or []
-            if isinstance(dest,(list, tuple)):
-                email_address.extend(dest)
-            else:
-                email_address.append(dest)
+            if isinstance(dest,str):
+                dest = dest.split(',')
+            email_address.extend(dest)
         smtp_connection.sendmail(from_address, email_address, msg_string)
         smtp_connection.close()
 

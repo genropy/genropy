@@ -653,12 +653,17 @@ class SqlDbAdapter(object):
         :param sqlschema: actual sql name of the schema. For more information check the :ref:`about_schema`
                           documentation section
         :unique: boolean for unique indexing"""
+        table_sql = self.adaptSqlName(table_sql)
+        
         if sqlschema:
+            sqlschema  = self.adaptSqlName(sqlschema)
             table_sql = '%s.%s' % (sqlschema, table_sql)
         if unique:
             unique = 'UNIQUE '
         else:
             unique = ''
+        columns = ','.join([self.adaptSqlName(c) for c in columns.split(',')])
+        
         return "CREATE %sINDEX %s ON %s (%s);" % (unique, index_name, table_sql, columns)
 
     def createDbSql(self, dbname, encoding):

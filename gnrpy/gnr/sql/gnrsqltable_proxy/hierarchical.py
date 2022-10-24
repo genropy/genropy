@@ -249,6 +249,7 @@ class HierarchicalHandler(object):
         return result 
 
 
+
     def trigger_before(self,record,old_record=None):
         tblobj = self.tblobj
         pkeyfield = tblobj.pkey
@@ -363,3 +364,13 @@ class HierarchicalHandler(object):
         order_by= order_by or '$hlevel'
         return self.tblobj.query(where=where,p=p,suffix='/%%',order_by=order_by,columns=columns,**kwargs).fetch()
 
+    def fixRowCount(self,parent_id=None):
+        if self.tblobj.column('_row_count') is None:
+            raise self.tblobj.exception('business_logic',msg='This table is not sortable')
+        children = self.tblobj.query(where='$parent_id=:pid',pid=parent_id,order_by='$_row_count',for_update=True).fetch()
+        for idx,row in enumerate(children):
+            if row['_row_count'] != idx+1:
+                old_row = dict(row)
+                row['_row_count'] = idx+1
+                self.tblobj.update(row,old_row)
+            self.fixRowCount(row['id'])

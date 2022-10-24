@@ -4,6 +4,12 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 
+class View(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('__ins_ts',width='10em',name='Datetime')
+        r.fieldcell('user_id',width='15em',name='!!Username')
+        r.fieldcell('confirmed',semaphore=True)
 
 class ViewFromUser(BaseComponent):
     def th_struct(self,struct):

@@ -544,7 +544,7 @@ class GnrBaseWebPage(GnrObject):
             onSavedHandler(record, resultAttr=resultAttr, **onSavedKwargs)
         if not _nocommit:
             self.db.commit()
-        if not 'caption' in resultAttr:
+        if 'caption' not in resultAttr:
             resultAttr['caption'] = tblobj.recordCaption(record, rowcaption=rowcaption)
         pkey = record[tblobj.pkey]
         resultAttr['lastTS'] = str(record[tblobj.lastTS]) if tblobj.lastTS else None

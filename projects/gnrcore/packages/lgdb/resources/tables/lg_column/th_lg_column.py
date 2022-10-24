@@ -12,12 +12,12 @@ class View(BaseComponent):
         r.fieldcell('name', width='8em')
         r.fieldcell('data_type', name='T', width='3em')
         r.fieldcell('old_type', name='OT', width='3em')
-        r.fieldcell('description', width='15em', edit=True)
-        r.fieldcell('notes', width='40em', edit=dict(tag='simpleTextArea', height='80px'))
-        r.fieldcell('group', width='8em', edit=True)
+        r.fieldcell('description', width='15em')
+        r.fieldcell('notes', width='40em')
+        r.fieldcell('group', width='8em')
 
     def th_order(self):
-        return 'lg_table_id'
+        return 'name'
 
     def th_query(self):
         return dict(column='name', op='contains', val='')
@@ -30,12 +30,31 @@ class View(BaseComponent):
                     cols=4, 
                     isDefault=True)
 
-    def th_top_sup(self,top):
+    
+
+class ViewFromTable(View):
+
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('lg_table_id')
+        r.fieldcell('name', width='8em')
+        r.fieldcell('data_type', name='T', width='3em')
+        r.fieldcell('old_type', name='OT', width='3em')
+        r.fieldcell('description', width='15em')
+        r.fieldcell('notes', width='40em')
+        r.fieldcell('group', width='8em')
+
+
+    def th_top_custom(self, top):
+        top.bar.replaceSlots('count','count,batchAssign')
         top.slotToolbar('10,sections@types,*,sections@groups,5',
                        childname='superiore',
                        sections_types_remote=self.sectionTypes,
                        sections_groups_remote=self.sectionGroups,
-                       _position='<bar',gradient_from='#999',gradient_to='#666')
+                       _position='<bar')
+        
+    def th_options(self):
+        return dict(addrow=False)
 
     @public_method
     def sectionTypes(self):
@@ -48,21 +67,27 @@ class View(BaseComponent):
             result.append(dict(code=t['data_type'], caption=t['data_type'], condition='$data_type= :tp', condition_tp=t['data_type']))
         result.append(dict(code='no_type', caption='!![en]No type', condition='$data_type IS NULL'))
         return result
-
-    @public_method
-    def sectionGroups(self):
-        groups= self.db.table('lgdb.lg_column').query('$group',distinct=True, 
-                                                where= '$group IS NOT NULL').fetch()
-
+    
+    @public_method(remote_table_id='^#FORM.record.id')
+    def sectionGroups(self, table_id, **kwargs):
+        if not table_id:
+            return []
+        groups= self.db.table('lgdb.lg_column').query('$group',
+                                                      distinct=True, 
+                                                where= '$group IS NOT NULL AND $lg_table_id=:tbl_id',
+                                                tbl_id=table_id).fetch()
+        
         result=[]
+        
         result.append(dict(code='all', caption='!![en]All'))
         result.append(dict(code='no_group', caption='!![en]No group', condition='$group IS NULL'))
         for g in groups:
-            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+            gname = g['group'].lower()
+            result.append(dict(code=gname.replace(' ','_'), caption=g['group'], condition='LOWER($group)= :gr', condition_gr=gname))
         
         return result
-
-
+        
+    
 class Form(BaseComponent):
 
     def th_form(self, form):

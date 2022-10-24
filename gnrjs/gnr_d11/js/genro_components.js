@@ -2007,7 +2007,8 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         kw.border = kw.border || 0;
         sourceNode.attr.value = value;
         sourceNode.attr.contentCss = contentCss
-        var iframe = sourceNode._('iframe',kw);
+        //kw.src = false;
+        var iframe = sourceNode._('htmliframe',kw);
         var gnrwdg = sourceNode.gnrwdg;
         gnrwdg.zoom = objectPop(kw,'zoom');
         gnrwdg.iframeNode = iframe.getParentNode();
@@ -2018,6 +2019,7 @@ dojo.declare("gnr.widgets.IframeDiv", gnr.widgets.gnrwdg, {
         if(this.zoom){
             value = '<div style="zoom:'+this.zoom+'">'+value+'</div>';
         }
+        console.log('setting value',value)
         this.iframeNode.domNode.contentWindow.document.body.innerHTML = value;
     },
 
@@ -2086,7 +2088,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
                             closable_opacity:'1',
                             closable_iconClass:'smalliconbox create_edit_html_template',
                             border_left:'1px solid silver'})
-        leftbc._('contentPane',{region:'center',overflow:'hidden'})._('codemirror',html_pars);
+        leftbc._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',html_pars);
         if(css_value){
             let css_pars = {}
             css_pars.value = css_value;
@@ -2096,7 +2098,7 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
             css_pars.config_lineNumbers=true;
             css_pars.config_keyMap='softTab';
             objectUpdate(css_pars,objectExtract(kw,'css_*'));
-            leftbc._('contentPane',{region:'bottom',splitter:true,
+            leftbc._('contentPane',{region:'bottom',splitter:true,_lazyBuild:true,
                             height:'50%',overflow:'hidden',
                             'border_top':'1px solid silver',
                             })._('codemirror',css_pars);
@@ -3107,10 +3109,12 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                        'TL':{left:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
                         'BR':{right:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
                         'BL':{left:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}}   
-        var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
-        tools.split(',').forEach(function(t){
-            mb._('item',t,default_tools[t]);
-        });
+        if(tools){
+            var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
+            tools.split(',').forEach(function(t){
+                mb._('item',t,default_tools[t]);
+            });
+        }
         tpane._('datacontroller',{script:"genro.publish({topic:value.action,nodeId:target},value)",
                                  value:'^.command',target:kw.nodeId})
         return bc._('contentPane',centerkw)
@@ -3435,7 +3439,7 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             }
             var letterhead_page = letterheads.getItem('#'+lnumber).replaceAll('#p','$p');
             this.sourceBag.setItem('p',rn.childElementCount+1);
-            
+            console.log('letterhead_page',letterhead_page)
             p.innerHTML = dataTemplate(letterhead_page,this.sourceBag,null,true);
             p = p.children[0];
             content_node = dojo.query('div[content_node=t]',p)[0];
@@ -3511,8 +3515,18 @@ dojo.declare("gnr.widgets.PagedHtml", gnr.widgets.gnrwdg, {
             this.onPaginated();
         }
         
-        this.sourceNode.setRelativeData(this.pagedTextPath,pagesDomNode.innerHTML,null,null,this.pagesRoot);
+        this.sourceNode.setRelativeData(this.pagedTextPath,this.getPageSizeSelector()+pagesDomNode.innerHTML,null,null,this.pagesRoot);
+    },
+    gnrwdg_getPageSizeSelector:function(){
+        let result = '';
+        let letterheads = this.sourceNode.getRelativeData(this.letterheadsPath);    
+        let firstattr = letterheads.getAttr('#0') || {};
+        if(firstattr.page_height && firstattr.page_width){
+            result = `<style>@page{margin:0; size:${firstattr.page_width}mm ${firstattr.page_height}mm;}</style>`+result;
+        }
+        return result;
     }
+
 });
 
 dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
@@ -3570,6 +3584,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_table:table,
                     remote_paletteId:paletteId,
                     remote_plainText:sourceNode.attr.plainText,
+                    remote_emailChunk : sourceNode.attr.emailChunk,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
@@ -3739,7 +3754,16 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return chunk;
     },
 
-
+    emptyChunk:function(plainText,editable){
+        let emptyTextTitle = _T('!![en]Template not yet created');
+        let emptyTextSubtitle = _T('!![en]Double-click to create it');
+        shiftMode = editable===true? '':'Shift + ';
+        if(plainText){
+            return `${emptyTextTitle}\n${shiftMode}${emptyTextSubtitle}`;
+        }else{
+            return `<div class="chunkeditor_emptytemplate unselectable"><div style='display:block;'><div>${emptyTextTitle}</div><div style="font-size:70%;">${shiftMode}${emptyTextSubtitle}</div></div></div>`;
+        }
+    },
 
     createClientChunk:function(sourceNode,dataProvider,tplpars){
         var templateHandler = sourceNode._templateHandler;
@@ -3766,8 +3790,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
-                this.template = this.template || emptychunk;
+                this.template = this.template || cls.emptyChunk(sourceNode.attr.plainText,tplpars.editable);
             }
         };
         sourceNode.updateTemplate = function(){
@@ -3796,9 +3819,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
             };
         }
+        var cls = this;
         var onResult = function(resultNode){
             var r = resultNode.getValue();
             templateHandler.dataInfo = resultNode.attr;
+            if(r=='missing_template'){
+                r = cls.emptyChunk(sourceNode.attr.plainText, tplpars.editable)
+            }
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
                 setter(rendered);
@@ -4992,7 +5019,7 @@ dojo.declare("gnr.widgets.ComboArrow", gnr.widgets.gnrwdg, {
         genro.dom.addClass(focusNode.parentNode,'comboArrowTextbox')
 
         var iconClass = objectPop(kw,'iconClass') || 'dijitArrowButtonInner';
-        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton',cursor:'pointer', width:'20px',
+        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton comboArrow',cursor:'pointer', width:'20px',
                                 position:'absolute',top:0,bottom:0,right:0,tabindex:-1},kw))
         box._('div','iconNode',{_class:iconClass,position:'absolute',top:0,bottom:0,left:0,right:0})
         return box;
@@ -5353,12 +5380,12 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         this.alignCheckedValues();
     },
 
-    gnrwdg_isValidValue:function(value){
+    gnrwdg_isValidValue:function(value,splitter){
         if(!value){
             return true;
         }
         var valuesDict = this.valuesDict;
-        return value.split(this.separator).every(function(c){return (c in valuesDict)});
+        return value.split(splitter || this.separator).every(function(c){return (c in valuesDict)});
     },
 
     gnrwdg_getLabelsFromValue:function(value){
@@ -5394,13 +5421,13 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
     gnrwdg_alignCheckedValues:function(){
         var sourceNode = this.sourceNode;
         var textvalue =  sourceNode.getAttributeFromDatasource('value') || '';
-        if(!this.isValidValue(textvalue)){
-            return;
-        }
         var splitter = this.separator;
         var checkcodes = textvalue && this.has_code;  
         if(checkcodes){
             splitter = ',';
+        }
+        if(!this.isValidValue(textvalue,splitter)){
+            return;
         }
         var values = splitStrip(textvalue,splitter);
         var v;
@@ -6124,12 +6151,16 @@ dojo.declare("gnr.stores._Collection",null,{
     },
 
     runQuery:function(cb,runKwargs){
+        var that = this;
+        this.runningQuery = true;
         var result =  this.storeNode.fireNode(runKwargs);
         if(result instanceof dojo.Deferred){
             result.addCallback(function(r){
+                that.runningQuery = false;
                 cb(r)
             });
         }else{
+            that.runningQuery = false;
             result = cb(result);
         }
         return result;

@@ -1360,9 +1360,19 @@ genropatches.decimalRound = function() {
 
   // Decimal round
   if (!Math.round10) {
-    Math.round10 = function(value, exp) {
-        if(exp===undefined){
+    Math.round10 = function(value, expOrFormat) {
+        let exp;
+        if(expOrFormat===undefined){
             exp = -2;
+        }else if(typeof(expOrFormat)=='string'){
+            let decimalPart = expOrFormat.split('.')[1];
+            if (decimalPart===undefined){
+                exp=0;
+            }else{
+                exp = -decimalPart.length;
+            }
+        }else{
+            exp = expOrFormat;
         }
         return decimalAdjust('round', value, exp);
     };

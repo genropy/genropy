@@ -217,47 +217,50 @@ class FrameGridTools(BaseComponent):
                         caption_path=caption_path or '.currViewAttrs.caption',
                         placeholder=placeholder or '!![en]Base View',**kwargs)
 
-
+    @extract_kwargs(closable=dict(slice_prefix=False),border=dict(slice_prefix=False),box=True)
     @struct_method
-    def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None,**kwargs):
-       
-        bc = view.grid_envelope.borderContainer(region='left',
+    def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None
+                        ,splitter=True,closable_kwargs=None,groupedThViewResource=None,box_kwargs=None,**kwargs):
+        default_closable = dict(closable_background='rgba(222, 255, 0, 1)',
+            closable_bottom='2px',
+            closable_width='14px',
+            closable_right='-20px',
+            closable_height='14px',
+            closable_padding='2px',
+            closable_opacity='1',
+            closable_iconClass='smalliconbox statistica_tools')
+        default_closable.update(closable_kwargs)
+        box_kwargs.setdefault('border_right','1px solid silver')
+        box_kwargs.update(default_closable)
+        bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        closable_background='rgba(222, 255, 0, 1)',
-                                        closable_bottom='2px',
-                                        closable_width='14px',
-                                        closable_right='-20px',
-                                        closable_height='14px',
-                                        closable_padding='2px',
-                                        closable_opacity='1',
-                                        closable_iconClass='smalliconbox statistica_tools',
-                                        splitter=True,border_right='1px solid silver',
+                                        splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
-                                        **kwargs)
+                                        **box_kwargs)
         if closable !='close':
             bc.data('.use_grouper',True)
-
-        
         inattr = view.getInheritedAttributes()
         bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
-                                                groupedThViewResource=inattr.get('th_viewResource'),
-                                                table=table,store_is_grouper=True)
+                                                groupedThViewResource=groupedThViewResource or inattr.get('th_viewResource'),
+                                                table=table,store_is_grouper=True,**kwargs)
         
     @public_method
-    def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,**kwargs):
+    def fg_remoteGrouper(self,pane,table=None,groupedTh=None,groupedThViewResource=None,static=False,
+                        grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
         tree_nodeId = f'{groupedTh}_grouper_tree'
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
-                            configurable=False,
-                            grid_configurable=True,
+                            configurable=configurable,
+                            grid_configurable=grid_configurable,
+                            static=static,
                             grid_selectedIndex='.selectedIndex',
-                            grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
+                            #grid_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_selected__pkeylist=f'#{groupedTh}_grid.grouperPkeyList',
                             tree_nodeId = tree_nodeId,
                             linkedTo=groupedTh,
-                            pbl_classes=True,margin='2px',grouper=True,**kwargs)
+                            pbl_classes=pbl_classes,margin=margin or '2px',grouper=True,**kwargs)
         gth.dataController('FIRE .reloadMain;',_onBuilt=500)
         gth.dataController("""
         if(_reason=='node'){
@@ -265,13 +268,38 @@ class FrameGridTools(BaseComponent):
             SET .output = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols.length>1?'tree':'grid'
         }
         """,struct='^.grid.struct')
+        gth.dataController(f"""
+            var result = '';
+            var store = gth.storebag();
+            selectedLines.forEach(function(linePkey){{
+                result+=(','+store.getAttr(linePkey,'_pkeylist'));
+            }});
+            SET #{groupedTh}_grid.grouperPkeyList = result;
+        """,gth=gth.grid.js_widget,
+            selectedLines=f'^.grid.currentSelectedPkeys'
+        )
         if self.application.checkResourcePermission('admin', self.userTags):
             gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         gth.dataController(f"""
             SET .selectedIndex = null;
-            SET #{tree_nodeId}.currentGroupPath = null;
+            if(genro.nodeById(tree_nodeId)){{
+                SET #{tree_nodeId}.currentGroupPath = null;
+            }}
             SET #{groupedTh}_grid.grouperPkeyList = null;
-    """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',)   
+            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
+            if(groupedStore.store.storeType=='VirtualSelection'){{
+                groupedStore.store.clear();
+            }}else{{
+                groupedStore.store.loadData();
+            }}
+        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        gth.grid.attributes['selfsubscribe_group_added_column'] = f"""
+            var groupedStore = genro.nodeById('{groupedTh}_grid_store');
+            if(groupedStore.store.storeType!='VirtualSelection'){{
+                console.log('reload_grouper');
+                genro.nodeById('{groupedTh}_frame').fireEvent('.reloadGrouper',{{_addedColumn:$1.column}});
+            }}
+        """
 
         pane.dataController(f"""
                             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
@@ -286,18 +314,19 @@ class FrameGridTools(BaseComponent):
                             groupedStore.store.loadData(queryvars);
                             """,
                             grouperPkeyList=f'^#{groupedTh}_grid.grouperPkeyList')
+        if not static:
+            gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
+            downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
+            downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+            #fcode = gth.attributes.get('frameCode')
+            #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
 
-        gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,searchOn,2')
-        downbar = gth.top.slotToolbar('2,modemb,2,count,*,export,5',childname='downbar',_position='>bar')
-        downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
-        #fcode = gth.attributes.get('frameCode')
-        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
-
-        gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
-        tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
-        tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
-        #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
-
+            gth.treeView.top.bar.replaceSlots('#','2,viewsSelect,*,searchOn,2')
+            tree_downbar = gth.treeView.top.slotToolbar('2,modemb,*',childname='downbar',_position='>bar')
+            tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
+            #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
+        else:
+            gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,5')
 
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
@@ -558,3 +587,213 @@ class TemplateGrid(BaseComponent):
 
 
         
+class EvaluationGrid(BaseComponent):
+    py_requires = "gnrcomponents/framegrid:FrameGrid"
+
+    @extract_kwargs(condition=True,store=True,field=True)
+    @struct_method
+    def evlg_evaluationGrid(self,pane,value=None,title=None,searchOn=False,
+                        table=None,struct=None,frameCode=None,
+                        datapath=None,addrow=False,delrow=False,
+                        showValue=None, choice_width=None, value_width=None, 
+                        condition=None,condition_kwargs=None,
+                        store_kwargs=None,items=None,field_kwargs=None,
+                        **kwargs):
+        frameCode = frameCode or (f'{table.replace(".","_")}_rg' if table else f'V_{id(pane)}_rg')
+        datapath = datapath or f'#FORM.{frameCode}'
+        columns = '*'
+        if table:
+            tblobj = self.db.table(table)
+            columns = f'${tblobj.attributes.get("caption_field")} AS description,${tblobj.pkey} AS code, ${tblobj.pkey} AS _pkey'
+        if not struct:
+            struct = self._evlg_struct(showValue=showValue,value_width=value_width, choice_width=choice_width,**field_kwargs)
+        frame = pane.bagGrid(frameCode=frameCode,datapath=datapath,_class='noselect evaluation_grid',
+                    title=title,searchOn=searchOn,
+                    struct=struct,storepath='.store',addrow=addrow,delrow=delrow,
+                    batchAssign=False,
+                    datamode='attr',**kwargs)
+        if table:
+            if not condition_kwargs:
+                store_kwargs['_onBuilt'] = True
+            store_kwargs.update(condition_kwargs)
+            frame.dataSelection('.store',where=condition,table=table,columns=columns,**store_kwargs)
+        elif items:
+            self._evgl_itemsStore(frame,items,store_kwargs)
+        self._evlg_loader(frame,value)
+        self._evlg_saver(frame,value)
+
+
+    def _evlg_struct(self,values=None,dtype=None,name=None,
+                        caption=None, aggr=None, choice_width=None, value_width=None,
+                        hidden=None,totalize=False,showValue=None):
+        struct = self.newGridStruct()
+        r=struct.view().rows()
+        field = name or 'value'
+        r.cell(f'_status_{field}',_customGetter=f"""
+            function(row){{
+                return row["_status_{field}"]?"✔":null;
+            }}
+        """,name=' ',width='2em')
+        r.cell('code',hidden=True)
+        r.cell('description',name='!![en]Description',width='100%')
+        caption = caption or '!![en]Value'
+        if aggr:
+            cs = r.checkBoxSet(field,name=caption,cells_width=choice_width or '4em', values=values, dtype=dtype, aggr=aggr)
+        else:
+            cs = r.radioButtonSet(field, name=caption, cells_width=choice_width or '4em', values=values, dtype=dtype)
+        if hidden is None:
+            hidden = not showValue
+        cs.cell(field,name=' ',width=value_width or '4em',dtype=dtype,hidden=hidden,totalize=totalize)
+        return struct
+
+    def _evgl_itemsStore(self,frame,items,store_kwargs):
+        items_separator = ','
+        if '\n' in items:
+            items_separator = '\n'
+        if items_separator in items:
+            frame.data('.items',items)
+            items = '^.items'
+            store_kwargs['_onBuilt'] = True
+        frame.dataController("""
+            let store = new gnr.GnrBag();
+            if (items instanceof gnr.GnrBag){
+                for(let n of items.getNodes()){
+                    let value = n.getValue();
+                    if(value){
+                        value = value.asDict();
+                    }else{
+                        value = objectUpdate({},n.attr);
+                    }
+                    value['_pkey'] = value['_pkey'] || n.label;
+                    store.addItem(value['_pkey'],null,value);
+                }
+            }else{
+                for(let item of items.split(items_separator)){
+                    let value = {};
+                    if(item.includes(':')){
+                        item = item.split(':');
+                        value.code = item[0];
+                        value._pkey = value.code;
+                        value.description = item[1];
+                    }else{
+                        value._pkey = item;
+                        value.description = item;
+                    }
+                    store.addItem(value['_pkey'],null,value);
+                }
+            }
+            SET .store = store;
+        """,items=items,items_separator=items_separator,**store_kwargs)
+
+    def _evlg_saver(self,frame,value):
+        frame.dataController(
+            """
+            let changedAttr = _triggerpars.kw.changedAttr;
+             if(!changedAttr){
+                return
+             }
+             let newvalue = null;
+             if(!value){
+                newvalue = new gnr.GnrBag();
+                value = newvalue;
+             }
+             var valuelabels = {};
+             var cbcells = {};
+             let cellmap = grid.cellmap;
+             for (let cell_label in cellmap){
+                let kw = cellmap[cell_label]
+                let groupCode = kw.radioButton || kw.checkBox;
+                if(groupCode){
+                    if(!valuelabels[groupCode]){
+                        valuelabels[groupCode] = cellmap[groupCode];
+                    }
+                    cbcells[kw.original_field] = kw;
+                }
+             }
+             if(!(changedAttr in cbcells)){
+                return;
+             }
+             let currentAttributes = _node.attr;
+             let removeLine = true;
+             for(let l in valuelabels){
+                if(!isNullOrBlank(currentAttributes[l])){
+                    removeLine = false;
+                }
+             }
+             if(removeLine){
+                value.popNode(currentAttributes._pkey);
+             }else{
+                let n = value.getNode(currentAttributes._pkey);
+                let row = objectUpdate({},currentAttributes);
+                for(let l in valuelabels){
+                    objectPop(row,'_status_'+l);
+                }
+                for(let l in cbcells){
+                    if(!row[l]){
+                        objectPop(row,l);
+                    }
+                }
+                if(n){
+                    let nodeValue = n.getValue();
+                    for(let fn of nodeValue.getNodes()){
+                        if(!(fn.label in row)){
+                            nodeValue.popNode(fn.label,'evlg_saver');
+                        }else{
+                            nodeValue.setItem(fn.label,objectPop(row,fn.label),null,{doTrigger:'evlg_saver'});
+                        }
+                    }
+                    if(objectNotEmpty(row)){
+                        nodeValue.update(row,null,'evlg_saver');
+                    }
+                }else{
+                    value.setItem(currentAttributes._pkey,new gnr.GnrBag(row),null,{doTrigger:'evlg_saver'})
+                }
+             }
+             if(newvalue){
+                this.setRelativeData(valuepath, newvalue,null,null,'evlg_saver');
+             }
+             
+            """,valuepath=value.replace('^',''),
+            _delay=1,
+            value=value.replace('^','='),grid=frame.grid.js_widget,store='^.store',_if='store'
+        )
+
+    def _evlg_loader(self,frame,value):
+        frame.dataController("""
+            if(_triggerpars.kw.changedAttr){
+                return;
+            }
+            if(_triggerpars.kw.reason=='evlg_saver'){
+                return;
+            }
+            value = value || new gnr.GnrBag();
+            store = store || new gnr.GnrBag();
+            var cbcells = {};
+            var valuelabels = {};
+            let cellmap = grid.cellmap;
+            for (let cell_label in cellmap){
+                let kw = cellmap[cell_label]
+                let groupCode = kw.radioButton || kw.checkBox;
+                if(groupCode){
+                    if(!valuelabels[groupCode]){
+                        valuelabels[groupCode] = cellmap[groupCode];
+                    }
+                    cbcells[kw.original_field] = kw;
+                }
+            }
+            store.getNodes().forEach(function(n){
+                let updattr = {};
+                let v = value.getItem(n.attr._pkey) || new gnr.GnrBag();
+                for (let valuelabel in valuelabels){
+                    let rv = v.getItem(valuelabel);
+                    updattr[valuelabel] = rv;
+                    updattr['_status_'+valuelabel] = !isNullOrBlank(rv);
+                }
+                for (let cbcell in cbcells){
+                    let rv = v.getItem(cbcell);
+                    updattr[cbcell] = rv;
+                }
+                n.updAttributes(updattr,false);
+            });
+        """,value=value,store='^.store',grid=frame.grid.js_widget)
+
