@@ -1,11 +1,11 @@
-console.log('inside service worker');
+//console.log('inside service worker');
 self.addEventListener("install", event => {
-    console.log("Service worker installed");
+    //console.log("Service worker installed");
  });
  self.addEventListener("activate", event => {
-    console.log("Service worker activated");
+    //console.log("Service worker activated");
  });
 
  self.addEventListener("fetch", event => {
-    console.log("Service worker fetch");
+    //console.log("Service worker fetch");
  });

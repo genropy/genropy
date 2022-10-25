@@ -4738,7 +4738,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
@@ -4780,7 +4780,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                  var cbOnDropData = function(dropInfo,data){
                     if (uploadAttr.maxsize && data.size>uploadAttr.maxsize){
                         var size_kb = uploadAttr.maxsize/1000
-                        genro.dlg.alert("Image exeeds size limit ("+size_kb+"KB)",'Error');
+                        genro.dlg.alert("Image exceeds size limit ("+size_kb+"KB)",'Error');
                         return false;
                     }
                     if(sourceNode.form && sourceNode.form.isDisabled()){

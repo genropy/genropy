@@ -57,7 +57,6 @@ class AppPref(object):
        
 
 
-
     def _adm_backups(self, pane):
         fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')
         fb.textbox(value='^.backup_folder',lbl='Folder path')

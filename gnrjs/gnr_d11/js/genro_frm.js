@@ -1029,25 +1029,68 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var result = new gnr.GnrBag();
         var currentPkey = this.getCurrentPkey();
         var that = this;
-        var clipboard = this.getControllerData('clipboard');
+        var local_clipboard = this.getControllerData('clipboard');
         var disabled = this.isDisabled();
         var copyDisabled = currentPkey==null || currentPkey=='*newrecord*' || this.changed;
-        result.setItem('r_0',null,{caption:_T('Copy current record'),
+        result.addItem('r_0',null,{caption:_T('Copy current record'),
                                    disabled:copyDisabled,
                                    action:function(){that.copyCurrentRecord();}}
                                    );
-        if(clipboard){
-            result.setItem('r_1',null,{caption:'-'});
-            clipboard.forEach(function(n){
-                result.setItem(n.label,null,{caption:n.attr.caption,action:function(item){that.pasteClipboard(item.fullpath)},disabled:disabled});
+        if(local_clipboard){
+            result.addItem('r_1',null,{caption:'-'});
+            local_clipboard.forEach(function(n){
+                result.addItem(n.label,null,{caption:n.attr.caption,action:function(item){that.pasteRecord(item.fullpath)},disabled:disabled});
             });
         }
             
-        result.setItem('r_2',null,{caption:'-'});
-        result.setItem('r_3',null,{caption:_T('Clear clipboard')});
-
+        result.addItem('r_2',null,{caption:'-'});
+        result.addItem('r_3',null,{caption:_T('Clear'),action:function(){
+            that.setControllerData('clipboard',null);
+        }});
+        if(local_clipboard){
+            result.addItem('r_4',null,{caption:_T('Copy in clipboard'),action:function(){
+                that.copyInClipboard();
+            }});
+        }
+        result.addItem('r_4',null,{caption:_T('Update from clipboard'),action:function(){
+            that.updateFromClipboard();
+        }});
         return result;
     },
+
+    copyInClipboard:function(){
+        var local_clipboard = this.getControllerData('clipboard');
+        if(!local_clipboard){
+            return;
+        }
+        local_clipboard = local_clipboard.deepCopy();
+        let envelope = new gnr.GnrBag();
+        envelope.addItem(genro.pageHash+'_'+this.formId,local_clipboard);
+        navigator.clipboard.writeText(envelope.toXml());
+    },
+
+    updateFromClipboard:function(){
+        var that = this;
+        navigator.clipboard.readText().then(function(txt){
+            if(!txt || txt[0]!='<'){
+                return;
+            }
+            var envelope = new gnr.GnrBag(txt);
+            if(!envelope.len()){
+                return;
+            }
+            let remote_clipboard = envelope.getItem(genro.pageHash+'_'+that.formId);
+            if(!remote_clipboard){
+                return
+            }
+            let local_clipboard = that.getControllerData('clipboard') || new gnr.GnrBag();
+            remote_clipboard._nodes.forEach(function(n){
+                local_clipboard.addItem(n.label,n);
+            });
+            that.setControllerData('clipboard',local_clipboard);
+        });
+    },
+
     copyCurrentRecord:function(){
         var controller = this.getControllerData();
         var clipboard = controller.getItem('clipboard') || new gnr.GnrBag();
@@ -1069,7 +1112,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         controller.setItem('clipboard',clipboard);
     },
 
-    pasteClipboard:function(path){
+    pasteRecord:function(path){
         var copybag;
         var controllerdata = this.getControllerData();
         var clipboard = controllerdata.getItem('clipboard')
@@ -1086,7 +1129,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 value = value.deepCopy();
             }
             var destnode = destdata.getNode(n.label);
-            destnode.setValue(value);
+            if(destnode){
+                destnode.setValue(value);
+            }
         });
     },
 

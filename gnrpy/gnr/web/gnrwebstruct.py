@@ -2469,31 +2469,30 @@ class GnrGridStruct(GnrStructData):
                 c.update(defaultkw)
                 getattr(result,tag)(**c)
         return result
-
-    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
+    
+    def _collist(self,code,values,dtype=None):
         columns = []
         dtype = dtype or 'T'
         if isinstance(values,str):
             for i,c in enumerate(values.split(',')):
-                val,n = c.split(':')
-                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
+                val,name = c.split(':')
+                if '|' in name:
+                    name = name.split('|')[1]
+                columns.append(dict(field=f'{code}_{i+1:02}',name=name,value=self.page.catalog.fromText(val,dtype)))
+        return columns 
+        
+    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
         return self.columnset(code=code,name=name ,
                         cells_radioButton = code,
                         cells_tag='checkboxcolumn',
-                        columns=columns,**kwargs)
+                        columns=self._collist(code,values,dtype=dtype),**kwargs)
     
     def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,**kwargs):
-        columns = []
-        dtype = dtype or 'T'
-        if isinstance(values,str):
-            for i,c in enumerate(values.split(',')):
-                val,n = c.split(':')
-                columns.append(dict(field=f'{code}_{i+1:02}',name=n,value=self.page.catalog.fromText(val,dtype)))
         return self.columnset(code=code,name=name ,
                         cells_checkBoxAggr = aggr,
                         cells_checkBox = code,
                         cells_tag='checkboxcolumn',
-                        columns=columns,**kwargs)
+                        columns=self._collist(code,values,dtype=dtype),**kwargs)
 
 
 
