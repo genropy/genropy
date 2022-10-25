@@ -115,6 +115,13 @@ class XlsWriter(BaseXls):
         self.float_style.num_format_str = format_float
         self.int_style = xlwt.XFStyle()
         self.int_style.num_format_str = format_int
+        self.date_format = xlwt.XFStyle()
+        self.date_format.num_format_str = 'dd/mm/yyyy'
+        
+        self.datetime_format = xlwt.XFStyle()
+        self.datetime_format.num_format_str = 'dd/mm/yyyy h:mm:ss'
+        
+        
         font0 = xlwt.Font()
         font0.name = font  # FIXED
         font0.bold = True
@@ -196,7 +203,6 @@ class XlsWriter(BaseXls):
         columns = sheet_obj['columns']
         coltypes = sheet_obj['coltypes']
         colsizes = sheet_obj['colsizes']
-
         for c, col in enumerate(columns):
             value = row.get(col)
             if isinstance(value, list):
@@ -206,6 +212,12 @@ class XlsWriter(BaseXls):
                 sheet.write(current_row, c, value, self.float_style)
             elif coltype in ('L', 'I'):
                 sheet.write(current_row, c, value, self.int_style)
+            elif coltype=='D':
+                sheet.write(current_row, c, value,self.date_format)
+                
+            elif coltype=='DH':
+                sheet.write(current_row, c, value,self.datetime_format)
+                
             else:
                 value = toText(value, self.locale)
                 sheet.write(current_row, c, value)
@@ -406,7 +418,6 @@ class XlsxWriter(BaseXls):
         columns = sheet_obj['columns']
         coltypes = sheet_obj['coltypes']
         colsizes = sheet_obj['colsizes']
-
         max_height = 0
         for c, col in enumerate(columns):
             value = row.get(col)
