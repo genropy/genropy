@@ -5,7 +5,7 @@ from gnr.core.gnrbag import Bag
 from time import sleep
 
 from gnr.core.gnrlang import GnrException
-
+from gnr.app.gnrdeploy import PathResolver
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
@@ -24,6 +24,7 @@ class GnrCustomWebPage(object):
         result=Bag()
         for pkg_code,pkg in self.db.application.packages.items():
             result.setItem(pkg_code, None, caption=pkg.attributes['name_long'], _pkey=pkg_code)
+        print(x)
         return result,dict(columns='caption', headers='Package')
 
     def test_1_remoteSelect_user(self,pane):
@@ -102,3 +103,30 @@ class GnrCustomWebPage(object):
         for fn in dirnode.children():
             result.setItem(fn.cleanbasename, None, caption=fn.cleanbasename.title(), _pkey=fn.basename)
         return result,dict(columns='caption', headers='File')
+
+    def test_5_printResources(self, pane):
+        "Find and select print resources"
+        fb = pane.formbuilder(cols=1,border_spacing='3px')
+        fb.remoteSelect(value='^.printres',lbl='Print resource', method=self.getPrintResources, 
+                                    auxColumns='pkg,tbl,res', hasDownArrow=True,
+                                    selected_pkg='.pkg', selected_tbl='.tbl')
+
+    @public_method
+    def getPrintResources(self, _querystring=None, **kwargs):
+        path_resolver = PathResolver()
+        project_path = path_resolver.project_name_to_path('sandbox')
+        result = Bag()
+        packages = self.db.model.src['packages'].keys()
+        for p in packages:
+            tables = self.db.model.src[f'packages.{p}.tables']
+            if not tables:
+                continue
+            for t in tables.keys():
+                print_nodes = self.db.application.site.storageNode(project_path,'packages',p,'resources','tables',t,'print')
+                if not print_nodes.children():
+                    continue
+                print_res = [h.basename for h in print_nodes.children() if h.basename.endswith('.py')]
+                for res in print_res:
+                    res_key = res.split('.')[0]
+                    result.setItem(res_key, None, pkg=p, tbl=t, caption=res, _pkey=res_key)
+        return result,dict(columns='pkg,tbl,caption', headers='Package,Table,Print res')
