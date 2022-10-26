@@ -272,8 +272,14 @@ class XlsxWriter(BaseXls):
     content_type = 'application/xlsx'
 
 
-    def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
-                 font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
+    def __init__(self, columns=None, 
+                 coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
+                 font='Times New Roman', 
+                 format_float='#,##0.00', 
+                 format_int='#,##0', 
+                 format_date=None,
+                 format_datetime=None,
+                 locale=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
@@ -293,6 +299,9 @@ class XlsxWriter(BaseXls):
 
         #self.sheet = self.workbook.add_sheet(os.path.basename(self.filepath)[:31])
         self.locale = locale
+        format_date = format_date or "D MMM YYYY" #backwards compatiblitty NDS
+        format_datetime = format_datetime or "D MMM YYYY, H:MM:SS"
+        
         self.workbook.add_named_style(openpyxl.styles.NamedStyle('float',
                                 font=openpyxl.styles.Font(name=font),
                                 number_format=format_float,
@@ -313,12 +322,12 @@ class XlsxWriter(BaseXls):
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("date",
                                 font=openpyxl.styles.Font(name=font),
-                                number_format="D MMM YYYY",
+                                number_format=format_date,
                                 alignment=openpyxl.styles.Alignment(vertical="top"),
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("datetime",
                                 font=openpyxl.styles.Font(name=font),
-                                number_format="D MMM YYYY, H:MM:SS",
+                                number_format=format_datetime,
                                 alignment=openpyxl.styles.Alignment(vertical="top"),
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("group",
