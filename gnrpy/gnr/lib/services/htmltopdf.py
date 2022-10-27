@@ -92,6 +92,8 @@ class HtmlToPdfService(GnrBaseService):
         if pdf_pref:
             pdf_pref = pdf_pref.asDict(ascii=True)
             keep_html = pdf_pref.pop('keep_html', False)
+            wk_legacy = pdf_pref.pop('wk_legacy', False)
+            use_wkhtmltopdf = pdf_pref.pop('use_wkhtmltopdf', False)
             pdf_kwargs = pdf_kwargs or dict()
             pdf_pref.update(pdf_kwargs)
             pdf_kwargs = pdf_pref
