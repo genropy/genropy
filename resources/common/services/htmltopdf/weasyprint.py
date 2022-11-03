@@ -23,5 +23,5 @@ class Service(HtmlToPdfService):
         with srcPath.local_path() as in_path, destPath.local_path() as out_path:
             html_doc = HTML(in_path,base_url='.')
             stylesheets = [CSS(string=css) for css in stylesheets]
-            html_doc.write_pdf(target=out_path,stylesheets=stylesheets)
+            html_doc.write_pdf(target=out_path,stylesheets=stylesheets,presentational_hints=True)
         return destPath.fullpath.replace('_raw_:', '')
