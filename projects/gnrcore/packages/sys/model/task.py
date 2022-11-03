@@ -54,8 +54,6 @@ class Table(object):
                 return '*'
             else:
                 return False
-        if not task['minute']:
-            return False
         months =  [int(x.strip()) for x in task['month'].split(',')] if task['month'] else range(1,13)
         days = [int(x.strip()) for x in task['day'].split(',')] if task['day'] else range(1,32)
         hours = [int(x.strip()) for x in task['hour'].split(',')] if task['hour'] else range(0,24)
