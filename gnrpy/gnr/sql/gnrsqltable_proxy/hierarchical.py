@@ -248,7 +248,11 @@ class HierarchicalHandler(object):
             result.append(colkw)
         return result 
 
-
+    def onLoading(self, record=None, newrecord=None, loadingParameters=None, recInfo=None):
+        if not record['parent_id'] or not newrecord:
+            return
+        parent_record = record['@parent_id']
+        record.update(self.tblobj.getInheritedValues(parent_record))
 
     def trigger_before(self,record,old_record=None):
         tblobj = self.tblobj

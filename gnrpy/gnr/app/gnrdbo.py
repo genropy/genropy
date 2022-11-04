@@ -613,7 +613,14 @@ class TableBase(object):
 
     def trigger_hierarchical_after(self,record,fldname,old_record=None,**kwargs):
         self.hierarchicalHandler.trigger_after(record,old_record=old_record)
-
+        
+    def onLoading_hierarchical(self, record, newrecord, loadingParameters, recInfo):
+        if hasattr(self,'hierarchicalHandler'):
+            return self.hierarchicalHandler.onLoading(record=record, 
+                                                      newrecord=newrecord, 
+                                                      loadingParameters=loadingParameters, 
+                                                      recInfo=recInfo)
+        
     @public_method
     def getHierarchicalData(self,caption_field=None,condition=None,caption=None,
                             dbstore=None,columns=None,related_kwargs=None,
@@ -895,8 +902,15 @@ class TableBase(object):
         :param fldname: the field name"""
         pass
 
-    def inheritedFields(self):      
-        return [field for field,colobj in self.columns.items() if colobj.attributes.get('inherited')]
+    def inheritedFields(self, asItems=None):
+        inheritedFields=[(field, colobj.attributes.get('inherited')) for field,colobj in self.columns.items() if colobj.attributes.get('inherited')]
+        if not asItems:
+            return [f[0] for f in inheritedFields]
+        else:
+            return [(f, f if v is True else v) for f,v in inheritedFields]
+            
+            
+        
 
     def getInheritedValues(self,record_source):      
         result = {}        
