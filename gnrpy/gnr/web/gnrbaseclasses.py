@@ -283,7 +283,8 @@ class BagToHtmlWeb(BagToHtml):
         self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
         self.letterhead_sourcedata = letterhead_sourcedata
         self.pdf_handler = self.site.getService('pdf')
-        self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
+        if not getattr(self,'locale',None):
+            self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
         self.record_template = record_template or self.record_template
         self.record = None
 
