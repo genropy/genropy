@@ -283,8 +283,7 @@ class BagToHtmlWeb(BagToHtml):
         self.templateLoader = self.db.table('adm.htmltemplate').getTemplate
         self.letterhead_sourcedata = letterhead_sourcedata
         self.pdf_handler = self.site.getService('pdf')
-        if not getattr(self,'locale',None):
-            self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
+        self.locale = self.page.locale if self.page and self.client_locale else self.site.server_locale
         self.record_template = record_template or self.record_template
         self.record = None
 
@@ -350,7 +349,6 @@ class TableScriptToHtml(BagToHtmlWeb):
         else:
             record = self.tblobj.recordAs(record, virtual_columns=self.virtual_columns)
         html_folder = self.getHtmlPath(autocreate=True)
-        locale = locale or getattr(self,'locale',None)
         if locale:
             self.locale = locale #locale forced
         self.language = language    
