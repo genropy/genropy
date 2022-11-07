@@ -249,10 +249,13 @@ class HierarchicalHandler(object):
         return result 
 
     def onLoading(self, record=None, newrecord=None, loadingParameters=None, recInfo=None):
-        if not record['parent_id'] or not newrecord:
+        if not (record['parent_id'] and newrecord):
             return
         parent_record = record['@parent_id']
-        record.update(self.tblobj.getInheritedValues(parent_record))
+        tblobj = self.tblobj
+        for field,colobj in tblobj.columns.items():
+            if colobj.attributes.get('defaultFromParent'):
+                record[field] = parent_record[field]
 
     def trigger_before(self,record,old_record=None):
         tblobj = self.tblobj
