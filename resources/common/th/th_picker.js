@@ -47,7 +47,7 @@ var THPicker = {
         kw._sourceNode = sourceNode;
         if(grid.gridEditor && grid.gridEditor.editorPars && !(grid.gridEditor.autoSave && mainpkey)){
             var rows = [];
-            dojo.forEach(kw.dragPkeys,function(fkey){
+            kw.dragPkeys.forEach(function(fkey){
                 var r = {};
                 r[many] = fkey;
                 if(kw.dragDefaults){
@@ -55,7 +55,9 @@ var THPicker = {
                 }
                 rows.push(r);
             });
-            grid.gridEditor.addNewRows(rows);
+            genro.serverCall('app.newRowsData',{table:tbl,rows:rows},function(result){
+                grid.gridEditor.addNewRows(result.values().map(v=>v.asDict()));
+            })
         }else if(mainpkey){
             if(grid.gridEditor && objectNotEmpty(grid.gridEditor.editorPars.default_kwargs)){
                 var editorDefaults = grid.sourceNode.evaluateOnNode(grid.gridEditor.editorPars.default_kwargs);

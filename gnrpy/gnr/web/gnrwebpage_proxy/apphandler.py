@@ -1928,6 +1928,21 @@ class GnrWebAppHandler(GnrBaseProxy):
 
 
     @public_method
+    def newRowsData(self,table=None,rows=None):
+        result = Bag()
+        tblobj = self.db.table(table)
+        defaultValues = tblobj.defaultValues() or {}
+        for i,r in enumerate(rows):
+            row = Bag(r)
+            for k,v in defaultValues.items():
+                if row.get(k) is None:
+                    row[k] = v
+            tblobj.extendDefaultValues(row)
+            result.addItem(f'r_{i}',row)
+        return result
+
+
+    @public_method
     def getMultiFetch(self,queries=None):
         result = Bag()
         for query in queries:

@@ -1214,15 +1214,21 @@ dojo.declare("gnr.GridEditor", null, {
             let hcols = [];
             let rcol = cmap.relating_column || field;
             let selectedKw = objectExtract(editkw,'selected_*',true);
-            if(rowData){
-                for(let k in selectedKw){
-                    if(selectedKw[k].startsWith('.') && !isNullOrBlank(rowData.getItem(selectedKw[k].slice(1)))){
-                        objectPop(selectedKw,k);
+            for(let k in selectedKw){
+                let path = selectedKw[k];
+                let col = k;
+                if(path.startsWith('.')){
+                    let pl = path.split('=');
+                    path = pl[0];
+                    if(pl[1]){
+                        col = `${pl[1]} AS ${k}`;
                     }
+                    selectedKw[k] = path;
                 }
-            }
-            if(objectNotEmpty(selectedKw)){
-                hcols = hcols.concat(objectKeys(selectedKw));
+                if(rowData && !isNullOrBlank(rowData.getItem(path.slice(1)))){
+                    continue;
+                }
+                hcols.push(col);
             }
             if(hcols.length){
                 let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
