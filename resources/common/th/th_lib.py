@@ -33,9 +33,6 @@ class TableHandlerCommon(BaseComponent):
         if default_kwargs is None:
             default_kwargs = dict()
         tblrel = self.db.table(maintable)
-        if defaultInherited:
-            for fld, source_fld in tblrel.inheritedFields(asItems=True):
-                default_kwargs[fld] = f'=#FORM/parent/#FORM.record.{source_fld}'
         relation_attr = tblrel.model.relations.getAttr(relation, 'joiner')
         if not relation_attr:
             raise Exception('Missing relation {}'.format(relation))

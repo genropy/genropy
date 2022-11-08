@@ -1471,7 +1471,7 @@ dojo.declare("gnr.GridEditor", null, {
     },
 
 
-    setCellValue:function(rowIdxOrNode,cellname,value,valueCaption){
+    setCellValue:function(rowIdxOrNode,cellname,value,valueCaption,copyValue){
         var grid = this.grid;
         var rowNode = typeof(rowIdxOrNode)=='number'? grid.dataNodeByIndex(rowIdxOrNode): rowIdxOrNode;
         var row = grid.rowFromBagNode(rowNode,true);
@@ -1492,7 +1492,7 @@ dojo.declare("gnr.GridEditor", null, {
                 valueCaption = value.valueCaption;
             }
         }
-        if(cell.edit || cell.counter || cell.isCheckBoxCell){
+        if(cell.edit || cell.counter || cell.isCheckBoxCell || copyValue){
             if(cell.dtype=='N' && cell._formats && cell._formats.format && cell._formats.format.includes('.')){
                 let roundDec = cell._formats.format.split('.')[1].length;
                 value = Math.round10(value,-roundDec);
@@ -1759,7 +1759,7 @@ dojo.declare("gnr.GridEditor", null, {
         this.onEditCell(true,row,col);
         var editWidgetNode = this.widgetRootNode._(wdgtag,'cellWidget', attr).getParentNode();
         editWidgetNode.setCellValue = function(cellname,value,valueCaption){
-            gridEditor.setCellValue(this.editedRowIndex,cellname,value,valueCaption);
+            gridEditor.setCellValue(this.editedRowIndex,cellname,value,valueCaption,true);
         };
         editWidgetNode.editedRowIndex = row;
         if (cellDataNode.attr._validationError || cellDataNode.attr._validationWarnings) {

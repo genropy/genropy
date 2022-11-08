@@ -247,16 +247,7 @@ class HierarchicalHandler(object):
             colkw.setdefault('group',colattr.get('group') or field)
             result.append(colkw)
         return result 
-
-    def onLoading(self, record=None, newrecord=None, loadingParameters=None, recInfo=None):
-        if not (record['parent_id'] and newrecord):
-            return
-        parent_record = record['@parent_id']
-        tblobj = self.tblobj
-        for field,colobj in tblobj.columns.items():
-            if colobj.attributes.get('defaultFromParent'):
-                record[field] = parent_record[field]
-
+        
     def trigger_before(self,record,old_record=None):
         tblobj = self.tblobj
         pkeyfield = tblobj.pkey

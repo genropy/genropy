@@ -38,7 +38,21 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,deprecated
 from copy import copy
 
-
+def _selected_defaultFrom(fieldobj=None,result=None):
+    for c in fieldobj.table.columns.values():
+        defaultFrom = c.attributes.get('defaultFrom')
+        if not (defaultFrom and defaultFrom[1:].startswith(fieldobj.name)):
+            continue
+        colname = c.name
+        pathlist = defaultFrom.split('.')
+        if pathlist[-1].startswith('@'):
+            pathlist.append(colname)
+        colpath = pathlist[1:]
+        key = pathlist[-1]
+        value = f'.{colname}'
+        if len(colpath)>1:
+            value = f'{value}={".".join(colpath)}'
+        result[f"selected_{key}"] = value
 
 def cellFromField(field,tableobj,checkPermissions=None):
     kwargs = dict()
@@ -1941,6 +1955,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                     result['lbl'] = '<span class="gnrzoomicon">&nbsp;&nbsp;&nbsp;&nbsp;</span><span>%s</span>' %self.page._(result['lbl'])
                     result['lbl_class'] = 'gnrzoomlabel'
             result['tag'] = 'DbSelect'
+            _selected_defaultFrom(fieldobj=fieldobj,result=result)
             result['dbtable'] = lnktblobj.fullname
             if '_storename' in joiner:
                 result['_storename'] = joiner['_storename']
@@ -2623,6 +2638,13 @@ class GnrGridStruct(GnrStructData):
         fldobj = tableobj.column(field)
         cellpars = cellFromField(field,tableobj,checkPermissions=self.page.permissionPars)
         cellpars.update(kwargs)
+        if cellpars.get('edit') and fldobj.relatedTable() is not None:
+            selected_kw = {}
+            _selected_defaultFrom(fieldobj=fldobj,result=selected_kw)
+            if selected_kw:
+                if cellpars['edit'] is not True:
+                    selected_kw.update(kwargs['edit'])
+                cellpars['edit'] = selected_kw
         template_name = template_name or fldobj.attributes.get('template_name')
         if template_name:
             tpl = self.page.loadTemplate('%s:%s' %(tableobj.fullname,template_name))

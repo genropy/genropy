@@ -614,13 +614,6 @@ class TableBase(object):
     def trigger_hierarchical_after(self,record,fldname,old_record=None,**kwargs):
         self.hierarchicalHandler.trigger_after(record,old_record=old_record)
         
-    def onLoading_hierarchical(self, record, newrecord, loadingParameters, recInfo):
-        if hasattr(self,'hierarchicalHandler'):
-            return self.hierarchicalHandler.onLoading(record=record, 
-                                                      newrecord=newrecord, 
-                                                      loadingParameters=loadingParameters, 
-                                                      recInfo=recInfo)
-        
     @public_method
     def getHierarchicalData(self,caption_field=None,condition=None,caption=None,
                             dbstore=None,columns=None,related_kwargs=None,
