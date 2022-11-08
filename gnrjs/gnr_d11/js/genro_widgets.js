@@ -3860,6 +3860,9 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             }else{
                 path = this.sourceNode.attrDatapath('selected_' + sel);
             }
+            if(!path){
+                continue;
+            }
             val = row[sel];
             if(isNullOrBlank(val)){
                 val = null;
@@ -4197,9 +4200,11 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
             let hiddenColumns = resolverAttrs.hiddenColumns?resolverAttrs.hiddenColumns.split(','):[];
             for (let key in selectedColumns) {
                 let path = selectedColumns[key];
-                let hiddencol = path.split('=')[1] || key;
-                if(!hiddenColumns.includes(hiddencol)){
-                    hiddenColumns.push(hiddencol);
+                if(path){
+                    let hiddencol = path.split('=')[1] || key;
+                    if(!hiddenColumns.includes(hiddencol)){
+                        hiddenColumns.push(hiddencol);
+                    }
                 }
             }
             resolverAttrs.hiddenColumns = hiddenColumns.join(',');
