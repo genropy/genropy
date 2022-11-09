@@ -2638,7 +2638,7 @@ class GnrGridStruct(GnrStructData):
         fldobj = tableobj.column(field)
         cellpars = cellFromField(field,tableobj,checkPermissions=self.page.permissionPars)
         cellpars.update(kwargs)
-        if cellpars.get('edit') and fldobj.relatedTable() is not None:
+        if cellpars.get('edit') and fldobj.sqlclass=='column' and fldobj.relatedTable() is not None:
             selected_kw = {}
             _selected_defaultFrom(fieldobj=fldobj,result=selected_kw)
             if selected_kw:
