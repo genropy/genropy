@@ -148,6 +148,8 @@ class Menu(object):
 
     def _toPythonInner(self,filehandle,b,rootname):
         filehandle.write('\n')
+        if not b:
+            filehandle.write('        pass') #Missing menu items
         for n in b:
             kw = dict(n.attr)
             tag = kw.pop('tag',None)
