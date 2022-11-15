@@ -1006,7 +1006,7 @@ class ThPackageResourceMaker(object):
         hierarchical  = tblobj.column('hierarchical_pkey') is not None
         hierarchical_chunk = ''
         if hierarchical:
-            hierarchical_chunk = 'hierarchical=True'
+            hierarchical_chunk = ', hierarchical=True'
         self.write("return dict(dialog_height='400px', dialog_width='600px' %s)" %hierarchical_chunk, indent=2)
 
 
