@@ -150,7 +150,7 @@ class Menu(object):
         filehandle.write('\n')
         for n in b:
             kw = dict(n.attr)
-            kw.pop('tag',None)
+            tag = kw.pop('tag',None)
             label = kw.pop('label',n.label)
             attrlist = ['u"%s"' %label]
             for k,v in list(kw.items()):
@@ -161,14 +161,9 @@ class Menu(object):
                 varname = slugify(label).replace('!!','').replace('-','_')
                 filehandle.write('        %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
                 self._toPythonInner(filehandle,n.value,varname) 
-            elif 'table' in kw:
-                filehandle.write('        %s.thpage(%s)' %(rootname,', '.join(attrlist)))
-            elif 'lookup_manager' in kw:
-                filehandle.write('        %s.lookups(%s)' %(rootname,', '.join(attrlist)))
-            elif 'pkg' in kw:
-                filehandle.write('        %s.branch(%s)' %(rootname,', '.join(attrlist)))
-            else:
-                filehandle.write('        %s.webpage(%s)' %(rootname,', '.join(attrlist)))
+            if not tag:
+                continue
+            filehandle.write('        %s.%s(%s)' %(rootname, tag, ', '.join(attrlist)))
             filehandle.write('\n')
 
 class NotAllowedException(Exception):
