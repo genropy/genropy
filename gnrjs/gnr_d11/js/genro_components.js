@@ -6565,6 +6565,8 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
         }
     },
 
+    
+
 
     getRowByIdx:function(idx){
         return ;
@@ -6663,6 +6665,19 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
         return this.rowFromItem(n)[this.identifier];
     },
 
+    currentPkeys:function(caption_field){
+        var data = this.getData();
+        var result = [];
+        var r;
+        let identifier = this.identifier;
+        data.forEach(function(n){
+            r = objectUpdate({...n.attr},n.getValue().asDict());
+            let pkey = identifier?r[identifier]:n.label;
+            result.push(caption_field? {'pkey':pkey,'caption':r[caption_field]} : pkey);
+        });
+        return result;
+    },
+
     sort:function(sortedBy){
         this.sortedBy = sortedBy || this.sortedBy;
         if(!this.sortedBy){
@@ -6705,6 +6720,18 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
     },
     keyGetter :function(n){
         return n.attr[this.identifier];
+    },
+    currentPkeys:function(caption_field){
+        var data = this.getData();
+        var result = [];
+        var r;
+        let identifier = this.identifier;
+        data.forEach(function(n){
+            r = n.attr;
+            let pkey = identifier?r[identifier]:n.label;
+            result.push(caption_field? {'pkey':pkey,'caption':r[caption_field]} : pkey);
+        });
+        return result;
     },
 
     sort:function(sortedBy){
