@@ -9,7 +9,7 @@
 # --------------------------- GnrWebPage subclass ---------------------------
 from __future__ import absolute_import
 from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
-from .mako.lookup import TemplateLookup
+from mako.lookup import TemplateLookup
 import itertools
 import os
 from gnr.web.gnrwsgisite import WSGIHTTPException
