@@ -49,3 +49,6 @@ class Form(BaseComponent):
                                                                             resource:'make_redirect',
                                                                             pkey:pkey});""",
                                                                             pkey='=#FORM.record.id')
+
+    def th_options(self):
+        return dict(duplicate=True)
