@@ -21,10 +21,13 @@ class Table(object):
         tbl.aliasColumn('old_handbook_path', '@old_handbook_id.sphinx_path', name_long='!![en]Handbook path')
         tbl.aliasColumn('old_handbook_url', '@old_handbook_id.handbook_url', name_long='!![en]Handbook url')
 
+    def defaultValues(self):
+        return dict(is_active=True)
+        
     def makeRedirect(self, redirect_rec):
         old_url = redirect_rec['old_url']
         old_page_to_red = old_url.replace(redirect_rec['old_handbook_url'],'')
-        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path']+old_page_to_red, autocreate=True)
+        sn = self.db.application.site.storageNode(redirect_rec['old_handbook_path'],old_page_to_red, autocreate=True)
         new_url = redirect_rec['new_url']
         html_text = self.defaultHtmlRedirect(new_url)
 
