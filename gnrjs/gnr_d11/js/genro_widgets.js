@@ -2637,6 +2637,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             }
         }
         this.originalContextTarget = e.target;
+        this.lastContextEvent = e;
         var ctxSourceNode;
         if (this.originalContextTarget) {
             if (this.originalContextTarget.sourceNode) {
