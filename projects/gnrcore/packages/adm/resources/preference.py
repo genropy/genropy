@@ -43,6 +43,8 @@ class AppPref(object):
     def _adm_dev(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.checkbox(value='^.connection_log_enabled',label='Connection log enabled')
+        fb.textbox(value='^.onlyoffice_secret',lbl='!![en]OnlyOffice integration secret')
+        fb.textbox(value='^.onlyoffice_server',lbl='!![en]OnlyOffice Document server address')
 
     def _adm_general(self, bc):
         top = bc.contentPane(region='top')

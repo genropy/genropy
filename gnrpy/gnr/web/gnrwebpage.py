@@ -1117,6 +1117,7 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk else None
         self.getPwaIntegration(arg_dict)
+        self.getOnlyOfficeIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
@@ -1178,6 +1179,11 @@ class GnrWebPage(GnrBaseWebPage):
         pwaEnabled = self.site.config['pwa?enabled']
         if pwaEnabled:
             arg_dict['pwa'] = True
+
+    def getOnlyOfficeIntegration(self, arg_dict):
+        onlyOfficeServer = self.getPreference('dev.onlyoffice_server', pkg='adm')
+        if onlyOfficeServer:
+            arg_dict['onlyoffice_server'] = onlyOfficeServer
 
     def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']

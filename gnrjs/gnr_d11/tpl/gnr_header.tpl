@@ -5,6 +5,9 @@
     <link rel="manifest" crossorigin="use-credentials" href="/_rsrc/common/pwa/manifest.json">
     <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
+% if onlyoffice_server:
+    <script type="text/javascript" src="${onlyoffice_server}/web-apps/apps/api/documents/api.js"></script>
+% endif
 
 % if favicon:
      <link rel="icon" href="${favicon}" />
