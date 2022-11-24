@@ -158,7 +158,10 @@ class Main(BaseResourceBatch):
                 for redirect_pkey in self.redirect_pkeys:
                     redirect_rec = redirect_recs[redirect_pkey]
                     self.db.table('docu.redirect').makeRedirect(redirect_rec)
-                    
+
+        if self.batch_parameters.get('invalidate_cache'):
+            self.invalidateCloudfrontCache()
+
         if self.db.package('genrobot'):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
@@ -324,6 +327,23 @@ class Main(BaseResourceBatch):
 
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
+    def invalidateCloudfrontCache(self):
+        import boto3, time
+        client = boto3.client('cloudfront')
+        response = client.create_invalidation(
+                    DistributionId=self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'),
+                    InvalidationBatch={
+                        'Paths': {
+                            'Quantity': 1,
+                            'Items': [
+                                '/{handbook_name}/*'.format(handbook_name=self.handbook_record['name'])
+                                ],
+                            },
+                            'CallerReference': str(time.time()).replace(".", "")
+                        }
+                    )
+        return response
+
     def sendNotification(self, notification_bot=None, notification_message=None):
         notification_recipients = self.db.table('genrobot.bot_contact').query(columns='@contact_id.username AS username', 
                         where='@bot_id.bot_token=:bot_token', bot_token=notification_bot).fetchAsDict('username')
@@ -347,10 +367,12 @@ class Main(BaseResourceBatch):
         #DP202112 Useful for local debugging 
         #fb.checkbox(lbl='Skip images', value='^.skip_images')
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
-            fb.checkbox(lbl='Skip redirects', value='^.skip_redirects')
+            fb.checkbox(label='!![en]Skip redirects', value='^.skip_redirects')
+        if self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'):
+            fb.checkbox(label='!![en]Force Cloudfront cache invalidation', value='^.invalidate_cache')
         #DP202101 Ask for Telegram notification option if enabled in docu settings
         if self.db.application.getPreference('.telegram_notification',pkg='docu'):
-            fb.checkbox(lbl='Send notification via Telegram', value='^.send_notification', default=True)
+            fb.checkbox(label='!![en]Send notification via Telegram', value='^.send_notification', default=True)
             fb.dbselect('^.bot_token', lbl='BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
                         colspan=3, hasDownArrow=True, default=self.db.application.getPreference('.bot_token',pkg='docu'),
                         hidden='^.send_notification?=!#v')                
