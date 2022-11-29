@@ -708,8 +708,10 @@ class InstanceMaker(object):
         self.config_path = os.path.join(self.instance_path,'config')
     
     def do(self):
-        self.do_instance()
-        self.do_site()
+        instanceconfig = self.do_instance()
+        self.do_site(instanceconfig)
+        instanceconfig_xml_path = os.path.join(self.config_path, 'instanceconfig.xml')
+        instanceconfig.toXml(instanceconfig_xml_path,typevalue=False,pretty=True)
 
     def do_instance(self):
         custom_path = os.path.join(self.instance_path, 'custom')
@@ -744,9 +746,9 @@ class InstanceMaker(object):
                                            method="authenticate")
             else:
                 instanceconfig = self.config
-            instanceconfig.toXml(instanceconfig_xml_path,typevalue=False,pretty=True)
-            
-    def do_site(self):
+            return instanceconfig
+
+    def do_site(self,instanceconfig):
         """TODO"""
         self.site_path = os.path.join(self.instance_path, 'site')
         root_py_path = os.path.join(self.instance_path, 'root.py')
@@ -755,7 +757,7 @@ class InstanceMaker(object):
             os.mkdir(self.site_path)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
-            root_py.write("""#!/usr/bin/env python2.6
+            root_py.write("""
 import sys
 sys.stdout = sys.stderr
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -781,7 +783,8 @@ if __name__ == '__main__':
                 siteconfig.setItem('wsgi', None, **wsgi_options)
             else:
                 siteconfig = self.config
-            siteconfig.toXml(siteconfig_xml_path,typevalue=False,pretty=True)
+            instanceconfig.addItem('site',siteconfig)
+
             
 class PackageMaker(object):
     """Handle the autocreation of the ``packages`` folder.
@@ -895,22 +898,36 @@ class ThPackageResourceMaker(object):
             self.makeMenu()
 
     def makeMenu(self):
-        with open(os.path.join(self.packageFolder,'menu.py'),'w') as out_file:
-            self.out_file = out_file
-            self.writeHeaders()
-            self.write('def config(root,application=None):')
-            pkgobj =  self.app.db.package(self.package)
-            self.write("%s = root.branch('%s')"%(self.package,(pkgobj.name_long or self.package.capitalize())),indent=1) 
-            hasLookups = False
-            for t in self.tables:
-                tblobj = self.app.db.table('%s.%s' %(self.package,t))
-                if tblobj.attributes.get('lookup'):
-                    hasLookups = True
-                else:
-                    self.write("%s.thpage('%s',table='%s')" %(self.package,(tblobj.name_plural or tblobj.name_long or tblobj.name.capitalize()),
-                            tblobj.fullname),indent=1)
-            if hasLookups:
-                self.write("%s.lookups('Lookup tables',lookup_manager='%s')" %(self.package,self.package),indent=1)
+        hasLookups = False
+        menupath = os.path.join(self.packageFolder,'menu.py')
+        m = MenuStruct()
+        for t in self.tables:
+            tblobj = self.app.db.table('%s.%s' %(self.package,t))
+            if tblobj.attributes.get('lookup'):
+                hasLookups = True
+            else:
+                m.thpage(tblobj.name_plural or tblobj.name_long, table=tblobj.fullname)
+        if hasLookups:
+            m.lookupBranch("Lookup tables", pkg=self.package)
+        m.toPython(menupath)
+
+
+        #with open(os.path.join(self.packageFolder,'menu.py'),'w') as out_file:
+        #    self.out_file = out_file
+        #    self.writeHeaders()
+        #    self.write('def config(root,application=None):')
+        #    pkgobj =  self.app.db.package(self.package)
+        #    self.write("%s = root.branch('%s')"%(self.package,(pkgobj.name_long or self.package.capitalize())),indent=1) 
+        #    hasLookups = False
+        #    for t in self.tables:
+        #        tblobj = self.app.db.table('%s.%s' %(self.package,t))
+        #        if tblobj.attributes.get('lookup'):
+        #            hasLookups = True
+        #        else:
+        #            self.write("%s.thpage('%s',table='%s')" %(self.package,(tblobj.name_plural or tblobj.name_long or tblobj.name.capitalize()),
+        #                    tblobj.fullname),indent=1)
+        #    if hasLookups:
+        #        self.write("%s.lookups('Lookup tables',lookup_manager='%s')" %(self.package,self.package),indent=1)
 
 
     def write(self,line=None, indent=0):
@@ -989,7 +1006,7 @@ class ThPackageResourceMaker(object):
         hierarchical  = tblobj.column('hierarchical_pkey') is not None
         hierarchical_chunk = ''
         if hierarchical:
-            hierarchical_chunk = 'hierarchical=True'
+            hierarchical_chunk = ', hierarchical=True'
         self.write("return dict(dialog_height='400px', dialog_width='600px' %s)" %hierarchical_chunk, indent=2)
 
 

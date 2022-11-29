@@ -115,6 +115,13 @@ class XlsWriter(BaseXls):
         self.float_style.num_format_str = format_float
         self.int_style = xlwt.XFStyle()
         self.int_style.num_format_str = format_int
+        self.date_format = xlwt.XFStyle()
+        self.date_format.num_format_str = 'dd/mm/yyyy'
+        
+        self.datetime_format = xlwt.XFStyle()
+        self.datetime_format.num_format_str = 'dd/mm/yyyy h:mm:ss'
+        
+        
         font0 = xlwt.Font()
         font0.name = font  # FIXED
         font0.bold = True
@@ -196,7 +203,6 @@ class XlsWriter(BaseXls):
         columns = sheet_obj['columns']
         coltypes = sheet_obj['coltypes']
         colsizes = sheet_obj['colsizes']
-
         for c, col in enumerate(columns):
             value = row.get(col)
             if isinstance(value, list):
@@ -206,6 +212,12 @@ class XlsWriter(BaseXls):
                 sheet.write(current_row, c, value, self.float_style)
             elif coltype in ('L', 'I'):
                 sheet.write(current_row, c, value, self.int_style)
+            elif coltype=='D':
+                sheet.write(current_row, c, value,self.date_format)
+                
+            elif coltype=='DH':
+                sheet.write(current_row, c, value,self.datetime_format)
+                
             else:
                 value = toText(value, self.locale)
                 sheet.write(current_row, c, value)
@@ -260,8 +272,14 @@ class XlsxWriter(BaseXls):
     content_type = 'application/xlsx'
 
 
-    def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
-                 font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
+    def __init__(self, columns=None, 
+                 coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
+                 font='Times New Roman', 
+                 format_float='#,##0.00', 
+                 format_int='#,##0', 
+                 format_date=None,
+                 format_datetime=None,
+                 locale=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
@@ -281,6 +299,9 @@ class XlsxWriter(BaseXls):
 
         #self.sheet = self.workbook.add_sheet(os.path.basename(self.filepath)[:31])
         self.locale = locale
+        format_date = format_date or "D MMM YYYY" #backwards compatiblitty NDS
+        format_datetime = format_datetime or "D MMM YYYY, H:MM:SS"
+        
         self.workbook.add_named_style(openpyxl.styles.NamedStyle('float',
                                 font=openpyxl.styles.Font(name=font),
                                 number_format=format_float,
@@ -301,12 +322,12 @@ class XlsxWriter(BaseXls):
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("date",
                                 font=openpyxl.styles.Font(name=font),
-                                number_format="D MMM YYYY",
+                                number_format=format_date,
                                 alignment=openpyxl.styles.Alignment(vertical="top"),
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("datetime",
                                 font=openpyxl.styles.Font(name=font),
-                                number_format="D MMM YYYY, H:MM:SS",
+                                number_format=format_datetime,
                                 alignment=openpyxl.styles.Alignment(vertical="top"),
         ))
         self.workbook.add_named_style(openpyxl.styles.NamedStyle("group",
@@ -406,7 +427,6 @@ class XlsxWriter(BaseXls):
         columns = sheet_obj['columns']
         coltypes = sheet_obj['coltypes']
         colsizes = sheet_obj['colsizes']
-
         max_height = 0
         for c, col in enumerate(columns):
             value = row.get(col)

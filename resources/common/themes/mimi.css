@@ -1269,6 +1269,12 @@ body.tundra.mimi {
     background-color: #EDEDEE;
 }
 
+.mimi._common_d11 .lightboxDialog.loginDialog.dijitDialog{
+    padding: 0;
+    border:1px solid silver;
+    background:transparent;
+}
+
 .mimi._common_d11 .lightboxDialog.dijitDialog {
     padding: 2px;
     background: linear-gradient(to top, #efefef,white);;
@@ -1278,6 +1284,7 @@ body.tundra.mimi {
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
 }
+
 
 .dlg_alert.dijitDialog .dijitDialogPaneContent{
     background:linear-gradient(to top, #e4e4e4,white);
@@ -1389,7 +1396,15 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
 }
 
-
+.threedots{
+    background: url(/_rsrc/common/css_icons/svg/16/3dots.svg) no-repeat center center;
+}
+.threedots_white{
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_white.svg) no-repeat center center;
+}
+.threedots_h_white{
+    background: url(/_rsrc/common/css_icons/svg/16/3dots_h_white.svg) no-repeat center center;
+}
 .greenLight, .semaphoreCheck{
     background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
     width: 14px;

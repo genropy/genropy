@@ -207,26 +207,29 @@ class TableHandlerGroupBy(BaseComponent):
                     condition=condition,**store_kwargs)
         if linkedTo:
             frame.dataController("""
-                var groupbystore = grid.collectionStore();
-                if(!groupbystore){{
-                    return;
-                }}
-                if(use_grouper){{
-                    PUT #{linkedTo}_grid.grouperPkeyList = null;
-                    genro.nodeById('{linkedTo}_grid_store').store.clear();
-                }}else if(!grouper){{
-                    SET #ANCHOR.details_pkeylist = null;
-                }}
-                groupbystore.loadData();
-                """.format(linkedTo=linkedTo),
-            grid = frame.grid.js_widget,
-             use_grouper='=.use_grouper',grouper=grouper,
-            datapath='#{linkedTo}_frame'.format(linkedTo=linkedTo),
-            _runQuery='^.runQueryDo',
-            _reloadGrouper='^.reloadGrouper',_sections_changed='^.sections_changed',
-           linkedTo=linkedTo,_delay=200,
-           #**{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True}
-           )
+                    var groupbystore = grid.collectionStore();
+                    if(!groupbystore){{
+                        return;
+                    }}
+                    if(use_grouper){{
+                        PUT #{linkedTo}_grid.grouperPkeyList = null;
+                        genro.nodeById('{linkedTo}_grid_store').store.clear();
+                    }}else if(!grouper){{
+                        SET #ANCHOR.details_pkeylist = null;
+                    }}
+                    groupbystore.loadData();
+                    """.format(linkedTo=linkedTo),
+                grid = frame.grid.js_widget,
+                use_grouper='=.use_grouper',grouper=grouper,
+                datapath=f'#{linkedTo}_frame',
+                _runQuery='^.runQueryDo',
+                _reloadGrouper='^.reloadGrouper',
+                _sections_changed='^.sections_changed',
+            linkedTo=linkedTo,_delay=200,
+            #**{'subscribe_{linkedTo}_grid_onNewDatastore'.format(linkedTo=linkedTo):True}
+            )
+            frame.dataController(f"""FIRE #{linkedTo}_frame.reloadGrouper = {{'_changedView':_changedView}};""",
+                                _changedView = '^.grid.currViewPath')
 
 
     def _thg_defaultstruct(self,struct):

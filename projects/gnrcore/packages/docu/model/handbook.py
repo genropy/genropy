@@ -50,15 +50,3 @@ class Table(object):
         else:
             current_path = self.db.application.getPreference('.sphinx_path', pkg='docu') or 'documentation:handbooks'
         record['sphinx_path'] = current_path + '/' + record['name']
-
-    @metadata(doUpdate=True)
-    def touch_updateOgpUrl(self,record,old_record=None):
-        "Update ogp image url after S3 configuration"
-        if record['ogp_image'] and '/_storage/site/handbooks_images' in record.get('ogp_image'):
-            record['ogp_image'] = record['ogp_image'].replace('site', 'documentation')
-    
-    @metadata(doUpdate=True)
-    def touch_fixHandbookPath(self,record,old_record=None):
-        "Fix handbook path after S3 configuration"
-        self.checkSphinxPath(record)
-        

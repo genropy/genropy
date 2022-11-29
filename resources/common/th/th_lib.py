@@ -23,8 +23,10 @@ class TableHandlerCommon(BaseComponent):
         
     def _th_relationExpand(self,pane,relation=None,condition=None,
                         condition_kwargs=None,default_kwargs=None,relation_kwargs=None,original_kwargs=None):
+        defaultInherited = original_kwargs.get('defaultInherited')
         inheritedAttributes = pane.getInheritedAttributes()
         relation_kwargs = relation_kwargs or dict()
+       
         if inheritedAttributes.get('_lazyBuild'):
             condition_kwargs['_onBuilt']=True
         maintable=original_kwargs.get('maintable') or inheritedAttributes.get('table') or self.maintable

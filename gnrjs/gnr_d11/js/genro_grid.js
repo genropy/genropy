@@ -3830,7 +3830,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 }
                 for (let c in this.cellmap){
                     let s_cell = this.cellmap[c];
-                    if(s_cell.radioButton==cellkw.radioButton){
+                    if(s_cell.radioButton==cellkw.radioButton && s_cell.original_field!=cellkw.radioButton){
                         changedFields.push(s_cell.original_field);
                         cellsetter(idx,s_cell.original_field,(fieldname==s_cell.original_field) && newval);
                     }

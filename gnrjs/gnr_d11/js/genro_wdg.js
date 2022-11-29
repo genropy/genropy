@@ -1214,15 +1214,21 @@ dojo.declare("gnr.GridEditor", null, {
             let hcols = [];
             let rcol = cmap.relating_column || field;
             let selectedKw = objectExtract(editkw,'selected_*',true);
-            if(rowData){
-                for(let k in selectedKw){
-                    if(selectedKw[k].startsWith('.') && !isNullOrBlank(rowData.getItem(selectedKw[k].slice(1)))){
-                        objectPop(selectedKw,k);
+            for(let k in selectedKw){
+                let path = selectedKw[k];
+                let col = k;
+                if(path.startsWith('.')){
+                    let pl = path.split('=');
+                    path = pl[0];
+                    if(pl[1]){
+                        col = `${pl[1]} AS ${k}`;
                     }
+                    selectedKw[k] = path;
                 }
-            }
-            if(objectNotEmpty(selectedKw)){
-                hcols = hcols.concat(objectKeys(selectedKw));
+                if(rowData && !isNullOrBlank(rowData.getItem(path.slice(1)))){
+                    continue;
+                }
+                hcols.push(col);
             }
             if(hcols.length){
                 let dbenvKw = objectExtract(editkw,'dbenv_*',true,true);
@@ -1471,7 +1477,7 @@ dojo.declare("gnr.GridEditor", null, {
     },
 
 
-    setCellValue:function(rowIdxOrNode,cellname,value,valueCaption){
+    setCellValue:function(rowIdxOrNode,cellname,value,valueCaption,copyValue){
         var grid = this.grid;
         var rowNode = typeof(rowIdxOrNode)=='number'? grid.dataNodeByIndex(rowIdxOrNode): rowIdxOrNode;
         var row = grid.rowFromBagNode(rowNode,true);
@@ -1492,7 +1498,7 @@ dojo.declare("gnr.GridEditor", null, {
                 valueCaption = value.valueCaption;
             }
         }
-        if(cell.edit || cell.counter || cell.isCheckBoxCell){
+        if(cell.edit || cell.counter || cell.isCheckBoxCell || copyValue){
             if(cell.dtype=='N' && cell._formats && cell._formats.format && cell._formats.format.includes('.')){
                 let roundDec = cell._formats.format.split('.')[1].length;
                 value = Math.round10(value,-roundDec);
@@ -1759,7 +1765,7 @@ dojo.declare("gnr.GridEditor", null, {
         this.onEditCell(true,row,col);
         var editWidgetNode = this.widgetRootNode._(wdgtag,'cellWidget', attr).getParentNode();
         editWidgetNode.setCellValue = function(cellname,value,valueCaption){
-            gridEditor.setCellValue(this.editedRowIndex,cellname,value,valueCaption);
+            gridEditor.setCellValue(this.editedRowIndex,cellname,value,valueCaption,true);
         };
         editWidgetNode.editedRowIndex = row;
         if (cellDataNode.attr._validationError || cellDataNode.attr._validationWarnings) {

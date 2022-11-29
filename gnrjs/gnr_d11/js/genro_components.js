@@ -3109,10 +3109,12 @@ dojo.declare("gnr.widgets.QuickGrid", gnr.widgets.gnrwdg, {
                        'TL':{left:'0',_class:'quickgrid_toolsbox_top quickgrid_toolsbox'},
                         'BR':{right:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'},
                         'BL':{left:'0',_class:'quickgrid_toolsbox_bottom quickgrid_toolsbox'}}   
-        var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
-        tools.split(',').forEach(function(t){
-            mb._('item',t,default_tools[t]);
-        });
+        if(tools){
+            var mb = tpane._('div',objectUpdate(posdict[tools_position],{position:'absolute'}))._('multibutton',{value:'^.command',sticky:false});
+            tools.split(',').forEach(function(t){
+                mb._('item',t,default_tools[t]);
+            });
+        }
         tpane._('datacontroller',{script:"genro.publish({topic:value.action,nodeId:target},value)",
                                  value:'^.command',target:kw.nodeId})
         return bc._('contentPane',centerkw)
@@ -3582,6 +3584,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote_table:table,
                     remote_paletteId:paletteId,
                     remote_plainText:sourceNode.attr.plainText,
+                    remote_emailChunk : sourceNode.attr.emailChunk,
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
@@ -3751,7 +3754,16 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return chunk;
     },
 
-
+    emptyChunk:function(plainText,editable){
+        let emptyTextTitle = _T('!![en]Template not yet created');
+        let emptyTextSubtitle = _T('!![en]Double-click to create it');
+        shiftMode = editable===true? '':'Shift + ';
+        if(plainText){
+            return `${emptyTextTitle}\n${shiftMode}${emptyTextSubtitle}`;
+        }else{
+            return `<div class="chunkeditor_emptytemplate unselectable"><div style='display:block;'><div>${emptyTextTitle}</div><div style="font-size:70%;">${shiftMode}${emptyTextSubtitle}</div></div></div>`;
+        }
+    },
 
     createClientChunk:function(sourceNode,dataProvider,tplpars){
         var templateHandler = sourceNode._templateHandler;
@@ -3778,8 +3790,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 var mainNode = this.template.getNode('main');
                 cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                let emptychunk = sourceNode.attr.plainText?'Template not yet created': '<div class="chunkeditor_emptytemplate">Template not yet created</div>';
-                this.template = this.template || emptychunk;
+                this.template = this.template || cls.emptyChunk(sourceNode.attr.plainText,tplpars.editable);
             }
         };
         sourceNode.updateTemplate = function(){
@@ -3808,9 +3819,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
             };
         }
+        var cls = this;
         var onResult = function(resultNode){
             var r = resultNode.getValue();
             templateHandler.dataInfo = resultNode.attr;
+            if(r=='missing_template'){
+                r = cls.emptyChunk(sourceNode.attr.plainText, tplpars.editable)
+            }
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
                 setter(rendered);
@@ -5004,7 +5019,7 @@ dojo.declare("gnr.widgets.ComboArrow", gnr.widgets.gnrwdg, {
         genro.dom.addClass(focusNode.parentNode,'comboArrowTextbox')
 
         var iconClass = objectPop(kw,'iconClass') || 'dijitArrowButtonInner';
-        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton',cursor:'pointer', width:'20px',
+        var box= sourceNode._('lightbutton',objectUpdate({'_class':'fakeButton comboArrow',cursor:'pointer', width:'20px',
                                 position:'absolute',top:0,bottom:0,right:0,tabindex:-1},kw))
         box._('div','iconNode',{_class:iconClass,position:'absolute',top:0,bottom:0,left:0,right:0})
         return box;
@@ -5365,12 +5380,12 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         this.alignCheckedValues();
     },
 
-    gnrwdg_isValidValue:function(value){
+    gnrwdg_isValidValue:function(value,splitter){
         if(!value){
             return true;
         }
         var valuesDict = this.valuesDict;
-        return value.split(this.separator).every(function(c){return (c in valuesDict)});
+        return value.split(splitter || this.separator).every(function(c){return (c in valuesDict)});
     },
 
     gnrwdg_getLabelsFromValue:function(value){
@@ -5406,13 +5421,13 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
     gnrwdg_alignCheckedValues:function(){
         var sourceNode = this.sourceNode;
         var textvalue =  sourceNode.getAttributeFromDatasource('value') || '';
-        if(!this.isValidValue(textvalue)){
-            return;
-        }
         var splitter = this.separator;
         var checkcodes = textvalue && this.has_code;  
         if(checkcodes){
             splitter = ',';
+        }
+        if(!this.isValidValue(textvalue,splitter)){
+            return;
         }
         var values = splitStrip(textvalue,splitter);
         var v;
@@ -6550,6 +6565,8 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
         }
     },
 
+    
+
 
     getRowByIdx:function(idx){
         return ;
@@ -6648,6 +6665,19 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
         return this.rowFromItem(n)[this.identifier];
     },
 
+    currentPkeys:function(caption_field){
+        var data = this.getData();
+        var result = [];
+        var r;
+        let identifier = this.identifier;
+        data.forEach(function(n){
+            r = objectUpdate({...n.attr},n.getValue().asDict());
+            let pkey = identifier?r[identifier]:n.label;
+            result.push(caption_field? {'pkey':pkey,'caption':r[caption_field]} : pkey);
+        });
+        return result;
+    },
+
     sort:function(sortedBy){
         this.sortedBy = sortedBy || this.sortedBy;
         if(!this.sortedBy){
@@ -6690,6 +6720,18 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
     },
     keyGetter :function(n){
         return n.attr[this.identifier];
+    },
+    currentPkeys:function(caption_field){
+        var data = this.getData();
+        var result = [];
+        var r;
+        let identifier = this.identifier;
+        data.forEach(function(n){
+            r = n.attr;
+            let pkey = identifier?r[identifier]:n.label;
+            result.push(caption_field? {'pkey':pkey,'caption':r[caption_field]} : pkey);
+        });
+        return result;
     },
 
     sort:function(sortedBy){

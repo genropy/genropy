@@ -43,6 +43,7 @@ from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 
 from gnr.sql.gnrsql import GnrSqlException
+from collections import defaultdict
 from datetime import datetime
 import logging
 import threading
@@ -670,7 +671,6 @@ class SqlTable(GnrObject):
         return result
 
 
-
     def newrecord(self, assignId=False, resolver_one=None, 
                 resolver_many=None, 
                 _fromRecord=None, **kwargs):
@@ -687,6 +687,7 @@ class SqlTable(GnrObject):
         newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one, resolver_many=resolver_many)
         if assignId:
             newrecord[self.pkey] = self.newPkeyValue(record=newrecord)
+        self.extendDefaultValues(newrecord)
         return newrecord
 
     def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None):
@@ -1029,11 +1030,48 @@ class SqlTable(GnrObject):
         return record
             
 
+    def extendDefaultValues(self,newrecord=None):
+        fkeysColsToRead = defaultdict(dict)
+        for colname,colobj in self.columns.items():
+            defaultFrom = colobj.attributes.get('defaultFrom')
+            if newrecord.get(colname) is not None or not defaultFrom:
+                continue
+            pathlist = defaultFrom.split('.') #eg @foo_id.bar, fromFkey = foo_id 
+            if pathlist[-1].startswith('@'):
+                pathlist.append(colname)
+            fromFkey = pathlist[0][1:]
+            colToRead = '.'.join(pathlist[1:])
+            fromKeyValue = newrecord.get(fromFkey)
+            if fromKeyValue is None:
+                continue
+            colToRead = colToRead if colToRead.startswith('@') else f'${colToRead}'
+            fkeysColsToRead[(fromFkey,fromKeyValue)][colname] = colToRead
+        if not fkeysColsToRead:
+            return
+        currEnv = self.db.currentEnv
+        for identifier,coldict in fkeysColsToRead.items():
+            cacheIdentifier = f'{self.fullname.replace(".","_")}_extendedDefaults_{identifier}'
+            cachedDefaults = currEnv.get(cacheIdentifier)
+            if not cachedDefaults:
+                fkey,fkeyValue = identifier
+                columns = ','.join([f"{colToRead} AS {colname}" for colname,colToRead in coldict.items()])
+                relatedTblobj = self.column(fkey).relatedTable().dbtable
+                f = relatedTblobj.query(where=f'${relatedTblobj.pkey}=:fkeyValue',
+                                        fkeyValue=fkeyValue,columns=columns,
+                                        addPkeyColumn=False,limit=1,
+                                        excludeDraft=False,
+                                        ignorePartition=True,
+                                        excludeLogicalDeleted=False,subtable='*'
+                                        ).fetch()
+                cachedDefaults = dict(f[0]) if f else {}
+                currEnv[cacheIdentifier] = cachedDefaults
+            newrecord.update(cachedDefaults)
+
     def defaultValues(self):
         """Override this method to assign defaults to new record. Return a dictionary - fill
         it with defaults"""
-        return dict([(x.name, x.attributes['default'])for x in list(self.columns.values()) if 'default' in x.attributes])
-        
+        return {colobj.name:colobj.attributes['default'] for colobj in self.columns.values() if 'default' in colobj.attributes}
+                
 
     def sampleValues(self):
         """Override this method to assign defaults to new record. Return a dictionary - fill
@@ -1276,7 +1314,7 @@ class SqlTable(GnrObject):
         if record != old_record:
             self.update(record,old_record)
 
-    def readColumns(self, pkey=None, columns=None, where=None, **kwargs):
+    def readColumns(self, pkey=None, columns=None, where=None,subtable='*', **kwargs):
         """TODO
         
         :param pkey: the record :ref:`primary key <pkey>`
@@ -1289,7 +1327,7 @@ class SqlTable(GnrObject):
         kwargs.setdefault('ignoreTableOrderBy',True)
         fetch = self.query(columns=columns, limit=1, where=where,
                            pkey=pkey, addPkeyColumn=False,excludeDraft=False,
-                           ignorePartition=True,excludeLogicalDeleted=False, 
+                           ignorePartition=True,excludeLogicalDeleted=False,subtable=subtable,
                            **kwargs).fetch()
         if not fetch:
             row = [None for x in columns.split(',')]

@@ -266,10 +266,12 @@ class FrameIndex(BaseComponent):
                         tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
         box = sb.preferences.div(_class='iframeroot_pref')
         if not self.dbstore:
-            box.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+            box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
                                     _class='iframeroot_appname',
-                                    connect_onclick='genro.framedIndexManager.openAppPreferences()',envbag='=gnr.rootenv')
+                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv')
+            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
+            _tags=self.pageAuthTags(method='preference'))
             box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
                                 connect_onclick='genro.framedIndexManager.openUserPreferences()')
         

@@ -23,7 +23,7 @@ class Table(object):
         tbl =  pkg.table('message', rowcaption='subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages',partition_account_id='account_id')
         self.sysFields(tbl,draftField=True)
-        tbl.column('in_out', size='1', name_long='!!Message type', name_short='!!I/O',values='I:Input,O:Output')
+        tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
         tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
@@ -38,7 +38,7 @@ class Table(object):
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
-        tbl.column('message_type',size=':10', group='_', name_long='!!Type'
+        tbl.column('message_type',size=':10', name_long='!!Type'
                     ).relation('message_type.code', relation_name='messages', 
                                 mode='foreignkey', onDelete='raise')
         tbl.column('notes', name_long='!!Notes')
@@ -203,6 +203,7 @@ class Table(object):
                   reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
                  message_id=None,message_date=None,message_type=None,
                  html=False,doCommit=False,headers_kwargs=None,**kwargs):
+        
         message_date = message_date or self.db.workdate
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
         if headers_kwargs:
@@ -285,7 +286,7 @@ class Table(object):
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html=message['html'], async_=False,
+                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
 
                 message['send_date'] = datetime.now()

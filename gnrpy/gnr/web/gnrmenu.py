@@ -69,16 +69,15 @@ class MenuStruct(GnrStructData):
             getattr(menuinstance,self._getBranchMethod(page,menuinstance))(self,**kwargs)
         else:
             getattr(m,self._getBranchMethod(page,m))(self,application=page.application, **kwargs)
-            autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
-            if autoconvert and len([k for k in dir(m) if not k.startswith('__')])==1:
-                self.toPython(filepath)
+            # AUTOCONVERT
+            #if len([k for k in dir(m) if not k.startswith('__')])==1:
+            #    self.toPython(filepath)
 
   
     def _handle_xml(self,filepath,page=None,**kwargs):
         self.fillFrom(filepath)
-        autoconvert = page.application.getPreference('autoconvert_legacy_menu',pkg='sys') or False
 
-        if len(self) and autoconvert:
+        if len(self):
             self.toPython(filepath.replace('.xml','.py'))
 
     def _handleFilepath(self,filepath):
@@ -149,9 +148,11 @@ class Menu(object):
 
     def _toPythonInner(self,filehandle,b,rootname):
         filehandle.write('\n')
+        if not b:
+            filehandle.write('        pass') #Missing menu items
         for n in b:
             kw = dict(n.attr)
-            kw.pop('tag',None)
+            tag = kw.pop('tag',None)
             label = kw.pop('label',n.label)
             attrlist = ['u"%s"' %label]
             for k,v in list(kw.items()):
@@ -162,14 +163,9 @@ class Menu(object):
                 varname = slugify(label).replace('!!','').replace('-','_')
                 filehandle.write('        %s = %s.branch(%s)' %(varname,rootname,', '.join(attrlist)))
                 self._toPythonInner(filehandle,n.value,varname) 
-            elif 'table' in kw:
-                filehandle.write('        %s.thpage(%s)' %(rootname,', '.join(attrlist)))
-            elif 'lookup_manager' in kw:
-                filehandle.write('        %s.lookups(%s)' %(rootname,', '.join(attrlist)))
-            elif 'pkg' in kw:
-                filehandle.write('        %s.branch(%s)' %(rootname,', '.join(attrlist)))
-            else:
-                filehandle.write('        %s.webpage(%s)' %(rootname,', '.join(attrlist)))
+            if not tag:
+                continue
+            filehandle.write('        %s.%s(%s)' %(rootname, tag, ', '.join(attrlist)))
             filehandle.write('\n')
 
 class NotAllowedException(Exception):
@@ -224,6 +220,7 @@ class MenuResolver(BagResolver):
             return MenuStruct(menuinstance,page=self._page)
 
 
+
     @property
     def indexMenu(self):
         if self._page.userMenu:
@@ -255,6 +252,9 @@ class MenuResolver(BagResolver):
                 pkgMenuBag = self.pkgMenu(pkgid)
                 if not pkgMenuBag:
                     continue
+                if len(pkgMenuBag)==1:
+                    if not self.allowedNode(pkgMenuBag.getNode('#0')):
+                        continue
                 pkgattrs = self.getPkg(pkgid).attributes
                 menu_label =pkgattrs.get('menu_label') or pkgattrs.get('name_long', pkgid)
                 result.packageBranch(menu_label,pkg=pkgid)
@@ -273,6 +273,7 @@ class MenuResolver(BagResolver):
     def load(self):
         result = Bag()
         source = self.sourceBag[self.path]
+        node_attr = self.sourceBag.getAttr(self.path)
         for node in source:
             if not self.allowedNode(node):
                 continue
@@ -523,11 +524,11 @@ class MenuResolver(BagResolver):
         path = None
         if not value:
             return None,attributes
-        if len(value) == 1:
+        if len(value) == 1 and value['#0']:
             path = '#0'
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
-                                branchMethod=attributes.get('branchMethod'),
+                                branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
                                 _page=self._page,**dictExtract(attributes,'branch_')),attributes

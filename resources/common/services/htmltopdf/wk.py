@@ -27,12 +27,10 @@ class Service(HtmlToPdfService):
         #         pdf_kwargs['page_height'] = page_width
         if not 'quiet' in pdf_kwargs:
             pdf_kwargs['quiet'] = True
-
         args = ['wkhtmltopdf']
-
         pdf_kwargs.pop('page_height', None)
         pdf_kwargs.pop('page_width', None)
-
+        
         for k,v in list(pdf_kwargs.items()):
             if v is not False and v is not None and v!='':
                 args.append('--%s' %k.replace('_','-'))

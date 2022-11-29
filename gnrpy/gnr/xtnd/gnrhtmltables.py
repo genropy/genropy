@@ -81,11 +81,11 @@ class TableBuilder(object):
             self.response.content_type = 'application/zip'
             self.response.add_header("Content-Disposition", "attachment; filename=%s.zip" % filename)
             zipresult = io.StringIO()
-            zip = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED)
+            out_zip = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED)
             zipstring = zipfile.ZipInfo('%s.%s' % (filename, ext), datetime.datetime.now().timetuple()[:6])
             zipstring.compress_type = zipfile.ZIP_DEFLATED
-            zip.writestr(zipstring, content)
-            zip.close()
+            out_zip.writestr(zipstring, content)
+            out_zip.close()
             content = zipresult.getvalue()
             zipresult.close()
         #self.response.add_header("Content-Length", str(len(content)))

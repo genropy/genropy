@@ -275,7 +275,7 @@ class GnrHtmlBuilder(object):
     def __init__(self, page_height=None, page_width=None, page_margin_top=None,
                  page_margin_left=None, page_margin_right=None, page_margin_bottom=None,
                  showTemplateContent=None,
-                 htmlTemplate=None, page_debug=False, srcfactory=None, css_requires=None,
+                 htmlTemplate=None, page_debug=False,page_styles=None, srcfactory=None, css_requires=None,
                  print_button=None, bodyAttributes=None,parent=None,default_kwargs=None,**kwargs):
         self.srcfactory = srcfactory or GnrHtmlSrc
         self.htmlTemplate = htmlTemplate or Bag()
@@ -292,6 +292,7 @@ class GnrHtmlBuilder(object):
         self.page_margin_right = page_margin_right or top_layer['main.page.right'] or 0
         self.page_margin_bottom = page_margin_bottom or top_layer['main.page.bottom'] or 0
         self.page_debug = page_debug
+        self.page_styles = page_styles
         self.print_button = print_button
         self.css_requires = css_requires or []
         self.showTemplateContent = showTemplateContent
@@ -451,9 +452,10 @@ class GnrHtmlBuilder(object):
                                    top:%imm;
                                    left:%imm;
                                    right:%imm;
-                                   bottom:%imm;""" % (
+                                   bottom:%imm;%s""" % (
         self.page_margin_top, self.page_margin_left,
-        self.page_margin_right, self.page_margin_bottom))
+        self.page_margin_right, self.page_margin_bottom,
+        self.page_styles or ''))
         if self.htmlTemplate:
             if not firstpage and self.nextLetterhead:
                 self.htmlTemplate = self.nextLetterhead

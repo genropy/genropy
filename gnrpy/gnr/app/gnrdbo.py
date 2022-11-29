@@ -342,6 +342,7 @@ class TableBase(object):
                             group='*',_sysfield=True,size='22').relation('%s.id' %tblname,relation_name='_grandchildren',
                                                     mode='foreignkey',one_name='!![en]Root',
                                                     many_name='!![en]Grandchildren',
+                                                    deferred=True,
                                                     onDelete='ignore')
             if hierarchical_virtual_roots:
                 tbl.column('_virtual_node',dtype='B',name_lomg="!![en]H.Virtual node",copyFromParent=True)
@@ -612,7 +613,7 @@ class TableBase(object):
 
     def trigger_hierarchical_after(self,record,fldname,old_record=None,**kwargs):
         self.hierarchicalHandler.trigger_after(record,old_record=old_record)
-
+        
     @public_method
     def getHierarchicalData(self,caption_field=None,condition=None,caption=None,
                             dbstore=None,columns=None,related_kwargs=None,
@@ -894,8 +895,15 @@ class TableBase(object):
         :param fldname: the field name"""
         pass
 
-    def inheritedFields(self):      
-        return [field for field,colobj in self.columns.items() if colobj.attributes.get('inherited')]
+    def inheritedFields(self, asItems=None):
+        inheritedFields=[(field, colobj.attributes.get('inherited')) for field,colobj in self.columns.items() if colobj.attributes.get('inherited')]
+        if not asItems:
+            return [f[0] for f in inheritedFields]
+        else:
+            return [(f, f if v is True else v) for f,v in inheritedFields]
+            
+            
+        
 
     def getInheritedValues(self,record_source):      
         result = {}        

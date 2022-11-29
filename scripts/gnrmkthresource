@@ -50,6 +50,7 @@ class ThResourceMaker(object):
         self.app=GnrApp(custom_config=config)
     
     def makeResources(self):
+        hasLookups=False
         tables=[]
         for pkg, tbl_names in list(self.pkg_tables.items()):
             for tbl_name in tbl_names:
@@ -70,11 +71,18 @@ class ThResourceMaker(object):
             path = os.path.join(packageFolder,'menu.xml')
             self.packageMenues[pkg] = Bag(path) if os.path.exists(path) else Bag()
         for package,table in tables:
-            self.createResourceFile(pkg, table)
+            if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
+                hasLookups=True
+                continue
+            else:
+                self.createResourceFile(pkg, table)
         if self.option_menu:
             for pkg in list(self.pkg_tables.keys()):
                 packageFolder = self.app.packages(pkg).packageFolder
                 xmlmenupath = os.path.join(packageFolder,'menu.xml')
+                if hasLookups:
+                    self.packageMenues[package].setItem('auto.lookups', None, label="!!Lookup tables", 
+                                                                    pkg=pkg, tag='lookupBranch')
                 self.packageMenues[pkg].toXml(xmlmenupath)
                 ms = MenuStruct(xmlmenupath)
                 ms.toPython(os.path.join(packageFolder,'menu.py'))
@@ -166,7 +174,8 @@ class ThResourceMaker(object):
             self.writeFormClass(out_file, columns)
             print('%s created' % name)
         if self.option_menu:
-            self.packageMenues[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),table='%s.%s' %(package,table))
+            self.packageMenues[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
+                                                            table='%s.%s' %(package,table), tag='thpage')
 
 if __name__ == '__main__':
     usage = """

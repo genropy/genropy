@@ -128,7 +128,7 @@ def localize_img(value, locale, format=None, **kwargs):
         c = '<div style="height:%(h)spx;width:%(w)spx;overflow:hidden;%(style)s">' %format
         format.pop('style',None)
         if cropper_zoom:
-            cropper_style = """-webkit-transform:scale(%f);-webkit-transform-origin:0px 0px;-moz-transform:scale(%f);-moz-transform-origin:0px 0px;""" %(cropper_zoom,cropper_zoom)
+            cropper_style = """transform:scale(%f);transform-origin:0px 0px;""" %(cropper_zoom,cropper_zoom)
             cropper = c+'<div style="%s">' %cropper_style
             cropper = cropper+'%s'+'</div></div>'
         else:
@@ -138,8 +138,7 @@ def localize_img(value, locale, format=None, **kwargs):
 
     styleimg = """margin-top:-%(margin_top)spx;
                   margin-left:-%(margin_left)spx;
-                  -webkit-transform:scale(%(zoom)s) rotate(%(rotate)sdeg);
-                  -moz-transform:scale(%(zoom)s) rotate(%(rotate)sdeg);
+                  transform:scale(%(zoom)s) rotate(%(rotate)sdeg);
                     """ %styleimg
     styleimg = styleimg.replace('--','')
     styleimg = 'style="%s %s;"' %(styleimg,(format.get('style') or ''))
