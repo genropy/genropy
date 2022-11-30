@@ -411,7 +411,6 @@ class Server(object):
             atexit.register(gnrServer.on_site_stop)
             extra_info = []
             if self.debug:
-                print(self.debug)
                 gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                 extra_info.append('Debug mode: On')
             ssl_context = None
