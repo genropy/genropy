@@ -428,7 +428,7 @@ class Server(object):
                 extra_info.append(f'SSL mode: On, {ssl_context}')
                 localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
             print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format( 
-                            localhost=localhost, port=port, now=now, extra_info=','.join(extra_info), **log_styles()))
+                            localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
             run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
                 reloader_type='stat', ssl_context=ssl_context)
 
