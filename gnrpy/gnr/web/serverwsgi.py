@@ -399,7 +399,8 @@ class Server(object):
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
-            print(f'[{now}]\tStarting Tornado server - listening on http://127.0.0.1:{port}')
+            print('[{now}]\t{color_blue}Starting Tornado server - listening on {style_underlined}http://{host}:{port}{nostyle}'.format(
+                                host=host, port=port, now=now, **log_styles()))
             server=GnrAsyncServer(port=port,instance=site_name,
                 web=True, autoreload=self.options.reload, site_options=site_options)
             server.start()
