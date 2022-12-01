@@ -576,6 +576,7 @@ class BagToHtml(object):
         if hasattr(self, 'thermo_wrapper') and self.thermo_kwargs:
             nodes = self.thermo_wrapper(nodes, **self.thermo_kwargs)
         carry_height = self.totalizeCarryHeight()
+        nodes = list(nodes)
         self.remainingLines = len(nodes)
         for lineno,rowDataNode,rowheight,row_kw,extra_row_height,subtotal_rows in self.lineIterator(nodes):
             bodyUsed = self.copyValue('grid_body_used')
