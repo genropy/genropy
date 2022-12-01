@@ -1852,7 +1852,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             status = 'error';
         }
         else{
-            status = this.changed ? 'changed':'ok';
+            status = (this.changed || this.isNewRecord())? 'changed':'ok';
         }
         if(this.status!=status){
             this.status=status;
@@ -1860,7 +1860,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var formDomNode = this.formDomNode;
             var side;
             var formNodeWdg = this.sourceNode.widget;
-            dojo.forEach(this._status_list,function(st){
+            this._status_list.forEach(function(st){
                 genro.dom.setClass(formDomNode,'form_'+st,st==status);
                 for(var sidename in {'top':true,'bottom':true,'left':true,'right':true}){
                     side = formNodeWdg?formNodeWdg['_'+sidename]:null;
