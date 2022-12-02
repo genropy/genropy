@@ -131,6 +131,9 @@ var genro_plugin_groupth = {
         if(branchdata.len()==1 && firstNode.label=='[NP]'){
             branchdata = firstNode.getValue();
             branchDataNode.setValue(branchdata)
+            if(!branchdata){
+                return;
+            }
         }
         branchdata.forEach(function(n){
             if(n.getValue()){
