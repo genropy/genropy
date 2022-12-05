@@ -882,8 +882,12 @@ class GnrSqlDb(GnrObject):
         
         :param tblname: the :ref:`database table <table>` name
         :param pkg: the :ref:`package <packages>` object"""
-        return self.model.table(tblname, pkg=pkg).dbtable
-            
+        srctbl = self.model.table(tblname, pkg=pkg)
+        if hasattr(srctbl,'dbtable'):
+            return srctbl.dbtable
+        #during building model
+        return srctbl._mixinobj
+       
     def query(self, table, **kwargs):
         """An sql :ref:`query`
         

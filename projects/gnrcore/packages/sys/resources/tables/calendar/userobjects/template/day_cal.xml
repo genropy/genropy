@@ -1,0 +1,218 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><_ins_ts _tag="__ins_ts" _T="DH" dtype="DH" name_long="!![en]Insert date" indexed="True::B" group="zzz" onInserting="setTSNow" _sysfield="True::B" _owner_package="sito" as="t0___ins_ts">2022-11-30T17:06:54.531936+01:00</_ins_ts>
+<_del_ts _tag="__del_ts" _T="NN" dtype="DH" name_long="!![en]Logical delete date" indexed="True::B" group="zzz" _sysfield="True::B" _owner_package="sito" as="t0___del_ts"></_del_ts>
+<_mod_ts _tag="__mod_ts" _T="DH" dtype="DH" name_long="!![en]Update date" indexed="True::B" group="zzz" onInserting="setTSNow" onUpdating="setTSNow" _sysfield="True::B" _owner_package="sito" as="t0___mod_ts">2022-12-01T11:51:48.143833+01:00</_mod_ts>
+<_ins_user _tag="__ins_user" name_long="!![en]User Insert" group="zzz" onInserting="setCurrentUser" _sysfield="True::B" _owner_package="sito" dtype="T" as="t0___ins_user">ghigo</_ins_user>
+<identifier size=":120" unique="True::B" indexed="True::B" sql_value="COALESCE(:tbl,:pkg,'')||:objtype||:code|| CASE WHEN :private THEN :userid ELSE '' END" _owner_package="sito" dtype="A" as="t0_identifier">sys.calendartemplateday_cal</identifier>
+<code size=":40" name_long="!![en]Code" indexed="y" _owner_package="sito" dtype="A" as="t0_code">day_cal</code>
+<objtype size=":20" name_long="!![en]Object Type" indexed="y" _owner_package="sito" dtype="A" as="t0_objtype">template</objtype>
+<pkg size=":50" name_long="!![en]Package" _owner_package="sito" dtype="A" as="t0_pkg">sys</pkg>
+<tbl size=":50" name_long="!![en]Table" _owner_package="sito" dtype="A" as="t0_tbl">sys.calendar</tbl>
+<userid size=":50" name_long="!![en]User ID" indexed="y" _owner_package="sito" dtype="A" as="t0_userid">ghigo</userid>
+<description size=":50" name_long="!![en]Description" indexed="y" _owner_package="sito" dtype="A" as="t0_description">Day Cal</description>
+<notes _T="NN" dtype="T" name_long="!![en]Notes" _owner_package="sito" as="t0_notes"></notes>
+<data dtype="X" name_long="!![en]Data" _owner_package="sito" as="t0_data"><content>&lt;div class="calendarbox $weekend ${$holiday holiday}"&gt;
+	&lt;div class="daytop"&gt;
+		$dayname&lt;/div&gt;
+	&lt;div class="daybody"&gt;
+		&lt;div class="dayholiday"&gt;
+			$holiday &amp;nbsp;&lt;/div&gt;
+		&lt;div class="daybox"&gt;
+			$day&lt;/div&gt;
+		&lt;div class="daynotes"&gt; &amp;nbsp;&lt;/div&gt;
+	&lt;/div&gt;
+	&lt;div class="daybottom"&gt;$monthname&lt;/div&gt;
+&lt;/div&gt;</content>
+<metadata><author>ghigo</author>
+<version _T="NN"></version>
+<date _T="NN"></date>
+<is_print _T="NN"></is_print>
+<is_mail _T="NN"></is_mail>
+<is_row _T="B" _valuelabel="">True</is_row>
+<row_height _T="NN"></row_height>
+<default_letterhead _T="NN"></default_letterhead>
+<summary _T="NN"></summary>
+<email><subject _T="NN"></subject>
+<to_address _T="NN"></to_address>
+<from_address _T="NN"></from_address>
+<cc_address _T="NN"></cc_address>
+<bcc_address _T="NN"></bcc_address>
+<attachments _T="NN"></attachments></email>
+<email_compiled _T="BAG"></email_compiled></metadata>
+<varsbag><gfwiapdakh _pkey="gfwiapdakh"><fieldpath dtype="::NN">date</fieldpath>
+<dtype dtype="::NN">D</dtype>
+<fieldname dtype="::NN">Data</fieldname>
+<varname dtype="::NN" _loadedValue="monthname_short">monthname</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format dtype="::NN" _loadedValue="MMM">MMMM</format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfwiapdakh>
+<gfwiaq8mnl _pkey="gfwiaq8mnl"><fieldpath dtype="::NN">date</fieldpath>
+<dtype dtype="::NN">D</dtype>
+<fieldname dtype="::NN">Data</fieldname>
+<varname dtype="::NN" _loadedValue="dayname_short">dayname</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format dtype="::NN" _loadedValue="EEE">EEEE</format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfwiaq8mnl>
+<gfwiarai2x _pkey="gfwiarai2x"><fieldpath dtype="::NN">date</fieldpath>
+<dtype dtype="::NN">D</dtype>
+<fieldname dtype="::NN">Data</fieldname>
+<varname dtype="::NN">year</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format dtype="::NN">YYYY</format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfwiarai2x>
+<gfwildh2q1 _pkey="gfwildh2q1"><fieldpath dtype="::NN">date</fieldpath>
+<dtype dtype="::NN">D</dtype>
+<fieldname dtype="::NN">Data</fieldname>
+<varname dtype="::NN" _loadedValue="data">day</varname>
+<virtual_column _T="NN"></virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format dtype="::NN" _loadedValue="::NN">dd</format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfwildh2q1>
+<gfxcq6g84p _pkey="gfxcq6g84p"><fieldpath dtype="::NN">holiday</fieldpath>
+<dtype dtype="::NN">T</dtype>
+<fieldname dtype="::NN">Holiday</fieldname>
+<varname dtype="::NN">holiday</varname>
+<virtual_column _T="B">True</virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format _T="NN" dtype="::NN"></format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfxcq6g84p>
+<gfxcq8r35l _pkey="gfxcq8r35l"><fieldpath dtype="::NN">weekend</fieldpath>
+<dtype dtype="::NN">B</dtype>
+<fieldname dtype="::NN">weekend</fieldname>
+<varname dtype="::NN">weekend</varname>
+<virtual_column _T="B">True</virtual_column>
+<required_columns _T="NN" dtype="::NN"></required_columns>
+<df_template _T="NN" dtype="::NN"></df_template>
+<format dtype="::NN" _loadedValue="::NN">weekend;workday</format>
+<mask _T="NN" dtype="::NN"></mask>
+<editable _T="NN" dtype="::NN"></editable></gfxcq8r35l></varsbag>
+<parameters _T="BAG"></parameters>
+<email><attached_reports _T="BAG"></attached_reports></email>
+<content_css>.calendarbox{
+  border:1px solid silver;
+  border-radius:6px;
+  margin:4px;
+  line-height:normal;
+}
+
+
+.daybox{
+  font-size:20pt;
+  text-align:center;
+}
+
+.calendarbox.weekend .daytop{
+    background:orange;
+}
+
+.calendarbox.daybody .daybox{
+    background:lightyellow;
+}
+
+.daytop{
+  background:#555;
+  color:white;
+  text-align:center;
+  font-size:10pt;
+  font-variant:small-caps;
+
+}
+.daynotes{
+  line-height:12px;
+}
+.daybottom{
+  color:gray;
+  text-align:center;
+  font-variant:small-caps;
+  font-size:10pt;
+}
+.dayholiday{
+  font-style:italic;
+  font-size:7pt;
+  text-align:center;
+  line-height:12px;
+}
+
+.dojoxGrid-row-selected .calendarbox{
+  border-color:red;
+
+}</content_css>
+<compiled><main maintable="sys.calendar" locale="it-IT" virtual_columns="holiday,weekend" columns="$date,$date,$date,$date,$holiday,$weekend" formats='{"monthname": "MMMM", "dayname": "EEEE", "year": "YYYY", "day": "dd", "weekend": "weekend;workday"}::JS' masks="{}::JS" editcols="{}::JS" df_templates="{}::JS" dtypes='{"monthname": "D", "dayname": "D", "year": "D", "day": "D", "holiday": "T", "weekend": "B"}::JS'>&lt;style&gt;.calendarbox{
+  border:1px solid silver;
+  border-radius:6px;
+  margin:4px;
+  line-height:normal;
+}
+
+
+.daybox{
+  font-size:20pt;
+  text-align:center;
+}
+
+.calendarbox.weekend .daytop{
+    background:orange;
+}
+
+.calendarbox.daybody .daybox{
+    background:lightyellow;
+}
+
+.daytop{
+  background:#555;
+  color:white;
+  text-align:center;
+  font-size:10pt;
+  font-variant:small-caps;
+
+}
+.daynotes{
+  line-height:12px;
+}
+.daybottom{
+  color:gray;
+  text-align:center;
+  font-variant:small-caps;
+  font-size:10pt;
+}
+.dayholiday{
+  font-style:italic;
+  font-size:7pt;
+  text-align:center;
+  line-height:12px;
+}
+
+.dojoxGrid-row-selected .calendarbox{
+  border-color:red;
+
+}&lt;/style&gt;&lt;div class="calendarbox $weekend^weekend ${$holiday holiday}"&gt;
+	&lt;div class="daytop"&gt;
+		$date^dayname&lt;/div&gt;
+	&lt;div class="daybody"&gt;
+		&lt;div class="dayholiday"&gt;
+			$holiday &amp;nbsp;&lt;/div&gt;
+		&lt;div class="daybox"&gt;
+			$date^day&lt;/div&gt;
+		&lt;div class="daynotes"&gt; &amp;nbsp;&lt;/div&gt;
+	&lt;/div&gt;
+	&lt;div class="daybottom"&gt;$date^monthname&lt;/div&gt;
+&lt;/div&gt;</main></compiled></data>
+<authtags _T="NN" dtype="T" name_long="!![en]Auth tags" _owner_package="sito" as="t0_authtags"></authtags>
+<private _T="B" dtype="B" name_long="!![en]Private" _owner_package="sito" as="t0_private">False</private>
+<quicklist _T="NN" dtype="B" name_long="!![en]Quicklist" _owner_package="sito" as="t0_quicklist"></quicklist>
+<flags dtype="T" name_long="!![en]Flags" _owner_package="sito" as="t0_flags">is_row</flags>
+<required_pkg _T="NN" name_long="!![en]Required pkg" _owner_package="sito" dtype="T" as="t0_required_pkg"></required_pkg>
+<preview _T="NN" name_long="!![en][it]Preview" _owner_package="sito" dtype="T" as="t0_preview"></preview></GenRoBag>

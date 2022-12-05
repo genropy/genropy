@@ -120,7 +120,10 @@ class DbModel(object):
                     tblmix=tables[tblname]
                     tblmix.db = self.db
                     tblmix._tblname = tblname
+                    if hasattr(tblmix, 'config_db'):
+                        tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
+                    pkgsrc.table(tblmix._tblname)._mixinobj = tblmix
         onBuildingCalls = [] 
         if 'pkg' in self.mixins:
             for pkg, pkgmix in list(self.mixins['pkg'].items()):
@@ -363,9 +366,14 @@ class DbModel(object):
                     "table() called with '%(tblname)s' instead of '<packagename>.%(tblname)s'" % {'tblname': tblname})
             #if pkg is None:
         #    pkg = self.obj.keys()[0]
-        if not self.obj[pkg]:
-            return
-        return self.obj[pkg].table(tblname)
+        if self.obj:
+            if not self.obj[pkg]:
+                return
+            return self.obj[pkg].table(tblname)
+        else:
+            return self.src['packages'][pkg]['tables'][tblname]
+
+    
 
     def column(self, colname):
         """Return a column object
@@ -460,7 +468,7 @@ class DbModelSrc(GnrStructData):
                default=None, notnull=None, unique=None, indexed=None,
                sqlname=None, comment=None,
                name_short=None, name_long=None, name_full=None,
-               group=None, onInserting=None, onUpdating=None, onDeleting=None,
+               group=None, onInserting=None, onUpdating=None, onDeleting=None,onBuilding=None,
                variant=None,variant_kwargs=None,**kwargs):
         """Insert a :ref:`column` into a :ref:`table`
         
@@ -488,6 +496,8 @@ class DbModelSrc(GnrStructData):
         if not 'columns' in self:
             self.child('column_list', 'columns')
         kwargs.update(variant_kwargs)
+        if onBuilding:
+            print('onBuilding',name)
         return self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,

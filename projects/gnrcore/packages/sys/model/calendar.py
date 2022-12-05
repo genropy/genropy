@@ -6,7 +6,7 @@ except:
 
 class Table(object):
     def config_db(self,pkg):
-        tbl=pkg.table('day', pkey='date', name_long='!![en]Day', name_plural='!![en]Days',caption_field='date')
+        tbl=pkg.table('calendar', pkey='date', name_long='!![en]Calendar', name_plural='!![en]Calendar Days',caption_field='date')
         tbl.column('date', dtype='D', name_long='!![en]Date',indexed=True,unique=True)        
         tbl.formulaColumn('year_month',"to_char('YYYY-MM')",dtype='L', name_long='!![en]Month')        
         
@@ -22,7 +22,7 @@ class Table(object):
         if self.query(limit=1).count():
             return
         sql = """
-            INSERT INTO sys.sys_day
+            INSERT INTO sys.sys_calendar
             SELECT generate_series(date'1900-01-01', '2100-01-01', '1 day') AS date;
         """
         self.db.execute(sql)
@@ -41,3 +41,7 @@ class Table(object):
             holiday_dict = country_holidays(country)
             currentEnv[f'{country}_holidays'] = holiday_dict
         return holiday_dict.get(record['date'])
+
+    
+    def register(self,columnsrc):
+        print('columnsrc',columnsrc)
