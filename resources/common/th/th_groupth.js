@@ -95,7 +95,7 @@ var genro_plugin_groupth = {
                 if(typeof(value)!='string'){
                     description = _F(description);
                 }
-                kl.push(flattenString(description,['.']));
+                kl.push(flattenString(description,['.','?']));
                 treepath = kl.join('.');
                 if(!treedata.getNode(treepath)){
                     treedata.setItem(treepath,null,{'description':description,_cell:cell,value:value});
@@ -128,7 +128,7 @@ var genro_plugin_groupth = {
             return;
         }
         let firstNode = branchdata.getNode('#0');
-        if(branchdata.len()==1 && firstNode.label=='[NP]'){
+        if(branchdata.len()==1 && firstNode.label=='[NP]' && firstNode.getValue()){
             branchdata = firstNode.getValue();
             branchDataNode.setValue(branchdata)
         }
