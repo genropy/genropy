@@ -123,7 +123,9 @@ class DbModel(object):
                     if hasattr(tblmix, 'config_db'):
                         tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
-                    pkgsrc.table(tblmix._tblname)._mixinobj = tblmix
+                    tblsrc = pkgsrc.table(tblmix._tblname)
+                    tblsrc._mixinobj = tblmix
+                    tblmix.src = tblsrc
         onBuildingCalls = [] 
         if 'pkg' in self.mixins:
             for pkg, pkgmix in list(self.mixins['pkg'].items()):

@@ -5071,6 +5071,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 return;
             }
             var params = parsedUrl.params;
+            
             params = objectUpdate(params,{'v_y':margin_top,'v_x':margin_left});
             var url = this.encodeUrl(parsedUrl);
             sourceNode.setAttributeInDatasource('src',url,true);
