@@ -4,6 +4,36 @@ try:
 except:
     country_holidays = False
 
+class CalendarConnector(object):
+    def __init__(self,tblobj,linkedTblSrc,column=None,name=None,name_long=None,caption_field=None):
+        self.tblobj = tblobj
+        self.linkedTblSrc = linkedTblSrc
+        self.linkedTblAttr = linkedTblSrc.attributes
+        column = linkedTblSrc.column(column)
+        self.linkedColAttr = column.attributes
+        self.linkedTableFullname = self.linkedTblAttr['fullname']
+        self.linkedColName = column.parentNode.label
+        caption_field = caption_field or self.linkedTblAttr.get('caption_field')
+        tablecode = self.linkedTableFullname.replace(".","_")
+        name = name or  f'{tablecode}_{self.linkedColName}'
+        name_long = name_long or self.linkedTblAttr.get('name_plural') or self.linkedTblAttr.get('name_long')
+        column.relation('sys.calendar.date',relation_name=name,
+                        many_name=name_long,
+                        one_name='!![it]SysCaneldar')
+    
+
+        self.tblobj.src.aliasColumn(f'relcaption_{tablecode}',f'@{name}.{caption_field}',
+                    name_long=f'{name_long} caption')
+    
+    def aggregate(self,column=None,aggr=None,condition=None,dtype='N',**kwargs):
+        colname = f'{self.linkedTableFullname.replace(".","_")}_{column}_{aggr.lower()}'
+        where = f'${self.linkedColName}=#THIS.date'
+        if condition:
+            where = f'({where}) AND ({condition})'
+        self.tblobj.src.formulaColumn(colname,
+            select=dict(table=self.linkedTableFullname,columns=f'{aggr}(${column})',where =where),
+            dtype=dtype,**kwargs)
+
 class Table(object):
     def config_db(self,pkg):
         tbl=pkg.table('calendar', pkey='date', name_long='!![en]Calendar', name_plural='!![en]Calendar Days',caption_field='date')
@@ -43,5 +73,7 @@ class Table(object):
         return holiday_dict.get(record['date'])
 
     
-    def register(self,columnsrc):
-        print('columnsrc',columnsrc)
+    def calendarConnector(self,linkedTblSrc,column,**kwargs):
+        return CalendarConnector(tblobj=self,linkedTblSrc=linkedTblSrc,column=column,**kwargs)
+
+
