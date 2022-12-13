@@ -239,7 +239,7 @@ class DbModel(object):
             if col_one_size != col_many_size:
                 message = 'Different size in relation {fkey}:{many_size} - {pkey}:{one_size} '.format(fkey=str('.'.join(many_relation_tuple)),
                         many_size=col_many_size, pkey=str(oneColumn),one_size=col_one_size)
-                logger.error(message)
+                logger.warning(message)
 
             if (onDelete=='cascade' and self.db.auto_static_enabled) or meta_kwargs.get('childmode'):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,

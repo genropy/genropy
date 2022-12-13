@@ -67,3 +67,11 @@ def enable_colored_logging(stream=sys.stderr, level=None):
     if level is not None:
         root_logger.setLevel(level)
     logging.getLogger('paste.httpserver').setLevel(logging.WARNING)
+
+def log_styles():
+    return dict(
+        color_blue = '\033[94m',
+        color_yellow = '\33[33m',
+        style_underlined = '\33[4m',
+        nostyle = '\033[0m'
+        )
