@@ -426,7 +426,7 @@ class Server(object):
                 localhost = 'https://localhost'
             if self.options.ssl_cert and self.options.ssl_key:
                 ssl_context=(self.options.ssl_cert,self.options.ssl_key)
-                extra_info.append(f'SSL mode: On, {ssl_context}')
+                extra_info.append(f'SSL mode: On {ssl_context}')
                 localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
             print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format( 
                             localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
