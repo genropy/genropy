@@ -1469,14 +1469,19 @@ class AttachmentTable(GnrDboTable):
                 self.insert(pdf_record)
                 return pdf_record
 
-    def _getDestAttachmentNode(self,maintable_id=None,filename=None):
+    def _getDestAttachmentNode(self,maintable_id=None,filename=None,mimetype=None,**kwargs):
         description,ext = os.path.splitext(filename)
         description = slugify(description)
         maintable = self.fullname[0:-4]
         maintableobj = self.db.table(maintable)
         destFolder = None
-        if hasattr(maintableobj,'atc_getAttachmentPath'):
-            destFolder = maintableobj.atc_getAttachmentPath(pkey=maintable_id)
+        handler = getattr(maintableobj,'atc_getAttachmentPath', None)
+        if handler: 
+            try:      
+                destFolder = maintableobj.atc_getAttachmentPath(pkey=maintable_id, 
+                                            filename=filename, mimetype=mimetype)
+            except TypeError:
+                destFolder = maintableobj.atc_getAttachmentPath(pkey=maintable_id)
         if not destFolder:
             destFolder = '%s/%s' %(maintable.replace('.','_'),maintable_id)
         if not ':' in destFolder:
@@ -1511,7 +1516,8 @@ class AttachmentTable(GnrDboTable):
             if destFolder:
                 destStorageNode = site.storageNode(destFolder,filename)
             else:
-                destStorageNode = self._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
+                destStorageNode = self._getDestAttachmentNode(maintable_id=maintable_id,
+                                                    filename=filename,mimetype=mimetype)
             if moveFile:
                 originStorageNode.move(destStorageNode)
             else:
