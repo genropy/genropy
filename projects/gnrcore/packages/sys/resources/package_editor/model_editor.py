@@ -35,7 +35,7 @@ class TableModuleWriter(BaseComponent):
             if v in ('',None):
                 continue
             if isinstance(v,basestring):
-                v = ("'%s'" if not "'" in v else 'u"%s"') %v
+                v = ("'%s'" if not "'" in v else '"%s"') %v
             elif isinstance(v, Bag):
                 v = "dict(%s)" %self.bagToArgString(v,prefix='')
             atlst.append("%s=%s" %(k,v))
@@ -244,7 +244,7 @@ class TableModuleEditor(BaseComponent):
             value = argNode.value.value
             argtype = argNode.value.type
             if argtype=='string':
-                value = value.strip("'") if "'" in value else value.strip('"')
+                value = value.strip("'") if value[0]=="'" else value.strip('"')
             elif value in ('True','False'):
                 value = boolean(value)
             elif hasattr(value,'value'):
