@@ -17,6 +17,7 @@ from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrstring import boolean
+from gnr.core.gnrlog import log_styles
 import atexit
 import os
 import time
@@ -158,6 +159,7 @@ class GnrDaemon(object):
         self.main_uri = self.daemon.register(self,'GnrDaemon')
         self.logger.info("uri={}".format(self.main_uri))
 #        print "uri=",self.main_uri
+        print('{color_blue}Daemon is running{nostyle}'.format(**log_styles()))
         self.running = True
         atexit.register(self.stop)
         self.daemon.requestLoop(lambda : self.running)
