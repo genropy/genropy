@@ -95,12 +95,13 @@ class XlsWriter(BaseXls):
     content_type = 'application/xls'
 
     def __init__(self, columns=None, coltypes=None, headers=None, groups=None, filepath=None,sheet_base_name=None,
-                 font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None):
+                 font='Times New Roman', format_float='#,##0.00', format_int='#,##0', locale=None, print_prefs=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
         self.filepath = filepath
         self.workbook = xlwt.Workbook()
+        self.print_prefs = print_prefs
         if sheet_base_name is not False:
             self.sheet_base_headers = headers
             self.sheet_base_groups = groups
@@ -155,7 +156,7 @@ class XlsWriter(BaseXls):
         return dict(item)
         
     def writeHeaders(self,sheet_name=None):
-        """TODO"""
+
         sheet_name = sheet_name or self.sheet_base_name
         sheet_obj = self.getSheet(sheet_name)
         sheet = sheet_obj['sheet']
@@ -177,7 +178,7 @@ class XlsWriter(BaseXls):
             sheet.write(current_row, c, header, self.hstyle)
             colsizes[c] = max(colsizes.get(c, 0), self.fitwidth(header))
         sheet_obj['current_row'] = current_row
-
+        
     def workbookSave(self,**kwargs):
         """TODO"""
         if self.filenode:
@@ -279,12 +280,14 @@ class XlsxWriter(BaseXls):
                  format_int='#,##0', 
                  format_date=None,
                  format_datetime=None,
-                 locale=None):
+                 locale=None,
+                 print_prefs=None):
        #self.headers = headers
        #self.columns = columns
         self.sheets = {}
         self.filepath = filepath
         self.workbook = openpyxl.Workbook()  # self.workbook.active
+        self.print_prefs = print_prefs
         del self.workbook[self.workbook.sheetnames[0]]  # elimino il primo
         
         if sheet_base_name is not False:       
@@ -338,6 +341,7 @@ class XlsxWriter(BaseXls):
                                     horizontal='center'
                                 )
         ))
+        
 
 
     def createSheet(self,sheetname,headers=None,columns=None,coltypes=None,colsizes=None,
@@ -349,6 +353,7 @@ class XlsxWriter(BaseXls):
                                     'groups':groups}
         self.sheets[sheetname]['sheet'].panes_frozen = True
         self.sheets[sheetname]['sheet'].horz_split_pos = 1 if not groups else 2
+        s = self.sheets[sheetname]
 
     def __call__(self, data=None, sheet_name=None):
         self.writeHeaders(sheet_name=sheet_name)
@@ -365,9 +370,12 @@ class XlsxWriter(BaseXls):
 
     def writeHeaders(self,sheet_name=None):
         """TODO"""
+        
         sheet_name = sheet_name or self.sheet_base_name
         sheet_obj = self.getSheet(sheet_name)
+        
         sheet = sheet_obj['sheet']
+        self.configurePrintSettings(sheet, sheet_name)
         headers = sheet_obj['headers']
         colsizes = sheet_obj['colsizes']
         groups = sheet_obj['groups']
@@ -406,6 +414,23 @@ class XlsxWriter(BaseXls):
         else:
             self.workbook.save(filename=self.filepath)
 
+    def configurePrintSettings(self, ws, sheet_name=None):
+        if not self.print_prefs:
+            return
+        for k,v in self.print_prefs.items():
+            if not v:
+                continue
+            if k in ws.page_setup.__dict__:
+                ws.page_setup.__dict__[k]=v
+            elif k in ws.page_margins.__dict__:
+                ws.page_margins.__dict__[k]=v
+        if self.print_prefs['show_title']=='footer':
+            ws.HeaderFooter.oddFooter.center.text=sheet_name
+            ws.HeaderFooter.evenFooter.center.text=sheet_name
+        elif self.print_prefs['show_title']=='header':
+            ws.HeaderFooter.oddHeader.center.text=sheet_name
+            ws.HeaderFooter.evenHeader.center.text=sheet_name
+        
     def writeCell(self, sheet, row, column, value, style=None, end_column=None):
         cell = sheet.cell(row=row+1, column=column+1, value=value)
         if style:
