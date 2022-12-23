@@ -44,6 +44,13 @@ class Table(object):
             columns='MAX($start_time)', where='$task_id = #THIS.id'),
             name_long='!!Last Execution')
 
+        tbl.formulaColumn('last_completed', dtype='DH', name_long='!![en]Last completed', select=dict(
+                                        table='sys.task_execution', where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
+                                        order_by='$end_ts DESC', limit=1, columns='$end_ts'))
+        tbl.formulaColumn('last_error', dtype='DH', name_long='!![en]Last error', select=dict(
+                                        table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
+                                        order_by='$start_ts DESC', limit=1, columns='$start_ts'))
+
     def isTaskScheduledNow(self,task,timestamp):
         result = []
         if task['run_asap']:
