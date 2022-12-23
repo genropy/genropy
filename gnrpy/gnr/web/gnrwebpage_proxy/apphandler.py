@@ -1226,10 +1226,11 @@ class GnrWebAppHandler(GnrBaseProxy):
             isDeleted = row.pop('_isdeleted', None)
             if isDeleted:
                 _customClasses.append('logicalDeleted')
+            
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
                     val = row.get(fld)
-                    if val in (None,''):
+                    if val in (None,False,''):
                         continue
                     if isinstance(_class,dict):
                         _class = _class.get(row[fld])
