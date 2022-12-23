@@ -37,14 +37,11 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         tc = form.center.tabContainer(datapath='.record')
-        main = tc.contentPane(title='!![en]Info')
-        www_frame = tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
-                                                handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook')
-        zip_frame = tc.contentPane(title='!![en]Zip', hidden='^.is_local_handbook?=#v!=true')
-
-        self.handbookInfo(main)
-        self.handbookPreview(www_frame)
-        self.handbookZip(zip_frame)
+        self.handbookInfo(tc.contentPane(title='!![en]Info'))
+        self.handbookDocRoot(tc.contentPane(title='!![en]Documentation'))
+        self.handbookPreview(tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
+                                                handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook'))
+        self.handbookZip(tc.contentPane(title='!![en]Zip', hidden='^.is_local_handbook?=#v!=true'))
 
     def handbookInfo(self, main):
         main_bc = main.borderContainer()
@@ -105,6 +102,15 @@ class Form(BaseComponent):
         examples_themes = ','.join([s.cleanbasename for s in examples_themesSn.children() if s.basename.endswith('.css')])
         #DP202108 In this way we build the list of available themes which will be shown in the filteringSelect
         example_pars_fb.filteringSelect(value='^.source_theme',values=examples_themes, width='8em',lbl='Source theme')
+
+    def handbookDocRoot(self, pane):
+        th = pane.stackTableHandler(table='docu.documentation', datapath='#FORM.documentation', 
+                                        viewResource='ViewFromHandbooks', formResource='FormFromHandbooks')
+        pane.dataController("""
+                question_form.goToRecord(root_question_id);
+                """, question_form=th.form.js_form,
+                _fired='^#FORM.controller.loaded',
+                root_question_id='=#FORM.record.docroot_id',_delay=1)
 
     def handbookPreview(self, frame):
         frame_bc = frame.borderContainer()
