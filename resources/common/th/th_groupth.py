@@ -387,6 +387,7 @@ class TableHandlerGroupBy(BaseComponent):
                                           .lower()
         empty_placeholders = {}
         group_list_keys = []
+        count_distinct_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
@@ -425,10 +426,12 @@ class TableHandlerGroupBy(BaseComponent):
                         group_list_keys.append(colgetter)
                         empty_placeholders[colgetter] = group_empty
                         col = f'{col} AS {col_as}'
-                    elif group_aggr=='count_distinct':
-                        grouped_col = f'COUNT(DISTINCT({col}))'
-                        col_asname = asName(v['field'],group_aggr)
-                        col = f'{grouped_col} AS {col_asname}'
+                    elif group_aggr=='distinct_count' or group_aggr=='distinct':
+                        col = self.db.adapter.string_agg(f'CAST({col} AS TEXT)','|')
+                        col_as = asName(v['field'],'distinct')
+                        if group_aggr == 'distinct_count':
+                            count_distinct_keys.append(col_as)
+                        col = f'{col} AS {col_as}'
                 else:
                     groupcol = col
                     if ' AS ' in col:
@@ -469,6 +472,10 @@ class TableHandlerGroupBy(BaseComponent):
                     keyvalue = empty_placeholders.get(col)
                     resdict[col] = keyvalue
                 keylist.append(str(keyvalue or '_'))
+            for col in count_distinct_keys:
+                s = set(row[col].split('|')) if row[col] else set()
+                resdict[col] = '|'.join(s)
+                resdict[f'{col}_count'] = len(s)
             resdict['_thgroup_pkey'] = '|'.join(keylist)
             return resdict
         selection.apply(cb)
