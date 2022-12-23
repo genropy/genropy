@@ -337,15 +337,16 @@ var genro_plugin_groupth = {
         if(numeric){
             fb.addField('filteringSelect',{value:prefix+'group_aggr',
                         values:'sum:Sum,avg:Average,min:Min,max:Max,break:Break,nobreak:No break',
-                        lbl:_T('Aggregator'),validate_onAccept:"this.setRelativeData('.cell_totalize',value=='sum')"});
-            fb.addField('checkbox',{value:'^.cell_totalize',label:'Totalize'});
+                        lbl:_T('Aggregator'),validate_onAccept:`this.setRelativeData('${prefix.slice(1)}totalize',value=='sum')`});
+            fb.addField('checkbox',{value:prefix+'totalize',label:'Totalize'});
             fb.addField('checkbox',{value:'^.not_zero',label:'Not zero'});
             fb.addField('numberTextBox',{value:'^.min_value',lbl:'Min value',width:'5em',default_value:null});
             fb.addField('numberTextBox',{value:'^.max_value',lbl:'Max value',width:'5em',default_value:null});
 
         }else if(dateTime){
             let values = genro.commonDatasets.datetimes_chunk.join(',');
-            var tb = fb.addField('textbox',{lbl:_T('Date aggregator'),value:prefix+'group_aggr'});
+            var tb = fb.addField('textbox',{lbl:_T('Date aggregator'),value:prefix+'group_aggr',
+                                validate_onAccept:`this.setRelativeData('${prefix.slice(1)}dtype',value=='count_distinct'?'T':'D'); this.setRelativeData('${prefix.slice(1)}original_dtype','D')`});
             tb._('ComboMenu',{values:values,action:function(kw,ctx){
                 var cv = this.attr.attachTo.widget.getValue();
                 this.attr.attachTo.widget.setValue(cv?cv+'-'+kw.fullpath:kw.fullpath,true);
@@ -354,7 +355,10 @@ var genro_plugin_groupth = {
             fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
                                     hidden:prefix+'group_nobreak',placeholder:'[NP]'})
         }else{
-            fb.addField('checkbox',{value:prefix+'group_nobreak',label:_T('No break')});
+            fb.addField('filteringSelect',{value:prefix+'group_aggr',values:'count_distinct:Count distinct',
+                                    lbl:_T('Aggregator'),
+                                    validate_onAccept:`this.setRelativeData('${prefix.slice(1)}dtype',value=='count_distinct'?'L':'T'); this.setRelativeData('${prefix.slice(1)}original_dtype','T');`});
+            fb.addField('checkbox',{value:prefix+'group_nobreak',label:_T('No break'),hidden:prefix+'group_aggr',label_hidden:prefix+'group_aggr'});
             fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
                                     hidden:prefix+'group_nobreak',placeholder:'[NP]'})
         }

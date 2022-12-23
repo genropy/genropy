@@ -374,13 +374,17 @@ class TableHandlerGroupBy(BaseComponent):
             for v in list(groupOrderBy.values()):
                 field = v['field']
                 if not field.startswith('@'):
-                    field = '$%s' %field
-                field = field if not v['group_aggr'] else '%s(%s)' %(v['group_aggr'],field)
-                custom_order_by.append('%s %s' %(field,('asc' if v['sorting'] else 'desc')))
+                    field = f'${field}'
+                field = field if not v['group_aggr'] else f"{v['group_aggr']}({field})" 
+                custom_order_by.append(f"{field} {'asc' if v['sorting'] else 'desc'}" )
             custom_order_by = ' ,'.join(custom_order_by)
+        
         def asName(field,group_aggr):
-            return '%s_%s' %(field.replace('.','_').replace('@','_').replace('-','_'),
-                    group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
+            return f"{field}_{group_aggr}".replace('.','_')\
+                                          .replace('@','_')\
+                                          .replace('-','_')\
+                                          .replace(' ','_')\
+                                          .lower()
         empty_placeholders = {}
         group_list_keys = []
         for v in struct['#0.#0'].digest('#a'):
@@ -388,26 +392,25 @@ class TableHandlerGroupBy(BaseComponent):
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):
-                col = '$%s' %col
-            dtype = v.get('dtype')
+                col = f'${col}'
+            dtype = v.get('original_dtype') or v.get('dtype')
             group_aggr =  v.get('group_aggr') 
             if dtype in ('N','L','I','F','R') and group_aggr is not False:
                 group_aggr =  group_aggr or 'sum'
                 col_asname = asName(v['field'],group_aggr)
-                grouped_col = '%s(%s)' %(group_aggr,col)
-                col = '%s AS %s' %(grouped_col,col_asname)
+                grouped_col = f'{group_aggr}({col})'
+                col = f'{grouped_col} AS {col_asname}'
                 having_chunk = list()
-
                 if v.get('not_zero'):
-                    having_chunk.append('(%s != 0)' %grouped_col)
+                    having_chunk.append(f'({grouped_col} != 0)')
                 if v.get('min_value') is not None:
-                    parname = '%s_min_value' %col_asname
+                    parname = f'{col_asname}_min_value'
                     kwargs[parname] = v['min_value']
-                    having_chunk.append('%s>=:%s' %(grouped_col,parname))
+                    having_chunk.append(f'{grouped_col}>=:{parname}')
                 if v.get('max_value') is not None:
                     parname = '%s_max_value' %col_asname
                     kwargs[parname] = v['max_value']
-                    having_chunk.append('%s<=:%s' %(grouped_col,parname))
+                    having_chunk.append(f'{grouped_col}<=:{parname}')
                 if len(having_chunk):
                     having_list.append(' AND '.join(having_chunk))
             else:
@@ -415,14 +418,17 @@ class TableHandlerGroupBy(BaseComponent):
                 group_empty = v.get('group_empty') or '[NP]'
                 if group_aggr:
                     if dtype in ('D','DH','DHZ'):
-                        col =  "to_char(%s,'%s')" %(col,group_aggr)
+                        col =  f"to_char({col},'{group_aggr}')"
                         group_list.append(col)
                         col_as = asName(v['field'],group_aggr)
                         colgetter = flatCol(col_as)
                         group_list_keys.append(colgetter)
                         empty_placeholders[colgetter] = group_empty
-                        col = '%s AS %s' %(col, col_as)
-                    #if dtype in ('T','C','A'):
+                        col = f'{col} AS {col_as}'
+                    elif group_aggr=='count_distinct':
+                        grouped_col = f'COUNT(DISTINCT({col}))'
+                        col_asname = asName(v['field'],group_aggr)
+                        col = f'{grouped_col} AS {col_asname}'
                 else:
                     groupcol = col
                     if ' AS ' in col:
@@ -432,7 +438,7 @@ class TableHandlerGroupBy(BaseComponent):
                     caption_field = v.get('caption_field')
                     if caption_field:
                         if not caption_field.startswith('@'):
-                            caption_field = '$%s' %caption_field
+                            caption_field = f'${caption_field}'
                         group_list.append(caption_field)
                         colgetter = flatCol(caption_field)
                         columns_list.append(caption_field)
@@ -454,7 +460,6 @@ class TableHandlerGroupBy(BaseComponent):
         if groupLimit:
             kwargs['limit'] = groupLimit
         selection = self.app._default_getSelection(_aggregateRows=False,**kwargs)
-        #_thgroup_pkey column 
         def cb(row):
             resdict = {}
             keylist = []
@@ -467,8 +472,6 @@ class TableHandlerGroupBy(BaseComponent):
             resdict['_thgroup_pkey'] = '|'.join(keylist)
             return resdict
         selection.apply(cb)
-        
-
         return selection    
 
 
