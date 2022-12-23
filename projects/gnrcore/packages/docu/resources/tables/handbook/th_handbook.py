@@ -5,6 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.core.gnrdecorator import public_method
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -38,9 +39,10 @@ class Form(BaseComponent):
     def th_form(self, form):
         tc = form.center.tabContainer(datapath='.record')
         self.handbookInfo(tc.contentPane(title='!![en]Info'))
-        self.handbookDocRoot(tc.contentPane(title='!![en]Documentation'))
-        self.handbookPreview(tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
-                                                handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook'))
+        self.handbookDocRoot(tc.contentPane(title='!![en]Documentation', hidden='^.docroot_id?=!#v'))
+        tc.contentPane(title='!![en]Preview', hidden='==(handbook_url || local)', 
+                    handbook_url='^.handbook_url?=!#v', local='^.is_local_handbook').remote(
+                    self.handbookPreview, _if='handbook_url', handbook_url='^.handbook_url?=!#v')
         self.handbookZip(tc.contentPane(title='!![en]Zip', hidden='^.is_local_handbook?=#v!=true'))
 
     def handbookInfo(self, main):
@@ -107,12 +109,14 @@ class Form(BaseComponent):
         th = pane.stackTableHandler(table='docu.documentation', datapath='#FORM.documentation', 
                                         viewResource='ViewFromHandbooks', formResource='FormFromHandbooks')
         pane.dataController("""
-                question_form.goToRecord(root_question_id);
-                """, question_form=th.form.js_form,
+                docu_form.goToRecord(docroot_id);
+                """, docu_form=th.form.js_form,
                 _fired='^#FORM.controller.loaded',
-                root_question_id='=#FORM.record.docroot_id',_delay=1)
+                docroot_id='=#FORM.record.docroot_id',
+                _if='docroot_id', _delay=1)
 
-    def handbookPreview(self, frame):
+    @public_method
+    def handbookPreview(self, frame, **kwargs):
         frame_bc = frame.borderContainer()
         frame_bc.contentPane(region='top', height='30px', overflow='hidden').formbuilder(margin='2px').a(
                             '^.handbook_url', lbl='!![en]Doc url:', href='^.handbook_url', 
