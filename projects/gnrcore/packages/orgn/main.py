@@ -29,7 +29,7 @@ class Package(GnrDboPackage):
                 pars['code'] = k
                 self.configureEntity(tbl_src,**pars)
 
-    @deprecated
+    @deprecated()
     def configureEntity(self,src,code=None,caption=None,tbl=None,pivot_date=None,**kwargs):
         pkg,tblname = tbl.split('.')
         tblsrc = self.db.model.src['packages.{pkg}.tables.{tblname}'.format(pkg=pkg,tblname=tblname)]
