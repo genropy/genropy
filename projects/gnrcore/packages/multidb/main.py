@@ -56,6 +56,7 @@ class Package(GnrDboPackage):
             return multidb_fkeys
         else:
             multidb_fkeys = []
+        print('_getParentMultidb',tblNode.label)
         for col in tblNode.value['columns']:
             relattr = col.value.getAttr('relation')
             if relattr and relattr.get('onDelete')=='cascade':
