@@ -147,20 +147,26 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.save(kw.forced);
     },
     lazySave:function(savedCb,kw,errorCb){
+        this.lazySaving = true;
+        var that = this;
         savedCb = savedCb?funcCreate(savedCb,{},this):false;
+        var onSavedCb = function(){
+            if(savedCb){
+                savedCb(that);
+            }
+            that.lazySaving = false;
+        }
         if(this.canBeSaved(kw)){
             var d = this.save(objectUpdate({onSaved:'lazyReload',waitingStatus:false},kw));
             this.getFormData().walk(function(n){
                 delete n.attr._loadedValue;
             },'static');
-            if(savedCb){
-                d.addCallback(savedCb);
-            }
+            d.addCallback(onSavedCb);
             return d;
         }else if(errorCb){
             errorCb.call(this);
-        }else if(savedCb){
-            savedCb.call(this);
+        }else{
+            onSavedCb.call(this);
         }
     },
 
@@ -587,7 +593,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave){
+            if(kw.modifiers=='Shift' || this.autoSave ){
                 this.save(kw);
             }else{
                 this.openPendingChangesDlg(kw);
@@ -1336,7 +1342,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             savedPkey = result.savedPkey;
         }
         this.publish('onSaved',{pkey:savedPkey,saveResult:result});
-        if(!this.autoSave){
+        if(!(this.autoSave || this.lazySaving)){
             var savedAttr = (result?result.savedAttr:null) || {};
             this.publish('message',savedAttr.saved_message || {message:this.msg_saved,sound:'$onsaved'});
         }
