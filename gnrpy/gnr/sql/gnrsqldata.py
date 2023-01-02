@@ -1295,7 +1295,7 @@ class SqlSelection(object):
         self.checkPermissions = checkPermissions
         
     def _aggregateRows(self, data, index, explodingColumns,aggregateDict=None):
-        if self.explodingColumns and False:
+        if self.explodingColumns:
             newdata = []
             datadict = {}
             mixColumns = [c for c in explodingColumns if c in index and not self.colAttrs[c].get('one_one') and not( aggregateDict and (c in aggregateDict))]
