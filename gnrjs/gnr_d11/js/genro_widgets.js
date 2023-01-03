@@ -4158,16 +4158,18 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         this.searchOnBlur=false;
      },
 
-     patch_isValid: function(/*Boolean*/ isFocused){
-        if(isFocused){
-            return true;
-        }
-        let searchrows = this.store.mainbag.getItem('#0');
-        if(!searchrows || searchrows.len()===0){
-            return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
-        }
-        return this.isValid_replaced(isFocused);
-    },
+   //patch_isValid: function(/*Boolean*/ isFocused){
+   //    if(isFocused){
+   //        return true;
+   //    }
+   //    let searchrows = this.store.mainbag.getItem('#0');
+   //    let position = this.sourceNode
+   //    if(!searchrows || searchrows.len()===0){
+   //        return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
+   //    }
+   //    return this.isValid_replaced(isFocused);
+   //},
+    
 
 });
 
