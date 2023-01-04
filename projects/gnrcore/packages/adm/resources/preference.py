@@ -43,6 +43,7 @@ class AppPref(object):
     def _adm_dev(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.checkbox(value='^.connection_log_enabled',label='Connection log enabled')
+        fb.checkbox(value='^.enable_bootstrap',label='!![en]Enable Bootstrap')
 
     def _adm_general(self, bc):
         top = bc.contentPane(region='top')

@@ -1120,6 +1120,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
+        self.getBootstrap(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
@@ -1205,6 +1206,13 @@ class GnrWebPage(GnrBaseWebPage):
         google_fonts = getattr(self,'google_fonts',None)
         if google_fonts:
             arg_dict['google_fonts'] = google_fonts
+        return arg_dict
+
+    def getBootstrap(self, arg_dict):
+        boostrap_enabled = self.getPreference('dev.enable_bootstrap', pkg='adm')
+        if boostrap_enabled:
+            arg_dict['bootstrap'] = True
+            print(arg_dict)
         return arg_dict
 
     def mtimeurl(self, *args):
