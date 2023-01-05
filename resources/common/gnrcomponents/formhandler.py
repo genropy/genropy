@@ -121,9 +121,9 @@ class FormHandler(BaseComponent):
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];
                                 if(rowIndex>-1){
-                                    this.publish('editrow',{pkey:this.widget.rowIdByIndex(rowIndex)});
+                                    this.publish('editrow',{pkey:this.widget.rowIdByIndex(rowIndex),rowIndex:rowIndex});
                                 }else{
-                                    this.publish('editrow',{pkey:'*norecord*'});
+                                    this.publish('editrow',{pkey:'*norecord*',rowIndex:rowIndex});
                                 }
                             },100,this,'editselectedrow_'+this._id);
 
@@ -153,9 +153,9 @@ class FormHandler(BaseComponent):
                                                         //this.widget.remoteCellEdit(pkey,cell,rowIndex);
                                                         return;
                                                     }
-                                                    this.publish('editrow',{pkey:pkey});
+                                                    this.publish('editrow',{pkey:pkey,rowIndex:rowIndex});
                                                 }else{
-                                                    this.publish('editrow',{pkey:'*norecord*'});
+                                                    this.publish('editrow',{pkey:'*norecord*',rowIndex:rowIndex});
                                                 }
                                             },100,this,'editselectedrow_'+this._id);
                                             """
@@ -178,6 +178,11 @@ class FormHandler(BaseComponent):
                                                     this.publish('editrow',newrecord_kw);
                                                 }"""
         gridattr['selfsubscribe_editrow'] = """
+                                    var row = this.widget.rowByIndex($1.rowIndex);
+                                    if(row._editTopic){
+                                        this.publish(row._editTopic,$1);
+                                        return;
+                                    }
                                     var linkedFormId = this.attr._linkedFormId;
                                     var pref = 'form_'+linkedFormId;
                                     var pkey = $1.pkey;

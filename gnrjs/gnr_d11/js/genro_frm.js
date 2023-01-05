@@ -131,10 +131,17 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     doAutoSave:function(){
         var that = this;
-        if(this.canBeSaved() && !this.isNewRecord()){
-            genro.callAfter(function(){
-               that.lazySave();
-            },this.autoSave,this.sourceNode,'autoSaveForm_'+this.formId);
+        if(this.canBeSaved()){
+            if(this.isNewRecord()){
+                genro.callAfter(function(){
+                    that.save();
+                },1,this.sourceNode,'autoSaveForm_'+this.formId);
+            }else{
+                genro.callAfter(function(){
+                    that.lazySave();
+                },this.autoSave,this.sourceNode,'autoSaveForm_'+this.formId);
+            }
+            
         }
     },
 
