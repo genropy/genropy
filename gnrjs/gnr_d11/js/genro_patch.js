@@ -41,15 +41,10 @@ genropatches.forEachError = function(){
 genropatches.indexOfError = function(){
     var fe = dojo.indexOf;
     dojo['indexOf'] = function(arr,object,scope){
-        var result;
         if(object instanceof Date){
-            result = arr.findIndex(elem=>object.getTime()===elem.getTime());
-            console.log('indexOf result for date',object,arr,result)
-            return result;
+            return arr.findIndex(elem=>object.getTime()===elem.getTime());
         }
-        result = fe.call(dojo,arr,object,scope);
-        console.log('indexOf result',result)
-        return result;
+        return fe.call(dojo,arr,object,scope);
     }
 };
 
