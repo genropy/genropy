@@ -20,4 +20,4 @@ class GnrCustomWebPage(object):
         fb.textbox('^.title', lbl='Title')
         fb.textbox('^.text', lbl='Text')
         fb.textbox('^.destination_url', lbl='Destination url')
-        pane.card(title='^.title', image='^.image_url', text='^.text', btn_link='^.destination_url')
+        pane.bsCard(title='^.title', image='^.image_url', text='^.text', btn_link='^.destination_url')
