@@ -263,6 +263,8 @@ class GnrClassCatalog(object):
         :param txt: TODO
         :returns: TODO
         """
+        if not isinstance(txt,str):
+            return txt
         result = re.split('::(\w*)$', txt)
         if len(result) == 1:
             return txt
