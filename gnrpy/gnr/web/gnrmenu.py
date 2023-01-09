@@ -123,8 +123,9 @@ class MenuStruct(GnrStructData):
         return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,
                             tags=tags,_returnStruct=False,**kwargs)
 
-    def dashboardBranch(self,label,pkg=None,tags=None,cacheTime=None,**kwargs):
-        return self.child('dashboardBranch',label=label,pkg=pkg,
+    def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,**kwargs):
+        return self.child('packageBranch',label=label,pkg='biz',branchMethod='dashboardBranch',
+                            branch_filterPkg=pkg,branch_code=code,
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
@@ -476,18 +477,6 @@ class MenuResolver(BagResolver):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes
     
-
-
-
-    def nodeType_dashboardBranch(self,node):
-        attributes = dict(node.attr)
-        attributes['isDir'] = True
-        return PackageMenuResolver(pkg='biz',level_offset=self.level,
-                                branchMethod='dashboardBranch',
-                                aux_instance=attributes.get('aux_instance') or self.aux_instance,
-                                externalSite= attributes.get('externalSite') or self.externalSite,
-                                _page=self._page,**dictExtract(attributes,'branch_')),attributes
-
 
     def nodeType_directoryBranch(self,node):
         attributes = dict(node.attr)
