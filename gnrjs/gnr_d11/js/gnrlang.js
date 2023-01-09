@@ -24,6 +24,23 @@
 
 //funzioni di utilità varie
 
+class GnrDate extends Date {
+    _gnrdtype = 'D'
+    constructor(date) {
+        if(date===undefined){
+            super();
+        }else{
+            super(date);
+        }
+        this.setHours(0, 0, 0, 0);
+    }
+  
+    toJSON() {
+      return this.toISOString().split('T')[0] + "::"+this._gnrdtype;
+    }
+}
+
+
 //########################  Lang #########################
 const _lf = '\n';
 const _crlf = '\r\n';

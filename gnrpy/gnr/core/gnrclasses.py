@@ -245,7 +245,18 @@ class GnrClassCatalog(object):
             return False
         return txt.split('::')[-1].upper() in ['HTML','JS','RPC','JSON','NN','BAG','A','T','L','N','I','B','D','H','HZ','DH','DHZ','P','X']
 
-            
+    
+    def typedTextDeepConverter(self,obj):
+        if isinstance(obj,dict):
+            for k,v in obj.items():
+                obj[k] = self.typedTextDeepConverter(v)
+        elif isinstance(obj,list):
+            for i,v in enumerate(obj):
+                obj[i] = self.typedTextDeepConverter(v)
+        elif isinstance(obj,str):
+            return self.fromTypedText(obj)
+        return obj
+
     def fromTypedText(self, txt, **kwargs):
         """Add???
             
