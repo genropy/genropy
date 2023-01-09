@@ -46,9 +46,7 @@ class TestTypedJSON(object):
         
         
 
-
-
-if __name__ ==  '__main__':
+def main_1():
     ttj = TestTypedJSON()
     val = ttj.values
     #original_data = [{'date':val['val_D'],'foo':33},{'spam':8,'zuz':[1,2,{'bar':'ccc','uden':['agua','fuego',88]}]},Decimal('44.3'),False] #[val['val_D'],38]
@@ -57,5 +55,26 @@ if __name__ ==  '__main__':
     print('restored',restored)
     result = ttj.compare(ttj.values,restored)
     print('result',result)
+
+def main_2():
+    b = Bag()
+    ttj = TestTypedJSON()
+    val = ttj.values
+    b.addItem('val_D',val['val_D'])
+    b.addItem('val_LL',[val['val_D'],val['val_B'],val['val_N']])
+    b.addItem('val_ZZ',None,ll=[val['val_D'],val['val_B'],val['val_N']])
+    b.addItem('val_ZZ',None,val_D = val['val_D'],val_B = val['val_B'],val_N = val['val_N'])
+    print('bag',b)
+    x = b.toXml(pretty=True)
+    print(x)
+    r = Bag(x)
+    print(r)
+    print(r==b)
+
+
+if __name__ ==  '__main__':
+    #main_1()
+    main_2()
+
 
 
