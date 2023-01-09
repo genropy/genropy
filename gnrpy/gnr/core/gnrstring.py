@@ -202,6 +202,37 @@ try:
             elif isinstance(obj, datetime.date):
                 return '%s::D' %str(obj)
             return json.JSONEncoder.default(self, obj)
+
+    class JSONTypedEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, datetime.time):
+                return '%s::H' %str(obj)
+            elif isinstance(obj, Decimal):
+                return f'{str(obj)}::N'
+            elif isinstance(obj, datetime.datetime):
+                return '%s::DH' %str(obj)
+            elif isinstance(obj, datetime.date):
+                return '%s::D' %str(obj)
+            return json.JSONEncoder.default(self, obj)
+
+    class JSONTypedDecoder(json.JSONDecoder):
+        def __init__(self, **kwargs):
+            kwargs["object_pairs_hook"] = self.object_pairs_hook
+            super().__init__(**kwargs)
+
+        @property
+        def gnrclasscatalog(self):
+            if not hasattr(self,'_gnrclasscatalog'):
+                from gnr.core.gnrclasses import GnrClassCatalog
+                self._gnrclasscatalog = GnrClassCatalog()
+            return self._gnrclasscatalog
+
+        def object_pairs_hook(self, kv):
+            print('inside object_hook',kv)
+            #if isinstance(value,str):
+            #    return self.gnrclasscatalog.fromTypedText(value)
+            return kv
+
 except:
     pass
 
@@ -925,7 +956,48 @@ def toJsonJS(obj):
         
     :param obj: TODO"""
     return json.dumps(obj, cls=JsonEncoderJS)
-    
+
+def toTypedJSON(obj):
+    return json.dumps(obj, cls=JSONTypedEncoder)
+
+def fromTypedJSON(obj):
+    from gnr.core.gnrclasses import GnrClassCatalog
+    catalog = GnrClassCatalog()
+    return catalog.typedTextDeepConverter(json.loads(obj))
+
+
+#def fromTypedJSON(obj):
+#    from gnr.core.gnrclasses import GnrClassCatalog
+#    catalog = GnrClassCatalog()
+#    return _typeConverter(json.loads(obj),catalog.fromTypedText)
+#    
+#def _typeConverter(obj,converter):
+#    if isinstance(obj,list):
+#        return _typeConverter_list(obj,converter)
+#    else:
+#        return _typeConverter_dict(obj,converter)#
+
+#def _typeConverter_list(l,converter):
+#    result = []
+#    for v in l:
+#        if isinstance(v,list) or isinstance(v,dict):
+#            v = _typeConverter(v,converter)
+#        if isinstance(v,str):
+#            v = converter(v)
+#        result.append(v) 
+#    return result#
+
+#def _typeConverter_dict(d,converter):
+#    result = {}
+#    for k,v in d.items():
+#        if isinstance(v,list) or isinstance(v,dict):
+#            v = _typeConverter(v,converter)
+#        if isinstance(v,str):
+#            v = converter(v) 
+#        result[k] = v
+#    return result
+
+
 def toSecureJsonJS(obj, key=None):
     """TODO
         
