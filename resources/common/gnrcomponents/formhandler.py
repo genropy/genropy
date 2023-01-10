@@ -178,10 +178,12 @@ class FormHandler(BaseComponent):
                                                     this.publish('editrow',newrecord_kw);
                                                 }"""
         gridattr['selfsubscribe_editrow'] = """
-                                    var row = this.widget.rowByIndex($1.rowIndex);
-                                    if(row._editTopic){
-                                        this.publish(row._editTopic,$1);
-                                        return;
+                                    if($1.rowIndex>=0){
+                                        var row = this.widget.rowByIndex($1.rowIndex);
+                                        if(row._editTopic){
+                                            this.publish(row._editTopic,$1);
+                                            return;
+                                        }
                                     }
                                     var linkedFormId = this.attr._linkedFormId;
                                     var pref = 'form_'+linkedFormId;
