@@ -1226,10 +1226,11 @@ class GnrWebAppHandler(GnrBaseProxy):
             isDeleted = row.pop('_isdeleted', None)
             if isDeleted:
                 _customClasses.append('logicalDeleted')
+            
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
                     val = row.get(fld)
-                    if val in (None,''):
+                    if val in (None,False,''):
                         continue
                     if isinstance(_class,dict):
                         _class = _class.get(row[fld])
@@ -1577,7 +1578,7 @@ class GnrWebAppHandler(GnrBaseProxy):
 
         if handler or table_onloading_handlers:
             if default_kwargs and newrecord:
-                self.setRecordDefaults(record, default_kwargs)
+                self.setRecordDefaults(tblobj,record, default_kwargs)
             for h in table_onloading_handlers:
                 h(record, newrecord, loadingParameters, recInfo)
             if handler:
@@ -1586,7 +1587,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             for k in default_kwargs:
                 if k not in record:
                     record[k]=None
-            self.setRecordDefaults(record, loadingParameters)
+            self.setRecordDefaults(tblobj,record, loadingParameters)
 
         if applymethod:
             applyPars = self._getApplyMethodPars(kwargs, newrecord=newrecord, loadingParameters=loadingParameters,
@@ -1642,7 +1643,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                 n.attr['_resolvedInfo'] = relatedInfo
                              
                                 
-    def setRecordDefaults(self, record, defaults):
+    def setRecordDefaults(self,tblobj, record, defaults):
         """TODO
         
         :param record: TODO
@@ -1650,6 +1651,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         for k, v in list(defaults.items()):
             if k in record:
                 record[k] = v
+        tblobj.extendDefaultValues(record)
                 
     @public_method
     def dbSelect(self, dbtable=None, columns=None, auxColumns=None, hiddenColumns=None, rowcaption=None,
@@ -1924,6 +1926,21 @@ class GnrWebAppHandler(GnrBaseProxy):
             for k,v in record.items():
                 recToUpd[k] = v
         self.db.commit()
+
+
+    @public_method
+    def newRowsData(self,table=None,rows=None):
+        result = Bag()
+        tblobj = self.db.table(table)
+        defaultValues = tblobj.defaultValues() or {}
+        for i,r in enumerate(rows):
+            row = Bag(r)
+            for k,v in defaultValues.items():
+                if row.get(k) is None:
+                    row[k] = v
+            tblobj.extendDefaultValues(row)
+            result.addItem(f'r_{i}',row)
+        return result
 
 
     @public_method

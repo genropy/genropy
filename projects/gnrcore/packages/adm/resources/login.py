@@ -514,7 +514,7 @@ class LoginComponent(BaseComponent):
     def login_screenLockDialog(self,pane):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_screenlock="this.widget.show();this.setRelativeData('.password',null);",datapath='_screenlock')
         box = dlg.div(**self.loginboxPars())
-        box.div(text_align='center').logo_full_img(height='40px')
+        box.div(text_align='center').cover_logo(height='40px')
 
         wtitle = '!!Screenlock'
         box.div(wtitle,_class='index_logintitle')  

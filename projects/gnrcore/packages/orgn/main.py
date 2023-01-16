@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
+from gnr.core.gnrdecorator import deprecated
 class Package(GnrDboPackage):
     def config_attributes(self):
-        return dict(comment='Organizer package',sqlschema='orgn',sqlprefix=True,
-                    name_short='Organizer', name_long='Organizer', name_full='Organizer package')
+        return dict(comment='Organizer package [deprecated]',sqlschema='orgn',sqlprefix=True,
+                    name_short='Organizer [deprecated]', name_long='Organize [deprecated]', name_full='Organizer package [deprecated]')
                     
     def config_db(self, pkg):
         pass
@@ -28,7 +29,7 @@ class Package(GnrDboPackage):
                 pars['code'] = k
                 self.configureEntity(tbl_src,**pars)
 
-
+    @deprecated()
     def configureEntity(self,src,code=None,caption=None,tbl=None,pivot_date=None,**kwargs):
         pkg,tblname = tbl.split('.')
         tblsrc = self.db.model.src['packages.{pkg}.tables.{tblname}'.format(pkg=pkg,tblname=tblname)]

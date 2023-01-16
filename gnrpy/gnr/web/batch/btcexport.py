@@ -119,6 +119,8 @@ class BaseResourceExport(BaseResourceBatch):
         modeParameters = dictExtract(self.batch_parameters,f'{self.export_mode}_')
         writerPars.update(extraPars)
         writerPars.update(modeParameters)
+        print_prefs = self.db.application.getPreference('.xlsx_print',pkg='sys')
+        writerPars['print_prefs'] = print_prefs
         self.writer = getWriter(self.export_mode)(**writerPars)
     
 

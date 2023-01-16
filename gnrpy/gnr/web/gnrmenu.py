@@ -253,6 +253,9 @@ class MenuResolver(BagResolver):
                 pkgMenuBag = self.pkgMenu(pkgid)
                 if not pkgMenuBag:
                     continue
+                if len(pkgMenuBag)==1:
+                    if not self.allowedNode(pkgMenuBag.getNode('#0')):
+                        continue
                 pkgattrs = self.getPkg(pkgid).attributes
                 menu_label =pkgattrs.get('menu_label') or pkgattrs.get('name_long', pkgid)
                 result.packageBranch(menu_label,pkg=pkgid)
@@ -271,6 +274,7 @@ class MenuResolver(BagResolver):
     def load(self):
         result = Bag()
         source = self.sourceBag[self.path]
+        node_attr = self.sourceBag.getAttr(self.path)
         for node in source:
             if not self.allowedNode(node):
                 continue
@@ -513,7 +517,7 @@ class MenuResolver(BagResolver):
             path = '#0'
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
-                                branchMethod=attributes.get('branchMethod'),
+                                branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
                                 _page=self._page,**dictExtract(attributes,'branch_')),attributes

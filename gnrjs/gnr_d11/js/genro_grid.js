@@ -4222,6 +4222,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 idx = nrow - 1;
             }
             this.selection.select(idx);
+            this.scrollToRow(idx);
         }
     },
 

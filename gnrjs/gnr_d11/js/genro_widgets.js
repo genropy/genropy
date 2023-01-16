@@ -2637,6 +2637,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             }
         }
         this.originalContextTarget = e.target;
+        this.lastContextEvent = e;
         var ctxSourceNode;
         if (this.originalContextTarget) {
             if (this.originalContextTarget.sourceNode) {
@@ -3852,7 +3853,17 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
         var selattr = objectExtract(this.sourceNode.attr, 'selected_*', true);
         var val;
         for (var sel in selattr) {
-            var path = this.sourceNode.attrDatapath('selected_' + sel);
+            let lval = selattr[sel].split('=');
+            let path;
+            if(lval[0] && lval[1]){
+                sel = lval[1].replace(/\W/g, '_');
+                path = this.sourceNode.absDatapath(lval[0]);
+            }else{
+                path = this.sourceNode.attrDatapath('selected_' + sel);
+            }
+            if(!path){
+                continue;
+            }
             val = row[sel];
             if(isNullOrBlank(val)){
                 val = null;
@@ -4147,16 +4158,18 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         this.searchOnBlur=false;
      },
 
-     patch_isValid: function(/*Boolean*/ isFocused){
-        if(isFocused){
-            return true;
-        }
-        let searchrows = this.store.mainbag.getItem('#0');
-        if(!searchrows || searchrows.len()===0){
-            return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
-        }
-        return this.isValid_replaced(isFocused);
-    },
+   //patch_isValid: function(/*Boolean*/ isFocused){
+   //    if(isFocused){
+   //        return true;
+   //    }
+   //    let searchrows = this.store.mainbag.getItem('#0');
+   //    let position = this.sourceNode
+   //    if(!searchrows || searchrows.len()===0){
+   //        return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
+   //    }
+   //    return this.isValid_replaced(isFocused);
+   //},
+    
 
 });
 
@@ -4187,18 +4200,17 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
             sourceNode._selectedSetter = funcCreate(selectedSetter,'path,value',sourceNode);
         }
         if (objectNotEmpty(selectedColumns)) {
-            var hiddenColumns;
-            if ('hiddenColumns' in resolverAttrs) {
-                hiddenColumns = resolverAttrs['hiddenColumns'].split(',');
-                for (var i = 0; i < hiddenColumns.length; i++) {
-                    selectedColumns[hiddenColumns[i]] = null;
+            let hiddenColumns = resolverAttrs.hiddenColumns?resolverAttrs.hiddenColumns.split(','):[];
+            for (let key in selectedColumns) {
+                let path = selectedColumns[key];
+                if(path){
+                    let hiddencol = path.split('=')[1] || key;
+                    if(!hiddenColumns.includes(hiddencol)){
+                        hiddenColumns.push(hiddencol);
+                    }
                 }
             }
-            hiddenColumns = [];
-            for (let hiddenColumn in selectedColumns) {
-                hiddenColumns.push(hiddenColumn);
-            }
-            resolverAttrs['hiddenColumns'] = hiddenColumns.join(',');
+            resolverAttrs.hiddenColumns = hiddenColumns.join(',');
         }
         objectExtract(attributes, 'condition_*');
         resolverAttrs['condition'] = sourceNode.attr.condition;
@@ -4206,7 +4218,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         resolverAttrs['exclude'] = sourceNode.attr['exclude']; // from sourceNode.attr because ^ has to be resolved at runtime
         resolverAttrs._id = '';
         resolverAttrs._querystring = '';
-
         var storeAttrs = objectExtract(attributes, 'store_*');
         var store;
         savedAttrs['record'] = objectPop(storeAttrs, 'record');
@@ -4238,7 +4249,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
         attributes.store = store;
         savedAttrs['connectedArrowMenu'] = sourceNode.attr.connectedMenu;
         savedAttrs['connectedMenu'] = null
-
         return savedAttrs;
     },
 
@@ -5063,6 +5073,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 return;
             }
             var params = parsedUrl.params;
+            
             params = objectUpdate(params,{'v_y':margin_top,'v_x':margin_left});
             var url = this.encodeUrl(parsedUrl);
             sourceNode.setAttributeInDatasource('src',url,true);

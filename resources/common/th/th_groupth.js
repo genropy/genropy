@@ -155,6 +155,12 @@ var genro_plugin_groupth = {
                 currAttr[k] = Math.min(k in currAttr? currAttr[k]:attr[k],attr[k]);
             }else if(k.endsWith('_max')){
                 currAttr[k] = Math.max(k in currAttr? currAttr[k]:attr[k],attr[k]);
+            }else if(k.endsWith('_distinct')){
+                let c1 = new Set(currAttr[k]? currAttr[k].split('|'):[]);
+                let c2 = new Set(attr[k]? attr[k].split('|') : []);
+                let l = Array.from(new Set([...c1,...c2]));
+                currAttr[k] = l.join('|');
+                currAttr[k+'_count'] = l.length;
             }
         }
     },
@@ -331,21 +337,23 @@ var genro_plugin_groupth = {
 
     groupByParsFields:function(fb,dtype,prefix){
         prefix = prefix || '';
-        prefix = '^.'+prefix;
+        var prefixpath = '.'+prefix;
+        prefix = '^'+prefixpath;
         var numeric = 'RNLIF'.indexOf(dtype)>=0;
         var dateTime = ['DH','DHZ','D'].indexOf(dtype)>=0;
         if(numeric){
             fb.addField('filteringSelect',{value:prefix+'group_aggr',
                         values:'sum:Sum,avg:Average,min:Min,max:Max,break:Break,nobreak:No break',
-                        lbl:_T('Aggregator'),validate_onAccept:"this.setRelativeData('.cell_totalize',value=='sum')"});
-            fb.addField('checkbox',{value:'^.cell_totalize',label:'Totalize'});
+                        lbl:_T('Aggregator'),validate_onAccept:`this.setRelativeData('${prefixpath}totalize',value=='sum')`});
+            fb.addField('checkbox',{value:prefix+'totalize',label:'Totalize'});
             fb.addField('checkbox',{value:'^.not_zero',label:'Not zero'});
             fb.addField('numberTextBox',{value:'^.min_value',lbl:'Min value',width:'5em',default_value:null});
             fb.addField('numberTextBox',{value:'^.max_value',lbl:'Max value',width:'5em',default_value:null});
 
         }else if(dateTime){
             let values = genro.commonDatasets.datetimes_chunk.join(',');
-            var tb = fb.addField('textbox',{lbl:_T('Date aggregator'),value:prefix+'group_aggr'});
+            var tb = fb.addField('textbox',{lbl:_T('Date aggregator'),value:prefix+'group_aggr',
+                                validate_onAccept:`this.setRelativeData('${prefixpath}dtype',value?'T':'D'); this.setRelativeData('${prefixpath}original_dtype','D')`});
             tb._('ComboMenu',{values:values,action:function(kw,ctx){
                 var cv = this.attr.attachTo.widget.getValue();
                 this.attr.attachTo.widget.setValue(cv?cv+'-'+kw.fullpath:kw.fullpath,true);
@@ -354,9 +362,19 @@ var genro_plugin_groupth = {
             fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
                                     hidden:prefix+'group_nobreak',placeholder:'[NP]'})
         }else{
-            fb.addField('checkbox',{value:prefix+'group_nobreak',label:_T('No break')});
+            fb.addField('filteringSelect',{value:prefix+'mode',
+                                    values:'break:Break,no_break:No break,distinct_count:Count distinct',
+                                    lbl:_T('Mode'),
+                                    default:'break',placeholder:'Break',
+                                    validate_onAccept:function(value){
+                                        this.setRelativeData(`${prefixpath}dtype`,value=='distinct_count'?'L':'T'); 
+                                        this.setRelativeData(`${prefixpath}group_aggr`,value=='distinct_count'?'distinct_count':null); 
+                                        this.setRelativeData(`${prefixpath}original_dtype`,'T');
+                                        this.setRelativeData(`${prefixpath}group_nobreak`,value=='no_break');
+                                    }});
             fb.addField('textbox',{value:prefix+'group_empty',lbl:_T('Empty value'),
-                                    hidden:prefix+'group_nobreak',placeholder:'[NP]'})
+                                    hidden:prefix+'group_nobreak',placeholder:'[NP]',
+                                    hidden:prefix+'group_aggr'})
         }
     },
 

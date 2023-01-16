@@ -65,7 +65,23 @@ class AppPref(object):
         pane = tc.contentPane(title='Tables Configuration')
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
         fb.textbox(value='^.archivable_tag',lbl='Archivable tag')
-
+        
+        xlspane = tc.contentPane(title='XLSX Print', datapath='.xlsx_print')
+        xfb = xlspane.formbuilder(cols=1, border_spacing='4px')
+        
+        xfb.numbertextbox(value='^.top',lbl='Print Margin top')
+        xfb.numbertextbox(value='^.bottom',lbl='Print Margin bottom')
+        xfb.numbertextbox(value='^.left',lbl='Print Margin left')
+        xfb.numbertextbox(value='^.right',lbl='Print Margin right')
+        xfb.numbertextbox(value='^.footer',lbl='Print Margin footer')
+        xfb.numbertextbox(value='^.header',lbl='Print Margin header')
+        xfb.numbertextbox(value='^.scale',lbl='Print Scale')
+        xfb.numbertextbox(value='^.fitToWidth',lbl='Fit To Width')
+        xfb.numbertextbox(value='^.fitToHeight',lbl='Fit To Height')
+        xfb.filteringSelect(value='^.orientation',lbl='Print orientation', values='portrait,landscape')
+        xfb.filteringSelect(value='^.show_title',lbl='Print title', values='footer,header')
+        
+        
     def site_config_override(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.numberTextBox(value='^.cleanup?interval',lbl='Cleanup interval',placeholder=self.site.config['cleanup?interval'])

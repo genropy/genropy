@@ -238,6 +238,7 @@ dojo.declare('gnr.GenroClient', null, {
             genropatches.dnd();
             genropatches.getDocumentWindow();
             genropatches.forEachError();
+            genropatches.indexOfError();
             genropatches.borderContainer();
             genropatches.tabContainer();
             genropatches.setStateClass();

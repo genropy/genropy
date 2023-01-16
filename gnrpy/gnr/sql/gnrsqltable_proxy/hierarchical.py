@@ -247,9 +247,7 @@ class HierarchicalHandler(object):
             colkw.setdefault('group',colattr.get('group') or field)
             result.append(colkw)
         return result 
-
-
-
+        
     def trigger_before(self,record,old_record=None):
         tblobj = self.tblobj
         pkeyfield = tblobj.pkey
