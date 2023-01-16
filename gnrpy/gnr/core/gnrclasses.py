@@ -169,7 +169,7 @@ class GnrClassCatalog(object):
         """
         return self.classes[name]
     
-    def asText(self, o, quoted=False, translate_cb=None,jsmode=False):
+    def asText(self, o, quoted=False, translate_cb=None,nestedTyping=False):
         """Add???
             
         :param o: TODO
@@ -183,8 +183,8 @@ class GnrClassCatalog(object):
                 result = translate_cb(result)
         else:
             objtype=type(o)
-            if jsmode and objtype in(list,dict,tuple):
-                f= self.toJsonJS
+            if nestedTyping and objtype in(list,dict,tuple):
+                f= self.toTypedJSON
             else:
                 f = self.serializers['asText'].get(objtype)
             if not f:
@@ -245,13 +245,26 @@ class GnrClassCatalog(object):
             return False
         return txt.split('::')[-1].upper() in ['HTML','JS','RPC','JSON','NN','BAG','A','T','L','N','I','B','D','H','HZ','DH','DHZ','P','X']
 
-            
+    
+    def typedTextDeepConverter(self,obj):
+        if isinstance(obj,dict):
+            for k,v in obj.items():
+                obj[k] = self.typedTextDeepConverter(v)
+        elif isinstance(obj,list):
+            for i,v in enumerate(obj):
+                obj[i] = self.typedTextDeepConverter(v)
+        elif isinstance(obj,str):
+            return self.fromTypedText(obj)
+        return obj
+
     def fromTypedText(self, txt, **kwargs):
         """Add???
             
         :param txt: TODO
         :returns: TODO
         """
+        if not isinstance(txt,(str,bytes)):
+            return txt
         result = re.split('::(\w*)$', txt)
         if len(result) == 1:
             return txt
@@ -260,7 +273,7 @@ class GnrClassCatalog(object):
         else:
             return self.fromText(result[0], result[1])
             
-    def asTypedText(self, o, quoted=False, translate_cb=None,jsmode=False):
+    def asTypedText(self, o, quoted=False, translate_cb=None,nestedTyping=False):
         """Add???
             
         :param o: TODO
@@ -270,14 +283,14 @@ class GnrClassCatalog(object):
         """
         t = self.getType(o, fallback='T')
         if t == 'T':
-            result = self.asText(o, translate_cb=translate_cb,jsmode=jsmode)
+            result = self.asText(o, translate_cb=translate_cb,nestedTyping=nestedTyping)
         else:
-            result = "%s::%s" % (self.asText(o, translate_cb=translate_cb,jsmode=jsmode), self.names[type(o)])
+            result = "%s::%s" % (self.asText(o, translate_cb=translate_cb,nestedTyping=nestedTyping), self.names[type(o)])
         if quoted:
             result = self.quoted(result)
         return result
         
-    def asTextAndType(self, o, translate_cb=None,jsmode=False): 
+    def asTextAndType(self, o, translate_cb=None,nestedTyping=False): 
         """Add???
             
         :param o: TODO
@@ -286,8 +299,8 @@ class GnrClassCatalog(object):
         """
         c = self.getType(o)
         if c:
-            return (self.asText(o, translate_cb=translate_cb,jsmode=jsmode), c)
-        return self.asTextAndType(repr(o),jsmode=jsmode)
+            return (self.asText(o, translate_cb=translate_cb,nestedTyping=nestedTyping), c)
+        return self.asTextAndType(repr(o),nestedTyping=nestedTyping)
         
     def getType(self, o, fallback=None):
         """Add???
@@ -471,14 +484,25 @@ class GnrClassCatalog(object):
         """
         return gnrstring.toJsonJS(data)
         
+    def toTypedJSON(self, data):
+        """Add???
+            
+        :param data: TODO
+        :returns: TODO
+        """
+        return gnrstring.toTypedJSON(data)
+        
+
+
     def fromJson(self, data):
         """Add???
             
         :param data: TODO
         :returns: TODO
         """
-        return gnrstring.fromJson(data)
+        return self.typedTextDeepConverter(gnrstring.fromJson(data))
         
+    
     #def getItaCatalog():
     #c = GnrClassCatalog()
     #c.addSerializer("asText", datetime.date, lambda d: d.strftime('%d/%m/%Y'))

@@ -2718,6 +2718,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             this.applyFilter();
         }
         this.restoreSelectedRows();
+        if(this.sourceNode.attr.selectedId && this.sourceNode.attr.selectedId.startsWith('^')){
+            this.setSelectedId(this.sourceNode.getAttributeFromDatasource('selectedId'));
+        }
         this.fillServerTotalize();
     },
 
