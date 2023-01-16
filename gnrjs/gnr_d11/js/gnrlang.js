@@ -1457,7 +1457,7 @@ function toTypedJSON(value){
     if(dtype=='OBJ'){
         return '{'+Object.keys(value).map(key=>`"${key}":${toTypedJSON(value[key])}`).join(',')+'}';
     } 
-    if(value._gnrdtype=='N' || !['L','N','NN','B'].includes(dtype)){
+    if(dtype == 'N' && value._gnrdtype=='N' || !['L','N','NN','B'].includes(dtype)){
         return JSON.stringify(asTypedTxt(value));
     }
     return JSON.stringify(value);
