@@ -70,3 +70,15 @@ class GnrCustomWebPage(object):
         self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image')
         self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image_path')
         print('**DELETED IMAGE: ', file_path)
+
+    def test_4_s3Storage(self,pane):
+        """Store img on S3 bucket. Please create a "s3_test" named aws_s3 storage service first"""
+        pane.data('.image', '/s3_test:img_test/test_image.jpeg?v_x=0&v_y=0&v_h=150&v_w=150&v_z=1.69')
+        pane.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit=True, #serve per la modifica, rotazione, zoom, ecc
+                    placeholder=True,
+                    upload_filename='test_image', 
+                    upload_folder='s3_test:img_test')
