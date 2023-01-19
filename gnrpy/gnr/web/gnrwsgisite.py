@@ -451,6 +451,12 @@ class GnrWsgiSite(object):
                 if first_segment.startswith(k):
                     return k[1:]
     
+    def pathListFromUrl(self, url):
+        "Returns path_list from given url"
+        from urllib.parse import urlsplit
+        parsed_url = urlsplit(url.strip('/'))
+        return parsed_url.path.split('/')
+
     def storageNodeFromPathList(self, path_list=None, storageType=None):
         "Returns storageNode from path_list"
         if not storageType:

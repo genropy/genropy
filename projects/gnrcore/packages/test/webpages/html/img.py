@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import re,os
 from gnr.core.gnrdecorator import public_method
 
 "Test img"
@@ -50,26 +49,18 @@ class GnrCustomWebPage(object):
                     placeholder='https://www.genropy.org/img/placeholder_image.jpg',
                     upload_filename='^.filename', 
                     upload_folder='site:tests/image')
-        fb.dataRpc('.image_path', self.uploadImagePath, image='^.image', _if='image',
-                        _userChanges=True, _fired='^run_image')
         remove_img = fb.button('Remove', hidden='^.image?=!#v')
         #remove_img.dataController('SET .image = null;') 
         #this removes stored value but doesn't delete file on server
-        remove_img.dataRpc(self.deleteImage, file_path='=.image_path')
-    
-    @public_method
-    def uploadImagePath(self, image):
-        image_path = self.sitepath + re.sub('/_storage/site', '', image).split('?',1)[0]
-        self.clientPublish('floating_message', message='Image Upload completed')  
-        print('**UPLOADED IMAGE: ', image_path)
-        return image_path
+        remove_img.dataRpc(self.deleteImage, file_url='=.image', _onResult="SET .image=null;")
 
     @public_method
-    def deleteImage(self, file_path=None, **kwargs):
-        os.remove(file_path)
-        self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image')
-        self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image_path')
-        print('**DELETED IMAGE: ', file_path)
+    def deleteImage(self, file_url=None, **kwargs):
+        path_list = self.site.pathListFromUrl(file_url)
+        fileSn = self.site.storageNodeFromPathList(path_list)
+        fileSn.delete()
+        print('**DELETED IMAGE: ', file_url)
+        return 'Image deleted'
 
     def test_4_s3Storage(self,pane):
         """Store img on S3 bucket. Please create a "s3_test" named aws_s3 storage service first"""
@@ -94,20 +85,19 @@ class GnrCustomWebPage(object):
                     placeholder=True,
                     upload_filename='test_image.jpg', 
                     upload_folder='site:tests/image')
-        left.button('CONVERT').dataRpc('.dataurl', self.convertImageToDataUrl, imagepath='=.image')
+        left.button('CONVERT').dataRpc('.dataurl', self.convertImageToDataUrl, image_url='=.image')
         bc.contentPane(region='center', float='right').img(src='^.dataurl', 
                                     width='150px', height='150px', hidden='^.dataurl?=!#v')
 
     @public_method
-    def convertImageToDataUrl(self, imagepath=None):
+    def convertImageToDataUrl(self, image_url=None):
         from PIL import Image
-        from urllib.parse import urlparse, parse_qs, urlsplit
+        from urllib.parse import urlparse,parse_qs
         import base64
         from io import BytesIO      
 
-        parsed_url = urlsplit(imagepath.strip('/'))
-        img_cropdata = parse_qs(urlparse(imagepath).query) 
-        path_list = parsed_url.path.split('/')
+        img_cropdata = parse_qs(urlparse(image_url).query) 
+        path_list = self.site.pathListFromUrl(image_url)
         img_path = self.site.storageNodeFromPathList(path_list).internal_path
         
         im = Image.open(img_path)
