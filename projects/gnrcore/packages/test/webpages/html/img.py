@@ -101,6 +101,7 @@ class GnrCustomWebPage(object):
         img_path = self.site.storageNodeFromPathList(path_list).internal_path
         
         im = Image.open(img_path)
+        format = im.format
         width = int(img_cropdata['v_w'][0])
         height = int(img_cropdata['v_h'][0])
         z = float(img_cropdata['v_z'][0])
@@ -111,12 +112,13 @@ class GnrCustomWebPage(object):
         h = int(height * z)
         im1 = im.resize((w,h))
         im1 = im1.rotate(r)
-        left = int(w/2 + x - width/2)
+        left_offset = 1 if x < 0 else 0.5
+        left = int(w/2 + x*left_offset - width/2)
         top = int(h/2 + y - height/2)
         right = int(left + width)
         bottom = int(top + height)
         im1 = im1.crop((left, top, right, bottom))
         buffered = BytesIO()
-        im1.save(buffered, format="JPEG")
+        im1.save(buffered, format=format)
         data_url = base64.b64encode(buffered.getvalue())
-        return ','.join(['data:image/jpeg;base64', data_url.decode()])
+        return ','.join([f'data:image/{format};base64', data_url.decode()])
