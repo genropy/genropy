@@ -73,12 +73,60 @@ class GnrCustomWebPage(object):
 
     def test_4_s3Storage(self,pane):
         """Store img on S3 bucket. Please create a "s3_test" named aws_s3 storage service first"""
-        pane.data('.image', '/s3_test:img_test/test_image.jpeg?v_x=0&v_y=0&v_h=150&v_w=150&v_z=1.69')
         pane.div(border='2px dotted silver', width='150px', height='150px').img(
                     src='^.image', 
                     crop_width='150px',
                     crop_height='150px',
-                    edit=True, #serve per la modifica, rotazione, zoom, ecc
+                    edit=True, 
                     placeholder=True,
                     upload_filename='test_image', 
                     upload_folder='s3_test:img_test')
+
+    def test_5_dataUrl(self, pane):
+        """Here you can convert an image saved to filesystem to a bytestring."""
+        bc = pane.borderContainer(height='200px')
+        left = bc.contentPane(region='left', width='200px')
+        left.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit=True, 
+                    placeholder=True,
+                    upload_filename='test_image.jpg', 
+                    upload_folder='site:tests/image')
+        left.button('CONVERT').dataRpc('.dataurl', self.convertImageToDataUrl, imagepath='=.image')
+        bc.contentPane(region='center', float='right').img(src='^.dataurl', 
+                                    width='150px', height='150px', hidden='^.dataurl?=!#v')
+
+    @public_method
+    def convertImageToDataUrl(self, imagepath=None):
+        from PIL import Image
+        from urllib.parse import urlparse, parse_qs, urlsplit
+        import base64
+        from io import BytesIO      
+
+        parsed_url = urlsplit(imagepath.strip('/'))
+        img_cropdata = parse_qs(urlparse(imagepath).query) 
+        path_list = parsed_url.path.split('/')
+        img_path = self.site.storageNodeFromPathList(path_list).internal_path
+        
+        im = Image.open(img_path)
+        width = int(img_cropdata['v_w'][0])
+        height = int(img_cropdata['v_h'][0])
+        z = float(img_cropdata['v_z'][0])
+        x = float(img_cropdata['v_x'][0])
+        y = float(img_cropdata['v_y'][0])
+        r = -int(img_cropdata['v_r'][0])
+        w = int(width * z)
+        h = int(height * z)
+        im1 = im.resize((w,h))
+        im1 = im1.rotate(r)
+        left = int(w/2 + x - width/2)
+        top = int(h/2 + y - height/2)
+        right = int(left + width)
+        bottom = int(top + height)
+        im1 = im1.crop((left, top, right, bottom))
+        buffered = BytesIO()
+        im1.save(buffered, format="JPEG")
+        data_url = base64.b64encode(buffered.getvalue())
+        return ','.join(['data:image/jpeg;base64', data_url.decode()])

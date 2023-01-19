@@ -404,11 +404,11 @@ class GnrWsgiSite(object):
             else:
                 return args[0]
         path = '/'.join(args)
-        if not ':' in path:
+        if not ':' in path: 
             path = '_raw_:%s'%path
         service_name, storage_path = path.split(':',1)
         storage_path = storage_path.lstrip('/')
-        if service_name == 'vol':
+        if service_name == 'vol':       
             #for legacy path
             service_name, storage_path = storage_path.replace(':','/').split('/', 1) 
         service = self.storage(service_name)
@@ -438,18 +438,39 @@ class GnrWsgiSite(object):
             result = m(pkey)
             return result is not False
 
-    def storageDispatcher(self,path_list,environ, start_response,**kwargs):
-        if ':' in path_list[0]:
-            storage_name, first = path_list.pop(0).split(':')
-            path_list.insert(0, first)
+    @property
+    def storageTypes(self):
+        return ['_storage','_site','_dojo','_gnr','_conn','_pages','_rsrc','_pkg','_pages','_user','_vol']
+        
+    def storageType(self, path_list=None):
+        first_segment = path_list[0]
+        if ':' in first_segment:
+            return first_segment
         else:
-            prefix = path_list.pop(0)[1:] # leva _
-            if prefix != 'storage':
-                storage_name = prefix
-            else:
-                storage_name = path_list.pop(0)
+            for k in self.storageTypes:
+                if first_segment.startswith(k):
+                    return k[1:]
+    
+    def storageNodeFromPathList(self, path_list=None, storageType=None):
+        "Returns storageNode from path_list"
+        if not storageType:
+            storageType = self.storageType(path_list)
+        if ':' in storageType:
+            #site:image -> site
+            storage_name, path_list[0] = storageType.split(':')
+        elif storageType == 'storage':
+            #/_storage/site/pippo -> site
+            storage_name, path_list = path_list[1], path_list[2:]
+        else:
+            #_vol/pippo -> vol
+            storage_name = storageType
+            path_list.pop(0)
+            
         path = '/'.join(path_list)
-        storageNode = self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+        return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+    
+    def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
+        storageNode = self.storageNodeFromPathList(path_list, storageType)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
@@ -834,6 +855,7 @@ class GnrWsgiSite(object):
         response.mimetype = 'text/html'
         # Url parsing start
         path_list = self.get_path_list(request.path)
+        # path_list is never empty
         expiredConnections = self.register.cleanup()
         if expiredConnections:
             self.connectionLog('close',expiredConnections)
@@ -855,9 +877,9 @@ class GnrWsgiSite(object):
         self.checkForDbStore(path_list,request_kwargs)
        #if path_list and (path_list[0] in self.dbstores):
        #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
-        if not path_list:
-            path_list= self.get_path_list('')
-        if path_list and path_list[0] == '_ping':
+        first_segment = path_list[0]
+        last_segment = path_list[-1]
+        if first_segment == '_ping':
             try:
                 self.log_print('kwargs: %s' % str(request_kwargs), code='PING')
                 result = self.serve_ping(response, environ, start_response, **request_kwargs)
@@ -872,22 +894,19 @@ class GnrWsgiSite(object):
             return response(environ, start_response)
 
         #static elements that doesn't have .py extension in self.root_static
-        if  self.root_static and path_list and not path_list[0].startswith('_') and '.' in path_list[-1] and not (':' in path_list[0]):
-            if path_list[-1].split('.')[-1]!='py':
+        if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
+            if last_segment.split('.')[-1]!='py':
                 path_list = self.root_static.split('/')+path_list
-        
-        if path_list and path_list[0].startswith('_tools'):
+                first_segment = path_list[0]
+        storageType = self.storageType(path_list)
+        if storageType:
+                self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
+                return self.storageDispatcher(path_list, environ, start_response, 
+                                                        storageType=storageType, **request_kwargs)
+        elif first_segment.startswith('_tools'):
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='TOOLS')
             return self.serve_tool(path_list, environ, start_response, **request_kwargs)
-        elif path_list and (':' in path_list[0] or path_list[0].startswith('_storage') or \
-            path_list[0].startswith('_site') or path_list[0].startswith('_rsrc') or \
-            path_list[0].startswith('_dojo') or path_list[0].startswith('_pkg') or \
-            path_list[0].startswith('_gnr') or path_list[0].startswith('_pages') or \
-            path_list[0].startswith('_conn') or path_list[0].startswith('_user') or \
-            path_list[0].startswith('_pages') or path_list[0].startswith('_vol')):
-            self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
-            return self.storageDispatcher(path_list, environ, start_response, **request_kwargs)
-        elif path_list and path_list[0].startswith('_'):
+        elif first_segment.startswith('_'):
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STATIC')
             try:
                 return self.statics.static_dispatcher(path_list, environ, start_response, **request_kwargs)
