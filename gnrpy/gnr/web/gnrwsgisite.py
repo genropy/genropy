@@ -454,8 +454,9 @@ class GnrWsgiSite(object):
     def pathListFromUrl(self, url):
         "Returns path_list from given url"
         from urllib.parse import urlsplit
-        parsed_url = urlsplit(url.strip('/'))
-        return parsed_url.path.split('/')
+        parsed_url = urlsplit(url)
+        path_list = parsed_url.path.split('/')
+        return list(filter(None, path_list))
 
     def storageNodeFromPathList(self, path_list=None, storageType=None):
         "Returns storageNode from path_list"
@@ -471,7 +472,7 @@ class GnrWsgiSite(object):
             #_vol/pippo -> vol
             storage_name = storageType
             path_list.pop(0)
-            
+
         path = '/'.join(path_list)
         return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
     

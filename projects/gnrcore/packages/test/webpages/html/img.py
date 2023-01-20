@@ -98,7 +98,7 @@ class GnrCustomWebPage(object):
 
         img_cropdata = parse_qs(urlparse(image_url).query) 
         path_list = self.site.pathListFromUrl(image_url)
-        img_path = self.site.storageNodeFromPathList(path_list).internal_path
+        img_path = self.site.storageNodeFromPathList(path_list).internal_path   #s3?
         
         im = Image.open(img_path)
         format = im.format
