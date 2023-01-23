@@ -4898,7 +4898,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             
         }});
         slotbar._('button','upload',{label:'Upload',command:'upload'});
-        if(sourceNode.attr.takePicture){
+        if(sourceNode.attr.takePicture && sourceNode.attr.upload_folder=='*'){
             slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
         }
         if(src){
