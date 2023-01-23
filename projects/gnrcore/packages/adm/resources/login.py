@@ -46,6 +46,7 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         self.loginDialog_bottom_left(footer.leftbox,dlg)
         self.loginDialog_bottom_right(footer.rightbox,dlg)
+        self.callPackageHooks('loginExtra',box)
 
     def login_commonFooter(self,pane):
         return pane.slotBar('15,leftbox,*,rightbox,15',height='45px')
