@@ -4769,10 +4769,12 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
              
             //gnrwdg.fakeinputNode = fakeinput.getParentNode();
 
-             if(objectNotEmpty(uploadAttr)){
+             if(objectNotEmpty(uploadAttr) || attr.dataUrlMode){
+                
                  attr.dropTarget=true;
                  attr.dropTypes='Files,text/plain';
                  attr.drop_ext=uploadAttr.ext || this._default_ext;
+                 attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*';
                  var src=sourceNode.attr.src;
                  attr.onDrop_text_html = function(dropInfo,data){
                     console.log('texthtml',dropInfo,data)
@@ -4803,7 +4805,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             that.centerImage(sourceNode,cropAttr);
                         };
                     }
-                    if(uploadAttr.folder=='*'){
+                    if(attr.dataUrlMode){
                         var reader = new FileReader();
                         reader.onload = function(event){
                             sourceNode.setRelativeData(src,event.target.result);
@@ -4820,9 +4822,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             onResult:function(result){
                                 var url = this.responseText;
                                 sourceNode.setRelativeData(src,that.decodeUrl(sourceNode,url).formattedUrl);
-                             }});
+                                }});
                     }
-                 }
+                    }
                 sourceNode._('input','fakeinput',{hidden:true,type:'file',
                 connect_onchange:function(evt){
                     cbOnDropData({
@@ -4898,11 +4900,11 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             
         }});
         slotbar._('button','upload',{label:'Upload',command:'upload'});
-        if(sourceNode.attr.takePicture && sourceNode.attr.upload_folder=='*'){
+        if(sourceNode.attr.takePicture && sourceNode.attr.dataUrlMode){
             slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
         }
         if(src){
-            if(sourceNode.attr.upload_folder=='*'){
+            if(sourceNode.attr.dataUrlMode){
                 slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
             }
             slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
