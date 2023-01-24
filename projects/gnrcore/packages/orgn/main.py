@@ -43,7 +43,7 @@ class Package(GnrDboPackage):
         entity = f'{code}:{caption}'
         if caption.startswith('!!'):
             caption = f'[{caption}]'
-        linked_attrs = {f'linked_{k}':v for k,v in kwargs.items() if v is not None}
+        linked_attrs = {f'linked_{code}_{k}':v for k,v in kwargs.items() if v is not None}
         if fkey in curr_columns:
             colsrc = src['columns'][fkey]
             related_column = colsrc.getAttr('relation')['related_column']
@@ -53,7 +53,7 @@ class Package(GnrDboPackage):
                 linked_entities = colattr['linked_entity'].split(',')
                 linked_entities.append(entity)
                 colattr['linked_entity'] = ','.join(linked_entities)
-                colattr.update(**kwargs)
+                colattr.update(**linked_attrs)
                 return
             else:
                 fkey = 'le_{}'.format(tbl.replace('.','_'))
