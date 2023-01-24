@@ -2505,7 +2505,7 @@ div.dojoxDock {
 ._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
     background: transparent;
     border: 0px;
-    padding:10px;
+    padding:5px;
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }

@@ -764,7 +764,6 @@ class GnrWebPage(GnrBaseWebPage):
         if hasattr(self,method):#main one with method name
             getattr(self,method)(*args,**kwargs)
 
-    @public_method
     def doLogin(self, login=None,guestName=None,authenticate=True, rootenv=None,**kwargs):
         """Service method. Set user's avatar into its connection if:
         
