@@ -153,19 +153,35 @@ class FormProfile(BaseComponent):
         
     def th_form(self,form):
         bc = form.center.borderContainer()
-        fb = bc.contentPane(region='top',datapath='.record').div(margin_right='10px').formbuilder(cols=3, border_spacing='4px',colswidth='12em')
+        fb = bc.contentPane(region='top',datapath='.record',margin_top='10px').formbuilder(cols=4, 
+                        border_spacing='4px',colswidth='auto',width='100%',fld_width='100%')
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
+        fb.div()
         fb.img(src='^.photo',crop_height='100px',crop_width='100px',margin_left='25px',
                     crop_border='2px dotted silver',crop_rounded=6,edit=True,
                     placeholder=True,upload_folder='*',takePicture=True,rowspan=4)
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',readOnly=True)
         fb.field('locale', lbl='!!Locale',tag='combobox',values='en_En:')
+        fb.br()
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
-        fb.field('sms_login', html_label=True)
-        fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='100%')
-        fb.div(colspan=2)
-        fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')",margin_left='20px')
+        #
+        #fb.field('sms_login', html_label=True)
+        #fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='12em')
 
+        tc = bc.tabContainer(margin='2px',region='center')
+        self.adm_profile_tabs(tc)
+    
+    @customizable
+    def adm_profile_tabs(self,tc):
+        self.authenticationsPane(tc.borderContainer(title='!!Authentication'))
+        frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
+        frame_preference.top.slotToolbar('*,stackButtons,*')
+        frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 
-        bc.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center')
+    @customizable
+    def authenticationsPane(self,bc):
+        pane = bc.contentPane(region='top')
+        fb = pane.formbuilder(datapath='#FORM.record')
+        fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
+        return bc

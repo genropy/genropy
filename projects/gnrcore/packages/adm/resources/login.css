@@ -1,0 +1,8 @@
+.login_form_container{
+    padding:10px 10px 0px;
+    margin-right: 15px;
+}
+
+.login_form_container .gnrfieldlabel{
+    font-size:.9em;
+}
