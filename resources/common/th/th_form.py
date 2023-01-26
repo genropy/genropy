@@ -174,9 +174,14 @@ class TableHandlerForm(BaseComponent):
             form.attributes['excludeCols'] = options.pop('excludeCols')
         if 'fkeyfield' in options:
             form.attributes['fkeyfield'] = options.pop('fkeyfield')
+        
         showtoolbar = boolean(options.pop('showtoolbar',True))
         navigation = options.pop('navigation',None)
-        hierarchical = options.pop('hierarchical',None)   
+        table = form.getInheritedAttributes()['table']  
+        
+        is_hierarchical_table =  hasattr(self.db.table(table),'hierarchicalHandler')
+        form_handlerType = form.attributes.get('form_handlerType')
+        hierarchical = options.pop('hierarchical',is_hierarchical_table and form_handlerType in ('stack',None))   
         tree_kwargs = dictExtract(options,'tree_',pop=True) 
         readOnly = options.pop('readOnly',False)
         modal = options.pop('modal',False)
@@ -272,19 +277,21 @@ class TableHandlerForm(BaseComponent):
             if single_record:
                 default_slots = default_slots.replace('form_delete','')
                 default_slots = default_slots.replace('form_add','')
-            table = form.getInheritedAttributes()['table']  
             if extra_slots:
                 default_slots = default_slots.replace('right_placeholder','right_placeholder,%s' %(','.join(extra_slots)))
             slots = options.pop('slots',default_slots)
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
+        
         if hierarchical:
             form_attributes = form.attributes
             fkeyfield = form_attributes.get('fkeyfield')
             leftkw = dict(splitter=True)
-            if not fkeyfield and (hierarchical is True or hierarchical=='open'):
+            if (hierarchical is True or hierarchical=='open'):
                 form.store.attributes.setdefault('startKey','*norecord*')
                 form.attributes.update(form_deleted_destPkey='*norecord*')
+                form.attributes.update(form_isHierarchical=True)
+
                 if hierarchical=='open':
                     leftkw['closable'] = 'open'      
             if hierarchical=='closed':

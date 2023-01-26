@@ -211,7 +211,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 parentForm.subscribe('onLoaded',function(kw){
                     if(kw.pkey!=that.parentFormPkey){
                         that.parentFormPkey = kw.pkey;
-                        if(that.status!='noItem'){
+                        if(that.status!='noItem' && !that.isHierarchical){
                             that.abort();
                         }
                         that.publish('changedParent');
