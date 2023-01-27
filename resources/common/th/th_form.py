@@ -287,6 +287,7 @@ class TableHandlerForm(BaseComponent):
             form_attributes = form.attributes
             fkeyfield = form_attributes.get('fkeyfield')
             leftkw = dict(splitter=True)
+            tree_kwargs['store_nodeId'] = f"{form.attributes.get('formId')}_hstore"
             if (hierarchical is True or hierarchical=='open'):
                 form.store.attributes.setdefault('startKey','*norecord*')
                 form.attributes.update(form_deleted_destPkey='*norecord*')
