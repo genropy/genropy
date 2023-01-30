@@ -82,6 +82,7 @@ class PrintHandlerError(Exception):
 
 
 class UrlInfo(object):
+    mainpage_urls = ['_th','_as','_wp']
     def __init__(self,site,url_list=None,request_kwargs=None):
         self.site = site
         self.url_list = url_list
@@ -90,6 +91,8 @@ class UrlInfo(object):
         self.relpath = None
         self.plugin = None
         path_list = list(url_list)
+        if path_list[0] in  self.mainpage_urls:
+            path_list = ['sys','mainpages',path_list[0][1:]]+path_list[1:]
         if path_list[0]=='webpages':
             self.pkg = self.site.mainpackage
             self.basepath =  self.site.site_static_dir
@@ -909,13 +912,13 @@ class GnrWsgiSite(object):
                 first_segment = path_list[0]
         storageType = self.storageType(path_list)
         if storageType:
-                self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
-                return self.storageDispatcher(path_list, environ, start_response, 
+            self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
+            return self.storageDispatcher(path_list, environ, start_response, 
                                                         storageType=storageType, **request_kwargs)
         elif first_segment.startswith('_tools'):
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='TOOLS')
             return self.serve_tool(path_list, environ, start_response, **request_kwargs)
-        elif first_segment.startswith('_'):
+        elif first_segment.startswith('_') and not first_segment in UrlInfo.mainpage_urls:
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STATIC')
             try:
                 return self.statics.static_dispatcher(path_list, environ, start_response, **request_kwargs)
@@ -975,6 +978,7 @@ class GnrWsgiSite(object):
         if uri:
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
+
 
     def checkForDbStore(self,path_list,request_kwargs):
         if not path_list and not (request_kwargs.get('temp_dbstore') or '').startswith('@'):
