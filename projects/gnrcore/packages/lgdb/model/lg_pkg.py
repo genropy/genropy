@@ -45,7 +45,9 @@ class Table(object):
             if legacy_schema!=schema:
                 continue
             tables = externaldb.adapter.listElements('tables', schema=schema, comment=True)
-            for tbl,comment in tables:
+            print(len(tables))
+            for i,(tbl,comment) in enumerate(tables):
+                print(f"{i}/{len(tables)}")
                 primary_key = externaldb.adapter.getPkey(schema=legacy_schema, table=tbl)
                 if primary_key:
                     if isinstance(primary_key,list):

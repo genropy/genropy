@@ -3,7 +3,27 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from werkzeug.serving import run_simple
-from werkzeug.debug.tbtools import get_current_traceback, render_console_html
+from werkzeug.debug.tbtools import render_console_html
+try:
+    from werkzeug.debug.tbtools import DebugTraceback
+    def traceback_frames(e,show_hidden_frames):
+        tb = DebugTraceback(e, skip=1, hide=not show_hidden_frames)
+        return tb,tb.all_frames
+
+    def render_tb(tb, *args, **kwargs):
+        return tb.render_debugger_html(*args, **kwargs)
+
+except ImportError:
+    from werkzeug.debug.tbtools import get_current_traceback
+    def traceback_frames(e,show_hidden_frames):
+        tb = get_current_traceback(skip=1,
+                show_hidden_frames=show_hidden_frames,
+                ignore_system_exceptions=True)
+        return tb, tb.frames
+
+    def render_tb(tb, *args, **kwargs):
+        return tb.render_full(*args, **kwargs)
+
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
 import glob
@@ -74,17 +94,19 @@ class GnrDebuggedApplication(DebuggedApplication):
                 yield item
             if hasattr(app_iter, 'close'):
                 app_iter.close()
-        except Exception:
+        except Exception as e:
             if hasattr(app_iter, 'close'):
                 app_iter.close()
-            traceback = get_current_traceback(
-                skip=1, show_hidden_frames=self.show_hidden_frames,
-                ignore_system_exceptions=True)
-            for frame in traceback.frames:
-                self.frames[frame.id] = frame
-            self.tracebacks[traceback.id] = traceback
+
+
+            traceback, tb_frames = traceback_frames(e,self.show_hidden_frames)
+            traceback_id = id(traceback)
+            for frame in tb_frames:
+                self.frames[id(frame)] = frame
+            self.tracebacks[traceback_id] = traceback
             request = Request(environ)
-            debug_url = '%sconsole?error=%i'%(request.host_url, traceback.id)
+            frm=''
+            debug_url = '%sconsole?error=%i'%(request.host_url, traceback_id)
 
             print('{color_blue}Error occurred, debug on: {style_underlined}{debug_url}{nostyle}'.format(
                                                                     debug_url=debug_url, **log_styles()))
@@ -108,12 +130,11 @@ class GnrDebuggedApplication(DebuggedApplication):
                     'sent.\n')
             else:
                 is_trusted = bool(self.check_pin_trust(environ))
-                yield traceback.render_full(evalex=self.evalex,
+                yield render_tb(traceback,evalex=self.evalex,
                                             evalex_trusted=is_trusted,
                                             secret=self.secret) \
                     .encode('utf-8', 'replace')
-            traceback.log(environ['wsgi.errors'])
-
+            
 
     def display_console(self, request):
         """Display a standalone shell."""
@@ -121,7 +142,7 @@ class GnrDebuggedApplication(DebuggedApplication):
         traceback = self.tracebacks.get(error)
         is_trusted = bool(self.check_pin_trust(request.environ))
         if traceback:
-            return Response(traceback.render_full(evalex=self.evalex,
+            return Response(render_tb(traceback,evalex=self.evalex,
                                             evalex_trusted=is_trusted,
                                             secret=self.secret) \
                     .encode('utf-8', 'replace'),
@@ -154,100 +175,100 @@ class Server(object):
     """
 
     LOGGING_LEVELS = {'notset': logging.NOTSET,
-                      'debug': logging.DEBUG,
-                      'info': logging.INFO,
-                      'warning': logging.WARNING,
-                      'error': logging.ERROR,
-                      'critical': logging.CRITICAL}
+                    'debug': logging.DEBUG,
+                    'info': logging.INFO,
+                    'warning': logging.WARNING,
+                    'error': logging.ERROR,
+                    'critical': logging.CRITICAL}
 
     parser = optparse.OptionParser(usage)
     parser.add_option('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
-                      help="Logging level",
-                      choices=list(LOGGING_LEVELS.keys()),
-                      default="warning")
+                    help="Logging level",
+                    choices=list(LOGGING_LEVELS.keys()),
+                    default="warning")
     parser.add_option('--log-file',
-                      dest='log_file',
-                      metavar='LOG_FILE',
-                      help="Save output to the given log file (redirects stdout)")
+                    dest='log_file',
+                    metavar='LOG_FILE',
+                    help="Save output to the given log file (redirects stdout)")
     parser.add_option('--reload',
-                      dest='reload',
-                      action='store_true',
-                      help="Use auto-restart file monitor")
+                    dest='reload',
+                    action='store_true',
+                    help="Use auto-restart file monitor")
     parser.add_option('--noreload',
-                      dest='reload',
-                      action='store_false',
-                      help="Do not use auto-restart file monitor")
+                    dest='reload',
+                    action='store_false',
+                    help="Do not use auto-restart file monitor")
     parser.add_option('--debug',
-                      dest='debug',
-                      action='store_true',
-                      help="Use weberror debugger")
+                    dest='debug',
+                    action='store_true',
+                    help="Use weberror debugger")
     parser.add_option('--nodebug',
-                      dest='debug',
-                      action='store_false',
-                      help="Don't use weberror debugger")
+                    dest='debug',
+                    action='store_false',
+                    help="Don't use weberror debugger")
     parser.add_option('--profile',
-                      dest='profile',
-                      action='store_true',
-                      help="Use profiler at /__profile__ url")
+                    dest='profile',
+                    action='store_true',
+                    help="Use profiler at /__profile__ url")
     parser.add_option('--websocket',
-                      dest='websocket',
-                      action='store_true',
-                      help="Use websocket")
+                    dest='websocket',
+                    action='store_true',
+                    help="Use websocket")
     parser.add_option('-t','--tornado',
-                      dest='tornado',
-                      action='store_true',
-                      help="Serve using tornado")
+                    dest='tornado',
+                    action='store_true',
+                    help="Serve using tornado")
 
     parser.add_option('--reload-interval',
-                      dest='reload_interval',
-                      default=1,
-                      help="Seconds between checking files (low number can cause significant CPU usage)")
+                    dest='reload_interval',
+                    default=1,
+                    help="Seconds between checking files (low number can cause significant CPU usage)")
 
     parser.add_option('-c', '--config',
-                      dest='config_path',
-                      help="gnrserve directory path")
+                    dest='config_path',
+                    help="gnrserve directory path")
 
     parser.add_option('-p', '--port',
-                      dest='port',
-                      help="Sets server listening port (Default: 8080)")
+                    dest='port',
+                    help="Sets server listening port (Default: 8080)")
 
     parser.add_option('-H', '--host',
-                      dest='host',
-                      help="Sets server listening address (Default: 0.0.0.0)")
+                    dest='host',
+                    help="Sets server listening address (Default: 0.0.0.0)")
 
     parser.add_option('--restore',
-                      dest='restore',
-                      help="Restore from path")
+                    dest='restore',
+                    help="Restore from path")
     parser.add_option('--source_instance',
-                      dest='source_instance',
-                      help="Import from instance")
+                    dest='source_instance',
+                    help="Import from instance")
 
     parser.add_option('--remote_edit',
-                      dest='remote_edit',
-                      action='store_true',
-                      help="Enable remote edit")
+                    dest='remote_edit',
+                    action='store_true',
+                    help="Enable remote edit")
     parser.add_option('-g','--gzip',
-                      dest='gzip',
-                      action='store_true',
-                      help="Enable gzip compressions")
+                    dest='gzip',
+                    action='store_true',
+                    help="Enable gzip compressions")
 
     parser.add_option('--verbose',
-                      dest='verbose',
-                      action='store_true',
-                      help='Verbose')
+                    dest='verbose',
+                    action='store_true',
+                    help='Verbose')
 
     parser.add_option('-s', '--site',
-                      dest='site_name',
-                      help="Use command on site identified by supplied name")
+                    dest='site_name',
+                    help="Use command on site identified by supplied name")
 
     parser.add_option('-n', '--noclean',
-                      dest='noclean',
-                      help="Don't perform a clean (full reset) restart",
-                      action='store_true')
+                    dest='noclean',
+                    help="Don't perform a clean (full reset) restart",
+                    action='store_true')
 
     parser.add_option('--counter',
-                      dest='counter',
-                      help="Startup counter")
+                    dest='counter',
+                    help="Startup counter")
 
     parser.add_option('--ssl_cert',
                       dest='ssl_cert',
@@ -390,6 +411,7 @@ class Server(object):
         time.sleep(1)
 
     def serve(self):
+        print('seee')
         port = int(self.options.port)
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host

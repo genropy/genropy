@@ -53,6 +53,8 @@ class Main(BaseResourceAction):
         columns_bag = Bag()
         table_data['_columns'] = columns_bag
         caption_field = None
+        if not self.columns_records.get(tbl['id']):
+            return
         for colrec in self.columns_records[tbl['id']]:
             legacy_name = colrec['name']
             if legacy_name=='_multikey':
@@ -74,6 +76,8 @@ class Main(BaseResourceAction):
 
 
     def makeOneTable(self,table_data=None):
+        if not table_data:
+            return
         l = [START_SOURCE]
         table = table_data.pop('name')
         sn = self.resultNode.child('{}.py'.format(table))

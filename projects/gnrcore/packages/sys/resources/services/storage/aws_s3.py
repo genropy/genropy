@@ -16,9 +16,7 @@ import tempfile
 import mimetypes
 from datetime import datetime
 import warnings
-import six
-if six.PY3:
-    warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
 
 class S3LocalFile(object):

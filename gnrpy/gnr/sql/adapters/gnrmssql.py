@@ -83,7 +83,6 @@ class DictCursorWrapper(Cursor):
         for key in list(args.keys()):
             if not isinstance(args[key], (int,str,list,tuple, bool, float, Decimal)):
                 args[key] = None
-        print(operation, args)
         return super(DictCursorWrapper, self).execute(operation, args)
 
     def _build_index(self):
@@ -181,6 +180,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pymssql.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         if not dbname:
             dbname = self.dbroot.get_dbname()
@@ -190,6 +190,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         curs.close()
         conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         return """CREATE DATABASE "%s";""" % (dbname)
 

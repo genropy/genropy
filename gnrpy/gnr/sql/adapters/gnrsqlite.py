@@ -76,6 +76,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         connection_parameters = self.dbroot.get_connection_params(storename=storename)
+        connection_parameters.pop('implementation',None)
+        
         dbpath = connection_parameters.get('database')
         if not os.path.exists(dbpath):
             dbdir = os.path.dirname(dbpath) or os.path.join('..','data')
@@ -126,6 +128,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         val = '1' if m.group(2).lower() == 'true' else '0'
         return ' %s%s ' %(op,val)
 
+    @classmethod
     def adaptSqlName(self,name):
         return '"%s"' %name
 

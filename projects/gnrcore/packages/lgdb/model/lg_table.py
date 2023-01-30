@@ -150,10 +150,14 @@ class Table(object):
             elif dtype == 'C':
                 col_dict['dtype'] = 'A'
                 col_dict['size'] = length
+            legacy_name = colname
             colname = colname.lower()
             colname = colname.replace(' ','_').replace('.','_')
-            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],size=col_dict.get('size'), description=description,
-                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=tbl['lg_pkg'],tbl=tbl_name,name=colname),
+            lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],
+                                                size=col_dict.get('size'), description=description,
+                                                full_name='{pkg}.{tbl}.{name}'.format(pkg=tbl['lg_pkg'],
+                                                    tbl=tbl_name,name=colname),
+                                                legacy_name = legacy_name,
                                                 lg_table_id=tbl['id']))
 
 

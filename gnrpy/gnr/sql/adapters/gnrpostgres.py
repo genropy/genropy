@@ -99,6 +99,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
@@ -134,34 +135,49 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sql = self.adaptTupleListSet(sql,kwargs)
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
-    def adaptSqlName(self,name):
+    @classmethod
+    def adaptSqlName(cls, name):
         return '"%s"' %name
 
+
     def _managerConnection(self):
-        dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port)
+        return self._classConnection(host=self.dbroot.host, 
+            port=self.dbroot.port,
+            user=self.dbroot.user, 
+            password=self.dbroot.password)
+
+    @classmethod
+    def _classConnection(cls, host=None, port=None,
+        user=None, password=None):
+        kwargs = dict(host=host, database='template1', user=user,
+                    password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        #conn = PersistentDB(psycopg2, 1000, **kwargs).connection()
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
-        conn = self._managerConnection()
+    @classmethod
+    def _createDb(cls, dbname=None, host=None, port=None,
+        user=None, password=None, encoding='unicode'):
+        conn = cls._classConnection(host=host, user=user,
+            password=password, port=port)
         curs = conn.cursor()
         try:
-            curs.execute("""CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding))
+            curs.execute(cls.createDbSql(dbname, encoding))
             conn.commit()
         except:
-            raise DbAdapterException("Could not create database %s" % dbname)
+            raise DbAdapterException(f"Could not create database {dbname}")
         finally:
             curs.close()
             conn.close()
             curs = None
             conn = None
+
+    def createDb(self, dbname=None, encoding='unicode'):
+        if not dbname:
+            dbname = self.dbroot.get_dbname()
+        self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+            user=self.dbroot.user, password=self.dbroot.password)
 
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
@@ -171,15 +187,25 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sql = "LOCK %s IN %s MODE %s;" % (dbtable.model.sqlfullname, mode, nowait)
         self.dbroot.execute(sql)
 
-    def createDbSql(self, dbname, encoding):
-        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
+    @classmethod
+    def createDbSql(cls, dbname, encoding):
+        return f"""CREATE DATABASE "{dbname}" ENCODING '{encoding}';"""
 
-    def dropDb(self, name):
-        conn = self._managerConnection()
+    @classmethod
+    def _dropDb(cls, dbname=None, host=None, port=None,
+        user=None, password=None):
+        conn = cls._classConnection(host=host, user=user,
+            password=password, port=port)
         curs = conn.cursor()
-        curs.execute('DROP DATABASE IF EXISTS "%s";' % name)
+        curs.execute(f'DROP DATABASE IF EXISTS "{dbname}";')
         curs.close()
         conn.close()
+        curs = None
+        conn = None
+
+    def dropDb(self, dbname=None):
+        self._dropDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+            user=self.dbroot.user, password=self.dbroot.password)
 
 
     def dropTable(self, dbtable,cascade=False):
@@ -242,17 +268,22 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Drop an existing database
 
         :param filename: db name"""
+        self.restore_dump(filename=filename, 
+            dbname=dbname or self.dbroot.dbname, host=self.dbroot.host,
+            port=self.dbroot.port, user=self.dbroot.user,
+            password=self.dbroot.password)
+
+    @classmethod
+    def restore_dump(cls, filename=None, dbname=None, host=None,
+        port=None, user=None, password=None):
         from subprocess import call
-        dbname = dbname or self.dbroot.dbname
         from multiprocessing import cpu_count
-
+        host = host or 'localhost'
+        port = port or '5432'
         if filename.endswith('.pgd'):
-            host = self.dbroot.host or 'localhost'
-            port = self.dbroot.port or '5432'
-            call(['pg_restore', f"""--dbname=postgresql://{self.dbroot.user}:{self.dbroot.password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
+            call(['pg_restore', f"""--dbname=postgresql://{user}:{password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
         else:
-            return call(['psql', "dbname=%s user=%s password=%s" % (dbname, self.dbroot.user, self.dbroot.password), '-f', filename])
-
+            return call(['psql', f"postgresql://{user}:{password}@{host}:{port}/{dbname}", '-f', filename])
 
     def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
                                 source_dbuser=None,source_dbpassword=None,

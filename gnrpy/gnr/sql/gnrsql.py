@@ -486,9 +486,7 @@ class GnrSqlDb(GnrObject):
                     sqlargs[k] = v[1:]
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False:
             storename = self.rootstore
-        print('storename prima della with',storename)
         with self.tempEnv(storename=storename):
-            print('nel tempenv',storename,self.currentEnv.get('storename'))
             if _adaptArguments:
                 sql=sql.replace(r'\:',chr(1 ))
                 sql, sqlargs = self.adapter.prepareSqlText(sql, sqlargs)

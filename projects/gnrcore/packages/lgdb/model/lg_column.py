@@ -15,7 +15,8 @@ class Table(object):
                                                                         mode='foreignkey',
                                                                         onDelete='cascade', 
                                                                         meta_thmode='dialog')
-        tbl.column('name', size=':40', name_long='Name')
+        tbl.column('name', size=':100', name_long='Name')
+        tbl.column('legacy_name', size=':100', name_long='Legacy Name')
         tbl.column('full_name', name_long='Full Name')
         tbl.column('data_type', size=':10', name_long='Data Type')
         tbl.column('old_type', size=':10', name_long='Old Type')
@@ -30,6 +31,7 @@ class Table(object):
                                                 table='lgdb.lg_relation',
                                                 where='$related_column=#THIS.full_name'))
         tbl.aliasColumn('table_sqlname','@lg_table_id.sqlname',static=True)
+        tbl.formulaColumn('legacy_sqlname',"$table_sqlname||'.'||$legacy_name",static=True)
 
 
     def importColumn(self, tbl_id, colobj, import_mode=None):

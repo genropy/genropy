@@ -29,7 +29,6 @@ from past.builtins import basestring, str as old_str
 from past.utils import old_div
 import datetime
 import re
-import six
 from gnr.core import gnrstring
 from gnr.core.gnrdate import decodeOneDate, decodeDatePeriod
 from gnr.core.gnrlang import gnrImport, serializedFuncName
@@ -320,7 +319,7 @@ class GnrClassCatalog(object):
         """
         from gnr.core.gnrbag import Bag
         
-        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[basestring, old_str, six.text_type], empty='')
+        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[basestring, old_str, str], empty='')
         #self.addSerializer("asText", unicode, lambda txt: txt)
         
         self.addClass(cls=float, key='R', aliases=['REAL', 'FLOAT', 'F'], align='R', empty=0.0)

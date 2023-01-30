@@ -24,7 +24,6 @@ import time
 import Pyro4
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
 from gnr.web.gnrtask import GnrTaskScheduler
-import six
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
@@ -102,8 +101,6 @@ class GnrDaemonProxy(object):
         if use_environment:
             options = getFullOptions(options=options)
         self.hmac_key = options.get('hmac_key') or PYRO_HMAC_KEY
-        if six.PY2:
-            self.hmac_key = bytes(self.hmac_key)
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = self.hmac_key
         Pyro4.config.SERIALIZER = options.get('serializer','pickle')
@@ -173,8 +170,6 @@ class GnrDaemon(object):
         self.socket = socket
         self.sockets = sockets
         self.hmac_key = hmac_key or PYRO_HMAC_KEY
-        if six.PY2:
-            self.hmac_key = bytes(self.hmac_key)
         if OLD_HMAC_MODE:
             Pyro4.config.HMAC_KEY = self.hmac_key
         if compression:

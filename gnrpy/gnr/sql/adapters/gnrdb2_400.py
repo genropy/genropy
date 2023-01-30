@@ -138,10 +138,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             raise GnrNonExistingDbException(dsn)
         return DictConnectionWrapper(connection=conn)
 
-    def adaptSqlName(self,name):
+    @classmethod
+    def adaptSqlName(cls,name):
         return name
-        return '{name}'.format(name=name)
-
 
     def adaptSqlSchema(self,name):
         pass
@@ -192,6 +191,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pyodbc.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         pass
         #if not dbname:
@@ -202,6 +202,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #curs.close()
         #conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         pass
         #return """CREATE DATABASE "%s";""" % (dbname)

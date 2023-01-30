@@ -116,6 +116,7 @@ class SqlDbAdapter(object):
         @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
         raise NotImplementedException()
 
+    @classmethod
     def createdb(self, name, encoding=None):
         """-- IMPLEMENT THIS --
         Create a new database
@@ -252,8 +253,9 @@ class SqlDbAdapter(object):
 
     def schemaName(self, name):
         return self.dbroot.fixed_schema or name
-        
-    def adaptSqlName(self,name):
+
+    @classmethod
+    def adaptSqlName(cls,name):
         return name
 
     def adaptSqlSchema(self,name):
@@ -682,6 +684,7 @@ class SqlDbAdapter(object):
         
         return "CREATE %sINDEX %s ON %s (%s);" % (unique, index_name, table_sql, columns)
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         pass
 

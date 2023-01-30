@@ -16,10 +16,10 @@ redbaron
 future
 boto3
 smart_open==4.2.0
-tornado<5
+tornado
 gunicorn
 supervisor
-lxml
+#lxml
 openpyxl
 psutil
 simpleeval

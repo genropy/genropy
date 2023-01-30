@@ -17,7 +17,6 @@ import io
 detach_dir = '.'
 import os
 import re
-import six
 BASE_RE = re.compile('<base .*?>')
 wait = 600
 

@@ -14,7 +14,7 @@
 	<site>
 		<gnrdaemon hmac_key="DOCKER" host="localhost" port="40407"/>
         <gui css_theme="mimi"/>
-		<wsgi mainpackage="{GNR_MAINPACKAGE}"/>
+		<wsgi mainpackage="{GNR_MAINPACKAGE}" external_host="{GNR_EXTERNALHOST}" websockets='true'/>
     	<options liveUpdate="*"/>
     	<sitedaemon/>
 		<resources >

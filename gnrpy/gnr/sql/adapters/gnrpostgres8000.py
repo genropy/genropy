@@ -128,13 +128,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
     def _managerConnection(self):
-        dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port)
+        return self._classConnection(host=self.dbroot.host, 
+            port=self.dbroot.port,
+            user=self.dbroot.user, 
+            password=self.dbroot.password)
+
+    @classmethod
+    def _classConnection(cls, host=None, port=None,
+        user=None, password=None):
+        kwargs = dict(host=host, database='template1', user=user,
+                    password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        #conn =  psycopg2.connect(**kwargs)
         conn = DictConnectionWrapper(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
     def createDb(self, name, encoding='unicode'):
