@@ -784,8 +784,8 @@ class TableBase(object):
 
 
     @public_method
-    def pathFromPkey(self,pkey=None,dbstore=None):
-        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore)
+    def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):
+        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore,**kwargs)
 
     @public_method
     def getHierarchicalPathsFromPkeys(self,pkeys=None,related_kwargs=None,parent_id=None,dbstore=None,**kwargs):

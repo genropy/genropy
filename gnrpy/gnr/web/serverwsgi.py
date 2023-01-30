@@ -13,7 +13,7 @@ import optparse
 import atexit
 import logging
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
+from gnr.core.gnrlog import enable_colored_logging, log_styles
 from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 import re
@@ -86,7 +86,8 @@ class GnrDebuggedApplication(DebuggedApplication):
             request = Request(environ)
             debug_url = '%sconsole?error=%i'%(request.host_url, traceback.id)
 
-            print('Error occurred, debug on: %s', debug_url)
+            print('{color_blue}Error occurred, debug on: {style_underlined}{debug_url}{nostyle}'.format(
+                                                                    debug_url=debug_url, **log_styles()))
 
             try:
                 start_response('500 INTERNAL SERVER ERROR', [
@@ -400,7 +401,8 @@ class Server(object):
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
-            print(f'[{now}]\tStarting Tornado server - listening on http://127.0.0.1:{port}')
+            print('[{now}]\t{color_blue}Starting Tornado server - listening on {style_underlined}http://{host}:{port}{nostyle}'.format(
+                                host=host, port=port, now=now, **log_styles()))
             server=GnrAsyncServer(port=port,instance=site_name,
                 web=True, autoreload=self.options.reload, site_options=site_options)
             server.start()
@@ -410,18 +412,26 @@ class Server(object):
                                     counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
                                     options=self.options)
             atexit.register(gnrServer.on_site_stop)
+            extra_info = []
             if self.debug:
                 gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
-            print(f'[{now}]\tStarting server - listening on http://127.0.0.1:{port}')
-            ssl_context=None
+                extra_info.append('Debug mode: On')
+            ssl_context = None
+            localhost = 'http://127.0.0.1'
             if self.options.ssl:
                 from gnr.app.gnrconfig import gnrConfigPath
                 cert_path = os.path.join(gnrConfigPath(),'localhost.pem')
                 key_path = os.path.join(gnrConfigPath(),'localhost-key.pem')
                 if os.path.exists(cert_path) and os.path.exists(key_path):
                     ssl_context = (cert_path, key_path)
-            if self.options.ssl_cert and self.options.ssl_cert:
-                ssl_context=(self.options.ssl_cert,self.options.ssl_cert)
+                extra_info.append('SSL mode: On')
+                localhost = 'https://localhost'
+            if self.options.ssl_cert and self.options.ssl_key:
+                ssl_context=(self.options.ssl_cert,self.options.ssl_key)
+                extra_info.append(f'SSL mode: On {ssl_context}')
+                localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
+            print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format( 
+                            localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
             run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
                 reloader_type='stat', ssl_context=ssl_context)
 

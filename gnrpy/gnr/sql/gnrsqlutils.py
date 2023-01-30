@@ -10,7 +10,7 @@ from __future__ import print_function
 #from builtins import object
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
 
 class ModelExtractor(object):
     """TODO"""
@@ -244,6 +244,8 @@ class SqlModelChecker(object):
                     old_dtype = dbcolumns[col.sqlname]['dtype']
                     old_size = dbcolumns[col.sqlname].get('size')
                     old_notnull = dbcolumns[col.sqlname].get('notnull')
+                    if not 'pkey' in tblattr:
+                        raise GnrSqlException(f'Missing pkey in table {tbl.fullname}')
                     if tblattr['pkey']==col.sqlname:
                         new_notnull = old_notnull
                     old_unique = self.unique_constraints['%s.%s.%s'%(tbl.sqlschema,tbl.sqlname,col.sqlname)]

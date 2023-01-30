@@ -6379,13 +6379,13 @@ dojo.declare("gnr.stores._Collection",null,{
         if(pkey && data){
             data=data.getNodes();
             var k = -1;
-            dojo.some(data,function(n){
+            data.some(function(n){
                 k++;
-                if(that.keyGetter(n)==pkey){
+                if(isEqual(that.keyGetter(n),pkey)){
                     result = k;
                     return true;
                 }
-            });
+            })
             if(fiteredIndex!==false && result>=0 && this._filtered){
                 return this._filtered.indexOf(result);
             }

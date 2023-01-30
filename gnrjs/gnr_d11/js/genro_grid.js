@@ -2718,6 +2718,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             this.applyFilter();
         }
         this.restoreSelectedRows();
+        if(this.sourceNode.attr.selectedId && this.sourceNode.attr.selectedId.startsWith('^')){
+            this.setSelectedId(this.sourceNode.getAttributeFromDatasource('selectedId'));
+        }
         this.fillServerTotalize();
     },
 
@@ -4222,6 +4225,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 idx = nrow - 1;
             }
             this.selection.select(idx);
+            this.scrollToRow(idx);
         }
     },
 

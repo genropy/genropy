@@ -125,7 +125,7 @@ class FrameIndex(BaseComponent):
             self.prepareBottom_mobile(bc)
             self.prepareCenter_mobile(bc)
         if new_window:
-            self.loginDialog(pane)
+            self.loginDialog(pane,new_window=True)
         else:
             self.login_newPassword(pane)
         return bc

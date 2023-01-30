@@ -319,16 +319,21 @@ class HierarchicalHandler(object):
                                                 subtable=subtable)
         b.setItem('root',v,caption=caption,child_count=1,pkey='',treeIdentifier='_root_',table=self.tblobj.fullname,
                     search_method=self.tblobj.hierarchicalSearch,search_related_table=related_kwargs.get('table'),
-                    search_related_path=related_kwargs.get('path'),search_related_caption_field=related_kwargs.get('caption_field'))
+                    search_related_path=related_kwargs.get('path'),root_id=root_id,
+                    search_related_caption_field=related_kwargs.get('caption_field'))
         if resolved:
             def cb(self,*args,**kwargs):
                 pass
             b.walk(cb,_mode='')
         return b
-
-    def pathFromPkey(self,pkey=None,related_kwargs=None,dbstore=None):
-        hierarchical_pkey =  self.tblobj.readColumns(columns='$hierarchical_pkey',pkey=pkey,_storename=dbstore)
-        path = hierarchical_pkey.replace('/','.') if hierarchical_pkey else 'root'
+    @extract_kwargs(condition=True)
+    def pathFromPkey(self,pkey=None,related_kwargs=None,dbstore=None,condition=None,condition_kwargs=None,**kwargs):
+        if condition:
+            condition = f'${self.tblobj.pkey}=:_search_pk AND ({condition})'
+            condition_kwargs['_search_pk'] = pkey
+            pkey = None
+        hierarchical_pkey =  self.tblobj.readColumns(columns='$hierarchical_pkey',pkey=pkey,_storename=dbstore,**condition_kwargs)
+        path = hierarchical_pkey.replace('/','.') if hierarchical_pkey else None
         return path
 
     def getHierarchicalPathsFromPkeys(self,pkeys=None,related_kwargs=None,parent_id=None,dbstore=None,alt_pkey_field=None,**kwargs):

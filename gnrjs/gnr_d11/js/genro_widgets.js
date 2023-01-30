@@ -4158,16 +4158,18 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         this.searchOnBlur=false;
      },
 
-     patch_isValid: function(/*Boolean*/ isFocused){
-        if(isFocused){
-            return true;
-        }
-        let searchrows = this.store.mainbag.getItem('#0');
-        if(!searchrows || searchrows.len()===0){
-            return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
-        }
-        return this.isValid_replaced(isFocused);
-    },
+   //patch_isValid: function(/*Boolean*/ isFocused){
+   //    if(isFocused){
+   //        return true;
+   //    }
+   //    let searchrows = this.store.mainbag.getItem('#0');
+   //    let position = this.sourceNode
+   //    if(!searchrows || searchrows.len()===0){
+   //        return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
+   //    }
+   //    return this.isValid_replaced(isFocused);
+   //},
+    
 
 });
 
@@ -4767,10 +4769,12 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
              
             //gnrwdg.fakeinputNode = fakeinput.getParentNode();
 
-             if(objectNotEmpty(uploadAttr)){
+             if(objectNotEmpty(uploadAttr) || attr.dataUrlMode){
+                
                  attr.dropTarget=true;
                  attr.dropTypes='Files,text/plain';
                  attr.drop_ext=uploadAttr.ext || this._default_ext;
+                 attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*';
                  var src=sourceNode.attr.src;
                  attr.onDrop_text_html = function(dropInfo,data){
                     console.log('texthtml',dropInfo,data)
@@ -4801,7 +4805,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             that.centerImage(sourceNode,cropAttr);
                         };
                     }
-                    if(uploadAttr.folder=='*'){
+                    if(attr.dataUrlMode){
                         var reader = new FileReader();
                         reader.onload = function(event){
                             sourceNode.setRelativeData(src,event.target.result);
@@ -4818,9 +4822,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             onResult:function(result){
                                 var url = this.responseText;
                                 sourceNode.setRelativeData(src,that.decodeUrl(sourceNode,url).formattedUrl);
-                             }});
+                                }});
                     }
-                 }
+                    }
                 sourceNode._('input','fakeinput',{hidden:true,type:'file',
                 connect_onchange:function(evt){
                     cbOnDropData({
@@ -4896,11 +4900,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             
         }});
         slotbar._('button','upload',{label:'Upload',command:'upload'});
-        if(sourceNode.attr.takePicture){
+        if(sourceNode.attr.takePicture && sourceNode.attr.dataUrlMode){
             slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
         }
         if(src){
-            slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+            if(sourceNode.attr.dataUrlMode){
+                slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+            }
             slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
         }
         dlg.show_action();
@@ -5071,6 +5077,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 return;
             }
             var params = parsedUrl.params;
+            
             params = objectUpdate(params,{'v_y':margin_top,'v_x':margin_left});
             var url = this.encodeUrl(parsedUrl);
             sourceNode.setAttributeInDatasource('src',url,true);

@@ -438,9 +438,7 @@ class GnrWebUtils(GnrBaseProxy):
         table = tblobj.fullname
         pageMethods = objectExtract(self.page,'{res_type}Menu_'.format(res_type=res_type))
         catalog = GnrClassCatalog()
-        def cb(k,handler):
-            if not getattr(handler,'is_rpc',None):
-                return
+        def cb(k,handler):  
             tags = getattr(handler,'tags',None)
             if tags and not self.application.checkResourcePermission(tags, page.userTags):
                 return
@@ -456,19 +454,22 @@ class GnrWebUtils(GnrBaseProxy):
                     return
             elif handler_topic:
                 return
-            handler_kwargs = dict(caption=getattr(handler, 'caption', k),
-                                    description = getattr(handler, 'description', ''),
-                                    tip=getattr(handler, 'tip', None),
-                                    disabled=getattr(handler,'disabled',None),
-                                    hidden=getattr(handler,'hidden',None),
-                                    askParameters=getattr(handler,'askParameters',None),
-                                    _lockScreen=getattr(handler,'_lockScreen',None),
-                                    _onResult=getattr(handler,'_onResult',None),
-                                    _onCalling=getattr(handler,'_onCalling',None)
-                                    )
-            for k,v in objectExtract(handler,'rpc_').items():
-                handler_kwargs['rpc_{}'.format(k)] = v
-            handler_kwargs['rpcmethod'] = catalog.asText(handler)
+            if getattr(handler,'is_rpc',None):
+                handler_kwargs = dict(caption=getattr(handler, 'caption', k),
+                                        description = getattr(handler, 'description', ''),
+                                        tip=getattr(handler, 'tip', None),
+                                        disabled=getattr(handler,'disabled',None),
+                                        hidden=getattr(handler,'hidden',None),
+                                        askParameters=getattr(handler,'askParameters',None),
+                                        lockScreen=getattr(handler,'lockScreen',None),
+                                        onResult=getattr(handler,'onResult',None),
+                                        onCalling=getattr(handler,'onCalling',None)
+                                        )
+                for k,v in objectExtract(handler,'rpc_').items():
+                    handler_kwargs['rpc_{}'.format(k)] = v
+                handler_kwargs['rpcmethod'] = catalog.asText(handler)
+            else:
+                handler_kwargs = handler()
             result.addItem(k,None,**handler_kwargs)
 
         for k,handler in pageMethods.items():

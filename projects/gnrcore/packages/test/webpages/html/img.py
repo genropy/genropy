@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import re,os
 from gnr.core.gnrdecorator import public_method
 
 "Test img"
@@ -50,23 +49,76 @@ class GnrCustomWebPage(object):
                     placeholder='https://www.genropy.org/img/placeholder_image.jpg',
                     upload_filename='^.filename', 
                     upload_folder='site:tests/image')
-        fb.dataRpc('.image_path', self.uploadImagePath, image='^.image', _if='image',
-                        _userChanges=True, _fired='^run_image')
         remove_img = fb.button('Remove', hidden='^.image?=!#v')
         #remove_img.dataController('SET .image = null;') 
         #this removes stored value but doesn't delete file on server
-        remove_img.dataRpc(self.deleteImage, file_path='=.image_path')
-    
-    @public_method
-    def uploadImagePath(self, image):
-        image_path = self.sitepath + re.sub('/_storage/site', '', image).split('?',1)[0]
-        self.clientPublish('floating_message', message='Image Upload completed')  
-        print('**UPLOADED IMAGE: ', image_path)
-        return image_path
+        remove_img.dataRpc(self.deleteImage, file_url='=.image', _onResult="SET .image=null;")
 
     @public_method
-    def deleteImage(self, file_path=None, **kwargs):
-        os.remove(file_path)
-        self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image')
-        self.setInClientData(value=None, path='test.test_2_uploadImageAndRemove.image_path')
-        print('**DELETED IMAGE: ', file_path)
+    def deleteImage(self, file_url=None, **kwargs):
+        path_list = self.site.pathListFromUrl(file_url)
+        fileSn = self.site.storageNodeFromPathList(path_list)
+        fileSn.delete()
+        print('**DELETED IMAGE: ', file_url)
+        return 'Image deleted'
+
+    def test_4_s3Storage(self,pane):
+        """Store img on S3 bucket. Please create a "s3_test" named aws_s3 storage service first"""
+        pane.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit=True, 
+                    placeholder=True,
+                    upload_filename='test_image', 
+                    upload_folder='s3_test:img_test')
+
+    def test_5_dataUrl(self, pane):
+        """Here you can convert an image saved to filesystem to a bytestring."""
+        bc = pane.borderContainer(height='200px')
+        left = bc.contentPane(region='left', width='200px')
+        left.div(border='2px dotted silver', width='150px', height='150px').img(
+                    src='^.image', 
+                    crop_width='150px',
+                    crop_height='150px',
+                    edit=True, 
+                    placeholder=True,
+                    upload_filename='test_image.jpg', 
+                    upload_folder='site:tests/image')
+        left.button('CONVERT').dataRpc('.dataurl', self.convertImageToDataUrl, image_url='=.image')
+        bc.contentPane(region='center', float='right').img(src='^.dataurl', 
+                                    width='150px', height='150px', hidden='^.dataurl?=!#v')
+
+    @public_method
+    def convertImageToDataUrl(self, image_url=None):
+        from PIL import Image
+        from urllib.parse import urlparse,parse_qs
+        import base64
+        from io import BytesIO      
+
+        img_cropdata = parse_qs(urlparse(image_url).query) 
+        path_list = self.site.pathListFromUrl(image_url)
+        img_path = self.site.storageNodeFromPathList(path_list).internal_path   #s3?
+        
+        im = Image.open(img_path)
+        format = im.format
+        width = int(img_cropdata['v_w'][0])
+        height = int(img_cropdata['v_h'][0])
+        z = float(img_cropdata['v_z'][0])
+        x = float(img_cropdata['v_x'][0])
+        y = float(img_cropdata['v_y'][0])
+        r = -int(img_cropdata['v_r'][0])
+        w = int(width * z)
+        h = int(height * z)
+        im1 = im.resize((w,h))
+        im1 = im1.rotate(r)
+        left_offset = 1 if x < 0 else 0.5
+        left = int(w/2 + x*left_offset - width/2)
+        top = int(h/2 + y - height/2)
+        right = int(left + width)
+        bottom = int(top + height)
+        im1 = im1.crop((left, top, right, bottom))
+        buffered = BytesIO()
+        im1.save(buffered, format=format)
+        data_url = base64.b64encode(buffered.getvalue())
+        return ','.join([f'data:image/{format};base64', data_url.decode()])

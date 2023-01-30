@@ -38,6 +38,16 @@ genropatches.forEachError = function(){
     }
 };
 
+genropatches.indexOfError = function(){
+    var fe = dojo.indexOf;
+    dojo['indexOf'] = function(arr,object,scope){
+        if(object instanceof Date){
+            return arr.findIndex(elem=>object.getTime()===elem.getTime());
+        }
+        return fe.call(dojo,arr,object,scope);
+    }
+};
+
 genropatches.setStateClass=function(){
     dojo.require('dijit.form._FormWidget');
     dijit.form._FormWidget.prototype._setStateClass_original = dijit.form._FormWidget.prototype._setStateClass;
