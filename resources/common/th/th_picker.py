@@ -241,8 +241,7 @@ class THPicker(BaseComponent):
                 with tblobj.recordToUpdate(fkey) as rec:
                     rec[one] = dropPkey
             else:
-                r = tblobj.newrecord()
-                r.update(d)
+                r = tblobj.newrecord(**d)
                 if dragDefaults:
                     r.update(dragDefaults[fkey])
                 tblobj.insert(r)
