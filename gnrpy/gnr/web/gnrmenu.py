@@ -194,18 +194,23 @@ class MenuResolver(BagResolver):
     @property
     def app(self):
         return self._page.application
+    
+    @property
+    def assistant_menu(self):
+        return getattr(self._page,'is_assistant_page',False)
 
 
     def pkgMenu(self,pkgId,branchMethod=None,**kwargs):
         pkg = self.getPkg(pkgId)
         if not pkg:
             return
-        pkgMenu = MenuStruct(os.path.join(pkg.packageFolder, 'menu'),
+        filename = 'assistant_menu' if self.assistant_menu else 'menu'
+        pkgMenu = MenuStruct(os.path.join(pkg.packageFolder, filename),
                                 branchMethod=branchMethod,
                                 page=self._page,
                                 **kwargs)
         for pluginname,plugin in list(pkg.plugins.items()):
-            pluginmenu = os.path.join(plugin.pluginFolder,'menu')
+            pluginmenu = os.path.join(plugin.pluginFolder,filename)
             if os.path.exists(pluginmenu):
                 pkgMenu.update(MenuStruct(pluginmenu,page=self._page))
         return pkgMenu
@@ -216,6 +221,8 @@ class MenuResolver(BagResolver):
 
     def getInstanceMenu(self):
         #legacy
+        if self.assistant_menu:
+            return
         menuinstance = os.path.join(self.app.instanceFolder, 'menu.py')
         if os.path.exists(menuinstance):
             return MenuStruct(menuinstance,page=self._page)

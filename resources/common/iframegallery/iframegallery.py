@@ -1,6 +1,6 @@
 from gnr.core.gnrdecorator import customizable,metadata
 from gnr.core.gnrlang import objectExtract
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrbag import Bag,BagNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class IframeGallery(BaseComponent):
@@ -23,6 +23,11 @@ class IframeGallery(BaseComponent):
         pages = Bag()        
         mainsc = frame.center.stackContainer(selectedPage='^main.currentPage')
         for idx,conf in enumerate(configuration):
+            conf_value = None
+            if isinstance(conf,BagNode):
+                conf_value = conf.value
+                conf = conf.attr
+                print(x)
             conf.setdefault('pageName',f'p_{idx:02}')
             pages.addItem(conf['pageName'],None,code=conf['pageName'],caption=conf['title'])
             if conf.get('url'):
