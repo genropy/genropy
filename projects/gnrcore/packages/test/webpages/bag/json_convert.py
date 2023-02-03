@@ -47,3 +47,15 @@ class GnrCustomWebPage(object):
     @public_method
     def remoteTester(self,**kwargs):
         print(xxx)
+
+
+    def test_1_rpcjson(self, pane):
+        btn = pane.button('Test')
+        btn.dataRpc(self.testResultJson,
+                    _onResult="""
+                    alert(result.message);
+                    """)
+
+    @public_method
+    def testResultJson(self):
+        return dict(message='Pippo',number=8)
