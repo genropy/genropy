@@ -539,7 +539,7 @@ class SqlTable(GnrObject):
 
     @property
     def availablePermissions(self):
-        default_table_permissions = ['ins','upd','del','archive','export','import','print','mail','action']
+        default_table_permissions = ['ins','upd','del','archive','export','import','print','mail','action','configure_view']
         if not hasattr(self,'_availablePermissions'):
             customPermissions = dict()
             for pkgid,pkgobj in list(self.db.packages.items()):
