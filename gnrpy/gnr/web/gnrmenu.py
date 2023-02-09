@@ -135,12 +135,14 @@ class MenuStruct(GnrStructData):
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
-    def packageBranch(self,label=None,pkg=None,**kwargs):
+    def packageBranch(self,label=None,pkg=None,subMenu=None,**kwargs):
+        kwargs['branchMethod'] = kwargs.get('branchMethod') or subMenu
         if pkg=='*':
             packages = [pkg for pkg in self._page.db.packages.keys() if pkg!=self._page.package.name]
         else:
             packages = pkg.split(',')
         if len(packages)>1:
+            kwargs.pop('branchMethod',None)
             branch = self.branch(label=label,**kwargs)
             for pkg in packages:
                 pkgattr = self._page.db.package(pkg).attributes
