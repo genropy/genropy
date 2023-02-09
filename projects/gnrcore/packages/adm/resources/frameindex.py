@@ -29,6 +29,7 @@ class FrameIndex(BaseComponent):
     auth_preference = 'admin'
     auth_page = 'user'
     auth_main = 'user'
+    menuClass = 'ApplicationMenu'
 
     @property
     def plugin_list(self):
