@@ -30,12 +30,12 @@ class GnrCustomWebPage(object):
                             label="<div style='padding:20px'>Drop document here <br>or double click</div>",
                             uploadPath='site:files',
                             progressBar=True,
-                            onUploadedMethod=self.uploadFile)
+                            onUploadedMethod=self.uploadFile,
+                            _lockScreen=True,
+                            onResult="alert('Hi')")
         fb.textbox('^.size', lbl='Size (kB)', readOnly=True, hidden='^.file_path?=!#v')
         fb.textbox('^.file_path', lbl='File path', readOnly=True, hidden='^.file_path?=!#v', width='100%')
         fb.textbox('^.file_url', lbl='File url', readOnly=True, hidden='^.file_path?=!#v', width='100%')
-        remove = fb.button('Remove', hidden='^.file_path?=!#v')
-        remove.dataController('SET .file_path = null; SET .size = null;')
 
     @public_method
     def uploadFile(self, file_path=None, **kwargs):
