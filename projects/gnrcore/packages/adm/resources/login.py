@@ -331,12 +331,13 @@ class LoginComponent(BaseComponent):
                     _do='^creating_new_user',_if='_do && this.form.isValid()',
                     _else='this.form.publish("message",{message:_error_message,messageType:"error"})',
                     _error_message='!!Missing data',
+                    _onError="""
+                    this.form.publish("message",{message:error,messageType:"error"});
+                    PUT creating_new_user = false;
+                    """,
                     _onResult="""if(result.ok){
                         genro.publish('closeNewUser');
                         genro.publish('floating_message',{message:result.ok,duration_out:6})
-                    }else{
-                        this.form.publish("message",{message:result.error,messageType:"error"});
-                        PUT creating_new_user = false;
                     }
                     """,_lockScreen=True)
         footer = self.login_commonFooter(form.bottom)
@@ -355,37 +356,22 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_createNewUser(self,data=None,**kwargs):
-        tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
-        mailservice = self.getService('mail')
+        data['status'] = 'new'
+        usertbl = self.db.table('adm.user')
+        usertbl.insert(data)
         try:
-            data['status'] = 'new'
-            self.db.table('adm.user').insert(data)
-            data['link'] = self.externalUrlToken(self.site.homepage, userid=data['id'],max_usages=1)
-            data['greetings'] = data['firstname'] or data['lastname']
-            email = data['email']
-            if tpl_userconfirm_id:
-                mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id)
-            else:
-                body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
-                mailservice.sendmail_template(data,to_address=email,
-                                    body=body, subject=self.loginPreference('subject') or 'Confirm user',
-                                    async_=False,html=True,scheduler=False)
-            self.db.commit()
+            usertbl.sendInvitationEmail(user_record=data,async_=False,html=True,scheduler=False)
         except Exception as e:
-            return dict(error=str(e))
+            return  dict(error=str(e))
+        self.db.commit()
         return dict(ok=self.loginPreference('new_user_ok_message') or 'Check your email to confirm')
 
     def loginPreference(self,path=None):
         if not hasattr(self,'_loginPreference'):
-            loginPreference = Bag(self.getPreference('general',pkg='adm'))
-            custom = self.getPreference('gui_customization.login',pkg='adm')
-            if custom:
-                loginPreference.update(custom,ignoreNone=True)
-            self._loginPreference = loginPreference
+            self._loginPreference = self.db.table('adm.user').loginPreference()
         if not path:
             return self._loginPreference
         return self._loginPreference[path]
-
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
@@ -394,7 +380,6 @@ class LoginComponent(BaseComponent):
         self.setInClientData('gnr.rootenv', rootenv)
         result = self.avatar.as_dict()
         return result
-
 
     @public_method
     def login_confirmUser(self, email=None,user_id=None, **kwargs):
