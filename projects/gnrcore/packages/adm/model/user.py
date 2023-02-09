@@ -28,7 +28,7 @@ class Table(object):
         tbl.column('registration_date', 'D', name_long='!!Registration Date')
         tbl.column('auth_tags', name_long='!!Authorization Tags')
         tbl.column('status', name_long='!!Status', size=':4',
-                   values='new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
+                   values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
         tbl.column('locale', name_long='!!Default Language', size=':12')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
@@ -85,6 +85,8 @@ class Table(object):
     def trigger_onInserted(self, record=None):
         if record.get('group_code'):
             self.checkExternalTable(record)
+        if record['status'] == 'invt':
+            self.sendInvitationEmail(record)
 
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('preferences',record,old_record):
@@ -229,3 +231,38 @@ class Table(object):
         if password_regex and not re.match(password_regex,value):
             return Bag(dict(errorcode='Invalid new password'))
         return True
+
+    
+    def sendInvitationEmail(self,user_record=None,**mailkwargs):
+        data = Bag(user_record)
+        loginPreference = self.loginPreference()
+        tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
+        site = self.db.application.site
+        mailservice = site.getService('mail')
+        data['link'] = self.db.currentPage.externalUrlToken(site.homepage, userid=user_record['id'],max_usages=1)
+        data['greetings'] = data['firstname'] or data['lastname']
+        email = data['email']
+        if tpl_userconfirm_id:
+            mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id,**mailkwargs)
+        else:
+            body = loginPreference['confirm_user_tpl'] or 'Dear $greetings to confirm click $link'
+            mailservice.sendmail_template(data,to_address=email,
+                                body=body, subject=loginPreference['subject'] or 'Confirm user',
+                                **mailkwargs)
+
+    def loginPreference(self):
+        loginPreference = Bag(self.db.application.getPreference('general',pkg='adm'))
+        custom = self.db.application.getPreference('gui_customization.login',pkg='adm')
+        if custom:
+            loginPreference.update(custom,ignoreNone=True)
+        return loginPreference
+
+    @public_method
+    def inviteUser(self, username=None, email=None, group_code=None, 
+                            inviting_table=None, inviting_id=None, **kwargs):
+        new_user = self.newrecord(username=username, email=email, group_code=group_code, 
+                                                        status='invt', **kwargs)
+        self.insert(new_user)
+        with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
+            inviting_rec['user_id'] = new_user['id']
+        self.db.commit()

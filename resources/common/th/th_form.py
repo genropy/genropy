@@ -178,10 +178,11 @@ class TableHandlerForm(BaseComponent):
         showtoolbar = boolean(options.pop('showtoolbar',True))
         navigation = options.pop('navigation',None)
         table = form.getInheritedAttributes()['table']  
-        
-        is_hierarchical_table =  hasattr(self.db.table(table),'hierarchicalHandler')
+        tblobj = self.db.table(table)
+        use_hierarchical_stack =  hasattr(tblobj,'hierarchicalHandler') and tblobj.attributes['hierarchical']!='pkey'
+
         form_handlerType = form.attributes.get('form_handlerType')
-        hierarchical = options.pop('hierarchical',is_hierarchical_table and form_handlerType in ('stack',None))   
+        hierarchical = options.pop('hierarchical',use_hierarchical_stack and form_handlerType in ('stack',None))   
         tree_kwargs = dictExtract(options,'tree_',pop=True) 
         readOnly = options.pop('readOnly',False)
         modal = options.pop('modal',False)

@@ -50,7 +50,8 @@ class Table(object):
         annotation_tbl = self.db.table('orgn.annotation')
         record_action = annotation_tbl.record(action_id).output('bag')
         fkey,fkey_value = annotation_tbl.recordLinkedEntity(record_action)
-        sms_number_path = annotation_tbl.column(fkey).attributes.get('sms_number')
+        linked_entity = record_action['linked_entity']
+        sms_number_path = annotation_tbl.column(fkey).attributes.get(f'linked_{linked_entity}_sms_number')
         return record_action[f'@{fkey}.{sms_number_path}']
 
     def _SMS_get_content(self,action_id=None):

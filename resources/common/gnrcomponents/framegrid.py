@@ -278,8 +278,7 @@ class FrameGridTools(BaseComponent):
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )
-        if self.application.checkResourcePermission('admin', self.userTags):
-            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
+        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         gth.dataController(f"""
             SET .selectedIndex = null;
             if(genro.nodeById(tree_nodeId)){{
@@ -350,6 +349,8 @@ class FrameGridTools(BaseComponent):
 
     @struct_method
     def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None):
+        if not self.checkTablePermission(table=table,permissions='configure_view'):
+            return
         grid = view.grid
         grid.attributes['configurable'] = True
         if closable is None:

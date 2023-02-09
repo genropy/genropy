@@ -757,12 +757,14 @@ class GnrWebPage(GnrBaseWebPage):
         return self.user == self.connection.guestname
 
     def callPackageHooks(self,method,*args,**kwargs):
+        result = {}
         for pkgId in list(self.packages.keys()): # custom methodname_packagename
             handlername = '%s_%s' %(method,pkgId)
             if hasattr(self,handlername):
-                getattr(self,handlername)(*args,**kwargs)
+                result[handlername] = getattr(self,handlername)(*args,**kwargs)
         if hasattr(self,method):#main one with method name
-            getattr(self,method)(*args,**kwargs)
+            result[method] = getattr(self,method)(*args,**kwargs)
+        return result
 
     def doLogin(self, login=None,guestName=None,authenticate=True, rootenv=None,**kwargs):
         """Service method. Set user's avatar into its connection if:
@@ -783,9 +785,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.avatar = avatar
             #self.connection.change_user(user=avatar.user,user_id=avatar.user_id,user_name=avatar.user_name,
             #                            user_tags=avatar.user_tags)
-            err = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
+            errdict = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
+            err = [err for err in errdict.values() if err is not None]
             if err:
-                login['error'] = err
+                login['error'] = ', '.join(err)
                 return (login, loginPars)
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)

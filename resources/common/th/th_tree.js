@@ -67,7 +67,12 @@ var THTree = {
             storeNode = storeNode || store.getParentNode();
             var inattr = storeNode.getInheritedAttributes();
             var kw = {pkey:pkey,dbstore:inattr.dbstore};
-            var storeattr = storeNode.currentAttributes();
+            var storeattr = storeNode.attr;
+            if(storeNode instanceof gnr.GnrDomSourceNode){
+                storeattr = storeNode.evaluateOnNode(storeattr);
+            }else{
+                storeattr = tree.sourceNode.evaluateOnNode(storeattr);
+            }
             if(storeattr.condition){
                 kw.condition = storeNode.attr.condition;
                 objectUpdate(kw,objectExtract(storeattr,'condition_*',true,true))

@@ -858,10 +858,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         }
                     });
                 }else {
-                    dojo.connect(filteringGrid,'newDataStore',function(){
+                    var cbfilter = function(){
                         widget.filterToRebuild(true);
                         widget.updateRowCount('*');
-                    });
+                    };
+                    dojo.connect(filteringGrid,'newDataStore',cbfilter);
+                    filteringGrid.sourceNode.subscribe('onExternalChanged',cbfilter);
                 }
                 widget.excludeListCb=function(){
                     //widget.sourceNode.currentFromDatasource(widget.sourceNode.attr.filteringGrid);

@@ -39,15 +39,17 @@ class BaseMenu(object):
         self.application = self.db.application
 
 class MenuStruct(GnrStructData):
-    def __init__(self,filepath=None,branchMethod=None,page=None,**kwargs):
+    def __init__(self,filepath=None,branchMethod=None,page=None,className=None,**kwargs):
         super().__init__()
         self.setBackRef()
         self.branchMethod = branchMethod
+        self.className = className
+        self._page = page
         filepath,ext = self._handleFilepath(filepath)
         if not filepath:
             return
         getattr(self,f'_handle_{ext[1:]}')(filepath,page=page,**kwargs)
-
+    
     def _getBranchMethod(self,page,obj):
         if self.branchMethod:
             return self.branchMethod
@@ -62,7 +64,11 @@ class MenuStruct(GnrStructData):
         
     def _handle_py(self,filepath,page=None,**kwargs):
         m = gnrImport(filepath, avoidDup=True)
-        mixinclass = getattr(m,'Menu',None)
+        mixinclass = None
+        if self.className:  
+            mixinclass = getattr(m,self.className,None)
+        if not mixinclass:
+            mixinclass = getattr(m,'Menu',None)
         if mixinclass:
             menuinstance = BaseMenu(page)
             instanceMixin(menuinstance,mixinclass)
@@ -129,7 +135,20 @@ class MenuStruct(GnrStructData):
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
-    def packageBranch(self,label=None,pkg=None,**kwargs):
+    def packageBranch(self,label=None,pkg=None,subMenu=None,**kwargs):
+        kwargs['branchMethod'] = kwargs.get('branchMethod') or subMenu
+        if pkg=='*':
+            packages = [pkg for pkg in self._page.db.packages.keys() if pkg!=self._page.package.name]
+        else:
+            packages = pkg.split(',')
+        if len(packages)>1:
+            kwargs.pop('branchMethod',None)
+            branch = self.branch(label=label,**kwargs)
+            for pkg in packages:
+                pkgattr = self._page.db.package(pkg).attributes
+                label = pkgattr.get('name_plural') or pkgattr.get('name_long') or pkg
+                branch.packageBranch(label=label,pkg=pkg)
+            return branch
         return self.child('packageBranch',label=label,pkg=pkg,_returnStruct=False,**kwargs)
 
     
@@ -232,7 +251,7 @@ class MenuResolver(BagResolver):
         pkgMenus = self.app.config['menu?package']
         if pkgMenus:
             return self.legacyMenuFromPkgList(pkgMenus)
-        result = self.pkgMenu(self._page.package.name)
+        result = self.pkgMenu(self._page.package.name,className=getattr(self._page,'menuClass',None))
         if len(result) == 1:
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
@@ -247,7 +266,7 @@ class MenuResolver(BagResolver):
         if len(pkgMenus)==1:
             return self.pkgMenu(pkgMenus[0])
         else:
-            result = MenuStruct()
+            result = MenuStruct(page=self._page)
             pkgMenuBag = None
             for pkgid in pkgMenus:
                 pkgMenuBag = self.pkgMenu(pkgid)
@@ -539,10 +558,10 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
-    @extract_kwargs(query=True)
+    @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
                         branchIdentifier=None, cacheTime=None,caption_field=None,
-                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,**kwargs):
+                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,**kwargs):
         super().__init__(table=table,
                             branchId=branchId,
                             label=label,
@@ -553,7 +572,9 @@ class TableMenuResolver(MenuResolver):
                             branchMethod=branchMethod,
                             cacheTime=cacheTime if cacheTime is not None else 5,
                             query_kwargs = query_kwargs,
+                            add_kwargs=add_kwargs,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
+        self.label_field = self.label_field or self.tblobj.attributes.get('caption_field')
         self.leaf_kwargs = kwargs
 
     @property
@@ -580,30 +601,36 @@ class TableMenuResolver(MenuResolver):
  
     @property
     def sourceBag(self):
-        result = MenuStruct()
+        result = MenuStruct(page=self._page)
         if self.branchMethod:
             getattr(self.tblobj,self.branchMethod)(result,**self.kwargs)
             return result
         selection = self.getMenuContentHandler()(**self.query_kwargs)
         for record in selection:
-            linekw = dict(self.leaf_kwargs)
-            linekw.update(self.getMenuLineHandler()(record))
-            linekw.setdefault('pageName',self.branchIdentifier)
-            label_field = self.label_field or self.tblobj.attributes.get('caption_field')
-            linekw.setdefault('label',record.get(label_field))
-            if self.title_field:
-                linekw.setdefault('title',record.get(self.title_field))
-            else:
-                linekw.setdefault('title',self.title or self.label)
-            if self.webpage:
-                result.webpage(label = linekw.pop('label'),url_pkey=record['pkey'],
-                                filepath=self.webpage,url_branchIdentifier=self.branchIdentifier,
-                                **{f'url_{k}':v for k,v in linekw.items()})
-            else:
-                linekw.update(objectExtract(self,'th_',slicePrefix=False))
-                result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
-                                url_branchIdentifier=self.branchIdentifier,**linekw)
+            self.appendTableItem(result,record=record)
+        if self.add_kwargs:
+            self.appendTableItem(result,record={'pkey':'*newrecord*'},**self.add_kwargs)
         return result
+    
+    def appendTableItem(self,result,record=None,**kwargs):
+        linekw = dict(self.leaf_kwargs)
+        linekw.update(self.getMenuLineHandler()(record))
+        linekw.setdefault('pageName',self.branchIdentifier)
+        linekw.setdefault('label',record.get(self.label_field))
+        if self.title_field:
+            linekw.setdefault('title',record.get(self.title_field))
+        else:
+            linekw.setdefault('title',self.title or self.label)
+        linekw.update(kwargs)
+        webpage = kwargs.get('webpage') or self.webpage
+        if webpage:
+            result.webpage(label = linekw.pop('label'),url_pkey=record['pkey'],
+                            filepath=webpage,url_branchIdentifier=self.branchIdentifier,
+                            **{f'url_{k}':v for k,v in linekw.items()})
+        else:
+            linekw.update(objectExtract(self,'th_',slicePrefix=False))
+            result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
+                            url_branchIdentifier=self.branchIdentifier,**linekw)
 
 
 class LookupBranchResolver(MenuResolver):
@@ -638,7 +665,7 @@ class LookupBranchResolver(MenuResolver):
  
     @property
     def sourceBag(self):
-        result = MenuStruct()
+        result = MenuStruct(page=self._page)
         if self.tables:
             for tbl in self.tables.split(','):
                 result.lookupPage(start_table=tbl,pageName=self.branchIdentifier,
@@ -677,7 +704,7 @@ class DirectoryMenuResolver(MenuResolver):
 
     @property
     def sourceBag(self):
-        result = MenuStruct()
+        result = MenuStruct(page=self._page)
         if self.pkg:
             folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',self.folder)
         else:
