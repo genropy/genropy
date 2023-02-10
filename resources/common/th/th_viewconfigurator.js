@@ -271,7 +271,7 @@ var genro_plugin_grid_configurator = {
                                                 height:'500px',width:'800px','dockTo':'dummyDock:open'});
 
         var frame = pane._('framePane',{frameCode:paletteCode+'_panels',center_widget:'stackContainer'});
-        var bar = frame._('slotBar',{slots:'2,stackButtons,*,saveConfiguration,copyConfigToClipboard,2',toolbar:true,side:'top'});
+        var bar = frame._('slotBar',{slots:'2,stackButtons,*,copyConfigToClipboard,5,saveConfiguration,2',toolbar:true,side:'top'});
         var that = this;
         if(!gridNode.attr.externalSave){
             bar._('slotButton','saveConfiguration',{iconClass:'iconbox save',
@@ -279,7 +279,7 @@ var genro_plugin_grid_configurator = {
                     that.saveGridView(gridId);
                 }});
         }
-        bar._('slotButton','copyConfigToClipboard',{iconClass:'iconbox duplicate_record',
+        bar._('slotButton','copyConfigToClipboard',{iconClass:'iconbox case',
                     action:function(){
                         that.copyStructToClipboard(gridId)
                     }})
