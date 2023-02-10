@@ -712,7 +712,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     creating_structure: function(attributes, sourceNode) {
         var structBag = sourceNode.getRelativeData(sourceNode.attr.structpath);
         if (structBag && genro.grid_configurator) {
-            sourceNode.setRelativeData('.resource_structs.__baseview__',structBag.deepCopy(),{caption:_T('Base View')});
+            sourceNode.setRelativeData('.resource_structs.__baseview__',structBag.deepCopy(),{caption:sourceNode.attr.baseViewName || _T('Base View')});
         }
         attributes.structBag = structBag; 
         sourceNode.registerDynAttr('structpath');
