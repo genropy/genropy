@@ -24,6 +24,14 @@ var genro_plugin_grid_configurator = {
         //this.setCurrentAsDefault(gridId);
     },
     
+    copyStructToClipboard:function(gridId) {
+        let gridSourceNode = genro.nodeById(gridId);
+        let pythonStruct = genro.dev.convertJsStructToPython(gridSourceNode.widget.structBag);
+        navigator.clipboard.writeText(pythonStruct).then(r => {
+            genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:'Paste python code into your editor'});
+        });
+    },
+
     saveGridView:function(gridId) {
         var gridSourceNode = genro.nodeById(gridId);
         var selectedViewCode = gridSourceNode.getRelativeData('.currViewAttrs.code');
@@ -263,7 +271,7 @@ var genro_plugin_grid_configurator = {
                                                 height:'500px',width:'800px','dockTo':'dummyDock:open'});
 
         var frame = pane._('framePane',{frameCode:paletteCode+'_panels',center_widget:'stackContainer'});
-        var bar = frame._('slotBar',{slots:'2,stackButtons,*,saveConfiguration,2',toolbar:true,side:'top'});
+        var bar = frame._('slotBar',{slots:'2,stackButtons,*,saveConfiguration,copyConfigToClipboard,2',toolbar:true,side:'top'});
         var that = this;
         if(!gridNode.attr.externalSave){
             bar._('slotButton','saveConfiguration',{iconClass:'iconbox save',
@@ -271,6 +279,10 @@ var genro_plugin_grid_configurator = {
                     that.saveGridView(gridId);
                 }});
         }
+        bar._('slotButton','copyConfigToClipboard',{iconClass:'iconbox duplicate_record',
+                    action:function(){
+                        that.copyStructToClipboard(gridId)
+                    }})
         this._cellsEditorGrid(frame,gridNode);
         this._columnsetsGrid(frame,gridNode);
         this._structureConfigurator(frame,gridNode);
