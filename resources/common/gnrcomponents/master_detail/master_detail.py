@@ -57,10 +57,7 @@ class MasterDetail(BaseComponent):
         pkg,tblname = tbl.split('.')
         viewResource = viewResource or 'th_{tbl}:{viewResourceClass}'.format(tbl=tblname,
                                                                             viewResourceClass=self.detail_viewResource)
-        if not md_mode:
-            md_mode = '^#FORM.record.{md_mode}'.format(md_mode=self.master_md_mode) if self.master_md_mode else 'STD'
-        self.customizeGrid(frame.grid,resource=viewResource,md_mode=md_mode,
-                                struct_customizer=struct_customizer or '=#FORM.record.{}'.format(self.detail_grid_customizer))
+        self.customizeGrid(frame.grid,resource=viewResource,md_mode=md_mode,struct_customizer=struct_customizer)
         self.detailsCustomization(frame)
 
         return frame
@@ -153,15 +150,21 @@ class MasterDetail(BaseComponent):
             self.printCustomizer(bc,field=printField,table=gridTable,region='center',margin='2px')
 
     def customizeGrid(self,grid,resource=None,md_mode=None,struct_customizer=None):
+        struct_customizer = struct_customizer or '=#FORM.record.{}'.format(self.detail_grid_customizer)
         table = grid.attributes['table']
         tblobj = self.db.table(table)
         controller = grid.dataController(datapath='.md_customizer')
         default_md_mode = tblobj.attributes.get('default_md_mode') or  DEFAULT_MD_MODE
-        md_mode = md_mode or default_md_mode
         md_structures = self.getStructures(table=table,resource=resource)['struct_grid']
         controller.data('.md_structures',md_structures)
         grid.data(grid.attributes.get('structpath','.struct'),md_structures[default_md_mode])
-
+        _fireOnRecordLoaded = None
+        if not md_mode:
+            if self.master_md_mode:
+                md_mode = '^#FORM.record.{md_mode}'.format(md_mode=self.master_md_mode)
+            else:
+                md_mode = default_md_mode
+                _fireOnRecordLoaded = '^#FORM.controller.loaded'
         if hasattr(tblobj,'md_fkeys'):
             md_fkeys = tblobj.md_fkeys()
             controller.data('.md_fkeys',Bag(md_fkeys))
@@ -188,7 +191,7 @@ class MasterDetail(BaseComponent):
                                     }
                                     grid.setRelativeData(grid.attr.structpath,md_struct);
                                   """,md_structures='=.md_structures',grid=grid,md_mode=md_mode,
-                                  struct_customizer=struct_customizer,
+                                  struct_customizer=struct_customizer,_fireOnRecordLoaded=_fireOnRecordLoaded,
                                     default_md_mode=default_md_mode,_delay=1)
 
     def getStructures(self,table=None,resource=None):
