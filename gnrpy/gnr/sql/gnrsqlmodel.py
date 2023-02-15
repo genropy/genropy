@@ -465,12 +465,27 @@ class DbModelSrc(GnrStructData):
         name_long=name_long or name,group='subtables',_addClass=f'subtable_{name}',**{f'var_{k}':v for k,v in condition_kwargs.items()})
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
     
+    def colgroup(self, name,name_long=None, **kwargs):
+        self.attributes.setdefault(f'group_{name}',name_long or name)
+        if not 'colgroups' in self:
+            self.child('colgroup_list', 'colgroups')
+        cg = self.child('colgroup',f'colgroups.{name}',
+                          name_long=name_long,**kwargs)
+        cg._destinationNode = self
+        def _decorateChildAttributes(destination,tag,kwargs):
+            kwargs['group'] = f'{name}.{len(destination)+1:03}'
+        cg._decorateChildAttributes = _decorateChildAttributes
+        return cg
+
+
+
+    
     @extract_kwargs(variant=dict(slice_prefix=False)) 
     def column(self, name, dtype=None, size=None,
                default=None, notnull=None, unique=None, indexed=None,
                sqlname=None, comment=None,
                name_short=None, name_long=None, name_full=None,
-               group=None, onInserting=None, onUpdating=None, onDeleting=None,onBuilding=None,
+               group=None, onInserting=None, onUpdating=None, onDeleting=None,
                variant=None,variant_kwargs=None,**kwargs):
         """Insert a :ref:`column` into a :ref:`table`
         
@@ -498,8 +513,6 @@ class DbModelSrc(GnrStructData):
         if not 'columns' in self:
             self.child('column_list', 'columns')
         kwargs.update(variant_kwargs)
-        if onBuilding:
-            print('onBuilding',name)
         return self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,
@@ -665,6 +678,8 @@ class DbModelSrc(GnrStructData):
                               to estabilish an alternative string for the :ref:`inverse_relation`.
                               For more information, check the :ref:`relation_name` section"""
         
+        if one_group is None and self.attributes.get('group'):
+            one_group = self.attributes['group']
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
@@ -1548,7 +1563,10 @@ class DbTableAliasObj(DbModelObj):
         
     relation_path = property(_get_relation_path)
         
-        
+
+class DbColgroupObj(DbModelObj):
+    sqlclass = 'colgroup'
+
 class DbSubtableObj(DbModelObj):
     sqlclass = 'subtable'
     
@@ -1573,6 +1591,9 @@ class DbColAliasListObj(DbModelObj):
 class DbColumnListObj(DbModelObj):
     sqlclass = "column_list"
         
+class DbColgroupListObj(DbModelObj):
+    sqlclass = "colgroup_list"
+
 class DbSubtableListObj(DbModelObj):
     sqlclass = "subtable_list"
         
