@@ -66,7 +66,7 @@ class MenuIframes(BaseComponent):
 
     def menu_iframemenuPane(self, pane, **kwargs):
         pane.data('gnr.appmenu',self.menu.getRoot())
-        pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
+        tree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,
                   _class='menutree',
@@ -106,6 +106,19 @@ class MenuIframes(BaseComponent):
                   """,
 
                   nodeId='_menutree_')
+        pane.dataController("""var flat_tblname = _node.label;
+                                let store = treeNode.widget.storebag();
+                                store.walk(function(n){
+                                    if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
+                                        n.refresh(true)
+                                        let content = n.getValue();
+                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                        n.updAttributes({'child_count':child_count});
+                                    }
+                                },'static');
+                               """,treeNode=tree,
+                               dbChanges="^gnr.dbchanges")
+
    
        # pane.dataRpc('dummy',self.menu_refreshAppMenu,
        #             _onResult="""

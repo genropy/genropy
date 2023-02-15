@@ -380,7 +380,7 @@ class MenuResolver(BagResolver):
     @property
     def level(self):
         level = len(self.path.split('.')) if self.path else 0
-        if self.level_offset:
+        if self.level_offset is not None:
             return self.level_offset+level+1
         return level
 
@@ -518,6 +518,7 @@ class MenuResolver(BagResolver):
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
+        self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,

@@ -163,7 +163,7 @@ class FrameIndex(BaseComponent):
 
         bar.pageTitle.dataController("""
                                         let selectedPageTitle = basetitle;
-                                        if(iframes && iframes.len()>0){
+                                        if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
                                             let selectedNode = iframes.getNode(selectedPage);
                                             selectedPageTitle = selectedNode.attr.fullname;
                                         }
