@@ -328,7 +328,26 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return _class.join(' ');
         };
         treeattr.onDrag = function(dragValues, dragInfo, treeItem) {
-            if (!(treeItem.attr.dtype && treeItem.attr.dtype != 'RM' && treeItem.attr.dtype != 'RO')) {
+            if(treeItem.attr.dtype == 'RM'){
+                return false;
+            }
+            if(treeItem.attr.dtype =='RO'){
+                if(!genro.isDeveloper){
+                    return false;
+                }
+                var fldinfo = objectUpdate({}, treeItem.attr.fkey);
+                fldinfo._nodelabel = treeItem.label;
+                fldinfo['maintable'] = table;
+                let fpath = treeItem.attr.fieldpath.split('.');
+                fldinfo._nodelabel = fpath.pop().slice(1);
+                fpath.push(fldinfo._nodelabel)
+                fldinfo.fieldpath =  fpath.join('.');
+                fldinfo.fullcaption = fldinfo.fieldpath;
+                dragValues['text/plain'] = fldinfo.field;
+                dragValues[dragCode] = fldinfo;
+                return;
+            }
+            if(!treeItem.attr.dtype){
                 return false;
             }
             var fldinfo = objectUpdate({}, treeItem.attr);

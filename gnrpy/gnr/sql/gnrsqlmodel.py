@@ -677,9 +677,10 @@ class DbModelSrc(GnrStructData):
         :param relation_name: string. An attribute of the :ref:`table_relation`. It allows
                               to estabilish an alternative string for the :ref:`inverse_relation`.
                               For more information, check the :ref:`relation_name` section"""
-        
-        if one_group is None and self.attributes.get('group'):
-            one_group = self.attributes['group']
+        fkey_group = self.attributes.get('group')
+        if one_group is None and fkey_group and fkey_group!='_':
+            self.attributes['group'] = '_'
+            one_group = fkey_group
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
