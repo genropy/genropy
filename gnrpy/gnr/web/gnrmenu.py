@@ -630,8 +630,15 @@ class TableMenuResolver(MenuResolver):
                             **{f'url_{k}':v for k,v in linekw.items()})
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
-            result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
-                            url_branchIdentifier=self.branchIdentifier,**linekw)
+            linekw.setdefault('branchPage',True)
+            if linekw['branchPage']:
+                linekw['url_branchIdentifier'] = self.branchIdentifier
+                linekw['start_pkey'] = record['pkey']
+            else:
+                linekw['pkey'] = record['pkey']    
+                linekw['title'] = record.get(self.title_field)
+                linekw['pageName'] = record['pkey']
+            result.thpage(table=self.table,**linekw)
 
 
 class LookupBranchResolver(MenuResolver):
