@@ -187,6 +187,8 @@ class TableHandlerForm(BaseComponent):
         readOnly = options.pop('readOnly',False)
         modal = options.pop('modal',False)
         autoSave = options.pop('autoSave',False)
+        firstAutoSave = options.pop('firstAutoSave',None)
+
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         form_add = options.pop('form_add',True)
@@ -199,7 +201,7 @@ class TableHandlerForm(BaseComponent):
 
         form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid)
         if autoSave:
-            form.store.attributes.update(autoSave=autoSave)
+            form.store.attributes.update(autoSave=autoSave,firstAutoSave=firstAutoSave)
 
         form.dataController(""" if(reason=='nochange'){return;}
                                 genro.dlg.alert(msg+' '+this.form.getRecordCaption()+': '+(reason=='invalid'?invalid:nochange),titledialog);""",

@@ -133,6 +133,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var that = this;
         if(this.canBeSaved()){
             if(this.isNewRecord()){
+                if(this.store.firstAutoSave===false){
+                    return;
+                }
                 genro.callAfter(function(){
                     that.save();
                 },1,this.sourceNode,'autoSaveForm_'+this.formId);
@@ -534,7 +537,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(this.opStatus=='loading'){
             return;
         }
-
         var that = this;
         if(objectNotEmpty(this.childForms)){
             var onAnswer = function(command){if(command=='cancel'){return;}
@@ -600,7 +602,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave ){
+            if(kw.modifiers=='Shift' || this.autoSave){
                 this.save(kw);
             }else{
                 this.openPendingChangesDlg(kw);
