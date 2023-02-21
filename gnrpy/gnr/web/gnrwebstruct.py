@@ -845,13 +845,29 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
+    def mobileFormBuilder(self,margin_right=None,**kwargs):
+        margin_right = margin_right or '10px'
+        box = self.div(margin_right=margin_right)
+        fld_width='100%'
+        if kwargs.get('cols',1)>1:
+            fld_width = f'calc(100% - {margin_right})'
+        pars = dict(border_spacing='8px 0px', 
+                        width='100%',fld_width=fld_width,lblpos='T',
+                        lbl_text_align='left',lbl_font_size='.8em',
+                        lbl_padding_top='4px',fld_zoom=False,
+                        lbl_font_weight='bold',fldalign='left',
+                        fld_html_label=True,
+                        _class='mobilefields')
+        pars.update(kwargs)
+        return box.formbuilder(**pars)
+        
     def formbuilder(self, cols=1, table=None, tblclass='formbuilder',
                     lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
                     _class='', fieldclass='gnrfield',
                     colswidth=None,
                     lblalign=None, lblvalign='top',
                     fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None, **kwargs):
+                    rowdatapath=None, head_rows=None,spacing=None, useMobileParameters=None,**kwargs):
         """In :ref:`formbuilder` you can put dom and widget elements; its most classic usage is to create
         a :ref:`form` made by fields and layers, and that's because formbuilder can manage automatically
         fields and their positioning
