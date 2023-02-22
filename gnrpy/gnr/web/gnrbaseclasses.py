@@ -267,6 +267,11 @@ class BagToHtmlWeb(BagToHtml):
     client_locale = False
     record_template = None
     pdf_service = None
+    html_folder = 'temp:html'
+    pdf_folder = 'page:pdf'
+
+    filepath = None
+    pdfpath = None
 
     def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,
                     resource_table=None,record_template=None,pdf_service=None,**kwargs):
@@ -307,19 +312,31 @@ class BagToHtmlWeb(BagToHtml):
         return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
                     localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
                     **kwargs)
-                    
+    
+    def getHtmlPath(self, *args, **kwargs):
+        """TODO"""
+        return self.site.storageNode(self.html_folder, *args, **kwargs).internal_path
+       
+    def getPdfPath(self, *args, **kwargs):
+        return self.pdfpath or self.filepath.replace('.html','.pdf')
+                        
     @extract_kwargs(pdf=True)
     def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
-        pdfpath = pdfpath or self.filepath.replace('.html','.pdf')
+        pdfpath = pdfpath or self.getPdfPath(pdfpath=pdfpath,docname=docname,pdf_kwargs=pdf_kwargs,**kwargs)
         self.print_handler.htmlToPdf(self.filepath,pdfpath, orientation=self.orientation(),pdf_kwargs=pdf_kwargs)
         return pdfpath   
 
 class TableTemplateToHtml(BagToHtmlWeb):
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
         if not htmlContent:
             htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
-        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
+        if pdf :
+            filepath = filepath or self.filepath or self.getHtmlPath('temp.html')
+        result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
+        if pdf is True:
+            return self.writePdf()
+        return result
 
 class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
@@ -732,10 +749,7 @@ class TableScriptToHtml(BagToHtmlWeb):
          
         
         
-    def getHtmlPath(self, *args, **kwargs):
-        """TODO"""
-        return self.site.storageNode(self.html_folder, *args, **kwargs).internal_path
-        
+ 
     def getPdfPath(self, *args, **kwargs):
         """TODO"""
         return self.site.storageNode(self.pdf_folder, *args, **kwargs).internal_path
