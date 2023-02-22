@@ -1676,7 +1676,6 @@ dojo.declare("gnr.widgets.StackContainer", gnr.widgets.baseDojo, {
 
     },
     mixin_switchPage:function(p){
-        genro.bp(true)
         if(p=='*next*'){
             p = this.getSelectedIndex() + 1;
             let children = this.getChildren();
