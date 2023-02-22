@@ -636,7 +636,7 @@ class TableMenuResolver(MenuResolver):
                 start_pkey = record['pkey']
                 pageName = self.branchIdentifier
                 linekw['branchIdentifier'] = self.branchIdentifier
-                title = label
+                title = linekw.pop('title',self.title)
             else:
                 url_pkey = record['pkey']
             result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
