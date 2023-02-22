@@ -1786,7 +1786,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             colHeaders = [self.page._(c) for c in colHeaders]
             resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
 
-            if not notnull:
+            if not notnull and not _id:
                 emptyLabel = emptyLabel or ''
                 _position = '<' if emptyLabel_first else None
                 result.setItem('null_row', None, caption=emptyLabel, _pkey=None,
