@@ -1676,6 +1676,18 @@ dojo.declare("gnr.widgets.StackContainer", gnr.widgets.baseDojo, {
 
     },
     mixin_switchPage:function(p){
+        if(p=='*next*'){
+            p = this.getSelectedIndex() + 1;
+            let children = this.getChildren();
+            if(!children[p]){
+                return;
+            }
+        }else if('*prev*'){
+            p = this.getSelectedIndex() - 1;
+            if(p<0){
+                return;
+            }
+        }
         var handler = (p==parseInt(p))?'setSelected':'setSelectedPage';
         this[handler](p);
     },
