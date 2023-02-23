@@ -1313,12 +1313,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.reset();
         this.setOpStatus();
         this.__last_save = new Date()
-        //if there allowing invalid fields save. this lines force the widget error
         var invalidFields = this.getDataNodeAttributes()['_invalidFields'];
         if(invalidFields && objectNotEmpty(invalidFields)){
-            for (var p in invalidFields){
-                data.setItem(p,data.getItem(p));
+            //if there allowing invalid fields save. this lines force the widget error
+            this._triggerInvalidFields(invalidFields,data)
+        }
+    },
+
+    _triggerInvalidFields:function(invalidFields,recordData){
+        for (var p in invalidFields){
+            if(this.currentFocused && this.currentFocused._focused && this.currentFocused.sourceNode.attr.value){
+                let valuepath = this.currentFocused.sourceNode.absDatapath(this.currentFocused.sourceNode.attr.value)
+                let invalidValuePath = this.sourceNode.absDatapath('.record.'+p);
+                if(valuepath == invalidValuePath){
+                    console.log('avoid triggering invalidfields')
+                    continue;
+                }
             }
+            recordData.setItem(p,recordData.getItem(p));
         }
     },
     

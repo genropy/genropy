@@ -232,11 +232,16 @@ class FormHandler(BaseComponent):
                 frm.store.setNavigationStatus(currentPkey);
             }
         """
-        gridattr['subscribe_form_%s_onLoaded' %formId] ="""if(!(($1.pkey=='*newrecord*') || ($1.pkey=='*norecord*'))){
-                                                                var selectedRows = this.widget.getSelectedRowidx() || [];
-                                                                if(!(selectedRows.length>1)){
-                                                                    this.widget.selectByRowAttr('_pkey',$1.pkey);
-                                                                }
+        gridattr['subscribe_form_%s_onLoaded' %formId] ="""var emptyPkey = ($1.pkey=='*newrecord*') || ($1.pkey=='*norecord*');
+                                                            var selectedRows = this.widget.getSelectedRowidx() || [];
+                                                            if(selectedRows.length>1){
+                                                                return;
+                                                            }
+                                                            if(emptyPkey){
+                                                                this.widget.selection.unselectAll();
+                                                            }
+                                                            else{
+                                                                this.widget.selectByRowAttr('_pkey',$1.pkey);
                                                             }
                                                               """
         if remoteForm=='delayed':
