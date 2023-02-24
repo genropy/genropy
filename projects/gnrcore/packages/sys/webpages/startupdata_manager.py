@@ -28,7 +28,7 @@ class GnrCustomWebPage(object):
     def main(self, root, **kwargs):
         bc = root.rootBorderContainer(title='Startup data manager',datapath='main',design='sidebar')
         tc = bc.tabContainer(region='center',margin='2px')
-        tc.startupDataSaver(title='Startup Datasets',datapath='.saver')
+        tc.startupDataSaver(title='Datasets saver',datapath='.saver')
         tc.startupDataDbTemplates(title='Db templates',datapath='.dbtemplates')
         tc.startupDataDbLoader(title='Startup data loader',datapath='.loader')
 

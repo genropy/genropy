@@ -177,7 +177,14 @@ class GnrDboPackage(object):
                     #the sysRecord already exists but the id mismatch
                     raise tblobj.exception('business_logic',
                                             msg=f'Fix wrong sysrecord in this template {tblobj.fullname}')
-                recordsToInsert.append(dict(r))
+                rec_to_insert = dict(r)
+                for field,col in tblobj.columns.items():
+                    reltable = col.relatedTable()
+                    if col.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                    if reltable and rec_to_insert.get(field) and reltable.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
                 print('inserisco record in',tblobj.name,tblobj.query().count())
                 tblobj.insertMany(recordsToInsert)

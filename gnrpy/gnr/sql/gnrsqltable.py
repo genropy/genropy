@@ -1814,10 +1814,10 @@ class SqlTable(GnrObject):
 
 
     def pkeyValue(self,record=None):
-        pkey = self.model.pkey
-        pkeycol = self.model.column(pkey)
+        pkeyfield = self.model.pkey
+        pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):
-            lastid = self.query(columns='max($%s)' % pkey, group_by='*').fetch()[0]
+            lastid = self.query(columns=f'max(${pkeyfield})' , group_by='*').fetch()[0]
             return (lastid[0] or 0) + 1
         elif not record:
             return getUuid()
@@ -1825,6 +1825,10 @@ class SqlTable(GnrObject):
             joiner = self.attributes.get('pkey_columns_joiner') or '_'
             return joiner.join([str(record.get(col)) for col in self.attributes.get('pkey_columns').split(',') if record.get(col) is not None])
         elif record.get('__syscode'):
+            sysparscb = getattr(self,f'sysRecord_{record["__syscode"]}',None)
+            syspars = sysparscb() if sysparscb else {}
+            if syspars.get(pkeyfield):
+                return syspars[pkeyfield]
             size =  pkeycol.getAttr('size')
             if size and ':' not in size:
                 return record['__syscode'].ljust(int(size),'_')
@@ -1832,6 +1836,17 @@ class SqlTable(GnrObject):
                 return record['__syscode']
         elif pkeycol.dtype in ('T','A','C') and pkeycol.attributes.get('size') in ('22',':22',None):
             return getUuid()
+        
+    def cleanWrongSysRecordPkeys(self):            
+        f = self.query(for_update=True,where='$__syscode IS NOT NULL').fetch()
+        for row in f:
+            old_r = dict(row)
+            validpkey = self.pkeyValue(row)
+            currpkey = row[self.model.pkey]
+            if currpkey!=validpkey:
+                row[self.pkey] = validpkey
+                self.update(row,old_r,pkey=currpkey)
+                self.db.commit()
             
     def baseViewColumns(self):
         """TODO"""

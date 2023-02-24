@@ -23,7 +23,7 @@ standard_library.install_aliases()
 import os
 import gzip
 import shutil
-from io import StringIO
+from io import BytesIO
 import pickle
 
 from gnr.core.gnrdecorator import public_method
@@ -40,7 +40,7 @@ class _StartupDataSaver(BaseComponent):
                                storepath='.store',
                                struct=self.sd_table_saver_struct, **kwargs)
 
-        bar = frame.top.bar.replaceSlots('#', '2,fb,10,savebtn,*,searchOn,5')
+        bar = frame.top.bar.replaceSlots('#', '2,fb,10,fixSysRecords,savebtn,*,searchOn,5')
         fb = bar.fb.formbuilder(cols=2)
         if len(self.db.dbstores):
             fb.filteringSelect(value='^.current_storename',
@@ -53,6 +53,12 @@ class _StartupDataSaver(BaseComponent):
             buildpars.append(dict(name='replace_default_startup',
                                   label='Replace default startup', tag='checkbox'))
         buildpars.append(dict(name='buildname', lbl='Name'))
+        btn = bar.fixSysRecords.slotButton('Fix sysrecord')
+        btn.dataRpc(self.sd_fixSysRecords,
+                    _lockScreen=True,
+                      current_package='^.current_package',
+                      current_storename='^.current_storename',
+                      _if='current_package')
         bar.savebtn.slotButton('!!Build startupdata',
                                ask=dict(title='Creating startup data',
                                         fields=buildpars),
@@ -98,6 +104,19 @@ class _StartupDataSaver(BaseComponent):
         return result
 
     @public_method
+    def sd_fixSysRecords(self, current_package=None,current_storename=None, **kwargs):
+        tables = self.db.package(current_package).tables
+        for tblobj in tables.values():
+            print(tblobj.name)
+            hasSysCode = tblobj.column('__syscode') is not None
+            if not hasSysCode:
+                continue
+            with self.db.tempEnv(storename=current_storename or self.db.rootstore):
+                self.db.setConstraintsDeferred()
+                tblobj.dbtable.cleanWrongSysRecordPkeys()
+
+
+    @public_method
     def sd_countRecords(self, current_package=None, current_storename=None):
         with self.db.tempEnv(storename=current_storename or self.db.rootstore):
             tables = self.db.package(current_package).tables
@@ -133,12 +152,14 @@ class _StartupDataDbTemplates(BaseComponent):
         self.sd_treeStartupSource(bc.framePane(region='left', width='500px',
                                                border_right='1px solid silver',
                                                splitter=True))
-        self.sd_gridPreviewSource(bc.roundedGroup(
+        self.sd_gridPreviewSource(bc.roundedGroupFrame(
             title='Startup package content', region='center'))
 
-    def sd_gridPreviewSource(self, pane):
-        grid = pane.quickGrid('^.startup_preview')
-        pane.dataRpc('.startup_preview', self.sd_getStartupPreview, bagpath='^.preview_path',
+    def sd_gridPreviewSource(self, frame):
+        bar = frame.top.bar.replaceSlots('#','#,cleards,3')
+        btn = bar.cleards.lightButton('Trash dataset',font_weight='bold',cursor='pointer',color='#444')
+        grid = frame.center.contentPane().quickGrid('^.startup_preview')
+        frame.dataRpc('.startup_preview', self.sd_getStartupPreview, bagpath='^.preview_path',
                      _if='bagpath', _else='return new gnr.GnrBag()')
 
     def sd_gridCurrentDbtemplates(self, frame):
@@ -176,7 +197,7 @@ class _StartupDataDbTemplates(BaseComponent):
         frame.dataRpc('.sources', self.sd_getStartupSource,
                       _onStart=True, subscribe_sd_startupDataBuilt=True,
                       _onCalling='SET .preview_path = null;')
-        frame.dataRpc(None, self.sd_saveDbTemplate,
+        frame.dataRpc(self.sd_saveDbTemplate,
                       subscribe_sd_saveDbTemplate=True,
                       db_template_source='=.db_template_source',
                       _onResult='FIRE .reload_current_dbtemplates')
@@ -233,8 +254,8 @@ class _StartupDataDbTemplates(BaseComponent):
             if not os.path.exists('%s.gz' % bagpath):
                 return
             with gzip.open('%s.gz' % bagpath, 'rb') as gzfile:
-                pk = StringIO(gzfile.read())
-                data = pickle.load(pk)
+                pk = BytesIO(gzfile.read())
+                data = pickle.load(pk,encoding='latin')
         else:
             data = Bag('%s.pik' % bagpath)
         result = Bag()
@@ -272,7 +293,7 @@ class StartupDataManager(BaseComponent):
         fb.div('Warning only for developer make a dump before preceed')
         btn = fb.button('import dbtemplate')
 
-        btn.dataRpc(self.sysImportFromDbtemplate, dbtemplate='^#FORM.import_data', _lockScreen=True,
+        btn.dataRpc(self.sd_loadDbTemplateInCurrentStore, dbtemplate='^#FORM.import_data', _lockScreen=True,
                             _ask=dict(title=u'Import from',fields=[dict(name='dbtemplate', lbl='Db template',
                                                              tag='filteringselect',
                                                              storepath='main.dbtemplates.current_dbtemplates', storeid='filepath',
@@ -282,7 +303,8 @@ class StartupDataManager(BaseComponent):
 
 
     @public_method
-    def sysImportFromDbtemplate(self, dbtemplate=None):
+    def sd_loadDbTemplateInCurrentStore(self, dbtemplate=None):
+        self.db.setConstraintsDeferred()
         self.sd_loadDbTemplate(dbtemplate)
         #self.db.table('adm.counter').initializeTableSequences(self.db.table('erpy_coge.conto'))
         self.db.commit()
