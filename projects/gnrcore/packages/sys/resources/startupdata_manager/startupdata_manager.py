@@ -283,7 +283,6 @@ class StartupDataManager(BaseComponent):
 
     @public_method
     def sysImportFromDbtemplate(self, dbtemplate=None):
-        self.mixinComponent('startupdata_manager/startupdata_manager:StartupDataManager')
         self.sd_loadDbTemplate(dbtemplate)
         #self.db.table('adm.counter').initializeTableSequences(self.db.table('erpy_coge.conto'))
         self.db.commit()
