@@ -30,6 +30,8 @@ class GnrCustomWebPage(object):
         tc = bc.tabContainer(region='center',margin='2px')
         tc.startupDataSaver(title='Startup Datasets',datapath='.saver')
         tc.startupDataDbTemplates(title='Db templates',datapath='.dbtemplates')
+        tc.startupDataDbLoader(title='Startup data loader',datapath='.loader')
+
 
     
 

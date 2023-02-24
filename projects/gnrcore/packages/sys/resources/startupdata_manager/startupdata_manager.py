@@ -34,7 +34,6 @@ from gnr.core.gnrbag import Bag, DirectoryResolver
 
 class _StartupDataSaver(BaseComponent):
     "PRIVATE COMPONENT USED BY StartupDataManager"
-
     @struct_method
     def sd_startupDataSaver(self, parent, **kwargs):
         frame = parent.bagGrid(frameCode='sdata_saver', addrow=False, delrow=False,
@@ -110,9 +109,11 @@ class _StartupDataSaver(BaseComponent):
     @public_method
     def sd_buildStartupData(self, current_package=None, current_storename=None,
                             buildname=None, replace_default_startup=None):
-        basepath = None
+        basepath = self.sd_getStartupDataFolder('datasets')
+        folderpath = os.path.join(basepath, '_default_')
+        if not os.path.exists(folderpath):
+            os.makedirs(folderpath)
         if not replace_default_startup:
-            basepath = self.sd_getStartupDataFolder('datasets')
             buildname = buildname or (
                 'from_%s' % current_storename if current_storename else 'ds_%i' % len(os.listdir(basepath)))
             folderpath = os.path.join(basepath, buildname)
@@ -262,6 +263,31 @@ class StartupDataManager(BaseComponent):
                    startupdata_manager/startupdata_manager:_StartupDataSaver,
                    startupdata_manager/startupdata_manager:_StartupDataDbTemplates"""
 
+
+    @struct_method
+    def sd_startupDataDbLoader(self, parent, **kwargs):
+        pane = parent.contentPane(**kwargs)
+
+        fb = pane.formbuilder()
+        fb.div('Warning only for developer make a dump before preceed')
+        btn = fb.button('import dbtemplate')
+
+        btn.dataRpc(self.sysImportFromDbtemplate, dbtemplate='^#FORM.import_data', _lockScreen=True,
+                            _ask=dict(title=u'Import from',fields=[dict(name='dbtemplate', lbl='Db template',
+                                                             tag='filteringselect',
+                                                             storepath='main.dbtemplates.current_dbtemplates', storeid='filepath',
+                                                             storecaption='caption')]))
+
+
+
+
+    @public_method
+    def sysImportFromDbtemplate(self, dbtemplate=None):
+        self.mixinComponent('startupdata_manager/startupdata_manager:StartupDataManager')
+        self.sd_loadDbTemplate(dbtemplate)
+        #self.db.table('adm.counter').initializeTableSequences(self.db.table('erpy_coge.conto'))
+        self.db.commit()
+
     def sd_getStartupDataFolder(self, *args):
         return self.site.getStaticPath(self.sd_startupdata_root(), *args, autocreate=True)
 
@@ -303,3 +329,4 @@ class StartupDataManager(BaseComponent):
                 self.db.package(pkg).loadStartupData(
                     os.path.join(extractpath, pkg))
         shutil.rmtree(extractpath)
+        

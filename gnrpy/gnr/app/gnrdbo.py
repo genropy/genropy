@@ -169,18 +169,17 @@ class GnrDboPackage(object):
             recordsToInsert = []
             pkeyField = tblobj.pkey
             hasSysCode = tblobj.column('__syscode') is not None
-            if hasSysCode:
-                currentSysCodes = [r['__syscode'] for r in currentRecords.values() if r['__syscode']]
+            currentSysCodes = {} if not hasSysCode else {r['__syscode']:r[pkeyField] for r in currentRecords.values() if r['__syscode']}
             for r in records:
                 if r[pkeyField] in currentRecords:
                     continue
-                if hasSysCode and r.get('__syscode') in currentSysCodes:
-                    if r[tblobj.pkey].startswith(r['__syscode']):
-                        continue
-                    else:
-                        r['__syscode'] = f'_ERR_DUP_{r["__syscode"]}'
-                recordsToInsert.append(r)
+                elif r.get('__syscode') in currentSysCodes:
+                    #the sysRecord already exists but the id mismatch
+                    raise tblobj.exception('business_logic',
+                                            msg=f'Fix wrong sysrecord in this template {tblobj.fullname}')
+                recordsToInsert.append(dict(r))
             if recordsToInsert:
+                print('inserisco record in',tblobj.name,tblobj.query().count())
                 tblobj.insertMany(recordsToInsert)
         db.commit()
 
