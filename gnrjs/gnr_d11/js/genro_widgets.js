@@ -1945,8 +1945,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         var splitter = objectPop(closablePars,'splitter');
         if(kw.closable=='close'){
             togglecb()
-        }
-        var _class = 'slotbarOpener'+' slotbarOpener_'+orientation+' slotbarOpener_'+side;
+        }   
+        var customClass = objectPop(closablePars,'_class');
+        var _class = `slotbarOpener slotbarOpener_${orientation} slotbarOpener_${side} ${customClass}`;
         var label = objectPop(closablePars,'label');
         var opener = pane._('div',objectUpdate({_class:_class,connect_onclick:togglecb},closablePars),{doTrigger:false});
         if(label){
