@@ -291,8 +291,8 @@ class TableHandler(BaseComponent):
     @extract_kwargs(widget=True,vpane=True,fpane=True,default=True,form=True)
     @struct_method
     def th_borderTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,widget_kwargs=None,default_kwargs=None,loadEvent='onSelected',
-                            readOnly=False,viewRegion=None,formRegion=None,vpane_kwargs=None,fpane_kwargs=None,
+                            formInIframe=False,default_kwargs=None,loadEvent='onSelected',
+                            readOnly=False,vpane_kwargs=None,fpane_kwargs=None,
                             saveOnChange=False,form_kwargs=None,**kwargs):
         kwargs['tag'] = 'BorderContainer'
         wdg = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
@@ -319,6 +319,34 @@ class TableHandler(BaseComponent):
         wdg.view.attributes.update(**regionAdapter(vpane_kwargs,region='top',splitter=True))
         wdg.form.attributes.update(**regionAdapter(fpane_kwargs,region='center'))
         return wdg
+    
+    @struct_method
+    def th_ghostTableHandler(self,pane,avoidViewToolbar=True,**kwargs):
+        kwargs.setdefault('autoSave',200)
+        kwargs.setdefault('vpane_region','bottom')
+        kwargs.setdefault('vpane_border_top','1px solid #efefef')
+        kwargs.setdefault('view_store_loadInvisible',True)
+        th = pane.borderTableHandler(**kwargs)
+        vpane_region = th.view.attributes['region']
+        if avoidViewToolbar:
+            th.view.top.pop('bar')
+        th.dataController("""let store_length = store?store.len():0;
+                            if(!store_length){
+                                frm.newrecord();
+                                
+                            }else if(store_length==1){
+                                frm.goToRecord(store.getNode('#0').attr._pkey);
+                            }else{
+                                let currentPkey = frm.getCurrentPkey();
+                                if(!currentPkey){
+                                    frm.goToRecord(store.getNode('#0').attr._pkey);
+                                }
+                            }
+                            bc.setRegionVisible(vpane_region,store&&store.len()>1);""",
+                          vpane_region=vpane_region,bc=th.js_widget,
+                          store='^.view.store',frm=th.form.js_form,_delay=1)
+
+        return th
         
     @extract_kwargs(widget=True,default=True,form=True)
     @struct_method
