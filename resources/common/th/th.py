@@ -322,7 +322,7 @@ class TableHandler(BaseComponent):
     
     @struct_method
     def th_ghostTableHandler(self,pane,avoidViewToolbar=True,**kwargs):
-        kwargs.setdefault('autoSave',200)
+        kwargs.setdefault('form_autoSave',200)
         kwargs.setdefault('vpane_region','bottom')
         kwargs.setdefault('vpane_border_top','1px solid #efefef')
         kwargs.setdefault('view_store_loadInvisible',True)
