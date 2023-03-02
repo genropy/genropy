@@ -697,8 +697,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             sourceNode.setRelativeData(sourceNode.attr.userSets,userSets);
             sourceNode._usersetgetter = function(cellname,row,idx){
                 //var currSet = userSets.getItem(cellname);
-                var currSet = sourceNode.getRelativeData(sourceNode.attr.userSets+'.'+cellname);
-                var checkedField = this.widget.cellmap[cellname].checkedField;
+                let cell = this.widget.cellmap[cellname];
+                let checkedId = cell.checkedId;
+                let currSet = sourceNode.getRelativeData(checkedId);
+                let checkedField = cell.checkedField;
                 if(currSet){
                     return currSet.match(new RegExp('(^|,)'+row[checkedField]+'($|,)'))!==null;
                 }else{
@@ -4409,6 +4411,10 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         this.updateRowCount();
     },
 
+    mixin_catch_checkedSetId:function(value,kw,attr){
+        this.updateRowCount();
+    },
+    
     getNewSetKw:function(sourceNode,celldata) {
         var celldata = celldata || {};
         var fieldname =  celldata['field'] || '_set_'+genro.getCounter();
@@ -4422,7 +4428,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         celldata['classes'] = celldata.classes || 'row_checker';
         celldata['format_falseclass'] = objectPop(celldata,'falseclass')|| (radioButton?'radioOff':'checkboxOff'); //mettere classi radio
         celldata['calculated'] = true;
-        celldata['checkedId'] = sourceNode.attr.userSets+'.'+fieldname;
+        if(celldata.checkedId){
+            let subscriberKey = 'checkedSetId_'+fieldname;
+            sourceNode.attr[subscriberKey] = celldata.checkedId
+            sourceNode.registerDynAttr(subscriberKey);
+        }else{
+            celldata.checkedId = sourceNode.attr.userSets+'.'+fieldname;
+        }
         if(celldata['userSets_caption']){
             celldata['checkedCaption'] = sourceNode.attr.userSets+'_caption.'+fieldname;
         }
@@ -4452,11 +4464,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return currSet;
         }
         var modifiers = genro.dom.getEventModifiers(e);
-        var structbag = this.sourceNode.getRelativeData(this.sourceNode.attr.structpath);
         var kw = this.cellmap[fieldname];   
         var store = this.collectionStore();
         //var rowIndex = this.absIndex(rowIndex);
         var node = store.itemByIdx(rowIndex);
+        if(node.attr[fieldname+'_disabled']){
+            return;
+        }
         var currSet = this.sourceNode.getRelativeData(kw['checkedId']) || '';
         var currSetCaption = this.sourceNode.getRelativeData(kw['checkedCaption']) || '';
         var checkedElement = node.attr[kw['checkedField']];
