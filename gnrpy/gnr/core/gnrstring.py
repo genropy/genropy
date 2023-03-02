@@ -483,7 +483,7 @@ def conditionalTemplate(myString,symbolDict=None):
     
 def templateReplace(myString, symbolDict=None, safeMode=False,noneIsBlank=True,locale=None, 
                     formats=None,dtypes=None,masks=None,editcols=None,df_templates=None,localizer=None,
-                    urlformatter=None,emptyMode=None,conditionalMode=True):
+                    urlformatter=None,emptyMode=None,conditionalMode=True, **kwargs):
     """Allow to replace string's chunks.
     
     :param myString: template string or bag

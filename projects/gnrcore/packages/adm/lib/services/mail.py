@@ -57,9 +57,9 @@ class AdmMailService(MailService):
         htmlbuilder = TableTemplateToHtml(table=self.parent.db.table(table))
         letterhead_id = letterhead_id or metadata['default_letterhead']
         if letterhead_id:
-            html_text = htmlbuilder(record=record_id,template=compiled,letterhead_id=letterhead_id)
+            html_text = htmlbuilder(record=record_id,template=compiled,letterhead_id=letterhead_id, **kwargs)
         else:
-            html_text = htmlbuilder.contentFromTemplate(record=record_id,template=compiled)
+            html_text = htmlbuilder.contentFromTemplate(record=record_id,template=compiled, **kwargs)
         to_address = to_address or templateReplace(email_compiled.getItem('to_address',''),htmlbuilder.record)
         subject = subject or templateReplace(email_compiled.getItem('subject',''),htmlbuilder.record)
         cc_address = cc_address or templateReplace(email_compiled.getItem('cc_address',''),htmlbuilder.record)

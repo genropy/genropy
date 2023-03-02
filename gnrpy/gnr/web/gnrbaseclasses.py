@@ -296,7 +296,8 @@ class BagToHtmlWeb(BagToHtml):
     def print_handler(self):
         return self.site.getService('htmltopdf',self.pdf_service)
 
-    def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
+    @extract_kwargs(parameter=True)
+    def contentFromTemplate(self,record,template=None,locale=None,parameter_kwargs=None, **kwargs):
         virtual_columns=None
         page = self.page or self.db.currentPage
         if not template and page and self.record_template:
@@ -309,6 +310,8 @@ class BagToHtmlWeb(BagToHtml):
             kwargs['dtypes'] = template.getItem('main?dtypes')
             virtual_columns = template.getItem('main?virtual_columns')
         self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
+        if parameter_kwargs:
+            self.record.update(parameter_kwargs)
         return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
                     localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
                     **kwargs)
