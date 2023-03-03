@@ -28,8 +28,11 @@ from gnr.lib.services.mail import MailService,MailError
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
 from gnr.core.gnrstring import templateReplace
+from gnr.core.gnrdecorator import extract_kwargs
 
 class AdmMailService(MailService):
+    
+    
     def sendUserTemplateMail(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
                             attachments=None,to_address=None, subject=None,
@@ -40,10 +43,11 @@ class AdmMailService(MailService):
                             attachments=attachments,to_address=to_address,subject=subject,
                             cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, **kwargs))
     
+    @extract_kwargs(extra=True)
     def mailParsFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
                             attachments=None,to_address=None,subject=None,
-                            cc_address=None,bcc_address=None,from_address=None, **kwargs):
+                            cc_address=None,bcc_address=None,from_address=None,extra_kwargs=None, **kwargs):
         if template_id:
             tpl,table = self.parent.db.table('adm.userobject').readColumns(pkey=template_id,columns='$data,$tbl',bagFields=True)
         elif template_code and table:
@@ -57,9 +61,9 @@ class AdmMailService(MailService):
         htmlbuilder = TableTemplateToHtml(table=self.parent.db.table(table))
         letterhead_id = letterhead_id or metadata['default_letterhead']
         if letterhead_id:
-            html_text = htmlbuilder(record=record_id,template=compiled,letterhead_id=letterhead_id, **kwargs)
+            html_text = htmlbuilder(record=record_id,template=compiled,letterhead_id=letterhead_id, extra_kwargs=extra_kwargs)
         else:
-            html_text = htmlbuilder.contentFromTemplate(record=record_id,template=compiled, **kwargs)
+            html_text = htmlbuilder.contentFromTemplate(record=record_id,template=compiled, extra_kwargs=extra_kwargs)
         to_address = to_address or templateReplace(email_compiled.getItem('to_address',''),htmlbuilder.record)
         subject = subject or templateReplace(email_compiled.getItem('subject',''),htmlbuilder.record)
         cc_address = cc_address or templateReplace(email_compiled.getItem('cc_address',''),htmlbuilder.record)
