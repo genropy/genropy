@@ -58,11 +58,25 @@ class MenuIframes(BaseComponent):
             return """return node.attr.labelClass;"""
         return """let labelClass = node.attr.labelClass;
                 if(node.attr.isDir){
+                    let staticValue = node.getValue('static');
+                    if(node._status =='loaded' && (!staticValue || staticValue.len()==0)){
+                        return `label_emptydir ${labelClass}`;
+                    }
                     let diricon = opened? 'label_opendir':'label_closedir';
                     return `${diricon} ${labelClass}`;
                 }
                 return labelClass;"""
 
+    def _menutree_getLabel(self):
+        return """
+            let label = node.attr.label;
+            if(node.attr.titleCounter){
+                let v = node.getValue();
+                let count = v? v.len():0;
+                label = `${label} (${count})`
+            }
+            return label;
+        """
 
     def menu_iframemenuPane(self, pane, **kwargs):
         pane.data('gnr.appmenu',self.menu.getRoot())
@@ -75,9 +89,14 @@ class MenuIframes(BaseComponent):
                   identifier='#p',
                   getIconClass=self._menutree_getIconClass(),
                     selectedLabelClass="menutreeSelected",
+                  getLabel = self._menutree_getLabel(),
                   getLabelClass=self._menutree_getLabelClass(),
                   openOnClick=True,
-                  connect_onClick="""this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
+                  connect_onClick="""
+                  if($2.item.attr.isDir){
+                        return;
+                  }
+                  this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
                                                                     relpath:$1.getFullpath(null,genro.getData(this.attr.storepath)),
                                                                   modifiers:$2.__eventmodifier});""",
                   autoCollapse=True,
