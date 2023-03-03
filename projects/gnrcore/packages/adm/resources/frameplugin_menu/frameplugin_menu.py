@@ -70,9 +70,12 @@ class MenuIframes(BaseComponent):
     def _menutree_getLabel(self):
         return """
             let label = node.attr.label;
-            if(node.attr.titleCounter){
+            if(node.attr.titleCounter && node.attr.isDir){
                 let v = node.getValue();
                 let count = v? v.len():0;
+                if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
+                    count-=1;
+                }
                 label = `${label} (${count})`
             }
             return label;

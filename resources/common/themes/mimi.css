@@ -817,6 +817,12 @@ body.tundra.mimi {
 .mimi .menu_branch.menu_shape.menutreeSelected{
     color: #444;
 }
+.menutree .menu_shape.menu_level_2.addTableItem{
+    font-style: italic;
+}
+
+
+
 
 
 .menutree .menu_shape:hover {
