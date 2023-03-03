@@ -612,7 +612,7 @@ class TableMenuResolver(MenuResolver):
         for record in selection:
             self.appendTableItem(result,record=record)
         if self.add_kwargs:
-            self.appendTableItem(result,record={'pkey':'*newrecord*'},**self.add_kwargs)
+            self.appendTableItem(result,record={'pkey':'*newrecord*'},customLabelClass='addTableItem',**self.add_kwargs)
         return result
     
     def appendTableItem(self,result,record=None,**kwargs):

@@ -776,6 +776,9 @@ body.tundra.mimi {
 .mode_mobile .menutree .closedir{
     background: none;
 }
+.menutree .label_emptydir{
+    opacity: .5;
+}
 
 .mode_mobile .menutree .label_opendir{
     background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
@@ -806,6 +809,19 @@ body.tundra.mimi {
 .mimi .menutree .menu_shape.menutreeSelected{
     color:rgb(255, 0, 111);
 }
+
+.mimi.mode_mobile .menu_branch.menu_shape.menutreeSelected{
+    color:white;
+}
+
+.mimi .menu_branch.menu_shape.menutreeSelected{
+    color: #444;
+}
+.menutree .menu_shape.menu_level_2.addTableItem{
+    font-style: italic;
+}
+
+
 
 
 
