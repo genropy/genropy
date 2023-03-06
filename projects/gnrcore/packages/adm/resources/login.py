@@ -174,7 +174,7 @@ class LoginComponent(BaseComponent):
         """,fb=fb,
             _fired='^do_login',
             rpcmethod=rpcmethod,
-            standAlonePage=self.pageOptions('standAlonePage'),
+            standAlonePage=self.pageOptions.get('standAlonePage'),
             closable_login=self.closable_login,
             error_msg='!!Invalid login',
             dlg=dlg.js_widget,
