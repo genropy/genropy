@@ -414,9 +414,9 @@ dojo.declare("gnr.widgets.chartjs", gnr.widgets.baseHtml, {
             sourceNode.publish('chartReady');
             if(sourceNode.attr.optionsBag){
                 var optionsBag = sourceNode.getAttributeFromDatasource('optionsBag');
-                if(optionsBag && optionsBag.getNodeByAttr('_userChanged')){
+                if(optionsBag && optionsBag.getNodeByAttr('_userChanges')){
                     optionsBag.walk(function(n){
-                        if(n.attr._userChanged){
+                        if(n.attr._userChanges){
                             n.setValue(n._value);
                         }
                     });
@@ -624,7 +624,7 @@ dojo.declare("gnr.widgets.chartjs", gnr.widgets.baseHtml, {
             }
         }
         if(curr[lastLabel]!=lastValue){
-            triggerNode.attr._userChanged = true;
+            triggerNode.attr._userChanges = true;
             curr[lastLabel] = lastValue;
         }
         if(this.sourceNode.isFreezed()){
