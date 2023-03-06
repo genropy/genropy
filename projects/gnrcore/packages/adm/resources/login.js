@@ -35,7 +35,7 @@ const LoginComponent = {
         })
     },
 
-    confirmAvatar:(sourceNode,rpcmethod,closable_login,dlg,doLogin,error_msg,contextpage)=>{
+    confirmAvatar:(sourceNode,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
         var rootpage = rootenv.getItem('rootpage');
@@ -86,7 +86,7 @@ const LoginComponent = {
                 if(doLogin){
                     if(!closable_login){
                         var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                        if(rootpage && !contextpage){
+                        if(rootpage && !standAlonePage){
                             genro.gotoURL(rootpage);
                         }else{
                             genro.pageReload();

@@ -564,7 +564,9 @@ class GnrWebPage(GnrBaseWebPage):
         return AUTH_OK
     
     def _checkRootPage(self):
-        if self.root_page_id or not self.avatar or not self.avatar.avatar_rootpage:
+        if self.pageOptions.get('standAlonePage') \
+            or self.root_page_id or not self.avatar \
+                or not self.avatar.avatar_rootpage:
             return AUTH_OK
         result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
         return result

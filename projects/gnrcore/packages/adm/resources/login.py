@@ -170,10 +170,11 @@ class LoginComponent(BaseComponent):
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
 
         pane.dataController("""
-            LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg)
+            LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)
         """,fb=fb,
             _fired='^do_login',
             rpcmethod=rpcmethod,
+            standAlonePage=self.pageOptions('standAlonePage'),
             closable_login=self.closable_login,
             error_msg='!!Invalid login',
             dlg=dlg.js_widget,
