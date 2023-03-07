@@ -301,8 +301,9 @@ class TableHandlerView(BaseComponent):
         top_kwargs['_class'] = 'th_view_toolbar'
         grid_kwargs.setdefault('gridplugins', 'configurator,chartjs,print' if extendedQuery else 'configurator,chartjs,export_xls,print')
         grid_kwargs['item_name_singular'] = self.db.table(table).name_long
-        grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs['item_name']
+        grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs.get('item_name')
         grid_kwargs.setdefault('loadingHider',loadingHider)
+
 
         grid_kwargs.setdefault('selfsubscribe_loadingData',"this.setRelativeData('.loadingData',$1.loading);if(this.attr.loadingHider!==false){this.setHiderLayer($1.loading,{message:'%s'});}" %self._th_waitingElement())
         if groupable is None:
