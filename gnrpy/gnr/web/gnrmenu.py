@@ -577,7 +577,6 @@ class TableMenuResolver(MenuResolver):
                             add_kwargs=add_kwargs,
                             branchPage=branchPage,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
-        self.label_field = self.label_field or self.tblobj.attributes.get('caption_field')
         self.leaf_kwargs = kwargs
 
     @property
@@ -619,7 +618,7 @@ class TableMenuResolver(MenuResolver):
         linekw = dict(self.leaf_kwargs)
         linekw.update(self.getMenuLineHandler()(record))
         linekw.setdefault('pageName',self.branchIdentifier)
-        linekw.setdefault('label',record.get(self.label_field))
+        linekw.setdefault('label',record.get(self.label_field or self.tblobj.attributes.get('caption_field')))        
         if self.title_field:
             linekw.setdefault('title',record.get(self.title_field))
         else:
