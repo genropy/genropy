@@ -5,7 +5,7 @@
 from gnr.lib.services.pdf import PdfService
 
 try:
-    from PyPDF2 import PdfFileWriter, PdfFileReader
+    from PyPDF2 import PdfWriter, PdfFileReader
     from io import BytesIO
 
     HAS_PYPDF = True
@@ -21,7 +21,7 @@ class Service(PdfService):
         
         if not HAS_PYPDF:
             raise self.parent.exception('Missing pyPdf in this installation')
-        output_pdf = PdfFileWriter()
+        output_pdf = PdfWriter()
         open_files = []
         out_sn = self.parent.storageNode(output_filepath)
         if len(pdf_list)==1:
