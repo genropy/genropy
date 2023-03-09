@@ -4779,7 +4779,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         }else{
              var uploadAttr=objectExtract(attr,'upload_*');
              var cropAttr=objectExtract(attr,'cr_*',true);
-
+             attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*' || isNullOrBlank(uploadAttr.folder ) && attr.edit===true;
              
             //gnrwdg.fakeinputNode = fakeinput.getParentNode();
 
@@ -4788,7 +4788,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                  attr.dropTarget=true;
                  attr.dropTypes='Files,text/plain';
                  attr.drop_ext=uploadAttr.ext || this._default_ext;
-                 attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*';
+                 
                  var src=sourceNode.attr.src;
                  attr.onDrop_text_html = function(dropInfo,data){
                     console.log('texthtml',dropInfo,data)
