@@ -131,6 +131,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
+        kwargs.pop('implementation',None)
         dsn = kwargs.get('dsn') or kwargs.get('database')
         try:
             conn = pyodbc.connect(dsn=dsn)
