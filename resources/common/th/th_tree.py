@@ -110,7 +110,6 @@ class HTableTree(BaseComponent):
                     treeNode.widget.saveExpanded();
                 }
                 result = result || new gnr.GnrBag();
-                console.log('selectedIdentifier',selectedIdentifier);
                 this.setRelativeData(storepath,result);
                 if(!selectedIdentifier){
                     treeNode.widget.setSelectedPath(null,{value:'#0'});
@@ -121,7 +120,6 @@ class HTableTree(BaseComponent):
                     treeNode.widget.restoreExpanded();
                     if(selectedIdentifier){
                         var fullpath = THTree.fullPathByIdentifier(treeNode.widget,selectedIdentifier,that);
-                        console.log('fullpath',fullpath)
                         treeNode.widget.setSelectedPath(null,{value:fullpath});
                     }
                 },1)

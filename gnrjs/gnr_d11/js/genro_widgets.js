@@ -1676,6 +1676,18 @@ dojo.declare("gnr.widgets.StackContainer", gnr.widgets.baseDojo, {
 
     },
     mixin_switchPage:function(p){
+        if(p=='*next*'){
+            p = this.getSelectedIndex() + 1;
+            let children = this.getChildren();
+            if(!children[p]){
+                return;
+            }
+        }else if(p=='*prev*'){
+            p = this.getSelectedIndex() - 1;
+            if(p<0){
+                return;
+            }
+        }
         var handler = (p==parseInt(p))?'setSelected':'setSelectedPage';
         this[handler](p);
     },
@@ -1933,8 +1945,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         var splitter = objectPop(closablePars,'splitter');
         if(kw.closable=='close'){
             togglecb()
-        }
-        var _class = 'slotbarOpener'+' slotbarOpener_'+orientation+' slotbarOpener_'+side;
+        }   
+        var customClass = objectPop(closablePars,'_class');
+        var _class = `slotbarOpener slotbarOpener_${orientation} slotbarOpener_${side} ${customClass}`;
         var label = objectPop(closablePars,'label');
         var opener = pane._('div',objectUpdate({_class:_class,connect_onclick:togglecb},closablePars),{doTrigger:false});
         if(label){
@@ -4364,7 +4377,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
 
 dojo.declare("gnr.widgets.dbBaseCombo", gnr.widgets.DynamicBaseCombo, {
     resolver:function(sourceNode,attributes,resolverAttrs,savedAttrs){
-        objectUpdate(resolverAttrs,objectExtract(attributes,'dbtable,table,selectmethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore'));
+        objectUpdate(resolverAttrs,objectExtract(attributes,
+                    'dbtable,table,selectmethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore,emptyLabel,emptyLabel_first,emptyLabel_class'));
         resolverAttrs.dbtable = resolverAttrs.dbtable || objectPop(resolverAttrs,'table');
         if('_storename' in sourceNode.attr){
             resolverAttrs._storename = sourceNode.attr._storename;
@@ -4765,7 +4779,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         }else{
              var uploadAttr=objectExtract(attr,'upload_*');
              var cropAttr=objectExtract(attr,'cr_*',true);
-
+             attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*' || isNullOrBlank(uploadAttr.folder ) && attr.edit===true;
              
             //gnrwdg.fakeinputNode = fakeinput.getParentNode();
 
@@ -4774,7 +4788,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                  attr.dropTarget=true;
                  attr.dropTypes='Files,text/plain';
                  attr.drop_ext=uploadAttr.ext || this._default_ext;
-                 attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*';
+                 
                  var src=sourceNode.attr.src;
                  attr.onDrop_text_html = function(dropInfo,data){
                     console.log('texthtml',dropInfo,data)

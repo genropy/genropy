@@ -62,9 +62,12 @@ class TableHandlerTreeResolver(BagResolver):
             for related_row in self.getRelatedChildren(self.parent_id):
                 r = dict(related_row)
                 pkey = r.pop('pkey',None)
+                caption = r[self.relatedCaptionField]
+                if self.relatedCaptionField == 'caption':
+                    r.pop('caption')
                 result.setItem(pkey, None,
                                 child_count=0,
-                                 caption=r[self.relatedCaptionField],
+                                 caption=caption,
                                  pkey=pkey, treeIdentifier='%s_%s'%(self.parent_id, pkey),
                                  node_class='tree_related',**r)
         if not self._isleaf:

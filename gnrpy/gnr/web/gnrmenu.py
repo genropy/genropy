@@ -380,7 +380,7 @@ class MenuResolver(BagResolver):
     @property
     def level(self):
         level = len(self.path.split('.')) if self.path else 0
-        if self.level_offset:
+        if self.level_offset is not None:
             return self.level_offset+level+1
         return level
 
@@ -518,6 +518,8 @@ class MenuResolver(BagResolver):
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
+        attributes.pop('branchPage',None)
+        self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,
@@ -560,7 +562,7 @@ class MenuResolver(BagResolver):
 class TableMenuResolver(MenuResolver):
     @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
-                        branchIdentifier=None, cacheTime=None,caption_field=None,
+                        branchIdentifier=None, cacheTime=None,caption_field=None,branchPage=None,
                         label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,**kwargs):
         super().__init__(table=table,
                             branchId=branchId,
@@ -573,8 +575,8 @@ class TableMenuResolver(MenuResolver):
                             cacheTime=cacheTime if cacheTime is not None else 5,
                             query_kwargs = query_kwargs,
                             add_kwargs=add_kwargs,
+                            branchPage=branchPage,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
-        self.label_field = self.label_field or self.tblobj.attributes.get('caption_field')
         self.leaf_kwargs = kwargs
 
     @property
@@ -609,14 +611,14 @@ class TableMenuResolver(MenuResolver):
         for record in selection:
             self.appendTableItem(result,record=record)
         if self.add_kwargs:
-            self.appendTableItem(result,record={'pkey':'*newrecord*'},**self.add_kwargs)
+            self.appendTableItem(result,record={'pkey':'*newrecord*'},customLabelClass='addTableItem',**self.add_kwargs)
         return result
     
     def appendTableItem(self,result,record=None,**kwargs):
         linekw = dict(self.leaf_kwargs)
         linekw.update(self.getMenuLineHandler()(record))
         linekw.setdefault('pageName',self.branchIdentifier)
-        linekw.setdefault('label',record.get(self.label_field))
+        linekw.setdefault('label',record.get(self.label_field or self.tblobj.attributes.get('caption_field')))        
         if self.title_field:
             linekw.setdefault('title',record.get(self.title_field))
         else:
@@ -624,13 +626,32 @@ class TableMenuResolver(MenuResolver):
         linekw.update(kwargs)
         webpage = kwargs.get('webpage') or self.webpage
         if webpage:
-            result.webpage(label = linekw.pop('label'),url_pkey=record['pkey'],
-                            filepath=webpage,url_branchIdentifier=self.branchIdentifier,
-                            **{f'url_{k}':v for k,v in linekw.items()})
+            start_pkey = None
+            url_pkey = None
+            pageName = None
+            title = None
+            label = linekw.pop('label')
+            if self.branchPage:
+                start_pkey = record['pkey']
+                pageName = self.branchIdentifier
+                linekw['branchIdentifier'] = self.branchIdentifier
+                title = linekw.pop('title',self.title)
+            else:
+                url_pkey = record['pkey']
+            result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
+                           url_pkey=url_pkey,filepath=webpage,pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()})
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
-            result.thpage(start_pkey=record['pkey'],table=self.table,branchPage=True,
-                            url_branchIdentifier=self.branchIdentifier,**linekw)
+            branchPage = True if self.branchPage is None else self.branchPage
+            linekw['branchPage'] = branchPage
+            if linekw['branchPage']:
+                linekw['url_branchIdentifier'] = self.branchIdentifier
+                linekw['start_pkey'] = record['pkey']
+            else:
+                linekw['pkey'] = record['pkey']    
+                linekw['title'] = record.get(self.title_field)
+                linekw['pageName'] = record['pkey']
+            result.thpage(table=self.table,**linekw)
 
 
 class LookupBranchResolver(MenuResolver):
