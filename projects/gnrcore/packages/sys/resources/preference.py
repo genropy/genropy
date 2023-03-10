@@ -57,7 +57,7 @@ class AppPref(object):
         
         dev = tc.contentPane(title='Developer')
         fb = dev.formbuilder()
-
+        fb.checkbox(value='^.notifications_enabled', label='Notifications enabled')
         fb.checkbox(value='^.jsPdfViewer',label='Extended pdf viewer')
         fb.comboBox(value='^.experimental.remoteForm',lbl='Remote forms',values='onEnter,delayed')
         self.site_config_override(tc.contentPane(title='!!Site config',datapath='.site_config'))

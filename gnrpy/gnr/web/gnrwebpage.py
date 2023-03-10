@@ -1962,7 +1962,24 @@ class GnrWebPage(GnrBaseWebPage):
             self._package_folder = self.site.getPackageFolder(self.packageId)
         return self._package_folder
     package_folder = property(_get_package_folder)
-    
+
+
+    def send_web_push(self, subscription_information, message_body):
+        from pywebpush import webpush, WebPushException
+        VAPID_CLAIMS = {
+        "sub": "mailto:info@genropy.org"
+        }
+        vapid_private_key = self.site.getPreference('.vapid_private',pkg='sys')
+        return webpush(
+            subscription_info=subscription_information,
+            data=message_body,
+            vapid_private_key=vapid_private_key,
+            vapid_claims=VAPID_CLAIMS
+    )
+    @public_method
+    def webpush(self, message):
+        pass
+
     def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
@@ -2020,7 +2037,17 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.root_page_id',self.root_page_id)
         page.data('gnr.workdate', self.workdate) #serverpath='rootenv.workdate')
         page.data('gnr.language', self.language,serverpath='rootenv.language',dbenv=True)
-        
+        if 'sys' in self.site.gnrapp.packages and self.site.getPreference('.notifications_enabled',pkg='sys'):
+            vapid_private_key = self.site.getPreference('.vapid_private',pkg='sys')
+            vapid_public_key = self.site.getPreference('.vapid_public',pkg='sys')
+            if not (vapid_private_key and vapid_public_key) or type(vapid_private_key)==bytes or "b'" in vapid_private_key:
+                tbl_sub = self.db.table('sys.push_subscription')
+                vapid_private_key,vapid_public_key = tbl_sub.generate_vapid_keypair()
+                vapid_private_key = vapid_private_key.decode()
+                vapid_public_key = vapid_public_key.decode()
+                self.site.setPreference('.vapid_private', vapid_private_key,pkg='sys')
+                self.site.setPreference('.vapid_public', vapid_public_key,pkg='sys')
+            page.data('gnr.vapid_public',vapid_public_key)
         page.data('gnr.table',getattr(self,'maintable',None))
         page.data('gnr.project_code',self.db.application.packages[self.package.name].project)
 
