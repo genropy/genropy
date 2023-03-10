@@ -59,7 +59,8 @@ class MenuIframes(BaseComponent):
         return """let labelClass = node.attr.labelClass;
                 if(node.attr.isDir){
                     let staticValue = node.getValue('static');
-                    if(node._status =='loaded' && (!staticValue || staticValue.len()==0)){
+                    let resolver = node.getResolver();
+                    if((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0)){
                         return `label_emptydir ${labelClass}`;
                     }
                     let diricon = opened? 'label_opendir':'label_closedir';
