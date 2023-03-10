@@ -8,6 +8,9 @@ from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
+from collections import defaultdict
+import _thread
+from threading import RLock
 #from gnr.core.gnrlang import componentFactory
 import paramiko
 import stat
@@ -22,30 +25,33 @@ warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<
 
 
 class SFTPConnection(object):
-    def __init__(self, parent=None, host=None, port=22,
-        username=None,
-        password=None, transport=None):
-        if parent:
-            self.host = parent.host
-            self.port = parent.port
-            self.username = parent.username
-            self.password = parent.password
-            self.transport = parent.transport
-        else:
-            self.host = host
-            self.port = port
-            self.username = username
-            self.password = password
-            self.transport = transport
-        self.keep_transport_open = self.transport is not None and transport.is_active()
+    def __init__(self, parent=None):
+        self._client = None
+        self.host = parent.host
+        self.port = parent.port
+        self.username = parent.username
+        self.password = parent.password
+        self.transport = parent.transport
+        #self.transport = None #parent.transport
+
+        self.keep_transport_open = self.transport is not None #and self.transport.is_active()
         self.transport = self.transport or paramiko.Transport((self.host, self.port))
 
     def __enter__(self):
-        self.fd,self.name = tempfile.mkstemp(suffix=self.ext)
+        if hasattr(self.transport, '_connection_lock'):
+            self.transport._connection_lock.acquire()
+            lock_acquired = True
+        else:
+            lock_acquired = False
         if not self.transport.is_active():
+            print('connecting')
             self.transport.connect(username = self.username, password = self.password)
-        return paramiko.SFTPClient.from_transport(self.transport)
+        self._client = paramiko.SFTPClient.from_transport(self.transport)
+        if lock_acquired:
+            self.transport._connection_lock.release()
+        return self._client
     def __exit__(self, exc, value, tb):
+        self._client.close()
         if not self.keep_transport_open:
             self.transport.close()
 
@@ -53,20 +59,7 @@ class SFTPConnection(object):
 class SFTPTemporaryFilename(object):
     def __init__(self,parent=None, host=None, port=22, mode=None, remote_path=None, username=None, password=None,
                 keep=False, transport=None):
-        if parent:
-            self.host = parent.host
-            self.port = parent.port
-            self.username = parent.username
-            self.password = parent.password
-            self.transport = parent.transport
-        else:
-            self.host = host
-            self.port = port
-            self.username = username
-            self.password = password
-            self.transport = transport
-        self.keep_transport_open = self.transport is not None and transport.is_active()
-        self.transport = self.transport or paramiko.Transport((self.host, self.port))
+        self.parent = parent
         self.mode = mode or 'r'
         self.write_mode = ('w' in self.mode) or False
         self.read_mode = not self.write_mode
@@ -78,7 +71,7 @@ class SFTPTemporaryFilename(object):
     def __enter__(self):
         self.fd,self.name = tempfile.mkstemp(suffix=self.ext)
         try:
-            with SFTPConnection(self) as sftp:
+            with SFTPConnection(self.parent) as sftp:
                 sftp.get(self.remote_path, self.name)
             self.enter_mtime = os.stat(self.name).st_mtime
         except:
@@ -87,7 +80,7 @@ class SFTPTemporaryFilename(object):
 
     def __exit__(self, exc, value, tb):
         if os.stat(self.name).st_mtime != self.enter_mtime:
-            with SFTPConnection(self) as sftp:
+            with SFTPConnection(self.parent) as sftp:
                 sftp.put(self.name, self.remote_path)
         if not self.keep:
             os.unlink(self.name)
@@ -100,11 +93,21 @@ class Service(StorageService):
         password=None,  **kwargs):
         self.parent = parent
         self.host = host
-        self.port = port
+        self.port = int(port)
         self.base_path = (base_path or '').rstrip('/')
         self.username = username
         self.password = password
-        self.transport = paramiko.Transport((self.host, self.port))
+        self._thtransport = dict()
+        #self.transport = paramiko.Transport((self.host, self.port))
+
+    @property
+    def transport(self):
+        thread_ident = _thread.get_ident()
+        if not thread_ident in self._thtransport:
+            self._thtransport[thread_ident] = paramiko.Transport((self.host, self.port))
+            setattr(self._thtransport[thread_ident],'_connection_lock',RLock())
+        return self._thtransport[thread_ident]
+
 
     @property
     def location_identifier(self):
@@ -129,6 +132,7 @@ class Service(StorageService):
                 fileattr = sftp.stat(internalpath)
             except FileNotFoundError:
                 return None
+            return fileattr
 
     def isfile(self, *args):
         f_stat = self._stat(*args)
