@@ -155,7 +155,7 @@ class GnrStructData(Bag):
 
 
     def child(self, tag, childname=None, childcontent=None, content=None,_parentTag=None, _attributes=None,
-              _returnStruct=True, _position=None,_childcounter=False, **kwargs):
+              _returnStruct=True, _position=None,_childcounter=False,**kwargs):
         """Set a new item of the ``tag`` type into the current structure. Return the new structure
         if content is ``None``, else the parent
         
@@ -167,9 +167,7 @@ class GnrStructData(Bag):
         :param childname: the :ref:`childname`
         """
         where = self   
-        original_childname = childname
-        childname = childname or self.default_childname
-
+        
        #if childname and childname != '*_#':
        #    kwargs['_childname'] = childname
         if childcontent is None:
@@ -178,6 +176,12 @@ class GnrStructData(Bag):
             kwargs.update(_attributes)
         if '_content' in kwargs:
             kwargs['content'] = kwargs.pop('_content')
+        if hasattr(where,'_destinationNode'):
+            if hasattr(where,'_decorateChildAttributes'):
+                where._decorateChildAttributes(where,tag, kwargs)
+            where = where._destinationNode
+        original_childname = childname
+        childname = childname or self.default_childname
         if '.' in childname:
             namelist = childname.split('.')
             childname = namelist.pop()
@@ -186,7 +190,6 @@ class GnrStructData(Bag):
                     item = self.__class__()
                     where[label] = item
                 where = where[label]
-                
         childname = childname.replace('*', tag or 'notag').replace('#', str(len(where)))
         
         if childcontent is None and _returnStruct:

@@ -170,7 +170,7 @@ def check_db(app):
         if options.verbose:
             print('*CHANGES:\n%s' % '\n'.join(app.db.model.modelChanges))
         else:
-            print('STUCTURE NEEDS CHANGES')
+            print('STRUCTURE NEEDS CHANGES')
     else:
         print('STRUCTURE OK')
     return changes

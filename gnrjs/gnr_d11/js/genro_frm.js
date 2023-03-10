@@ -133,6 +133,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var that = this;
         if(this.canBeSaved()){
             if(this.isNewRecord()){
+                if(this.store.firstAutoSave===false){
+                    return;
+                }
                 genro.callAfter(function(){
                     that.save();
                 },1,this.sourceNode,'autoSaveForm_'+this.formId);
@@ -534,7 +537,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(this.opStatus=='loading'){
             return;
         }
-
         var that = this;
         if(objectNotEmpty(this.childForms)){
             var onAnswer = function(command){if(command=='cancel'){return;}
@@ -600,7 +602,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave ){
+            if(kw.modifiers=='Shift' || this.autoSave){
                 this.save(kw);
             }else{
                 this.openPendingChangesDlg(kw);
@@ -1311,12 +1313,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.reset();
         this.setOpStatus();
         this.__last_save = new Date()
-        //if there allowing invalid fields save. this lines force the widget error
         var invalidFields = this.getDataNodeAttributes()['_invalidFields'];
         if(invalidFields && objectNotEmpty(invalidFields)){
-            for (var p in invalidFields){
-                data.setItem(p,data.getItem(p));
+            //if there allowing invalid fields save. this lines force the widget error
+            this._triggerInvalidFields(invalidFields,data)
+        }
+    },
+
+    _triggerInvalidFields:function(invalidFields,recordData){
+        for (var p in invalidFields){
+            if(this.currentFocused && this.currentFocused._focused && this.currentFocused.sourceNode.attr.value){
+                let valuepath = this.currentFocused.sourceNode.absDatapath(this.currentFocused.sourceNode.attr.value)
+                let invalidValuePath = this.sourceNode.absDatapath('.record.'+p);
+                if(valuepath == invalidValuePath){
+                    console.log('avoid triggering invalidfields')
+                    continue;
+                }
             }
+            recordData.setItem(p,recordData.getItem(p));
         }
     },
     

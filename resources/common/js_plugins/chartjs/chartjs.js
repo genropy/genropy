@@ -898,7 +898,7 @@ dojo.declare("gnr.widgets.ChartPane", gnr.widgets.gnrwdg, {
         var options = chartNode.getRelativeData(chartNode.attr.optionsBag);
         var savedOptions = new gnr.GnrBag();
         options.walk(function(n){
-            if(n.attr._userChanged){
+            if(n.attr._userChanges){
                 var fullpath = n.getFullpath(null,options);
                 savedOptions.setItem(fullpath.replace(/\./g, '_'),null,{path:fullpath,value:n.getValue()});
             }

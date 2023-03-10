@@ -241,6 +241,7 @@ REGEX_WRDSPLIT = re.compile(r'\W+')
 BASE_ENCODE = {'/2': '01',
                '/8': '012345678',
                '/16': '0123456789ABCDEF',
+               '/32': '0123456789ABCDEFGHLMNPQRSTUVWXYZ',
                '/36': '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 }
 
@@ -804,6 +805,9 @@ def baseEncode(number, base='/16', nChars=None):
             result.insert(0, base[0])
     return ''.join(result)
 
+def encode32(number, nChars=1):
+    return baseEncode(number,'/32',nChars=nChars)
+
 def encode36(number, nChars=1):
     return baseEncode(number,'/36',nChars=nChars)
 
@@ -816,6 +820,9 @@ def baseDecode(s, base='/16'):
         result = result*n + base.index(v)
 
     return result
+
+def decode32(s):
+    return baseDecode(s,'/32')
 
 def decode36(s):
     return baseDecode(s,'/36')

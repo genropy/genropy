@@ -102,11 +102,14 @@ class TableHandlerGroupBy(BaseComponent):
         gridstack = sc.stackContainer(pageName='grid',title='!!Grid View',selectedPage='^.groupMode')
 
         #gridstack.dataFormula('.currentTitle','',defaultTitle='!!Group by')
+        structcb = struct or self._thg_defaultstruct
+        baseViewName = structcb.__doc__
         frame = gridstack.frameGrid(frameCode=frameCode,grid_onDroppedColumn="""
                                     genro.groupth.addColumnCb(this,{data:data, column:column,fieldcellattr:fieldcellattr,treeNode:treeNode});
                                     """,
                                     datamode='attr',
-                                struct=struct or self._thg_defaultstruct,
+                                struct=structcb,
+                                grid_baseViewName = baseViewName,
                                 _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
 
@@ -166,7 +169,7 @@ class TableHandlerGroupBy(BaseComponent):
                                 currentView="^.grid.currViewPath",
                                 favoriteView='^.grid.favoriteViewPath',
                                 gridId=gridId)
-        self._thg_structMenuData(frame,table=table,linkedTo=linkedTo)
+        self._thg_structMenuData(frame,table=table,linkedTo=linkedTo,baseViewName=baseViewName)
         if configurable:
             frame.viewConfigurator(table,queryLimit=False,toolbar=False)
         else:
@@ -233,6 +236,7 @@ class TableHandlerGroupBy(BaseComponent):
 
 
     def _thg_defaultstruct(self,struct):
+        "!![en]New View"
         r=struct.view().rows()
         r.cell('_grp_count',name='Cnt',width='5em',group_aggr='sum',dtype='L',childname='_grp_count')
 
@@ -246,7 +250,7 @@ class TableHandlerGroupBy(BaseComponent):
             pane.multiButton(value='^#ANCHOR.groupMode',values='flatview:[!![en]Flat],stackedview:[!![en]Stacked]')
 
     
-    def _thg_structMenuData(self,frame,table=None,linkedTo=None):
+    def _thg_structMenuData(self,frame,table=None,linkedTo=None,baseViewName=None):
         q = Bag()
         if linkedTo:
             pyviews = self._th_hook('groupedStruct',mangler=linkedTo,asDict=True)
@@ -255,7 +259,7 @@ class TableHandlerGroupBy(BaseComponent):
                 q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
             frame.data('.grid.resource_structs',q)
         frame.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),currentView="^.grid.currViewPath",
-                        table=table,th_root=frame.attributes['frameCode'],objtype='grpview',
+                        table=table,th_root=frame.attributes['frameCode'],objtype='grpview',baseViewName=baseViewName,
                         favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
 
 

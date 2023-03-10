@@ -162,7 +162,7 @@ class BagToHtml(object):
     def orientation(self):
         """Set the page orientation to 'Landscape' if the :ref:`bagtohtml_page_width` is greater
         than the :ref:`bagtohtml_page_height`, else set the orientation to 'Portrait'"""
-        if self.page_width>self.page_height:
+        if self.page_width and self.page_width>self.page_height:
             return 'Landscape'
         else:
             return 'Portrait'

@@ -885,6 +885,7 @@ class GnrWsgiSite(object):
         self.checkForDbStore(path_list,request_kwargs)
        #if path_list and (path_list[0] in self.dbstores):
        #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
+        path_list = path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]
         if first_segment == '_ping':
@@ -908,8 +909,8 @@ class GnrWsgiSite(object):
                 first_segment = path_list[0]
         storageType = self.storageType(path_list)
         if storageType:
-                self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
-                return self.storageDispatcher(path_list, environ, start_response, 
+            self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
+            return self.storageDispatcher(path_list, environ, start_response, 
                                                         storageType=storageType, **request_kwargs)
         elif first_segment.startswith('_tools'):
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='TOOLS')

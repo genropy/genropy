@@ -328,7 +328,26 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return _class.join(' ');
         };
         treeattr.onDrag = function(dragValues, dragInfo, treeItem) {
-            if (!(treeItem.attr.dtype && treeItem.attr.dtype != 'RM' && treeItem.attr.dtype != 'RO')) {
+            if(treeItem.attr.dtype == 'RM'){
+                return false;
+            }
+            if(treeItem.attr.dtype =='RO'){
+                if(!genro.isDeveloper){
+                    return false;
+                }
+                var fldinfo = objectUpdate({}, treeItem.attr.fkey);
+                fldinfo._nodelabel = treeItem.label;
+                fldinfo['maintable'] = table;
+                let fpath = treeItem.attr.fieldpath.split('.');
+                fldinfo._nodelabel = fpath.pop().slice(1);
+                fpath.push(fldinfo._nodelabel)
+                fldinfo.fieldpath =  fpath.join('.');
+                fldinfo.fullcaption = fldinfo.fieldpath;
+                dragValues['text/plain'] = fldinfo.field;
+                dragValues[dragCode] = fldinfo;
+                return;
+            }
+            if(!treeItem.attr.dtype){
                 return false;
             }
             var fldinfo = objectUpdate({}, treeItem.attr);
@@ -1211,6 +1230,58 @@ dojo.declare("gnr.GnrDevHandler", null, {
             })
         })
         return errors.join('<br/><hr/>');
+    },
+
+    convertJsStructToPython:function(structBag){
+        if(!structBag){
+            return '';
+        }
+        let rows = structBag.getItem('view_0.rows_0');
+        if (!rows){
+            return;
+        }
+        let result = []
+        const blacklist = ["_protectionStatus"];
+        const whitelist_attr = ["width","color","style","_class","font_size","cellClasses","cellStyles"];
+        result.push('def th_struct(self,struct):')
+        result.push('    r = struct.view().rows()')
+        let columnsets = info = structBag.getItem('info.columnsets') || new gnr.GnrBag();
+        columnsets_dict = {};
+        for(let node of columnsets.getNodes()){
+            let attr = {...node.attr};
+            let varname = `cs_${attr.code}`;
+            result.push(`    cs_${attr.code} = r.columnset('${attr.code}',name='${attr.name}')`)
+            columnsets_dict[attr.code] = varname;
+        }
+        for(let node of rows.getNodes()){
+            let attr = {...node.attr};
+            let field = attr.field;
+            if(blacklist.includes(field)){
+                continue;
+            }
+            let varname = 'r';
+            if(attr.columnset){
+                varname = columnsets_dict[attr.columnset];
+            }
+            let tag = attr.sqlcolumn? 'cell':'fieldcell';
+            let cellattrs = [];
+            if(attr.name){
+                cellattrs.push(`name='${attr.name}'`);
+            }
+            if(attr.calculated===true){
+                cellattrs.push('calculated=True');
+            }
+            for(let attrname of whitelist_attr){
+                if(attr[attrname]){
+                    cellattrs.push(`${attrname}='${attr[attrname]}'`)
+                }
+            }
+            if(attr._customGetter){
+                cellattrs.push(`_customGetter = """${attr._customGetter}"""`)
+            }
+            result.push(`    ${varname}.${tag}('${field}', ${cellattrs.join(', ')})`);
+        }
+        return result.join('\n')
     },
 
     openHelpDesk:function(){
