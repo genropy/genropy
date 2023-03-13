@@ -4983,8 +4983,8 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var videoNodeId = frameCode+'_video';
         var canvasNodeId = frameCode+'_canvas';
         var cropperNodeId = frameCode+'_cropper';
-        const videoHeight = 300;
-        const videoWidth = 400; 
+        const videoHeight = 225;
+        const videoWidth = 300; 
         let clientWidth = sourceNode.domNode.clientWidth;
         let clientHeight = sourceNode.domNode.clientHeight;
         var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
