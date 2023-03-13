@@ -190,6 +190,12 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     selectIframePage:function(kw){
+        if(kw.newWindow){
+            return this.newBrowserWindowPage(kw);
+        }
+        if(kw.newPanel){
+            return this.newBrowserPanel(kw);
+        }
         var rootPageName = this.createIframeRootPage(kw);
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
@@ -257,6 +263,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode.fireEvent('refreshTablist',true);
     },
 
+    newBrowserPanel:function(kw){
+        objectExtract(kw,'title,label')
+        this.finalizePageUrl(kw);
+        window.open(kw.url);
+    },
 
     selectWindow:function(menuitem,ctxSourceNode,event){
         genro.externalWindowsObjects[menuitem.windowKey].focus()

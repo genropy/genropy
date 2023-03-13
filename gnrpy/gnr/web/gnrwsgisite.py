@@ -976,6 +976,9 @@ class GnrWsgiSite(object):
         if uri:
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
+    
+    def handleSubdomain(self,path_list,request_kwargs=None):
+        self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
 
     def checkForDbStore(self,path_list,request_kwargs):
         if not path_list and not (request_kwargs.get('temp_dbstore') or '').startswith('@'):
@@ -985,6 +988,9 @@ class GnrWsgiSite(object):
         dbstore = None
         if first.startswith('@'):
             instanceNode = self.gnrapp.config.getNode('aux_instances.%s' %first[1:])
+            if not instanceNode:
+                self.handleSubdomain(path_list,request_kwargs=request_kwargs)
+                return
         else:
             dbstore = self.db.stores_handler.get_dbstore(first)
         if dbstore or instanceNode:
