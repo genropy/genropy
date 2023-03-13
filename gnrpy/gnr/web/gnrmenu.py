@@ -541,7 +541,7 @@ class MenuResolver(BagResolver):
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
-                                _page=self._page,**dictExtract(attributes,'branch_')),attributes
+                                _page=self._page,**dictExtract(attributes,'branch_',slice_prefix=False)),attributes
 
 
     def nodeType_branch(self,node):

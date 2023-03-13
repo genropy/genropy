@@ -141,26 +141,7 @@ class FrameIndex(BaseComponent):
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
-        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
-                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
-        bar.debugping.div(_class='ping_semaphore',width='30px')
-
-        bar.dataController("""
-        var currentpages = new gnr.GnrBag();
-        iframes = iframes || new gnr.GnrBag();
-        for(let n of iframes.getNodes()){
-            let kw = {caption:n.attr.fullname};
-            currentpages.addItem(n.label,null,kw);
-        }
-        currentpages.addItem('-')
-        currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
-        currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
-
-        SET gnr.currentPages = currentpages;
-        
-        """,iframes='^iframes',reload_caption='!!Reload current page',
-                closepage_caption="!!Close current page")
-
+        self.pageTitle_mobile(bar.pageTitle)
         bar.pageTitle.dataController("""
                                         let selectedPageTitle = basetitle;
                                         if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
@@ -170,6 +151,26 @@ class FrameIndex(BaseComponent):
                                         SET selectedPageTitle = selectedPageTitle;
                                         """,selectedPage='^selectedFrame', 
                                 iframes='^iframes',basetitle='Index',_delay=1)
+        bar.debugping.div(_class='ping_semaphore',width='30px')
+
+    def pageTitle_mobile(self,pane):
+        pane.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
+                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
+
+        pane.dataController("""
+        var currentpages = new gnr.GnrBag();
+        iframes = iframes || new gnr.GnrBag();
+        for(let n of iframes.getNodes()){
+            let kw = {caption:n.attr.fullname};
+            currentpages.addItem(n.label,null,kw);
+        }
+        currentpages.addItem('-')
+        currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
+        currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
+        SET gnr.currentPages = currentpages;
+        """,iframes='^iframes',reload_caption='!!Reload current page',
+                closepage_caption="!!Close current page")
+
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
