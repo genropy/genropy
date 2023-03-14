@@ -25,6 +25,8 @@ class FrameIndex(BaseComponent):
     index_page = False
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
+    index_title = 'Index'
+
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
@@ -62,7 +64,7 @@ class FrameIndex(BaseComponent):
         root.attributes['overflow'] = 'hidden'
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
-                getattr(self,'index_%s' %custom_index)(root)
+                getattr(self,f'index_{custom_index}')(root)
             else:
                 self.index_dashboard(root)
         else:         
@@ -137,7 +139,7 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,debugping,5',_class='framedindex_tablist showcase_dark',height='30px')
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',_class='framedindex_tablist showcase_dark',height='30px')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
@@ -150,8 +152,7 @@ class FrameIndex(BaseComponent):
                                         }
                                         SET selectedPageTitle = selectedPageTitle;
                                         """,selectedPage='^selectedFrame', 
-                                iframes='^iframes',basetitle='Index',_delay=1)
-        bar.debugping.div(_class='ping_semaphore',width='30px')
+                                iframes='^iframes',basetitle=self.index_title,_delay=1)
 
     def pageTitle_mobile(self,pane):
         pane.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
@@ -298,9 +299,18 @@ class FrameIndex(BaseComponent):
 
 
     def prepareBottom_mobile(self,bc):
-        return
 
-    
+        pane = bc.contentPane(region='bottom',overflow='hidden')
+        sb = pane.slotToolbar('10,genrologo,5,applogo,*,debugping,logout,10',
+                              _class='slotbar_toolbar framefooter',height='22px',
+                        background='#EEEEEE',border_top='1px solid silver')
+        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        sb.debugping.div(_class='ping_semaphore')
+        applogo = sb.applogo.div()
+        if hasattr(self,'application_logo'):
+            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
+        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
                                 #border_left='1px solid silver',
@@ -330,9 +340,9 @@ class FrameIndex(BaseComponent):
         scattr['subscribe_changeFrameLabel']='genro.framedIndexManager.changeFrameLabel($1);'
         page = self.pageSource()   
         if getattr(self,'index_dashboard',None):
-            self.index_dashboard(sc.contentPane(pageName='indexpage'))
+            self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
-            indexpane = sc.contentPane(pageName='indexpage',title='Index',overflow='hidden')
+            indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         
@@ -387,17 +397,9 @@ class FrameIndex(BaseComponent):
 
 
 
-        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer')
-
-       #bar = frame.bottom.slotBar('5,userbox,*,logout,5',childname='userlogout')
-       #bar.userbox.div(self.user if not self.isGuest else 'guest',color='#EDEDEE',font_weight='bold')
-       #bar.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-
-
-        sb = frame.bottom.slotBar('*,genrologo,*',background='white',
-                            _class='slotbar_toolbar framefooter',height='23px',childname='logobar')
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
+        plugins = self.plugin_list.split(',') + custom_plugins
+        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));
                              genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);
@@ -415,13 +417,8 @@ class FrameIndex(BaseComponent):
             sc.dataController("""PUBLISH main_left_set_status = true;
                                  SET .selected=plugin;
                                  """, **{'subscribe_%s_open' % plugin: True, 'plugin': plugin})
-
-        for btn in self.plugin_list.split(','):
-            getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
-            
-        if self.custom_plugin_list:
-            for btn in self.custom_plugin_list.split(','):
-                getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
+        for btn in plugins:
+            getattr(self,f'btn_{btn}')(pluginbar.pluginButtons)
 
     def btn_menuToggle(self,pane,**kwargs):
         pane.div(_class='button_block iframetab').div(_class='application_menu',tip='!!Show/Hide the left pane',
