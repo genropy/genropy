@@ -65,7 +65,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var rootPageName = kw.rootPageName;
         var stackWidget=this.stackSourceNode.widget;
         if(stackWidget.hasPageName(rootPageName)){
-            this.iframesbag.getNode(rootPageName).updAttributes(this.iframeBagNodeAttr(kw));
+            this.iframesbag.getNode(rootPageName,null,true).updAttributes(this.iframeBagNodeAttr(kw));
             return rootPageName;
         }
         this.iframesbag = genro.getData('iframes');
