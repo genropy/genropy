@@ -55,7 +55,7 @@ class Table(object):
         return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
     
     def pyColumn_square_logo(self,record,**kwargs):
-        return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
+        return self.db.application.getPreference('gui_customization.owner.square_logo',pkg='adm')
     
 
     def get_all_tags(self, record=None):
