@@ -4913,15 +4913,15 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             }
             
         }});
-        slotbar._('button','upload',{label:'Upload',command:'upload'});
+        slotbar._('button','upload',{label:_T('Upload'),command:'upload'});
         if(sourceNode.attr.takePicture && sourceNode.attr.dataUrlMode){
-            slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+            slotbar._('button','takePicture',{label:_T('Photo'),command:'takePicture'});
         }
         if(src){
             if(sourceNode.attr.dataUrlMode){
-                slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
+                slotbar._('button','editCanvas',{label:_T('Edit'),command:'editCanvas'});
             }
-            slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
+            slotbar._('button','emptyValue',{label:_T('Delete'),command:'emptyValue'});
         }
         dlg.show_action();
 
