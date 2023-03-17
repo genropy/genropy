@@ -4758,6 +4758,7 @@ dojo.declare("gnr.widgets.DropDownButton", gnr.widgets.baseDojo, {
 dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
     onBuilding:function(sourceNode){
         var attr=sourceNode.attr;
+        sourceNode.attr.takePicture = sourceNode.attr.takePicture && !genro.isMobile;
         var crop = objectExtract(attr, 'crop_*');
         var that = this;
         if(objectNotEmpty(crop)){
