@@ -157,22 +157,7 @@ class MenuIframes(BaseComponent):
 
     def mainLeft_mobilemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
-        #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
-        bc = frame.center.borderContainer()
-        sb = frame.bottom.slotBar('10,userbox,20,appbox,*,logout,10',height='32px',border_top='1px solid white')
-        sb.userbox.lightButton(self.user if not self.isGuest else 'guest',color='white',
-                        action='genro.framedIndexManager.openUserPreferences()',cursor='pointer',
-                        font_weight='bold',text_decoration='underline',font_size='.9em')
-    
-        sb.appbox.lightButton('!!Preferences',color='white',
-                        action='genro.framedIndexManager.openAppPreferences()',cursor='pointer',
-                        font_weight='bold',text_decoration='underline',font_size='.9em')
-
-
-        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-        #tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
-        self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+        self.menu_iframemenuPane(frame.center.contentPane().div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
 
     def btn_mobilemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('mobilemenu_plugin',caption='!!Menu',

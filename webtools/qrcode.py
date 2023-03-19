@@ -19,7 +19,7 @@ class QRCode(BaseWebtool):
     def __call__(self, text=None,**kwargs):
         qr = qrcode.QRCode(image_factory=qrcode.image.svg.SvgPathImage)
         qr.add_data(text)
-        qr.make(fit=True)
-        img = qr.make_image(attrib={'style': 'height:100%;width:100%'})
+        #qr.make(fit=True)
+        img = qr.make_image(attrib={'style': 'width:100%;height:100%;'})
         self.content_type = 'text/html'
-        return img.to_string(encoding='unicode')
+        return f"<div style='position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;'>{img.to_string(encoding='unicode')}</div>"

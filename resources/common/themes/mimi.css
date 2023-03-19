@@ -1399,6 +1399,10 @@ body.tundra.mimi {
     background-size: 10px;
 }
 
+.placeholder_profile{
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat no-repeat center center;
+}
+
 
 
 .popupLabel {

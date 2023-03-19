@@ -330,8 +330,10 @@ class AttachManager(BaseComponent):
                                  intermediateChanges=True, width='15em',default_value=1)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
-            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
-        fb.textbox(value='^.form.record.description',lbl='!!Description')
+            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
+        fb.textbox(value='^.description',lbl='!!Description')
+        frame.parametersForm = fb
+
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')

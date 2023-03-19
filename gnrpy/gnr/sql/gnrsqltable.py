@@ -1793,7 +1793,7 @@ class SqlTable(GnrObject):
         #override
         return False
 
-    def guessPkey(self,identifier):
+    def guessPkey(self,identifier,tolerant=False):
         if identifier is None:
             return
         def cb(cache=None,identifier=None,**kwargs):
@@ -1804,11 +1804,15 @@ class SqlTable(GnrObject):
             if ':' in identifier:
                 wherelist = []
                 wherekwargs = dict()
+                
                 for cond in identifier.split(','):
+                    cond = cond.strip()
                     codeField,codeVal = cond.split(':')
+                    if codeVal is None or codeVal=='':
+                        continue
                     cf = '${}'.format(codeField) if not (codeField.startswith('$') or codeField.startswith('@')) else codeField
                     vf = codeField.replace('@','_').replace('.','_').replace('$','')
-                    wherelist.append('%s=:v_%s' %(cf,vf))
+                    wherelist.append('%s ILIKE :v_%s' %(cf,vf) if tolerant else '%s = :v_%s' %(cf,vf))
                     wherekwargs['v_%s' %vf] = codeVal
                 result = self.readColumns(columns='$%s' %self.pkey,where=' AND '.join(wherelist),
                                         subtable='*',**wherekwargs)

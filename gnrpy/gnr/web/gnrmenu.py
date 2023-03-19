@@ -425,12 +425,13 @@ class MenuResolver(BagResolver):
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
-        if not self._page.checkPermission(attributes['filepath']):
+        attributes.setdefault('webpage',attributes.get('filepath'))
+        webpage = attributes['webpage'] 
+        if webpage and not self._page.checkPermission(webpage):
             raise NotAllowedException('Not allowed page')
         aux_instance = attributes.get('aux_instance') or self.aux_instance
-        attributes['webpage'] = attributes['filepath']
-        if self.basepath and not attributes['webpage'].startswith('/'):
-            attributes['webpage'] = f"{self.basepath}/{attributes['webpage']}" 
+        if webpage and self.basepath and not webpage.startswith('/'):
+            attributes['webpage'] = f"{self.basepath}/{webpage}" 
         attributes['url_aux_instance'] = aux_instance
         self.checkExternalSite(attributes)
         return None,attributes
@@ -541,7 +542,7 @@ class MenuResolver(BagResolver):
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
                                 aux_instance=attributes.get('aux_instance') or self.aux_instance,
                                 externalSite= attributes.get('externalSite') or self.externalSite,
-                                _page=self._page,**dictExtract(attributes,'branch_')),attributes
+                                _page=self._page,**dictExtract(attributes,'branch_',slice_prefix=False)),attributes
 
 
     def nodeType_branch(self,node):
