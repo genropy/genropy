@@ -43,17 +43,13 @@ function updateSubscriptionOnServer(subscription) {
         var subscription_token = JSON.stringify(subscription)
         genro.serverCall("_table.sys.push_subscription.store_new_subscription",{subscription_token:subscription_token},
                                                 function(result){
-                                                    if(!result){
-                                                        genro.dlg.alert("Not allowed","Warning");
-                                                    }
+                                                    
                                                 });
         
     } else {
         genro.serverCall("_table.sys.push_subscription.remove_subscription",{subscription_token:subscription_token},
                                                 function(result){
-                                                    if(!result){
-                                                        genro.dlg.alert("Not allowed","Warning");
-                                                    }
+                                                    
                                                 });
     }
 }
@@ -61,9 +57,6 @@ function updateSubscriptionOnServer(subscription) {
 function notify_all(message_body){
     genro.serverCall("_table.sys.push_subscription.notify_all",{message_body:message_body},
     function(result){
-        if(!result){
-            genro.dlg.alert("Not allowed","Warning");
-        }
     });
 }
 

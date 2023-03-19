@@ -33,7 +33,7 @@ self.addEventListener('push', event=> {
 
   const title = 'Notifica Genropy';
   const options = {
-    body: `event.data.text()`
+    body: `${event.data.text()}`
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
