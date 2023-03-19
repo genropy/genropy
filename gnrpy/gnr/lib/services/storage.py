@@ -19,6 +19,7 @@ import mimetypes
 from paste import fileapp
 from paste.httpheaders import ETAG
 from subprocess import call,check_call, check_output
+import stat
 class NotExistingStorageNode(Exception):
     pass
 
@@ -269,6 +270,11 @@ class StorageNode(object):
     def mtime(self):
         """Returns the last modification timestamp"""
         return self.service.mtime(self.path)
+
+    @property
+    def ext_attributes(self):
+        """Returns the file size (if self.isfile)"""
+        return self.service.ext_attributes(self.path)
 
     @property
     def size(self):
@@ -575,9 +581,35 @@ class StorageService(GnrBaseService):
         return destNode
 
 
-    def serve(self, path, **kwargs):
-        """Serves a file content"""
-        pass
+    def serve(self, path, environ, start_response, download=False, download_name=None, **kwargs):
+        fullpath = self.internal_path(path)
+        if not fullpath:
+            return self.parent.not_found_exception(environ, start_response)
+        existing_doc = self.exists(fullpath)
+        if not existing_doc:
+            return self.parent.not_found_exception(environ, start_response)
+        if_none_match = environ.get('HTTP_IF_NONE_MATCH')
+        if if_none_match:
+            if_none_match = if_none_match.replace('"','')
+            stats = self.stat(fullpath)
+            mytime = stats.st_mtime
+            size = stats.st_size
+            my_none_match = "%s-%s"%(str(mytime),str(size))
+            if my_none_match == if_none_match:
+                headers = []
+                ETAG.update(headers, my_none_match)
+                start_response('304 Not Modified', headers)
+                return [''] # empty body
+        file_args = dict()
+        if download or download_name:
+            download_name = download_name or os.path.basename(fullpath)
+            file_args['content_disposition'] = "attachment; filename=%s" % download_name
+        with self.local_path(fullpath) as local_path:
+            file_responder = fileapp.FileApp(local_path, **file_args)
+            if self.parent.cache_max_age:
+                file_responder.cache_control(max_age=self.parent.cache_max_age)
+            return file_responder(environ, start_response)
+
 
     def _call(self, call_args=None, call_kwargs=None, cb=None, cb_args=None, cb_kwargs=None, return_output=False):
         args_list = []
@@ -651,13 +683,18 @@ class BaseLocalService(StorageService):
     def exists(self, *args):
         return os.path.exists(self.internal_path(*args))
 
+    def ext_attributes(self, *args):
+        f_stat = self._stat(*args)
+        return f_stat.st_mtime,f_stat.st_size,stat.S_ISDIR(f_stat.st_mode)
+
+
     def mtime(self, *args):
-        stats = os.stat(self.internal_path(*args))
-        return stats.st_mtime
+        f_stat = self._stat(*args)
+        return f_stat.st_mtime
 
     def size(self, *args):
-        stats = os.stat(self.internal_path(*args))
-        return stats.st_mtime
+        f_stat = self._stat(*args)
+        return f_stat.st_size
 
     def local_path(self, *args, **kwargs): #TODO: vedere se fare così o con altro metodo
         internalpath = self.internal_path(*args)
@@ -669,6 +706,13 @@ class BaseLocalService(StorageService):
     def mkdir(self, *args, **kwargs):
         if not self.exists(*args):
             os.mkdir(self.internal_path(*args))
+
+    def _stat(self, *args):
+        try:
+            fileattr = os.stat(self.internal_path(*args))
+        except FileNotFoundError:
+            fileattr = None
+        return fileattr
 
     def isdir(self, *args):
         if self.base_path is None:
@@ -700,6 +744,7 @@ class BaseLocalService(StorageService):
     def url(self, *args, **kwargs):
         return self.internal_url(*args, **kwargs)
 
+
     def serve(self, path, environ, start_response, download=False, download_name=None, **kwargs):
         fullpath = self.internal_path(path)
         if not fullpath:
@@ -727,7 +772,6 @@ class BaseLocalService(StorageService):
         if self.parent.cache_max_age:
             file_responder.cache_control(max_age=self.parent.cache_max_age)
         return file_responder(environ, start_response)
-
 
     def children(self, *args, **kwargs):
         directory = sorted(os.listdir(self.internal_path(*args)))
@@ -782,7 +826,11 @@ class StorageResolver(BagResolver):
             nodecaption = fname
             fullpath = storagenode.fullpath
             addIt = True
-            if storagenode.isdir:
+            try:
+                mtime,size,isdir = storagenode.ext_attributes
+            except ImportError:
+                mtime,size,isdir = None,None,None
+            if isdir:
                 ext = 'directory'
                 if self.exclude:
                     addIt = gnrstring.filter(fname, exclude=self.exclude, wildcard='*')
@@ -799,12 +847,6 @@ class StorageResolver(BagResolver):
                 if handler is not False:
                     handler = handler or getattr(self, 'processor_%s' % extensions.get(ext.lower(), 'None'), None)
                 handler = handler or self.processor_default
-                try:
-                    mtime = storagenode.mtime
-                    size = storagenode.size
-                except:
-                    mtime = None
-                    size = None
                 caption = fname.replace('_',' ').strip()
                 m=re.match(r'(\d+) (.*)',caption)
                 caption = '!!%s %s' % (str(int(m.group(1))),m.group(2).capitalize()) if m else caption.capitalize()

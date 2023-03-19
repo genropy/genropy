@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
@@ -24,41 +23,9 @@ import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
 
-class SFTPConnection(object):
-    def __init__(self, parent=None):
-        self._client = None
-        self.host = parent.host
-        self.port = parent.port
-        self.username = parent.username
-        self.password = parent.password
-        self.transport = parent.transport
-        #self.transport = None #parent.transport
-
-        self.keep_transport_open = self.transport is not None #and self.transport.is_active()
-        self.transport = self.transport or paramiko.Transport((self.host, self.port))
-
-    def __enter__(self):
-        if hasattr(self.transport, '_connection_lock'):
-            self.transport._connection_lock.acquire()
-            lock_acquired = True
-        else:
-            lock_acquired = False
-        if not self.transport.is_active():
-            print('connecting')
-            self.transport.connect(username = self.username, password = self.password)
-        self._client = paramiko.SFTPClient.from_transport(self.transport)
-        if lock_acquired:
-            self.transport._connection_lock.release()
-        return self._client
-    def __exit__(self, exc, value, tb):
-        self._client.close()
-        if not self.keep_transport_open:
-            self.transport.close()
-
-
 class SFTPTemporaryFilename(object):
-    def __init__(self,parent=None, host=None, port=22, mode=None, remote_path=None, username=None, password=None,
-                keep=False, transport=None):
+    def __init__(self,parent=None, mode=None, remote_path=None,
+                keep=False, ):
         self.parent = parent
         self.mode = mode or 'r'
         self.write_mode = ('w' in self.mode) or False
@@ -71,20 +38,17 @@ class SFTPTemporaryFilename(object):
     def __enter__(self):
         self.fd,self.name = tempfile.mkstemp(suffix=self.ext)
         try:
-            with SFTPConnection(self.parent) as sftp:
-                sftp.get(self.remote_path, self.name)
+            self.parent.sftp.get(self.remote_path, self.name)
             self.enter_mtime = os.stat(self.name).st_mtime
-        except:
+        except FileNotFoundError:
             self.enter_mtime = None
         return self.name
 
     def __exit__(self, exc, value, tb):
         if os.stat(self.name).st_mtime != self.enter_mtime:
-            with SFTPConnection(self.parent) as sftp:
-                sftp.put(self.name, self.remote_path)
+            self.sftp.put(self.name, self.remote_path)
         if not self.keep:
             os.unlink(self.name)
-
 
 class Service(StorageService):
 
@@ -97,16 +61,35 @@ class Service(StorageService):
         self.base_path = (base_path or '').rstrip('/')
         self.username = username
         self.password = password
-        self._thtransport = dict()
+        self._thclient = dict()
+        self.lock = RLock()
         #self.transport = paramiko.Transport((self.host, self.port))
 
+    def _new_client(self):
+        transport = paramiko.Transport((self.host, self.port))
+        transport.connect(username = self.username, password = self.password)
+        client = paramiko.SFTPClient.from_transport(transport)
+        client.sock.settimeout(1.5)
+        return client
+
+    def _client_alive(self, client):
+        if not client:
+            return False
+        try:
+            client.stat('')
+            return True
+        except (TimeoutError,paramiko.SSHException):
+            return False
+
     @property
-    def transport(self):
+    def sftp(self):
         thread_ident = _thread.get_ident()
-        if not thread_ident in self._thtransport:
-            self._thtransport[thread_ident] = paramiko.Transport((self.host, self.port))
-            setattr(self._thtransport[thread_ident],'_connection_lock',RLock())
-        return self._thtransport[thread_ident]
+        client = self._thclient.get(thread_ident)
+        if not self._client_alive(client):
+            self.lock.acquire()
+            client = self._thclient[thread_ident] = self._new_client()
+            self.lock.release()
+        return client
 
 
     @property
@@ -119,20 +102,12 @@ class Service(StorageService):
         outpath = '/'.join(out_list)
         return outpath.strip('/').replace('//','/')
 
-    @property
-    def sftp(self):
-        return SFTPConnection(self)
-
     def _stat(self, *args):
-        internalpath = self.internal_path(*args)
-        if internalpath =='':
-            return False
-        with SFTPConnection(self) as sftp:
-            try:
-                fileattr = sftp.stat(internalpath)
-            except FileNotFoundError:
-                return None
-            return fileattr
+        try:
+            fileattr = self.sftp.stat(self.internal_path(*args))
+        except FileNotFoundError:
+            fileattr = None
+        return fileattr
 
     def isfile(self, *args):
         f_stat = self._stat(*args)
@@ -142,7 +117,7 @@ class Service(StorageService):
     def md5hash(self,*args):
         import hashlib
         BLOCKSIZE = 65536
-        hasher = hashlib.md5()
+        hasher = hashlib.new('md5', usedforsecurity=False)
         with self.open(*args, mode='rb') as afile:
             buf = afile.read(BLOCKSIZE)
             while len(buf) > 0:
@@ -151,15 +126,20 @@ class Service(StorageService):
         return hasher.hexdigest()
 
     def exists(self, *args):
-        return self._stat(*args) is None
+        return self._stat(*args) is not None
 
     def makedirs(self, *args, **kwargs):
         pass
 
     def mkdir(self, *args, **kwargs):
-        internalpath = self.internal_path(*args)
-        with SFTPConnection(self) as sftp:
-            sftp.mkdir(internalpath)
+        self.sftp.mkdir(self.internal_path(*args))
+
+    def ext_attributes(self, *args):
+        f_stat = self._stat(*args)
+        if f_stat:
+            return f_stat.st_mtime,f_stat.st_size,stat.S_ISDIR(f_stat.st_mode)
+        else:
+            return None,None,None
 
     def mtime(self, *args):
         f_stat = self._stat(*args)
@@ -182,16 +162,14 @@ class Service(StorageService):
 
 
     def delete_file(self, *args):
-        internalpath = self.internal_path(*args)
-        with SFTPConnection(self) as sftp:
-            sftp.remove(internalpath)
+        self.sftp.remove(self.internal_path(*args))
+
     def delete_dir(self, *args):
-        internalpath = self.internal_path(*args)
-        with SFTPConnection(self) as sftp:
-            sftp.rmdir(internalpath)
+        self.sftp.rmdir(self.internal_path(*args))
 
     def url(self, *args, **kwargs):
         return self.internal_url(*args, **kwargs)
+
     def internal_url(self, *args, **kwargs):
         kwargs = kwargs or {}
         kwargs['_download'] = True
@@ -199,8 +177,7 @@ class Service(StorageService):
 
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
-        with SFTPConnection(self) as sftp:
-            return sftp.open(self.internal_path(*args), **kwargs)
+        return self.sftp.open(self.internal_path(*args), **kwargs)
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket
         destNode.service.autocreate(destNode.path, autocreate=-1)
@@ -209,59 +186,16 @@ class Service(StorageService):
 
     def renameNode(self, sourceNode=None, destNode=None):
         destNode.service.autocreate(destNode.path, autocreate=-1)
-        with SFTPConnection(self) as sftp:
-            sftp.posix_rename(sourceNode.internal_path, destNode.internal_path)
+        self.sftp.posix_rename(sourceNode.internal_path, destNode.internal_path)
         return destNode
 
-    def serve(self, path, environ, start_response, download=False, download_name=None, **kwargs):
-        if download or download_name:
-            download_name = download_name or self.basename(path)
-            content_disposition = "attachment; filename=%s" % download_name
-        else:
-            content_disposition = "inline"
-        url = self.url(path, _content_disposition=content_disposition)
-        if url:
-            return self.parent.redirect(environ, start_response, location=url,temporary=True)
-
     def children(self, *args, **kwargs):
-        with SFTPConnection(self) as sftp:
-            directory = sorted(sftp.listdir(self.internal_path(*args)))
+        directory = sorted(self.sftp.listdir(self.internal_path(*args)))
         out = []
         for d in directory:
             subpath = os.path.join(os.path.join(*args),d)
             out.append(StorageNode(parent=self.parent, path=subpath, service=self))
         return out
-
-    def serve(self, path, environ, start_response, download=False, download_name=None, **kwargs):
-        fullpath = self.internal_path(path)
-        if not fullpath:
-            return self.parent.not_found_exception(environ, start_response)
-        with SFTPConnection(self) as sftp:
-            existing_doc = os.path.exists(fullpath)
-            if not existing_doc:
-                return self.parent.not_found_exception(environ, start_response)
-            if_none_match = environ.get('HTTP_IF_NONE_MATCH')
-            if if_none_match:
-                if_none_match = if_none_match.replace('"','')
-                stats = sftp.stat(fullpath)
-                mytime = stats.st_mtime
-                size = stats.st_size
-                my_none_match = "%s-%s"%(str(mytime),str(size))
-                if my_none_match == if_none_match:
-                    headers = []
-                    ETAG.update(headers, my_none_match)
-                    start_response('304 Not Modified', headers)
-                    return [''] # empty body
-            file_args = dict()
-            if download or download_name:
-                download_name = download_name or os.path.basename(fullpath)
-                file_args['content_disposition'] = "attachment; filename=%s" % download_name
-            with self.local_path() as localpath:
-                file_responder = fileapp.FileApp(localpath, **file_args)
-                if self.parent.cache_max_age:
-                    file_responder.cache_control(max_age=self.parent.cache_max_age)
-            return file_responder(environ, start_response)
-
 
 class ServiceParameters(BaseComponent):
     py_requires = 'gnrcomponents/storagetree:StorageTree'

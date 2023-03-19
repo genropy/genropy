@@ -66,20 +66,20 @@ DNS_SD_PID = None
 
 
 def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
-        from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
-        import os
-        from gnr.core.gnrbag import Bag
-        sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
-        sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
-        sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
-        sitedaemon_bag = Bag()
-        sitedaemon_bag.setItem('params',None,
-            register_uri=sitedaemon.register_uri,
-            main_uri = sitedaemon.main_uri,
-            pid=os.getpid()
-            )
-        sitedaemon_bag.toXml(sitedaemon_xml_path)
-        sitedaemon.run()
+    from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
+    import os
+    from gnr.core.gnrbag import Bag
+    sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
+    sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
+    sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
+    sitedaemon_bag = Bag()
+    sitedaemon_bag.setItem('params',None,
+        register_uri=sitedaemon.register_uri,
+        main_uri = sitedaemon.main_uri,
+        pid=os.getpid()
+        )
+    sitedaemon_bag.toXml(sitedaemon_xml_path)
+    sitedaemon.run()
 
 class GnrDebuggedApplication(DebuggedApplication):
 
