@@ -424,7 +424,6 @@ class LoginComponent(BaseComponent):
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
             if tpl_new_password_id:
                 mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id)
-                print(x)
             else:
                 mailservice.sendmail_template(recordBag,to_address=email,
                                         body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
