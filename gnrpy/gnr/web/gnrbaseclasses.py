@@ -278,9 +278,10 @@ class BagToHtmlWeb(BagToHtml):
     def get_css_requires(self):
         """TODO"""
         css_requires = []
+        page = self.page or self.site.dummyPage
         for css_require in self.css_requires.split(','):
             if not css_require.startswith('http'):
-                css_requires.extend(self.page.getResourceExternalUriList(css_require,'css'))
+                css_requires.extend(page.getResourceExternalUriList(css_require,'css'))
             else:
                 css_requires.append(css_require)
         return css_requires
@@ -288,7 +289,7 @@ class BagToHtmlWeb(BagToHtml):
     def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,
                     resource_table=None,record_template=None,pdf_service=None,**kwargs):
         super(BagToHtmlWeb, self).__init__(**kwargs)
-        self.page = page
+        self.page = page 
         self.parent = parent
         self.tblobj = table or resource_table
         self.maintable = None
