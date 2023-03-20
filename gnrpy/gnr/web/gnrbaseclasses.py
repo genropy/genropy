@@ -269,10 +269,22 @@ class BagToHtmlWeb(BagToHtml):
     pdf_service = None
     html_folder = 'temp:html'
     pdf_folder = 'page:pdf'
+    css_requires = 'print_stylesheet'
 
+    cached = None
     filepath = None
     pdfpath = None
 
+    def get_css_requires(self):
+        """TODO"""
+        css_requires = []
+        for css_require in self.css_requires.split(','):
+            if not css_require.startswith('http'):
+                css_requires.extend(self.page.getResourceExternalUriList(css_require,'css'))
+            else:
+                css_requires.append(css_require)
+        return css_requires
+    
     def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,
                     resource_table=None,record_template=None,pdf_service=None,**kwargs):
         super(BagToHtmlWeb, self).__init__(**kwargs)
@@ -348,7 +360,6 @@ class TableScriptToHtml(BagToHtmlWeb):
     html_folder = 'temp:html'
     pdf_folder = 'page:pdf'
     cached = None
-    css_requires = 'print_stylesheet'
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
     record_template = None
@@ -422,15 +433,6 @@ class TableScriptToHtml(BagToHtmlWeb):
         for pdf in pdfToJoin:
             os.remove(pdf)
 
-    def get_css_requires(self):
-        """TODO"""
-        css_requires = []
-        for css_require in self.css_requires.split(','):
-            if not css_require.startswith('http'):
-                css_requires.extend(self.page.getResourceExternalUriList(css_require,'css'))
-            else:
-                css_requires.append(css_require)
-        return css_requires
         
     def get_record_caption(self, item, progress, maximum, **kwargs):
         """TODO

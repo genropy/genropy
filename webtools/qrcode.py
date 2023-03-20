@@ -12,11 +12,29 @@
 
 from gnr.web.gnrbaseclasses import BaseWebtool
 import qrcode
+import tempfile
+import mimetypes
+
 import qrcode.image.svg
 
 
 class QRCode(BaseWebtool):
-    def __call__(self, text=None,**kwargs):
+    def __call__(self, text=None,mode='png',**kwargs):
+        return getattr(self,f'qrcode_{mode}')(text)
+
+    def qrcode_png(self,text=None):
+        img = qrcode.make(text)
+        type(img)  # qrcode.image.pil.PilImage
+        suffix = '.png'
+        temp = tempfile.NamedTemporaryFile(suffix=suffix)
+        self.content_type = mimetypes.guess_type(temp.name)[0]
+        img.save(temp, format=suffix[1:])
+        temp.seek(0)
+        result = temp.read()
+        temp.close()
+        return result
+    
+    def qrcode_svg(self,text=None):
         qr = qrcode.QRCode(image_factory=qrcode.image.svg.SvgPathImage)
         qr.add_data(text)
         #qr.make(fit=True)
