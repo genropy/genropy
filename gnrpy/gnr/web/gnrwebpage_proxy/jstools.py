@@ -10,7 +10,7 @@ from builtins import str
 import os
 import hashlib
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
-from gnr.web.jsmin import jsmin
+from jsmin import jsmin
 import tempfile
 import shutil
 
@@ -31,10 +31,9 @@ def compress_js(jsfiles, site=None):
         with os.fdopen(outfile_handle, "w") as cpf:
             cpf.write('// %s\n' % ts)
             for fname in jsfiles:
-                f = open(fname)
-                js = f.read()
-                f.close()
-                cpf.write(jsmin(js))
+                with open(fname) as f:
+                    js = f.read()
+                cpf.write(jsmin(js, quote_chars="'\"`"))
                 cpf.write('\n\n\n\n')
             cpf.flush()
             os.fsync(cpf.fileno())

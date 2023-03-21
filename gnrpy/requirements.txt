@@ -31,3 +31,4 @@ tzlocal
 pyyaml
 chardet
 openpyxl
+jsmin
