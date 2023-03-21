@@ -396,7 +396,8 @@ class LoginComponent(BaseComponent):
         tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
         mailservice = self.getService('mail')
         if tpl_userconfirm_id:
-            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id)
+            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id,
+                                             async_=False,html=True,scheduler=False)
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
@@ -423,7 +424,8 @@ class LoginComponent(BaseComponent):
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
             if tpl_new_password_id:
-                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id)
+                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
+                                                 async_=False,html=True,scheduler=False)
             else:
                 mailservice.sendmail_template(recordBag,to_address=email,
                                         body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
