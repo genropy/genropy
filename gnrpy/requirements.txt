@@ -30,3 +30,4 @@ six
 tzlocal
 pyyaml
 chardet
+jsmin
