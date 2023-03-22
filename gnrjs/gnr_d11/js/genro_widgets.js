@@ -4762,14 +4762,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
             innerImage.height = innerImage.height || '100%';
-            
             innerImage['onerror'] = "this.sourceNode.setRelativeData(this.sourceNode.attr.src,null);"
             attr.tag = 'div';
             objectUpdate(attr,crop)
@@ -4847,8 +4846,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                     }
                 });
                 var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
+
                 attr[uploadhandler_key] = function(){
-                    var elem = this;
+                    var elem = sourceNode;
                     let src = sourceNode.getAttributeFromDatasource('src');
                     let uploadCb = function(){
                         elem.getValue().getNode('fakeinput').domNode.click();
@@ -4865,6 +4865,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
+                attr.editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }
