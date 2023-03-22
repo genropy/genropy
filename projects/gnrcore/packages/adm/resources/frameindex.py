@@ -300,7 +300,7 @@ class FrameIndex(BaseComponent):
     def prepareBottom_mobile(self,bc):
 
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('15,genrologo,5,applogo,*,debugping,logout,15',
+        sb = pane.slotToolbar('20,genrologo,5,applogo,*,debugping,logout,20',
                               _class='slotbar_toolbar framefooter',height='28px',
                         background='#EEEEEE',border_top='1px solid silver')
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
