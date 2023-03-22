@@ -26,7 +26,6 @@ class FrameIndex(BaseComponent):
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
     index_title = 'Index'
-
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
@@ -301,8 +300,8 @@ class FrameIndex(BaseComponent):
     def prepareBottom_mobile(self,bc):
 
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('10,genrologo,5,applogo,*,debugping,logout,10',
-                              _class='slotbar_toolbar framefooter',height='22px',
+        sb = pane.slotToolbar('15,genrologo,5,applogo,*,debugping,logout,15',
+                              _class='slotbar_toolbar framefooter',height='28px',
                         background='#EEEEEE',border_top='1px solid silver')
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         sb.debugping.div(_class='ping_semaphore')
