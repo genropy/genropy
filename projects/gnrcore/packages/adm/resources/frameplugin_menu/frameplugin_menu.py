@@ -35,8 +35,11 @@ class MenuIframes(BaseComponent):
         if not self.isMobile:
             frame.bottom.slotToolbar('5,newWindow,*')
         bc = frame.center.borderContainer()
-        bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
+        self.mainLeft_clientLogo(bc.contentPane(region='bottom'))
         self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+
+    def mainLeft_clientLogo(self,pane):
+        pane.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
 
     def btn_iframemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('iframemenu_plugin',caption='!!Menu',

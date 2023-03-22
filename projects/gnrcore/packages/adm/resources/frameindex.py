@@ -386,7 +386,6 @@ class FrameIndex(BaseComponent):
 
 
     def prepareLeft_mobile(self,bc):
-
         frame = bc.framePane(region='left',width='40%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
@@ -394,9 +393,6 @@ class FrameIndex(BaseComponent):
                                                          SET left.selected = plugin_name;
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
-
-
-
         custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
         plugins = self.plugin_list.split(',') + custom_plugins
         pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)
