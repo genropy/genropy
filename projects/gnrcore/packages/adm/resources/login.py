@@ -93,7 +93,7 @@ class LoginComponent(BaseComponent):
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
-            fb.dataController("""if(user && pwd){
+            fb.dataController("""if(avatar_user){
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
