@@ -2,7 +2,8 @@
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
-from werkzeug.serving import run_simple
+from werkzeug.serving import run_simple, prepare_socket, make_server, is_running_from_reloader
+from werkzeug._reloader import run_with_reloader
 from werkzeug.debug.tbtools import render_console_html
 try:
     from werkzeug.debug.tbtools import DebugTraceback
@@ -134,7 +135,7 @@ class GnrDebuggedApplication(DebuggedApplication):
                                             evalex_trusted=is_trusted,
                                             secret=self.secret) \
                     .encode('utf-8', 'replace')
-            
+
 
     def display_console(self, request):
         """Display a standalone shell."""
@@ -271,26 +272,18 @@ class Server(object):
                     help="Startup counter")
 
     parser.add_option('--ssl_cert',
-                      dest='ssl_cert',
-                      help="SSL cert")
+                    dest='ssl_cert',
+                    help="SSL cert")
 
     parser.add_option('--ssl_key',
-                      dest='ssl_key',
-                      help="SSL key")
+                    dest='ssl_key',
+                    help="SSL key")
 
     parser.add_option('--ssl',
-                      dest='ssl',
-                      action='store_true',
-                      help="SSL")
+                    dest='ssl',
+                    action='store_true',
+                    help="SSL")
 
-    _scheme_re = re.compile(r'^[a-z][a-z]+:', re.I)
-
-    default_verbosity = 1
-
-    _reloader_environ_key = 'PYTHON_RELOADER_SHOULD_RUN'
-    _monitor_environ_key = 'PASTE_MONITOR_SHOULD_RUN'
-
-    possible_subcommands = ('start', 'stop', 'restart', 'status')
 
     def __init__(self, site_script=None, server_name='Genro Server', server_description='Development'):
         self.site_script = site_script
@@ -411,7 +404,6 @@ class Server(object):
         time.sleep(1)
 
     def serve(self):
-        print('seee')
         port = int(self.options.port)
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host
@@ -429,32 +421,59 @@ class Server(object):
                 web=True, autoreload=self.options.reload, site_options=site_options)
             server.start()
         else:
-            gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
+            ssl_context = None
+            if self.reloader and not is_running_from_reloader():
+                gnrServer='FakeApp'
+            else:
+                gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
                                     _gnrconfig=self.gnr_config,
                                     counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
                                     options=self.options)
-            atexit.register(gnrServer.on_site_stop)
-            extra_info = []
-            if self.debug:
-                gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
-                extra_info.append('Debug mode: On')
-            ssl_context = None
-            localhost = 'http://127.0.0.1'
-            if self.options.ssl:
-                from gnr.app.gnrconfig import gnrConfigPath
-                cert_path = os.path.join(gnrConfigPath(),'localhost.pem')
-                key_path = os.path.join(gnrConfigPath(),'localhost-key.pem')
-                if os.path.exists(cert_path) and os.path.exists(key_path):
-                    ssl_context = (cert_path, key_path)
-                extra_info.append('SSL mode: On')
-                localhost = 'https://localhost'
-            if self.options.ssl_cert and self.options.ssl_key:
-                ssl_context=(self.options.ssl_cert,self.options.ssl_key)
-                extra_info.append(f'SSL mode: On {ssl_context}')
-                localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
-            print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format( 
+                atexit.register(gnrServer.on_site_stop)
+                extra_info = []
+                if self.debug:
+                    gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
+                    extra_info.append('Debug mode: On')
+                localhost = 'http://127.0.0.1'
+                if self.options.ssl:
+                    cert_path = os.path.join(self.config_path,'localhost.pem')
+                    key_path = os.path.join(self.config_path,'localhost-key.pem')
+                    if os.path.exists(cert_path) and os.path.exists(key_path):
+                        ssl_context = (cert_path, key_path)
+                    extra_info.append('SSL mode: On')
+                    localhost = 'https://localhost'
+                if self.options.ssl_cert and self.options.ssl_key:
+                    ssl_context=(self.options.ssl_cert,self.options.ssl_key)
+                    extra_info.append(f'SSL mode: On {ssl_context}')
+                    localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
+                print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format(
                             localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
-            run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
-                reloader_type='stat', ssl_context=ssl_context)
+            if not is_running_from_reloader():
+                s = prepare_socket(host, port)
+                fd = s.fileno()
+                s.detach()
+                os.environ["WERKZEUG_SERVER_FD"] = str(fd)
+            else:
+                fd = int(os.environ["WERKZEUG_SERVER_FD"])
 
-
+            srv = make_server(
+                host,
+                port,
+                gnrServer,
+                threaded=True,
+                processes=1,
+                ssl_context=ssl_context,
+                fd=fd)
+            if self.reloader:
+                run_with_reloader(
+                    srv.serve_forever,
+                    #extra_files=extra_files,
+                    #exclude_patterns=exclude_patterns,
+                    interval=1,
+                    reloader_type="stat",
+                )
+            else:
+                srv.serve_forever()
+            if not is_running_from_reloader():
+                print('[{now}]\t{color_yellow}{style_underlined}Shutting down{nostyle}'.format(
+                                host=host, port=port, now=now, **log_styles()))
