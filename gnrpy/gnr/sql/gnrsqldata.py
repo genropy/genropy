@@ -82,6 +82,7 @@ class SqlCompiledQuery(object):
         self.distinct = ''
         self.columns = ''
         self.joins = []
+        self.additional_joins = []
         self.where = None
         self.group_by = None
         self.having = None
@@ -335,10 +336,22 @@ class SqlQueryCompiler(object):
         #target_sqltable = target_tbl.sqlname
         target_sqlfullname = target_tbl.sqlfullname
         target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
-        from_sqlcolumn = from_tbl.sqlnamemapper[from_column]
-        
-        if (joiner.get('case_insensitive', False) == 'Y'):
+        from_sqlcolumn = from_tbl.sqlnamemapper[from_column] if not joiner.get('virtual') else None
+        if joiner.get('cnd', None):
+            cnd = self.updateFieldDict(joiner['cnd'])
+        elif joiner.get('low_r', None):
+            low_r = joiner['low_r'].split('.')[-1]
+            high_r = joiner['high_r'].split('.')[-1]
+            cnd = f"""
+                ({alias}.{low_r} IS NULL AND {alias}.{high_r} IS NOT NULL AND {basealias}.{from_sqlcolumn}<{alias}.{high_r}) OR
+                ({alias}.{low_r} IS NOT NULL AND {alias}.{high_r} IS NULL AND {basealias}.{from_sqlcolumn}<={alias}.{low_r}) OR
+                ({alias}.{low_r} IS NOT NULL AND {alias}.{high_r} IS NOT NULL AND
+                    {basealias}.{from_sqlcolumn} BETWEEN {alias}.{low_r} AND {alias}.{high_r})
+            """
+        elif (joiner.get('case_insensitive', False) == 'Y'):
             cnd = 'lower(%s.%s) = lower(%s.%s)' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
+        elif joiner.get('virtual'):
+            cnd = self.updateFieldDict(f'(${from_column})="{alias}".{target_sqlcolumn}')
         else:
             cnd = '"%s".%s = "%s".%s' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
         if self.joinConditions:
@@ -350,8 +363,12 @@ class SqlQueryCompiler(object):
                 cnd = '(%s AND %s)' % (cnd, extracnd)
                 if one_one:
                     manyrelation = False # if in the model a relation is defined as one_one 
-        self.cpl.joins.append('LEFT JOIN %s AS "%s" ON %s' %
-                              (target_sqlfullname, alias, cnd))        
+        if joiner.get('virtual'):
+            self.cpl.additional_joins.append('LEFT JOIN %s AS "%s" ON (%s)' %
+                                (target_sqlfullname, alias, cnd))
+        else:
+            self.cpl.joins.append('LEFT JOIN %s AS "%s" ON (%s)' %
+                                (target_sqlfullname, alias, cnd))        
         # if a relation many is traversed the number of returned rows are more of the rows in the main table.
         # the columns causing the increment of rows number are saved for use by SqlSelection._aggregateRows
         if manyrelation:
@@ -603,7 +620,7 @@ class SqlQueryCompiler(object):
         columns = ',\n'.join(as_col_values)
         # translate all fields and related fields from $fldname to t0.fldname, t1.fldname... and prepare the JOINs
         colPars = {}
-        for key, value in self.cpl.relationDict.items():
+        for key, value in list(self.cpl.relationDict.items()):
             # self._currColKey manage exploding columns in recursive getFieldAlias without add too much parameters
             self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
@@ -641,7 +658,7 @@ class SqlQueryCompiler(object):
         order_by = gnrstring.templateReplace(order_by, colPars)
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)
-        self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins]
+        self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins+self.cpl.additional_joins]
         if distinct:
             distinct = 'DISTINCT '
         elif distinct is None or distinct == '':
