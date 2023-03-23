@@ -35,7 +35,7 @@ class Service(PdfService):
                 open_files.append(memory_file)
             input_pdf = PdfReader(memory_file)
             for page in input_pdf.pages:
-                output_pdf.addPage(page)
+                output_pdf.add_page(page)
         with out_sn.open(mode='wb') as output_file:
             output_pdf.write(output_file)
         for open_file in open_files:

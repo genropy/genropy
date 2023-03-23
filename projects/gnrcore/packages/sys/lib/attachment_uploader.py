@@ -82,7 +82,7 @@ class ScannedFileParser(object):
         inputfile = PdfReader(open(inputpdf, "rb"))
         output = PdfWriter()
         for page_no in page_list:
-            output.addPage(inputfile.getPage(page_no))
+            output.add_page(inputfile.getPage(page_no))
         if out_path:
             with open(out_path, "wb") as outputfile:
                 output.write(outputfile)
