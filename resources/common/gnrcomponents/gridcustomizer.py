@@ -196,7 +196,7 @@ class GridCustomizer(BaseComponent):
         return mode_struct
 
     def customizePrint(self,printInstance,viewResource=None,md_mode=None,customizerBag=None,table=None):
-        table = table or printInstance.rows_table or printInstance.tblobj.fullname
+        table = table or printInstance.row_table or printInstance.tblobj.fullname
         md_mode = md_mode or 'STD'
         default_struct = self.gc_customizerStructures(table=table,resource=viewResource)['struct_print'][md_mode]
         printInstance.grid_columns = printInstance.gridColumnsFromStruct(struct=default_struct)
