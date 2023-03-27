@@ -465,7 +465,8 @@ class DbModelSrc(GnrStructData):
         name_long=name_long or name,group='subtables',_addClass=f'subtable_{name}',**{f'var_{k}':v for k,v in condition_kwargs.items()})
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
     
-    def colgroup(self, name,name_long=None, **kwargs):
+    @extract_kwargs(col=True)
+    def colgroup(self, name,name_long=None, col_kwargs=None, **kwargs):
         self.attributes.setdefault(f'group_{name}',name_long or name)
         if not 'colgroups' in self:
             self.child('colgroup_list', 'colgroups')
@@ -474,6 +475,8 @@ class DbModelSrc(GnrStructData):
         cg._destinationNode = self
         def _decorateChildAttributes(destination,tag,kwargs):
             kwargs['group'] = f'{name}.{len(destination)+1:03}'
+            for k,v in col_kwargs.items():
+                kwargs.setdefault(k,v)
         cg._decorateChildAttributes = _decorateChildAttributes
         return cg
 
