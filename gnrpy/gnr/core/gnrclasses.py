@@ -25,7 +25,7 @@ from __future__ import print_function
 
 from builtins import str
 from past.builtins import basestring, str as old_str
-#from builtins import object
+
 from past.utils import old_div
 import datetime
 import re

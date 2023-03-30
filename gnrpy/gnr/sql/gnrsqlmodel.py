@@ -24,7 +24,7 @@
 from __future__ import print_function
 from builtins import str
 from builtins import range
-#from builtins import object
+
 import logging
 import copy
 
@@ -156,7 +156,6 @@ class DbModel(object):
         pkg, tbl, col_name = name.split('.')
         pkg_name = pkg
         pkg = self.obj[pkg]
-        print(pkg_name,pkg)
         tbl = pkg.table(tbl)
         col = tbl.columns[col_name]
         if col is None:
@@ -168,7 +167,7 @@ class DbModel(object):
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
                     one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,
                     external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None,
-                    low_r=None, high_r=None, cnd=None, virtual=None):
+                    range=None, cnd=None, virtual=None):
         """Add a relation in the current model.
 
         :param many_relation_tuple: tuple. The column of the "many table". e.g: ('video','movie','director_id')
@@ -201,7 +200,6 @@ class DbModel(object):
         try:
             many_pkg, many_table, many_field = many_relation_tuple
             many_relation = '.'.join(many_relation_tuple)
-
             one_pkg, one_table, one_field = self.resolveAlias(oneColumn)
             one_relation = '.'.join((one_pkg, one_table, one_field))
             if not (many_field and one_field):
@@ -227,7 +225,7 @@ class DbModel(object):
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    private_relation=private_relation,external_relation=external_relation,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   low_r=low_r,high_r=high_r, cnd=cnd, virtual=virtual,
+                                   range=range, cnd=cnd, virtual=virtual,
                                    resolver_kwargs=resolver_kwargs)
             one_relkey = '%s.%s.@%s' % (one_pkg, one_table, relation_name)
             
@@ -242,7 +240,7 @@ class DbModel(object):
                                    onUpdate=onUpdate, onUpdate_sql=onUpdate_sql, deferred=deferred,external_relation=external_relation,
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   low_r=low_r,high_r=high_r, cnd=cnd, virtual=virtual,
+                                   range=range, cnd=cnd, virtual=virtual,
                                    inheritLock=inheritLock,inheritProtect=inheritProtect,onDuplicate=onDuplicate,**meta_kwargs)
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
             if not virtual:
@@ -584,6 +582,15 @@ class DbModelSrc(GnrStructData):
         :returns: an aliasColumn
         """
         return self.virtual_column(name, relation_path=relation_path, **kwargs)
+
+    def joinColumn(self, name, **kwargs):
+        """Insert an joinColumn into a :ref:`table`, that is a column with a relation path.
+        The joinColumn is a child of the table created with the :meth:`table()` method
+
+        :param name: the column name
+        :returns: an joinColumn
+        """
+        return self.virtual_column(name, join_column=True, **kwargs)
 
     def bagItemColumn(self, name, bagcolumn=None,itempath=None,dtype=None, **kwargs):
         """Insert an aliasColumn into a :ref:`table`, that is a column with a relation path.
@@ -1476,6 +1483,11 @@ class DbBaseColumnObj(DbModelObj):
             attributes_mixin.update(self.attributes)
             self.attributes = attributes_mixin
 
+    def _fillRelatedColumn(self, related_column):
+            relation_list = related_column.split('.')
+            if len(relation_list)==2:
+                return '.'.join([self.pkg.name]+relation_list)
+            return related_column
 
 class DbColumnObj(DbBaseColumnObj):
     """TODO"""
@@ -1488,29 +1500,16 @@ class DbColumnObj(DbBaseColumnObj):
 
     def doInit(self):
         """TODO"""
-        def fillRelatedColumn(related_column):
-            relation_list = related_column.split('.')
-            if len(relation_list)==2:
-                return '.'.join([self.pkg.name]+relation_list)
-            return related_column
+        
         super(DbColumnObj, self).doInit()
         self.table.sqlnamemapper[self.name] = self.adapted_sqlname
         column_relation = self.structnode.value['relation']
         if column_relation is not None:
             reldict = dict(column_relation.attributes)
-            related_column = reldict['related_column']
+            reldict['related_column'] = self._fillRelatedColumn(reldict['related_column'])
             if 'cnd' in reldict:
                 reldict['mode'] = 'custom'
-            if ';' in related_column:
-                low_r,high_r = related_column.split(';')
-                low_r = fillRelatedColumn(low_r)
-                high_r = fillRelatedColumn(high_r)
-                reldict['mode'] = 'range'
-                reldict['low_r'] = low_r
-                reldict['high_r'] = high_r
-                reldict['related_column'] = low_r
-            else:
-                reldict['related_column'] = fillRelatedColumn(related_column)
+
             self.dbroot.model._columnsWithRelations[(self.pkg.name, self.table.name, self.name)] = reldict
         indexed = boolean(self.attributes.get('indexed'))
         unique = boolean(self.attributes.get('unique'))
@@ -1555,11 +1554,6 @@ class DbVirtualColumnObj(DbBaseColumnObj):
 
     def doInit(self):
         """TODO"""
-        def fillRelatedColumn(related_column):
-            relation_list = related_column.split('.')
-            if len(relation_list)==2:
-                return '.'.join([self.pkg.name]+relation_list)
-            return related_column
         super(DbBaseColumnObj, self).doInit()
         column_relation = None
         if self.structnode.value and 'relation' in self.structnode.value:
@@ -1567,21 +1561,13 @@ class DbVirtualColumnObj(DbBaseColumnObj):
         if column_relation is not None:
             self.attributes['virtual'] = True
             reldict = dict(column_relation.attributes)
-            related_column = reldict['related_column']
+            reldict['related_column'] = self._fillRelatedColumn(reldict['related_column'])
+            if self.attributes.get('join_column'):
+                self.attributes['relation_path'] = f'@{self.name}.{reldict["related_column"].split(".")[-1]}'
             reldict['virtual'] = True
             reldict['one_name'] = reldict.get('one_name') or self.name_long
-            if 'cnd' in reldict:
-                reldict['mode'] = 'custom'
-            if ';' in related_column:
-                low_r,high_r = related_column.split(';')
-                low_r = fillRelatedColumn(low_r)
-                high_r = fillRelatedColumn(high_r)
-                reldict['mode'] = 'range'
-                reldict['low_r'] = low_r
-                reldict['high_r'] = high_r
-                reldict['related_column'] = low_r
-            else:
-                reldict['related_column'] = fillRelatedColumn(related_column)
+            #if 'cnd' in reldict:
+            #    reldict['mode'] = 'custom'
             self.dbroot.model._columnsWithRelations[(self.pkg.name, self.table.name, self.name)] = reldict
 
     def relatedTable(self):

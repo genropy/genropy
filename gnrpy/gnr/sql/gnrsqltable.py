@@ -29,7 +29,7 @@ from builtins import str
 from builtins import range
 from past.builtins import basestring
 from past.utils import old_div
-#from builtins import object
+
 import os
 import re
 from gnr.core import gnrstring
@@ -529,7 +529,6 @@ class SqlTable(GnrObject):
         for r in f:
             shval = r['_shval']
             sql_formula = "(CASE WHEN {sharefield} ='{shval}' THEN ${field} ELSE 0 END)".format(sharefield=sharefield,shval=shval,field=field)
-            print('sql_formula',sql_formula)
             result.append(dict(name='{field}_{shval}'.format(field=field,shval=shval),
                             sql_formula=sql_formula,
                             var_shval=shval,dtype='N'))
@@ -2368,7 +2367,6 @@ class SqlTable(GnrObject):
         def resultAppend(result, label, attributes, omit):
             if not self.db.application.allowedByPreference(**attributes):
                 return
-            print('label',label)
             if 'one_relation' in attributes or 'many_relation' in attributes:
                 if not self.db.application.allowedByPreference(**self.db.model.column(attributes['one_relation']).table.attributes):
                     return
