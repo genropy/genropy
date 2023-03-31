@@ -351,7 +351,7 @@ class SqlQueryCompiler(object):
                 ({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
                 ({low_field} IS NOT NULL AND {high_field} IS NULL AND {value_field}>={low_field}) OR
                 ({low_field} IS NOT NULL AND {high_field} IS NOT NULL AND
-                    {value_field} BETWEEN {low_field} AND {high_field}) OR
+                    {value_field} >= {low_field} AND {value_field} < {high_field}) OR
                 ({low_field} IS NULL AND {high_field} IS NULL)
             """
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
