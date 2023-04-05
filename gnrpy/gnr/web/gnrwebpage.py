@@ -2137,6 +2137,9 @@ class GnrWebPage(GnrBaseWebPage):
         elif _auth == AUTH_FORBIDDEN:
             redirect = self.forbiddenRedirectPage
             if redirect:
+                params = urllib.parse.urlencode(self.pageArgs)
+                if params:
+                    redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
             root.clear()
             self.forbiddenPage(root, **kwargs)
