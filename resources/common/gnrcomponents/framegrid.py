@@ -563,11 +563,11 @@ class FrameGrid(BaseComponent):
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
     @struct_method
-    def fgr_templateGrid(self,pane,pbl_classes='*',fields=None,contentCb=None,template=None, readOnly=False, template_resource=None, **kwargs):
+    def fgr_templateGrid(self,pane,pbl_classes='*',fields=None,contentCb=None,template=None, readOnly=False, template_resource=None,modal=None,mode=None, **kwargs):
         def struct(struct):
             r = struct.view().rows()
             r.cell('tpl',rowTemplate=template or '=.current_template',width='100%',cellClasses='tplcell',
-                    edit=dict(fields=fields,contentCb=contentCb) if not readOnly and (fields or contentCb) else None,
+                    edit=dict(fields=fields,contentCb=contentCb,modal=modal,mode=mode) if not readOnly and (fields or contentCb) else None,
                     calculated=True)
         kwargs.setdefault('addrow', not readOnly)
         kwargs.setdefault('delrow', not readOnly)

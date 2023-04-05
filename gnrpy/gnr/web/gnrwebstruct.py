@@ -2002,6 +2002,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['_guess_width'] = '%iem' % (int(size * .7) + 2)
         elif dtype == 'B':
             result['tag'] = 'checkBox'
+            result.setdefault('html_label',True)
             if 'autospan' in kwargs:
                 kwargs['colspan'] = kwargs['autospan']
                 del kwargs['autospan']
