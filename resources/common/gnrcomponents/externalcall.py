@@ -46,7 +46,7 @@ Marshaller.dispatch[Decimal] = dump_decimal
 Marshaller.dispatch[datetime.date] = dump_date
 
 class BaseRpc(BaseComponent):
-
+    convert_result = True
     skip_connection = True
 
  #def rootPageNew(self,*args, **kwargs):
@@ -79,7 +79,10 @@ class BaseRpc(BaseComponent):
         else:
             method = self.rpc_index
         result = method(*args, **kwargs)
-        return self.catalog.asTypedText(result)
+        if self.convert_result:
+            return self.catalog.asTypedText(result)
+        return result
+
 
     def validIpList(self):
         return None
