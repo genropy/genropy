@@ -4032,7 +4032,6 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             var c = 0;
             var height = Math.round(100/files.length)
             var finalizeCb = function(files,uploaderPars){
-                console.log('files',files);
                 for(let f of files){
                     var h = cbOnDropData(dropInfo,f,uploaderPars);
                     if(h){
@@ -4059,11 +4058,12 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 }
                 sourceNode.gnrwdg.pendingFiles = pendingFiles;
                 genro.dlg.askParameters(function(_askResult){
-                    objectUpdate(uploaderPars,_askResult);
-                    uploaderPars._askResult = _askResult;     
+                    let up = {...uploaderPars};
+                    objectUpdate(up,_askResult);
+                    up._askResult = _askResult;     
                     let pendingFiles = sourceNode.gnrwdg.pendingFiles;
                     sourceNode.gnrwdg.pendingFiles = null;
-                    finalizeCb(pendingFiles,uploaderPars)
+                    finalizeCb(pendingFiles,up)
                 },uploaderKw.ask,uploaderPars,sourceNode.getParentNode());
             }else{
                 finalizeCb(files,uploaderPars);
