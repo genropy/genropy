@@ -111,8 +111,7 @@ class Form(BaseComponent):
         da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
                         _class='attachmentDropUploader',
                         ask = askMetadata,
-                        selfsubscribe_inserted_attachment="""var frm = this.form; 
-                                                            frm.goToRecord(rec_id);""",
+                        selfsubscribe_inserted_attachment="""this.form.goToRecord($1.record_id);""",
                         onUploadingMethod=self.onUploadingAttachment,
                         rpc_maintable_id='=#FORM.record.maintable_id',
                         rpc_attachment_table=fattr.get('table'),
@@ -310,7 +309,7 @@ class AttachManager(BaseComponent):
 
 
     @struct_method
-    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,**kwargs):
+    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,**kwargs):            
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
