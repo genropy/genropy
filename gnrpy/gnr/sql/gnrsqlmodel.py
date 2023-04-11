@@ -83,7 +83,7 @@ class DbModel(object):
     def deferOnBuilding(self,cb,*args,**kwargs):
         self.onBuildingCb.append({'handler':cb,'args':args,'kwargs':kwargs})
 
-
+        
     def build(self):
         """Database startup operations:
         
@@ -420,6 +420,7 @@ class DbModelSrc(GnrStructData):
         :param name: the package name"""
         return self.root('packages.%s' % name)
         
+    
     def table(self, name, pkey=None, lastTS=None, rowcaption=None,
               sqlname=None, sqlschema=None,
               comment=None,
@@ -452,11 +453,50 @@ class DbModelSrc(GnrStructData):
                           fullname='%s.%s' %(pkg,name),
                           **kwargs)
 
-    def subtable(self, name,condition=None,name_long=None, **kwargs):
+    def subtable(self, name, **kwargs):
         """Insert a :ref:`subtable` into a :ref:`table`
-        
         :param name: the subtable name
         """
+        if self.attributes['tag'] == 'package':
+            return self._subtable_package(name,**kwargs)
+        else:
+            return self._subtable_table(name,**kwargs)
+
+    def _subtable_package(self,name, maintable=None,relation_name=None,**kwargs):
+        pkey = kwargs.pop('pkey',None)
+        if pkey:
+            import warnings
+            warnings.warn("you cannot set pkey inside subtable",category=DeprecationWarning, stacklevel=2)
+        pkg,tblname = maintable.split('.')
+        maintable_src = self.parent[pkg]['tables'][tblname]
+        maintable_attributes = maintable_src.attributes
+        name_plural = relation_name or kwargs.get('name_plural') or name
+        result =  self.table(name,maintable=maintable,**kwargs)
+        resultattr = result.attributes
+        for k,v in maintable_attributes.items():
+            resultattr.setdefault(k,v)
+        if maintable_src['columns'] is not None:
+            for n in maintable_src['columns']:
+                attributes = dict(n.attr)
+                attributes.pop('tag')
+                value = n.value
+                col = result.column(n.label,**attributes)
+                if value:
+                    for rn in value:
+                        rnattr = dict(rn.attr)
+                        rnattr['relation_name'] =f'{name_plural.lower().replace(" ","_")}'
+                        related_column = rnattr.pop('related_column')
+                        col.relation(related_column,**rnattr)
+        maintable_src.column('__subtable')
+        result.column('__subtable',sql_value=f"'{name}'",default=name)
+        maintable_src.subtable(name,condition='$__subtable=:sn',condition_sn=name) #prodotto_kit subtable=='prodotto_kit'
+        maintable_src.subtable('_main',condition='$__subtable IS NULL')  #prodotto subtable IS NULL
+        maintable_attributes['default_subtable'] = '_main'
+        result.subtable('_main',condition='$__subtable=:sn',condition_sn=name)
+        resultattr['default_subtable'] = '_main'
+        return result
+
+    def _subtable_table(self,name,condition=None,name_long=None, **kwargs):
         if not 'subtables' in self:
             self.child('subtable_list', 'subtables')
         condition_kwargs = dictExtract(kwargs,'condition_')
@@ -875,6 +915,14 @@ class DbTableObj(DbModelObj):
     def _getMixinObj(self):
         self.dbtable = SqlTable(self)
         return self.dbtable
+    
+    @property
+    def maintable(self):
+        if hasattr(self,'_maintable'):
+            return self._maintable
+        maintable = self.attributes.get('maintable')
+        self._maintable = self.db.table(maintable) if maintable else None
+        return self._maintable
         
     def _get_pkg(self):
         """property. Returns the SqlPackage that contains the current table"""
@@ -893,18 +941,22 @@ class DbTableObj(DbModelObj):
         return self.attributes.get('name_plural') or self.name_long
         
     name_plural = property(_get_name_plural)
-        
+
+    @property
+    def _refsqltable(self):
+        return self.maintable or self 
+     
     def _get_sqlschema(self):
         """property. Returns the sqlschema"""
-        return self.attributes.get('sqlschema', self.pkg.sqlschema)
+        return self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
         
     sqlschema = property(_get_sqlschema)
-        
+    
     def _get_sqlname(self):
         """property. Returns the table's sqlname"""
-        sqlname = self.attributes.get('sqlname')
+        sqlname = self._refsqltable.attributes.get('sqlname')
         if not sqlname:
-            sqlname = self.pkg.tableSqlName(self)
+            sqlname = self._refsqltable.pkg.tableSqlName(self._refsqltable)
         return sqlname
     sqlname = property(_get_sqlname)
         
@@ -914,7 +966,6 @@ class DbTableObj(DbModelObj):
             return self.adapted_sqlname
         else: 
             return '%s.%s' % (self.sqlschema, self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
-        
     sqlfullname = property(_get_sqlfullname)
         
     def _get_sqlnamemapper(self):
