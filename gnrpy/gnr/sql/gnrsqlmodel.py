@@ -489,8 +489,12 @@ class DbModelSrc(GnrStructData):
                         col.relation(related_column,**rnattr)
         maintable_src.column('__subtable')
         result.column('__subtable',sql_value=f"'{name}'",default=name)
-        maintable_src.subtable(name,condition='$__subtable=:sn',condition_sn=name) #prodotto_kit subtable=='prodotto_kit'
-        maintable_src.subtable('_main',condition='$__subtable IS NULL')  #prodotto subtable IS NULL
+        maintable_src.subtable(name,condition='$__subtable=:sn',
+                               condition_sn=name,
+                               table=f'{self.attributes.get("pkgcode")}.{name}',
+                               name_plural=kwargs.get('name_plural'))
+        maintable_src.subtable('_main',condition='$__subtable IS NULL',
+                               name_plural=maintable_attributes.get('name_plural'))  #prodotto subtable IS NULL
         maintable_attributes['default_subtable'] = '_main'
         result.subtable('_main',condition='$__subtable=:sn',condition_sn=name)
         resultattr['default_subtable'] = '_main'
@@ -1022,26 +1026,27 @@ class DbTableObj(DbModelObj):
     def _get_queryfields(self):
         """property. Returns the table's queryfields"""
         return self.attributes.get('queryfields', None)
-        
     queryfields = property(_get_queryfields)
         
     def _get_columns(self):
         """Returns an SqlColumnList"""
         return self['columns']
-        
     columns = property(_get_columns)
 
         
     def _get_indexes(self):
         """Returns an SqlIndexedList"""
         return self['indexes']
-        
     indexes = property(_get_indexes)
         
     def _get_relations(self):
         return self['relations']
-        
     relations = property(_get_relations)
+
+    @property
+    def subtables(self):
+        return self['subtables']
+
 
     @property  
     def dependencies(self):
