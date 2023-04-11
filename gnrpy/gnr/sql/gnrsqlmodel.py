@@ -453,14 +453,14 @@ class DbModelSrc(GnrStructData):
                           fullname='%s.%s' %(pkg,name),
                           **kwargs)
 
-    def subtable(self, name, **kwargs):
+    def subtable(self, name,condition=None, **kwargs):
         """Insert a :ref:`subtable` into a :ref:`table`
         :param name: the subtable name
         """
         if self.attributes['tag'] == 'package':
             return self._subtable_package(name,**kwargs)
         else:
-            return self._subtable_table(name,**kwargs)
+            return self._subtable_table(name,condition=condition,**kwargs)
 
     def _subtable_package(self,name, maintable=None,relation_name=None,**kwargs):
         pkey = kwargs.pop('pkey',None)
