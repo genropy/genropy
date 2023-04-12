@@ -449,12 +449,6 @@
     text-decoration: underline;
 }
 
-.menutree .menu_level_0 {
-    background-color: gray;
-    color: whitesmoke;
-    font-size: 1em;
-}
-
 .menutree .menu_level_1 {
     background-color: gray;
     color: whitesmoke;

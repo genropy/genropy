@@ -257,7 +257,7 @@ class SqlQueryCompiler(object):
                     prefix = str(id(fldalias))
                     currentEnv = self.db.currentEnv
                     for k,v in list(sql_formula_var.items()):
-                        newk = '%s_%s' %(prefix,k)
+                        newk = f'{prefix}_{self._currColKey}_{k}'
                         currentEnv[newk] = v
                         sql_formula = re.sub("(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), sql_formula)
                 subColPars = {}

@@ -102,11 +102,14 @@ class TableHandlerGroupBy(BaseComponent):
         gridstack = sc.stackContainer(pageName='grid',title='!!Grid View',selectedPage='^.groupMode')
 
         #gridstack.dataFormula('.currentTitle','',defaultTitle='!!Group by')
+        structcb = struct or self._thg_defaultstruct
+        baseViewName = structcb.__doc__
         frame = gridstack.frameGrid(frameCode=frameCode,grid_onDroppedColumn="""
                                     genro.groupth.addColumnCb(this,{data:data, column:column,fieldcellattr:fieldcellattr,treeNode:treeNode});
                                     """,
                                     datamode='attr',
-                                struct=struct or self._thg_defaultstruct,
+                                struct=structcb,
+                                grid_baseViewName = baseViewName,
                                 _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
 
@@ -166,7 +169,7 @@ class TableHandlerGroupBy(BaseComponent):
                                 currentView="^.grid.currViewPath",
                                 favoriteView='^.grid.favoriteViewPath',
                                 gridId=gridId)
-        self._thg_structMenuData(frame,table=table,linkedTo=linkedTo)
+        self._thg_structMenuData(frame,table=table,linkedTo=linkedTo,baseViewName=baseViewName)
         if configurable:
             frame.viewConfigurator(table,queryLimit=False,toolbar=False)
         else:
@@ -233,6 +236,7 @@ class TableHandlerGroupBy(BaseComponent):
 
 
     def _thg_defaultstruct(self,struct):
+        "!![en]New View"
         r=struct.view().rows()
         r.cell('_grp_count',name='Cnt',width='5em',group_aggr='sum',dtype='L',childname='_grp_count')
 
@@ -246,7 +250,7 @@ class TableHandlerGroupBy(BaseComponent):
             pane.multiButton(value='^#ANCHOR.groupMode',values='flatview:[!![en]Flat],stackedview:[!![en]Stacked]')
 
     
-    def _thg_structMenuData(self,frame,table=None,linkedTo=None):
+    def _thg_structMenuData(self,frame,table=None,linkedTo=None,baseViewName=None):
         q = Bag()
         if linkedTo:
             pyviews = self._th_hook('groupedStruct',mangler=linkedTo,asDict=True)
@@ -255,7 +259,7 @@ class TableHandlerGroupBy(BaseComponent):
                 q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
             frame.data('.grid.resource_structs',q)
         frame.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),currentView="^.grid.currViewPath",
-                        table=table,th_root=frame.attributes['frameCode'],objtype='grpview',
+                        table=table,th_root=frame.attributes['frameCode'],objtype='grpview',baseViewName=baseViewName,
                         favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
 
 
@@ -374,40 +378,44 @@ class TableHandlerGroupBy(BaseComponent):
             for v in list(groupOrderBy.values()):
                 field = v['field']
                 if not field.startswith('@'):
-                    field = '$%s' %field
-                field = field if not v['group_aggr'] else '%s(%s)' %(v['group_aggr'],field)
-                custom_order_by.append('%s %s' %(field,('asc' if v['sorting'] else 'desc')))
+                    field = f'${field}'
+                field = field if not v['group_aggr'] else f"{v['group_aggr']}({field})" 
+                custom_order_by.append(f"{field} {'asc' if v['sorting'] else 'desc'}" )
             custom_order_by = ' ,'.join(custom_order_by)
+        
         def asName(field,group_aggr):
-            return '%s_%s' %(field.replace('.','_').replace('@','_').replace('-','_'),
-                    group_aggr.replace('.','_').replace('@','_').replace('-','_').replace(' ','_').lower())
+            return f"{field}_{group_aggr}".replace('.','_')\
+                                          .replace('@','_')\
+                                          .replace('-','_')\
+                                          .replace(' ','_')\
+                                          .lower()
         empty_placeholders = {}
         group_list_keys = []
+        count_distinct_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):
-                col = '$%s' %col
-            dtype = v.get('dtype')
+                col = f'${col}'
+            dtype = v.get('original_dtype') or v.get('dtype')
             group_aggr =  v.get('group_aggr') 
             if dtype in ('N','L','I','F','R') and group_aggr is not False:
                 group_aggr =  group_aggr or 'sum'
                 col_asname = asName(v['field'],group_aggr)
-                grouped_col = '%s(%s)' %(group_aggr,col)
-                col = '%s AS %s' %(grouped_col,col_asname)
+                grouped_col = f'{group_aggr}({col})'
+                col = f'{grouped_col} AS {col_asname}'
                 having_chunk = list()
-
                 if v.get('not_zero'):
-                    having_chunk.append('(%s != 0)' %grouped_col)
+                    having_chunk.append(f'({grouped_col} != 0)')
                 if v.get('min_value') is not None:
-                    parname = '%s_min_value' %col_asname
+                    parname = f'{col_asname}_min_value'
                     kwargs[parname] = v['min_value']
-                    having_chunk.append('%s>=:%s' %(grouped_col,parname))
+                    having_chunk.append(f'{grouped_col}>=:{parname}')
                 if v.get('max_value') is not None:
                     parname = '%s_max_value' %col_asname
                     kwargs[parname] = v['max_value']
-                    having_chunk.append('%s<=:%s' %(grouped_col,parname))
+                    having_chunk.append(f'{grouped_col}<=:{parname}')
                 if len(having_chunk):
                     having_list.append(' AND '.join(having_chunk))
             else:
@@ -415,14 +423,19 @@ class TableHandlerGroupBy(BaseComponent):
                 group_empty = v.get('group_empty') or '[NP]'
                 if group_aggr:
                     if dtype in ('D','DH','DHZ'):
-                        col =  "to_char(%s,'%s')" %(col,group_aggr)
+                        col =  f"to_char({col},'{group_aggr}')"
                         group_list.append(col)
                         col_as = asName(v['field'],group_aggr)
                         colgetter = flatCol(col_as)
                         group_list_keys.append(colgetter)
                         empty_placeholders[colgetter] = group_empty
-                        col = '%s AS %s' %(col, col_as)
-                    #if dtype in ('T','C','A'):
+                        col = f'{col} AS {col_as}'
+                    elif group_aggr=='distinct_count' or group_aggr=='distinct':
+                        col = self.db.adapter.string_agg(f'CAST({col} AS TEXT)','|')
+                        col_as = asName(v['field'],'distinct')
+                        if group_aggr == 'distinct_count':
+                            count_distinct_keys.append(col_as)
+                        col = f'{col} AS {col_as}'
                 else:
                     groupcol = col
                     if ' AS ' in col:
@@ -432,7 +445,7 @@ class TableHandlerGroupBy(BaseComponent):
                     caption_field = v.get('caption_field')
                     if caption_field:
                         if not caption_field.startswith('@'):
-                            caption_field = '$%s' %caption_field
+                            caption_field = f'${caption_field}'
                         group_list.append(caption_field)
                         colgetter = flatCol(caption_field)
                         columns_list.append(caption_field)
@@ -454,7 +467,6 @@ class TableHandlerGroupBy(BaseComponent):
         if groupLimit:
             kwargs['limit'] = groupLimit
         selection = self.app._default_getSelection(_aggregateRows=False,**kwargs)
-        #_thgroup_pkey column 
         def cb(row):
             resdict = {}
             keylist = []
@@ -464,11 +476,13 @@ class TableHandlerGroupBy(BaseComponent):
                     keyvalue = empty_placeholders.get(col)
                     resdict[col] = keyvalue
                 keylist.append(str(keyvalue or '_'))
+            for col in count_distinct_keys:
+                s = set(row[col].split('|')) if row[col] else set()
+                resdict[col] = '|'.join(s)
+                resdict[f'{col}_count'] = len(s)
             resdict['_thgroup_pkey'] = '|'.join(keylist)
             return resdict
         selection.apply(cb)
-        
-
         return selection    
 
 

@@ -73,6 +73,13 @@ class Table(object):
         if record['sourcebag'] != old_record['sourcebag']:
             self.writeModulesFromSourceBag(record)
 
+    def defaultValues(self):
+        if self.db.currentEnv.get('firstname') and self.db.currentEnv.get('lastname'):
+            author_name = self.db.currentEnv.get('firstname') + ' ' + self.db.currentEnv.get('lastname')
+            return dict(author=author_name)
+        else:
+            return dict()
+
     def tutorialRecordNode(self,record):
         return self.db.application.site.storageNode('site:webpages','docu_examples',record['hierarchical_name'])
 

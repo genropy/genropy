@@ -98,7 +98,7 @@ class BaseUpdater(object):
         dbname = dbname or 'Main'
         print('DB %s:' % dbname)
         if changes:
-            print('STUCTURE NEEDS CHANGES')
+            print('STRUCTURE NEEDS CHANGES')
         else:
             print('STRUCTURE OK')
         return changes

@@ -169,15 +169,24 @@ class GnrDboPackage(object):
             recordsToInsert = []
             pkeyField = tblobj.pkey
             hasSysCode = tblobj.column('__syscode') is not None
-            if hasSysCode:
-                currentSysCodes = [r['__syscode'] for r in currentRecords.values() if r['__syscode']]
+            currentSysCodes = {} if not hasSysCode else {r['__syscode']:r[pkeyField] for r in currentRecords.values() if r['__syscode']}
             for r in records:
                 if r[pkeyField] in currentRecords:
                     continue
-                if hasSysCode and r.get('__syscode') in currentSysCodes:
-                    continue
-                recordsToInsert.append(r)
+                elif r.get('__syscode') in currentSysCodes:
+                    #the sysRecord already exists but the id mismatch
+                    raise tblobj.exception('business_logic',
+                                            msg=f'Fix wrong sysrecord in this template {tblobj.fullname}')
+                rec_to_insert = dict(r)
+                for field,col in tblobj.columns.items():
+                    reltable = col.relatedTable()
+                    if col.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                    if reltable and rec_to_insert.get(field) and reltable.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
+                print('inserisco record in',tblobj.name,tblobj.query().count())
                 tblobj.insertMany(recordsToInsert)
         db.commit()
 
@@ -457,6 +466,9 @@ class TableBase(object):
                                    END ) """,
                                 dtype='B',var_systag=tbl.attributes.get('syscodeTag') or 'superadmin',_sysfield=True,
                                 group=group)
+            tbl.formulaColumn('__invalid_by_duplicate_sysrecord',
+                              "($__syscode IS NOT NULL AND $__syscode LIKE '_ERR_DUP_' || '%%') ",dtype='B',
+                                _sysfield=True,group=group)
         self.sysFields_extra(tbl,_sysfield=True,group=group)
         
         
@@ -784,8 +796,8 @@ class TableBase(object):
 
 
     @public_method
-    def pathFromPkey(self,pkey=None,dbstore=None):
-        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore)
+    def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):
+        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore,**kwargs)
 
     @public_method
     def getHierarchicalPathsFromPkeys(self,pkeys=None,related_kwargs=None,parent_id=None,dbstore=None,**kwargs):

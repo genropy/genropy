@@ -70,7 +70,7 @@ class GnrWsgiWebApp(GnrApp):
                 records = [recordOrPkey]
         for record in records:
             self.notifyDbEvent(tblobj, record, 'U')
-
+    
     def notifyDbEvent(self, tblobj, record, event, old_record=None,**kwargs):
         """TODO
         
@@ -195,3 +195,34 @@ class GnrWsgiWebApp(GnrApp):
 
     def clearSiteMenu(self):
         self._siteMenuDict = dict()
+
+
+    def getAvatar(self, user, password=None, authenticate=False, page=None, **kwargs):
+        """TODO
+
+        :param user: MANDATORY. The guest username
+        :param password: the username's password
+        :param authenticate: boolean. If ``True``, to enter in the application a password is required
+        :param page: TODO"""
+        if user:
+            page = page or self.site.currentPage
+            if page and page.connectionStore().getItem('external_verifed_user') == user:
+                authenticate = False
+            authmethods = self.config['authentication']
+            if user=='gnrtoken':
+                user = self.db.table('sys.external_token').authenticatedUser(password)
+                if not user:
+                    return
+                authenticate = False
+            if authmethods:
+                for node in self.config['authentication'].nodes:
+                    nodeattr = node.attr
+                    authmode = nodeattr.get('mode') or node.label.replace('_auth', '')
+                    avatar = getattr(self, 'auth_%s' % authmode)(node, user, password=password,
+                                                                 authenticate=authenticate,
+                                                                 **kwargs)
+                    if not (avatar is None):
+                        avatar.page = page
+                        avatar.authmode = authmode
+                        errors = self.pkgBroadcast('onAuthentication',avatar)
+                        return avatar

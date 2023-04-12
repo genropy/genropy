@@ -267,11 +267,29 @@ class BagToHtmlWeb(BagToHtml):
     client_locale = False
     record_template = None
     pdf_service = None
+    html_folder = 'temp:html'
+    pdf_folder = 'page:pdf'
+    css_requires = 'print_stylesheet'
 
+    cached = None
+    filepath = None
+    pdfpath = None
+
+    def get_css_requires(self):
+        """TODO"""
+        css_requires = []
+        page = self.page or self.site.dummyPage
+        for css_require in self.css_requires.split(','):
+            if not css_require.startswith('http'):
+                css_requires.extend(page.getResourceExternalUriList(css_require,'css'))
+            else:
+                css_requires.append(css_require)
+        return css_requires
+    
     def __init__(self, table=None,letterhead_sourcedata=None,page=None, parent=None,
                     resource_table=None,record_template=None,pdf_service=None,**kwargs):
         super(BagToHtmlWeb, self).__init__(**kwargs)
-        self.page = page
+        self.page = page 
         self.parent = parent
         self.tblobj = table or resource_table
         self.maintable = None
@@ -291,7 +309,8 @@ class BagToHtmlWeb(BagToHtml):
     def print_handler(self):
         return self.site.getService('htmltopdf',self.pdf_service)
 
-    def contentFromTemplate(self,record,template=None,locale=None,**kwargs):
+    @extract_kwargs(extra=True)
+    def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None, **kwargs):
         virtual_columns=None
         page = self.page or self.db.currentPage
         if not template and page and self.record_template:
@@ -304,31 +323,48 @@ class BagToHtmlWeb(BagToHtml):
             kwargs['dtypes'] = template.getItem('main?dtypes')
             virtual_columns = template.getItem('main?virtual_columns')
         self.record = self.tblobj.recordAs(record,virtual_columns=virtual_columns)
+        if extra_kwargs:
+            self.record.update(extra_kwargs)
         return templateReplace(template,self.record, safeMode=True,noneIsBlank=False,
                     localizer=self.db.application.localizer,urlformatter=self.site.externalUrl,
                     **kwargs)
-                    
+    
+    def getHtmlPath(self, *args, **kwargs):
+        """TODO"""
+        return self.site.storageNode(self.html_folder, *args, **kwargs).internal_path
+       
+    def getPdfPath(self, *args, **kwargs):
+        return self.pdfpath or self.filepath.replace('.html','.pdf')
+                        
     @extract_kwargs(pdf=True)
     def writePdf(self,pdfpath=None,docname=None,pdf_kwargs=None,**kwargs):
-        pdfpath = pdfpath or self.filepath.replace('.html','.pdf')
-        self.print_handler.htmlToPdf(self.filepath,pdfpath, orientation=self.orientation(),pdf_kwargs=pdf_kwargs)
+        pdfpath = pdfpath or self.getPdfPath(pdfpath=pdfpath,docname=docname,pdf_kwargs=pdf_kwargs,**kwargs)
+        self.print_handler.htmlToPdf(self.filepath,pdfpath, 
+                                     orientation=self.orientation(),
+                                     pdf_kwargs=pdf_kwargs,
+                                     pageSize=self.page_format)
         return pdfpath   
 
 class TableTemplateToHtml(BagToHtmlWeb):
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,**kwargs):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
         if not htmlContent:
             htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
-        return super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,**kwargs)
+        if pdf :
+            filepath = filepath or self.filepath or self.getHtmlPath('temp.html')
+        result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
+        if pdf is True:
+            return self.writePdf()
+        return result
 
 class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
-    rows_table = None
+    row_table = None
+    rows_table = None #deprecated
     virtual_columns = None
     html_folder = 'temp:html'
     pdf_folder = 'page:pdf'
     cached = None
-    css_requires = 'print_stylesheet'
     row_relation = None
     subtotal_caption_prefix = '!![en]Totals'
     record_template = None
@@ -337,6 +373,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,page=page,table=resource_table,parent=parent,**kwargs)
         self.thermo_wrapper = self.page.btc.thermo_wrapper
         self._gridStructures = {}
+        if self.rows_table:
+            self.row_table = self.rows_table
+            print('Deprecation warning: please change rows_table into row_table')
 
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
                     language=None,locale=None, htmlContent=None, **kwargs):
@@ -402,15 +441,6 @@ class TableScriptToHtml(BagToHtmlWeb):
         for pdf in pdfToJoin:
             os.remove(pdf)
 
-    def get_css_requires(self):
-        """TODO"""
-        css_requires = []
-        for css_require in self.css_requires.split(','):
-            if not css_require.startswith('http'):
-                css_requires.extend(self.page.getResourceExternalUriList(css_require,'css'))
-            else:
-                css_requires.append(css_require)
-        return css_requires
         
     def get_record_caption(self, item, progress, maximum, **kwargs):
         """TODO
@@ -418,8 +448,8 @@ class TableScriptToHtml(BagToHtmlWeb):
         :param item: TODO
         :param progress: TODO
         :param maximum: TODO"""
-        if self.rows_table:
-            tblobj = self.db.table(self.rows_table)
+        if self.row_table:
+            tblobj = self.db.table(self.row_table)
             caption = '%s (%i/%i)' % (tblobj.recordCaption(item.value), progress, maximum)
         else:
             caption = '%i/%i' % (progress, maximum)
@@ -517,7 +547,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         return True
     
     def structFromResource(self,viewResource=None,table=None):
-        table = table or self.rows_table or self.tblobj.fullname
+        table = table or self.row_table or self.tblobj.fullname
         if not ':' in viewResource:
             viewResource = 'th_%s:%s' %(table.split('.')[1],viewResource)
         view = self.site.virtualPage(table=table,table_resources=viewResource)
@@ -732,10 +762,7 @@ class TableScriptToHtml(BagToHtmlWeb):
          
         
         
-    def getHtmlPath(self, *args, **kwargs):
-        """TODO"""
-        return self.site.storageNode(self.html_folder, *args, **kwargs).internal_path
-        
+ 
     def getPdfPath(self, *args, **kwargs):
         """TODO"""
         return self.site.storageNode(self.pdf_folder, *args, **kwargs).internal_path

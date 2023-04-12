@@ -1226,10 +1226,11 @@ class GnrWebAppHandler(GnrBaseProxy):
             isDeleted = row.pop('_isdeleted', None)
             if isDeleted:
                 _customClasses.append('logicalDeleted')
+            
             if _addClassesDict:
                 for fld, _class in list(_addClassesDict.items()):
                     val = row.get(fld)
-                    if val in (None,''):
+                    if val in (None,False,''):
                         continue
                     if isinstance(_class,dict):
                         _class = _class.get(row[fld])
@@ -1657,7 +1658,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                      _id=None, _querystring='', querystring=None, ignoreCase=True, exclude=None, excludeDraft=True,
                      condition=None, limit=None, alternatePkey=None, order_by=None, selectmethod=None,
                      notnull=None, weakCondition=False, _storename=None,preferred=None,
-                     invalidItemCondition=None,**kwargs):
+                     emptyLabel = None, emptyLabel_first = None,emptyLabel_class=None,invalidItemCondition=None,**kwargs):
         """dbSelect is a :ref:`filteringselect` that takes the values through a :ref:`query` on the
         database: user can choose between all the values contained into the linked :ref:`table` (the
         table is specified through the *dbtable* attribute). While user write in the dbSelect, partially
@@ -1785,8 +1786,11 @@ class GnrWebAppHandler(GnrBaseProxy):
             colHeaders = [self.page._(c) for c in colHeaders]
             resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
 
-            if not notnull:
-                result.setItem('null_row', None, caption='', _pkey=None)
+            if not notnull and not _id:
+                emptyLabel = emptyLabel or ''
+                _position = '<' if emptyLabel_first else None
+                result.setItem('null_row', None, caption=emptyLabel, _pkey=None,
+                               _customClasses=emptyLabel_class,_position=_position)
         resultAttrs['resultClass'] = resultClass
         resultAttrs['dbselect_time'] = time.time() - t0
         if errors:

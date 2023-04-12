@@ -3930,7 +3930,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var gnrwdg = sourceNode.gnrwdg;
         var uploaderPars = objectExtract(kw,'onUploadedMethod,onUploadingMethod');
-        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort,_lockScreen');
+        var uploaderKw = objectExtract(kw,'uploadPath,filename,onResult,onError,onProgress,onAbort,_lockScreen,ask');
         objectUpdate(uploaderPars,objectExtract(kw,'rpc_*'));
         var nodeId = objectPop(kw,'nodeId') || 'uploader_'+genro.getCounter()
         uploaderKw.uploadPath = uploaderKw.uploadPath || 'page:'+nodeId;
@@ -3967,6 +3967,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var maxsize = objectPop(kw,'maxsize');
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
+        
         onUploadingCb = funcCreate(onUploadingCb,'dropInfo,data',sourceNode);
         var progressBar = objectPop(kw,'progressBar',true);
         var onResult = uploaderKw.onResult;
@@ -4001,7 +4002,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 }
             };
         }
-        var cbOnDropData = function(dropInfo,data){
+        var cbOnDropData = function(dropInfo,data,uploaderPars){
             var doUpload = onUploadingCb(dropInfo,data);
             if(doUpload===false){
                 return false;
@@ -4030,23 +4031,42 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
             }
             var c = 0;
             var height = Math.round(100/files.length)
-            for(let f of files){
-                var h = cbOnDropData(dropInfo,f);
-                if(h){
-                    gnrwdg.pendingHandlers.push(h);
-                    if(progressBar){
-                        var pb = document.createElement('div');
-                        pb.style.position = 'absolute';
-                        pb.style.top = c*height+'%';
-                        pb.style.left = 0;
-                        pb.style.height = height+'%';
-                        pb.style.background = 'rgba(11,121,171,0.30)';
-                        gnrwdg.rootNode.domNode.appendChild(pb);
-                        h._counter = c;
-                        h._progressDiv = pb;
+            var finalizeCb = function(files,uploaderPars){
+                for(let f of files){
+                    var h = cbOnDropData(dropInfo,f,uploaderPars);
+                    if(h){
+                        gnrwdg.pendingHandlers.push(h);
+                        if(progressBar){
+                            var pb = document.createElement('div');
+                            pb.style.position = 'absolute';
+                            pb.style.top = c*height+'%';
+                            pb.style.left = 0;
+                            pb.style.height = height+'%';
+                            pb.style.background = 'rgba(11,121,171,0.30)';
+                            gnrwdg.rootNode.domNode.appendChild(pb);
+                            h._counter = c;
+                            h._progressDiv = pb;
+                        }
+                        c+=1;
                     }
-                    c+=1;
                 }
+            }
+            if(uploaderKw.ask){
+                let pendingFiles = [];          
+                for(let f of files){
+                    pendingFiles.push(f);
+                }
+                sourceNode.gnrwdg.pendingFiles = pendingFiles;
+                genro.dlg.askParameters(function(_askResult){
+                    let up = {...uploaderPars};
+                    objectUpdate(up,_askResult);
+                    up._askResult = _askResult;     
+                    let pendingFiles = sourceNode.gnrwdg.pendingFiles;
+                    sourceNode.gnrwdg.pendingFiles = null;
+                    finalizeCb(pendingFiles,up)
+                },uploaderKw.ask,uploaderPars,sourceNode.getParentNode());
+            }else{
+                finalizeCb(files,uploaderPars);
             }
         };
         dropAreaKw.onDrop = onFiles;
@@ -6379,13 +6399,13 @@ dojo.declare("gnr.stores._Collection",null,{
         if(pkey && data){
             data=data.getNodes();
             var k = -1;
-            dojo.some(data,function(n){
+            data.some(function(n){
                 k++;
-                if(that.keyGetter(n)==pkey){
+                if(isEqual(that.keyGetter(n),pkey)){
                     result = k;
                     return true;
                 }
-            });
+            })
             if(fiteredIndex!==false && result>=0 && this._filtered){
                 return this._filtered.indexOf(result);
             }

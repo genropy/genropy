@@ -1529,7 +1529,7 @@ dojo.declare("gnr.GnrBag", null, {
             node = bagnodes[i];
             var value = node.getValue(mode);
             value = isBag(value) ? value.deepCopy(deep) : value;
-            result.setItem(node.label, value, objectUpdate({}, node.attr));
+            result.addItem(node.label, value, objectUpdate({}, node.attr));
         }
         return result;
     },

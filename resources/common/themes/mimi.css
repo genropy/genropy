@@ -764,7 +764,7 @@ body.tundra.mimi {
     padding-bottom:3px;
 }
 
-.mode_mobile .menutree .menu_shape.menu_level_0{
+.mode_mobile .menutree .menu_shape.menu_level_1{
     font-size:18px;
     line-height: 28px;
     font-variant-caps: all-small-caps;
@@ -775,6 +775,9 @@ body.tundra.mimi {
 }
 .mode_mobile .menutree .closedir{
     background: none;
+}
+.menutree .label_emptydir{
+    opacity: .5;
 }
 
 .mode_mobile .menutree .label_opendir{
@@ -806,6 +809,19 @@ body.tundra.mimi {
 .mimi .menutree .menu_shape.menutreeSelected{
     color:rgb(255, 0, 111);
 }
+
+.mimi.mode_mobile .menu_branch.menu_shape.menutreeSelected{
+    color:white;
+}
+
+.mimi .menu_branch.menu_shape.menutreeSelected{
+    color: #444;
+}
+.menutree .menu_shape.menu_level_2.addTableItem{
+    font-style: italic;
+}
+
+
 
 
 
@@ -1383,6 +1399,10 @@ body.tundra.mimi {
     background-size: 10px;
 }
 
+.placeholder_profile{
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat no-repeat center center;
+}
+
 
 
 .popupLabel {
@@ -1591,6 +1611,10 @@ body.tundra.mimi {
 .mimi .plus_grey{
     background: url(/_rsrc/common/css_icons/svg/16/plus_grey.svg) no-repeat center center;
 }
+.mimi .plus_white{
+    background: url(/_rsrc/common/css_icons/svg/16/plus_white.svg) no-repeat center center;
+}
+
 
 .mimi .minus_grey{
     background: url(/_rsrc/common/css_icons/svg/16/minus_grey.svg) no-repeat center center;

@@ -83,7 +83,7 @@ class DbModel(object):
     def deferOnBuilding(self,cb,*args,**kwargs):
         self.onBuildingCb.append({'handler':cb,'args':args,'kwargs':kwargs})
 
-
+        
     def build(self):
         """Database startup operations:
         
@@ -120,7 +120,12 @@ class DbModel(object):
                     tblmix=tables[tblname]
                     tblmix.db = self.db
                     tblmix._tblname = tblname
+                    if hasattr(tblmix, 'config_db'):
+                        tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
+                    tblsrc = pkgsrc.table(tblmix._tblname)
+                    tblsrc._mixinobj = tblmix
+                    tblmix.src = tblsrc
         onBuildingCalls = [] 
         if 'pkg' in self.mixins:
             for pkg, pkgmix in list(self.mixins['pkg'].items()):
@@ -239,7 +244,7 @@ class DbModel(object):
             if col_one_size != col_many_size:
                 message = 'Different size in relation {fkey}:{many_size} - {pkey}:{one_size} '.format(fkey=str('.'.join(many_relation_tuple)),
                         many_size=col_many_size, pkey=str(oneColumn),one_size=col_one_size)
-                logger.error(message)
+                logger.warning(message)
 
             if (onDelete=='cascade' and self.db.auto_static_enabled) or meta_kwargs.get('childmode'):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
@@ -363,9 +368,14 @@ class DbModel(object):
                     "table() called with '%(tblname)s' instead of '<packagename>.%(tblname)s'" % {'tblname': tblname})
             #if pkg is None:
         #    pkg = self.obj.keys()[0]
-        if not self.obj[pkg]:
-            return
-        return self.obj[pkg].table(tblname)
+        if self.obj:
+            if not self.obj[pkg]:
+                return
+            return self.obj[pkg].table(tblname)
+        else:
+            return self.src['packages'][pkg]['tables'][tblname]
+
+    
 
     def column(self, colname):
         """Return a column object
@@ -410,6 +420,7 @@ class DbModelSrc(GnrStructData):
         :param name: the package name"""
         return self.root('packages.%s' % name)
         
+    
     def table(self, name, pkey=None, lastTS=None, rowcaption=None,
               sqlname=None, sqlschema=None,
               comment=None,
@@ -442,11 +453,54 @@ class DbModelSrc(GnrStructData):
                           fullname='%s.%s' %(pkg,name),
                           **kwargs)
 
-    def subtable(self, name,condition=None,name_long=None, **kwargs):
+    def subtable(self, name,condition=None, **kwargs):
         """Insert a :ref:`subtable` into a :ref:`table`
-        
         :param name: the subtable name
         """
+        if self.attributes['tag'] == 'package':
+            return self._subtable_package(name,**kwargs)
+        else:
+            return self._subtable_table(name,condition=condition,**kwargs)
+
+    def _subtable_package(self,name, maintable=None,relation_name=None,**kwargs):
+        pkey = kwargs.pop('pkey',None)
+        if pkey:
+            import warnings
+            warnings.warn("you cannot set pkey inside subtable",category=DeprecationWarning, stacklevel=2)
+        pkg,tblname = maintable.split('.')
+        maintable_src = self.parent[pkg]['tables'][tblname]
+        maintable_attributes = maintable_src.attributes
+        name_plural = relation_name or kwargs.get('name_plural') or name
+        result =  self.table(name,maintable=maintable,**kwargs)
+        resultattr = result.attributes
+        for k,v in maintable_attributes.items():
+            resultattr.setdefault(k,v)
+        if maintable_src['columns'] is not None:
+            for n in maintable_src['columns']:
+                attributes = dict(n.attr)
+                attributes.pop('tag')
+                value = n.value
+                col = result.column(n.label,**attributes)
+                if value:
+                    for rn in value:
+                        rnattr = dict(rn.attr)
+                        rnattr['relation_name'] =f'{name_plural.lower().replace(" ","_")}'
+                        related_column = rnattr.pop('related_column')
+                        col.relation(related_column,**rnattr)
+        maintable_src.column('__subtable')
+        result.column('__subtable',sql_value=f"'{name}'",default=name)
+        maintable_src.subtable(name,condition='$__subtable=:sn',
+                               condition_sn=name,
+                               table=f'{self.attributes.get("pkgcode")}.{name}',
+                               name_plural=kwargs.get('name_plural'))
+        maintable_src.subtable('_main',condition='$__subtable IS NULL',
+                               name_plural=maintable_attributes.get('name_plural'))  #prodotto subtable IS NULL
+        maintable_attributes['default_subtable'] = '_main'
+        result.subtable('_main',condition='$__subtable=:sn',condition_sn=name)
+        resultattr['default_subtable'] = '_main'
+        return result
+
+    def _subtable_table(self,name,condition=None,name_long=None, **kwargs):
         if not 'subtables' in self:
             self.child('subtable_list', 'subtables')
         condition_kwargs = dictExtract(kwargs,'condition_')
@@ -454,6 +508,24 @@ class DbModelSrc(GnrStructData):
         self.formulaColumn(f'subtable_{name}',condition,
         name_long=name_long or name,group='subtables',_addClass=f'subtable_{name}',**{f'var_{k}':v for k,v in condition_kwargs.items()})
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
+    
+    @extract_kwargs(col=True)
+    def colgroup(self, name,name_long=None, col_kwargs=None, **kwargs):
+        self.attributes.setdefault(f'group_{name}',name_long or name)
+        if not 'colgroups' in self:
+            self.child('colgroup_list', 'colgroups')
+        cg = self.child('colgroup',f'colgroups.{name}',
+                          name_long=name_long,**kwargs)
+        cg._destinationNode = self
+        def _decorateChildAttributes(destination,tag,kwargs):
+            kwargs['group'] = f'{name}.{len(destination)+1:03}'
+            for k,v in col_kwargs.items():
+                kwargs.setdefault(k,v)
+        cg._decorateChildAttributes = _decorateChildAttributes
+        return cg
+
+
+
     
     @extract_kwargs(variant=dict(slice_prefix=False)) 
     def column(self, name, dtype=None, size=None,
@@ -652,7 +724,10 @@ class DbModelSrc(GnrStructData):
         :param relation_name: string. An attribute of the :ref:`table_relation`. It allows
                               to estabilish an alternative string for the :ref:`inverse_relation`.
                               For more information, check the :ref:`relation_name` section"""
-        
+        fkey_group = self.attributes.get('group')
+        if one_group is None and fkey_group and fkey_group!='_':
+            self.attributes['group'] = '_'
+            one_group = fkey_group
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
@@ -844,6 +919,14 @@ class DbTableObj(DbModelObj):
     def _getMixinObj(self):
         self.dbtable = SqlTable(self)
         return self.dbtable
+    
+    @property
+    def maintable(self):
+        if hasattr(self,'_maintable'):
+            return self._maintable
+        maintable = self.attributes.get('maintable')
+        self._maintable = self.db.table(maintable) if maintable else None
+        return self._maintable
         
     def _get_pkg(self):
         """property. Returns the SqlPackage that contains the current table"""
@@ -862,18 +945,22 @@ class DbTableObj(DbModelObj):
         return self.attributes.get('name_plural') or self.name_long
         
     name_plural = property(_get_name_plural)
-        
+
+    @property
+    def _refsqltable(self):
+        return self.maintable or self 
+     
     def _get_sqlschema(self):
         """property. Returns the sqlschema"""
-        return self.attributes.get('sqlschema', self.pkg.sqlschema)
+        return self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
         
     sqlschema = property(_get_sqlschema)
-        
+    
     def _get_sqlname(self):
         """property. Returns the table's sqlname"""
-        sqlname = self.attributes.get('sqlname')
+        sqlname = self._refsqltable.attributes.get('sqlname')
         if not sqlname:
-            sqlname = self.pkg.tableSqlName(self)
+            sqlname = self._refsqltable.pkg.tableSqlName(self._refsqltable)
         return sqlname
     sqlname = property(_get_sqlname)
         
@@ -883,7 +970,6 @@ class DbTableObj(DbModelObj):
             return self.adapted_sqlname
         else: 
             return '%s.%s' % (self.sqlschema, self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
-        
     sqlfullname = property(_get_sqlfullname)
         
     def _get_sqlnamemapper(self):
@@ -940,26 +1026,27 @@ class DbTableObj(DbModelObj):
     def _get_queryfields(self):
         """property. Returns the table's queryfields"""
         return self.attributes.get('queryfields', None)
-        
     queryfields = property(_get_queryfields)
         
     def _get_columns(self):
         """Returns an SqlColumnList"""
         return self['columns']
-        
     columns = property(_get_columns)
 
         
     def _get_indexes(self):
         """Returns an SqlIndexedList"""
         return self['indexes']
-        
     indexes = property(_get_indexes)
         
     def _get_relations(self):
         return self['relations']
-        
     relations = property(_get_relations)
+
+    @property
+    def subtables(self):
+        return self['subtables']
+
 
     @property  
     def dependencies(self):
@@ -1536,7 +1623,10 @@ class DbTableAliasObj(DbModelObj):
         
     relation_path = property(_get_relation_path)
         
-        
+
+class DbColgroupObj(DbModelObj):
+    sqlclass = 'colgroup'
+
 class DbSubtableObj(DbModelObj):
     sqlclass = 'subtable'
     
@@ -1561,6 +1651,9 @@ class DbColAliasListObj(DbModelObj):
 class DbColumnListObj(DbModelObj):
     sqlclass = "column_list"
         
+class DbColgroupListObj(DbModelObj):
+    sqlclass = "colgroup_list"
+
 class DbSubtableListObj(DbModelObj):
     sqlclass = "subtable_list"
         

@@ -107,8 +107,11 @@ class Form(BaseComponent):
         center_cell = da.table(height='100%',width='100%').tr().td()
         center_cell.div(upload_message,width='100%',font_size='30px',color='#999',hidden='^#FORM.controller.locked')
         fattr = form.attributes
+        askMetadata = fattr.pop('askMetadata',None)
         da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
                         _class='attachmentDropUploader',
+                        ask = askMetadata,
+                        selfsubscribe_inserted_attachment="""this.form.goToRecord($1.record_id);""",
                         onUploadingMethod=self.onUploadingAttachment,
                         rpc_maintable_id='=#FORM.record.maintable_id',
                         rpc_attachment_table=fattr.get('table'),
@@ -306,10 +309,11 @@ class AttachManager(BaseComponent):
 
 
     @struct_method
-    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,**kwargs):
+    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,**kwargs):            
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
+                            form_askMetadata=ask,
                             formResource= formResource or 'gnrcomponents/attachmanager/attachmanager:Form',
                             multibutton_deleteAction="""
                                 if(this.form && this.form.isDisabled()){
@@ -330,8 +334,10 @@ class AttachManager(BaseComponent):
                                  intermediateChanges=True, width='15em',default_value=1)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
-            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
-        fb.textbox(value='^.form.record.description',lbl='!!Description')
+            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
+        fb.textbox(value='^.description',lbl='!!Description')
+        frame.parametersForm = fb
+
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
@@ -346,19 +352,19 @@ class AttachManager(BaseComponent):
             """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
             _if='!store || store.len()==0',frm=frame.form.js_form,frame=frame)
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
-        frame.onDbChanges(action="""
-            var that = this;
-            if(_node.attr.from_page_id!=genro.page_id){
-                return;
-            }   
-            dbChanges.forEach(function(c){
-                if(c.dbevent=='I'){
-                    frm.goToRecord(c.pkey);
-                }else if(c.dbevent=='D'){
-                    console.log('deleted',c.pkey);
-                }
-            })
-            """,table=table,frm=frame.form.js_form,_delay=100,store='=.store')
+       #frame.onDbChanges(action="""
+       #    var that = this;
+       #    if(_node.attr.from_page_id!=genro.page_id){
+       #        return;
+       #    }   
+       #    dbChanges.forEach(function(c){
+       #        if(c.dbevent=='I'){
+       #            frm.goToRecord(c.pkey);
+       #        }else if(c.dbevent=='D'){
+       #            console.log('deleted',c.pkey);
+       #        }
+       #    })
+       #    """,table=table,frm=frame.form.js_form,_delay=100,store='=.store')
         return frame
 
     @public_method
@@ -367,10 +373,17 @@ class AttachManager(BaseComponent):
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
         attachment_tblobj =  self.db.table(attachment_table)
+        uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename
-        record = dict(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
+        record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
                     description=atcNode.cleanbasename,filepath=atcNode.fullpath)
+        for k,v in kwargs.items():
+            if v is not None and attachment_tblobj.column(k) is not None:
+                record[k] = v
         attachment_tblobj.insert(record)
-        self.db.commit()
+        self.db.commit()        
+        self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
+
+

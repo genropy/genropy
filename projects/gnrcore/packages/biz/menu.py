@@ -5,15 +5,15 @@ class Menu(object):
         biz.thpage(u"!!Dashboards management", table="biz.dashboard",tags="admin")
         self.dashboardBranch(biz)
 
-    def dashboardBranch(self,root,pkg=None,code=None):
-        if pkg is True:
-            pkg = None
-        f = self.db.table('biz.dashboard').query(where='$pkgid=:pk' if pkg else None,pk=pkg).fetch()
+    def dashboardBranch(self,root,filterPkg=None,code=None,**kwargs):
+        if filterPkg is True:
+            filterPkg = None
+        f = self.db.table('biz.dashboard').query(where='$pkgid=:pk' if filterPkg else None,pk=filterPkg, order_by='$code').fetch()
         if not f:
             return
-        if pkg:
-            pkgName = self.db.package(pkg).name_long
-            b = root.branch(f'{pkgName} Dashboards')
+        if filterPkg:
+            pkgName = self.db.package(filterPkg).name_long
+            b = root.branch(f'{pkgName} Dashboards',**kwargs)
         else:
             b = root.branch('!!All dashboards')
         for r in f:

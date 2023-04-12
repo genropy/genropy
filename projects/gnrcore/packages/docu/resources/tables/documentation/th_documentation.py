@@ -21,6 +21,21 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='name', op='contains', val='')
 
+class ViewFromHandbooks(BaseComponent):
+
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('_h_count',width='10em',name='Ord.')
+        r.fieldcell('_row_count',counter=True,hidden=True)
+        r.fieldcell('name',width='20em')
+        r.fieldcell('topics',width='30em')
+
+    def th_order(self):
+        return '_row_count'
+
+    def th_query(self):
+        return dict(column='_row_count', op='contains', val='')
+
 class Form(BaseComponent):
     py_requires='rst_documentation_handler:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
     css_requires = 'docu'
@@ -297,3 +312,17 @@ class FormPalette(Form):
 
     def th_options(self):
         return dict(dialog_parentRatio=.9,hierarchical=False)
+
+class FormFromHandbooks(Form):    
+    
+    def th_options(self):
+        return dict(hierarchical=True,
+                    tree_excludeRoot=True,
+                    tree__class='branchtree noIcon',
+                    tree_condition='$hierarchical_pkey LIKE :d_id||:suffix', 
+                    tree_condition_d_id='^#FORM/parent/#FORM.record.@docroot_id.hierarchical_pkey',
+                    tree_condition_suffix='%',
+                    tree_getLabelClass="return (node.attr.child_count>0?'docfolder':'')+' doclevel_'+node.attr._record.hlevel;",
+                    tree_columns="""$id,$name,$hierarchical_name,$hlevel,
+                                    $hierarchical_pkey,
+                                    $docbag""")

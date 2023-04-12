@@ -1676,6 +1676,18 @@ dojo.declare("gnr.widgets.StackContainer", gnr.widgets.baseDojo, {
 
     },
     mixin_switchPage:function(p){
+        if(p=='*next*'){
+            p = this.getSelectedIndex() + 1;
+            let children = this.getChildren();
+            if(!children[p]){
+                return;
+            }
+        }else if(p=='*prev*'){
+            p = this.getSelectedIndex() - 1;
+            if(p<0){
+                return;
+            }
+        }
         var handler = (p==parseInt(p))?'setSelected':'setSelectedPage';
         this[handler](p);
     },
@@ -1933,8 +1945,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         var splitter = objectPop(closablePars,'splitter');
         if(kw.closable=='close'){
             togglecb()
-        }
-        var _class = 'slotbarOpener'+' slotbarOpener_'+orientation+' slotbarOpener_'+side;
+        }   
+        var customClass = objectPop(closablePars,'_class');
+        var _class = `slotbarOpener slotbarOpener_${orientation} slotbarOpener_${side} ${customClass}`;
         var label = objectPop(closablePars,'label');
         var opener = pane._('div',objectUpdate({_class:_class,connect_onclick:togglecb},closablePars),{doTrigger:false});
         if(label){
@@ -4158,16 +4171,18 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
         this.searchOnBlur=false;
      },
 
-     patch_isValid: function(/*Boolean*/ isFocused){
-        if(isFocused){
-            return true;
-        }
-        let searchrows = this.store.mainbag.getItem('#0');
-        if(!searchrows || searchrows.len()===0){
-            return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
-        }
-        return this.isValid_replaced(isFocused);
-    },
+   //patch_isValid: function(/*Boolean*/ isFocused){
+   //    if(isFocused){
+   //        return true;
+   //    }
+   //    let searchrows = this.store.mainbag.getItem('#0');
+   //    let position = this.sourceNode
+   //    if(!searchrows || searchrows.len()===0){
+   //        return !this.sourceNode.getAttributeFromDatasource('validate_notnull');
+   //    }
+   //    return this.isValid_replaced(isFocused);
+   //},
+    
 
 });
 
@@ -4362,7 +4377,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
 
 dojo.declare("gnr.widgets.dbBaseCombo", gnr.widgets.DynamicBaseCombo, {
     resolver:function(sourceNode,attributes,resolverAttrs,savedAttrs){
-        objectUpdate(resolverAttrs,objectExtract(attributes,'dbtable,table,selectmethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore'));
+        objectUpdate(resolverAttrs,objectExtract(attributes,
+                    'dbtable,table,selectmethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore,emptyLabel,emptyLabel_first,emptyLabel_class'));
         resolverAttrs.dbtable = resolverAttrs.dbtable || objectPop(resolverAttrs,'table');
         if('_storename' in sourceNode.attr){
             resolverAttrs._storename = sourceNode.attr._storename;
@@ -4746,14 +4762,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;
             innerImage.height = innerImage.height || '100%';
-            
             innerImage['onerror'] = "this.sourceNode.setRelativeData(this.sourceNode.attr.src,null);"
             attr.tag = 'div';
             objectUpdate(attr,crop)
@@ -4763,14 +4778,16 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         }else{
              var uploadAttr=objectExtract(attr,'upload_*');
              var cropAttr=objectExtract(attr,'cr_*',true);
-
+             attr.dataUrlMode = attr.dataUrlMode || uploadAttr.folder == '*' || isNullOrBlank(uploadAttr.folder ) && attr.edit===true;
              
             //gnrwdg.fakeinputNode = fakeinput.getParentNode();
 
-             if(objectNotEmpty(uploadAttr)){
+             if(objectNotEmpty(uploadAttr) || attr.dataUrlMode){
+                
                  attr.dropTarget=true;
                  attr.dropTypes='Files,text/plain';
                  attr.drop_ext=uploadAttr.ext || this._default_ext;
+                 
                  var src=sourceNode.attr.src;
                  attr.onDrop_text_html = function(dropInfo,data){
                     console.log('texthtml',dropInfo,data)
@@ -4801,7 +4818,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             that.centerImage(sourceNode,cropAttr);
                         };
                     }
-                    if(uploadAttr.folder=='*'){
+                    if(attr.dataUrlMode){
                         var reader = new FileReader();
                         reader.onload = function(event){
                             sourceNode.setRelativeData(src,event.target.result);
@@ -4818,9 +4835,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                             onResult:function(result){
                                 var url = this.responseText;
                                 sourceNode.setRelativeData(src,that.decodeUrl(sourceNode,url).formattedUrl);
-                             }});
+                                }});
                     }
-                 }
+                    }
                 sourceNode._('input','fakeinput',{hidden:true,type:'file',
                 connect_onchange:function(evt){
                     cbOnDropData({
@@ -4829,8 +4846,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                     }
                 });
                 var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
+
                 attr[uploadhandler_key] = function(){
-                    var elem = this;
+                    var elem = sourceNode;
                     let src = sourceNode.getAttributeFromDatasource('src');
                     let uploadCb = function(){
                         elem.getValue().getNode('fakeinput').domNode.click();
@@ -4847,6 +4865,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
+                attr.editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }
@@ -4895,13 +4914,15 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             }
             
         }});
-        slotbar._('button','upload',{label:'Upload',command:'upload'});
-        if(sourceNode.attr.takePicture){
-            slotbar._('button','takePicture',{label:'Take picture',command:'takePicture'});
+        slotbar._('button','upload',{label:_T('Upload'),command:'upload'});
+        if(sourceNode.attr.takePicture && sourceNode.attr.dataUrlMode){
+            slotbar._('button','takePicture',{label:_T('Photo'),command:'takePicture'});
         }
         if(src){
-            slotbar._('button','editCanvas',{label:'Edit',command:'editCanvas'});
-            slotbar._('button','emptyValue',{label:'Delete',command:'emptyValue'});
+            if(sourceNode.attr.dataUrlMode){
+                slotbar._('button','editCanvas',{label:_T('Edit'),command:'editCanvas'});
+            }
+            slotbar._('button','emptyValue',{label:_T('Delete'),command:'emptyValue'});
         }
         dlg.show_action();
 
@@ -4963,8 +4984,8 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var videoNodeId = frameCode+'_video';
         var canvasNodeId = frameCode+'_canvas';
         var cropperNodeId = frameCode+'_cropper';
-        const videoHeight = 300;
-        const videoWidth = 400; 
+        const videoHeight = 225;
+        const videoWidth = 300; 
         let clientWidth = sourceNode.domNode.clientWidth;
         let clientHeight = sourceNode.domNode.clientHeight;
         var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
@@ -5071,6 +5092,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                 return;
             }
             var params = parsedUrl.params;
+            
             params = objectUpdate(params,{'v_y':margin_top,'v_x':margin_left});
             var url = this.encodeUrl(parsedUrl);
             sourceNode.setAttributeInDatasource('src',url,true);

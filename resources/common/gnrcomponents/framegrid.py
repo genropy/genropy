@@ -278,8 +278,7 @@ class FrameGridTools(BaseComponent):
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )
-        if self.application.checkResourcePermission('admin', self.userTags):
-            gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
+        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
         gth.dataController(f"""
             SET .selectedIndex = null;
             if(genro.nodeById(tree_nodeId)){{
@@ -350,6 +349,8 @@ class FrameGridTools(BaseComponent):
 
     @struct_method
     def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None):
+        if not self.checkTablePermission(table=table,permissions='configure_view'):
+            return
         grid = view.grid
         grid.attributes['configurable'] = True
         if closable is None:
@@ -562,11 +563,11 @@ class FrameGrid(BaseComponent):
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
     @struct_method
-    def fgr_templateGrid(self,pane,pbl_classes='*',fields=None,contentCb=None,template=None, readOnly=False, template_resource=None, **kwargs):
+    def fgr_templateGrid(self,pane,pbl_classes='*',fields=None,contentCb=None,template=None, readOnly=False, template_resource=None,modal=None,mode=None, **kwargs):
         def struct(struct):
             r = struct.view().rows()
             r.cell('tpl',rowTemplate=template or '=.current_template',width='100%',cellClasses='tplcell',
-                    edit=dict(fields=fields,contentCb=contentCb) if not readOnly and (fields or contentCb) else None,
+                    edit=dict(fields=fields,contentCb=contentCb,modal=modal,mode=mode) if not readOnly and (fields or contentCb) else None,
                     calculated=True)
         kwargs.setdefault('addrow', not readOnly)
         kwargs.setdefault('delrow', not readOnly)

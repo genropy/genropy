@@ -30,9 +30,8 @@ class GnrCustomWebPage(object):
                             label="<div style='padding:20px'>Drop document here <br>or double click</div>",
                             uploadPath='site:files',
                             progressBar=True,
-                            onUploadedMethod=self.uploadFile,
-                            _lockScreen=True,
-                            onResult="alert('Hi')")
+                            ask=dict(title='Prova',fields=[dict(name='message',lbl='Message')]),
+                            onUploadedMethod=self.uploadFile)
         fb.textbox('^.size', lbl='Size (kB)', readOnly=True, hidden='^.file_path?=!#v')
         fb.textbox('^.file_path', lbl='File path', readOnly=True, hidden='^.file_path?=!#v', width='100%')
         fb.textbox('^.file_url', lbl='File url', readOnly=True, hidden='^.file_path?=!#v', width='100%')
@@ -46,7 +45,7 @@ class GnrCustomWebPage(object):
         self.setInClientData(value=file_size, path='test.test_1_dropUploaderWithMethod.size')
         self.setInClientData(value=fullpath, path='test.test_1_dropUploaderWithMethod.file_path')
         self.setInClientData(value=file_url, path='test.test_1_dropUploaderWithMethod.file_url')
-        self.clientPublish('floating_message', message='Upload completed')  
+        self.clientPublish('floating_message', message=kwargs.get('message') or 'Upload completed')  
 
     def test_2_multiUploaderDialog(self, pane):
         """Through multiUploaderDialog it's possible to customize behaviour directly in javascript.
