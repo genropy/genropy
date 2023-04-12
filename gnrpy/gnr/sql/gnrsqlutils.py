@@ -233,7 +233,7 @@ class SqlModelChecker(object):
             dbcolumns = dict(
                     [(c['name'], c) for c in self.db.adapter.getColInfo(schema=tbl.sqlschema, table=tbl.sqlname)])
             for col in list(tbl.columns.values()):
-                if col.attributes.get('_sql_inherited_col'):
+                if col.attributes.get('sql_inherited'):
                     continue
                 if col.sqlname in dbcolumns:
                     #it there's the column it should check if has been edited.

@@ -481,7 +481,7 @@ class DbModelSrc(GnrStructData):
             attributes = dict(n.attr)
             attributes.pop('tag')
             attributes.pop('indexed',None)
-            attributes['_sql_inherited_col'] = True
+            attributes['sql_inherited'] = True
             value = n.value
             col = result.column(n.label,**attributes)
             if value:
