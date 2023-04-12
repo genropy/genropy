@@ -350,7 +350,9 @@ class AttachManager(BaseComponent):
                 frm.newrecord();
             }
             """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
-            _if='!store || store.len()==0',frm=frame.form.js_form,frame=frame)
+            _fired='^#FORM.controller.loaded',
+            _if='!store || store.len()==0',
+            frm=frame.form.js_form,frame=frame)
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
        #frame.onDbChanges(action="""
        #    var that = this;
