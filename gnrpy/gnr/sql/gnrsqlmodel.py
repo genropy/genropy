@@ -487,11 +487,13 @@ class DbModelSrc(GnrStructData):
             if value:
                 for rn in value:
                     rnattr = dict(rn.attr)
-                    rnattr['relation_name'] =f'{name_plural.lower().replace(" ","_")}'
+                    if rnattr.get('relation_name'):
+                        rnattr['relation_name'] = kwargs.get('relation_name') or f'{name_plural.lower().replace(" ","_")}'
                     related_column = rnattr.pop('related_column')
                     col.relation(related_column,**rnattr)
         subtablename = f'{self.attributes.get("pkgcode")}.{name}'
-        result.column('__subtable',sql_value=f"'{subtablename}'",default=name)
+        result.column('__subtable',sql_value=f"'{subtablename}'",default=name,group='_',
+                    sql_inherited=True)
         maintable_src.subtable(name,condition='$__subtable=:sn',
                                condition_sn=name,
                                table=subtablename,

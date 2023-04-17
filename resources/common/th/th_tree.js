@@ -62,7 +62,7 @@ var THTree = {
         var store = tree.storebag();
         var n = store.getNodeByAttr('treeIdentifier',pkey);
         var treeSourceNode = tree.sourceNode;
-        var treeNodeInattr = treeSourceNode.getInheritedAttributes().table
+        var treeNodeInattrTable = treeSourceNode.getInheritedAttributes().table
         if(n){
             return n.getFullpath(null, tree.model.store.rootData());
         }else{
@@ -70,7 +70,7 @@ var THTree = {
             var inattr = storeNode.getInheritedAttributes();
             var kw = {pkey:pkey,dbstore:inattr.dbstore};
             var storeattr = storeNode.attr;
-            var table = inattr.table || treeNodeInattr.table;
+            var table = inattr.table || treeNodeInattrTable;
             if(storeNode instanceof gnr.GnrDomSourceNode){
                 storeattr = storeNode.evaluateOnNode(storeattr);
             }else{
