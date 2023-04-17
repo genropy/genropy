@@ -314,7 +314,7 @@ class GnrWebUtils(GnrBaseProxy):
             for sheet in sheets:
                 if sheet.get('sheet') is not None:
                     reader.setMainSheet(sheet['sheet'])
-                struct = sheet['struct']
+                struct = sheet.get('struct',dict())
                 match_index = tblobj.importerMatchIndex(reader,struct=struct)
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
@@ -391,7 +391,7 @@ class GnrWebUtils(GnrBaseProxy):
         for row in self.quickThermo(reader(),maxidx=reader.nrows if hasattr(reader,'nrows') else None,
                         labelfield=tblobj.attributes.get('caption_field') or tblobj.name):
             r = dict(constants) if constants else dict()
-            f =  {v:row[k] for k,v in match_index.items() if v != ''}
+            f =  {v:row[k] for k,v in match_index.items() if v != ''} if match_index else dict(row)
             r.update(f)
             tblobj.recordCoerceTypes(r)
             if sql_mode:
