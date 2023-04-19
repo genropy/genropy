@@ -293,7 +293,10 @@ dojo.declare("gnr.LinkerManager", null, {
         this.sourceNode.registerSubscription('changeInTable',this,function(kw){
             if(kw.table==this.table){
                 if(this.sourceNode.getRelativeData(this.fieldpath)==kw.pkey){
-                    this.sourceNode.getRelativeData(this.resolverpath).getParentNode().getValue('reload');
+                    let rn = this.sourceNode.getRelativeData(this.resolverpath)
+                    if(rn){
+                        rn.getParentNode().getValue('reload');
+                    };
                 }
             }
         });
