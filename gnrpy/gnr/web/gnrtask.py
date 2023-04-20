@@ -62,8 +62,17 @@ class GnrTaskScheduler(object):
             if reasonkey not in existing_executions:
                 self.exectbl.insert(self.exectbl.newrecord(task_id=t,exec_reason=reason,reasonkey=reasonkey))
                 taskToUpdate.append(t)
-
-        self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),_pkeys=taskToUpdate)
+        retries = 0
+        done = False
+        while not done:
+            try:
+                self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),_pkeys=taskToUpdate)
+                done = True
+            except:
+                if retries>20:
+                    raise
+                retries += 1
+                sleep(randrange(1,20))
         self.checkAlive()
         self.db.commit()
     
