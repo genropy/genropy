@@ -4378,7 +4378,7 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
 dojo.declare("gnr.widgets.dbBaseCombo", gnr.widgets.DynamicBaseCombo, {
     resolver:function(sourceNode,attributes,resolverAttrs,savedAttrs){
         objectUpdate(resolverAttrs,objectExtract(attributes,
-                    'dbtable,table,selectmethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore,emptyLabel,emptyLabel_first,emptyLabel_class'));
+                    'dbtable,table,selectmethod,applymethod,weakCondition,excludeDraft,ignorePartition,distinct,httpMethod,dbstore,emptyLabel,emptyLabel_first,emptyLabel_class'));
         resolverAttrs.dbtable = resolverAttrs.dbtable || objectPop(resolverAttrs,'table');
         if('_storename' in sourceNode.attr){
             resolverAttrs._storename = sourceNode.attr._storename;
