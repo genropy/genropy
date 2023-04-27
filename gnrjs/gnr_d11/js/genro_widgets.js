@@ -510,7 +510,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),value,n.attr._keep);
             }
         });
-
+        sourceNode.widget.setKeeper(genro.getData(npath));
     },
 
     onDragStart:function(dragInfo) {

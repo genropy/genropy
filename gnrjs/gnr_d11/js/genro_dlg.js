@@ -565,13 +565,21 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                             if(!validDojo){
                                 return;
                             }
-                            var v = genro.getData(promptvalue_path);
+                            var v = genro.getData(promptvalue_path);                            
                             if(mandatory && isNullOrBlank(v)){
                                 return;
                             }
                             error_message = funcApply(confirmCb,{value:genro.getData(promptvalue_path)},(sourceNode||this));
                             if(!error_message){
-                                genro.setData(promptvalue_path,null,null,false);
+                                var kept_value = {};
+                                if (v instanceof gnr.GnrBag){
+                                    for(let n of v.getNodes()){
+                                        if(n.attr._keep){
+                                            kept_value[n.label] = n.getValue();
+                                        }
+                                    }
+                                }
+                                genro.setData(promptvalue_path,null,objectNotEmpty(kept_value)?{kept_value:kept_value}:null,false);
                             }
                         }else if(command == 'cancel' && cancelCb){
                             error_message = funcApply(cancelCb,{},(sourceNode||this));
