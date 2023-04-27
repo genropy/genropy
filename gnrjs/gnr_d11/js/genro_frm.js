@@ -615,12 +615,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             let prompt_dflt = new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw));
-            let dp = that.sourceNode.getRelativeData('.controller.defaultPrompt');
-            let kept_value = dp?dp.getAttr('promptvalue','kept_value'):{};
-
-            for(let keykept in kept_value){
-                prompt_dflt.setItem(keykept,kept_value[keykept]);
-            }
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
                 dflt:prompt_dflt,

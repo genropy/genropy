@@ -545,6 +545,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             prompt_datapath = sourceNode.absDatapath(prompt_datapath);
         }
         var promptvalue_path = prompt_datapath+'.promptvalue';
+        let nodePromptValue = genro.getDataNode(promptvalue_path);
+        let kept_value = nodePromptValue?nodePromptValue.attr.kept_value:null;
+        if(kept_value){
+            dflt = dflt || new gnr.GnrBag();
+            for(let keykept in kept_value){
+                dflt.setItem(keykept,kept_value[keykept]);
+            }
+        }
         genro.setData(promptvalue_path,dflt || null);
         dlg_kw = objectUpdate({_showParent:true,width:'280px',datapath:prompt_datapath,_class:'dlg_prompt',autoSize:true},dlg_kw);
         var dlg = genro.dlg.quickDialog(title,dlg_kw,sourceNode);
