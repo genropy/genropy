@@ -277,7 +277,6 @@ class GnrWebUtils(GnrBaseProxy):
             result['import_modes'] = ','.join(import_modes)
             result['import_mode'] = 'insert_only'
             result['methodlist'] = ','.join([k[9:] for k in dir(tblobj) if k.startswith('importer_')])
-
         for k,i in sorted(list(reader.index.items()),key=lambda tup:tup[1]):
             columns.setItem(k,None,name=k,field=k,width='10em')
             if k in table_col_list:
@@ -319,8 +318,10 @@ class GnrWebUtils(GnrBaseProxy):
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
                 importer = struct.get('importer')
+
                 if importer:
-                    res = getattr(tblobj,importer)(reader)
+                    rows = self.adaptedRecords(tblobj=tblobj,reader=reader,match_index=match_index,sql_mode=sql_mode,constants=constants)
+                    res = getattr(tblobj,importer)(rows)
                 else:
                     res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
                                                 match_index=match_index,
