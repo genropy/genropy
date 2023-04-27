@@ -1210,7 +1210,7 @@ dojo.declare("gnr.GridEditor", null, {
             if(!editkw){
                 return;
             }
-            let tbl = editkw.dbtable || cmap.related_table;
+            let tbl = editkw.table || editkw.dbtable || cmap.related_table;
             let hcols = [];
             let rcol = cmap.relating_column || field;
             let selectedKw = objectExtract(editkw,'selected_*',true);
