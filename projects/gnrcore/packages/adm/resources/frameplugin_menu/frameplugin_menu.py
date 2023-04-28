@@ -87,6 +87,7 @@ class MenuIframes(BaseComponent):
 
     def menu_iframemenuPane(self, pane, **kwargs):
         pane.data('gnr.appmenu',self.menu.getRoot())
+        pane.dataController("genro.getDataNode('gnr.appmenu.root').refresh(true)",subscribe_refresh_appmenu=True)
         tree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,

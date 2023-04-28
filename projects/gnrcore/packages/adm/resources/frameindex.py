@@ -84,6 +84,9 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
+        if new_window:
+            self.loginDialog(pane,new_window=True)
+            return
         pane.dataController("""var d = data.deepCopy();
                             if(deltaDays(new Date(),d.getItem('workdate'))==0){
                                 d.setItem('workdate','');
@@ -126,10 +129,7 @@ class FrameIndex(BaseComponent):
             self.prepareTop_mobile(bc,onCreatingTablist=onCreatingTablist)
             self.prepareBottom_mobile(bc)
             self.prepareCenter_mobile(bc)
-        if new_window:
-            self.loginDialog(pane,new_window=True)
-        else:
-            self.login_newPassword(pane)
+        self.login_newPassword(pane)
         return bc
         
     def prepareBottom(self,bc):
