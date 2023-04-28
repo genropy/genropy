@@ -1775,19 +1775,17 @@ class GnrWebAppHandler(GnrBaseProxy):
                                           resultcolumns=resultcolumns, exclude=exclude,
                                           limit=limit, order_by=order_by,condition= None if weakCondition is True else condition,
                                           identifier=identifier, ignoreCase=ignoreCase,excludeDraft=excludeDraft, **kwargs)
-
-        
+        applyresult = None
+        if applymethod:
+            applyresult = self.page.getPublicMethod('rpc', applymethod)(selection, **kwargs)
         if selection:
             showcols = [tblobj.colToAs(c.lstrip('$')) for c in showcolumns]
-            if applymethod:
-                applyresult = self.page.getPublicMethod('rpc', applymethod)(selection, **kwargs)
-                if applyresult:
-                    resultAttrs.update(applyresult)
             result = selection.output('selection', locale=self.page.locale, caption=rowcaption or True)
             colHeaders = [selection.colAttrs[k].get('name_short') or selection.colAttrs[k]['label'] for k in showcols]
             colHeaders = [self.page._(c) for c in colHeaders]
             resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
-
+            if applyresult:
+                resultAttrs.update(applyresult)
             if not notnull and not _id:
                 emptyLabel = emptyLabel or ''
                 _position = '<' if emptyLabel_first else None
