@@ -620,6 +620,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 dflt:prompt_dflt,
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
+                cancelCb:function(){
+                    that.abort();
+                },
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
