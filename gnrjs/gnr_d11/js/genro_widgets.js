@@ -482,35 +482,43 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     },
     setKeepable:function(sourceNode){
         genro.dom.addClass(sourceNode.widget.focusNode,'iskeepable');
-        var keeper = document.createElement('div');
-        keeper.setAttribute('title','Keep this value');
-        genro.dom.addClass(keeper,'fieldkeeper');
-        var keeper_in = document.createElement('div');
-        keeper.appendChild(keeper_in);
+        let keepableAuto = sourceNode.attr.keepable == '*';
         var dn = this._getKeeperRoot(sourceNode);
-        dn.appendChild(keeper);
+        if(!keepableAuto){
+            var keeper = document.createElement('div');
+            keeper.setAttribute('title','Keep this value');
+            genro.dom.addClass(keeper,'fieldkeeper');
+            var keeper_in = document.createElement('div');
+            keeper.appendChild(keeper_in);
+            dn.appendChild(keeper);
+            keeper.onclick = function(e){
+                dojo.stopEvent(e);
+                var n = genro.getDataNode(npath);
+                var currvalue = n.attr._keep;
+                sourceNode.widget.setKeeper(isNullOrBlank(currvalue));
+            }
+        }
         var npath = sourceNode.absDatapath(sourceNode.attr.value);
-        sourceNode.widget.setKeeper = function(v){
-            genro.dom.setClass(dn.parentNode,'keeper_on',v);
+        sourceNode.widget.setKeeper = function(keepOn){
             var n = genro.getDataNode(npath);
-            n.attr._keep = v;
+            let v = n.getValue();
+            genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
+            n.attr._keep = keepOn?v:null;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),n._value,n.attr._keep);
             }
         };
-        keeper.onclick = function(e){
-            dojo.stopEvent(e);
-            var n = genro.getDataNode(npath);
-            var currvalue = n.attr._keep;
-            sourceNode.widget.setKeeper(!currvalue);
-        }
         sourceNode.subscribe('onSetValueInData',function(value){
             var n = genro.getDataNode(npath);
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),value,n.attr._keep);
+            }else if(sourceNode.attr.keepable == '*'){
+                n.attr._keep = value;
             }
         });
-        sourceNode.widget.setKeeper(genro.getData(npath));
+        let dataNode = genro.getDataNode(npath);
+        let keepableValue = dataNode?dataNode.attr._keep:null;
+        sourceNode.widget.setKeeper(keepableValue || sourceNode.attr.keepable=='*');
     },
 
     onDragStart:function(dragInfo) {

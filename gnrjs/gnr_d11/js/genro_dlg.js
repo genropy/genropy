@@ -550,7 +550,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         if(kept_value){
             dflt = dflt || new gnr.GnrBag();
             for(let keykept in kept_value){
-                dflt.setItem(keykept,kept_value[keykept]);
+                let _keep = kept_value[keykept]
+                dflt.setItem(keykept,_keep,{'_keep':_keep});
             }
         }
         genro.setData(promptvalue_path,dflt || null);
