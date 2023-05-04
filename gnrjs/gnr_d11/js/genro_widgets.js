@@ -407,6 +407,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                             this.controlButton.setLabel(title);
                         }
                     }
+                    parentNode.publish('onChangedChildTitle',{title:title,child:this})
                 });
             }
             else if (parentTagLower == 'accordioncontainer') {
@@ -416,6 +417,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             }
             else if(parentTagLower =='stackcontainer'){
                 newobj.setTitle = function(title){
+                    parentNode.publish('onChangedChildTitle',{title:title,child:this})
                     return;
                 }
             }
