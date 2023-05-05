@@ -1294,6 +1294,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
+    def partitionController(self,key=None,value=None):
+        self.data(f'current.{key}',None,serverpath=f'rootenv.current_{key}',dbenv=True)
+        self.dataFormula(f'current.{key}','value',value=value)
+
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
