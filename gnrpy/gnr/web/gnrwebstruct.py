@@ -1294,15 +1294,20 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
-    def partitionController(self,key=None,value=None):
-        self.data(f'current.{key}',None,serverpath=f'rootenv.current_{key}',dbenv=True)
-        self.dataController(f"""SET current.{key} = value;
-                                let kw = {{}};
-                                kw.topic  = 'changed_partition_{key}';
-                                kw.iframe = '*';
-                                console.log('publish kw',kw)
-                                genro.publish(kw,{{partition_value:value}});
-                            """,value=value)
+    def partitionController(self,partition_key=None,value=None):
+        self.dataController(f"""
+            let kw = {{}};
+            kw.topic  = 'changed_partition_{partition_key}';
+            kw.iframe = '*';
+            genro.publish(kw,{{partition_value:value}});
+        """,value=value)
+        self.partitionSubscriber(partition_key)
+    
+    def partitionSubscriber(self,partition_key):
+        self.data(f'current.{partition_key}',None,serverpath=f'rootenv.current_{partition_key}',dbenv=True)
+        self.dataFormula(f'current.{partition_key}','partition_value',
+                         **{f'subscribe_changed_partition_{partition_key}':True})
+
 
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
