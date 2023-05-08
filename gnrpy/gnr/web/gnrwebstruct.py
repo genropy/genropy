@@ -1296,7 +1296,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
     def partitionController(self,key=None,value=None):
         self.data(f'current.{key}',None,serverpath=f'rootenv.current_{key}',dbenv=True)
-        self.dataFormula(f'current.{key}','value',value=value)
+        self.dataController(f"""SET current.{key} = value;
+                                let kw = {{}};
+                                kw.topic  = 'changed_partition_{key}';
+                                kw.iframe = '*';
+                                console.log('publish kw',kw)
+                                genro.publish(kw,{{partition_value:value}});
+                            """,value=value)
 
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
