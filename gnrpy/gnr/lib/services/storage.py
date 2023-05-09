@@ -350,6 +350,11 @@ class StorageNode(object):
         """Sets the file metadata"""
         self.service.set_metadata(self.path, metadata)
 
+    def fill_from_url(self, url):
+        import urllib.request
+        with self.open('wb') as me:
+            with urllib.request.urlopen(url) as response:
+                me.write(response.read())
 
 class StorageService(GnrBaseService):
 
