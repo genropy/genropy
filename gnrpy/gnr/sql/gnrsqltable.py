@@ -584,6 +584,9 @@ class SqlTable(GnrObject):
                     elif 'ljust' in  colattr:
                         v = v.ljust(int(colattr['size']), colattr['ljust'])
                     record[k] = v
+                if isinstance(record[k],str):
+                    record[k] = record[k].strip()
+                    record[k] = record[k] or None #avoid emptystring
 
     def buildrecord(self, fields, resolver_one=None, resolver_many=None):
         """Build a new record and return it

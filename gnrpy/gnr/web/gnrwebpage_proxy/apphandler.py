@@ -1658,7 +1658,7 @@ class GnrWebAppHandler(GnrBaseProxy):
     def dbSelect(self, dbtable=None, columns=None, auxColumns=None, hiddenColumns=None, rowcaption=None,
                      _id=None, _querystring='', querystring=None, ignoreCase=True, exclude=None, excludeDraft=True,
                      condition=None, limit=None, alternatePkey=None, order_by=None, selectmethod=None,
-                     notnull=None, weakCondition=False, _storename=None,preferred=None,
+                     applymethod=None,notnull=None, weakCondition=False, _storename=None,preferred=None,
                      emptyLabel = None, emptyLabel_first = None,emptyLabel_class=None,invalidItemCondition=None,**kwargs):
         """dbSelect is a :ref:`filteringselect` that takes the values through a :ref:`query` on the
         database: user can choose between all the values contained into the linked :ref:`table` (the
@@ -1720,7 +1720,6 @@ class GnrWebAppHandler(GnrBaseProxy):
             resultcolumns.append("$%s" % alternatePkey if not alternatePkey.startswith('$') else alternatePkey)
         selection = None
         identifier = 'pkey'
-        rows = []
         resultAttrs = {}
         errors = []
         if _id:
@@ -1777,21 +1776,23 @@ class GnrWebAppHandler(GnrBaseProxy):
                                           resultcolumns=resultcolumns, exclude=exclude,
                                           limit=limit, order_by=order_by,condition= None if weakCondition is True else condition,
                                           identifier=identifier, ignoreCase=ignoreCase,excludeDraft=excludeDraft, **kwargs)
-
-        
+        applyresult = None
+        if applymethod:
+            applyresult = self.page.getPublicMethod('rpc', applymethod)(selection, **kwargs)
         if selection:
             showcols = [tblobj.colToAs(c.lstrip('$')) for c in showcolumns]
-
             result = selection.output('selection', locale=self.page.locale, caption=rowcaption or True)
             colHeaders = [selection.colAttrs[k].get('name_short') or selection.colAttrs[k]['label'] for k in showcols]
             colHeaders = [self.page._(c) for c in colHeaders]
             resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
-
+            if applyresult:
+                resultAttrs.update(applyresult)
             if not notnull and not _id:
                 emptyLabel = emptyLabel or ''
                 _position = '<' if emptyLabel_first else None
                 result.setItem('null_row', None, caption=emptyLabel, _pkey=None,
                                _customClasses=emptyLabel_class,_position=_position)
+            
         resultAttrs['resultClass'] = resultClass
         resultAttrs['dbselect_time'] = time.time() - t0
         if errors:

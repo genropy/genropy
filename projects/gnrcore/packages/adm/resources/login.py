@@ -376,10 +376,16 @@ class LoginComponent(BaseComponent):
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
-        self.pageStore().setItem('rootenv',rootenv)
+        errdict = self.callPackageHooks('onAuthenticating',self.avatar,rootenv=rootenv)
+        result = self.avatar.as_dict()
+        err = [err for err in errdict.values() if err is not None]
+        with self.pageStore() as ps:
+            rootenv['new_window_context'] = True
+            ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
-        result = self.avatar.as_dict()
+        if err:
+            return {'error' : ', '.join(err)}
         return result
 
     @public_method
@@ -396,7 +402,8 @@ class LoginComponent(BaseComponent):
         tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
         mailservice = self.getService('mail')
         if tpl_userconfirm_id:
-            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id)
+            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id,
+                                             async_=False,html=True,scheduler=False)
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
@@ -423,7 +430,8 @@ class LoginComponent(BaseComponent):
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
             if tpl_new_password_id:
-                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,)
+                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
+                                                 async_=False,html=True,scheduler=False)
             else:
                 mailservice.sendmail_template(recordBag,to_address=email,
                                         body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',

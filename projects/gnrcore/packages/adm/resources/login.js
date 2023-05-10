@@ -92,6 +92,8 @@ const LoginComponent = {
                             genro.pageReload();
                         }
                     }
+                }else{
+                    genro.pageReload({page_id:genro.page_id});
                 }
             }
         },null,'POST');

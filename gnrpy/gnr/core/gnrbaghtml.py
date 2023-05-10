@@ -92,7 +92,16 @@ class BagToHtml(object):
         return getattr(self,'format_%s' %self.page_format)()
 
     def format_A4(self):
-        return dict(height=280,width=200)
+        return dict(height=297,width=210)
+
+
+    def format_A5(self):
+        return dict(height=210,width=148)
+    
+
+    def format_A6(self):
+        return dict(height=148,width=105)
+
 
     @property
     def paperHeight(self):

@@ -400,7 +400,10 @@ class XlsxReader(object):
     def addSheet(self,sheetname):
         sheet = self.book[sheetname]
         linegen = self._sheetlines(sheet)
-        firstline = next(linegen)
+        try:
+            firstline = next(linegen)
+        except StopIteration:
+            firstline = dict()
         headers = [slugify(header, sep='_') for header in firstline if header]
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         index = dict()

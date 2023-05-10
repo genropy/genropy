@@ -196,6 +196,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.newPanel){
             return this.newBrowserPanel(kw);
         }
+        if(kw.redirect){
+            return this.redirect(kw);
+        }
         var rootPageName = this.createIframeRootPage(kw);
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
@@ -267,6 +270,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
         objectExtract(kw,'title,label')
         this.finalizePageUrl(kw);
         window.open(kw.url);
+    },
+    redirect:function(kw){
+        objectExtract(kw,'title,label')
+        this.finalizePageUrl(kw);
+        genro.gotoURL(kw.url);
     },
 
     selectWindow:function(menuitem,ctxSourceNode,event){

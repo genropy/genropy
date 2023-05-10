@@ -521,6 +521,8 @@ class MenuResolver(BagResolver):
         xmlresolved = kwargs.pop('resolved',False)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
+        if attributes.get('titleCounter'):
+            xmlresolved=True
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,

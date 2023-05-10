@@ -1511,12 +1511,25 @@ class AttachmentTable(GnrDboTable):
                             copyFile=True,
                             is_foreign_document = False,
                             filename=None,
+                            external_url=None,
                             **kwargs):
         site = self.db.application.site
+        if external_url and not origin_filepath:
+            record = self.newrecord(maintable_id = maintable_id,
+                        mimetype = mimetype,
+                        description = description or external_url,
+                        filepath = None,
+                        is_foreign_document = True,
+                        external_url=external_url,
+                        **kwargs)
+            self.insert(record)
+            return record
         if is_foreign_document:
             moveFile = False
             copyFile = False
         originStorageNode = site.storageNode(origin_filepath)
+        if external_url:
+            originStorageNode.fill_from_url(external_url)
         mimetype = mimetype or mimetypes.guess_type(originStorageNode.path)[0]
         filename = filename or originStorageNode.basename
         if copyFile or moveFile:

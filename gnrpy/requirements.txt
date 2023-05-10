@@ -30,5 +30,4 @@ six
 tzlocal
 pyyaml
 chardet
-openpyxl
 jsmin

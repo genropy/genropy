@@ -2164,6 +2164,9 @@ class GnrWebPage(GnrBaseWebPage):
         elif _auth == AUTH_FORBIDDEN:
             redirect = self.forbiddenRedirectPage
             if redirect:
+                params = urllib.parse.urlencode(self.pageArgs)
+                if params:
+                    redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
             root.clear()
             self.forbiddenPage(root, **kwargs)
@@ -2234,13 +2237,16 @@ class GnrWebPage(GnrBaseWebPage):
         #cookie = self.get_cookie('%s_dying_%s_%s' %(self.siteName,self.packageId,self.pagename), 'simple')
         #if cookie:
         #    return Bag(urllib.unquote(cookie.value)).getItem('rootenv')
-        if not self.root_page_id: #page not in framedindex or framedindex itself
+        currenv = self.pageStore(page_id=self.parent_page_id or self.page_id).getItem('rootenv') or Bag()
+        if not self.root_page_id and not currenv['new_window_context']: 
+            # page not in framedindex or framedindex itself and not windowcontext
+            # get the connections defaults
             connectionStore = self.connectionStore()
             defaultRootenv = Bag(connectionStore.getItem('defaultRootenv'))
             if '_workdate' in self._call_kwargs:
                 defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
             return defaultRootenv
-        return self.pageStore(page_id=self.parent_page_id).getItem('rootenv')
+        return currenv
         
 
     def onMain(self): #You CAN override this !

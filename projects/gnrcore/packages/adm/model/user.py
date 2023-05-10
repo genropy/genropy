@@ -196,10 +196,10 @@ class Table(object):
 #
 
 
-    def importUsers(self, reader, **kwargs):
+    def importUsers(self, rows, **kwargs):
         fields = self.importerStructure()['fields']
         current_users = self.query().fetchAsDict('username')
-        rows = list(reader())
+        rows = list(rows)
         result=Bag()
         warnings=list()
         for r in self.db.quickThermo(rows, labelfield='Adding users'):
