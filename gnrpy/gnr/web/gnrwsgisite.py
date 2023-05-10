@@ -407,6 +407,8 @@ class GnrWsgiSite(object):
         path = '/'.join(args)
         if not ':' in path: 
             path = '_raw_:%s'%path
+        if path.startswith('http://') or path.startswith('https://'):
+            path = '_http_:%s'%path
         service_name, storage_path = path.split(':',1)
         storage_path = storage_path.lstrip('/')
         if service_name == 'vol':       
