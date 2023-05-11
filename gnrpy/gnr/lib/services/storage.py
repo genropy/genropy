@@ -189,6 +189,9 @@ class ServiceType(BaseServiceType):
     def conf__raw_(self):
         return dict(implementation='raw')
 
+    def conf__http_(self):
+        return dict(implementation='http')
+
     #def conf_vol(self):
     #    return dict(implementation='symbolic')
     def getServiceFactory(self,implementation=None):
