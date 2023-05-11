@@ -233,6 +233,8 @@ class SqlModelChecker(object):
             dbcolumns = dict(
                     [(c['name'], c) for c in self.db.adapter.getColInfo(schema=tbl.sqlschema, table=tbl.sqlname)])
             for col in list(tbl.columns.values()):
+                if col.attributes.get('sql_inherited'):
+                    continue
                 if col.sqlname in dbcolumns:
                     #it there's the column it should check if has been edited.
                     new_dtype = col.attributes['dtype']
@@ -454,7 +456,8 @@ class SqlModelChecker(object):
     def _alterColumnType(self, col, new_dtype, new_size=None):
         """Prepare the sql statement for altering the type of a given column and return it"""
         sqlType = self.db.adapter.columnSqlType(new_dtype, new_size)
-        usedColumn = col.table.dbtable.query(where='$%s IS NOT NULL' %col.sqlname,columns='$%s' %col.sqlname).count()>0
+        usedColumn = col.table.dbtable.query(where='$%s IS NOT NULL' %col.sqlname,columns='$%s' %col.sqlname,
+                                             subtable='*',ignorePartition=True,excludeDraft=True).count()>0
         if usedColumn or (col.dtype in ('T','A','C')) and (new_dtype in ('T','A','C')):
             return self.db.adapter.alterColumnSql(col.table.sqlfullname, col.sqlname, sqlType)
         else:

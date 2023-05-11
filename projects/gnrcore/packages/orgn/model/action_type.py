@@ -1,5 +1,5 @@
 # encoding: utf-8
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method,metadata
 from gnr.core.gnrbag import Bag
 
 class Table(object):
@@ -17,8 +17,10 @@ class Table(object):
         tbl.column('deadline_days',dtype='I',name_long='!!Deadline days',name_short='DL.Days')
         tbl.column('background_color',name_long='!!Background')
         tbl.column('color',name_long='!!Text color')
+        tbl.column('linked_table',name_long='Linked table')
+        tbl.column('sms_number_path',name_long='Sms Number path')
+        tbl.column('email_path',name_long='Email path')
 
-        
         tbl.column('text_template',name_long='!!Text template',dtype='X',group='_')
         tbl.column('full_template',dtype='X',group='_',name_long='!!Full template')
         
@@ -51,7 +53,7 @@ class Table(object):
         record_action = annotation_tbl.record(action_id).output('bag')
         fkey,fkey_value = annotation_tbl.recordLinkedEntity(record_action)
         linked_entity = record_action['linked_entity']
-        sms_number_path = annotation_tbl.column(fkey).attributes.get(f'linked_{linked_entity}_sms_number')
+        sms_number_path = record_action['sms_number_path'] or annotation_tbl.column(fkey).attributes.get(f'linked_{linked_entity}_sms_number')
         return record_action[f'@{fkey}.{sms_number_path}']
 
     def _SMS_get_content(self,action_id=None):
@@ -97,3 +99,15 @@ class Table(object):
     def impl_telegram(self,action_id=None,**kwargs):
         "Telegram"
         pass
+
+    @metadata(doUpdate=True)
+    def touch_linkedTable(self,record,old_record=None):
+        record['linked_table'] = self.linkedTableFromRestrictions(record['restrictions'])
+
+    @public_method
+    def linkedTableFromRestrictions(self,restrictions=None,**kwargs):
+        if restrictions:
+            restrictions = restrictions.split(',')
+            if len(restrictions) == 1:
+                e = self.db.table('orgn.annotation').getLinkedEntityDict()[restrictions[0]]
+                return e['table']

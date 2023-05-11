@@ -359,7 +359,8 @@ class TableTemplateToHtml(BagToHtmlWeb):
 
 class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
-    rows_table = None
+    row_table = None
+    rows_table = None #deprecated
     virtual_columns = None
     html_folder = 'temp:html'
     pdf_folder = 'page:pdf'
@@ -372,6 +373,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         super(TableScriptToHtml, self).__init__(srcfactory=GnrTableScriptHtmlSrc,page=page,table=resource_table,parent=parent,**kwargs)
         self.thermo_wrapper = self.page.btc.thermo_wrapper
         self._gridStructures = {}
+        if self.rows_table:
+            self.row_table = self.rows_table
+            print('Deprecation warning: please change rows_table into row_table')
 
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
                     language=None,locale=None, htmlContent=None, **kwargs):
@@ -444,8 +448,8 @@ class TableScriptToHtml(BagToHtmlWeb):
         :param item: TODO
         :param progress: TODO
         :param maximum: TODO"""
-        if self.rows_table:
-            tblobj = self.db.table(self.rows_table)
+        if self.row_table:
+            tblobj = self.db.table(self.row_table)
             caption = '%s (%i/%i)' % (tblobj.recordCaption(item.value), progress, maximum)
         else:
             caption = '%i/%i' % (progress, maximum)
@@ -543,7 +547,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         return True
     
     def structFromResource(self,viewResource=None,table=None):
-        table = table or self.rows_table or self.tblobj.fullname
+        table = table or self.row_table or self.tblobj.fullname
         if not ':' in viewResource:
             viewResource = 'th_%s:%s' %(table.split('.')[1],viewResource)
         view = self.site.virtualPage(table=table,table_resources=viewResource)

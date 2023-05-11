@@ -376,10 +376,16 @@ class LoginComponent(BaseComponent):
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
-        self.pageStore().setItem('rootenv',rootenv)
+        errdict = self.callPackageHooks('onAuthenticating',self.avatar,rootenv=rootenv)
+        result = self.avatar.as_dict()
+        err = [err for err in errdict.values() if err is not None]
+        with self.pageStore() as ps:
+            rootenv['new_window_context'] = True
+            ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
-        result = self.avatar.as_dict()
+        if err:
+            return {'error' : ', '.join(err)}
         return result
 
     @public_method

@@ -3,6 +3,7 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,metadata
+from gnr.core.gnrbag import Bag
 
 class View(BaseComponent):
 
@@ -65,9 +66,11 @@ class ViewPicker(BaseComponent):
 class Form(BaseComponent):
     py_requires='gnrcomponents/dynamicform/dynamicform:DynamicForm'
 
+
+
     def th_form(self, form):
         bc = form.center.borderContainer()
-        topbc = bc.borderContainer(region='top',datapath='.record',height='200px')
+        topbc = bc.borderContainer(region='top',datapath='.record',height='250px')
 
         topleft = topbc.roundedGroup(title='!!Action type info',region='left',width='700px')
         fb = topleft.div(margin_right='15px').formbuilder(cols=3, border_spacing='4px',width='100%',colswidth='auto',fld_width='100%')
@@ -88,6 +91,15 @@ class Form(BaseComponent):
         restrictions = self.db.table('orgn.annotation').getLinkedEntities()
         if restrictions:
             fb.field('restrictions',tag='checkBoxText',values=restrictions,popup=True,cols=1,colspan=3,width='100%')
+            fb.dataRpc('linked_table',self.db.table('orgn.action_type').linkedTableFromRestrictions,restrictions='^.restrictions',_userChanges=True)
+            fb.field('email_path',lbl='Email',colspan=3,width='25em',hidden='^.linked_table?=!#v',
+                    tag='TextboxMenu',storepath='#FORM.linkedTableResolver',
+                    valuekey='fieldpath',separator=False)
+            fb.field('sms_number_path',lbl='Sms Number',colspan=3,width='25em',hidden='^.linked_table?=!#v',
+                    tag='TextboxMenu',storepath='#FORM.linkedTableResolver',
+                    valuekey='fieldpath',separator=False)
+            fb.dataRemote('#FORM.linkedTableResolver',self.relationExplorer,
+                          table='^#FORM.record.linked_table',omit='_')
 
         fb.field('extended_description',tag='simpleTextArea',lbl='!!Extended description',colspan=3,width='100%')
         fb.div(height='17px',width='4em',lbl='Background',

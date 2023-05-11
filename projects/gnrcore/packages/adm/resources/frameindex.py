@@ -26,7 +26,6 @@ class FrameIndex(BaseComponent):
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
     index_title = 'Index'
-
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
@@ -85,6 +84,9 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
+        if new_window:
+            self.loginDialog(pane,new_window=True)
+            return
         pane.dataController("""var d = data.deepCopy();
                             if(deltaDays(new Date(),d.getItem('workdate'))==0){
                                 d.setItem('workdate','');
@@ -127,10 +129,7 @@ class FrameIndex(BaseComponent):
             self.prepareTop_mobile(bc,onCreatingTablist=onCreatingTablist)
             self.prepareBottom_mobile(bc)
             self.prepareCenter_mobile(bc)
-        if new_window:
-            self.loginDialog(pane,new_window=True)
-        else:
-            self.login_newPassword(pane)
+        self.login_newPassword(pane)
         return bc
         
     def prepareBottom(self,bc):
@@ -299,11 +298,12 @@ class FrameIndex(BaseComponent):
 
 
     def prepareBottom_mobile(self,bc):
-
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('10,genrologo,5,applogo,*,debugping,logout,10',
-                              _class='slotbar_toolbar framefooter',height='22px',
+        sb = pane.slotToolbar('20,genrologo,5,applogo,*,debugping,logout,20',
+                              _class='slotbar_toolbar framefooter',height='25px',
                         background='#EEEEEE',border_top='1px solid silver')
+        pane.div(height='10px',background='black')
+        
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         sb.debugping.div(_class='ping_semaphore')
         applogo = sb.applogo.div()
@@ -386,7 +386,6 @@ class FrameIndex(BaseComponent):
 
 
     def prepareLeft_mobile(self,bc):
-
         frame = bc.framePane(region='left',width='40%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
@@ -394,9 +393,6 @@ class FrameIndex(BaseComponent):
                                                          SET left.selected = plugin_name;
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
-
-
-
         custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
         plugins = self.plugin_list.split(',') + custom_plugins
         pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)

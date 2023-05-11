@@ -215,6 +215,18 @@ dojo.declare("gnr.widgets.qrscanner", gnr.widgets.baseHtml, {
     mixin_gnr_start:function(){
         this._scanner.start();
     },
+    mixin_gnr_stop:function(){
+        this._scanner.stop();
+    },
+
+    mixin_gnr_toggle:function(){
+        if(this._scanner._active){
+            this._scanner.stop();
+        }else{
+            this._scanner.start();
+        }
+    },
+    
     mixin_gnr_value:function(){
         //console.log('aaa')
     }

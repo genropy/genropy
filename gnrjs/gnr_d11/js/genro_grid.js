@@ -835,7 +835,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         //dojo.subscribe(gridId+'_searchbox_keyUp',this,function(v){console.log(v)});
         //var searchCode = sourceNode.attr.searchCode===false?false: sourceNode.attr.searchCode || (sourceNode.getInheritedAttributes().frameCode || nodeId);
 
-        var searchBoxCode =(sourceNode.attr.frameCode || nodeId)+'_searchbox';
+        var searchBoxCode =(sourceNode.attr.searchCode || sourceNode.attr.frameCode || nodeId)+'_searchbox';
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
             this.enableSearchBox(searchBoxNode,widget);

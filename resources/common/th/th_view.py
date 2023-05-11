@@ -731,6 +731,18 @@ class TableHandlerView(BaseComponent):
             currentSection='^.current',sectionbag='=.data',
             _delay=100,
             th_root=th_root)
+        
+    def th_subtableSections(self,table=None,defaultValue=None,**kwargs):
+        tblobj = self.db.table(table)
+        subtables = tblobj.model.subtables
+        result = []
+        for k in sorted(subtables.keys()):
+            st = dict(subtables[k].attributes)
+            st.pop('tag')
+            table = st.pop('table',None)
+            result.append(dict(code=k,caption=st.get('name_plural',k),connected_table=table,subtable=k))
+        result.append(dict(code='_ALL_',caption='!![en]All',subtable='*'))
+        return result
 
     def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
         allsection = [dict(code='all',caption='!!All')]
