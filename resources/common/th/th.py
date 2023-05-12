@@ -488,6 +488,7 @@ class TableHandler(BaseComponent):
         kwargs = dict([('main_%s' %k,v) for k,v in kwargs.items()])
         iframe = pane.iframe(main='th_iframedispatcher',main_methodname=method,
                             main_table=pane.getInheritedAttributes().get('table'),
+                            main_currentFormId=pane.getInheritedAttributes().get('formId'),
                             main_pkey='=#FORM.pkey',
                             src=src,**kwargs)
         pane.dataController('genro.publish({iframe:"*",topic:"frame_onChangedPkey"},{pkey:pkey})',pkey='^#FORM.pkey')
@@ -531,8 +532,9 @@ class TableHandler(BaseComponent):
         return iframe
         
     @public_method
-    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,**kwargs):
+    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,**kwargs):
         rootattr = root.attributes
+        rootattr['formId'] = correntFormId
         rootattr['datapath'] = 'main'
         rootattr['overflow'] = 'hidden'
         rootattr['_fakeform'] = True
