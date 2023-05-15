@@ -1482,6 +1482,7 @@ dojo.declare("gnr.GnrBag", null, {
         bagOrObj.forEach(function(n){
             var node_resolver = n.getResolver();
             var node_value = null;
+            var replaceContent = objectPop(n.attr,'__replace')
             if (!node_resolver || mode!='static'){
                 node_value = n.getValue();
                 node_resolver = null;
@@ -1493,7 +1494,7 @@ dojo.declare("gnr.GnrBag", null, {
                  if (node_resolver){
                      currNode.setResolver(node_resolver);
                  }
-                 if ((node_value instanceof gnr.GnrBag) && (currNodeValue instanceof gnr.GnrBag)){
+                 if ((node_value instanceof gnr.GnrBag) && (currNodeValue instanceof gnr.GnrBag) && !replaceContent){
                      currNodeValue.update(node_value,mode,reason)
                  }else{
                      currNode.setValue(node_value,reason);

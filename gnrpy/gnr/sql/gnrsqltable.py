@@ -694,7 +694,7 @@ class SqlTable(GnrObject):
         self.extendDefaultValues(newrecord)
         return newrecord
 
-    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None):
+    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None,cacheInPage=None):
         keyField = keyField or self.pkey
         ignoreMissing = createCb is not None
         def recordFromCache(cache=None,pkey=None,virtual_columns_set=None):
@@ -717,7 +717,7 @@ class SqlTable(GnrObject):
             return dict(result),in_cache
         virtual_columns_set = set(virtual_columns.split(',')) if virtual_columns else set()
         return self.tableCachedData('cachedRecord',recordFromCache,pkey=pkey,
-                                virtual_columns_set=virtual_columns_set)
+                                virtual_columns_set=virtual_columns_set,cacheInPage=cacheInPage)
 
     def findDuplicates(self,allrecords=True):
         dup_records = self.query(where="($_duplicate_finder IS NOT NULL) AND ($_duplicate_finder!='')",
@@ -745,11 +745,11 @@ class SqlTable(GnrObject):
             storename = self.db.currentStorename
         return '%s.%s.%s' %(storename,topic,self.fullname)
 
-    def tableCachedData(self,topic,cb,**kwargs):
+    def tableCachedData(self,topic,cb,cacheInPage=None,**kwargs):
         currentPage = self.db.currentPage
         cacheKey = self.cachedKey(topic)
         if currentPage:
-            cacheInPage = self.db.currentEnv.get('cacheInPage')
+            cacheInPage = self.db.currentEnv.get('cacheInPage') if cacheInPage is None else cacheInPage
             if cacheInPage:
                 store = getattr(currentPage,'_pageTableCache',None)
                 if not store:
