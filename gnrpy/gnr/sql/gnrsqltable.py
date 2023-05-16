@@ -694,6 +694,7 @@ class SqlTable(GnrObject):
         self.extendDefaultValues(newrecord)
         return newrecord
 
+
     def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None,cacheInPage=None):
         keyField = keyField or self.pkey
         ignoreMissing = createCb is not None
