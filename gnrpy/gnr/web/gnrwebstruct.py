@@ -1304,7 +1304,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         self.partitionSubscriber(partition_key)
     
     def partitionSubscriber(self,partition_key):
-        self.data(f'current.{partition_key}',None,serverpath=f'rootenv.current_{partition_key}',dbenv=True)
+        self.data(f'current.{partition_key}',self.page.rootenv[f'current_{partition_key}'],serverpath=f'rootenv.current_{partition_key}',dbenv=True)
         self.dataFormula(f'current.{partition_key}','partition_value',
                          **{f'subscribe_changed_partition_{partition_key}':True})
 
