@@ -854,7 +854,7 @@ class GnrDomSrc(GnrStructData):
         pars = dict(border_spacing='8px 0px', 
                         width='100%',fld_width=fld_width,lblpos='T',
                         lbl_text_align='left',lbl_font_size='.8em',
-                        lbl_padding_top='4px',fld_zoom=False,
+                        lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
                         _class='mobilefields')
@@ -1959,7 +1959,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 size = int(size)
             else:
                 size = 5
-            defaultZoom = self.page.pageOptions.get('enableZoom', True)
+            defaultZoom = self.getInheritedAttributes().get('enableZoom')
+            if defaultZoom is None:
+                defaultZoom = self.page.pageOptions.get('enableZoom', True)
             if lbl is not False:
                 result['lbl'] = lbl or fieldobj.table.dbtable.relationName('@%s' % fieldobj.name)
                 if kwargs.get('zoom', defaultZoom):
