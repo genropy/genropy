@@ -1403,6 +1403,10 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat no-repeat center center;
 }
 
+.user_icon{
+    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat no-repeat center center;
+}
+
 
 
 .popupLabel {

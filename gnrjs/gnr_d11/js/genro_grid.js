@@ -2814,7 +2814,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                         this.filterToRebuild(true);
                         this.updateRowCount();
                         var that = this;
-                        if(currSelectedIdx>=0){
+                        if(currSelectedIdx>=0 && !this.sourceNode.attr._linkedFormId){
                             setTimeout(function(){
                                 that.setSelectedIndex(currSelectedIdx);
                             },1);
@@ -3110,7 +3110,8 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 this._saved_selections = null;
             }
             if ((this.prevSelectedIdentifiers) && (this.prevSelectedIdentifiers.length > 0 )) {
-                this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,this.prevSelectedIdx);
+                let default_idx = this.sourceNode.attr._linkedFormId? -1:this.prevSelectedIdx;
+                this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,default_idx);
                 this.prevSelectedIdx = null;
                 this.prevSelectedIdentifiers = null;
                 this.prevFirstVisibleRow = null;
