@@ -121,7 +121,6 @@ class LoginComponent(BaseComponent):
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
-        
         fb.dateTextBox(value='^.workdate',lbl='!!Workdate')
         valid_token = False
         if gnrtoken:
@@ -169,6 +168,9 @@ class LoginComponent(BaseComponent):
         pane.dataController("dlg_login.hide();dlg_cu.show();",dlg_login=dlg.js_widget,
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
 
+        pane.dataController("dlg_login.hide();dlg_otp.show();",dlg_login=dlg.js_widget,
+                    dlg_otp=self.login_otpDialog(pane,dlg).js_widget,subscribe_getOtpDialog=True)
+
         pane.dataController("""
             LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)
         """,fb=fb,
@@ -185,6 +187,10 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
+        waiting2fa = self.pageStore().getItem('waiting2fa')
+        if waiting2fa:
+            return {'error':'Waiting authentication code'}
+
         kwargs.pop('authenticate',None)
         self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
         if login['error']:
@@ -216,6 +222,11 @@ class LoginComponent(BaseComponent):
         if avatar.status != 'conf':
             return result
         self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        if result['avatar.enabled_2fa'] and not self.getService('2fa').saved2fa(avatar.user_id):
+            result['waiting2fa'] = avatar.user_id
+            with self.pageStore() as ps:
+                ps.setItem('waiting2fa',avatar.user_id)
+                ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
         return result
     
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
@@ -287,6 +298,62 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
         return dlg
+
+    def login_otpDialog(self,pane,dlg_login=None):
+        dlg = pane.dialog(_class='lightboxDialog loginDialog',datapath='otp_prompt')
+        box = dlg.div(**self.loginboxPars())
+        self.login_commonHeader(box,'!![en]OTP Validation')
+        box.div('!![en]Set the secure code from your authentication app',
+                padding='10px 10px 0px 10px',
+                color='#777',font_style='italic',
+                font_size='.9em',text_align='center')
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE otp_confirm;',
+                                datapath='new_password',width='100%',
+                                fld_width='100%',row_height='3ex')
+        fb.textbox(value='^.otp_code',lbl='!![en]Code',font_size='1.2em',font_weight='bold')
+        fb.checkbox(value='^.otp_remember',label='!![en]Remember this client')
+        footer = self.login_commonFooter(box)
+        #footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
+        footer.rightbox.button('!![en]Confirm',_class='login_confirm_btn',action='FIRE otp_confirm')
+        rpc = fb.dataRpc(self.login_checkOTPCode,
+            _fired='^otp_confirm',
+            otp_code='=.otp_code',
+            otp_remember='=.otp_remember',
+            _if='otp_code && otp_code.length==6',
+            _else="genro.publish('failed_otp_msg',{'message':_msg});",
+            _msg='!![en]Invalid code'
+        )
+        rpc.addCallback("""if(!result){
+            genro.publish('failed_otp_msg',{'message':msg});
+        }else{
+            genro.setData('waiting2fa',false);
+            dlg.hide();
+            genro.publish('openLogin');
+        }
+        """,msg='!![en]Invalid code',dlg=dlg.js_widget)
+        dlg.dataController("genro.dlg.floatingMessage(sn,{message:message,messageType:'error',yRatio:1.85})",subscribe_failed_otp_msg=True,sn=dlg)
+
+        return dlg
+    
+    @public_method
+    def login_checkOTPCode(self,otp_code=None,otp_remember=None):
+        user_id = self.pageStore().getItem('waiting2fa')
+        last_2fa_otp = self.pageStore().getItem('last_2fa_otp')
+        if otp_code==last_2fa_otp:
+            return False
+        result = self.getService('2fa').verifyTOTP(user_id,otp=otp_code)
+        if not result:
+            return False
+        with self.db.table('adm.user').recordToUpdate(user_id) as rec:
+            rec['avatar_last_2fa_otp'] = otp_code
+        self.db.commit()
+        if otp_remember:
+            self.getService('2fa').remember2fa(user_id)
+        with self.pageStore() as ps:
+            ps.setItem('waiting2fa',None)
+            ps.setItem('last_2fa_otp',otp_code)
+        return True
+
 
 
     def login_confirmUserDialog(self,pane,gnrtoken=None,dlg_login=None):

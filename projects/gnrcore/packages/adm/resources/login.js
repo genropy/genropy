@@ -33,6 +33,10 @@ const LoginComponent = {
             n.setValidationError(validation);
             n.updateValidationStatus();
         })
+        if(result.getItem('waiting2fa')){
+            sourceNode.setRelativeData('waiting2fa',true);
+            genro.publish('getOtpDialog');
+        }
     },
 
     confirmAvatar:(sourceNode,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)=>{
@@ -40,6 +44,10 @@ const LoginComponent = {
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
         var rootpage = rootenv.getItem('rootpage');
         var login = sourceNode.getRelativeData('_login');
+        var waiting2fa = genro.getData('waiting2fa')
+        if(waiting2fa){
+            return;
+        }
         if(!avatar || !avatar.getItem('user') || avatar.getItem('error')){
             var error = avatar? (avatar.getItem('error') || error_msg):error_msg
             genro.publish('failed_login_msg',{'message':error});

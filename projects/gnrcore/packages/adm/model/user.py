@@ -41,6 +41,8 @@ class Table(object):
          
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
+        tbl.column('avatar_enabled_2fa', dtype='B',name_long='Enabled 2fa')
+        tbl.column('avatar_last_2fa_otp', name_long='Last 2fa')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')

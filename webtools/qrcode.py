@@ -14,12 +14,15 @@ from gnr.web.gnrbaseclasses import BaseWebtool
 import qrcode
 import tempfile
 import mimetypes
+import urllib
 
 import qrcode.image.svg
 
 
 class QRCode(BaseWebtool):
-    def __call__(self, text=None,mode='png',**kwargs):
+    def __call__(self, text=None,url=None,mode='png',**kwargs):
+        if url:
+            text = urllib.parse.unquote(url)
         return getattr(self,f'qrcode_{mode}')(text)
 
     def qrcode_png(self,text=None):

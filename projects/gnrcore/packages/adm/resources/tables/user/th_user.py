@@ -6,7 +6,12 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,customizable
-
+from gnr.core.gnrbag import Bag
+import urllib
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -168,7 +173,6 @@ class FormProfile(BaseComponent):
         #
         #fb.field('sms_login', html_label=True)
         #fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='12em')
-
         tc = bc.tabContainer(margin='2px',region='center')
         self.adm_profile_tabs(tc)
     
@@ -184,4 +188,49 @@ class FormProfile(BaseComponent):
         pane = bc.contentPane(region='top')
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
+        if pyotp:
+            button = fb.button('Enable 2fa')
+            fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
+            rpc = button.dataRpc('#FORM.2fa_enabler.2fa_data',self.get2faData)
+            rpc.addCallback('dlg.show()',dlg=self._dlg2faQrcode(fb).js_widget)
+            dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
+            frame = dlg.framePane(height='300px',width='400px')
+            frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
         return bc
+    
+    def _dlg2faQrcode(self,pane):
+        dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
+        frame = dlg.framePane(height='300px',width='300px')
+        frame.center.contentPane(overflow='hidden').img(src='^#FORM.2fa_enabler.2fa_data.qrcode_url',
+                                                        height='100%',margin='auto')
+        frame.bottom.div('^#FORM.2fa_enabler.2fa_data.previsioning_uri',height='30px',_class='selectable')
+        fb = frame.bottom.formbuilder()
+        fb.textbox(value='^.otp',lbl='OTP')
+        bar = frame.bottom.slotBar('*,confirm,5',childname='confirmbar',height='22px',border='1px solid silver')
+        rpc = bar.slotButton('Confirm').dataRpc(
+            self.confirmOTP,otp='=.otp'
+        )
+        rpc.addCallback("""if(result){
+            dlg.hide(); 
+            SET #FORM.2fa_enabler.2fa_data = null;
+            SET #FORM.record.avatar_enabled_2fa = true;
+            SET #FORM.record.avatar_last_2fa_otp = otp;
+            this.form.save();
+        }
+        """,dlg=dlg.js_widget,otp='=.otp')
+        return dlg
+
+    @public_method
+    def get2faData(self):
+        result = Bag()
+        service = self.getService('2fa')
+        previsioning_uri = service.getPrevisioningUri(self.user,user_id=self.avatar.user_id)
+        result['secret'] = str(service.get2faSecret(self.avatar.user_id))
+        result['previsioning_uri'] = previsioning_uri
+        result['qrcode_url'] =f'/_tools/qrcode?{urllib.parse.urlencode({"url":previsioning_uri})}' 
+        return result
+
+    @public_method
+    def confirmOTP(self,otp=None):
+        result = self.getService('2fa').verifyTOTP(self.avatar.user_id,otp=otp)
+        return result

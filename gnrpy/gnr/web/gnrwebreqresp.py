@@ -33,7 +33,7 @@ class BaseCookie(object):
         self._value = value
 
     def output(self):
-        return self.value.encode('ascii')
+        return self._value.encode('ascii')
 
 class MarshalCookie(SecureCookie):
     serialization_method = marshal
