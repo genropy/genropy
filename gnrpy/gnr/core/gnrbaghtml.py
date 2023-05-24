@@ -885,7 +885,7 @@ class BagToHtml(object):
                 rowData[field] = self.lineno+1
             elif callable(field_getter):
                 rowData[field] = field_getter(rowData=rowData,col=field)
-            elif col.get('formula'):
+            elif col.get('formula') and not col.get('sqlcolumn'):
                 rowData[field_getter or field] = self.cellFormulaValue(col,rowData)
         if field_getter and not field_getter in rowData:
             field_getter = None
