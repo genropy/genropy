@@ -5417,6 +5417,20 @@ div[disabled='true'], div[disabled='disabled']{
     right: 0;
     overflow: hidden;
 }
+
+.mobileSizer{
+    max-width: 800px;
+    margin: auto;
+    border-left: 1px solid silver;
+    border-right: 1px solid silver;
+}
+
+.touchDevice .mobileSizer{
+    max-width: none;
+    margin: none;
+    border-left: none;
+    border-right: none;
+}
 .touchDevice .scroll-wrapper{
     overflow-y:scroll !important; 
     -webkit-overflow-scrolling:touch !important;    
@@ -5425,6 +5439,7 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
+
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;

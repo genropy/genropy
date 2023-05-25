@@ -3301,6 +3301,38 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         return storebag.columns(col)[0];
     },
+    mixin_distinctColumnValues:function(col){
+        let cell = this.cellmap[col];
+        let field = cell.field;
+        let field_getter = cell.field_getter;
+        let cols = []
+        let result = [];
+        cols.push(field)
+        if(field_getter && field_getter!=field){
+            cols.push(field_getter)
+        }
+        let store = this.storebag();
+        if(!store || store.len()==0){
+            return '';
+        }
+        for (let n of store.getNodes()){
+            let row = n.attr;
+            if(this.datamod=='bag'){
+                row = n.getValue().asDict()
+            }
+            let chunk = [];
+            for(let c of cols){
+                chunk.push(row[c])
+            }
+            chunk = chunk.join(':');
+            if(!result.includes(chunk)){
+                result.push(chunk);
+            }
+            
+        }
+        return result.join(',');
+    },
+
 
     mixin_rowFromBagNode:function(node) {
         var result = objectUpdate({}, node.attr);
