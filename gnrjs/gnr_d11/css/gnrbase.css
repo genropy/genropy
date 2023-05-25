@@ -5418,19 +5418,13 @@ div[disabled='true'], div[disabled='disabled']{
     overflow: hidden;
 }
 
-.mobileSizer{
+.mode_std .mobileSizer{
     max-width: 800px;
     margin: auto;
     border-left: 1px solid silver;
     border-right: 1px solid silver;
 }
 
-.touchDevice .mobileSizer{
-    max-width: none;
-    margin: none;
-    border-left: none;
-    border-right: none;
-}
 .touchDevice .scroll-wrapper{
     overflow-y:scroll !important; 
     -webkit-overflow-scrolling:touch !important;    
