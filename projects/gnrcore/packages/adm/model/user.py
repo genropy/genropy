@@ -41,7 +41,7 @@ class Table(object):
          
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
-        tbl.column('avatar_enabled_2fa', dtype='B',name_long='Enabled 2fa')
+        tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
         tbl.column('avatar_last_2fa_otp', name_long='Last 2fa')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
@@ -65,7 +65,13 @@ class Table(object):
                                                             uid=record['id'],
                                                             gc=record['group_code'],
                                                             columns='$tag_code',distinct=True).fetch()
-        return ','.join([r['tag_code'] for r in alltags])
+        
+        alltags = [r['tag_code'] for r in alltags]
+        if '_2FA_' in alltags:
+            alltags.remove('_2FA_')
+        if record['avatar_secret_2fa'] and record['avatar_last_2fa_otp']:
+            alltags.append('_2FA_')
+        return ','.join(alltags)
     
     
     def partitionioning_pkeys(self):

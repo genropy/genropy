@@ -204,8 +204,6 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
- 
-
     @public_method
     def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
         result = Bag()
@@ -222,12 +220,19 @@ class LoginComponent(BaseComponent):
         if avatar.status != 'conf':
             return result
         self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
-        if result['avatar.enabled_2fa'] and not self.getService('2fa').saved2fa(avatar.user_id):
+        if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
                 ps.setItem('waiting2fa',avatar.user_id)
                 ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
         return result
+    
+    def login_require2fa(self,avatar):
+        service = self.getService('2fa')
+        if not service:
+            return False
+        enabled = service.mandatory or avatar.extra_kwargs.get('secret_2fa') 
+        return enabled and not self.getService('2fa').saved2fa(avatar.user_id)
     
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()

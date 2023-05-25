@@ -14,7 +14,6 @@ class View(BaseComponent):
         r.fieldcell('service_name')
         r.fieldcell('service_type')
         r.fieldcell('implementation')
-        r.fieldcell('parameters',width='40em')
         #r.fieldcell('extrainfo',width='30em')
 
     def th_order(self):
