@@ -175,14 +175,13 @@ class FormProfile(BaseComponent):
     
     @customizable
     def adm_profile_tabs(self,tc):
-        self.authenticationsPane(tc.borderContainer(title='!!Authentication'))
+        self.authenticationsPane(tc.contentPane(title='!!Authentication'))
         frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
         frame_preference.top.slotToolbar('*,stackButtons,*')
         frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 
     @customizable
-    def authenticationsPane(self,bc):
-        pane = bc.contentPane(region='top')
+    def authenticationsPane(self,pane):
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
         if self.getService('2fa'):
@@ -197,7 +196,7 @@ class FormProfile(BaseComponent):
             dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
             frame = dlg.framePane(height='300px',width='400px')
             frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
-        return bc
+        return fb
     
     def _dlg2faQrcode(self,pane):
         dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
