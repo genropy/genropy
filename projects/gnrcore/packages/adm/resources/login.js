@@ -22,6 +22,9 @@ const LoginComponent = {
         currenv.update(newenv);
         sourceNode.setRelativeData('gnr.rootenv', currenv);
         sourceNode.setRelativeData('gnr.avatar',avatar);
+        if(currenv.getItem('current_group_code')){
+            sourceNode.setRelativeData('_login.current_group_code',currenv.getItem('current_group_code'))
+        }
         sourceNode.getValue().walk(n=>{    
             if(!n.hasValidations()){
                 return

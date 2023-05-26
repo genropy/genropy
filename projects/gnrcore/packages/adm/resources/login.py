@@ -88,11 +88,25 @@ class LoginComponent(BaseComponent):
         rpcmethod = self.login_newWindow
         start = 0
         if doLogin:
-            start = 2
+            start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
+            fb.dbSelect(value='^_login.current_group_code',table='adm.group',condition='$code IN :all_groups',
+                    condition_all_groups='^.all_groups',validate_notnull='^.all_groups',
+                    row_hidden='^.all_groups?=!#v',lbl='!![en]Group',hasDownArrow=True,
+                    validate_onAccept="""
+                    if(userChange){
+                        let current_group_code = GET gnr.rootenv.current_group_code;
+                        PUT gnr.rootenv.current_group_code = value;
+                        if(current_group_code!=value){
+                            console.log(current_group_code,value);
+                            FIRE _login.checkAvatar;
+                        }
+
+                    }
+                    """)
             fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{
@@ -110,17 +124,21 @@ class LoginComponent(BaseComponent):
             pane.dataRpc(self.login_checkAvatar,
                         user='^_login.user',
                         password='^_login.password',
+                        dbenv_current_group_code='=gnr.rootenv.current_group_code',
                         _fired='^_login.checkAvatar',
-                        _onCalling="""kwargs.serverTimeDelta = genro.serverTimeDelta;
-                                        """,
-                        _if='user&&password&&!_avatar_user',_else='SET gnr.avatar = null;',
-                        _avatar_user='=gnr.avatar.user',
+                        _onCalling="""
+                        SET gnr.avatar = null;
+                        kwargs.serverTimeDelta = genro.serverTimeDelta;
+                        """,
+                        _if='user&&password',
                         _fb = fb,
                         _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result)""",
-                        sync=True,_POST=True)
+                        sync=True,_POST=True,
+                        _userChanges=True)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
+        
         fb.dateTextBox(value='^.workdate',lbl='!!Workdate')
         valid_token = False
         if gnrtoken:
@@ -187,10 +205,12 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
+        dbenv = self.db.currentEnv
+        if rootenv['current_group_code']:
+            dbenv['current_group_code'] = rootenv['current_group_code']
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
             return {'error':'Waiting authentication code'}
-
         kwargs.pop('authenticate',None)
         self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
         if login['error']:
@@ -206,6 +226,7 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
+        print('login_checkAvatar',user,password,kwargs)
         result = Bag()
         try:
             avatar = self.application.getAvatar(user, password=password,authenticate=True)
@@ -237,11 +258,18 @@ class LoginComponent(BaseComponent):
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
+        if avatar.group_code:
+            other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
+            if other_groups:
+                data['all_groups'] = [avatar.group_code] + [g['group_code'] for g in other_groups]
+                data['current_group_code'] = avatar.group_code
+        else:
+            print('aaa',avatar.user,avatar.user_tags)
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
-        result['rootenv'] = data
         default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()
         data.setItem('workdate',default_workdate, hidden= not canBeChanged)
+        result['rootenv'] = data
         return result
 
     def loginboxPars(self):

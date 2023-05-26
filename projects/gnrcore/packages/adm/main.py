@@ -23,12 +23,16 @@ class Package(GnrDboPackage):
         def cb(cache=None,identifier=None,**kwargs):
             if identifier in cache:
                 return cache[identifier],True
-            result = tblobj.query(columns="""*,$all_tags,@group_code.custom_menu AS menubag,
-                                                @group_code.rootpage AS group_rootpage""",
-                                        where='$username = :user',user=username, limit=1).fetch()
+            result = tblobj.query(columns="""*,$all_tags""",
+                                  where='$username = :user',
+                                  user=username, limit=1).fetch()
             kwargs = dict()
             if result:
                 user_record = dict(result[0])
+                group_code = self.db.currentEnv.get('current_group_code') or user_record.get('group_code')
+                group_rootpage,menubag = None,None
+                if group_code:
+                    group_rootpage,menubag = self.db.table('adm.group').readColumns(pkey=group_code,columns='$rootpage,$custom_menu')
                 kwargs['tags'] = user_record.pop('all_tags')
                 kwargs['pwd'] = user_record.pop('md5pwd')
                 kwargs['status'] = user_record['status']
@@ -36,19 +40,23 @@ class Package(GnrDboPackage):
                 kwargs['firstname'] = user_record['firstname']
                 kwargs['lastname'] = user_record['lastname']
                 kwargs['user_id'] = user_record['id']
-                kwargs['group_code'] = user_record['group_code']
-                kwargs['avatar_rootpage'] = user_record['avatar_rootpage']  or user_record['group_rootpage']
+                kwargs['group_code'] = group_code
+                kwargs['avatar_rootpage'] = user_record['avatar_rootpage']  or group_rootpage
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')
                 kwargs['user_name'] = '%s %s' % (user_record['firstname'], user_record['lastname'])
                 kwargs['user_record'] = user_record
-                kwargs['menubag'] = user_record['menubag']
+                kwargs['menubag'] = menubag
                 kwargs.update(dictExtract(user_record, 'avatar_'))
                 allowed_ip = self.db.table('adm.user_access_group').allowedUser(user_record['id'])
                 if allowed_ip is not None:
                     kwargs['allowed_ip'] = allowed_ip
                 cache[identifier] = kwargs
             return kwargs,False
-        authkwargs = tblobj.tableCachedData('user_authenticate',cb,identifier=username)
+        identifier = username
+        if self.db.currentEnv.get('current_group_code'):
+            current_group_code = self.db.currentEnv.get('current_group_code')
+            identifier = f'{username}_{current_group_code}'
+        authkwargs = tblobj.tableCachedData('user_authenticate',cb,identifier=identifier)
         return authkwargs
 
 

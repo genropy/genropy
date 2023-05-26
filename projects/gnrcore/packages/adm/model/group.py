@@ -11,3 +11,6 @@ class Table(object):
         tbl.column('description' ,name_long='!!Description')
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('rootpage', name_long='!![en]Root Page')
+        tbl.formulaColumn('group_tags',"array_to_string(ARRAY(#tg),',')",
+                                                select_tg=dict(columns='$tag_code',where='$group_code=#THIS.code',
+                                                               distinct=True,table='adm.user_tag'))

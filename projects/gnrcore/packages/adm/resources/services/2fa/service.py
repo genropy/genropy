@@ -57,5 +57,4 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.issuer_name',lbl='Issuer name')
         fb.textbox(value='^.secret',lbl='Secret',type='password')
         fb.textbox(value='^.image',lbl='Image url')
-        fb.dateTextBox(value='^.mandatory',lbl='Mandatory from')
-        fb.numberTextBox(value='^.expiry_days',lbl='Expiry days')
+        fb.dateTextBox(value='^.mandatory',lbl='Mandatory from')        fb.numberTextBox(value='^.expiry_days',lbl='Expiry days')
