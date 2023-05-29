@@ -42,6 +42,7 @@ class Package(GnrDboPackage):
                 kwargs['lastname'] = user_record['lastname']
                 kwargs['user_id'] = user_record['id']
                 kwargs['group_code'] = group_code
+                kwargs['main_group_code'] = user_record['group_code']
                 kwargs['avatar_rootpage'] = user_record['avatar_rootpage']  or group_rootpage
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')
                 kwargs['user_name'] = '%s %s' % (user_record['firstname'], user_record['lastname'])

@@ -22,8 +22,8 @@ const LoginComponent = {
         currenv.update(newenv);
         sourceNode.setRelativeData('gnr.rootenv', currenv);
         sourceNode.setRelativeData('gnr.avatar',avatar);
-        if(currenv.getItem('current_group_code')){
-            sourceNode.setRelativeData('_login.current_group_code',currenv.getItem('current_group_code'))
+        if(avatar.getItem('group_code')){
+            sourceNode.setRelativeData('_login.group_code',avatar.getItem('group_code'))
         }
         sourceNode.getValue().walk(n=>{    
             if(!n.hasValidations()){
@@ -72,7 +72,7 @@ const LoginComponent = {
         }
         dlg.hide();
         genro.lockScreen(true,'login');
-        let rpckw = {'rootenv':rootenv,login:login,dbenv_current_group_code:rootenv.getItem('current_group_code')};
+        let rpckw = {'rootenv':rootenv,login:login};
         genro.serverCall(rpcmethod,rpckw,function(result){
             genro.lockScreen(false,'login');
             if (!result || result.error){

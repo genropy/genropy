@@ -93,20 +93,18 @@ class LoginComponent(BaseComponent):
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
-            fb.dbSelect(value='^_login.current_group_code',table='adm.group',condition='$code IN :all_groups',
+            fb.dbSelect(value='^_login.group_code',table='adm.group',condition='$code IN :all_groups',
                     condition_all_groups='^.all_groups',validate_notnull='^.all_groups',
                     row_hidden='^.all_groups?=!#v',lbl='!![en]Group',hasDownArrow=True,
                     validate_onAccept="""
                     if(userChange){
-                        let current_group_code = GET gnr.rootenv.current_group_code;
-                        PUT gnr.rootenv.current_group_code = value;
-                        if(current_group_code!=value){
-                            console.log(current_group_code,value);
+                        let avatar_group_code = GET gnr.avatar.group_code;
+                        if(avatar_group_code!=value){
                             FIRE _login.checkAvatar;
                         }
-
                     }
-                    """)
+                    """
+                    )
             fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{
@@ -124,7 +122,7 @@ class LoginComponent(BaseComponent):
             pane.dataRpc(self.login_checkAvatar,
                         user='^_login.user',
                         password='^_login.password',
-                        dbenv_current_group_code='=gnr.rootenv.current_group_code',
+                        group_code='=_login.group_code',
                         _fired='^_login.checkAvatar',
                         _onCalling="""
                         SET gnr.avatar = null;
@@ -222,10 +220,10 @@ class LoginComponent(BaseComponent):
         return self.login_newWindow(rootenv=rootenv)
 
     @public_method
-    def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
+    def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         result = Bag()
         try:
-            avatar = self.application.getAvatar(user, password=password,authenticate=True)
+            avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
                 return result
         except GnrRestrictedAccessException as e:
@@ -254,13 +252,10 @@ class LoginComponent(BaseComponent):
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
-        if avatar.group_code:
+        if avatar.main_group_code:
             other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
             if other_groups:
-                data['all_groups'] = [avatar.group_code] + [g['group_code'] for g in other_groups]
-                data['current_group_code'] = avatar.group_code
-        else:
-            print('aaa',avatar.user,avatar.user_tags)
+                data['all_groups'] = [avatar.main_group_code] + [g['group_code'] for g in other_groups]
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
         default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()

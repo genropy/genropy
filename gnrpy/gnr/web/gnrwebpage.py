@@ -782,6 +782,7 @@ class GnrWebPage(GnrBaseWebPage):
             avatar = self.application.getAvatar(guestName)
         else:
             avatar = self.application.getAvatar(login['user'], password=login.get('password'),
+                                                group_code=login.get('group_code'),
                                                 authenticate=authenticate, page=self, **kwargs)
         if avatar:
             self.avatar = avatar
