@@ -72,7 +72,8 @@ const LoginComponent = {
         }
         dlg.hide();
         genro.lockScreen(true,'login');
-        genro.serverCall(rpcmethod,{'rootenv':rootenv,login:login},function(result){
+        let rpckw = {'rootenv':rootenv,login:login,dbenv_current_group_code:rootenv.getItem('current_group_code')};
+        genro.serverCall(rpcmethod,rpckw,function(result){
             genro.lockScreen(false,'login');
             if (!result || result.error){
                 dlg.show();

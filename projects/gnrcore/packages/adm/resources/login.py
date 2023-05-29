@@ -205,9 +205,6 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
-        dbenv = self.db.currentEnv
-        if rootenv['current_group_code']:
-            dbenv['current_group_code'] = rootenv['current_group_code']
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
             return {'error':'Waiting authentication code'}
@@ -226,7 +223,6 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
-        print('login_checkAvatar',user,password,kwargs)
         result = Bag()
         try:
             avatar = self.application.getAvatar(user, password=password,authenticate=True)
