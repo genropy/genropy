@@ -93,7 +93,10 @@ class LoginComponent(BaseComponent):
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
-            fb.dbSelect(value='^_login.group_code',table='adm.group',condition='$code IN :all_groups',
+            fb.dbSelect(value='^_login.group_code',table='adm.group',
+                        condition="""$code IN :all_groups 
+                                    AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
+                        condition_secret_2fa='=gnr.avatar.secret_2fa',
                     condition_all_groups='^.all_groups',validate_notnull='^.all_groups',
                     row_hidden='^.all_groups?=!#v',lbl='!![en]Group',hasDownArrow=True,
                     validate_onAccept="""
@@ -246,7 +249,7 @@ class LoginComponent(BaseComponent):
         service = self.getService('2fa')
         if not service:
             return False
-        enabled = service.mandatory or avatar.extra_kwargs.get('secret_2fa') 
+        enabled = avatar.extra_kwargs.get('secret_2fa') 
         return enabled and not self.getService('2fa').saved2fa(avatar.user_id)
     
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):

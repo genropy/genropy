@@ -11,6 +11,10 @@ class Table(object):
         tbl.column('description' ,name_long='!!Description')
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('rootpage', name_long='!![en]Root Page')
+        tbl.column('require_2fa', dtype='B', name_long='Require 2fa', name_short='2FA')
+        tbl.column('no2fa_alternative_group',size=':15', group='_', name_long='Without 2FA'
+                    ).relation('adm.group.code', one_one=True, 
+                               mode='foreignkey', onDelete='setnull')
         tbl.formulaColumn('group_tags',"array_to_string(ARRAY(#tg),',')",
                                                 select_tg=dict(columns='$tag_code',where='$group_code=#THIS.code',
                                                                distinct=True,table='adm.user_tag'))

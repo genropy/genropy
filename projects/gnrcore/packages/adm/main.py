@@ -3,6 +3,7 @@
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrbag import Bag
 
 class Package(GnrDboPackage):
     def config_attributes(self):
@@ -31,9 +32,16 @@ class Package(GnrDboPackage):
             if result:
                 user_record = dict(result[0])
                 group_code = group_code or user_record.get('group_code')
-                group_rootpage,menubag = None,None
+                group_record = dict()
                 if group_code:
-                    group_rootpage,menubag = self.db.table('adm.group').readColumns(pkey=group_code,columns='$rootpage,$custom_menu')
+                    group_record = self.db.table('adm.group').cachedRecord(pkey=group_code)
+                if group_record.get('require_2fa') and group_record.get('no2fa_alternative_group') \
+                    and not user_record.get('avatar_secret_2fa'):
+                    group_code =  group_record.get('no2fa_alternative_group')
+                    group_record = self.db.table('adm.group').cachedRecord(pkey=group_code)
+                    with self.db.tempEnv(current_group_code=group_code):
+                        user_record = dict(tblobj.query(where='$id=:uid',uid=user_record['id'],
+                                                        columns='*,$all_tags').fetch()[0])
                 kwargs['tags'] = user_record.pop('all_tags')
                 kwargs['pwd'] = user_record.pop('md5pwd')
                 kwargs['status'] = user_record['status']
@@ -43,11 +51,11 @@ class Package(GnrDboPackage):
                 kwargs['user_id'] = user_record['id']
                 kwargs['group_code'] = group_code
                 kwargs['main_group_code'] = user_record['group_code']
-                kwargs['avatar_rootpage'] = user_record['avatar_rootpage']  or group_rootpage
+                kwargs['avatar_rootpage'] = user_record['avatar_rootpage'] or group_record.get('rootpage')
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')
                 kwargs['user_name'] = '%s %s' % (user_record['firstname'], user_record['lastname'])
                 kwargs['user_record'] = user_record
-                kwargs['menubag'] = menubag
+                kwargs['menubag'] = Bag(group_record['custom_menu']) if group_record else None
                 kwargs.update(dictExtract(user_record, 'avatar_'))
                 allowed_ip = self.db.table('adm.user_access_group').allowedUser(user_record['id'])
                 if allowed_ip is not None:

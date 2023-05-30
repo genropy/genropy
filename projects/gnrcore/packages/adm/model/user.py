@@ -69,17 +69,12 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
-        alltags = self.db.table('adm.user_tag').query(where='$user_id=:uid OR $group_code=:gc',
+        alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
+                                                            secret_2fa=record['avatar_secret_2fa'],
                                                             gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
                                                             columns='$tag_code',distinct=True).fetch()
-        
-        alltags = [r['tag_code'] for r in alltags]
-        if '_2FA_' in alltags:
-            alltags.remove('_2FA_')
-        if record['avatar_secret_2fa'] and record['avatar_last_2fa_otp']:
-            alltags.append('_2FA_')
-        return ','.join(alltags)
+        return ','.join([r['tag_code'] for r in alltags])
     
     
     def partitionioning_pkeys(self):

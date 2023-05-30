@@ -16,6 +16,8 @@ class Table(object):
         tbl.column('code',name_long='!!Code',validate_notnull=True,validate_nodup=True,
                     unmodifable=True)
         tbl.column('description',name_long='!!Description',validate_notnull=True)
+        tbl.column('require_2fa', dtype='B', name_long='Require 2fa')
+
         tbl.column('isreserved', 'B', name_long='!!Reserved')
         tbl.column('note',name_long='!!Notes')
         tbl.column('linked_table', name_long='Linked table')
