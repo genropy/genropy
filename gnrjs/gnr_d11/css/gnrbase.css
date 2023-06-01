@@ -5419,7 +5419,7 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .mode_std .mobileSizer{
-    max-width: 800px;
+    max-width: 700px;
     margin: auto;
     border-left: 1px solid silver;
     border-right: 1px solid silver;
