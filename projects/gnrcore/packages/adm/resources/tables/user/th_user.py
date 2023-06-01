@@ -92,9 +92,15 @@ class Form(BaseComponent):
         
         fb.field('status', tag='filteringSelect', # values='!!conf:Confirmed,wait:Waiting', 
                  validate_notnull=True, validate_notnull_error='!!Required')
-        fb.field('group_code')
         fb.field('locale', lbl='!!Locale')
-        fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page')
+
+        fb.field('group_code',lbl='!![en]Main group',hasDownArrow=True)
+        fb.checkBoxText('^._other_groups',lbl='!![en]Other groups',
+                        hidden='^.group_code?=!#v',
+                        table='adm.group',condition='$code!=:maingroup',
+                        condition_maingroup='^.group_code',
+                        _virtual_column='other_groups',popup=True)
+        fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page',colspan=2,width='100%')
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
         fb.field('sms_login', html_label=True)
         fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='100%')
@@ -120,6 +126,27 @@ class Form(BaseComponent):
                                 viewResource='ViewFromUser',
                                 formResource='FormFromUser')
         
+
+    @public_method
+    def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
+        if not newrecord:
+            other_groups= record['other_groups']
+            record.setItem('_other_groups',other_groups,_sendback=True)
+
+
+    @public_method
+    def th_onSaving(self,recordCluster,recordClusterAttr=None,resultAttr=None,**kwargs):
+        other_groups = recordCluster.pop('_other_groups')
+        return dict(other_groups=other_groups)
+
+    @public_method
+    def th_onSaved(self, record, resultAttr,other_groups=None,**kwargs):
+        user_group = self.db.table('adm.user_group')
+        user_id = record['id']
+        user_group.deleteSelection(where='$user_id=:uid',uid=user_id)
+        if other_groups:
+            for gr in other_groups.split(','):
+                user_group.insert(user_group.newrecord(user_id=user_id,group_code=gr))
 
 class ExtUserForm(BaseComponent):
     def th_form(self, form):

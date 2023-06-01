@@ -88,11 +88,26 @@ class LoginComponent(BaseComponent):
         rpcmethod = self.login_newWindow
         start = 0
         if doLogin:
-            start = 2
+            start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
+            fb.dbSelect(value='^_login.group_code',table='adm.group',
+                        condition="""$code IN :all_groups 
+                                    AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
+                        condition_secret_2fa='=gnr.avatar.secret_2fa',
+                    condition_all_groups='^.all_groups',validate_notnull='^.group_selector',
+                    row_hidden='^.group_selector?=!#v',lbl='!![en]Group',hasDownArrow=True,
+                    validate_onAccept="""
+                    if(userChange){
+                        let avatar_group_code = GET gnr.avatar.group_code;
+                        if(avatar_group_code!=value){
+                            FIRE _login.checkAvatar;
+                        }
+                    }
+                    """
+                    )
             fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{
@@ -110,17 +125,21 @@ class LoginComponent(BaseComponent):
             pane.dataRpc(self.login_checkAvatar,
                         user='^_login.user',
                         password='^_login.password',
+                        group_code='=_login.group_code',
                         _fired='^_login.checkAvatar',
-                        _onCalling="""kwargs.serverTimeDelta = genro.serverTimeDelta;
-                                        """,
-                        _if='user&&password&&!_avatar_user',_else='SET gnr.avatar = null;',
-                        _avatar_user='=gnr.avatar.user',
+                        _onCalling="""
+                        SET gnr.avatar = null;
+                        kwargs.serverTimeDelta = genro.serverTimeDelta;
+                        """,
+                        _if='user&&password',
                         _fb = fb,
                         _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result)""",
-                        sync=True,_POST=True)
+                        sync=True,_POST=True,
+                        _userChanges=True)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
+        
         fb.dateTextBox(value='^.workdate',lbl='!!Workdate')
         valid_token = False
         if gnrtoken:
@@ -190,7 +209,6 @@ class LoginComponent(BaseComponent):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
             return {'error':'Waiting authentication code'}
-
         kwargs.pop('authenticate',None)
         self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
         if login['error']:
@@ -205,10 +223,10 @@ class LoginComponent(BaseComponent):
         return self.login_newWindow(rootenv=rootenv)
 
     @public_method
-    def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
+    def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         result = Bag()
         try:
-            avatar = self.application.getAvatar(user, password=password,authenticate=True)
+            avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
                 return result
         except GnrRestrictedAccessException as e:
@@ -231,17 +249,24 @@ class LoginComponent(BaseComponent):
         service = self.getService('2fa')
         if not service:
             return False
-        enabled = service.mandatory or avatar.extra_kwargs.get('secret_2fa') 
+        enabled = avatar.extra_kwargs.get('secret_2fa') 
         return enabled and not self.getService('2fa').saved2fa(avatar.user_id)
     
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
+        data['group_selector'] = False
+        if avatar.main_group_code:
+            other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
+            data['all_groups'] = [avatar.main_group_code]
+            if other_groups:
+                data['all_groups'] = [avatar.main_group_code] + [g['group_code'] for g in other_groups]
+                data['group_selector'] = True
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
-        result['rootenv'] = data
         default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()
         data.setItem('workdate',default_workdate, hidden= not canBeChanged)
+        result['rootenv'] = data
         return result
 
     def loginboxPars(self):

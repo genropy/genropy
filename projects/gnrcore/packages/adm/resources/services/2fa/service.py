@@ -11,13 +11,12 @@ from base64 import b32encode
 import time
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None,secret=None,issuer_name=None,image=None,expiry_days=None,mandatory=None,**kwargs):
+    def __init__(self, parent=None,secret=None,issuer_name=None,image=None,expiry_days=None,**kwargs):
         self.parent = parent
         self.secret = secret
         self.issuer_name = issuer_name or self.parent.gnrapp.instanceName
         self.image = image
         self.expiry_days = expiry_days or 30
-        self.mandatory = mandatory
 
 
     def get2faSecret(self,secret):
@@ -57,5 +56,4 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.issuer_name',lbl='Issuer name')
         fb.textbox(value='^.secret',lbl='Secret',type='password')
         fb.textbox(value='^.image',lbl='Image url')
-        fb.dateTextBox(value='^.mandatory',lbl='Mandatory from')
         fb.numberTextBox(value='^.expiry_days',lbl='Expiry days')
