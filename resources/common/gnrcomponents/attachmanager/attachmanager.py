@@ -309,7 +309,9 @@ class AttachManager(BaseComponent):
 
 
     @struct_method
-    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,**kwargs):            
+    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
+                                      toolbarPosition=None,**kwargs):   
+        toolbarPosition = toolbarPosition or 'top'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
@@ -323,13 +325,14 @@ class AttachManager(BaseComponent):
                                 s.deleteAsk([value]);
                             """,
                             multibutton_deleteSelectedOnly=True,
+                            toolbarPosition=toolbarPosition,
                             store_order_by='$_row_count')
         frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
                 parentForm=parentForm,deleteAction=False,disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
                 _store='^.store',_flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
-        bar = frame.top.bar.replaceSlots('mbslot','mbslot,15,changeName,5,previewZoom,externalUrl')
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
                                  intermediateChanges=True, width='15em',default_value=1)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
