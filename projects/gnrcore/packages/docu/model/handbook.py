@@ -45,6 +45,8 @@ class Table(object):
     
     def checkSphinxPath(self, record):
         "Sets default path to handbooks if not specified"
+        if not record['name']:
+            return
         if record['is_local_handbook']:
             current_path = self.db.application.getPreference('.local_path', pkg='docu') or 'documentation:local_handbooks'
         else:
