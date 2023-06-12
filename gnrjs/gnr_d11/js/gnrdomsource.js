@@ -178,6 +178,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return this.setDataNodeValue(runKwargs,kw,trigger_reason);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
+        if(nodeOrRunKwargs===null){
+            nodeOrRunKwargs = {}
+        }
         var currentAttributes = this.currentAttributes();
         var delay = currentAttributes._delay;
         if(delay == 'auto'){
@@ -189,7 +192,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
             this.pendingFire = setTimeout(dojo.hitch(this, 'setDataNodeValueDo', nodeOrRunKwargs, kw, trigger_reason,subscription_args),delay);
         } else if(this.attr._ask){
-            if((kw && kw.reason == 'autocreate' ) || (trigger_reason != 'node')){
+            let subscriptions = objectExtract(this.attr, 'subscribe_*',true);
+            if((kw && kw.reason == 'autocreate' ) || (trigger_reason != 'node' && !(trigger_reason in subscriptions))){
                 return; //askmode
             }
             if(typeof(this.attr._ask)=='string'){

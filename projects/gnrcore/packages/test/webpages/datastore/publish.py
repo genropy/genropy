@@ -34,3 +34,16 @@ class GnrCustomWebPage(object):
                                 else{
                                     console.log('you pressed b '+pressed_b[0])}""",
                                 subscribe_pressed_a=True, subscribe_pressed_b=True)
+        
+
+
+    def test_3_publish_subscribe_button_ask(self, pane):
+        "Press dataController with ask"
+        pane.button('publish', action='PUBLISH run_test_3;')
+        pane.button('fire', action='FIRE .run_test_3;')
+
+        pane.dataController("alert('Ciao '+messaggio)",
+                            messaggio='come va?',
+                            _run_test_3='^.run_test_3',
+                            _ask=dict(title='Messaggio',fields=[dict(name='messaggio',lbl='Messaggio')]),
+                            subscribe_run_test_3=True)
