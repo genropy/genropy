@@ -3941,7 +3941,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
-        var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick'
+        var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick'
         dropAreaKw[uploadhandler_key] = function(){
             if(gnrwdg.pendingHandlers.length){
                 genro.dlg.ask(_T("Abort upload"),
@@ -6182,6 +6182,7 @@ dojo.declare("gnr.stores._Collection",null,{
     },
 
     runQuery:function(cb,runKwargs){
+        console.log('runQuery')
         var that = this;
         this.runningQuery = true;
         var result =  this.storeNode.fireNode(runKwargs);
