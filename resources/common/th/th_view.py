@@ -1147,15 +1147,14 @@ class TableHandlerView(BaseComponent):
             var loadingData = GET .grid.loadingData;
             var storeNode = grid.collectionStore().storeNode
             if(storeNode._lastRpcTs && !loadingData){
-                FIRE .runQueryDo;
+                this.fireEvent('.runQueryDo',true,null,'changing_sections',100);
             }
             """,
             th_root=th_root,
             lastQueryTime = '=.store?servertime',
             sectionbag = '=.sections',
             _fired = '^.sections_changed',
-            _if = 'sectionbag.len()',grid=frame.grid.js_widget,
-            _delay = 100)
+            _if = 'sectionbag.len()',grid=frame.grid.js_widget)
         frame.dataController("""
             this.fireEvent('.runQueryDo_'+viewPage,true);
         """,_runQueryDo='^.runQueryDo',viewPage='=.viewPage')
