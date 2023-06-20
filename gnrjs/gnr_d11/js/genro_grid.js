@@ -1795,13 +1795,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(cell.totalize){
                 cell.totalize = cell.totalize===true?'.totalize.'+cell.field:cell.totalize;
             }
+            if(cell.tick){
+                formats['trueclass'] = 'tickOn';
+                formats['falseclass'] = '_';
+            }
             if(cell.semaphore){
                 formats['trueclass'] = 'greenLight';
                 formats['falseclass'] = 'redLight';
                 if(cell.three_state){
                     formats['nullclass'] = 'yellowLight';
-                }
-                
+                }                
             }else if(cell.inv_semaphore){
                 formats['falseclass'] = 'greenLight';
                 formats['trueclass'] = 'redLight';
