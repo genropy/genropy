@@ -314,7 +314,6 @@ class FrameIndex(BaseComponent):
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
                                 #border_left='1px solid silver',
-                                margin_left='-1px',
                                 onCreated='genro.framedIndexManager = new gnr.FramedIndexManager(this);',_class='frameindexcenter')
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
@@ -356,7 +355,7 @@ class FrameIndex(BaseComponent):
     def prepareLeft_std(self,bc):
 
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
-                                    margin_right='-4px',overflow='hidden',hidden=self.hideLeftPlugins,border_right='5px solid #eee')
+                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;

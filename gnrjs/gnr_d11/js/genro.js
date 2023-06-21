@@ -663,7 +663,7 @@ dojo.declare('gnr.GenroClient', null, {
             }
         });
         genro.dev.shortcut("Ctrl+Shift+I", function() {
-            genro.dev.openGnrIde();
+            genro.dev.showInspector();
         });
 
         genro.dev.shortcut("Ctrl+Shift+T", function() {

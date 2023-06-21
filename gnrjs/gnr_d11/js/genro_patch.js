@@ -839,17 +839,22 @@ genropatches.borderContainer = function() {
                 bottomStyle = layoutTopBottom && this._bottom.style;
                 bottomHeight = dojo.marginBox(this._bottom).h;
             }
-
             var splitters = this._splitters;
+            var splitterThickness = this._splitterThickness;
+
+            var sideThickness = function(region){
+                var s = splitters[region];
+                return genro.dom.isVisible(s)?splitterThickness[region]:0;
+            }
             var topSplitter = splitters.top;
             var bottomSplitter = splitters.bottom;
             var leftSplitter = splitters.left;
             var rightSplitter = splitters.right;
-            var splitterThickness = this._splitterThickness;
-            var topSplitterThickness = splitterThickness.top || 0;
-            var leftSplitterThickness = splitterThickness.left || 0;
-            var rightSplitterThickness = splitterThickness.right || 0;
-            var bottomSplitterThickness = splitterThickness.bottom || 0;
+            
+            var topSplitterThickness = sideThickness('top');
+            var leftSplitterThickness = sideThickness('left');
+            var rightSplitterThickness = sideThickness('right');
+            var bottomSplitterThickness = sideThickness('bottom');
 
             // Check for race condition where CSS hasn't finished loading, so
             // the splitter width == the viewport width (#5824)

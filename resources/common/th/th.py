@@ -608,7 +608,8 @@ class MultiButtonForm(BaseComponent):
                             frameCode=None,formId=None,formResource=None,
                             default_kwargs=None,modal=True,datapath=None,
                             emptyPageMessage=None,darkToolbar=False,pendingChangesMessage=None,pendingChangesTitle=None,
-                            **kwargs):
+                            toolbarPosition=None,**kwargs):
+        toolbarPosition = toolbarPosition or 'top'
         if relation:
             table,condition,fkeyfield = self._th_relationExpand(pane,relation=relation,condition=condition,
                                                     condition_kwargs=condition_kwargs,
@@ -624,7 +625,7 @@ class MultiButtonForm(BaseComponent):
         tbkw = dict()
         if darkToolbar:
             tbkw = dict(_class='darktoolbar')
-        bar = frame.top.slotToolbar('5,mbslot,*',height='20px',**tbkw)
+        bar = getattr(frame,toolbarPosition).slotToolbar('5,mbslot,*',height='20px',**tbkw)
         caption_field = caption or self.db.table(table).attributes['caption_field']
         multibutton_kwargs.setdefault('caption',caption_field)
         self.subscribeTable(table,True)

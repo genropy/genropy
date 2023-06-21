@@ -318,10 +318,9 @@ class GnrWebUtils(GnrBaseProxy):
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
                 importer = struct.get('importer')
-
                 if importer:
                     rows = self.adaptedRecords(tblobj=tblobj,reader=reader,match_index=match_index,sql_mode=sql_mode,constants=constants)
-                    res = getattr(tblobj,importer)(rows)
+                    res = getattr(tblobj,importer)(rows, **constants)
                 else:
                     res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
                                                 match_index=match_index,

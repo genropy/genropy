@@ -384,23 +384,23 @@ class MenuResolver(BagResolver):
             return self.level_offset+level+1
         return level
 
-    def allowedNode(self,node):
-        nodeattr = node.attr
-        auth_tags = nodeattr.get('tags')
-        checkInstance = nodeattr.get('checkInstance')
+    def allowedNode(self,node,attributes=None):
+        attributes = attributes or node.attr
+        auth_tags = attributes.get('tags')
+        checkInstance = attributes.get('checkInstance')
         if checkInstance and self.app.instanceName not in checkInstance.split(','):
             return False
         if auth_tags and \
             not self.app.checkResourcePermission(auth_tags, self._page.userTags):
             return False
-        multidb = nodeattr.get('multidb')
+        multidb = attributes.get('multidb')
         dbstore = self._page.dbstore
         if (multidb=='slave' and not dbstore) or (multidb=='master' and dbstore):
             return False
-        checkenv = nodeattr.get('checkenv')
+        checkenv = attributes.get('checkenv')
         if checkenv and not self._page.rootenv[checkenv]:
             return False
-        if not self.app.allowedByPreference(**nodeattr):
+        if not self.app.allowedByPreference(**attributes):
             return False
         return True
 
@@ -539,6 +539,11 @@ class MenuResolver(BagResolver):
             return None,attributes
         if len(value) == 1 and value['#0']:
             path = '#0'
+            innerattr = value.getNode('#0').attr
+            innerattr.update(attributes)
+            attributes = innerattr
+            if not self.allowedNode(node,attributes=attributes):
+                raise NotAllowedException
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),

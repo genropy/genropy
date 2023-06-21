@@ -16,7 +16,8 @@ class Main(BaseResourceAction):
     batch_cancellable = True
     batch_delay = 0.5
     batch_immediate = True
-    
+    batch_schedulable = False
+
     def do(self):
         values = self.batch_parameters.get('values')
         do_trigger = self.batch_parameters.get('do_trigger')

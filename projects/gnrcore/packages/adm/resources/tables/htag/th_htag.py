@@ -12,6 +12,7 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('code')
         r.fieldcell('hierarchical_description')
+        r.fieldcell('require_2fa')
         r.fieldcell('linked_table')
         
     def th_order(self):
@@ -28,6 +29,7 @@ class Form(BaseComponent):
         fb.field('code')
         fb.field('description')
         fb.field('isreserved', lbl='',label='Is reserved')
+        fb.field('require_2fa')
         fb.field('note')
         fb.field('linked_table')
         self.usersPane(bc.contentPane(region='center',datapath='#FORM'))

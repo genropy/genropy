@@ -19,6 +19,13 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from builtins import object
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
+    
 class AppPref(object):
     def permission_adm(self, **kwargs):
         return 'admin'
@@ -49,6 +56,9 @@ class AppPref(object):
         fb = top.formbuilder(cols=1,border_spacing='3px')
         fb.checkbox(value='^.general.forgot_password',label='Allow password recovery')
         fb.checkbox(value='^.general.new_user',label='New user registration')
+        if pyotp:
+            fb.checkbox(value='^.general.2fa_enabled',label='2FA authentication')
+
         fb.textbox(value='^.general.password_regex',lbl='Password validate regex')
         if 'email' in self.db.packages:
             fb.dbSelect(value='^.mail.email_account_id',lbl='Default smtp account',dbtable='email.account')
@@ -92,5 +102,4 @@ class UserPref(object):
         fb.textbox(value='^.password', lbl='Password', dtype='T', disabled='^.email_account_id', type='password')
         fb.textbox(value='^.port', lbl='Port', dtype='T', disabled='^.email_account_id')
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
-            
-        
+    

@@ -603,7 +603,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
             if(kw.modifiers=='Shift' || this.autoSave){
-                this.save(kw);
+                if(this.isValid()){
+                    this.save(kw);
+                }else{
+                    kw.command='discard';
+                    this.publish('pendingChangesAnswer',kw);
+                }
             }else{
                 this.openPendingChangesDlg(kw);
             }

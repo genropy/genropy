@@ -46,7 +46,7 @@ class FrameGridTools(BaseComponent):
     def fgr_slotbar_batchAssign(self,pane,disabled='^.disabledButton',**kwargs):
         pane.slotButton('!!Batch Assign',iconClass='iconbox paint',
                         publish='batchAssign',disabled=disabled,
-                        hidden='^.grid.batchAssignHidden')
+                        hidden='^.grid.batchAssignHidden',**kwargs)
 
 
                                           

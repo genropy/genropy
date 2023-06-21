@@ -41,9 +41,19 @@ class Table(object):
          
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
+        tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
+        tbl.column('avatar_last_2fa_otp', name_long='Last 2fa')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
+
+        tbl.formulaColumn('other_groups',"array_to_string(ARRAY(#ogr),',')",
+                                                select_ogr=dict(columns='$group_code',where='$user_id=#THIS.id',
+                                                table='adm.user_group'))
+        tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
+                                                select_allgroups=dict(columns='$code',
+                                                                      where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
+                                                table='adm.group'))
 
         tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
 
@@ -59,9 +69,10 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
-        alltags = self.db.table('adm.user_tag').query(where='$user_id=:uid OR $group_code=:gc',
+        alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
-                                                            gc=record['group_code'],
+                                                            secret_2fa=record['avatar_secret_2fa'],
+                                                            gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
                                                             columns='$tag_code',distinct=True).fetch()
         return ','.join([r['tag_code'] for r in alltags])
     
