@@ -66,7 +66,6 @@ from builtins import zip
 from builtins import chr
 from builtins import str
 from past.builtins import basestring
-##from builtins import object
 import copy
 import pickle as pickle
 from datetime import datetime, timedelta
@@ -80,7 +79,6 @@ import os.path
 import logging
 import sys
 import re
-import six
 gnrlogger = logging.getLogger(__name__)
 
 def normalizeItemPath(item_path):
@@ -460,7 +458,7 @@ class Bag(GnrObject):
         self._rootattributes = None
         source=source or kwargs
         if source:
-            self.fillFrom(source)
+            self.fillFrom(source,**kwargs)
                     
     def _get_parent(self):
         return self._parent
