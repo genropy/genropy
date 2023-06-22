@@ -80,7 +80,6 @@ import os.path
 import logging
 import sys
 import re
-import os
 gnrlogger = logging.getLogger(__name__)
 
 def normalizeItemPath(item_path):
