@@ -100,8 +100,6 @@ from hashlib import sha1 as _default_hash
 from hmac import new as hmac
 from time import time
 
-from werkzeug._compat import iteritems
-from werkzeug._compat import text_type
 from werkzeug._compat import to_bytes
 from werkzeug._compat import to_native
 from werkzeug._internal import _date_to_unix
@@ -266,10 +264,10 @@ class SecureCookie(ModificationTrackingDict):
         :param secret_key: The secret key used to serialize the cookie.
         :return: A new :class:`SecureCookie`.
         """
-        if isinstance(string, text_type):
+        if isinstance(string, str):
             string = string.encode("utf-8", "replace")
 
-        if isinstance(secret_key, text_type):
+        if isinstance(secret_key, str):
             secret_key = secret_key.encode("utf-8", "replace")
 
         try:
@@ -307,7 +305,7 @@ class SecureCookie(ModificationTrackingDict):
 
             if items is not None and safe_str_cmp(client_hash, mac.digest()):
                 try:
-                    for key, value in iteritems(items):
+                    for key, value in items:
                         items[key] = cls.unquote(value)
                 except UnquoteError:
                     items = ()
