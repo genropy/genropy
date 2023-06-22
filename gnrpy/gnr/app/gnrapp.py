@@ -428,7 +428,6 @@ class GnrPackage(object):
         try:
             self.main_module = gnrImport(os.path.join(self.packageFolder, 'main.py'),avoidDup=True)
         except Exception as e:
-            raise
             log.exception(e)
             raise GnrImportException(
                     "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
