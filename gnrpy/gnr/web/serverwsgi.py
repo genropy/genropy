@@ -2,7 +2,7 @@
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
-from werkzeug.serving import run_simple, prepare_socket, make_server, is_running_from_reloader
+from werkzeug.serving import run_simple, make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
 from werkzeug.debug.tbtools import render_console_html
 try:
@@ -449,13 +449,10 @@ class Server(object):
                 print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format(
                             localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
             if not is_running_from_reloader():
-                s = prepare_socket(host, port)
-                fd = s.fileno()
-                s.detach()
-                os.environ["WERKZEUG_SERVER_FD"] = str(fd)
+                fd = None
             else:
                 fd = int(os.environ["WERKZEUG_SERVER_FD"])
-
+                
             srv = make_server(
                 host,
                 port,
@@ -464,6 +461,9 @@ class Server(object):
                 processes=1,
                 ssl_context=ssl_context,
                 fd=fd)
+            srv.socket.set_inheritable(True)
+            os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
+
             if self.reloader:
                 run_with_reloader(
                     srv.serve_forever,
@@ -473,7 +473,10 @@ class Server(object):
                     reloader_type="stat",
                 )
             else:
-                srv.serve_forever()
+                try:
+                    srv.serve_forever()
+                finally:
+                    srv.server_close()
             if not is_running_from_reloader():
                 print('[{now}]\t{color_yellow}{style_underlined}Shutting down{nostyle}'.format(
                                 host=host, port=port, now=now, **log_styles()))
