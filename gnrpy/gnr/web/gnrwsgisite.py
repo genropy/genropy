@@ -3,7 +3,7 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
+
 from gnr.core.gnrbag import Bag
 from werkzeug.wrappers import Request, Response
 from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
@@ -16,7 +16,6 @@ import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
 from gnr.core import gnrstring
-import six
 from time import time
 from collections import defaultdict
 from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
@@ -1030,13 +1029,8 @@ class GnrWsgiSite(object):
                 response.headers[k] = str(v)
         for k,v in list(info_kwargs.items()):
             if v is not None:
-                if six.PY2:
-                    v=unicode(v)
-                else:
-                    v=str(v)
+                v=str(v)
                 response.headers['X-%s' %k] = v
-        #if six.PY2 and isinstance(result, unicode):
-        #    response.data=result
         if isinstance(result, str):
             #response.mimetype = kwargs.get('mimetype') or 'text/plain'
             #print(f'response mimetipe {response.mimetype} content_type {response.content_type}')
@@ -1510,8 +1504,6 @@ class GnrWsgiSite(object):
             if isinstance(v, basestring):
                 try:
                     v = catalog.fromTypedText(v)
-                    if isinstance(v, basestring) and six.PY2:
-                        v = v.decode('utf-8')
                     result[k] = v
                 except Exception as e:
                     raise
