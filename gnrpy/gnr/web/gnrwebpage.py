@@ -64,6 +64,7 @@ from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
 import re
 import datetime
+from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -2735,13 +2736,11 @@ class GnrWebPage(GnrBaseWebPage):
         bag.pickle('%s.pik' % freeze_path)
         return LazyBagResolver(resolverName=name, location=location, _page=self, sourceBag=bag)
         
-
     def log(self, msg,*args, **kwargs):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print('pagename:{pagename}-:page_id:{page_id} >>\n'.format(pagename=self.pagename,
-                                    page_id=self.page_id),
+        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
                                     args,kwargs)
 
     ##### BEGIN: DEPRECATED METHODS ###
