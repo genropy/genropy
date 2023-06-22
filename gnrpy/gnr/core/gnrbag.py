@@ -458,7 +458,7 @@ class Bag(GnrObject):
         self._rootattributes = None
         source=source or kwargs
         if source:
-            self.fillFrom(source,**kwargs)
+            self.fillFrom(source)
                     
     def _get_parent(self):
         return self._parent
@@ -1909,7 +1909,7 @@ class Bag(GnrObject):
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
-    def fillFrom(self, source):
+    def fillFrom(self, source, **kwargs):
         """Fill a void Bag from a source (basestring, Bag or list)
         
         :param source: the source for the Bag"""
