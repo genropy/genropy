@@ -1347,6 +1347,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var selattr = objectExtract(this.sourceNode.attr, 'selected_*', true);
         var selectedPkeys = this.getSelectedPkeys();
+        var selectedRows = this.getSelectedRows();
         var row = {};
         var selectedId = null;
         if(idx>=0){
@@ -1354,7 +1355,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             selectedId = this.rowIdentity(row);
         }
         for (var sel in selattr) {
-            this.sourceNode.setRelativeData(selattr[sel], row[sel]);
+            this.sourceNode.setRelativeData(selattr[sel], arrayUniquify(selectedRows.map(r=>r[sel])).join(','));
         }
         if (this.sourceNode.attr.selectedIndex) {
             this.sourceNode.setAttributeInDatasource('selectedIndex', ((idx < 0) ? null : idx));
