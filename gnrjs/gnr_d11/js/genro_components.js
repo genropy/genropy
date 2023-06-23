@@ -6182,7 +6182,6 @@ dojo.declare("gnr.stores._Collection",null,{
     },
 
     runQuery:function(cb,runKwargs){
-        console.log('runQuery')
         var that = this;
         this.runningQuery = true;
         var result =  this.storeNode.fireNode(runKwargs);
