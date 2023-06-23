@@ -122,7 +122,6 @@ class GnrWebResponse(object):
 
     def add_cookie(self, cookie, **kw):
         res = self._response
-        print('qui')
         if not "Set-Cookie" in res.headers:
             res.headers.add("Cache-Control", 'no-cache="set-cookie"')
         for k in ("version", "path", "domain", "secure",
