@@ -7,11 +7,15 @@ from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import GnrException
 from collections import defaultdict
 import _thread
 from threading import RLock
 #from gnr.core.gnrlang import componentFactory
-import paramiko
+try: 
+    import paramiko
+except ImportError:
+    paramiko = False
 import stat
 import os
 import tempfile
@@ -83,6 +87,8 @@ class Service(StorageService):
 
     @property
     def sftp(self):
+        if not paramiko:
+            raise GnrException('Missing required library paramiko. Please run pip install paramiko')
         thread_ident = _thread.get_ident()
         client = self._thclient.get(thread_ident)
         if not self._client_alive(client):
