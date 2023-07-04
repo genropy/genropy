@@ -586,7 +586,10 @@ class SqlTable(GnrObject):
                     elif 'ljust' in  colattr:
                         v = v.ljust(int(colattr['size']), colattr['ljust'])
                     record[k] = v
-                    
+                if isinstance(record[k],str):
+                    record[k] = record[k].strip()
+                    record[k] = record[k] or None #avoid emptystring
+
     def buildrecord(self, fields, resolver_one=None, resolver_many=None):
         """Build a new record and return it
         
@@ -691,7 +694,8 @@ class SqlTable(GnrObject):
         self.extendDefaultValues(newrecord)
         return newrecord
 
-    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None):
+
+    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None,cacheInPage=None):
         keyField = keyField or self.pkey
         ignoreMissing = createCb is not None
         def recordFromCache(cache=None,pkey=None,virtual_columns_set=None):
@@ -714,7 +718,7 @@ class SqlTable(GnrObject):
             return dict(result),in_cache
         virtual_columns_set = set(virtual_columns.split(',')) if virtual_columns else set()
         return self.tableCachedData('cachedRecord',recordFromCache,pkey=pkey,
-                                virtual_columns_set=virtual_columns_set)
+                                virtual_columns_set=virtual_columns_set,cacheInPage=cacheInPage)
 
     def findDuplicates(self,allrecords=True):
         dup_records = self.query(where="($_duplicate_finder IS NOT NULL) AND ($_duplicate_finder!='')",
@@ -742,11 +746,11 @@ class SqlTable(GnrObject):
             storename = self.db.currentStorename
         return '%s.%s.%s' %(storename,topic,self.fullname)
 
-    def tableCachedData(self,topic,cb,**kwargs):
+    def tableCachedData(self,topic,cb,cacheInPage=None,**kwargs):
         currentPage = self.db.currentPage
         cacheKey = self.cachedKey(topic)
         if currentPage:
-            cacheInPage = self.db.currentEnv.get('cacheInPage')
+            cacheInPage = self.db.currentEnv.get('cacheInPage') if cacheInPage is None else cacheInPage
             if cacheInPage:
                 store = getattr(currentPage,'_pageTableCache',None)
                 if not store:
@@ -1779,7 +1783,7 @@ class SqlTable(GnrObject):
         #override
         return False
 
-    def guessPkey(self,identifier):
+    def guessPkey(self,identifier,tolerant=False):
         if identifier is None:
             return
         def cb(cache=None,identifier=None,**kwargs):
@@ -1790,11 +1794,15 @@ class SqlTable(GnrObject):
             if ':' in identifier:
                 wherelist = []
                 wherekwargs = dict()
+                
                 for cond in identifier.split(','):
+                    cond = cond.strip()
                     codeField,codeVal = cond.split(':')
+                    if codeVal is None or codeVal=='':
+                        continue
                     cf = '${}'.format(codeField) if not (codeField.startswith('$') or codeField.startswith('@')) else codeField
                     vf = codeField.replace('@','_').replace('.','_').replace('$','')
-                    wherelist.append('%s=:v_%s' %(cf,vf))
+                    wherelist.append('%s ILIKE :v_%s' %(cf,vf) if tolerant else '%s = :v_%s' %(cf,vf))
                     wherekwargs['v_%s' %vf] = codeVal
                 result = self.readColumns(columns='$%s' %self.pkey,where=' AND '.join(wherelist),
                                         subtable='*',**wherekwargs)
@@ -1814,10 +1822,10 @@ class SqlTable(GnrObject):
 
 
     def pkeyValue(self,record=None):
-        pkey = self.model.pkey
-        pkeycol = self.model.column(pkey)
+        pkeyfield = self.model.pkey
+        pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):
-            lastid = self.query(columns='max($%s)' % pkey, group_by='*').fetch()[0]
+            lastid = self.query(columns=f'max(${pkeyfield})' , group_by='*').fetch()[0]
             return (lastid[0] or 0) + 1
         elif not record:
             return getUuid()
@@ -1825,6 +1833,10 @@ class SqlTable(GnrObject):
             joiner = self.attributes.get('pkey_columns_joiner') or '_'
             return joiner.join([str(record.get(col)) for col in self.attributes.get('pkey_columns').split(',') if record.get(col) is not None])
         elif record.get('__syscode'):
+            sysparscb = getattr(self,f'sysRecord_{record["__syscode"]}',None)
+            syspars = sysparscb() if sysparscb else {}
+            if syspars.get(pkeyfield):
+                return syspars[pkeyfield]
             size =  pkeycol.getAttr('size')
             if size and ':' not in size:
                 return record['__syscode'].ljust(int(size),'_')
@@ -1832,6 +1844,17 @@ class SqlTable(GnrObject):
                 return record['__syscode']
         elif pkeycol.dtype in ('T','A','C') and pkeycol.attributes.get('size') in ('22',':22',None):
             return getUuid()
+        
+    def cleanWrongSysRecordPkeys(self):            
+        f = self.query(for_update=True,where='$__syscode IS NOT NULL').fetch()
+        for row in f:
+            old_r = dict(row)
+            validpkey = self.pkeyValue(row)
+            currpkey = row[self.model.pkey]
+            if currpkey!=validpkey:
+                row[self.pkey] = validpkey
+                self.update(row,old_r,pkey=currpkey)
+                self.db.commit()
             
     def baseViewColumns(self):
         """TODO"""

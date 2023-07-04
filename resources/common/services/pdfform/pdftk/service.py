@@ -4,7 +4,10 @@
 
 from gnr.lib.services.pdfform import PdfFormService
 from gnr.web.gnrbaseclasses import BaseComponent
-import pypdftk
+try:
+    import pypdftk
+except:
+    raise Exception('Missing pypdftk library. Please install it or disable pdf forms in preferences')
 
 
 class Service(PdfFormService):

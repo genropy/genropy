@@ -24,6 +24,8 @@
 
 //funzioni di utilità varie
 
+
+
 //########################  Lang #########################
 const _lf = '\n';
 const _crlf = '\r\n';
@@ -1181,9 +1183,6 @@ var gnrformatter = {
     },
 
     format_B:function(value,format,formatKw){
-        if (format=='semaphore'){
-            format = '<div class="greenLight"></div>,<div class="redLight"></div>,<div class="grayLight"></div>'
-        }
         var format = format || 'true,false';
         if(format=='semaphore'){
             format = '<div class="greenLight">&nbsp;</div>,<div class="redLight">&nbsp;</div>,<div class="grayLight">&nbsp;</div>'
@@ -1319,11 +1318,17 @@ function isDate(obj){
 }
 
 function guessDtype(value){
-    if (value instanceof File){
-        return 'FILE';
-    }
     if(value===null || value===undefined){
         return 'NN';
+    }
+    if(value._gnrdtype){
+        return value._gnrdtype;
+    }
+    if(value instanceof Set){
+        return 'SET';
+    }
+    if (value instanceof File){
+        return 'FILE';
     }
     if(isBag(value)){
         return 'X'
@@ -1423,13 +1428,39 @@ function convertToText(value, params) {
         result = ['bag',value.toXml({mode:'static'})];
     }
     else if (t == 'object') {
-        result = ['JS',JSON.stringify(value)];
+        result = ['JS',toTypedJSON(value)];
     }
     if (mask) {
         result[1] = mask.replace(/%s/g, result[1]);
     }
     return result;
 };
+function toJSON(value,typedMode){
+    if(!typedMode){
+        return JSON.stringify(value);
+    }
+    return toTypedJSON(value);
+    
+};
+function toTypedJSON(value){
+    let dtype = guessDtype(value);
+    if(dtype=='AR' || dtype=='SET'){
+        //array
+        if(dtype=='SET'){
+            value = [...value];
+        }
+        return '['+value.map(toTypedJSON).join(',')+']';
+    }
+    if(dtype=='OBJ'){
+        return '{'+Object.keys(value).map(key=>`${toTypedJSON(key)}:${toTypedJSON(value[key])}`).join(',')+'}';
+    } 
+    if(dtype == 'N' && value._gnrdtype=='N' || !['L','N','NN','B'].includes(dtype)){
+        return JSON.stringify(asTypedTxt(value));
+    }
+    return JSON.stringify(value);
+};
+
+
 
 function asText(value, params) {
     return convertToText(value, params)[1];

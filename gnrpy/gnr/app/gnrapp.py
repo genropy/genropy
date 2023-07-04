@@ -23,7 +23,6 @@
 from __future__ import print_function
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
 import tempfile
 import atexit
 import logging
@@ -996,7 +995,11 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        return (self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]).replace('_','-')
+        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]
+        if not found_locale:
+            locale.setlocale(locale.LC_ALL, "")
+            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
+        return (found_locale or 'en-US').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):
@@ -1023,33 +1026,9 @@ class GnrApp(object):
     def authPackage(self):
         """TODO"""
         return self.packages[self.config.getAttr('authentication', 'pkg')]
-        
+    
     def getAvatar(self, user, password=None, authenticate=False, page=None, **kwargs):
-        """TODO
-
-        :param user: MANDATORY. The guest username
-        :param password: the username's password
-        :param authenticate: boolean. If ``True``, to enter in the application a password is required
-        :param page: TODO"""
-        if user:
-            authmethods = self.config['authentication']
-            if user=='gnrtoken':
-                user = self.db.table('sys.external_token').authenticatedUser(password)
-                if not user:
-                    return
-                authenticate = False
-            if authmethods:
-                for node in self.config['authentication'].nodes:
-                    nodeattr = node.attr
-                    authmode = nodeattr.get('mode') or node.label.replace('_auth', '')
-                    avatar = getattr(self, 'auth_%s' % authmode)(node, user, password=password,
-                                                                 authenticate=authenticate,
-                                                                 **kwargs)
-                    if not (avatar is None):
-                        avatar.page = page
-                        avatar.authmode = authmode
-                        errors = self.pkgBroadcast('onAuthentication',avatar)
-                        return avatar
+        raise NotImplementedError
                         
     def auth_xml(self, node, user, password=None, authenticate=False, **kwargs):
         """Authentication from :ref:`instances_instanceconfig` - use it during development

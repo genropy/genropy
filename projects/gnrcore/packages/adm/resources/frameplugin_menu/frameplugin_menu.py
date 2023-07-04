@@ -35,8 +35,11 @@ class MenuIframes(BaseComponent):
         if not self.isMobile:
             frame.bottom.slotToolbar('5,newWindow,*')
         bc = frame.center.borderContainer()
-        bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
+        self.mainLeft_clientLogo(bc.contentPane(region='bottom'))
         self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+
+    def mainLeft_clientLogo(self,pane):
+        pane.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
 
     def btn_iframemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('iframemenu_plugin',caption='!!Menu',
@@ -58,15 +61,34 @@ class MenuIframes(BaseComponent):
             return """return node.attr.labelClass;"""
         return """let labelClass = node.attr.labelClass;
                 if(node.attr.isDir){
+                    let staticValue = node.getValue('static');
+                    let resolver = node.getResolver();
+                    if((!resolver || resolver.lastUpdate) && (!staticValue || staticValue.len()==0)){
+                        return `label_emptydir ${labelClass}`;
+                    }
                     let diricon = opened? 'label_opendir':'label_closedir';
                     return `${diricon} ${labelClass}`;
                 }
                 return labelClass;"""
 
+    def _menutree_getLabel(self):
+        return """
+            let label = node.attr.label;
+            if(node.attr.titleCounter && node.attr.isDir){
+                let v = node.getValue();
+                let count = v? v.len():0;
+                if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
+                    count-=1;
+                }
+                label = `${label} (${count})`
+            }
+            return label;
+        """
 
     def menu_iframemenuPane(self, pane, **kwargs):
         pane.data('gnr.appmenu',self.menu.getRoot())
-        pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
+        pane.dataController("genro.getDataNode('gnr.appmenu.root').refresh(true)",subscribe_refresh_appmenu=True)
+        tree = pane.tree(id="_gnr_main_menu_tree", storepath='gnr.appmenu.root', selected_file='gnr.filepath',
                   labelAttribute='label',
                   hideValues=True,
                   _class='menutree',
@@ -75,9 +97,14 @@ class MenuIframes(BaseComponent):
                   identifier='#p',
                   getIconClass=self._menutree_getIconClass(),
                     selectedLabelClass="menutreeSelected",
+                  getLabel = self._menutree_getLabel(),
                   getLabelClass=self._menutree_getLabelClass(),
                   openOnClick=True,
-                  connect_onClick="""this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
+                  connect_onClick="""
+                  if($2.item.attr.isDir){
+                        return;
+                  }
+                  this.publish('selectMenuItem',{fullpath:$1.getFullpath(null,true),
                                                                     relpath:$1.getFullpath(null,genro.getData(this.attr.storepath)),
                                                                   modifiers:$2.__eventmodifier});""",
                   autoCollapse=True,
@@ -106,6 +133,19 @@ class MenuIframes(BaseComponent):
                   """,
 
                   nodeId='_menutree_')
+        pane.dataController("""var flat_tblname = _node.label;
+                                let store = treeNode.widget.storebag();
+                                store.walk(function(n){
+                                    if(n.attr.tag == "tableBranch" && n.attr.table.replace('.','_') == flat_tblname){
+                                        n.refresh(true)
+                                        let content = n.getValue();
+                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                        n.updAttributes({'child_count':child_count});
+                                    }
+                                },'static');
+                               """,treeNode=tree,
+                               dbChanges="^gnr.dbchanges")
+
    
        # pane.dataRpc('dummy',self.menu_refreshAppMenu,
        #             _onResult="""
@@ -121,22 +161,7 @@ class MenuIframes(BaseComponent):
 
     def mainLeft_mobilemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
-        #frame.top.slotToolbar('2,searchOn,*',searchOn=True)
-        bc = frame.center.borderContainer()
-        sb = frame.bottom.slotBar('10,userbox,20,appbox,*,logout,10',height='32px',border_top='1px solid white')
-        sb.userbox.lightButton(self.user if not self.isGuest else 'guest',color='white',
-                        action='genro.framedIndexManager.openUserPreferences()',cursor='pointer',
-                        font_weight='bold',text_decoration='underline',font_size='.9em')
-    
-        sb.appbox.lightButton('!!Preferences',color='white',
-                        action='genro.framedIndexManager.openAppPreferences()',cursor='pointer',
-                        font_weight='bold',text_decoration='underline',font_size='.9em')
-
-
-        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-        #tbl = bc.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
-        self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+        self.menu_iframemenuPane(frame.center.contentPane().div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
 
     def btn_mobilemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('mobilemenu_plugin',caption='!!Menu',

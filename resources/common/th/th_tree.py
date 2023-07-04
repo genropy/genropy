@@ -112,6 +112,7 @@ class HTableTree(BaseComponent):
                 result = result || new gnr.GnrBag();
                 this.setRelativeData(storepath,result);
                 if(!selectedIdentifier){
+                    treeNode.widget.setSelectedPath(null,{value:'#0'});
                     return;
                 }
                 var that = this;

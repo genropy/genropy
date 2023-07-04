@@ -133,6 +133,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var that = this;
         if(this.canBeSaved()){
             if(this.isNewRecord()){
+                if(this.store.firstAutoSave===false){
+                    return;
+                }
                 genro.callAfter(function(){
                     that.save();
                 },1,this.sourceNode,'autoSaveForm_'+this.formId);
@@ -211,7 +214,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 parentForm.subscribe('onLoaded',function(kw){
                     if(kw.pkey!=that.parentFormPkey){
                         that.parentFormPkey = kw.pkey;
-                        if(that.status!='noItem'){
+                        if(that.status!='noItem' && !that.isHierarchical){
                             that.abort();
                         }
                         that.publish('changedParent');
@@ -534,7 +537,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(this.opStatus=='loading'){
             return;
         }
-
         var that = this;
         if(objectNotEmpty(this.childForms)){
             var onAnswer = function(command){if(command=='cancel'){return;}
@@ -600,8 +602,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave ){
-                this.save(kw);
+            if(kw.modifiers=='Shift' || this.autoSave){
+                if(this.isValid()){
+                    this.save(kw);
+                }else{
+                    kw.command='discard';
+                    this.publish('pendingChangesAnswer',kw);
+                }
             }else{
                 this.openPendingChangesDlg(kw);
             }
@@ -612,11 +619,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var that = this;
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
+            let prompt_dflt = new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw));
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
-                dflt:new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw)),
+                dflt:prompt_dflt,
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
+                cancelCb:function(){
+                    that.abort();
+                },
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
@@ -1311,12 +1322,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.reset();
         this.setOpStatus();
         this.__last_save = new Date()
-        //if there allowing invalid fields save. this lines force the widget error
         var invalidFields = this.getDataNodeAttributes()['_invalidFields'];
         if(invalidFields && objectNotEmpty(invalidFields)){
-            for (var p in invalidFields){
-                data.setItem(p,data.getItem(p));
+            //if there allowing invalid fields save. this lines force the widget error
+            this._triggerInvalidFields(invalidFields,data)
+        }
+    },
+
+    _triggerInvalidFields:function(invalidFields,recordData){
+        for (var p in invalidFields){
+            if(this.currentFocused && this.currentFocused._focused && this.currentFocused.sourceNode.attr.value){
+                let valuepath = this.currentFocused.sourceNode.absDatapath(this.currentFocused.sourceNode.attr.value)
+                let invalidValuePath = this.sourceNode.absDatapath('.record.'+p);
+                if(valuepath == invalidValuePath){
+                    console.log('avoid triggering invalidfields')
+                    continue;
+                }
             }
+            recordData.setItem(p,recordData.getItem(p));
         }
     },
     

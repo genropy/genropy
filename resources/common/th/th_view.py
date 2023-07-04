@@ -301,14 +301,17 @@ class TableHandlerView(BaseComponent):
         top_kwargs['_class'] = 'th_view_toolbar'
         grid_kwargs.setdefault('gridplugins', 'configurator,chartjs,print' if extendedQuery else 'configurator,chartjs,export_xls,print')
         grid_kwargs['item_name_singular'] = self.db.table(table).name_long
-        grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs['item_name']
+        grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs.get('item_name')
         grid_kwargs.setdefault('loadingHider',loadingHider)
+
 
         grid_kwargs.setdefault('selfsubscribe_loadingData',"this.setRelativeData('.loadingData',$1.loading);if(this.attr.loadingHider!==false){this.setHiderLayer($1.loading,{message:'%s'});}" %self._th_waitingElement())
         if groupable is None:
             groupable = configurable and extendedQuery == '*'
+        structcb = self._th_hook('struct',mangler=frameCode,defaultCb=structCb)
+        baseViewName = structcb.__doc__ or '!![en]Base view'
         frame = pane.frameGrid(frameCode=frameCode,childname='view',table=table,
-                               struct = self._th_hook('struct',mangler=frameCode,defaultCb=structCb),
+                               struct = structcb,grid_baseViewName=baseViewName,
                                datapath = '.view',top_kwargs = top_kwargs,_class = 'frameGrid',
                                grid_kwargs = grid_kwargs,iconSize=16,_newGrid=True,advancedTools=True,
                                configurable=configurable,groupable=groupable,**kwargs)  
@@ -317,7 +320,7 @@ class TableHandlerView(BaseComponent):
             if extendedQuery == '*':
                 frame.viewLinkedDashboard()
         self._th_handle_page_hooks(frame,page_hooks)
-        self._th_menu_sources(frame,extendedQuery=extendedQuery,bySample=bySample)
+        self._th_menu_sources(frame,extendedQuery=extendedQuery,bySample=bySample,baseViewName=baseViewName)
         self._th_viewController(frame,table=table,
                             default_totalRowCount=extendedQuery == '*',
                             excludeDraft=excludeDraft,
@@ -728,6 +731,18 @@ class TableHandlerView(BaseComponent):
             currentSection='^.current',sectionbag='=.data',
             _delay=100,
             th_root=th_root)
+        
+    def th_subtableSections(self,table=None,defaultValue=None,**kwargs):
+        tblobj = self.db.table(table)
+        subtables = tblobj.model.subtables
+        result = []
+        for k in sorted(subtables.keys()):
+            st = dict(subtables[k].attributes)
+            st.pop('tag')
+            table = st.pop('table',None)
+            result.append(dict(code=k,caption=st.get('name_plural',k),connected_table=table,subtable=k))
+        result.append(dict(code='_ALL_',caption='!![en]All',subtable='*'))
+        return result
 
     def th_distinctSections(self,table,field=None,allPosition=True,defaultValue=None,**kwargs):
         allsection = [dict(code='all',caption='!!All')]
@@ -840,7 +855,7 @@ class TableHandlerView(BaseComponent):
     #    query = tblobj.query(where='$%s IN :pkd' %tblobj.pkey,pkd=pkeys,**kwargs)
     #    return query.selection(sortedBy=sortedBy, _aggregateRows=True) 
 
-    def _th_menu_sources(self,pane,extendedQuery=None,bySample=None):
+    def _th_menu_sources(self,pane,extendedQuery=None,bySample=None,baseViewName=None):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
         table = inattr['table']
@@ -901,7 +916,7 @@ class TableHandlerView(BaseComponent):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),currentView="^.grid.currViewPath",
+        pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
                         table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
 
         options = self._th_hook('options',mangler=pane)() or dict()
@@ -1132,15 +1147,14 @@ class TableHandlerView(BaseComponent):
             var loadingData = GET .grid.loadingData;
             var storeNode = grid.collectionStore().storeNode
             if(storeNode._lastRpcTs && !loadingData){
-                FIRE .runQueryDo;
+                this.fireEvent('.runQueryDo',true,null,'changing_sections',100);
             }
             """,
             th_root=th_root,
             lastQueryTime = '=.store?servertime',
             sectionbag = '=.sections',
             _fired = '^.sections_changed',
-            _if = 'sectionbag.len()',grid=frame.grid.js_widget,
-            _delay = 100)
+            _if = 'sectionbag.len()',grid=frame.grid.js_widget)
         frame.dataController("""
             this.fireEvent('.runQueryDo_'+viewPage,true);
         """,_runQueryDo='^.runQueryDo',viewPage='=.viewPage')
@@ -1479,12 +1493,12 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_menuViews(self,table=None,th_root=None,pyviews=None,objtype=None,favoriteViewPath=None,currentView=None,**kwargs):
+    def th_menuViews(self,table=None,th_root=None,pyviews=None,objtype=None,favoriteViewPath=None,currentView=None,baseViewName=None,**kwargs):
         result = Bag()
         objtype = objtype or 'view'
         currentView = currentView or favoriteViewPath or '__baseview__'
         gridId = '%s_grid' %th_root
-        result.setItem('__baseview__', None,caption='Base View',gridId=gridId,checked = currentView=='__baseview__')
+        result.setItem('__baseview__', None,caption=baseViewName or 'Base View',gridId=gridId,checked = currentView=='__baseview__',isBaseView=True)
         if pyviews:
             for k,caption in pyviews:
                 result.setItem(k.replace('_','.'),None,description=caption,caption=caption,viewkey=k,gridId=gridId)

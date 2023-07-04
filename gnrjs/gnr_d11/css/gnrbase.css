@@ -625,7 +625,7 @@ cursorZoom_plus{
     padding-top: 1px;
 }
 .tundra .mobilefields .dijitInputField{
-    font-size:12pt;
+    font-size:11pt;
     padding:1px;
 }
 .gnrfield.tag_checkbox label{
@@ -1717,6 +1717,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 .smallmenu .dijitMenuItem {
     font-size: .9em;
 }
+.noIconMenu .dijitMenuItemIcon{
+    display: none;
+}
 .menupane .dijitMenuItemIcon{
     display: none;
 }
@@ -2505,7 +2508,7 @@ div.dojoxDock {
 ._common_d11 .lightboxDialog.dijitDialog .dijitDialogPaneContent {
     background: transparent;
     border: 0px;
-    padding:10px;
+    padding:5px;
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
@@ -5414,6 +5417,14 @@ div[disabled='true'], div[disabled='disabled']{
     right: 0;
     overflow: hidden;
 }
+
+.mode_std .mobileSizer{
+    max-width: 700px;
+    margin: auto;
+    border-left: 1px solid silver;
+    border-right: 1px solid silver;
+}
+
 .touchDevice .scroll-wrapper{
     overflow-y:scroll !important; 
     -webkit-overflow-scrolling:touch !important;    
@@ -5422,6 +5433,7 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
+
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;

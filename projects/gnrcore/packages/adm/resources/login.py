@@ -12,8 +12,11 @@ from gnr.web.gnrwebstruct import struct_method
 from datetime import date
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrRestrictedAccessException
+from gnr.core.gnrdecorator import customizable
         
 class LoginComponent(BaseComponent):
+    css_requires = 'login'
+    js_requires = 'login'
     login_error_msg = '!!Invalid login'
     new_window_title = '!!New Window'
     auth_workdate = 'admin'
@@ -21,7 +24,9 @@ class LoginComponent(BaseComponent):
     index_url = 'html_pages/splashscreen.html'
     closable_login = False
     loginBox_kwargs = dict()
-
+    external_verifed_user = None
+    
+    @customizable
     def loginDialog(self,pane,gnrtoken=None,**kwargs):
         doLogin = self.avatar is None and self.auth_page
         if doLogin and not self.closable_login and self.index_url:
@@ -46,6 +51,8 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         self.loginDialog_bottom_left(footer.leftbox,dlg)
         self.loginDialog_bottom_right(footer.rightbox,dlg)
+        self.callPackageHooks('loginExtra',box)
+        return box
 
     def login_commonFooter(self,pane):
         return pane.slotBar('15,leftbox,*,rightbox,15',height='45px')
@@ -74,63 +81,61 @@ class LoginComponent(BaseComponent):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
     def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None):
-        fb = pane.div(margin_right='20px',padding='10px').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
+        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
         rpcmethod = self.login_newWindow
         start = 0
         if doLogin:
-            start = 2
+            start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
-                                nodeId='tb_login_user',autocomplete='username')
-            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=False,
-                                nodeId='tb_login_pwd',autocomplete='current-password')
+                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
+            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
+                                    nodeId='tb_login_pwd',autocomplete='current-password')
+            fb.dbSelect(value='^_login.group_code',table='adm.group',
+                        condition="""$code IN :all_groups 
+                                    AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
+                        condition_secret_2fa='=gnr.avatar.secret_2fa',
+                    condition_all_groups='^.all_groups',validate_notnull='^.group_selector',
+                    row_hidden='^.group_selector?=!#v',lbl='!![en]Group',hasDownArrow=True,
+                    validate_onAccept="""
+                    if(userChange){
+                        let avatar_group_code = GET gnr.avatar.group_code;
+                        if(avatar_group_code!=value){
+                            FIRE _login.checkAvatar;
+                        }
+                    }
+                    """
+                    )
             fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
-                pwd = pwd || tbpwd.widget.getValue();
+                pwd = pwd || tbpwd.widget.getValue() || external_verifed_user;
                 PUT _login.user = user;
                 PUT _login.password = pwd;
                 FIRE _login.checkAvatar;
             }
             
             """,_fired='^do_login_check',user='=_login.user',avatar_user='=gnr.avatar.user',
-                        tbuser=tbuser,tbpwd=tbpwd,
+                        tbuser=tbuser,tbpwd=tbpwd,external_verifed_user=self.external_verifed_user,
                         pwd='=_login.password')
 
             pane.dataRpc(self.login_checkAvatar,
                         user='^_login.user',
                         password='^_login.password',
+                        group_code='=_login.group_code',
                         _fired='^_login.checkAvatar',
-                        _onCalling="""kwargs.serverTimeDelta = genro.serverTimeDelta;
-                                        """,
-                        _if='user&&password&&!_avatar_user',_else='SET gnr.avatar = null;',
-                        _avatar_user='=gnr.avatar.user',
-                        _onResult="""var avatar = result.getItem('avatar');
-                                     var error_message = result.getItem('login_error_msg');
-                                    if(error_message){
-                                        genro.publish('failed_login_msg',{'message':error_message});
-                                        SET gnr.avatar.error = error_message;
-                                        return;
-                                    }
-                                    if (!avatar){
-                                        SET gnr.avatar = null;
-                                        return;
-                                    }
-                                    if(avatar.getItem('status')!='conf'){
-                                        SET gnr.avatar = avatar;
-                                        genro.publish('confirmUserDialog');
-                                        return;
-                                    }
-                                    var newenv = result.getItem('rootenv');
-                                    var rootenv = GET gnr.rootenv;
-                                    currenv = rootenv.deepCopy();
-                                    currenv.update(newenv);
-                                    SET gnr.rootenv = currenv;
-                                    SET gnr.avatar = avatar;
-                                """,sync=True,_POST=True)
+                        _onCalling="""
+                        SET gnr.avatar = null;
+                        kwargs.serverTimeDelta = genro.serverTimeDelta;
+                        """,
+                        _if='user&&password',
+                        _fb = fb,
+                        _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result)""",
+                        sync=True,_POST=True,
+                        _userChanges=True)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
@@ -182,52 +187,18 @@ class LoginComponent(BaseComponent):
         pane.dataController("dlg_login.hide();dlg_cu.show();",dlg_login=dlg.js_widget,
                     dlg_cu=self.login_confirmUserDialog(pane,dlg).js_widget,subscribe_confirmUserDialog=True)
 
+        pane.dataController("dlg_login.hide();dlg_otp.show();",dlg_login=dlg.js_widget,
+                    dlg_otp=self.login_otpDialog(pane,dlg).js_widget,subscribe_getOtpDialog=True)
+
         pane.dataController("""
-        if(!avatar || !avatar.getItem('user') || avatar.getItem('error')){
-            var error = avatar? (avatar.getItem('error') || error_msg):error_msg
-            genro.publish('failed_login_msg',{'message':error});
-            return;
-        }
-        dlg.hide();
-        genro.lockScreen(true,'login');
-        genro.serverCall(rpcmethod,{'rootenv':rootenv,login:login},function(result){
-            genro.lockScreen(false,'login');
-            if (!result || result.error){
-                dlg.show();
-                genro.publish('failed_login_msg',{'message':result?result.error:error_msg});
-            }else{
-                genro.setData('gnr.avatar',new gnr.GnrBag(result))
-                var user_dbstore = genro.getData('gnr.avatar.user_record.dbstore')
-                rootpage = rootpage || result['rootpage'];
-                if(user_dbstore){
-                    if(!window.location.pathname.slice(1).startsWith(user_dbstore)){
-                        var redirect_url = window.location.protocol+'//'+window.location.host+'/'+user_dbstore;
-                        if(rootpage){
-                            redirect_url+=rootpage;
-                        }
-                        window.location.assign(redirect_url);
-                        return;
-                    }
-                }
-                if(rootpage){
-                    genro.gotoURL(rootpage);
-                }
-                if(doLogin){
-                    if(!closable_login){
-                        var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                        if(rootpage){
-                            genro.gotoURL(rootpage);
-                        }else{
-                            genro.pageReload();
-                        }
-                    }
-                }
-            }
-        },null,'POST');
-        """,rootenv='=gnr.rootenv',_fired='^do_login',rpcmethod=rpcmethod,login='=_login',
-            avatar='=gnr.avatar',
-            rootpage='=gnr.rootenv.rootpage',closable_login=self.closable_login,
-            error_msg='!!Invalid login',dlg=dlg.js_widget,
+            LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)
+        """,fb=fb,
+            _fired='^do_login',
+            rpcmethod=rpcmethod,
+            standAlonePage=self.pageOptions.get('standAlonePage'),
+            closable_login=self.closable_login,
+            error_msg='!!Invalid login',
+            dlg=dlg.js_widget,
             doLogin=doLogin,
             _delay=1)  
         return dlg
@@ -235,6 +206,10 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
+        waiting2fa = self.pageStore().getItem('waiting2fa')
+        if waiting2fa:
+            return {'error':'Waiting authentication code'}
+        kwargs.pop('authenticate',None)
         self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
@@ -247,13 +222,11 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
- 
-
     @public_method
-    def login_checkAvatar(self,password=None,user=None,serverTimeDelta=None,**kwargs):
+    def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         result = Bag()
         try:
-            avatar = self.application.getAvatar(user, password=password,authenticate=True)
+            avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
                 return result
         except GnrRestrictedAccessException as e:
@@ -264,13 +237,36 @@ class LoginComponent(BaseComponent):
         result['avatar'] = Bag(avatar.as_dict())
         if avatar.status != 'conf':
             return result
+        self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        if self.login_require2fa(avatar):
+            result['waiting2fa'] = avatar.user_id
+            with self.pageStore() as ps:
+                ps.setItem('waiting2fa',avatar.user_id)
+                ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
+        return result
+    
+    def login_require2fa(self,avatar):
+        service = self.getService('2fa')
+        if not service:
+            return False
+        enabled = avatar.extra_kwargs.get('secret_2fa') 
+        return enabled and not self.getService('2fa').saved2fa(avatar.user_id)
+    
+    def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
+        data['group_selector'] = False
+        if avatar.extra_kwargs.get('main_group_code'):
+            other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
+            data['all_groups'] = [avatar.main_group_code]
+            if other_groups:
+                data['all_groups'] = [avatar.main_group_code] + [g['group_code'] for g in other_groups]
+                data['group_selector'] = True
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
-        result['rootenv'] = data
         default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()
         data.setItem('workdate',default_workdate, hidden= not canBeChanged)
+        result['rootenv'] = data
         return result
 
     def loginboxPars(self):
@@ -280,7 +276,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!Lost password')
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE recover_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE recover_password;',
                                 datapath='lost_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -306,7 +302,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!New password')
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE set_new_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE set_new_password;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         if not gnrtoken:
@@ -333,6 +329,62 @@ class LoginComponent(BaseComponent):
         footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
         return dlg
 
+    def login_otpDialog(self,pane,dlg_login=None):
+        dlg = pane.dialog(_class='lightboxDialog loginDialog',datapath='otp_prompt')
+        box = dlg.div(**self.loginboxPars())
+        self.login_commonHeader(box,'!![en]OTP Validation')
+        box.div('!![en]Set the secure code from your authentication app',
+                padding='10px 10px 0px 10px',
+                color='#777',font_style='italic',
+                font_size='.9em',text_align='center')
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE otp_confirm;',
+                                datapath='new_password',width='100%',
+                                fld_width='100%',row_height='3ex')
+        fb.textbox(value='^.otp_code',lbl='!![en]Code',font_size='1.2em',font_weight='bold')
+        fb.checkbox(value='^.otp_remember',label='!![en]Remember this client')
+        footer = self.login_commonFooter(box)
+        #footer.leftbox.lightButton('!!Login',action="genro.publish('closeNewUser');genro.publish('openLogin');",_class='login_option_btn')
+        footer.rightbox.button('!![en]Confirm',_class='login_confirm_btn',action='FIRE otp_confirm')
+        rpc = fb.dataRpc(self.login_checkOTPCode,
+            _fired='^otp_confirm',
+            otp_code='=.otp_code',
+            otp_remember='=.otp_remember',
+            _if='otp_code && otp_code.length==6',
+            _else="genro.publish('failed_otp_msg',{'message':_msg});",
+            _msg='!![en]Invalid code'
+        )
+        rpc.addCallback("""if(!result){
+            genro.publish('failed_otp_msg',{'message':msg});
+        }else{
+            genro.setData('waiting2fa',false);
+            dlg.hide();
+            genro.publish('openLogin');
+        }
+        """,msg='!![en]Invalid code',dlg=dlg.js_widget)
+        dlg.dataController("genro.dlg.floatingMessage(sn,{message:message,messageType:'error',yRatio:1.85})",subscribe_failed_otp_msg=True,sn=dlg)
+
+        return dlg
+    
+    @public_method
+    def login_checkOTPCode(self,otp_code=None,otp_remember=None):
+        user_id = self.pageStore().getItem('waiting2fa')
+        last_2fa_otp = self.pageStore().getItem('last_2fa_otp')
+        if otp_code==last_2fa_otp:
+            return False
+        result = self.getService('2fa').verifyTOTP(user_id,otp=otp_code)
+        if not result:
+            return False
+        with self.db.table('adm.user').recordToUpdate(user_id) as rec:
+            rec['avatar_last_2fa_otp'] = otp_code
+        self.db.commit()
+        if otp_remember:
+            self.getService('2fa').remember2fa(user_id)
+        with self.pageStore() as ps:
+            ps.setItem('waiting2fa',None)
+            ps.setItem('last_2fa_otp',otp_code)
+        return True
+
+
 
     def login_confirmUserDialog(self,pane,gnrtoken=None,dlg_login=None):
         dlg = pane.dialog(_class='lightboxDialog loginDialog')
@@ -341,8 +393,8 @@ class LoginComponent(BaseComponent):
         confirmUserTitle = self.loginPreference('confirm_user_title') or '!!Confirm User'
         self.login_commonHeader(box,confirmUserTitle)
         self.login_commonHeader(sc.contentPane(),confirmUserTitle,self.loginPreference('check_email') or 'Please check your email')
-        box.div(self.loginPreference('confirm_user_message'),padding='10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE confirm_email;',
+        box.div(self.loginPreference('confirm_user_message'),padding='10px 10px 0px 10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE confirm_email;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -377,12 +429,13 @@ class LoginComponent(BaseComponent):
                     _do='^creating_new_user',_if='_do && this.form.isValid()',
                     _else='this.form.publish("message",{message:_error_message,messageType:"error"})',
                     _error_message='!!Missing data',
+                    _onError="""
+                    this.form.publish("message",{message:error,messageType:"error"});
+                    PUT creating_new_user = false;
+                    """,
                     _onResult="""if(result.ok){
                         genro.publish('closeNewUser');
                         genro.publish('floating_message',{message:result.ok,duration_out:6})
-                    }else{
-                        this.form.publish("message",{message:result.error,messageType:"error"});
-                        PUT creating_new_user = false;
                     }
                     """,_lockScreen=True)
         footer = self.login_commonFooter(form.bottom)
@@ -392,7 +445,7 @@ class LoginComponent(BaseComponent):
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.record.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='6px',onEnter='SET creating_new_user = true;',
+        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='6px',onEnter='SET creating_new_user = true;',
                                 width='100%',tdl_width='6em',fld_width='100%',row_height='3ex')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
@@ -401,46 +454,36 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_createNewUser(self,data=None,**kwargs):
-        tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
-        mailservice = self.getService('mail')
+        data['status'] = 'new'
+        usertbl = self.db.table('adm.user')
+        usertbl.insert(data)
         try:
-            data['status'] = 'new'
-            self.db.table('adm.user').insert(data)
-            data['link'] = self.externalUrlToken(self.site.homepage, userid=data['id'],max_usages=1)
-            data['greetings'] = data['firstname'] or data['lastname']
-            email = data['email']
-            if tpl_userconfirm_id:
-                mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id)
-            else:
-                body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
-                mailservice.sendmail_template(data,to_address=email,
-                                    body=body, subject=self.loginPreference('subject') or 'Confirm user',
-                                    async_=False,html=True,scheduler=False)
-            self.db.commit()
+            usertbl.sendInvitationEmail(user_record=data,async_=False,html=True,scheduler=False)
         except Exception as e:
-            return dict(error=str(e))
+            return  dict(error=str(e))
+        self.db.commit()
         return dict(ok=self.loginPreference('new_user_ok_message') or 'Check your email to confirm')
 
     def loginPreference(self,path=None):
         if not hasattr(self,'_loginPreference'):
-            loginPreference = Bag(self.getPreference('general',pkg='adm'))
-            custom = self.getPreference('gui_customization.login',pkg='adm')
-            if custom:
-                loginPreference.update(custom,ignoreNone=True)
-            self._loginPreference = loginPreference
+            self._loginPreference = self.db.table('adm.user').loginPreference()
         if not path:
             return self._loginPreference
         return self._loginPreference[path]
-
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
-        self.pageStore().setItem('rootenv',rootenv)
+        errdict = self.callPackageHooks('onAuthenticating',self.avatar,rootenv=rootenv)
+        result = self.avatar.as_dict()
+        err = [err for err in errdict.values() if err is not None]
+        with self.pageStore() as ps:
+            rootenv['new_window_context'] = True
+            ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
-        result = self.avatar.as_dict()
+        if err:
+            return {'error' : ', '.join(err)}
         return result
-
 
     @public_method
     def login_confirmUser(self, email=None,user_id=None, **kwargs):
@@ -456,7 +499,8 @@ class LoginComponent(BaseComponent):
         tpl_userconfirm_id = self.loginPreference('tpl_userconfirm_id')
         mailservice = self.getService('mail')
         if tpl_userconfirm_id:
-            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id)
+            mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_userconfirm_id,
+                                             async_=False,html=True,scheduler=False)
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
@@ -483,7 +527,8 @@ class LoginComponent(BaseComponent):
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
             if tpl_new_password_id:
-                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,)
+                mailservice.sendUserTemplateMail(record_id=recordBag,template_id=tpl_new_password_id,
+                                                 async_=False,html=True,scheduler=False)
             else:
                 mailservice.sendmail_template(recordBag,to_address=email,
                                         body=body, subject=self.loginPreference('confirm_password_subject') or 'Password recovery',
@@ -519,7 +564,7 @@ class LoginComponent(BaseComponent):
         wtitle = '!!Screenlock'
         box.div(wtitle,_class='index_logintitle')  
         box.div('!!Insert password',text_align='center',font_size='.9em',font_style='italic')
-        fb = box.div(margin='10px',margin_right='20px',padding='10px').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.password',lbl='!!Password',type='password',row_hidden=False)

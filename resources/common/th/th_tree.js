@@ -61,17 +61,30 @@ var THTree = {
     fullPathByIdentifier:function(tree,pkey,storeNode){
         var store = tree.storebag();
         var n = store.getNodeByAttr('treeIdentifier',pkey);
+        var treeSourceNode = tree.sourceNode;
+        var treeNodeInattrTable = treeSourceNode.getInheritedAttributes().table
         if(n){
             return n.getFullpath(null, tree.model.store.rootData());
         }else{
             storeNode = storeNode || store.getParentNode();
             var inattr = storeNode.getInheritedAttributes();
-            return genro.serverCall('_table.'+inattr.table+'.pathFromPkey',{pkey:pkey,dbstore:inattr.dbstore});
+            var kw = {pkey:pkey,dbstore:inattr.dbstore};
+            var storeattr = storeNode.attr;
+            var table = inattr.table || treeNodeInattrTable;
+            if(storeNode instanceof gnr.GnrDomSourceNode){
+                storeattr = storeNode.evaluateOnNode(storeattr);
+            }else{
+                storeattr = treeSourceNode.evaluateOnNode(storeattr);
+            }
+            if(storeattr.condition){
+                kw.condition = storeNode.attr.condition;
+                objectUpdate(kw,objectExtract(storeattr,'condition_*',true,true))
+            }
+            return genro.serverCall('_table.'+table+'.pathFromPkey',kw) || '#0';
         }
     },
 
     dropTargetCbOnSelf:function(sourceNode,dropInfo){
-        var pkey = dropInfo.treeItem.attr.pkey;
         var dataTransfer = dropInfo.event.dataTransfer;
         var nodeattr = genro.dom.getFromDataTransfer(dataTransfer,'nodeattr');
         var dragged_record = convertFromText(nodeattr);

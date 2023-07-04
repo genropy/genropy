@@ -142,7 +142,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
                       password=dbroot.password, port=dbroot.port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        #conn = PersistentDB(psycopg2, 1000, **kwargs).connection()
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn

@@ -30,7 +30,7 @@ from builtins import str
 from builtins import range
 from past.builtins import basestring
 from past.utils import old_div
-#from builtins import object
+
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
@@ -845,13 +845,29 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
+    def mobileFormBuilder(self,margin_right=None,**kwargs):
+        margin_right = margin_right or '10px'
+        box = self.div(margin_right=margin_right)
+        fld_width='100%'
+        if kwargs.get('cols',1)>1:
+            fld_width = f'calc(100% - {margin_right})'
+        pars = dict(border_spacing='8px 0px', 
+                        width='100%',fld_width=fld_width,lblpos='T',
+                        lbl_text_align='left',lbl_font_size='.8em',
+                        lbl_padding_top='4px',enableZoom=False,
+                        lbl_font_weight='bold',fldalign='left',
+                        fld_html_label=True,
+                        _class='mobilefields')
+        pars.update(kwargs)
+        return box.formbuilder(**pars)
+        
     def formbuilder(self, cols=1, table=None, tblclass='formbuilder',
                     lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
                     _class='', fieldclass='gnrfield',
                     colswidth=None,
                     lblalign=None, lblvalign='top',
                     fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None, **kwargs):
+                    rowdatapath=None, head_rows=None,spacing=None, useMobileParameters=None,**kwargs):
         """In :ref:`formbuilder` you can put dom and widget elements; its most classic usage is to create
         a :ref:`form` made by fields and layers, and that's because formbuilder can manage automatically
         fields and their positioning
@@ -1031,7 +1047,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
+             'tinyMCE', 'protovis','codemirror','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
              'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
@@ -1278,6 +1294,21 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
+    def partitionController(self,partition_key=None,value=None):
+        self.dataController(f"""
+            let kw = {{}};
+            kw.topic  = 'changed_partition_{partition_key}';
+            kw.iframe = '*';
+            genro.publish(kw,{{partition_value:value}});
+        """,value=value)
+        self.partitionSubscriber(partition_key)
+    
+    def partitionSubscriber(self,partition_key):
+        self.data(f'current.{partition_key}',self.page.rootenv[f'current_{partition_key}'],serverpath=f'rootenv.current_{partition_key}',dbenv=True)
+        self.dataFormula(f'current.{partition_key}','partition_value',
+                         **{f'subscribe_changed_partition_{partition_key}':True})
+
+
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
@@ -1928,7 +1959,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 size = int(size)
             else:
                 size = 5
-            defaultZoom = self.page.pageOptions.get('enableZoom', True)
+            defaultZoom = self.getInheritedAttributes().get('enableZoom')
+            if defaultZoom is None:
+                defaultZoom = self.page.pageOptions.get('enableZoom', True)
             if lbl is not False:
                 result['lbl'] = lbl or fieldobj.table.dbtable.relationName('@%s' % fieldobj.name)
                 if kwargs.get('zoom', defaultZoom):
@@ -1986,6 +2019,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['_guess_width'] = '%iem' % (int(size * .7) + 2)
         elif dtype == 'B':
             result['tag'] = 'checkBox'
+            result.setdefault('html_label',not kwargs.get('label'))
             if 'autospan' in kwargs:
                 kwargs['colspan'] = kwargs['autospan']
                 del kwargs['autospan']

@@ -4,7 +4,6 @@
 from __future__ import print_function
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
 import datetime
 import warnings as warnings_module
 import os
@@ -169,18 +168,24 @@ class GnrDboPackage(object):
             recordsToInsert = []
             pkeyField = tblobj.pkey
             hasSysCode = tblobj.column('__syscode') is not None
-            if hasSysCode:
-                currentSysCodes = [r['__syscode'] for r in currentRecords.values() if r['__syscode']]
+            currentSysCodes = {} if not hasSysCode else {r['__syscode']:r[pkeyField] for r in currentRecords.values() if r['__syscode']}
             for r in records:
                 if r[pkeyField] in currentRecords:
                     continue
-                if hasSysCode and r.get('__syscode') in currentSysCodes:
-                    if r[tblobj.pkey].startswith(r['__syscode']):
-                        continue
-                    else:
-                        r['__syscode'] = f'_ERR_DUP_{r["__syscode"]}'
-                recordsToInsert.append(r)
+                elif r.get('__syscode') in currentSysCodes:
+                    #the sysRecord already exists but the id mismatch
+                    raise tblobj.exception('business_logic',
+                                            msg=f'Fix wrong sysrecord in this template {tblobj.fullname}')
+                rec_to_insert = dict(r)
+                for field,col in tblobj.columns.items():
+                    reltable = col.relatedTable()
+                    if col.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                    if reltable and rec_to_insert.get(field) and reltable.attributes.get('inStartupData') is False:
+                        rec_to_insert[field] = None
+                recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
+                print('inserisco record in',tblobj.name,tblobj.query().count())
                 tblobj.insertMany(recordsToInsert)
         db.commit()
 
@@ -790,8 +795,8 @@ class TableBase(object):
 
 
     @public_method
-    def pathFromPkey(self,pkey=None,dbstore=None):
-        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore)
+    def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):
+        return self.hierarchicalHandler.pathFromPkey(pkey=pkey,dbstore=dbstore,**kwargs)
 
     @public_method
     def getHierarchicalPathsFromPkeys(self,pkeys=None,related_kwargs=None,parent_id=None,dbstore=None,**kwargs):
@@ -1505,12 +1510,25 @@ class AttachmentTable(GnrDboTable):
                             copyFile=True,
                             is_foreign_document = False,
                             filename=None,
+                            external_url=None,
                             **kwargs):
         site = self.db.application.site
+        if external_url and not origin_filepath:
+            record = self.newrecord(maintable_id = maintable_id,
+                        mimetype = mimetype,
+                        description = description or external_url,
+                        filepath = None,
+                        is_foreign_document = True,
+                        external_url=external_url,
+                        **kwargs)
+            self.insert(record)
+            return record
         if is_foreign_document:
             moveFile = False
             copyFile = False
         originStorageNode = site.storageNode(origin_filepath)
+        if external_url:
+            originStorageNode.fill_from_url(external_url)
         mimetype = mimetype or mimetypes.guess_type(originStorageNode.path)[0]
         filename = filename or originStorageNode.basename
         if copyFile or moveFile:

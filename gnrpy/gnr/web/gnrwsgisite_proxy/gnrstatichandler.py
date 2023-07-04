@@ -4,7 +4,7 @@ from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
-#from builtins import object
+
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrDebugException
@@ -13,11 +13,7 @@ import inspect
 import os
 import sys
 from gnr.core.gnrsys import expandpath
-import six
-if six.PY2:
-    from urllib2 import urlparse
-else:
-    from urllib.parse import urlparse
+from urllib.parse import urlparse
 from paste import fileapp
 from paste.httpheaders import ETAG
 import random

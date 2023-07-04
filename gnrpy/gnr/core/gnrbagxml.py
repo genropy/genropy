@@ -419,7 +419,7 @@ class BagToXml(object):
                 else:
                     if self.mode4d and isinstance(value, Decimal):
                         value = float(value)
-                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,jsmode=True)
+                    value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,nestedTyping=True)
                 if isinstance(value, BagAsXml):
                     print(x)
                 try:
@@ -448,12 +448,12 @@ class BagToXml(object):
                 attributes = dict([(k, v) for k, v in list(attributes.items())])
             if self.typeattrs:
                 attributes = ' '.join(['%s=%s' % (
-                lbl, saxutils.quoteattr(self.catalog.asTypedText(val, translate_cb=self.translate_cb,jsmode=True))) for lbl, val in
-                                       list(attributes.items())])
+                lbl, saxutils.quoteattr(self.catalog.asTypedText(val, translate_cb=self.translate_cb,nestedTyping=True))) 
+                                        for lbl, val in attributes.items()])
             else:
                 attributes = ' '.join(
                         ['%s=%s' % (lbl, saxutils.quoteattr(self.catalog.asText(val, translate_cb=self.translate_cb)))
-                         for lbl, val in list(attributes.items()) if val is not False])
+                         for lbl, val in attributes.items() if val is not False])
 
         originalTag = tagName
         if not tagName:

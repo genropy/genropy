@@ -21,27 +21,8 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 from future import standard_library
 standard_library.install_aliases()
-#from builtins import object
-#import gnr.web.gnrcookie as Cookie
-from gnr.web.secure_cookie.securecookie import SecureCookie
-#from six.moves.http_cookies import SimpleCookie
-import marshal
-# import apache
+from gnr.web.gnrcookie import BaseCookie, MarshalCookie
 
-class BaseCookie(object):
-    def __init__(self, value=None):
-        self._value = value
-
-    def output(self):
-        return self.value.encode('ascii')
-
-class MarshalCookie(SecureCookie):
-    serialization_method = marshal
-
-    def output(self):
-        return self.serialize()
-
-    
 
 
 cookie_types = {'marshal': MarshalCookie,
@@ -141,7 +122,7 @@ class GnrWebResponse(object):
 
     def add_cookie(self, cookie, **kw):
         res = self._response
-        if not res.headers.has_key("Set-Cookie"):
+        if not "Set-Cookie" in res.headers:
             res.headers.add("Cache-Control", 'no-cache="set-cookie"')
         for k in ("version", "path", "domain", "secure",
             "comment",  "max_age", "expires",

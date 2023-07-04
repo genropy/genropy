@@ -663,7 +663,7 @@ dojo.declare('gnr.GenroClient', null, {
             }
         });
         genro.dev.shortcut("Ctrl+Shift+I", function() {
-            genro.dev.openGnrIde();
+            genro.dev.showInspector();
         });
 
         genro.dev.shortcut("Ctrl+Shift+T", function() {
@@ -1871,11 +1871,17 @@ dojo.declare('gnr.GenroClient', null, {
         var storage = (sessionType == 'local') ? localStorage : sessionStorage;
         var value = storage.getItem(key);
         /*if (value) {
-            //console.log('Loaded from '+sessionType+'Storage at key:'+key+'  value:'+value);
+            console.log('Loaded from '+sessionType+'Storage at key:'+key+'  value:'+value);
         } else {
-            //console.log('Not existing in '+sessionType+'Storage key:'+key);
+            console.log('Not existing in '+sessionType+'Storage key:'+key);
         }*/
-        return convertFromText(value);
+        try {
+            var v = convertFromText(value)
+            return v;
+            }catch(error){
+            console.log('autofix storage key')
+            storage.removeItem(key);
+        }
     },
 
     getParentBranchMenuByIdentifier:function(kw){

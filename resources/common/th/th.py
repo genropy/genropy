@@ -291,8 +291,8 @@ class TableHandler(BaseComponent):
     @extract_kwargs(widget=True,vpane=True,fpane=True,default=True,form=True)
     @struct_method
     def th_borderTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,widget_kwargs=None,default_kwargs=None,loadEvent='onSelected',
-                            readOnly=False,viewRegion=None,formRegion=None,vpane_kwargs=None,fpane_kwargs=None,
+                            formInIframe=False,default_kwargs=None,loadEvent='onSelected',
+                            readOnly=False,vpane_kwargs=None,fpane_kwargs=None,
                             saveOnChange=False,form_kwargs=None,**kwargs):
         kwargs['tag'] = 'BorderContainer'
         wdg = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
@@ -319,6 +319,34 @@ class TableHandler(BaseComponent):
         wdg.view.attributes.update(**regionAdapter(vpane_kwargs,region='top',splitter=True))
         wdg.form.attributes.update(**regionAdapter(fpane_kwargs,region='center'))
         return wdg
+    
+    @struct_method
+    def th_ghostTableHandler(self,pane,avoidViewToolbar=True,**kwargs):
+        kwargs.setdefault('form_autoSave',200)
+        kwargs.setdefault('vpane_region','bottom')
+        kwargs.setdefault('vpane_border_top','1px solid #efefef')
+        kwargs.setdefault('view_store_loadInvisible',True)
+        th = pane.borderTableHandler(**kwargs)
+        vpane_region = th.view.attributes['region']
+        if avoidViewToolbar:
+            th.view.top.pop('bar')
+        th.dataController("""let store_length = store?store.len():0;
+                            if(!store_length){
+                                frm.newrecord();
+                                
+                            }else if(store_length==1){
+                                frm.goToRecord(store.getNode('#0').attr._pkey);
+                            }else{
+                                let currentPkey = frm.getCurrentPkey();
+                                if(!currentPkey){
+                                    frm.goToRecord(store.getNode('#0').attr._pkey);
+                                }
+                            }
+                            bc.setRegionVisible(vpane_region,store&&store.len()>1);""",
+                          vpane_region=vpane_region,bc=th.js_widget,
+                          store='^.view.store',frm=th.form.js_form,_delay=1)
+
+        return th
         
     @extract_kwargs(widget=True,default=True,form=True)
     @struct_method
@@ -460,6 +488,7 @@ class TableHandler(BaseComponent):
         kwargs = dict([('main_%s' %k,v) for k,v in kwargs.items()])
         iframe = pane.iframe(main='th_iframedispatcher',main_methodname=method,
                             main_table=pane.getInheritedAttributes().get('table'),
+                            main_currentFormId=pane.getInheritedAttributes().get('formId'),
                             main_pkey='=#FORM.pkey',
                             src=src,**kwargs)
         pane.dataController('genro.publish({iframe:"*",topic:"frame_onChangedPkey"},{pkey:pkey})',pkey='^#FORM.pkey')
@@ -503,8 +532,9 @@ class TableHandler(BaseComponent):
         return iframe
         
     @public_method
-    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,**kwargs):
+    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,**kwargs):
         rootattr = root.attributes
+        rootattr['formId'] = correntFormId
         rootattr['datapath'] = 'main'
         rootattr['overflow'] = 'hidden'
         rootattr['_fakeform'] = True
@@ -578,7 +608,8 @@ class MultiButtonForm(BaseComponent):
                             frameCode=None,formId=None,formResource=None,
                             default_kwargs=None,modal=True,datapath=None,
                             emptyPageMessage=None,darkToolbar=False,pendingChangesMessage=None,pendingChangesTitle=None,
-                            **kwargs):
+                            toolbarPosition=None,**kwargs):
+        toolbarPosition = toolbarPosition or 'top'
         if relation:
             table,condition,fkeyfield = self._th_relationExpand(pane,relation=relation,condition=condition,
                                                     condition_kwargs=condition_kwargs,
@@ -594,7 +625,7 @@ class MultiButtonForm(BaseComponent):
         tbkw = dict()
         if darkToolbar:
             tbkw = dict(_class='darktoolbar')
-        bar = frame.top.slotToolbar('5,mbslot,*',height='20px',**tbkw)
+        bar = getattr(frame,toolbarPosition).slotToolbar('5,mbslot,*',height='20px',**tbkw)
         caption_field = caption or self.db.table(table).attributes['caption_field']
         multibutton_kwargs.setdefault('caption',caption_field)
         self.subscribeTable(table,True)

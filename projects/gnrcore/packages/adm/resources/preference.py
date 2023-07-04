@@ -19,6 +19,13 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from builtins import object
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
+    
 class AppPref(object):
     def permission_adm(self, **kwargs):
         return 'admin'
@@ -49,6 +56,9 @@ class AppPref(object):
         fb = top.formbuilder(cols=1,border_spacing='3px')
         fb.checkbox(value='^.general.forgot_password',label='Allow password recovery')
         fb.checkbox(value='^.general.new_user',label='New user registration')
+        if pyotp:
+            fb.checkbox(value='^.general.2fa_enabled',label='2FA authentication')
+
         fb.textbox(value='^.general.password_regex',lbl='Password validate regex')
         if 'email' in self.db.packages:
             fb.dbSelect(value='^.mail.email_account_id',lbl='Default smtp account',dbtable='email.account')
@@ -81,27 +91,15 @@ class AppPref(object):
 
 class UserPref(object):
     def prefpane_adm(self, parent, **kwargs):
-        tc = parent.tabContainer(margin='2px',**kwargs)
-        self._adm_general(tc.contentPane(title='!!General options', datapath='.general'))
-        self._adm_mail(tc.contentPane(title='!!Mail options', datapath='.mail'))
-
-    def _adm_general(self, pane):
-        fb = pane.formbuilder(cols=1,border_spacing='3px',margin='10px')
-        #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
-        fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
-
-
-    def _adm_mail(self, pane):
-        fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%')
+        fb = parent.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
         if 'email' in self.db.packages:
             fb.dbselect(value='^.email_account_id',lbl='Account',dbtable='email.account',hasDownArrow=True)
-        fb.div(lbl='Mail Settings', colspan=2, lbl_font_style='italic', lbl_margin_top='1em', margin_top='1em',
-               lbl_color='#7e5849')
+        fb.div('Mail Settings', colspan=2, font_style='italic', margin_top='1em',
+               color='#7e5849')
         fb.textbox(value='^.smtp_host', lbl='SMTP Host', dtype='T', disabled='^.email_account_id')
         fb.textbox(value='^.from_address', lbl='From address', dtype='T', disabled='^.email_account_id')
         fb.textbox(value='^.user', lbl='Username', dtype='T', disabled='^.email_account_id')
         fb.textbox(value='^.password', lbl='Password', dtype='T', disabled='^.email_account_id', type='password')
         fb.textbox(value='^.port', lbl='Port', dtype='T', disabled='^.email_account_id')
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
-            
-        
+    

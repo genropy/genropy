@@ -294,8 +294,12 @@ class Table(object):
         joiner = tblobj.relations.getNode('@annotations').attr['joiner']
         pkg,tbl,fkey = joiner['many_relation'].split('.')
         restrictions = self.db.table('orgn.annotation').column(fkey).attributes.get('linked_entity')
+        tblname = tblobj.name
         if restrictions:
             restrictions = [r.split(':')[0] for r in restrictions.split(',')]
+            for r in restrictions:
+                if r==tblname:
+                    return r
             return restrictions[0]
         else:
             return tblobj.name

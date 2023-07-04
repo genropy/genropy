@@ -28,7 +28,7 @@ class Table(object):
         tbl.column('registration_date', 'D', name_long='!!Registration Date')
         tbl.column('auth_tags', name_long='!!Authorization Tags')
         tbl.column('status', name_long='!!Status', size=':4',
-                   values='new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
+                   values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
         tbl.column('locale', name_long='!!Default Language', size=':12')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
@@ -36,13 +36,24 @@ class Table(object):
         tbl.column('avatar_rootpage', name_long='!!Root Page')
         tbl.column('sms_login' ,dtype='B',name_long='!!Sms login')
         tbl.column('sms_number',name_long='!!Sms Number')
+        tbl.column('photo',dtype='P', name_long='!![en]Photo')
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
          
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
+        tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
+        tbl.column('avatar_last_2fa_otp', name_long='Last 2fa')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
+
+        tbl.formulaColumn('other_groups',"array_to_string(ARRAY(#ogr),',')",
+                                                select_ogr=dict(columns='$group_code',where='$user_id=#THIS.id',
+                                                table='adm.user_group'))
+        tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
+                                                select_allgroups=dict(columns='$code',
+                                                                      where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
+                                                table='adm.group'))
 
         tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
 
@@ -54,13 +65,14 @@ class Table(object):
         return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
     
     def pyColumn_square_logo(self,record,**kwargs):
-        return self.db.application.getPreference('gui_customization.owner.cover_logo',pkg='adm')
+        return self.db.application.getPreference('gui_customization.owner.square_logo',pkg='adm')
     
 
     def get_all_tags(self, record=None):
-        alltags = self.db.table('adm.user_tag').query(where='$user_id=:uid OR $group_code=:gc',
+        alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
-                                                            gc=record['group_code'],
+                                                            secret_2fa=record['avatar_secret_2fa'],
+                                                            gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
                                                             columns='$tag_code',distinct=True).fetch()
         return ','.join([r['tag_code'] for r in alltags])
     
@@ -84,6 +96,8 @@ class Table(object):
     def trigger_onInserted(self, record=None):
         if record.get('group_code'):
             self.checkExternalTable(record)
+        if record['status'] == 'invt':
+            self.sendInvitationEmail(record)
 
     def trigger_onUpdated(self,record=None,old_record=None):
         if self.fieldsChanged('preferences',record,old_record):
@@ -193,10 +207,10 @@ class Table(object):
 #
 
 
-    def importUsers(self, reader, **kwargs):
+    def importUsers(self, rows, **kwargs):
         fields = self.importerStructure()['fields']
         current_users = self.query().fetchAsDict('username')
-        rows = list(reader())
+        rows = list(rows)
         result=Bag()
         warnings=list()
         for r in self.db.quickThermo(rows, labelfield='Adding users'):
@@ -228,3 +242,38 @@ class Table(object):
         if password_regex and not re.match(password_regex,value):
             return Bag(dict(errorcode='Invalid new password'))
         return True
+
+    
+    def sendInvitationEmail(self,user_record=None,**mailkwargs):
+        data = Bag(user_record)
+        loginPreference = self.loginPreference()
+        tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
+        site = self.db.application.site
+        mailservice = site.getService('mail')
+        data['link'] = self.db.currentPage.externalUrlToken(site.homepage, userid=user_record['id'],max_usages=1)
+        data['greetings'] = data['firstname'] or data['lastname']
+        email = data['email']
+        if tpl_userconfirm_id:
+            mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id,**mailkwargs)
+        else:
+            body = loginPreference['confirm_user_tpl'] or 'Dear $greetings to confirm click $link'
+            mailservice.sendmail_template(data,to_address=email,
+                                body=body, subject=loginPreference['subject'] or 'Confirm user',
+                                **mailkwargs)
+
+    def loginPreference(self):
+        loginPreference = Bag(self.db.application.getPreference('general',pkg='adm'))
+        custom = self.db.application.getPreference('gui_customization.login',pkg='adm')
+        if custom:
+            loginPreference.update(custom,ignoreNone=True)
+        return loginPreference
+
+    @public_method
+    def inviteUser(self, username=None, email=None, group_code=None, 
+                            inviting_table=None, inviting_id=None, **kwargs):
+        new_user = self.newrecord(username=username, email=email, group_code=group_code, 
+                                                        status='invt', **kwargs)
+        self.insert(new_user)
+        with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
+            inviting_rec['user_id'] = new_user['id']
+        self.db.commit()

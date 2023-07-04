@@ -697,8 +697,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             sourceNode.setRelativeData(sourceNode.attr.userSets,userSets);
             sourceNode._usersetgetter = function(cellname,row,idx){
                 //var currSet = userSets.getItem(cellname);
-                var currSet = sourceNode.getRelativeData(sourceNode.attr.userSets+'.'+cellname);
-                var checkedField = this.widget.cellmap[cellname].checkedField;
+                let cell = this.widget.cellmap[cellname];
+                let checkedId = cell.checkedId;
+                let currSet = sourceNode.getRelativeData(checkedId);
+                let checkedField = cell.checkedField;
                 if(currSet){
                     return currSet.match(new RegExp('(^|,)'+row[checkedField]+'($|,)'))!==null;
                 }else{
@@ -712,7 +714,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     creating_structure: function(attributes, sourceNode) {
         var structBag = sourceNode.getRelativeData(sourceNode.attr.structpath);
         if (structBag && genro.grid_configurator) {
-            sourceNode.setRelativeData('.resource_structs.__baseview__',structBag.deepCopy(),{caption:_T('Base View')});
+            sourceNode.setRelativeData('.resource_structs.__baseview__',structBag.deepCopy(),{caption:sourceNode.attr.baseViewName || _T('Base View')});
         }
         attributes.structBag = structBag; 
         sourceNode.registerDynAttr('structpath');
@@ -833,7 +835,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         //dojo.subscribe(gridId+'_searchbox_keyUp',this,function(v){console.log(v)});
         //var searchCode = sourceNode.attr.searchCode===false?false: sourceNode.attr.searchCode || (sourceNode.getInheritedAttributes().frameCode || nodeId);
 
-        var searchBoxCode =(sourceNode.attr.frameCode || nodeId)+'_searchbox';
+        var searchBoxCode =(sourceNode.attr.searchCode || sourceNode.attr.frameCode || nodeId)+'_searchbox';
         var searchBoxNode = genro.nodeById(searchBoxCode);
         if (searchBoxNode){
             this.enableSearchBox(searchBoxNode,widget);
@@ -858,10 +860,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         }
                     });
                 }else {
-                    dojo.connect(filteringGrid,'newDataStore',function(){
+                    var cbfilter = function(){
                         widget.filterToRebuild(true);
                         widget.updateRowCount('*');
-                    });
+                    };
+                    dojo.connect(filteringGrid,'newDataStore',cbfilter);
+                    filteringGrid.sourceNode.subscribe('onExternalChanged',cbfilter);
                 }
                 widget.excludeListCb=function(){
                     //widget.sourceNode.currentFromDatasource(widget.sourceNode.attr.filteringGrid);
@@ -1343,6 +1347,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var selattr = objectExtract(this.sourceNode.attr, 'selected_*', true);
         var selectedPkeys = this.getSelectedPkeys();
+        var selectedRows = this.getSelectedRows();
         var row = {};
         var selectedId = null;
         if(idx>=0){
@@ -1350,7 +1355,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             selectedId = this.rowIdentity(row);
         }
         for (var sel in selattr) {
-            this.sourceNode.setRelativeData(selattr[sel], row[sel]);
+            this.sourceNode.setRelativeData(selattr[sel], arrayUniquify(selectedRows.map(r=>r[sel])).join(','));
         }
         if (this.sourceNode.attr.selectedIndex) {
             this.sourceNode.setAttributeInDatasource('selectedIndex', ((idx < 0) ? null : idx));
@@ -1791,13 +1796,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(cell.totalize){
                 cell.totalize = cell.totalize===true?'.totalize.'+cell.field:cell.totalize;
             }
+            if(cell.tick){
+                formats['trueclass'] = 'tickOn';
+                formats['falseclass'] = '_';
+            }
             if(cell.semaphore){
                 formats['trueclass'] = 'greenLight';
                 formats['falseclass'] = 'redLight';
                 if(cell.three_state){
                     formats['nullclass'] = 'yellowLight';
-                }
-                
+                }                
             }else if(cell.inv_semaphore){
                 formats['falseclass'] = 'greenLight';
                 formats['trueclass'] = 'redLight';
@@ -2718,6 +2726,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             this.applyFilter();
         }
         this.restoreSelectedRows();
+        if(this.sourceNode.attr.selectedId && this.sourceNode.attr.selectedId.startsWith('^')){
+            this.setSelectedId(this.sourceNode.getAttributeFromDatasource('selectedId'));
+        }
         this.fillServerTotalize();
     },
 
@@ -2807,7 +2818,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                         this.filterToRebuild(true);
                         this.updateRowCount();
                         var that = this;
-                        if(currSelectedIdx>=0){
+                        if(currSelectedIdx>=0 && !this.sourceNode.attr._linkedFormId){
                             setTimeout(function(){
                                 that.setSelectedIndex(currSelectedIdx);
                             },1);
@@ -3103,7 +3114,8 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 this._saved_selections = null;
             }
             if ((this.prevSelectedIdentifiers) && (this.prevSelectedIdentifiers.length > 0 )) {
-                this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,this.prevSelectedIdx);
+                let default_idx = this.sourceNode.attr._linkedFormId? -1:this.prevSelectedIdx;
+                this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,default_idx);
                 this.prevSelectedIdx = null;
                 this.prevSelectedIdentifiers = null;
                 this.prevFirstVisibleRow = null;
@@ -3293,6 +3305,38 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         }
         return storebag.columns(col)[0];
     },
+    mixin_distinctColumnValues:function(col){
+        let cell = this.cellmap[col];
+        let field = cell.field;
+        let field_getter = cell.field_getter;
+        let cols = []
+        let result = [];
+        cols.push(field)
+        if(field_getter && field_getter!=field){
+            cols.push(field_getter)
+        }
+        let store = this.storebag();
+        if(!store || store.len()==0){
+            return '';
+        }
+        for (let n of store.getNodes()){
+            let row = n.attr;
+            if(this.datamod=='bag'){
+                row = n.getValue().asDict()
+            }
+            let chunk = [];
+            for(let c of cols){
+                chunk.push(row[c])
+            }
+            chunk = chunk.join(':');
+            if(!result.includes(chunk)){
+                result.push(chunk);
+            }
+            
+        }
+        return result.join(',');
+    },
+
 
     mixin_rowFromBagNode:function(node) {
         var result = objectUpdate({}, node.attr);
@@ -4404,6 +4448,10 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         this.updateRowCount();
     },
 
+    mixin_catch_checkedSetId:function(value,kw,attr){
+        this.updateRowCount();
+    },
+    
     getNewSetKw:function(sourceNode,celldata) {
         var celldata = celldata || {};
         var fieldname =  celldata['field'] || '_set_'+genro.getCounter();
@@ -4417,7 +4465,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         celldata['classes'] = celldata.classes || 'row_checker';
         celldata['format_falseclass'] = objectPop(celldata,'falseclass')|| (radioButton?'radioOff':'checkboxOff'); //mettere classi radio
         celldata['calculated'] = true;
-        celldata['checkedId'] = sourceNode.attr.userSets+'.'+fieldname;
+        if(celldata.checkedId){
+            let subscriberKey = 'checkedSetId_'+fieldname;
+            sourceNode.attr[subscriberKey] = celldata.checkedId
+            sourceNode.registerDynAttr(subscriberKey);
+        }else{
+            celldata.checkedId = sourceNode.attr.userSets+'.'+fieldname;
+        }
         if(celldata['userSets_caption']){
             celldata['checkedCaption'] = sourceNode.attr.userSets+'_caption.'+fieldname;
         }
@@ -4447,11 +4501,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return currSet;
         }
         var modifiers = genro.dom.getEventModifiers(e);
-        var structbag = this.sourceNode.getRelativeData(this.sourceNode.attr.structpath);
         var kw = this.cellmap[fieldname];   
         var store = this.collectionStore();
         //var rowIndex = this.absIndex(rowIndex);
         var node = store.itemByIdx(rowIndex);
+        if(node.attr[fieldname+'_disabled']){
+            return;
+        }
         var currSet = this.sourceNode.getRelativeData(kw['checkedId']) || '';
         var currSetCaption = this.sourceNode.getRelativeData(kw['checkedCaption']) || '';
         var checkedElement = node.attr[kw['checkedField']];

@@ -22,13 +22,23 @@ class GnrCustomWebPage(object):
                     hasDownArrow=True)
         fb.div('^.username',lbl='Username')
 
+    def test_5_selected(self,pane):
+        "Use of selected:"
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',
+                        lbl='Sigla',width='25em', selected_regione='.regione')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
+        fb.textbox(value='^.nome_regione',lbl='Nome regione')
+
+
+
     def test_1_condition(self,pane):
         "Use of condition: first choose a Region, then you will find cities only in the selected region"
         fb = pane.formbuilder(cols=2, border_spacing='4px')
-        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='pippo')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
         fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',condition_regione='^.regione',
                         lbl='Sigla',width='25em', validate_notnull=True, validate_notnull_error='Manca il valore')
-    
+        
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')

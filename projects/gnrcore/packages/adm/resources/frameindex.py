@@ -25,10 +25,12 @@ class FrameIndex(BaseComponent):
     index_page = False
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
+    index_title = 'Index'
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
     auth_main = 'user'
+    menuClass = 'ApplicationMenu'
 
     @property
     def plugin_list(self):
@@ -61,7 +63,7 @@ class FrameIndex(BaseComponent):
         root.attributes['overflow'] = 'hidden'
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
-                getattr(self,'index_%s' %custom_index)(root)
+                getattr(self,f'index_{custom_index}')(root)
             else:
                 self.index_dashboard(root)
         else:         
@@ -82,6 +84,9 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
+        if new_window:
+            self.loginDialog(pane,new_window=True)
+            return
         pane.dataController("""var d = data.deepCopy();
                             if(deltaDays(new Date(),d.getItem('workdate'))==0){
                                 d.setItem('workdate','');
@@ -124,10 +129,7 @@ class FrameIndex(BaseComponent):
             self.prepareTop_mobile(bc,onCreatingTablist=onCreatingTablist)
             self.prepareBottom_mobile(bc)
             self.prepareCenter_mobile(bc)
-        if new_window:
-            self.loginDialog(pane)
-        else:
-            self.login_newPassword(pane)
+        self.login_newPassword(pane)
         return bc
         
     def prepareBottom(self,bc):
@@ -136,15 +138,26 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,debugping,5',_class='framedindex_tablist showcase_dark',height='30px')
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',_class='framedindex_tablist showcase_dark',height='30px')
         bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
 
-        bar.pageTitle.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
-                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
-        bar.debugping.div(_class='ping_semaphore',width='30px')
+        self.pageTitle_mobile(bar.pageTitle)
+        bar.pageTitle.dataController("""
+                                        let selectedPageTitle = basetitle;
+                                        if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
+                                            let selectedNode = iframes.getNode(selectedPage);
+                                            selectedPageTitle = selectedNode.attr.fullname;
+                                        }
+                                        SET selectedPageTitle = selectedPageTitle;
+                                        """,selectedPage='^selectedFrame', 
+                                iframes='^iframes',basetitle=self.index_title,_delay=1)
 
-        bar.dataController("""
+    def pageTitle_mobile(self,pane):
+        pane.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
+                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
+
+        pane.dataController("""
         var currentpages = new gnr.GnrBag();
         iframes = iframes || new gnr.GnrBag();
         for(let n of iframes.getNodes()){
@@ -154,21 +167,10 @@ class FrameIndex(BaseComponent):
         currentpages.addItem('-')
         currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
         currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
-
         SET gnr.currentPages = currentpages;
-        
         """,iframes='^iframes',reload_caption='!!Reload current page',
                 closepage_caption="!!Close current page")
 
-        bar.pageTitle.dataController("""
-                                        let selectedPageTitle = basetitle;
-                                        if(iframes && iframes.len()>0){
-                                            let selectedNode = iframes.getNode(selectedPage);
-                                            selectedPageTitle = selectedNode.attr.fullname;
-                                        }
-                                        SET selectedPageTitle = selectedPageTitle;
-                                        """,selectedPage='^selectedFrame', 
-                                iframes='^iframes',basetitle='Index',_delay=1)
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
@@ -296,13 +298,22 @@ class FrameIndex(BaseComponent):
 
 
     def prepareBottom_mobile(self,bc):
-        return
+        pane = bc.contentPane(region='bottom',overflow='hidden')
+        sb = pane.slotToolbar('20,genrologo,5,applogo,*,debugping,logout,20',
+                              _class='slotbar_toolbar framefooter',height='25px',
+                        background='#EEEEEE',border_top='1px solid silver')
+        pane.div(height='10px',background='black')
+        
+        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        sb.debugping.div(_class='ping_semaphore')
+        applogo = sb.applogo.div()
+        if hasattr(self,'application_logo'):
+            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
+        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
-    
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
                                 #border_left='1px solid silver',
-                                margin_left='-1px',
                                 onCreated='genro.framedIndexManager = new gnr.FramedIndexManager(this);',_class='frameindexcenter')
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
@@ -328,9 +339,9 @@ class FrameIndex(BaseComponent):
         scattr['subscribe_changeFrameLabel']='genro.framedIndexManager.changeFrameLabel($1);'
         page = self.pageSource()   
         if getattr(self,'index_dashboard',None):
-            self.index_dashboard(sc.contentPane(pageName='indexpage'))
+            self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
-            indexpane = sc.contentPane(pageName='indexpage',title='Index',overflow='hidden')
+            indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         
@@ -344,7 +355,7 @@ class FrameIndex(BaseComponent):
     def prepareLeft_std(self,bc):
 
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
-                                    margin_right='-4px',overflow='hidden',hidden=self.hideLeftPlugins,border_right='5px solid #eee')
+                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
@@ -374,7 +385,6 @@ class FrameIndex(BaseComponent):
 
 
     def prepareLeft_mobile(self,bc):
-
         frame = bc.framePane(region='left',width='40%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
@@ -382,20 +392,9 @@ class FrameIndex(BaseComponent):
                                                          SET left.selected = plugin_name;
                                                          genro.nodeById('standard_index').publish('showLeft');""",
                                 overflow='hidden')
-
-
-
-        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer')
-
-       #bar = frame.bottom.slotBar('5,userbox,*,logout,5',childname='userlogout')
-       #bar.userbox.div(self.user if not self.isGuest else 'guest',color='#EDEDEE',font_weight='bold')
-       #bar.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-
-
-        sb = frame.bottom.slotBar('*,genrologo,*',background='white',
-                            _class='slotbar_toolbar framefooter',height='23px',childname='logobar')
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+        custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
+        plugins = self.plugin_list.split(',') + custom_plugins
+        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));
                              genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);
@@ -413,13 +412,8 @@ class FrameIndex(BaseComponent):
             sc.dataController("""PUBLISH main_left_set_status = true;
                                  SET .selected=plugin;
                                  """, **{'subscribe_%s_open' % plugin: True, 'plugin': plugin})
-
-        for btn in self.plugin_list.split(','):
-            getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
-            
-        if self.custom_plugin_list:
-            for btn in self.custom_plugin_list.split(','):
-                getattr(self,'btn_%s' %btn)(pluginbar.pluginButtons )
+        for btn in plugins:
+            getattr(self,f'btn_{btn}')(pluginbar.pluginButtons)
 
     def btn_menuToggle(self,pane,**kwargs):
         pane.div(_class='button_block iframetab').div(_class='application_menu',tip='!!Show/Hide the left pane',
