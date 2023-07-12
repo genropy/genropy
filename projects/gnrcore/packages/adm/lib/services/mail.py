@@ -74,6 +74,7 @@ class AdmMailService(MailService):
         attachments = attachments or templateReplace(email_compiled.getItem('attachments',''),htmlbuilder.record)
         if attachments and isinstance(attachments,basestring):
             attachments = attachments.replace('\n',',').split(',')
+            attachments = [a for a in attachments if a]
         assert to_address,'Missing email address'
         cc_address = set(cc_address.split(',') if cc_address else [])
         bcc_address = set(bcc_address.split(',') if bcc_address else [])
