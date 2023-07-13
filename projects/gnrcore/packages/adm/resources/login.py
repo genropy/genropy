@@ -108,6 +108,12 @@ class LoginComponent(BaseComponent):
                     }
                     """
                     )
+            fb.dataController("""
+                SET _login.password = null;
+                SET _login.group_code = null;  
+            """,
+                _changed_user='^_login.user',_userChanges=True
+            )
             fb.dataController("""if(user && pwd){
                 FIRE do_login;
             }else{

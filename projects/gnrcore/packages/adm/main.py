@@ -25,12 +25,17 @@ class Package(GnrDboPackage):
             if identifier in cache:
                 return cache[identifier],True
             with self.db.tempEnv(current_group_code=group_code):
-                result = tblobj.query(columns="""*,$all_tags""",
+                result = tblobj.query(columns="""*,$all_tags,$all_groups""",
                                   where='$username = :user',
                                   user=username, limit=1).fetch()
             kwargs = dict()
+            
             if result:
                 user_record = dict(result[0])
+                all_groups = user_record['all_groups']
+                all_groups = all_groups.split(',') if all_groups else []
+                if group_code and (group_code not in all_groups):
+                    group_code = None
                 group_code = group_code or user_record.get('group_code')
                 group_record = dict()
                 if group_code:
