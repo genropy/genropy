@@ -109,7 +109,7 @@ class MenuStruct(GnrStructData):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label=None,table=None,tags='',multipage=None, **kwargs):
+    def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
