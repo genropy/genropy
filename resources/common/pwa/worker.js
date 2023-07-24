@@ -14,12 +14,11 @@ self.addEventListener("fetch", event => {
 
 self.addEventListener('push', event=> {
     console.log('[Service Worker] Push Received.');
-    console.log(`[Service Worker] Push had this data: "${event.data.text()}"`);
+    let json =  event.data.json();
+    console.log(`[Service Worker] Push had this data: "${json.title}"`);
 
-    const title = 'Notifica Genropy';
-    const options = {
-      body: `${event.data.text()}`
-};
+    const title = json.title;
+    const options = {body: json.text,data:json};
 
 event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -28,8 +27,8 @@ self.addEventListener('notificationclick', function(event) {
     console.log('[Service Worker] Notification click Received.');
 
     event.notification.close();
-
-    event.waitUntil(clients.openWindow('https://developers.google.com/web/'));
+    //notify to the server the notification has been clicked
+    event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 
 self.addEventListener('pushsubscriptionchange', function(event) {

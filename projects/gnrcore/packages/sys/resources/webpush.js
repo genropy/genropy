@@ -22,6 +22,9 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
 
 
 
+  
+
+
 WEBPUSH.updateBtn = function() {
     if (Notification.permission === 'denied') {
         pushButton.textContent = 'Push Messaging Blocked.';
@@ -40,36 +43,27 @@ WEBPUSH.updateBtn = function() {
 
 WEBPUSH.updateSubscriptionOnServer = function(subscription) {
     // TODO: Send subscription to application server
-
     
     if (subscription) {
         var subscription_token = JSON.stringify(subscription)
-        genro.serverCall("_table.sys.push_subscription.store_new_subscription",{subscription_token:subscription_token},
+        genro.serverCall("webpushSubscribe",{subscription_token:subscription_token},
                                                 function(result){
                                                     
                                                 });
         
     } else {
-        genro.serverCall("_table.sys.push_subscription.remove_subscription",{subscription_token:subscription_token},
+        genro.serverCall("webpushUnsubscribe",{subscription_token:subscription_token},
                                                 function(result){
                                                     
                                                 });
     }
 }
 
-WEBPUSH.notifyAll = function(message_body){
-    genro.serverCall("_table.sys.push_subscription.notify_all",{
-        message_body:message_body},
-        function(result){
-            console.log('notify onResult cb',result)
-        });
-}
-
 
 WEBPUSH.subscribeUser = function(){
     let vapid_public_key = genro.getData('gnr.vapid_public');
     if (!vapid_public_key){
-        genro.serverCall('_table.sys.push_subscription.get_vapid_public_key',{},function(vapid_public_key){
+        genro.serverCall('webpushGetVapidPublicKey',{},function(vapid_public_key){
             genro.setData('gnr.vapid_public',vapid_public_key);
             WEBPUSH.subscribeUser();
         });
@@ -96,6 +90,7 @@ WEBPUSH.subscribeUser = function(){
             //updateBtn();
         });
 }
+
 
 WEBPUSH.unsubscribeUser = function(){
     WEBPUSH.swRegistration.pushManager.getSubscription()

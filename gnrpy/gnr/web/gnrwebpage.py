@@ -1333,7 +1333,20 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+    
+    @public_method
+    def webpushSubscribe(self,subscription_token=None):
+        self.getService('webpush').subscribe(user_id = self.avatar.user_id,
+                                             subscription_token = subscription_token)
+
+    @public_method
+    def webpushUnsubscribe(self):
+        raise NotImplementedError
+    
+    @public_method
+    def webpushGetVapidPublicKey(self):
+        return self.getService('webpush').vapid_public
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,

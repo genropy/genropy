@@ -237,3 +237,14 @@ class BaseServiceType(object):
 class GnrBaseService(object):
     def __init__(self, parent):
         self.parent = parent
+
+    def updateServiceParameters(self,service_parameters=None,**kwargs):
+        tblservice = self.parent.db.table('sys.service')
+        db = self.parent.db
+        with db.tempEnv(connectionName='system'):
+            with tblservice.recordToUpdate(service_type=self.service_type,
+                                            service_name=self.service_name) as service_record:
+                current_parameters = Bag(service_record.get('parameters'))
+                current_parameters.update(kwargs)
+                service_record['parameters'] = service_parameters or current_parameters
+            self.db.commit()
