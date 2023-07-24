@@ -22,21 +22,6 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
 
 
 
-WEBPUSH.urlB64ToUint8Array = function(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
-
 WEBPUSH.updateBtn = function {
     if (Notification.permission === 'denied') {
         pushButton.textContent = 'Push Messaging Blocked.';
@@ -91,7 +76,7 @@ WEBPUSH.subscribeUser = function(){
     }
     localStorage.setItem('applicationServerPublicKey',vapid_public_key);
     const applicationServerPublicKey = localStorage.getItem('applicationServerPublicKey');
-    const applicationServerKey = WEBPUSH.urlB64ToUint8Array(applicationServerPublicKey);
+    const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
     WEBPUSH.swRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: applicationServerKey
