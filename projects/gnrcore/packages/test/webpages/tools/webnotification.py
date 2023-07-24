@@ -14,7 +14,7 @@ class GnrCustomWebPage(object):
         """Notification"""
         fb = pane.formbuilder(cols=3,border_spacing='3px')
         fb.textBox(value='^.message',lbl='Message')
-        fb.button('Start',action='subscribeUser();',)
-        fb.button('Notify',action='notify_all(message)', message='=.message')
+        fb.button('Start',action='WEBPUSH.subscribeUser();',)
+        fb.button('Notify',action='WEBPUSH.notifyAll(message)', message='=.message')
 
 

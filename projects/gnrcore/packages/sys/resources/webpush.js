@@ -22,14 +22,13 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
 
 
 
-WEBPUSH.updateBtn = function {
+WEBPUSH.updateBtn = function() {
     if (Notification.permission === 'denied') {
         pushButton.textContent = 'Push Messaging Blocked.';
         pushButton.disabled = true;
-        updateSubscriptionOnServer(null);
+        WEBPUSH.updateSubscriptionOnServer(null);
         return;
     }
-
     if (WEBPUSH.isSubscribed) {
         pushButton.textContent = 'Disable Push Messaging';
     } else {
@@ -59,16 +58,18 @@ WEBPUSH.updateSubscriptionOnServer = function(subscription) {
 }
 
 WEBPUSH.notifyAll = function(message_body){
-    genro.serverCall("_table.sys.push_subscription.notify_all",{message_body:message_body},
-    function(result){
-    });
+    genro.serverCall("_table.sys.push_subscription.notify_all",{
+        message_body:message_body},
+        function(result){
+            console.log('notify onResult cb',result)
+        });
 }
 
 
 WEBPUSH.subscribeUser = function(){
     let vapid_public_key = genro.getData('gnr.vapid_public');
     if (!vapid_public_key){
-        genro.serverCall('_table.sys.push_notification.get_vapid_public_key',{},function(vapid_public_key){
+        genro.serverCall('_table.sys.push_subscription.get_vapid_public_key',{},function(vapid_public_key){
             genro.setData('gnr.vapid_public',vapid_public_key);
             WEBPUSH.subscribeUser();
         });
@@ -84,7 +85,7 @@ WEBPUSH.subscribeUser = function(){
         .then(function(subscription) {
             console.log('User is subscribed.');
 
-            updateSubscriptionOnServer(subscription);
+            WEBPUSH.updateSubscriptionOnServer(subscription);
             localStorage.setItem('sub_token',JSON.stringify(subscription));
             WEBPUSH.isSubscribed = true;
 
@@ -96,7 +97,7 @@ WEBPUSH.subscribeUser = function(){
         });
 }
 
-WEBPUSH.unsubscribeUser = function{
+WEBPUSH.unsubscribeUser = function(){
     WEBPUSH.swRegistration.pushManager.getSubscription()
         .then(function(subscription) {
             if (subscription) {
@@ -107,8 +108,7 @@ WEBPUSH.unsubscribeUser = function{
             console.log('Error unsubscribing', error);
         })
         .then(function() {
-            updateSubscriptionOnServer(null);
-
+            WEBPUSH.updateSubscriptionOnServer(null);
             console.log('User is unsubscribed.');
             WEBPUSH.isSubscribed = false;
 
@@ -116,7 +116,7 @@ WEBPUSH.unsubscribeUser = function{
         });
 }
 
-WEBPUSH.initializeUI = function{
+WEBPUSH.initializeUI = function(){
     pushButton.addEventListener('click', function() {
         pushButton.disabled = true;
         if (WEBPUSH.isSubscribed) {
@@ -131,7 +131,7 @@ WEBPUSH.initializeUI = function{
         .then(function(subscription) {
             WEBPUSH.isSubscribed = !(subscription === null);
 
-            updateSubscriptionOnServer(subscription);
+            WEBPUSH.updateSubscriptionOnServer(subscription);
 
             if (WEBPUSH.isSubscribed) {
                 console.log('User IS subscribed.');
