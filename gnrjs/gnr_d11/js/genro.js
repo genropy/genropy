@@ -1175,21 +1175,38 @@ dojo.declare('gnr.GenroClient', null, {
             });
     },
 
-    webpushSubscribe:function(onSubscriptionCb){
-        const subscribeCb = function(){
+    webpushSubscribe:function(resultCb){
+        const cb = function(){
             let pr = genro.webpush.subscribeUser();
-            if(onSubscriptionCb){
-                pr.then(subscription=>onSubscriptionCb(subscription))
+            if(resultCb){
+                pr.then(subscription=>resultCb(subscription))
             }
         }
         if(!genro.webpush){
             import('/_rsrc/pkg_sys/webpush.js').then((module) => {
-                subscribeCb()
+                cb()
             });
             return;
         }
-        subscribeCb();
+        cb();
     },
+
+    webpushUnsubscribe:function(resultCb){
+        const cb = function(){
+            let pr = genro.webpush.unsubscribeUser();
+            if(resultCb){
+                pr.then(result=>resultCb(result))
+            }
+        }
+        if(!genro.webpush){
+            import('/_rsrc/pkg_sys/webpush.js').then((module) => {
+                cb()
+            });
+            return;
+        }
+        cb();
+    },
+
 
     chat:function(){
         return this.mainGenroWindow.ct_chat_utils;

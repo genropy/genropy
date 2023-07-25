@@ -25,6 +25,9 @@ class Main(GnrBaseService):
                                                  subscription_token=subscription_token)
         
 
+    def isSubscribed(self,user_id=None, subscription_token=None):
+        return self.subscribtion_tbl.checkDuplicate(user_id=user_id,subscription_token=subscription_token)
+        
     @extract_kwargs(condition=True)
     def notify(self,user=None,condition=None,title=None,message=None,url=None,condition_kwargs=None,logged=False,**kwargs):
         notification_claim_email = self.parent.getPreference('.notification_claim_email',pkg='sys')
@@ -50,19 +53,19 @@ class Main(GnrBaseService):
         if kwargs:
             url = f'{url}?{urllib.parse.urlencode(kwargs)}'
         data = dict(title=title,message=message,url=url)
-        if True:
+        try:
             return webpush(
                 subscription_info=subscription_record["subscription_token"],
                 data=json.dumps(data),
                 vapid_private_key=vapid_private_key,
                 vapid_claims=VAPID_CLAIMS)
-       # except WebPushException as e:
-       #     print('fail', subscription_record)
-       #     status_code = e.response.status_code
-       #     if status_code==410:
-       #         self.delete(subscription_record)
-       #         self.db.commit()
-#
+        except WebPushException as e:
+            print(e)
+            status_code = e.response.status_code
+            if status_code==410:
+                self.subscribtion_tbl.delete(subscription_record)
+                self.parent.db.commit()
+
     def generate_vapid_keypair(self):
         """
         Generate a new set of encoded key-pair for VAPID

@@ -1336,12 +1336,15 @@ class GnrWebPage(GnrBaseWebPage):
     
     @public_method
     def webpushSubscribe(self,subscription_token=None):
-        self.getService('webpush').subscribe(user_id = self.avatar.user_id,
+        if self.getService('webpush').isSubscribed(user_id = self.avatar.user_id,
+                                             subscription_token = subscription_token):
+            return
+        return self.getService('webpush').subscribe(user_id = self.avatar.user_id,
                                              subscription_token = subscription_token)
 
     @public_method
     def webpushNotify(self,user=None,condition=None,title=None,message=None,url=None,**kwargs):
-        self.getService('webpush').notify(user=user,
+        return self.getService('webpush').notify(user=user,
                                           condition=condition,
                                           title=title,message=message,
                                           url=url,**kwargs)
@@ -1349,7 +1352,7 @@ class GnrWebPage(GnrBaseWebPage):
 
     @public_method
     def webpushUnsubscribe(self,subscription_token=None):
-        self.getService('webpush').unsubscribe(user_id = self.avatar.user_id,
+        return self.getService('webpush').unsubscribe(user_id = self.avatar.user_id,
                                              subscription_token = subscription_token)
 
     
