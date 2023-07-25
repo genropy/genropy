@@ -15,3 +15,7 @@ class Table(object):
         self.db.commit()
 
 
+    def removeSubscription(self,user_id=None,subscription_token=None):
+        self.deleteSelection(where='$user_id=:uid AND $subscription_token=:stk',
+                             uid=user_id,stk=subscription_token)
+        self.db.commit()

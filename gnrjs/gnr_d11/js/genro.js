@@ -1175,6 +1175,22 @@ dojo.declare('gnr.GenroClient', null, {
             });
     },
 
+    webpushSubscribe:function(onSubscriptionCb){
+        const subscribeCb = function(){
+            let pr = genro.webpush.subscribeUser();
+            if(onSubscriptionCb){
+                pr.then(subscription=>onSubscriptionCb(subscription))
+            }
+        }
+        if(!genro.webpush){
+            import('/_rsrc/pkg_sys/webpush.js').then((module) => {
+                subscribeCb()
+            });
+            return;
+        }
+        subscribeCb();
+    },
+
     chat:function(){
         return this.mainGenroWindow.ct_chat_utils;
     },

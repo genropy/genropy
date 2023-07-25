@@ -1340,8 +1340,18 @@ class GnrWebPage(GnrBaseWebPage):
                                              subscription_token = subscription_token)
 
     @public_method
-    def webpushUnsubscribe(self):
-        raise NotImplementedError
+    def webpushNotify(self,user=None,condition=None,title=None,message=None,url=None,**kwargs):
+        self.getService('webpush').notify(user=user,
+                                          condition=condition,
+                                          title=title,message=message,
+                                          url=url,**kwargs)
+
+
+    @public_method
+    def webpushUnsubscribe(self,subscription_token=None):
+        self.getService('webpush').unsubscribe(user_id = self.avatar.user_id,
+                                             subscription_token = subscription_token)
+
     
     @public_method
     def webpushGetVapidPublicKey(self):

@@ -1,16 +1,16 @@
 'use strict';
-const WEBPUSH = {};
+genro.webpush = {};
 
 
-WEBPUSH.isSubscribed = false;
-WEBPUSH.swRegistration = null;
+genro.webpush.isSubscribed = false;
+genro.webpush.swRegistration = null;
 
 if ('serviceWorker' in navigator && 'PushManager' in window) {
     console.log('Service Worker and Push is supported');
     navigator.serviceWorker.register("/_pwa_worker.js")
         .then(function(swReg) {
             console.log('Service Worker is registered', swReg);
-            WEBPUSH.swRegistration = swReg;
+            genro.webpush.swRegistration = swReg;
         })
         .catch(function(error) {
             console.error('Service Worker Error', error);
@@ -21,18 +21,14 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
 }
 
 
-
-  
-
-
-WEBPUSH.updateBtn = function() {
+genro.webpush.updateBtn = function() {
     if (Notification.permission === 'denied') {
         pushButton.textContent = 'Push Messaging Blocked.';
         pushButton.disabled = true;
-        WEBPUSH.updateSubscriptionOnServer(null);
+        genro.webpush.updateSubscriptionOnServer(null);
         return;
     }
-    if (WEBPUSH.isSubscribed) {
+    if (genro.webpush.isSubscribed) {
         pushButton.textContent = 'Disable Push Messaging';
     } else {
         pushButton.textContent = 'Enable Push Messaging';
@@ -41,7 +37,7 @@ WEBPUSH.updateBtn = function() {
     pushButton.disabled = false;
 }
 
-WEBPUSH.updateSubscriptionOnServer = function(subscription) {
+genro.webpush.updateSubscriptionOnServer = function(subscription) {
     // TODO: Send subscription to application server
     
     if (subscription) {
@@ -60,40 +56,40 @@ WEBPUSH.updateSubscriptionOnServer = function(subscription) {
 }
 
 
-WEBPUSH.subscribeUser = function(){
+genro.webpush.subscribeUser = function(){
     let vapid_public_key = genro.getData('gnr.vapid_public');
     if (!vapid_public_key){
         genro.serverCall('webpushGetVapidPublicKey',{},function(vapid_public_key){
             genro.setData('gnr.vapid_public',vapid_public_key);
-            WEBPUSH.subscribeUser();
+            genro.webpush.subscribeUser();
         });
         return
     }
     localStorage.setItem('applicationServerPublicKey',vapid_public_key);
     const applicationServerPublicKey = localStorage.getItem('applicationServerPublicKey');
     const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
-    WEBPUSH.swRegistration.pushManager.subscribe({
+    return genro.webpush.swRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: applicationServerKey
         })
         .then(function(subscription) {
             console.log('User is subscribed.');
 
-            WEBPUSH.updateSubscriptionOnServer(subscription);
+            genro.webpush.updateSubscriptionOnServer(subscription);
             localStorage.setItem('sub_token',JSON.stringify(subscription));
-            WEBPUSH.isSubscribed = true;
+            genro.webpush.isSubscribed = true;
 
             //updateBtn();
         })
         .catch(function(err) {
             console.log('Failed to subscribe the user: ', err);
-            //updateBtn();
+            genro.webpush.unsubscribeUser().then(genro.webpush.subscribeUser);
         });
 }
 
 
-WEBPUSH.unsubscribeUser = function(){
-    WEBPUSH.swRegistration.pushManager.getSubscription()
+genro.webpush.unsubscribeUser = function(){
+    return genro.webpush.swRegistration.pushManager.getSubscription()
         .then(function(subscription) {
             if (subscription) {
                 return subscription.unsubscribe();
@@ -103,32 +99,32 @@ WEBPUSH.unsubscribeUser = function(){
             console.log('Error unsubscribing', error);
         })
         .then(function() {
-            WEBPUSH.updateSubscriptionOnServer(null);
+            genro.webpush.updateSubscriptionOnServer(null);
             console.log('User is unsubscribed.');
-            WEBPUSH.isSubscribed = false;
+            genro.webpush.isSubscribed = false;
 
             updateBtn();
         });
 }
 
-WEBPUSH.initializeUI = function(){
+genro.webpush.initializeUI = function(){
     pushButton.addEventListener('click', function() {
         pushButton.disabled = true;
-        if (WEBPUSH.isSubscribed) {
-            WEBPUSH.unsubscribeUser();
+        if (genro.webpush.isSubscribed) {
+            genro.webpush.unsubscribeUser();
         } else {
-            WEBPUSH.subscribeUser();
+            genro.webpush.subscribeUser();
         }
     });
 
     // Set the initial subscription value
-    WEBPUSH.swRegistration.pushManager.getSubscription()
+    genro.webpush.swRegistration.pushManager.getSubscription()
         .then(function(subscription) {
-            WEBPUSH.isSubscribed = !(subscription === null);
+            genro.webpush.isSubscribed = !(subscription === null);
 
-            WEBPUSH.updateSubscriptionOnServer(subscription);
+            genro.webpush.updateSubscriptionOnServer(subscription);
 
-            if (WEBPUSH.isSubscribed) {
+            if (genro.webpush.isSubscribed) {
                 console.log('User IS subscribed.');
             } else {
                 console.log('User is NOT subscribed.');
@@ -140,7 +136,7 @@ WEBPUSH.initializeUI = function(){
 
 
 
-WEBPUSH.pushMessage = function() {
+genro.webpush.pushMessage = function() {
     console.log("sub_token", localStorage.getItem('sub_token'));
     $.ajax({
         type: "POST",
