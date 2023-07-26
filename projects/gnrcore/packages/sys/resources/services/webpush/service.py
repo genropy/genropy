@@ -9,11 +9,13 @@ from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class Main(GnrBaseService):
-    def __init__(self, parent=None,vapid_private=None,vapid_public=None,**kwargs):
+    def __init__(self, parent=None,vapid_private=None,vapid_public=None,email=None,aud=None,**kwargs):
         self.parent = parent
         self.subscribtion_tbl = self.parent.db.table('sys.push_subscription')
         self.vapid_private = vapid_private
         self.vapid_public = vapid_public
+        self.email = email
+        self.aud = aud
 
 
     def subscribe(self,user_id=None, subscription_token=None):
@@ -30,8 +32,8 @@ class Main(GnrBaseService):
         
     @extract_kwargs(condition=True)
     def notify(self,user=None,condition=None,title=None,message=None,url=None,condition_kwargs=None,logged=False,**kwargs):
-        notification_claim_email = self.parent.getPreference('.notification_claim_email',pkg='sys')
-        vapid_private_key = self.parent.getPreference('.vapid_private',pkg='sys')
+        notification_claim_email = self.email
+        vapid_private_key = self.vapid_private
         where = []
         if user:
             where.append('($user_id=:_user OR @user_id.username=:_user)')
