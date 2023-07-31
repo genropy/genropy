@@ -522,8 +522,19 @@ class DynamicForm(BaseComponent):
             self._df_handleGetter(fb,code=code,getter=getter)
 
     @customizable
-    def df_child(self,fb,**attr):
-        return fb.child(**attr)
+    def df_child(self,fb,standard_range=None,lbl=None,**attr):
+        if standard_range:
+            box = fb.div(lbl=lbl,position='relative')
+            box.child(standard_range=standard_range,**attr)
+            box.span(f'{attr["value"]}?out_of_range?="("+#v+")"',
+                    style="""color: orange;
+                             font-style: italic;
+                             vertical-align:top;
+                             line-height: 17px;
+                             font-size:.9em""",
+                     hidden=f'{attr["value"]}?out_of_range?=!#v')
+            return
+        return fb.child(lbl=lbl,**attr)
 
     def df_filteringselect(self,attr,**kwargs):
         attr['values'] = attr.get('source_filteringselect')
@@ -609,7 +620,16 @@ class DynamicForm(BaseComponent):
         if attr.get('validate_case'):
             attr['validate_case'] = attr.pop('validate_case')
         if attr.get('mandatory'):
-            attr['validate_notnull'] = attr.pop('mandatory')            
+            attr['validate_notnull'] = attr.pop('mandatory')       
+        attr['validate_onAccept'] = """
+        if(this.attr.standard_range){
+            let range = this.attr.standard_range.split(':');
+            if(value<range[0] || value>range[1]){
+                this.setRelativeData(this.attr.value+'?out_of_range',this.attr.standard_range);
+            }else{
+                this.setRelativeData(this.attr.value+'?out_of_range',null);
+            }
+        }"""
         if attr.get('field_visible'):
             condition = attr.pop('field_visible')
 
