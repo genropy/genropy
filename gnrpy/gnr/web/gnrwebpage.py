@@ -1336,6 +1336,8 @@ class GnrWebPage(GnrBaseWebPage):
     
     @public_method
     def webpushSubscribe(self,subscription_token=None):
+        if not self.getService('webpush'):
+            return
         if self.getService('webpush').isSubscribed(user_id = self.avatar.user_id,
                                              subscription_token = subscription_token):
             return
@@ -1343,21 +1345,27 @@ class GnrWebPage(GnrBaseWebPage):
                                              subscription_token = subscription_token)
 
     @public_method
-    def webpushNotify(self,user=None,condition=None,title=None,message=None,url=None,**kwargs):
-        return self.getService('webpush').notify(user=user,
+    def webpushNotify(self,user=None,sender=None,condition=None,title=None,message=None,url=None,logNotification=None,**kwargs):
+        if not self.getService('webpush'):
+            return
+        return self.getService('webpush').notify(user=user,sender=sender or self.user,
                                           condition=condition,
                                           title=title,message=message,
-                                          url=url,**kwargs)
+                                          url=url,logNotification=logNotification,**kwargs)
 
 
     @public_method
     def webpushUnsubscribe(self,subscription_token=None):
+        if not self.getService('webpush'):
+            return
         return self.getService('webpush').unsubscribe(user_id = self.avatar.user_id,
                                              subscription_token = subscription_token)
 
     
     @public_method
     def webpushGetVapidPublicKey(self):
+        if not self.getService('webpush'):
+            return
         return self.getService('webpush').vapid_public
 
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):

@@ -19,7 +19,7 @@ class GnrCustomWebPage(object):
                 dict(name='title',lbl='Title'),
                 dict(name='message',lbl='Message'),
                 dict(name='url',lbl='Url'),
-                dict(name='logged',label='Logged',tag='checkbox')
+                dict(name='logNotification',label='Logged',tag='checkbox')
 
             ])
         )

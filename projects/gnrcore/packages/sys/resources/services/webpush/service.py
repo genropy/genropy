@@ -2,9 +2,13 @@
 
 import json
 import urllib
+import datetime
+import pytz
+
 
 
 from gnr.lib.services import GnrBaseService
+from gnr.core.gnrlang import getUuid
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -31,7 +35,9 @@ class Main(GnrBaseService):
         return self.subscribtion_tbl.checkDuplicate(user_id=user_id,subscription_token=subscription_token)
         
     @extract_kwargs(condition=True)
-    def notify(self,user=None,condition=None,title=None,message=None,url=None,condition_kwargs=None,logged=False,**kwargs):
+    def notify(self,user=None,sender=None,condition=None,
+               title=None,message=None,url=None,logNotification=False,
+               condition_kwargs=None,**kwargs):
         notification_claim_email = self.email
         vapid_private_key = self.vapid_private
         where = []
@@ -40,21 +46,29 @@ class Main(GnrBaseService):
         if condition:
             where.append(condition)
         subscriptions = self.subscribtion_tbl.query(where = ' AND '.join(where),_user=user,**condition_kwargs).fetch()
+        message_identifier = getUuid()
         for subscription_record in subscriptions:
-            self._notify_subscription(subscription_record,
+            self._notify_subscription(subscription_record,sender=sender,
                                       title=title,message=message,url=url,
                                       notification_claim_email=notification_claim_email,
                                       vapid_private_key=vapid_private_key,
+                                      logNotification=logNotification,
+                                      message_identifier=message_identifier,
                                       **kwargs)
     
-    def _notify_subscription(self,subscription_record=None,
+    def _notify_subscription(self,subscription_record=None,sender=None,
                              title=None,message=None,url=None,
-                             notification_claim_email=None,vapid_private_key=None,**kwargs):
+                             notification_claim_email=None,vapid_private_key=None,
+                             logNotification=None,message_identifier=None,**kwargs):
         from pywebpush import webpush,WebPushException
         VAPID_CLAIMS = {"sub": f"mailto:{notification_claim_email}"}
         if kwargs:
             url = f'{url}?{urllib.parse.urlencode(kwargs)}'
-        data = dict(title=title,message=message,url=url)
+        send_ts = datetime.datetime.now(pytz.utc)
+        data = dict(title=title,message=message,url=url,sender=sender,send_ts=str(send_ts),
+                    message_identifier=message_identifier,logged=logNotification)
+        sendingError = None
+        doCommit = False
         try:
             return webpush(
                 subscription_info=subscription_record["subscription_token"],
@@ -62,11 +76,24 @@ class Main(GnrBaseService):
                 vapid_private_key=vapid_private_key,
                 vapid_claims=VAPID_CLAIMS)
         except WebPushException as e:
-            print(e)
             status_code = e.response.status_code
             if status_code==410:
                 self.subscribtion_tbl.delete(subscription_record)
-                self.parent.db.commit()
+                doCommit = True
+            sendingError = str(e)
+        if logNotification:
+            tblobj = self.db.table('sys.push_notification')
+            tblobj.insert(tblobj.newrecord(
+                subscription_id=subscription_record['id'],
+                sender = sender,
+                send_ts = send_ts,
+                message_identifier=message_identifier,
+                title=title,message=message,url=url,
+                sendingError=sendingError
+            ))
+            doCommit = True
+        if doCommit:
+            self.db.commit()
 
     def generate_vapid_keypair(self):
         """
