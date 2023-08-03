@@ -252,6 +252,7 @@ class PublicSlots(BaseComponent):
         related_tblobj = self.db.table(table)
         default_partition_value = self.db.currentEnv.get('current_{}'.format(partition_path)) or self.rootenv[partition_path]
         fb = box.formbuilder(cols=1,border_spacing='0')
+        allowedCondition ='$%s IN :env_allowed_%s' %(related_tblobj.pkey,partition_field)
         partition_pkeys_method = None
         for hn in ['partitioning_pkeys','partitionioning_pkeys']: #partitionioning_pkeys is deprecated #retrocompatibility
             if hasattr(related_tblobj, hn):
@@ -262,6 +263,10 @@ class PublicSlots(BaseComponent):
             self.pageStore().setItem('rootenv.allowed_%s' %partition_field, allowedPartitionPkeys or [],dbenv=True)
             if not allowedPartitionPkeys and default_partition_value:
                 allowedPartitionPkeys = [default_partition_value]
+        elif related_tblobj.column('__allowed_partition') is not None:
+            allowedCondition = '$__allowed_partition IS TRUE'
+            allowedPartitionPkeys = [r[related_tblobj.pkey] for r in related_tblobj.query(where=allowedCondition,
+                                                         columns=f'${related_tblobj.pkey}').fetch()]
         else:
             allowedPartitionPkeys = self.rootenv['allowed_%s' %partition_field]
         readOnly = False
@@ -270,7 +275,7 @@ class PublicSlots(BaseComponent):
                 readOnly = True 
                 default_partition_value = allowedPartitionPkeys[0]
             fb.dbSelect(value='^current.current_partition_value',
-                            condition='$%s IN :env_allowed_%s' %(related_tblobj.pkey,partition_field),
+                            condition=allowedCondition,
                             ignorePartition=True,
                             readOnly=readOnly,
                             disabled='^gnr.partition_selector.disabled',
