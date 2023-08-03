@@ -24,18 +24,16 @@ __version__ = '1.0b'
 
 from gnr.core.gnrlang import GnrException
 
-class GnrSqlException(GnrException): #CHECK THERE IS ANOTHER CLASS WITH THE SAME NAME INSIDE GNRSQL 
-    """Exceptions raised for sql errors
         
-    :param code: error code
-    :param message: explanation of the error
+class GnrSqlException(GnrException):
+    """Standard Gnr Sql Base Exception
+    
+    * **code**: GNRSQL-001
+    * **description**: Genro SQL Base Exception
     """
-    def __init__(self, code, message=None):
-        if not message and ':' in code:
-            code, message = code.split(':', 1)
-        self.code = code
-        self.message = message
-        
+    code = 'GNRSQL-001'
+    description = '!!Genro SQL base exception'
+
 class GnrNonExistingDbException(GnrSqlException):
     def __init__(self, dbname):
         self.dbname = dbname
