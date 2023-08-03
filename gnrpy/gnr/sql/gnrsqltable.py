@@ -42,12 +42,13 @@ from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
-
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingColumn
+from gnr.sql.gnrsql import GnrSqlException
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingColumn
 from collections import defaultdict
 from datetime import datetime
 import logging
 import threading
+
 
 __version__ = '1.0b'
 gnrlogger = logging.getLogger(__name__)
