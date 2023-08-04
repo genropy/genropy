@@ -2321,7 +2321,7 @@ class GnrFormBuilder(object):
                     groupHiddenTargets.push(tdNode.domNode)
                     groupHiddenTargets.push(tdNode.getChild('parent/'+tdNode.label.replace('_f','_l')).domNode);
                 """ %onCreated
-            if '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
+            if lbl and '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
                 field['_valuelabel'] = lbl
             if 'lbl_href' in field:
                 lblhref = field.pop('lbl_href')
