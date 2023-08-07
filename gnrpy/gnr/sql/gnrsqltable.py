@@ -42,13 +42,12 @@ from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
+
 from gnr.sql.gnrsql import GnrSqlException
-from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 from collections import defaultdict
 from datetime import datetime
 import logging
 import threading
-
 
 __version__ = '1.0b'
 gnrlogger = logging.getLogger(__name__)
@@ -309,17 +308,6 @@ class SqlTable(GnrObject):
                 return "$%(field)s =:env_current_%(path)s" %partitionParameters
             elif env.get('allowed_%(path)s' %partitionParameters):
                 return "( $%(field)s IS NULL OR $%(field)s IN :env_allowed_%(path)s )" %partitionParameters
-            else:
-                partitionColumn = self.column(partitionParameters["field"])
-                relation_path = getattr(partitionColumn,'relation_path',None) or partitionParameters["field"]
-                allowedPartitionField = [f'@{c}' if not c.startswith('@') else c for c in relation_path.split('.')]+['__allowed_partition']
-                allowedPartitionField = '.'.join(allowedPartitionField)
-                try:
-                    allowedPartitionColumn = self.column(allowedPartitionField)
-                except GnrSqlMissingField:
-                    allowedPartitionColumn = None
-                if allowedPartitionColumn is not None:
-                    return f'{allowedPartitionField} IS TRUE'
 
     @property
     def partitionParameters(self):
