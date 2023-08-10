@@ -43,7 +43,6 @@ from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
-from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 from collections import defaultdict
 from datetime import datetime
 import logging
@@ -316,7 +315,7 @@ class SqlTable(GnrObject):
                 allowedPartitionField = '.'.join(allowedPartitionField)
                 try:
                     allowedPartitionColumn = self.column(allowedPartitionField)
-                except GnrSqlMissingField:
+                except:
                     allowedPartitionColumn = None
                 if allowedPartitionColumn is not None:
                     return f'{allowedPartitionField} IS TRUE'
