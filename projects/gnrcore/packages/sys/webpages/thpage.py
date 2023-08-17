@@ -55,6 +55,9 @@ class GnrCustomWebPage(object):
 
     #FOR ALTERNATE MAIN HOOKS LOOK AT public:TableHandlerMain component
     def main(self,root,th_pkey=None,single_record=None,pkey=None,**kwargs):
+        tblattr = self.db.table(self.maintable).attributes
+        if not self.application.allowedByPreference(**tblattr):
+            raise self.exception('generic',description=f'Table {self.maintable} not allowed by preference')
         callArgs = self.getCallArgs('th_pkg','th_table','th_pkey')  
         root.data('gnr.pagename', self.pagename)
         pkey = pkey or callArgs.pop('th_pkey',None)  
