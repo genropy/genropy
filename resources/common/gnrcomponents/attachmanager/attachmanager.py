@@ -104,6 +104,7 @@ class Form(BaseComponent):
                         ask = askMetadata,
                         selfsubscribe_inserted_attachment="""this.form.goToRecord($1.record_id);""",
                         onUploadingMethod=self.onUploadingAttachment,
+                        onUploadedMethod=self.onUploadedAttachment,
                         rpc_maintable_id='=#FORM.record.maintable_id',
                         rpc_attachment_table=fattr.get('table'),
                         nodeId='%(frameCode)s_uploader' %fattr)
@@ -375,7 +376,16 @@ class AttachManager(BaseComponent):
             if v is not None and attachment_tblobj.column(k) is not None:
                 record[k] = v
         attachment_tblobj.insert(record)
+        kwargs['attachment_id'] = record['id']
         self.db.commit()        
         self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
 
-
+    @public_method
+    def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
+                                attachment_id=None, **kwargs):
+        attachment_table = kwargs.get('attachment_table')
+        maintable_id = kwargs.get('maintable_id')
+        filename = kwargs.get('filename')
+        attachment_tblobj =  self.db.table(attachment_table)
+        attachment_tblobj.onUploadedAttachment(attachment_id)
+        
