@@ -3778,7 +3778,6 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
-        var val,xval;
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
@@ -3791,6 +3790,10 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             store._identifier = store.rootDataNode().attr['id'] || storeAttrs['storeid'] || 'id';
         }
         store.searchAttr = attributes.searchAttr;
+        if(attributes.fullTextSearch){
+            attributes.queryExpr = "*${0}*"
+            attributes.autoComplete = false;
+        }
         attributes.store = store;
         return savedAttrs;
     },
