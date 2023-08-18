@@ -3541,10 +3541,11 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     y = (y < cutoff) ? century + y : century - 100 + y;
                 }
                 r = new Date(y,m,d,hours,minutes,seconds);  
-                if(doSetValue && !isEqual(r,this.sourceNode.getRelativeData(this.sourceNode.attr.value))){
+                let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+                if(doSetValue && !isEqual(r,latestValue)){
                     setTimeout(function(){
                         r._gnrdtype = that.gnr._dtype;
-                        that.setValue(r,true);
+                        that.sourceNode.setRelativeData(that.sourceNode.attr.value,r);
                     },1);
                 }
                 return r;
