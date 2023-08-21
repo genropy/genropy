@@ -1578,6 +1578,10 @@ class AttachmentTable(GnrDboTable):
                 snode.delete()
         except Exception:
             return
+    
+    def onUploadedAttachment(self, attachment_id=None, **kwargs):
+        pass
+    
 
 class TotalizeTable(GnrDboTable):
     def totalize_exclude(self,record=None,old_record=None):
