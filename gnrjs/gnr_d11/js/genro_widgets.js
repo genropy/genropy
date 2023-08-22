@@ -3578,7 +3578,13 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
     },
     onBuilding:function(sourceNode){
         sourceNode.freeze();
-        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let cm = sourceNode._('comboMenu',{'_class':'menupane',onOpen:function(){
+            let datatime = sourceNode.getAttributeFromDatasource('value');
+            let kw = splitDateAndTime(datatime);
+            sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
+            sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
+
+        }});
         let box = cm._('menuItem',{})._('div',{'padding':'5px'});
         var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
         let dateValue = `${sourceNode.attr.value}?_date`;
