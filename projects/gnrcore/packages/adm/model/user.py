@@ -271,9 +271,9 @@ class Table(object):
     @public_method
     def inviteUser(self, username=None, email=None, group_code=None, 
                             inviting_table=None, inviting_id=None, **kwargs):
-        new_user = self.newrecord(username=username, email=email, group_code=group_code, 
-                                                        status='invt', **kwargs)
+        new_user = self.newrecord(username=username, email=email, group_code=group_code, status='invt', **kwargs)
         self.insert(new_user)
-        with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
-            inviting_rec['user_id'] = new_user['id']
+        if inviting_table:
+            with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
+                inviting_rec['user_id'] = new_user['id']
         self.db.commit()
