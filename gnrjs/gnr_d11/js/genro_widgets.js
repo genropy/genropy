@@ -505,9 +505,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var n = genro.getDataNode(npath);
             let v = n.getValue();
             genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
-            n.attr._keep = keepOn?v:null;
+            n.attr._keep = keepOn;
             if(sourceNode.form){
-                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),n._value,n.attr._keep);
+                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
             }
         };
         sourceNode.subscribe('onSetValueInData',function(value){
@@ -515,7 +515,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),value,n.attr._keep);
             }else if(sourceNode.attr.keepable == '*'){
-                n.attr._keep = value;
+                n.attr._keep = true;
             }
         });
         let dataNode = genro.getDataNode(npath);
