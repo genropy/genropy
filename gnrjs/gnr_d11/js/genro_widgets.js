@@ -505,9 +505,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var n = genro.getDataNode(npath);
             let v = n.getValue();
             genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
-            n.attr._keep = keepOn?v:null;
+            n.attr._keep = keepOn;
             if(sourceNode.form){
-                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),n._value,n.attr._keep);
+                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
             }
         };
         sourceNode.subscribe('onSetValueInData',function(value){
@@ -515,7 +515,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),value,n.attr._keep);
             }else if(sourceNode.attr.keepable == '*'){
-                n.attr._keep = value;
+                n.attr._keep = true;
             }
         });
         let dataNode = genro.getDataNode(npath);
@@ -3578,7 +3578,13 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
     },
     onBuilding:function(sourceNode){
         sourceNode.freeze();
-        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let cm = sourceNode._('comboMenu',{'_class':'menupane',onOpen:function(){
+            let datatime = sourceNode.getAttributeFromDatasource('value');
+            let kw = splitDateAndTime(datatime);
+            sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
+            sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
+
+        }});
         let box = cm._('menuItem',{})._('div',{'padding':'5px'});
         var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
         let dateValue = `${sourceNode.attr.value}?_date`;
@@ -3778,7 +3784,6 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
-        var val,xval;
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
@@ -3791,6 +3796,10 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             store._identifier = store.rootDataNode().attr['id'] || storeAttrs['storeid'] || 'id';
         }
         store.searchAttr = attributes.searchAttr;
+        if(attributes.fullTextSearch){
+            attributes.queryExpr = "*${0}*"
+            attributes.autoComplete = false;
+        }
         attributes.store = store;
         return savedAttrs;
     },
