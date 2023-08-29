@@ -326,8 +326,9 @@ class TableHandlerForm(BaseComponent):
         defaultPrompt = options.get('defaultPrompt')
         if defaultPrompt:
             form.attributes['form_defaultPrompt']  = defaultPrompt
+        options_default_kwargs = dictExtract(options,'default_',slice_prefix=False)
         
-        form.store.handler('load',onLoadingHandler=self._th_hook('onLoading',mangler=mangler))
+        form.store.handler('load',onLoadingHandler=self._th_hook('onLoading',mangler=mangler),**options_default_kwargs)
         form.store.handler('save',onSavingHandler=self._th_hook('onSaving',mangler=mangler),
                                  onSavedHandler=self._th_hook('onSaved',mangler=mangler))
         form._current_options = options
