@@ -2673,13 +2673,17 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 }
             }
         }
+        ctxSourceNode._lastContextClickEvent = e
         genro._lastCtxTargetSourceNode = ctxSourceNode;
         this.ctxTargetSourceNode = ctxSourceNode;
         if (sourceNode) {
             var resolver = sourceNode.getResolver();
             if (resolver && resolver.expired()) {
+                var optkwargs = {};
+                optkwargs.parameters = {'contextClickEvent':e};
                 if(sourceNode.attr.onOpeningMenu){
-                    var optkwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode);
+                    let extraOptKwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode) || {};
+                    objectUpdate(optkwargs,extraOptKwargs)
                 }
                 var result = sourceNode.getValue('notrigger',optkwargs);
                 if (result instanceof gnr.GnrBag) {
