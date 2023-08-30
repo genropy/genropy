@@ -3579,21 +3579,28 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
     onBuilding:function(sourceNode){
         sourceNode.freeze();
         let cm = sourceNode._('comboMenu',{'_class':'menupane',onOpen:function(){
-            let datatime = sourceNode.getAttributeFromDatasource('value');
-            let kw = splitDateAndTime(datatime);
-            sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
-            sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
-
+            let datetime = sourceNode.getAttributeFromDatasource('value');
+            if(datetime){
+                let kw = splitDateAndTime(datetime);
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
+            }
         }});
         let box = cm._('menuItem',{})._('div',{'padding':'5px'});
         var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
         let dateValue = `${sourceNode.attr.value}?_date`;
-        let timeValue = `${sourceNode.attr.value}?_time`;
-        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true});
+        var timeValue = `${sourceNode.attr.value}?_time`;
+        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true,
+                                    validate_onAccept:function(value,userChanged){
+                                        let currentTimeValue = this.getRelativeData(timeValue);
+                                        if(!currentTimeValue){
+                                            this.setRelativeData(timeValue, newTimeObject());
+                                        }
+                                    }});
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
-                                        formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue,_if:'d&&t'});
+                                        formula:'combineDateAndTime(d,t || d)',
+                                        d:dateValue,t:timeValue,_if:'d'});
         sourceNode.unfreeze(true);
 
     },
