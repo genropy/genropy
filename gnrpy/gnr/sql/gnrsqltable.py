@@ -570,7 +570,7 @@ class SqlTable(GnrObject):
         :param record: an object implementing dict interface as colname, colvalue
         :param null: TODO"""
         converter = self.db.typeConverter
-        record._coerce_errors = {}
+        _coerce_errors = []
         for k in list(record.keys()):
             if not k.startswith('@'):
                 if self.column(k) is None:
@@ -607,10 +607,9 @@ class SqlTable(GnrObject):
                         sizelist = colattr['size'].split(':')
                         max_size = int(sizelist[1] if len(sizelist)>1 else sizelist[0])
                         if len(record[k])>max_size:
-                            record._coerce_errors[k] = dict(message=f'Max len exceeded for field {k} {record[k]} ({max_size})',
-                                                        truncated_value=record[k][:max_size],value=record[k],
-                                                        field=k)
+                            _coerce_errors.append(f'Max len exceeded for field {k} {record[k]} ({max_size})')
                             record[k] = None
+        record._coerce_errors = ','.join(_coerce_errors)
 
 
 
