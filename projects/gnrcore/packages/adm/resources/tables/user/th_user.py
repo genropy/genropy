@@ -212,12 +212,14 @@ class FormProfile(BaseComponent):
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
         if self.getService('2fa'):
-            button = fb.button('Enable 2fa')
-            button.dataController("""dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
+            fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa').dataController(
+                                """dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
                                     dlg.widget.show()
-                                    """,
-                                  dlg=self._dlg2faQrcode(fb),
-                                  avatar_secret_2fa='=FORM.record.avatar_secret_2fa')
+                                """,
+                                dlg=self._dlg2faQrcode(fb),
+                                avatar_secret_2fa='=FORM.record.avatar_secret_2fa')
+            fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v').dataController(
+                                """SET #FORM.record.avatar_secret_2fa=null;""")
             fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
             fb.div('^#FORM.record.avatar_secret_2fa?=#v?"2FA enabled":"2FA not enabled"')
             dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
