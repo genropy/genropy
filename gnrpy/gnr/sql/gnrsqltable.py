@@ -570,6 +570,7 @@ class SqlTable(GnrObject):
         :param record: an object implementing dict interface as colname, colvalue
         :param null: TODO"""
         converter = self.db.typeConverter
+        record._coerce_errors = {}
         for k in list(record.keys()):
             if not k.startswith('@'):
                 if self.column(k) is None:
@@ -591,6 +592,7 @@ class SqlTable(GnrObject):
                             v = converter.fromText(record[k], dtype)
                             if isinstance(v,tuple):
                                 v = v[0]
+                    
                     if 'rjust' in colattr:
                         v = v.rjust(int(colattr['size']), colattr['rjust'])
                         
@@ -600,6 +602,17 @@ class SqlTable(GnrObject):
                 if isinstance(record[k],str):
                     record[k] = record[k].strip()
                     record[k] = record[k] or None #avoid emptystring
+                    size = colattr.get('size')
+                    if size:
+                        sizelist = colattr['size'].split(':')
+                        max_size = int(sizelist[1] if len(sizelist)>1 else sizelist[0])
+                        if len(record[k])>max_size:
+                            record._coerce_errors[k] = dict(message=f'Max len exceeded for field {k} {record[k]} ({max_size})',
+                                                        truncated_value=record[k][:max_size],value=record[k],
+                                                        field=k)
+                            record[k] = None
+
+
 
     def buildrecord(self, fields, resolver_one=None, resolver_many=None):
         """Build a new record and return it
@@ -1845,6 +1858,7 @@ class SqlTable(GnrObject):
             return joiner.join([str(record.get(col)) for col in self.attributes.get('pkey_columns').split(',') if record.get(col) is not None])
         elif record.get('__syscode'):
             sysparscb = getattr(self,f'sysRecord_{record["__syscode"]}',None)
+            return 
             syspars = sysparscb() if sysparscb else {}
             if syspars.get(pkeyfield):
                 return syspars[pkeyfield]
