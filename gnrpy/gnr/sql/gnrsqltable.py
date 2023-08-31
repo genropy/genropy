@@ -1857,7 +1857,6 @@ class SqlTable(GnrObject):
             return joiner.join([str(record.get(col)) for col in self.attributes.get('pkey_columns').split(',') if record.get(col) is not None])
         elif record.get('__syscode'):
             sysparscb = getattr(self,f'sysRecord_{record["__syscode"]}',None)
-            return 
             syspars = sysparscb() if sysparscb else {}
             if syspars.get(pkeyfield):
                 return syspars[pkeyfield]
