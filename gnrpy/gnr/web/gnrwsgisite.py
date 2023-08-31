@@ -937,13 +937,13 @@ class GnrWsgiSite(object):
                 log.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
                 log.exception(str(exc))
                 raise
+
             if not (page and page._call_handler):
                 return self.not_found_exception(environ, start_response)
             self.currentPage = page
             self.onServingPage(page)
             try:
                 result = page()
-
                 if page.download_name:
                     download_name = str(page.download_name)
                     content_type = getattr(page,'forced_mimetype',None) or mimetypes.guess_type(download_name)[0]
@@ -961,6 +961,8 @@ class GnrWsgiSite(object):
                 return self.serve_htmlPage('html_pages/unsupported.html', environ, start_response)
             except GnrMaintenanceException:
                 return self.serve_htmlPage('html_pages/maintenance.html', environ, start_response)
+            except HTTPNotFound:
+                return self.serve_htmlPage('html_pages/missing_result.html', environ, start_response)
             finally:
                 self.onServedPage(page)
                 self.cleanup()
