@@ -24,7 +24,6 @@ const dataTableFromBag = function(data,columns,datamode){
     }
     let result = new google.visualization.DataTable();
     for(let c of columns){
-        console.log('adding column',c.type, c.label)
         result.addColumn(c.type, c.label);
     }
     result.addRows(data.getNodes().map(n => {
