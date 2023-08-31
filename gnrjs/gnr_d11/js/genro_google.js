@@ -38,15 +38,40 @@ const dataTableFromBag = function(data,columns,datamode){
     return result;
 };
 
-const dataTableFromGrid = function(grid){
+const hierarchicalDataTableFromBag = function(data){
+    let result = new google.visualization.DataTable();
+    result.addColumn('string', 'Caption');
+    result.addColumn('string', 'Parent');
+    result.addRows(data.getIndex().map(l=>{
+        return [{v:l[0].join('.'),f:l[1].attr.label},l[0].slice(0,-1).join('.')]
+    }));
+    return result;
+
+};
+
+const dataTableFromGrid = function(grid,given_columns){
     if(typeof(grid)=='string'){
         grid = genro.wdgById(grid);
     }
     let data = grid.storebag();
-    let struct = grid.structbag();    
-    let columns = struct.getItem('view_0.rows_0').getNodes().map(n => {
-        return {'type':GoogleTypeConverter[n.attr.dtype] || 'string','label':n.attr.name || n.attr.field,'field':n.attr.field_getter || n.attr.field};
-    });
+    let struct = grid.structbag();   
+    var columns = [];
+    var cells = struct.getItem('view_0.rows_0');
+    if(given_columns){
+        columns = given_columns.map(c=>{
+            let result = {...c};
+            let cell = cells.getNodeByAttr('field',c.field).attr;
+            if(!result.type){
+                result.type = GoogleTypeConverter[cell.dtype] || 'string';
+            }
+            result.label = result.label || cell.name || result.field;
+            return result;
+        });
+    }else{
+        columns = cells.getNodes().map(n => {
+            return {'type':GoogleTypeConverter[n.attr.dtype] || 'string','label':n.attr.name || n.attr.field,'field':n.attr.field_getter || n.attr.field};
+        });
+    }
     return dataTableFromBag(data,columns)
 };
 
@@ -55,9 +80,24 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
         this._domtag = 'div';
     },
     creating: function(attributes, sourceNode) {
-        let chartAttributes = objectExtract(attributes,'chart_*');
+        let chartAttributes = objectExtract(attributes,'chart_*',true);
+        objectUpdate(chartAttributes,objectExtract(attributes,'title'))
         attributes.id = attributes.nodeId || 'gchart_'+genro.getCounter();
         let connectedGrid = objectPop(attributes,'grid');
+        let columns = attributes.columns;
+        sourceNode.attr._workspace = true;
+        if(columns && typeof(columns)!='string'){
+            let columnsBag = columns;
+            if(!(columns instanceof gnr.GnrBag)){
+                columnsBag = new gnr.GnrBag();
+                columns.forEach((c,idx)=>{
+                    columnsBag.addItem('r_'+idx,null,c);
+                });
+            }
+            attributes.columns = '^#WORKSPACE.columns';
+            sourceNode.setRelativeData('#WORKSPACE.columns',columnsBag);
+            sourceNode.attr.columns = attributes.columns;
+        }
         let storepath = connectedGrid? connectedGrid.absDatapath(connectedGrid.attr.storepath):attributes.storepath;
         attributes.storepath = storepath;
         attributes.containerId = attributes.id
@@ -66,6 +106,7 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
         sourceNode.attr.storepath = storepath;
         sourceNode.registerDynAttr('storepath');
         sourceNode._connectedGrid = connectedGrid;
+        sourceNode.attr.chartAttributes = chartAttributes;
         return {chartAttributes:chartAttributes}
     },
     created:function(widget, savedAttrs, sourceNode){
@@ -83,7 +124,7 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
 
     initialize:function(widget,chartAttributes,sourceNode){
         sourceNode._chartWrapper = new google.visualization.ChartWrapper({
-            chartType: chartAttributes.type,
+            chartType: sourceNode.attr.chartType,
             dataTable: this.getDataTable(sourceNode),
             options: this.getOptions(sourceNode),
             containerId: sourceNode.attr.containerId
@@ -92,14 +133,32 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
     },
 
     getOptions:function(sourceNode){
-        return {};
+        let result = sourceNode.evaluateOnNode(sourceNode.attr.chartAttributes);
+        return result;
+    },
+
+
+    getColumns:function(sourceNode){
+        let columns = sourceNode.getAttributeFromDatasource('columns');
+        if(columns instanceof gnr.GnrBag){
+            return columns.getNodes().map((n)=>{
+                return {'type':GoogleTypeConverter[n.attr.dtype],
+                         'label':n.attr.name || n.attr.field,
+                         'field':n.attr.field_getter || n.attr.field};
+            });
+        }
+        return columns;
     },
 
     getDataTable:function(sourceNode){
+        let columns = this.getColumns(sourceNode);
         if(sourceNode._connectedGrid){
-            return dataTableFromGrid(sourceNode._connectedGrid.widget);
+            return dataTableFromGrid(sourceNode._connectedGrid.widget,columns);
         }
-        return dataTableFromBag(sourceNode.getRelativeData(sourceNode.attr.storepath));
+        if(sourceNode.attr.chartType=='OrgChart'){
+            return hierarchicalDataTableFromBag(sourceNode.getRelativeData(sourceNode.attr.storepath));
+        }
+        return dataTableFromBag(sourceNode.getRelativeData(sourceNode.attr.storepath),columns);
     },
 
     mixin_gnr_getDataTable:function(){
@@ -107,7 +166,11 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
     },
 
     mixin_gnr_storepath:function(value){
+        this.sourceNode._chartWrapper.dataTable = this.gnr_getDataTable();
+        this.sourceNode._chartWrapper.draw();
+    },
 
+    mixin_gnr_columns:function(value){
         this.sourceNode._chartWrapper.dataTable = this.gnr_getDataTable();
         this.sourceNode._chartWrapper.draw();
     },

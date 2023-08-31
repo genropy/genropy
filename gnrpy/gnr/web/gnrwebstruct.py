@@ -1509,6 +1509,14 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if struct or columns or not structpath:
             paletteGrid.gridStruct(struct=struct,columns=columns)
         return paletteGrid
+    
+    def googlechart(self,chartType=None,**kwargs):
+        return self.child('GoogleChart',chartType=chartType,**kwargs)
+    
+    def googlechart_column(self,field=None,name=None,dtype=None,**kwargs):
+        columns = self.attributes.setdefault('columns',[])
+        return columns.append(dict(field=field,name=name,dtype=dtype,**kwargs))
+
         
     def includedview_draganddrop(self,dropCodes=None,**kwargs):
         ivattr = self.attributes
