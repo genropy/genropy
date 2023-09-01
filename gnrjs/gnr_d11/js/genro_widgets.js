@@ -2680,7 +2680,6 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             var resolver = sourceNode.getResolver();
             if (resolver && resolver.expired()) {
                 var optkwargs = {};
-                optkwargs.parameters = {'contextClickEvent':e};
                 if(sourceNode.attr.onOpeningMenu){
                     let extraOptKwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode) || {};
                     objectUpdate(optkwargs,extraOptKwargs)
