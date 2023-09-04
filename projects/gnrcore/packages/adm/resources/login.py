@@ -30,7 +30,7 @@ class LoginComponent(BaseComponent):
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
         closable_login = closable_login or self.closable_login
         doLogin = self.avatar is None and self.auth_page
-        if doLogin and not self.closable_login and self.index_url:
+        if doLogin and not closable_login and self.index_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
             #pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.index_url), border='0px') 
         loginKwargs = dict(_class='lightboxDialog loginDialog' if self.loginPreference('login_flat') else 'lightboxDialog') 
@@ -158,7 +158,7 @@ class LoginComponent(BaseComponent):
                 fbnode.attr['_avatar'] = '^gnr.avatar.user'
                 fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
                 
-        if gnrtoken:
+        if gnrtoken or not closable_login:
             pane.dataController("""
                             var href = window.location.href;
                             if(window.location.search){
