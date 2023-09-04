@@ -27,7 +27,8 @@ class LoginComponent(BaseComponent):
     external_verifed_user = None
     
     @customizable
-    def loginDialog(self,pane,gnrtoken=None,**kwargs):
+    def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
+        closable_login = closable_login or self.closable_login
         doLogin = self.avatar is None and self.auth_page
         if doLogin and not self.closable_login and self.index_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
@@ -38,7 +39,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(subscribe_openLogin="this.widget.show()",
                           subscribe_closeLogin="this.widget.hide()",**loginKwargs)
         box = dlg.div(**self.loginboxPars())
-        if self.closable_login:
+        if closable_login:
             dlg.div(_class='dlg_closebtn',connect_onclick='PUBLISH closeLogin;')
         login_title = self.loginPreference('login_title')
         new_window_title = self.loginPreference('new_window_title')
@@ -47,7 +48,7 @@ class LoginComponent(BaseComponent):
        #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
-        self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg)
+        self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg,closable_login=closable_login)
         footer = self.login_commonFooter(box)
         self.loginDialog_bottom_left(footer.leftbox,dlg)
         self.loginDialog_bottom_right(footer.rightbox,dlg)
@@ -80,7 +81,7 @@ class LoginComponent(BaseComponent):
     def loginDialog_bottom_right(self,pane,dlg):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
-    def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None):
+    def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
         fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
@@ -157,7 +158,7 @@ class LoginComponent(BaseComponent):
                 fbnode.attr['_avatar'] = '^gnr.avatar.user'
                 fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
                 
-        if gnrtoken or not self.closable_login:
+        if gnrtoken:
             pane.dataController("""
                             var href = window.location.href;
                             if(window.location.search){
@@ -197,12 +198,11 @@ class LoginComponent(BaseComponent):
                     dlg_otp=self.login_otpDialog(pane,dlg).js_widget,subscribe_getOtpDialog=True)
 
         pane.dataController("""
-            LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)
+            LoginComponent.confirmAvatar(fb,rpcmethod,dlg,doLogin,error_msg,standAlonePage)
         """,fb=fb,
             _fired='^do_login',
             rpcmethod=rpcmethod,
             standAlonePage=self.pageOptions.get('standAlonePage'),
-            closable_login=self.closable_login,
             error_msg='!!Invalid login',
             dlg=dlg.js_widget,
             doLogin=doLogin,

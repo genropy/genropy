@@ -1288,7 +1288,7 @@ body.tundra.mimi {
 .mimi._common_d11 .lightboxDialog.loginDialog.dijitDialog{
     padding: 0;
     border:1px solid silver;
-    background:transparent;
+    background:white;
 }
 
 .mimi._common_d11 .lightboxDialog.dijitDialog {
