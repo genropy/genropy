@@ -889,8 +889,9 @@ body.tundra.mimi {
 /* @end */
 
 #mainWindow {
-    background:linear-gradient(to top, #f6f8fa, #ffffff);    
-    font-size: 12px;
+    background:var(--mainWindow-background);    
+    font-size: var(--mainWindow-font-size);
+    color:var(--mainWindow-color);
 }
 
 /* @end */

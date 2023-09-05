@@ -3,4 +3,13 @@
     --root-top-color: #ffffff;
     --frameindex-tablist-background:linear-gradient(to bottom, #a73737, #7a2828);
     --frameindex-tablist-color:#ffffff;
+    --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    --roundedgroup-bar-color:#444;
+    --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    --tab-text-color:#444;
+    --tab-selected-background:white;
+    --tab-selected-color:#ccc;
+    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
+    --mainWindow-font-size:12px;
+    --mainWindow-color:#444;
 }

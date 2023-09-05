@@ -9,4 +9,7 @@
     --tab-text-color:#444;
     --tab-selected-background:white;
     --tab-selected-color:#ccc;
+    --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
+    --mainWindow-font-size:12px;
+    --mainWindow-color:#444;
 }
