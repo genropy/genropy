@@ -241,7 +241,7 @@ class Table(object):
         return True
 
     
-    def sendInvitationEmail(self,user_record=None,**mailkwargs):
+    def sendInvitationEmail(self,user_record=None,template=None,**mailkwargs):
         data = Bag(user_record)
         loginPreference = self.loginPreference()
         tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
@@ -250,11 +250,11 @@ class Table(object):
         data['link'] = self.db.currentPage.externalUrlToken(site.homepage, userid=user_record['id'],max_usages=1)
         data['greetings'] = data['firstname'] or data['lastname']
         email = data['email']
-        if tpl_userconfirm_id:
-            mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id,**mailkwargs)
+        if template or tpl_userconfirm_id:
+            return mailservice.sendUserTemplateMail(record_id=data,template=template,template_id=tpl_userconfirm_id,**mailkwargs)
         else:
             body = loginPreference['confirm_user_tpl'] or 'Dear $greetings to confirm click $link'
-            mailservice.sendmail_template(data,to_address=email,
+            return mailservice.sendmail_template(data,to_address=email,
                                 body=body, subject=loginPreference['subject'] or 'Confirm user',
                                 **mailkwargs)
 
