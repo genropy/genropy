@@ -18,3 +18,13 @@ class Table(object):
         tbl.formulaColumn('group_tags',"array_to_string(ARRAY(#tg),',')",
                                                 select_tg=dict(columns='$tag_code',where='$group_code=#THIS.code',
                                                                distinct=True,table='adm.user_tag'))
+        
+
+    def linkGroupTag(self,group_code=None,tags=None,**kwargs):
+        if tags:
+            tags = tags.split(',')
+        else:
+            tags = [group_code]
+        for tag in tags:
+            tag_id = self.db.table('adm.htag').sysRecord(tag)['id']
+            self.db.table('adm.user_tag').insert({'tag_id':tag_id,'group_code':group_code})
