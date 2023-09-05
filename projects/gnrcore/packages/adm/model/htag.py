@@ -61,14 +61,18 @@ class Table(object):
 
     def createSysRecords(self,do_update=False):
         self.createSysRecords_(do_update=do_update)
-        for pkg,pkgobj in self.db.packages.items():
-            packageTags = pkgobj.attributes.get('packageTags')
-            packageTags = packageTags.split(',') if packageTags else []
-            if not packageTags:
-                continue
-            parent_id = self.checkPackageTag(code=pkg,description=pkg)['id']
-            for code,description in map(lambda c: c.split(':'),packageTags):
-                self.checkPackageTag(code=code,description=description,parent_id=parent_id)
+        for pkg in self.db.packages.keys():
+            self.checkPackageTags(pkg)
+            
+    def checkPackageTags(self,pkg):
+        pkgobj = self.db.package(pkg)
+        packageTags = pkgobj.attributes.get('packageTags')
+        packageTags = packageTags.split(',') if packageTags else []
+        if not packageTags:
+            return
+        parent_id = self.checkPackageTag(code=pkg,description=pkg)['id']
+        for code,description in map(lambda c: c.split(':'),packageTags):
+            self.checkPackageTag(code=code,description=description,parent_id=parent_id)
 
 
     def checkPackageTag(self,code=None,description=None,parent_id=None):
