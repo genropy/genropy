@@ -22,7 +22,7 @@ class Service(AdmMailService):
         self.smtp_account = dict(email_account_id=email_account_id)
     
     @extract_kwargs(headers=True)
-    def sendmail(self,scheduler=None,account_id=None,attachments=None,headers_kwargs=None,**kwargs):
+    def sendmail(self,scheduler=None,account_id=None,attachments=None,headers_kwargs=None,doCommit=None,**kwargs):
         db = self.parent.db
         account_id = account_id or self.getDefaultMailAccount()['account_id']
         if scheduler is None:
@@ -33,8 +33,10 @@ class Service(AdmMailService):
                 if not kwargs.get(k,None):
                     kwargs[k]=v
         if scheduler:
+            if doCommit is None:
+                doCommit = True
             new_message = db.table('email.message').newMessage(attachments=attachments,
-                                                    headers_kwargs=headers_kwargs,doCommit=True,**kwargs)
+                                                    headers_kwargs=headers_kwargs,doCommit=doCommit,**kwargs)
             return new_message
         else:
             kwargs['headers_kwargs'] = headers_kwargs

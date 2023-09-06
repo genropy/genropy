@@ -24,11 +24,13 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 from past.builtins import basestring
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.mail import MailService,MailError
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrdecorator import extract_kwargs
+
 
 class AdmMailService(MailService):
     
@@ -65,6 +67,8 @@ class AdmMailService(MailService):
             tpl = self.parent.db.table('adm.userobject').readColumns(where='$tbl=:tb AND $code=:tc AND $objtype=:ot',
                                                              ot='template',tc=template_code,tb=table,
                                                              columns='$data',bagFields=True)
+        else:
+            raise GnrException('missing parameters for getting template')
         tpl = Bag(tpl)
         metadata = tpl['metadata']
         compiled = tpl['compiled']
@@ -86,7 +90,8 @@ class AdmMailService(MailService):
         if attachments and isinstance(attachments,basestring):
             attachments = attachments.replace('\n',',').split(',')
             attachments = [a for a in attachments if a]
-        assert to_address,'Missing email address'
+        if not to_address:
+            raise GnrException('Missing email address')
         cc_address = set(cc_address.split(',') if cc_address else [])
         bcc_address = set(bcc_address.split(',') if bcc_address else [])
 
