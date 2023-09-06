@@ -241,13 +241,13 @@ class Table(object):
         return True
 
     
-    def sendInvitationEmail(self,user_record=None,template=None,**mailkwargs):
+    def sendInvitationEmail(self,user_record=None,template=None,origin=None,**mailkwargs):
         data = Bag(user_record)
         loginPreference = self.loginPreference()
         tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
         site = self.db.application.site
         mailservice = site.getService('mail')
-        data['link'] = self.db.currentPage.externalUrlToken(site.homepage, userid=user_record['id'],max_usages=1)
+        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, userid=user_record['id'],max_usages=1)
         data['greetings'] = data['firstname'] or data['lastname']
         email = data['email']
         if template or tpl_userconfirm_id:
