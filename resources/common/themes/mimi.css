@@ -59,7 +59,7 @@ body.tundra.mimi {
 }
 
 ._common_d11.tundra .dojoxFloatingPaneTitle {
-    background-image: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    background: var(--dialogtitlebar-background);
     vertical-align: middle;
     text-align: center;
     color: #f6f6f6;
@@ -414,7 +414,7 @@ body.tundra.mimi {
 /* @end */
 
 .tundra._common_d11 .dijitDialogTitleBar {
-    background-image: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    background: var(--dialogtitlebar-background);
     color: #ffffff;
     vertical-align: middle;
     border-top-left-radius: 6px;
@@ -426,7 +426,7 @@ body.tundra.mimi {
 }
 
 .tundra._common_d11 .commonTitleBar {
-    background-image: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
+    background: var(--dialogtitlebar-background);
     color: #ffffff;
     text-align: center;
     font-weight:normal;
@@ -474,11 +474,10 @@ body.tundra.mimi {
 }
 
 ._common_d11 .dijitDialog .dijitDialogPaneContent {
-
-    border-radius:6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
     border: 0px;
     background-color: #f6f6f6;
-
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }

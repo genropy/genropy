@@ -12,4 +12,5 @@
     --mainWindow-background:linear-gradient(to top, #f6f8fa, #ffffff);
     --mainWindow-font-size:12px;
     --mainWindow-color:#444;
+    --dialogtitlebar-background: linear-gradient(to right top, #172b51, #1b3058, #20345e, #243965, #293e6c);
 }
