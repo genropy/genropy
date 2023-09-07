@@ -42,7 +42,7 @@ const LoginComponent = {
         }
     },
 
-    confirmAvatar:(sourceNode,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)=>{
+    confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
         var rootpage = rootenv.getItem('rootpage');
@@ -96,13 +96,11 @@ const LoginComponent = {
                     genro.gotoURL(rootpage);
                 }
                 if(doLogin){
-                    if(!closable_login){
-                        var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                        if(rootpage && !standAlonePage){
-                            genro.gotoURL(rootpage);
-                        }else{
-                            genro.pageReload();
-                        }
+                    var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
+                    if(rootpage && !standAlonePage){
+                        genro.gotoURL(rootpage);
+                    }else{
+                        genro.pageReload();
                     }
                 }else{
                     genro.pageReload({page_id:genro.page_id});

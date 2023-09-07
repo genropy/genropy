@@ -308,15 +308,13 @@ body.tundra.mimi {
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
     font-size: 1em;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
-    color: #444;
+    background:var(--roundedgroup-bar);
+    color:var(--roundedgroup-bar-color);
 	text-indent: 2px;
 }
 
 .pbl_roundedGroupVertical {
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    background:var(--roundedgroup-bar);
 }
 
 
@@ -540,11 +538,9 @@ body.tundra.mimi {
     font-size: .9em;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
-    background-image: none;
-    background:#c2d0e9;
-    background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
+    background:var(--tab-background);
+    color:var(--tab-text-color);
     margin-right: 2px;
-    color: #444;
     font-weight: plain;
     /*background-image:-webkit-gradient(linear, 0% 0%, 0% 90%, from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));
   background-image:-moz-linear-gradient(top, bottom,from(rgba(104,133,142,0.99)), to(rgba(223,223,223,0.99)));*/
@@ -570,8 +566,8 @@ body.tundra.mimi {
 
 ._common_d11 .dijitTabChecked {
     border-bottom-color: transparent;
-    color: #ccc;
-    background-color: white;
+    color: var(--tab-selected-text-color);;
+    background: var(--tab-selected-background);
 }
 
 ._common_d11 .dijitAlignTop .dijitTabChecked, ._common_d11 .dijitAlignTop .dijitTabCloseButtonChecked {
@@ -893,8 +889,9 @@ body.tundra.mimi {
 /* @end */
 
 #mainWindow {
-    background:linear-gradient(to top, #f6f8fa, #ffffff);    
-    font-size: 12px;
+    background:var(--mainWindow-background);    
+    font-size: var(--mainWindow-font-size);
+    color:var(--mainWindow-color);
 }
 
 /* @end */
@@ -1288,7 +1285,7 @@ body.tundra.mimi {
 .mimi._common_d11 .lightboxDialog.loginDialog.dijitDialog{
     padding: 0;
     border:1px solid silver;
-    background:transparent;
+    background:white;
 }
 
 .mimi._common_d11 .lightboxDialog.dijitDialog {

@@ -17,8 +17,9 @@ class GnrCustomWebPage(object):
         "Basic filteringSelect. Choose between available values, then press reset to clear values"
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.data('.code','1')
-        fb.filteringSelect(value='^.code',values='0:Zero,1:One,2:Two',lbl='With code')
-        fb.filteringSelect(value='^.description',values='Zero,One,Two',lbl='No code')
+        fb.filteringSelect(value='^.code',values='0:Zero robot killed,1:One bridge fallen,2:Two babies born',lbl='With code')
+        fb.filteringSelect(value='^.description',values='Zero robot killed,One bridge fallen,Two babies born',lbl='No code',
+                           fullTextSearch=True)
         fb.button('Reset values',action='SET .code=null;SET .description=null')
 
     def test_1_filtering(self,pane):

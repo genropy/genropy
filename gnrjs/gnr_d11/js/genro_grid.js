@@ -1054,38 +1054,72 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if(!grid.gridEditor){
             return;
         }
+        if(!grid.gridEditor.enabled()){
+            return;
+        }
+        var rowsFromClipboard = function(txt){
+            if(!grid.gridEditor){
+                return;
+            }
+            if(!txt || txt[0]!='<'){
+                if(txt && grid.gridEditor.editorPars.pasteCb){
+                    funcApply(grid.gridEditor.editorPars.pasteCb,{'txt':txt},grid)
+                }
+                return;
+            }
+            var rows = new gnr.GnrBag(txt);
+            if(!rows.len()){
+                return;
+            }
+            return rows;
+        };
+        var getEditedRow = function(n){
+            let r = {};
+            for(let k in n.attr){
+                let cell = grid.cellmap[k];
+                if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
+                    r[k] = n.attr[k];
+                }
+            }
+            return r;
+        }
         var pasterows = function(){
             navigator.clipboard.readText().then(function(txt){
-                if(!grid.gridEditor){
-                    return;
-                }
-                if(!txt || txt[0]!='<'){
-                    if(txt && grid.gridEditor.editorPars.pasteCb){
-                        funcApply(grid.gridEditor.editorPars.pasteCb,{'txt':txt},grid)
-                    }
-                    return;
-                }
-                var rows = new gnr.GnrBag(txt);
-                if(!rows.len()){
+                let rows = rowsFromClipboard(txt);
+                if(!rows || rows.len()==0){
                     return;
                 }
                 rows._nodes.forEach(function(n){
-                    let r = {};
+                    let r = getEditedRow(n);
                     let label = '#id';
                     if(grid.rowIdentity(r)){
                         label = flattenString(grid.rowIdentity(r),['.',' '])
-                    }
-                    for(let k in n.attr){
-                        let cell = grid.cellmap[k];
-                        if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
-                            r[k] = n.attr[k];
-                        }
                     }
                     grid.addBagRow(label, '*', grid.newBagRow(r));
                 });
             });
         }
+        var fillfromclipboard = function(){
+            navigator.clipboard.readText().then(function(txt){
+                let rows = rowsFromClipboard(txt);
+                if(!rows || rows.len()==0){
+                    return;
+                }
+                let selectedIdx = grid.getSelectedRowidx();
+                while(selectedIdx.length){
+                    for(let n of rows.getNodes()){
+                        let r = getEditedRow(n);
+                        let editIdx = selectedIdx.shift();
+                        for(let k in r){
+                            grid.gridEditor.setCellValue(editIdx,k,r[k]);
+                        }
+                    }
+                }
+            });
+        };
         menu.setItem('#id',null,{caption:_T('Paste rows from clipboard'),action:pasterows});
+        menu.setItem('#id',null,{caption:_T('Fill rows from clipboard'),action:fillfromclipboard});
+
     },
 
    // cm_plugin_print:function(sourceNode,menu){

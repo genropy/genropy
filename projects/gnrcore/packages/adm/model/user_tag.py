@@ -14,11 +14,11 @@ class Table(object):
         tbl.aliasColumn('user',relation_path='@user_id.username')
         tbl.aliasColumn('fullname',relation_path='@user_id.fullname')
         tbl.aliasColumn('email',relation_path='@user_id.email')
-        tbl.aliasColumn('tag_code',relation_path='@tag_id.hierarchical_code')
         tbl.aliasColumn('tag_description',relation_path='@tag_id.description')
         tbl.aliasColumn('tag_note',relation_path='@tag_id.note')
         tbl.aliasColumn('linked_table',relation_path='@tag_id.linked_table', static=True)
         tbl.aliasColumn('require_2fa','@tag_id.require_2fa')
+        tbl.formulaColumn('tag_code','COALESCE(@tag_id.__syscode,@tag_id.hierarchical_code)')
         tbl.formulaColumn('user_or_group',"COALESCE($user,$group_code)")
 
         #tbl.aliases(relation='@user_id',user='username')

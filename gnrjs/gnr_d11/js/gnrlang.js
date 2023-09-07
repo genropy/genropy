@@ -1930,16 +1930,20 @@ function combineDateAndTime(date, time) {
     return combined;
 }
 
+function newTimeObject(hours,minutes,seconds,milliseconds){
+    let result = new Date(1970,0,1,hours || 0, minutes || 0, seconds || 0, milliseconds || 0);
+    result._gnrdtype = 'H';
+    return result;
+}
+
 function splitDateAndTime(dt){
     let year = dt.getFullYear();
     let month = dt.getMonth();
     let day = dt.getDate();
-
     let date = new Date(year,month,day);
     date._gnrdtype = 'D';
-    let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
+    let time = newTimeObject(dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
     time._gnrdtype = 'H'
-    console.log('time',time)
     return {_date:date,_time:time};
 }
 

@@ -24,36 +24,51 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 from past.builtins import basestring
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.mail import MailService,MailError
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrdecorator import extract_kwargs
 
+
 class AdmMailService(MailService):
     
     
     def sendUserTemplateMail(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
+                            template=None,
                             attachments=None,to_address=None, subject=None,
                             cc_address=None,bcc_address=None,from_address=None,**kwargs):
 
         return self.sendmail(**self.mailParsFromUserTemplate(record_id=record_id,letterhead_id=letterhead_id,
                             template_id=template_id,table=table,template_code=template_code,
+                            template=template,
                             attachments=attachments,to_address=to_address,subject=subject,
                             cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, **kwargs))
     
     @extract_kwargs(extra=True)
     def mailParsFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
-                            attachments=None,to_address=None,subject=None,
-                            cc_address=None,bcc_address=None,from_address=None,extra_kwargs=None, **kwargs):
-        if template_id:
+                            template = None,attachments=None,to_address=None,subject=None,
+                            cc_address=None,bcc_address=None,from_address=None,
+                            extra_kwargs=None, **kwargs):
+        if template:
+            if isinstance(template,Bag):
+                tpl = template
+            else:
+                #template = dict(table='',pkey='',field='')
+                tpl = self.parent.db.table(template['table']).readColumns(pkey=template['pkey'],
+                                                                                columns=f'${template["field"]}',
+                                                                                bagFields=True)
+        elif template_id:
             tpl,table = self.parent.db.table('adm.userobject').readColumns(pkey=template_id,columns='$data,$tbl',bagFields=True)
         elif template_code and table:
             tpl = self.parent.db.table('adm.userobject').readColumns(where='$tbl=:tb AND $code=:tc AND $objtype=:ot',
                                                              ot='template',tc=template_code,tb=table,
                                                              columns='$data',bagFields=True)
+        else:
+            raise GnrException('missing parameters for getting template')
         tpl = Bag(tpl)
         metadata = tpl['metadata']
         compiled = tpl['compiled']
@@ -75,7 +90,8 @@ class AdmMailService(MailService):
         if attachments and isinstance(attachments,basestring):
             attachments = attachments.replace('\n',',').split(',')
             attachments = [a for a in attachments if a]
-        assert to_address,'Missing email address'
+        if not to_address:
+            raise GnrException('Missing email address')
         cc_address = set(cc_address.split(',') if cc_address else [])
         bcc_address = set(bcc_address.split(',') if bcc_address else [])
 
