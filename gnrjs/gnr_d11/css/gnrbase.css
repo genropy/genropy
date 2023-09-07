@@ -1714,6 +1714,17 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     margin-top: 2px;
 }
 
+
+.largemenu .dijitMenuItem td{
+    font-size: 1.2em;
+    padding:5px;
+}
+
+.largemenu.dijitMenu.dijitMenuTable{
+    border:1px solid silver;
+    border-collapse: collapse;
+}
+
 .smallmenu .dijitMenuItem {
     font-size: .9em;
 }
