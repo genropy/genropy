@@ -23,7 +23,7 @@ class Table(object):
 
     def deleteBackupFile(self, filename=None):
         try:
-            path = self.db.application.site.getStaticPath(f'site:maintenance','backups','{filename}.zip')
+            path = self.db.application.site.getStaticPath(f'home:maintenance','backups','{filename}.zip')
             print('backup to delete',path)
             os.remove(path)
         except Exception:
