@@ -115,38 +115,76 @@ class AppPrefHandler(BasePreferenceTabs):
         fb.checkbox(value='^.login_flat',label='!![en]Flat login')
         
     def _ph_appGuiCustomization_templates(self,tc):
-        self._auth_email_confirm_template(tc.borderContainer(title='!![en]New user template'))
-        self._auth_new_password_template(tc.borderContainer(title='!![en]Reset password template'))
+        self._auth_email_confirm_template(tc.borderContainer(title='!![en]New user'))
+        self._auth_new_password_template(tc.borderContainer(title='!![en]Reset password'))
 
     def _auth_email_confirm_template(self,bc):
-        fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
-        fb.dbSelect(value='^.tpl_userconfirm_id',lbl='!![en]New user template',
+        fb = bc.contentPane(region='center').formbuilder(cols=1,border_spacing='3px')
+        fb.dbSelect(value='^.tpl_userconfirm_id',lbl='!![en]New user tpl',
                         dbtable='adm.userobject',
                         condition='$objtype=:tp AND $tbl=:searchtbl',
                         condition_tp='template',
                         condition_searchtbl='adm.user',
                         hasDownArrow=True)
         fb.textbox(value='^.confirm_user_subject',width='30em',lbl='!![en]Subject',
-                                                hidden='^.tpl_userconfirm_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',editor=True,
-                                                hidden='^.tpl_userconfirm_id')
-
+                                                hidden='^.tpl_userconfirm_id',
+                                                placeholder='!![en]Confirm user')
+        fb.simpleTextArea(value='^.confirm_user_tpl',
+                                                height='100px', 
+                                                lbl='!![en]Message body',
+                                                hidden='^.tpl_userconfirm_id', 
+                                                placeholder='!![en]Dear $greetings to confirm click $link')
+        
+        bar = bc.contentPane(region='bottom').slotToolbar('*,sendtest')
+        bar.sendtest.slotButton('!![en]Send test').dataRpc(self.sendTemplateTestEmail,
+                                                           user_record='=gnr.user_record',
+                                                           template_id='=.tpl_userconfirm_id',
+                                                           subject='=.confirm_user_subject',
+                                                           body='=.confirm_user_tpl')
+        
     def _auth_new_password_template(self,bc):
         fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
-        fb.dbSelect(value='^.tpl_new_password_id',lbl='!![en]Reset password template',
+        fb.dbSelect(value='^.tpl_new_password_id',lbl='!![en]Reset password tpl',
                         dbtable='adm.userobject',
                         condition='$objtype=:tp AND $tbl=:searchtbl',
                         condition_tp='template',
                         condition_searchtbl='adm.user',
                         hasDownArrow=True)
         fb.textbox(value='^.confirm_password_subject',width='30em',lbl='!!Subject', 
-                                                hidden='^.tpl_new_password_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True,
-                                                hidden='^.tpl_new_password_id')
+                                                hidden='^.tpl_new_password_id',
+                                                placeholder='!![en]Password recovery')
+        fb.simpleTextArea(value='^.confirm_password_tpl',
+                                                height='100px', 
+                                                lbl='!![en]Message body',
+                                                hidden='^.tpl_new_password_id',
+                                                placeholder='!![en]Dear $greetings set your password $link')
+        
+        bar = bc.contentPane(region='bottom').slotToolbar('*,sendtest')
+        bar.sendtest.slotButton('!![en]Send test').dataRpc(self.sendTemplateTestEmail,
+                                                           user_record='=gnr.user_record',
+                                                           template_id='=.tpl_new_password_id',
+                                                           subject='=.confirm_password_subject',
+                                                           body='=.confirm_password_tpl')
+
+    @public_method
+    def sendTemplateTestEmail(self, user_record=None, template_id=None, subject=None, body=None, **kwargs):
+        user_record['link'] = self.externalUrlToken(self.site.homepage, userid=user_record['user_id'],max_usages=1)
+        user_record['greetings'] = user_record['firstname'] or user_record['lastname']
+        mailservice = self.getService('mail')
+        if template_id:
+            mailservice.sendUserTemplateMail(record_id=user_record, template_id=template_id,
+                                                async_=False, html=True, scheduler=False)
+        else:
+            mailservice.sendmail_template(user_record, to_address=user_record['email'],
+                                    body=body or 'Dear $greetings to confirm click $link', 
+                                    subject=subject or 'Confirm user',
+                                    async_=False, html=True, scheduler=False)
+
 
     def _ph_appGuiCustomization_splashscreen(self,pane):
         pass
  
+
 class UserPrefHandler(BasePreferenceTabs):
     py_requires='preference:UserPref,foundation/tools'
 
