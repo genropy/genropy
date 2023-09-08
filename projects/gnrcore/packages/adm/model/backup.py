@@ -11,7 +11,9 @@ class Table(object):
         tbl.column('name' ,name_long='!!Name')
         tbl.column('start_ts',dtype='DH',name_long='!!Backup start ts')
         tbl.column('end_ts',dtype='DH',name_long='!!Backup end ts')
-        tbl.formulaColumn('dl_link',""" '/_site/maintenance/backups/'|| $name """)
+        tbl.column('file_url', name_long='!!Download')
+        
+        tbl.formulaColumn('completed', "$end_ts IS NOT NULL", name_long='!!Completed')
 
     def trigger_onInserted(self, record):
         if self.db.application.getPreference(path='backups.max_copies',pkg='adm'):

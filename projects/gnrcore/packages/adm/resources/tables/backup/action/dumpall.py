@@ -11,7 +11,7 @@ import shutil
 
 caption = 'Dump all'
 description = 'Dump all'
-tags = 'nobody'
+
 class Main(BaseResourceBatch):
     dialog_height = '450px'
     dialog_width = '650px'
@@ -27,13 +27,13 @@ class Main(BaseResourceBatch):
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
         self.backupSn = self.db.application.site.storageNode(self.dumpfolder,'backups')
-        self.tempSn = self.backupSn.child(self.dump_name)
+        self.tempSn = self.db.application.site.storageNode('site:maintenance', 'backups', self.dump_name)
         
         if self.tempSn.exists:
             self.tempSn.delete()
         self.tempSn.mkdir() #autocreate?
         self.filelist = []
-        self.dump_rec = dict(name=self.dump_name,start_ts=self.ts_start)
+        self.dump_rec = self.tblobj.newrecord(name=self.dump_name,start_ts=self.ts_start)
         self.tblobj.insert(self.dump_rec)
 
 
@@ -41,7 +41,7 @@ class Main(BaseResourceBatch):
         """Dump main db"""
         options = self.batch_parameters['options']
         if not options.get('storeonly'):
-            destname = self.tempSn.child('mainstore').internal_path #fullpath? 
+            destname = self.tempSn.child('mainstore').internal_path 
             self.filelist.append(self.db.dump(destname, excluded_schemas=self.getExcluded(), options=options))
 
     def step_dumpaux(self):
@@ -74,10 +74,6 @@ class Main(BaseResourceBatch):
 
 
     def step_end(self):
-        oldrec = dict(self.dump_rec)
-        self.dump_rec.update(end_ts=datetime.now())
-        self.tblobj.update(self.dump_rec,old_record=oldrec)
-        self.db.commit()
         if len(self.filelist)==1 and self.db.implementation=='postgres':
             filepath = self.filelist[0] #/.../pippo/mainstore.pgd --> /.../pippo.pgd
             fileSn = self.db.application.site.storageNode(filepath)
@@ -92,6 +88,12 @@ class Main(BaseResourceBatch):
         self.page.site.zipFiles(file_list=self.filelist, zipPath=destSn.fullpath)
         self.tempSn.delete()
         self.result_url = destSn.url()
+
+        backup_rec = dict(self.dump_rec)
+        self.dump_rec['end_ts'] = datetime.now()
+        self.dump_rec['file_url'] = destSn.url()
+        self.tblobj.update(self.dump_rec, backup_rec)
+        self.db.commit()
 
     def result_handler(self):
         resultAttr = dict(url=self.result_url)
