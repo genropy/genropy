@@ -22,8 +22,9 @@ class Table(object):
         self.deleteBackupFile(filename=record['name'])
 
     def deleteBackupFile(self, filename=None):
+        backups_folder = self.db.application.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance'
         try:
-            path = self.db.application.site.getStaticPath(f'home:maintenance','backups','{filename}.zip')
+            path = self.db.application.site.getStaticPath(backups_folder,'backups',f'{filename}.zip')
             print('backup to delete',path)
             os.remove(path)
         except Exception:

@@ -23,18 +23,14 @@ class Main(BaseResourceBatch):
     batch_steps = 'dumpmain,dumpaux,end'
 
     def pre_process(self):
-        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance'
-        dumpfolderpath = self.page.site.getStaticPath(self.dumpfolder,'backups',autocreate=-1)
-        
-        self.max_copies = self.page.getPreference(path='backups.max_copies',pkg='adm') or 10
+        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance'        
         self.ts_start = datetime.datetime.now()
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
-        self.folderpath = os.path.join(dumpfolderpath,self.dump_name)
+        self.folderpath = self.db.application.site.storageNode(self.dumpfolder,'backups',self.dump_name).internal_path
         
         if os.path.exists(self.folderpath):
             shutil.rmtree(self.folderpath)
-        #self.folderurl = self.page.site.getStaticUrl(self.dumpfolder,'backups',self.dump_name)
         os.makedirs(self.folderpath)
         self.filelist = []
         self.dump_rec = dict(name=self.dump_name,start_ts=self.ts_start)
