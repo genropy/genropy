@@ -70,8 +70,9 @@ class AppPrefHandler(BasePreferenceTabs):
     @struct_method
     def ph_appGuiCustomization(self,parent,**kwargs):
         tc = parent.tabContainer(**kwargs)
-        self._ph_appGuiCustomization_login(tc.tabContainer(title='!!Login personalizations',datapath='.login',margin='2px',tabPosition="left-h"))
-        self._ph_appGuiCustomization_ownerLogoAndName(tc.contentPane(title='!!Owner name and images',datapath='.owner'))
+        self._ph_appGuiCustomization_login(tc.contentPane(title='!![en]Login customizations',datapath='.login',margin='2px'))
+        self._ph_appGuiCustomization_templates(tc.tabContainer(title='!![en]E-mail templates',datapath='.login',margin='2px', tabPosition='left-h'))
+        self._ph_appGuiCustomization_ownerLogoAndName(tc.contentPane(title='!![en]Owner name and images',datapath='.owner'))
         self._ph_appGuiCustomization_splashscreen(tc.contentPane(title='!!Splashscreen',datapath='.splashscreen'))
         #tc.contentPane(title='Themes')
 
@@ -100,45 +101,48 @@ class AppPrefHandler(BasePreferenceTabs):
                         upload_folder='*')
 
 
-    def _ph_appGuiCustomization_login(self,tc):
-        pane = tc.contentPane(title='Caption and messages')
+    def _ph_appGuiCustomization_login(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-
-        fb.textbox(value='^.login_title',width='30em',lbl='Login title',)
-        fb.textbox(value='^.login_subtitle',width='30em',lbl='Login subtitle')
-        fb.textbox(value='^.new_window_title',width='30em',lbl='New window title')
-        fb.textbox(value='^.lost_password',width='30em',lbl='!!Lost password')
-        fb.textbox(value='^.new_password',width='30em',lbl='New password')
-        fb.textbox(value='^.check_email',width='30em',lbl='Check email')
-        fb.textbox(value='^.confirm_user_title',width='30em',lbl='Confirm user title')
-        fb.textbox(value='^.confirm_user_message',width='30em',lbl='Confirm user message')
-        fb.textbox(value='^.new_user_ok_message',width='30em',lbl='New user ok message')
-        fb.checkbox(value='^.login_flat',label='Flat login')
-        self._auth_email_confirm_template(tc.borderContainer(title='!!Confirm user template'))
-        self._auth_new_password_template(tc.borderContainer(title='!!Confirm new password template'))
+        fb.textbox(value='^.login_title',width='30em',lbl='!![en]Login title',)
+        fb.textbox(value='^.login_subtitle',width='30em',lbl='!![en]Login subtitle')
+        fb.textbox(value='^.new_window_title',width='30em',lbl='!![en]New window title')
+        fb.textbox(value='^.lost_password',width='30em',lbl='!![en]Lost password')
+        fb.textbox(value='^.new_password',width='30em',lbl='!![en]New password')
+        fb.textbox(value='^.check_email',width='30em',lbl='!![en]Check email')
+        fb.textbox(value='^.confirm_user_title',width='30em',lbl='!![en]Confirm user title')
+        fb.textbox(value='^.confirm_user_message',width='30em',lbl='!![en]Confirm user message')
+        fb.textbox(value='^.new_user_ok_message',width='30em',lbl='!![en]New user ok message')
+        fb.checkbox(value='^.login_flat',label='!![en]Flat login')
+        
+    def _ph_appGuiCustomization_templates(self,tc):
+        self._auth_email_confirm_template(tc.borderContainer(title='!![en]New user template'))
+        self._auth_new_password_template(tc.borderContainer(title='!![en]Reset password template'))
 
     def _auth_email_confirm_template(self,bc):
         fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
-        fb.dbSelect(value='^.tpl_userconfirm_id',lbl='!![en]Confirm user template',
+        fb.dbSelect(value='^.tpl_userconfirm_id',lbl='!![en]New user template',
                         dbtable='adm.userobject',
                         condition='$objtype=:tp AND $tbl=:searchtbl',
                         condition_tp='template',
                         condition_searchtbl='adm.user',
                         hasDownArrow=True)
-        fb.textbox(value='^.confirm_user_subject',width='30em',lbl='!!Subject',
+        fb.textbox(value='^.confirm_user_subject',width='30em',lbl='!![en]Subject',
                                                 hidden='^.tpl_userconfirm_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',editor=True)
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_user_tpl',editor=True,
+                                                hidden='^.tpl_userconfirm_id')
 
     def _auth_new_password_template(self,bc):
         fb = bc.contentPane(region='top').formbuilder(cols=1,border_spacing='3px')
-        fb.dbSelect(value='^.tpl_new_password_id',lbl='!![en]New password template',
+        fb.dbSelect(value='^.tpl_new_password_id',lbl='!![en]Reset password template',
                         dbtable='adm.userobject',
                         condition='$objtype=:tp AND $tbl=:searchtbl',
                         condition_tp='template',
                         condition_searchtbl='adm.user',
                         hasDownArrow=True)
-        fb.textbox(value='^.confirm_password_subject',width='30em',lbl='!!Subject', hidden='^.tpl_new_password_id')
-        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True)
+        fb.textbox(value='^.confirm_password_subject',width='30em',lbl='!!Subject', 
+                                                hidden='^.tpl_new_password_id')
+        bc.contentPane(region='center').simpleTextArea(value='^.confirm_password_tpl',editor=True,
+                                                hidden='^.tpl_new_password_id')
 
     def _ph_appGuiCustomization_splashscreen(self,pane):
         pass

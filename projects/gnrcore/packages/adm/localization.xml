@@ -260,8 +260,10 @@
 <en_logout fr="Se Déconnecter" de="Logout" en="Logout" it="Uscire" base="Logout"></en_logout>
 <en_errors_ fr="Erreurs:" de="Fehler:" en="Errors:" it="Errori:" base="Errors:"></en_errors_>
 <en_open_the_page_outside_frame fr="Ouvrez le cadre extérieur de la page" de="Öffnen Sie die Seite Außenrahmen" en="Open the page outside frame" it="Aprire la pagina in tab esterna" base="Open the page outside frame"></en_open_the_page_outside_frame>
-<en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"></en_help>
 <en_open_genro_ide base="Open Genro IDE"></en_open_genro_ide>
+<en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"></en_help>
+<en_open_documentation base="Open documentation" en="Open documentation" it="Apri documentazione"></en_open_documentation>
+<en_ask_for_help base="Ask for help" en="Ask for help" it="Chiedi aiuto"></en_ask_for_help>
 <en_refresh_the_current_page fr="Rafraîchir la page actuelle" de="Aktualisiere die aktuelle Seite" en="Refresh the current page" it="Aggiorna la pagina corrente" base="Refresh the current page"></en_refresh_the_current_page>
 <en_close_the_current_page fr="Fermez la page en cours" de="Schließen Sie die aktuelle Seite" en="Close the current page" it="Chiudere la pagina corrente" base="Close the current page"></en_close_the_current_page>
 <en_new_window fr="Nouvelle fenêtre" de="Neues Fenster" en="New Window" it="Nuova finestra" base="New Window"></en_new_window></frameindex>
@@ -276,19 +278,20 @@
 <en_password fr="Mot de passe" de="Passwort" en="Password" it="Password" base="Password"></en_password>
 <en_group fr="Groupe" en="User Groups" de="Gruppe" it="Gruppi utenza" base="Group"></en_group>
 <en_workdate fr="Workdate" de="Workdate" en="Workdate" it="Data di lavoro" base="Workdate"></en_workdate>
-<en_change_password_link_expired base="Change password link expired"></en_change_password_link_expired>
+<en_change_password_link_expired base="Change password link expired" it="Link modifica password scaduto"></en_change_password_link_expired>
 <en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"></en_email>
 <en_missing_user_for_this_email fr="Utilisateur manquantes pour cet e-mail" de="Fehlende Benutzer für diese E-Mail-" en="Missing user for this email" it="Utente mancante per questa e-mail" base="Missing user for this email"></en_missing_user_for_this_email>
 <en_check_your_email_for_instruction fr="Vérifiez votre email pour l'enseignement" de="Überprüfen Sie Ihre E-Mail für den Unterricht" en="Check your email for instruction" it="Controlla la tua e-mail per l'istruzione" base="Check your email for instruction"></en_check_your_email_for_instruction>
 <en_recover fr="Récupérer" de="Gewinnen" en="Recover" it="Recuperare" base="Recover"></en_recover>
 <en_new_password fr="Nouveau Mot De Passe" de="Neues Passwort" en="New Password" it="Nuova password" base="New password"></en_new_password>
+<en_choose_username base="Choose Username" it="Scegli username"></en_choose_username>
 <en_confirm_password base="Confirm password" en="Confirm password" it="Conferma password"></en_confirm_password>
 <en_passwords_must_be_equal fr="Les mots de passe doivent être égaux" de="Passwörter müssen gleich sein" en="Passwords must be equal" it="Le password devono essere uguali" base="Passwords must be equal"></en_passwords_must_be_equal>
 <en_send fr="Envoyer" de="Senden" en="Send" it="Inviare" base="Send"></en_send>
-<en_otp_validation base="OTP Validation"></en_otp_validation>
-<en_set_the_secure_code_from_your_authentication_app base="Set the secure code from your authentication app"></en_set_the_secure_code_from_your_authentication_app>
+<en_otp_validation base="OTP Validation" it="Validazione OTP"></en_otp_validation>
+<en_set_the_secure_code_from_your_authentication_app base="Set the secure code from your authentication app" it="Imposta codice sicuro sulla tua app di autenticazione"></en_set_the_secure_code_from_your_authentication_app>
 <en_code base="Code" en="Code" it="Codice"></en_code>
-<en_remember_this_client base="Remember this client"></en_remember_this_client>
+<en_remember_this_client base="Remember this client" it="Ricorda questo client"></en_remember_this_client>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm>
 <en_invalid_code base="Invalid code"></en_invalid_code>
 <en_confirm_user fr="Confirmez utilisateur" de="Benutzer bestätigen" en="Confirm User" it="Conferma utente" base="Confirm User"></en_confirm_user>
@@ -306,17 +309,26 @@
 <en_developers base="Developers"></en_developers>
 <en_helpdesk base="Helpdesk"></en_helpdesk>
 <en_screenlock_timeout_minutes_ fr="ScreenLock timeout (minutes)" de="Screenlock Timeout (Minuten)" en="Screenlock timeout (minutes)" it="Screenlock timeout (minuti)" base="Screenlock timeout (minutes)"></en_screenlock_timeout_minutes_></preference>
-<prefhandler><prefhandler path="resources/prefhandler/prefhandler.py" ext="py"><en_login_personalizations base="Login personalizations"></en_login_personalizations>
-<en_owner_name_and_images base="Owner name and images"></en_owner_name_and_images>
-<en_splashscreen base="Splashscreen"></en_splashscreen>
+<prefhandler><prefhandler path="resources/prefhandler/prefhandler.py" ext="py"><en_login_customizations base="Login customizations" it="Personalizzazione login"></en_login_customizations>
+<en_owner_name_and_images base="Owner name and images" it="Proprietario e immagini"></en_owner_name_and_images>
+<en_splashscreen base="Splashscreen" it="Splashscreen"></en_splashscreen>
 <en_owner_name fr="Le nom du propriétaire" de="Besitzer der Datei" en="Owner name" it="Nome del proprietario" base="Owner name"></en_owner_name>
-<en_cover_logo base="Cover logo"></en_cover_logo>
-<en_square_logo base="Square logo"></en_square_logo>
+<en_cover_logo base="Cover logo" it="Logo cover"></en_cover_logo>
+<en_square_logo base="Square logo" it="Logo quadrato"></en_square_logo>
+<en_caption_and_messages base="Caption and messages" it="Etichette e messaggi"></en_caption_and_messages>
+<en_login_title base="Login title" it="Titolo login"></en_login_title>
+<en_login_subtitle base="Login subtitle" it="Sottotitolo login"></en_login_subtitle>
+<en_new_window_title base="New window title" it="Titolo nuova finestra"></en_new_window_title>
 <en_lost_password fr="Mot de passe oublié" de="Passwort vergessen?" en="Lost password" it="Password dimenticata" base="Lost password"></en_lost_password>
-<en_confirm_user_template fr="Confirmez modèle utilisateur" de="Bestätigen Benutzervorlage" en="Confirm user template" it="Confermare modello utente" base="Confirm user template"></en_confirm_user_template>
-<en_confirm_new_password_template fr="Confirmer le nouveau modèle de mot de passe" de="Neues Passwort bestätigen Vorlage" en="Confirm new password template" it="Confermare nuovo modello la password" base="Confirm new password template"></en_confirm_new_password_template>
-<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
-<en_new_password_template base="New password template"></en_new_password_template></prefhandler></prefhandler>
+<en_new_password fr="Nouveau Mot De Passe" de="Neues Passwort" en="New Password" it="Nuova password" base="New password"></en_new_password>
+<en_check_email base="Check email" it="Controlla e-mail"></en_check_email>
+<en_confirm_user_title base="Confirm user title" it="Titolo conferma utente"></en_confirm_user_title>
+<en_confirm_user_message base="Confirm user message" it="Messaggio conferma utente"></en_confirm_user_message>
+<en_new_user_ok_message base="New user ok message" it="Messaggio ok nuovo utente"></en_new_user_ok_message>
+<en_flat_login base="Flat login" it="Login stile piatto"></en_flat_login>
+<en_new_user_template base="New user template" it="Template nuovo utente"></en_new_user_template>
+<en_reset_password_template base="Reset password template" it="Template reset password"></en_reset_password_template>
+<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject></prefhandler></prefhandler>
 <tables><authorization><th_authorization path="resources/tables/authorization/th_authorization.py" ext="py"><en_note fr="Note" de="Note" en="Note" it="Note" base="Note"></en_note></th_authorization></authorization>
 <backup><action><dumpall path="resources/tables/backup/action/dumpall.py" ext="py"><en_backup_name fr="Nom de la sauvegarde" de="Backup-Namen" en="Backup name" it="Nome backup" base="Backup name"></en_backup_name></dumpall></action>
 <th_backup path="resources/tables/backup/th_backup.py" ext="py"><en_this_month base="This month" en="This month" it="Questo mese"></en_this_month></th_backup></backup>
