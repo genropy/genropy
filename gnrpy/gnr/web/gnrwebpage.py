@@ -1959,10 +1959,11 @@ class GnrWebPage(GnrBaseWebPage):
 
 
     @public_method          
-    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None):
+    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None,title=None):
         self.setInClientData(msg_path or 'gnr.servermsg', message,fired=fired,
                                          page_id=pageId, filters=filters,
-                                         attributes=dict(from_user=self.user, from_page=self.page_id))
+                                         attributes=dict(from_user=self.user, from_page=self.page_id,
+                                                         title=title))
 
         
 
