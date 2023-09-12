@@ -269,12 +269,12 @@ class FrameGridTools(BaseComponent):
         }
         """,struct='^.grid.struct')
         gth.dataController(f"""
-            var result = '';
+            var result = [];
             var store = gth.storebag();
             selectedLines.forEach(function(linePkey){{
-                result+=(','+store.getAttr(linePkey,'_pkeylist'));
+                result.push(store.getAttr(linePkey,'_pkeylist'));
             }});
-            SET #{groupedTh}_grid.grouperPkeyList = result;
+            SET #{groupedTh}_grid.grouperPkeyList = result.join(',');
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )

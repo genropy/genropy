@@ -46,7 +46,7 @@ class Table(object):
         self.insert(record)
         return record['id']
 
-    def use_token(self, token, host=None, commit=False):
+    def use_token(self, token, host=None):
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
             record = self.record(id=token, ignoreMissing=True).output('bag')
             record = self.check_token(record, host)
@@ -54,10 +54,8 @@ class Table(object):
                 if record['max_usages']:
                     self.db.table('sys.external_token_use').insert(
                             dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
-                    if commit:
-                        self.db.commit()
+                    self.db.commit()
                 user = record['exec_user']
-                
                 return record['method'], [], dict(record['parameters'] or {}), user
         return None, None, None, None
 
@@ -70,7 +68,7 @@ class Table(object):
         if record['expiry'] and record['expiry'] < dt.now(pytz.utc):
             return False
         if record['max_usages']:
-            uses = self.db.table('sys.external_token_use').query(where='external_token_id =:cid',
+            uses = self.db.table('sys.external_token_use').query(where='$external_token_id =:cid',
                                                                  cid=record['id']).count()
             if uses >= record['max_usages']:
                 return False

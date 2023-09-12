@@ -30,12 +30,21 @@ class GnrSqlException(GnrException): #CHECK THERE IS ANOTHER CLASS WITH THE SAME
     :param code: error code
     :param message: explanation of the error
     """
-    def __init__(self, code, message=None):
+    def __init__(self, code, message=None,):
         if not message and ':' in code:
             code, message = code.split(':', 1)
         self.code = code
         self.message = message
         
+class GnrSqlException(GnrException):
+    """Standard Gnr Sql Base Exception
+    
+    * **code**: GNRSQL-001
+    * **description**: Genro SQL Base Exception
+    """
+    code = 'GNRSQL-001'
+    description = '!!Genro SQL base exception'
+    
 class GnrNonExistingDbException(GnrSqlException):
     def __init__(self, dbname):
         self.dbname = dbname

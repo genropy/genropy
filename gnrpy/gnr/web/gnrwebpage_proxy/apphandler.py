@@ -662,7 +662,11 @@ class GnrWebAppHandler(GnrBaseProxy):
         tblobj = self.db.table(table)
         def cb(r):
             r[counterField] = updaterDict[r[tblobj.pkey]]
-        tblobj.batchUpdate(cb, where='$%s IN:pkeys' %tblobj.pkey, pkeys=pkeys,excludeDraft=False,_raw_update=True)
+        _raw_update = True
+        counterFieldAttr = tblobj.column(counterField).attributes
+        if counterFieldAttr.get('triggerOnUpdate'):
+            _raw_update = False
+        tblobj.batchUpdate(cb, where='$%s IN:pkeys' %tblobj.pkey, pkeys=pkeys,excludeDraft=False,_raw_update=_raw_update)
         self.db.commit()
 
     @public_method      

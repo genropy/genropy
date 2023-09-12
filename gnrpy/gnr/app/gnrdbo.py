@@ -4,7 +4,6 @@
 from __future__ import print_function
 from builtins import str
 from past.builtins import basestring
-
 import datetime
 import warnings as warnings_module
 import os
@@ -496,9 +495,9 @@ class TableBase(object):
         tbl.column('df_colswidth',group='_')
 
 
-    def sysFields_counter(self,tbl,fldname,counter=None,group=None,name_long='!![en]Counter'):
+    def sysFields_counter(self,tbl,fldname,counter=None,group=None,name_long='!![en]Counter',_sysfield=True,**kwargs):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRowCounter',counter=True,
-                            _counter_fkey=counter,group=group,_sysfield=True)
+                            _counter_fkey=counter,group=group,_sysfield=_sysfield,**kwargs)
     
     def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
@@ -1579,6 +1578,10 @@ class AttachmentTable(GnrDboTable):
                 snode.delete()
         except Exception:
             return
+    
+    def onUploadedAttachment(self, attachment_id=None, **kwargs):
+        pass
+    
 
 class TotalizeTable(GnrDboTable):
     def totalize_exclude(self,record=None,old_record=None):

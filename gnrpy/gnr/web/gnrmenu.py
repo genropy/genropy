@@ -109,7 +109,7 @@ class MenuStruct(GnrStructData):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label=None,table=None,tags='',multipage=None, **kwargs):
+    def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
@@ -571,7 +571,7 @@ class TableMenuResolver(MenuResolver):
     @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
                         branchIdentifier=None, cacheTime=None,caption_field=None,branchPage=None,
-                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,**kwargs):
+                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,xmlresolved=None,**kwargs):
         super().__init__(table=table,
                             branchId=branchId,
                             label=label,
@@ -585,6 +585,7 @@ class TableMenuResolver(MenuResolver):
                             add_kwargs=add_kwargs,
                             branchPage=branchPage,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
+        self.xmlresolved = xmlresolved
         self.leaf_kwargs = kwargs
 
     @property
@@ -646,8 +647,12 @@ class TableMenuResolver(MenuResolver):
                 title = linekw.pop('title',self.title)
             else:
                 url_pkey = record['pkey']
+            formatkw = dict(record)
+            webpage = webpage.format(**formatkw)
             result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
-                           url_pkey=url_pkey,filepath=webpage,pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()})
+                           url_pkey=url_pkey,filepath=webpage,
+                           pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()},
+                           **self.leaf_kwargs)
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
             branchPage = True if self.branchPage is None else self.branchPage

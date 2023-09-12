@@ -505,9 +505,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var n = genro.getDataNode(npath);
             let v = n.getValue();
             genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
-            n.attr._keep = keepOn?v:null;
+            n.attr._keep = keepOn;
             if(sourceNode.form){
-                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),n._value,n.attr._keep);
+                sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
             }
         };
         sourceNode.subscribe('onSetValueInData',function(value){
@@ -515,7 +515,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),value,n.attr._keep);
             }else if(sourceNode.attr.keepable == '*'){
-                n.attr._keep = value;
+                n.attr._keep = true;
             }
         });
         let dataNode = genro.getDataNode(npath);
@@ -2673,13 +2673,16 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 }
             }
         }
+        ctxSourceNode._lastContextClickEvent = e
         genro._lastCtxTargetSourceNode = ctxSourceNode;
         this.ctxTargetSourceNode = ctxSourceNode;
         if (sourceNode) {
             var resolver = sourceNode.getResolver();
             if (resolver && resolver.expired()) {
+                var optkwargs = {};
                 if(sourceNode.attr.onOpeningMenu){
-                    var optkwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode);
+                    let extraOptKwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode) || {};
+                    objectUpdate(optkwargs,extraOptKwargs)
                 }
                 var result = sourceNode.getValue('notrigger',optkwargs);
                 if (result instanceof gnr.GnrBag) {
@@ -3541,10 +3544,11 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     y = (y < cutoff) ? century + y : century - 100 + y;
                 }
                 r = new Date(y,m,d,hours,minutes,seconds);  
-                if(doSetValue && !isEqual(r,this.sourceNode.getRelativeData(this.sourceNode.attr.value))){
+                let latestValue = this.sourceNode.getRelativeData(this.sourceNode.attr.value);
+                if(doSetValue && !isEqual(r,latestValue)){
                     setTimeout(function(){
                         r._gnrdtype = that.gnr._dtype;
-                        that.setValue(r,true);
+                        that.sourceNode.setRelativeData(that.sourceNode.attr.value,r);
                     },1);
                 }
                 return r;
@@ -3577,16 +3581,29 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
     },
     onBuilding:function(sourceNode){
         sourceNode.freeze();
-        let cm = sourceNode._('comboMenu',{'_class':'menupane'});
+        let cm = sourceNode._('comboMenu',{'_class':'menupane',onOpen:function(){
+            let datetime = sourceNode.getAttributeFromDatasource('value');
+            if(datetime){
+                let kw = splitDateAndTime(datetime);
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
+            }
+        }});
         let box = cm._('menuItem',{})._('div',{'padding':'5px'});
         var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
         let dateValue = `${sourceNode.attr.value}?_date`;
-        let timeValue = `${sourceNode.attr.value}?_time`;
-        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true});
+        var timeValue = `${sourceNode.attr.value}?_time`;
+        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true,
+                                    validate_onAccept:function(value,userChanged){
+                                        let currentTimeValue = this.getRelativeData(timeValue);
+                                        if(!currentTimeValue){
+                                            this.setRelativeData(timeValue, newTimeObject());
+                                        }
+                                    }});
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
-                                        formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue,_if:'d&&t'});
+                                        formula:'combineDateAndTime(d,t || d)',
+                                        d:dateValue,t:timeValue,_if:'d'});
         sourceNode.unfreeze(true);
 
     },
@@ -3777,7 +3794,6 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
-        var val,xval;
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
@@ -3790,6 +3806,10 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
             store._identifier = store.rootDataNode().attr['id'] || storeAttrs['storeid'] || 'id';
         }
         store.searchAttr = attributes.searchAttr;
+        if(attributes.fullTextSearch){
+            attributes.queryExpr = "*${0}*"
+            attributes.autoComplete = false;
+        }
         attributes.store = store;
         return savedAttrs;
     },

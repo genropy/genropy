@@ -7,8 +7,10 @@
 
 from gnr.lib.services import GnrBaseService
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.core.gnrlang import GnrException
 from base64 import b32encode
 import time
+
 
 class Main(GnrBaseService):
     def __init__(self, parent=None,secret=None,issuer_name=None,image=None,expiry_days=None,**kwargs):
@@ -23,7 +25,10 @@ class Main(GnrBaseService):
         return b32encode(f'{self.secret}_{secret}'.encode()).replace(b'=',b'A')
 
     def getTOTP(self,secret):
-        import pyotp
+        try:
+            import pyotp
+        except:
+            raise GnrException('Missing required pyotp library. Please run pip install pyotp')
         return pyotp.totp.TOTP(self.get2faSecret(secret))
 
 
@@ -34,6 +39,10 @@ class Main(GnrBaseService):
         return verifier.verify(otp=otp,valid_window=1)
     
     def getPrevisioningUri(self,name=None,secret=None,issuer_name=None):
+        try:
+            import qrcode
+        except:
+            raise GnrException('Missing required qrcode library. Please run pip install qrcode')
         otp = self.getTOTP(secret)
         return otp.provisioning_uri(name=name, 
                                   issuer_name=issuer_name or self.issuer_name)

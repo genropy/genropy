@@ -1038,7 +1038,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                'FisheyeList', 'Loader', 'Toaster', 'FileInput', 'fileInputBlind', 'FileInputAuto', 'ColorPicker',
                'SortList', 'TimeSpinner', 'Iterator', 'ScrollPane',
                'Gallery', 'Lightbox', 'SlideShow', 'ThumbnailPicker', 'Chart',
-               'Deck', 'Slide', 'GoogleMap', 'Calendar', 'GoogleChart', 'GoogleVisualization',
+               'Deck', 'Slide', 'GoogleMap','GoogleChart', 'Calendar', 'GoogleChart', 'GoogleVisualization',
                'DojoGrid', 'VirtualGrid', 'VirtualStaticGrid']
                
     #gnrNS=['menu','menuBar','menuItem','Tree','Select','DbSelect','Combobox','Data',
@@ -1509,6 +1509,14 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if struct or columns or not structpath:
             paletteGrid.gridStruct(struct=struct,columns=columns)
         return paletteGrid
+    
+    def googlechart(self,chartType=None,**kwargs):
+        return self.child('GoogleChart',chartType=chartType,**kwargs)
+    
+    def googlechart_column(self,field=None,name=None,dtype=None,**kwargs):
+        columns = self.attributes.setdefault('columns',[])
+        return columns.append(dict(field=field,name=name,dtype=dtype,**kwargs))
+
         
     def includedview_draganddrop(self,dropCodes=None,**kwargs):
         ivattr = self.attributes
@@ -2321,7 +2329,7 @@ class GnrFormBuilder(object):
                     groupHiddenTargets.push(tdNode.domNode)
                     groupHiddenTargets.push(tdNode.getChild('parent/'+tdNode.label.replace('_f','_l')).domNode);
                 """ %onCreated
-            if '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
+            if lbl and '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
                 field['_valuelabel'] = lbl
             if 'lbl_href' in field:
                 lblhref = field.pop('lbl_href')

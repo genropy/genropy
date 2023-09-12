@@ -256,7 +256,7 @@ class FrameIndex(BaseComponent):
 
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,manageDocumentation,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
+        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
                         background='#EEEEEE',border_top='1px solid silver')
         sb.appInfo.div('^gnr.appInfo')
         applogo = sb.applogo.div()
@@ -284,8 +284,6 @@ class FrameIndex(BaseComponent):
         sb.count_errors.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
                             _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
         sb.devlink.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(_class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
-        sb.manageDocumentation.slotButton("!!Help",iconClass='iconbox help',
-                            action='genro.framedIndexManager.openHelpForCurrentIframe();')
 
         #SP: electronAppDownload is still not tested and working fine.
         #if not self.isMobile :
@@ -295,11 +293,30 @@ class FrameIndex(BaseComponent):
                             action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
         sb.debugping.div(_class='ping_semaphore')
 
+    @struct_method
+    def fi_slotbar_helpdesk(self,pane,**kwargs):
+        documentationcb = self.helpdesk_documentation()
+        helpcb = self.helpdesk_help()
+        if not (documentationcb or helpcb):
+            return
+        
+        menu = pane.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
 
+        if documentationcb:
+            menu.menuline('!![en]Open documentation',code='documentation',
+                          action=documentationcb)
+        if helpcb:
+            menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+
+    def helpdesk_documentation(self):
+        return
+
+    def helpdesk_help(self):
+        return 
 
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('20,genrologo,5,applogo,*,debugping,logout,20',
+        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,*,debugping,logout,20',
                               _class='slotbar_toolbar framefooter',height='25px',
                         background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')

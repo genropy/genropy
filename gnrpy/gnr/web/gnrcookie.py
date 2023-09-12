@@ -7,6 +7,7 @@ import sys
 from datetime import date, datetime
 from werkzeug.urls import url_quote_plus
 from werkzeug.urls import url_unquote_plus
+import urllib
 import  marshal
 import hmac
 from werkzeug.datastructures import CallbackDict
@@ -209,7 +210,7 @@ class SecureCookie(ModificationTrackingDict):
         for key, value in sorted(self.items()):
             result.append(
                 (
-                    "%s=%s" % (url_quote_plus(key), self.quote(value).decode("ascii"))
+                    "%s=%s" % (urllib.parse.quote_plus(key), self.quote(value).decode("ascii"))
                 ).encode("ascii")
             )
             mac.update(b"|" + result[-1])
@@ -247,7 +248,7 @@ class SecureCookie(ModificationTrackingDict):
 
                 key, value = item.split(b"=", 1)
                 # try to make the key a string
-                key = url_unquote_plus(key.decode("ascii"))
+                key = urllib.parse.unquote_plus(key.decode("ascii"))
 
                 try:
                     key = to_native(key)
@@ -341,7 +342,7 @@ class BaseCookie(object):
         self._value = value
 
     def output(self):
-        return self.value.encode('ascii')
+        return self._value
 
 class MarshalCookie(SecureCookie):
     serialization_method = marshal

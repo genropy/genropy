@@ -21,13 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 from future import standard_library
 standard_library.install_aliases()
-
-#import gnr.web.gnrcookie as Cookie
-
 from gnr.web.gnrcookie import BaseCookie, MarshalCookie
-#from six.moves.http_cookies import SimpleCookie
-import marshal
-# import apache
 
 
 
@@ -128,8 +122,7 @@ class GnrWebResponse(object):
 
     def add_cookie(self, cookie, **kw):
         res = self._response
-        print(res.headers)
-        if "Set-Cookie" in res.headers:
+        if not "Set-Cookie" in res.headers:
             res.headers.add("Cache-Control", 'no-cache="set-cookie"')
         for k in ("version", "path", "domain", "secure",
             "comment",  "max_age", "expires",

@@ -66,7 +66,6 @@ from builtins import zip
 from builtins import chr
 from builtins import str
 from past.builtins import basestring
-#
 import copy
 import pickle as pickle
 from datetime import datetime, timedelta
@@ -1910,7 +1909,7 @@ class Bag(GnrObject):
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
-    def fillFrom(self, source,**kwargs):
+    def fillFrom(self, source, **kwargs):
         """Fill a void Bag from a source (basestring, Bag or list)
         
         :param source: the source for the Bag"""

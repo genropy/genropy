@@ -947,7 +947,7 @@ dojo.declare("gnr.GridEditor", null, {
                 
             }
         };
-        genro.dlg.prompt(_T('Multi assigment'),promptkw);
+        genro.dlg.prompt(_T('Multi assignment'),promptkw);
     },
 
     onFormatCell:function(cell, inRowIndex,renderedRow){

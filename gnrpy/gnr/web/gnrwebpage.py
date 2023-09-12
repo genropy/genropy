@@ -64,6 +64,7 @@ from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
 import re
 import datetime
+from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -1924,10 +1925,11 @@ class GnrWebPage(GnrBaseWebPage):
 
 
     @public_method          
-    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None):
+    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None,title=None):
         self.setInClientData(msg_path or 'gnr.servermsg', message,fired=fired,
                                          page_id=pageId, filters=filters,
-                                         attributes=dict(from_user=self.user, from_page=self.page_id))
+                                         attributes=dict(from_user=self.user, from_page=self.page_id,
+                                                         title=title))
 
         
 
@@ -2762,13 +2764,11 @@ class GnrWebPage(GnrBaseWebPage):
         bag.pickle('%s.pik' % freeze_path)
         return LazyBagResolver(resolverName=name, location=location, _page=self, sourceBag=bag)
         
-
     def log(self, msg,*args, **kwargs):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print('pagename:{pagename}-:page_id:{page_id} >>\n'.format(pagename=self.pagename,
-                                    page_id=self.page_id),
+        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
                                     args,kwargs)
 
     ##### BEGIN: DEPRECATED METHODS ###

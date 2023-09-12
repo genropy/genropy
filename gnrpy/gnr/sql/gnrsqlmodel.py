@@ -1231,11 +1231,12 @@ class DbTableObj(DbModelObj):
                     raise GnrSqlMissingColumn('Invalid column %s in table %s' % (name, self.name_full))
         if name.startswith('@'):
             relcol = self._relatedColumn(name)
-            assert relcol is not None, 'relation %s does not exist in table %s' %(relcol,name)
+            if relcol is None:
+                raise GnrSqlMissingColumn('relation %s does not exist in table %s' %(name,self.name_full))
             if colalias is None:
                 return relcol
             if not 'virtual_column' in colalias.attributes:
-                raise
+                raise GnrSqlException('Col alias must be virtual_column')
             return AliasColumnWrapper(relcol,colalias.attributes)
 
     def _relatedColumn(self, fieldpath):
@@ -1768,7 +1769,7 @@ class AliasColumnWrapper(DbModelObj):
         mixedattributes = dict(originalColumn.attributes)
         colalias_attributes = dict(aliasAttributes)
         colalias_attributes.pop('tag')
-        colalias_attributes.pop('relation_path')
+        self.relation_path = colalias_attributes.pop('relation_path')
         mixedattributes.update(colalias_attributes)
         virtual_column = mixedattributes.pop('virtual_column', None)
         if virtual_column:
