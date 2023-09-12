@@ -26,7 +26,7 @@ standard_library.install_aliases()
 from builtins import filter
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
+
 
 
 import logging
@@ -127,6 +127,9 @@ class GnrSqlDb(GnrObject):
         :param application: TODO
         """
         self.implementation = implementation
+        self._currentEnv = {}
+        self._connections = {}
+        self.adapters = {}
         self.dbname = self.dbpar(dbname)
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
@@ -138,14 +141,9 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapter = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
-        self.whereTranslator = self.adapter.getWhereTranslator()
-        if main_schema is None:
-            main_schema = self.adapter.defaultMainSchema()
-        self.main_schema = main_schema
-        self._connections = {}
+        self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
+        self.main_schema = main_schema or self.adapter.defaultMainSchema()
         self.started = False
-        self._currentEnv = {}
         self.stores_handler = DbStoresHandler(self)
         self.exceptions = {
             'base':GnrSqlException,
@@ -160,6 +158,17 @@ class GnrSqlDb(GnrObject):
             return os.environ.get(parvalue[1:])
         return parvalue
 
+    @property
+    def whereTranslator(self):
+        return self.adapter.whereTranslator 
+   
+    @property
+    def adapter(self):
+        implementation = self.currentEnv.get('currentImplementation') or self.implementation
+        if implementation not in self.adapters:
+            self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
+        return self.adapters[implementation]
+        
     @property
     def debug(self):
         """TODO"""
@@ -436,9 +445,10 @@ class GnrSqlDb(GnrObject):
     def get_connection_params(self, storename=None):
         if storename and storename != self.rootstore and storename in self.dbstores:
             storeattr = self.dbstores[storename]
-            return dict(host=storeattr.get('host'),database=storeattr.get('database'),
+            return dict(host=storeattr.get('host'),database=storeattr.get('database') or storeattr.get('dbname'),
                         user=storeattr.get('user'),password=storeattr.get('password'),
-                        port=storeattr.get('port'))
+                        port=storeattr.get('port'),
+                        implementation=storeattr.get('implementation') or self.implementation)
         else:
             return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
     
@@ -483,7 +493,7 @@ class GnrSqlDb(GnrObject):
                 sql=sql.replace(chr(1 ), ':')
             #gnrlogger.info('Executing:%s - with kwargs:%s \n\n',sql,unicode(kwargs))
             #print 'sql:\n',sql
-            try:
+            if True:
                 t_0 = time()
                 if not cursor:
                     if cursorname:
@@ -491,6 +501,7 @@ class GnrSqlDb(GnrObject):
                             cursorname = 'c%s' % re.sub('\W', '_', getUuid())
                         cursor = self.adapter.cursor(self.connection, cursorname)
                     else:
+                        cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
                 if isinstance(cursor, list):
                     self._multiCursorExecute(cursor,sql,sqlargs)
@@ -504,15 +515,15 @@ class GnrSqlDb(GnrObject):
                 if self.debugger:
                     self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable,delta_time=time()-t_0)
             
-            except Exception as e:
-                #print sql
-                gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
-                #if self.debugger:
-                #    self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable, error=str(e))
-                print(str('error %s executing:%s - with kwargs:%s \n\n' % (
-                str(e), sql, str(sqlargs).encode('ascii', 'ignore'))))
-                self.rollback()
-                raise
+           #except Exception, e:
+           #    #print sql
+           #    gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, unicode(sqlargs))
+           #    #if self.debugger:
+           #    #    self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable, error=str(e))
+           #    print str('error %s executing:%s - with kwargs:%s \n\n' % (
+           #    str(e), sql, unicode(sqlargs).encode('ascii', 'ignore')))
+           #    self.rollback()
+           #    raise
         
             if autocommit:
                 self.commit()
@@ -1040,27 +1051,27 @@ class TempEnv(object):
         self.kwargs = kwargs
 
     def __enter__(self):
-        if self.db.adapter.support_multiple_connections:
-            currentEnv = self.db.currentEnv
-            self.savedValues = dict()
-            self.addedKeys = []
-            for k,v in list(self.kwargs.items()):
-                if k in currentEnv:
-                    self.savedValues[k] = currentEnv.get(k) 
-                else:
-                    self.addedKeys.append((k,v))
-                currentEnv[k] = v
+        #if self.db.adapter.support_multiple_connections:
+        currentEnv = self.db.currentEnv
+        self.savedValues = dict()
+        self.addedKeys = []
+        for k,v in self.kwargs.items():
+            if k in currentEnv:
+                self.savedValues[k] = currentEnv.get(k) 
+            else:
+                self.addedKeys.append((k,v))
+            currentEnv[k] = v
         return self.db
         
         
     def __exit__(self, type, value, traceback):
-        if self.db.adapter.support_multiple_connections:
-            currentEnv = self.db.currentEnv
-            for k,v in self.addedKeys:
-                if currentEnv.get(k)==v:
-                    currentEnv.pop(k,None)
-            currentEnv.update(self.savedValues)
-            
+        #if self.db.adapter.support_multiple_connections:
+        currentEnv = self.db.currentEnv
+        for k,v in self.addedKeys:
+            if currentEnv.get(k)==v:
+                currentEnv.pop(k,None)
+        currentEnv.update(self.savedValues)
+        
 
 class TriggerStack(object):
     def __init__(self):
@@ -1107,9 +1118,13 @@ class DbStoresHandler(object):
         self.db = db
         if db.application:
             self.config_folder = os.path.join(db.application.instanceFolder, 'dbstores')
+            instance_dbstores = db.application.config['dbstores']
         else:
             self.config_folder = None
+            instance_dbstores = None
         self.dbstores = {}
+        if instance_dbstores:
+            self.dbstores = {n.label:n.attr for n in instance_dbstores}
         self.create_stores()
 
     def get_dbstore(self,storename):

@@ -7,7 +7,7 @@
 # Copyright (c) 2007 Softwell. All rights reserved.
 
 from __future__ import print_function
-#from builtins import object
+
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
@@ -154,7 +154,7 @@ class SqlModelChecker(object):
                 self.actual_relations.setdefault('%s.%s' % (r[1], r[2]), []).append(r)
             self.unique_constraints = self.db.adapter.getTableContraints()
         for pkg in self.db.packages.values():
-            if pkg.attributes.get('readOnly'):
+            if pkg.attributes.get('readOnly') or pkg.attributes.get('storename'):
                 continue
             #print '----------checking %s----------'%pkg.name
             self._checkPackage(pkg)
