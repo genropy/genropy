@@ -845,7 +845,7 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
-    def mobileFormBuilder(self,margin_right=None,**kwargs):
+    def mobileFormBuilder(self,margin_right=None,_class=None,**kwargs):
         margin_right = margin_right or '10px'
         box = self.div(margin_right=margin_right)
         fld_width='100%'
@@ -857,7 +857,7 @@ class GnrDomSrc(GnrStructData):
                         lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class='mobilefields')
+                        _class=_class or 'mobilefields')
         pars.update(kwargs)
         return box.formbuilder(**pars)
         
