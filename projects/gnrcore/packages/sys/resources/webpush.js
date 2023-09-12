@@ -49,8 +49,9 @@ genro.webpush.subscribeUser = function(){
     const vapid_public_key = localStorage.getItem('applicationServerPublicKey');
     if (!vapid_public_key){
         genro.serverCall('webpushGetVapidPublicKey',{},function(vapid_public_key){
+            if (vapid_public_key){
             localStorage.setItem('applicationServerPublicKey',vapid_public_key);
-            genro.webpush.subscribeUser();
+            genro.webpush.subscribeUser();}
         });
         return
     }
