@@ -1190,7 +1190,7 @@ body.tundra.mimi {
 
 .framedindex_tablist{
     background-image: none;
-    background-image:var(--frameindex-tablist-background);
+    background:var(--frameindex-tablist-background);
     color:var(--frameindex-tablist-color);
     min-height: 34px;
 }
