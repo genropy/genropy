@@ -321,7 +321,8 @@ class FrameIndex(BaseComponent):
                               _class='slotbar_toolbar framefooter',height='25px',
                         background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
-        
+        sb.notificationSubscriber.slotButton(action='genro.webpushSubscribe()',iconClass='iconbox bell')
+
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         sb.debugping.div(_class='ping_semaphore')
         applogo = sb.applogo.div()
