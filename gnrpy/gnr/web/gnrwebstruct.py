@@ -1294,13 +1294,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
-    def partitionController(self,partition_key=None,value=None):
+    def partitionController(self,partition_key=None,value=None,**kwargs):
         self.dataController(f"""
             let kw = {{}};
             kw.topic  = 'changed_partition_{partition_key}';
             kw.iframe = '*';
             genro.publish(kw,{{partition_value:value}});
-        """,value=value)
+        """,value=value,**kwargs)
         self.partitionSubscriber(partition_key)
     
     def partitionSubscriber(self,partition_key):
