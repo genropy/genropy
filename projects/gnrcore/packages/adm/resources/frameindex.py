@@ -7,6 +7,7 @@
 
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrbag import Bag
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -31,6 +32,7 @@ class FrameIndex(BaseComponent):
     auth_page = 'user'
     auth_main = 'user'
     menuClass = 'ApplicationMenu'
+    check_tester = False
 
     @property
     def plugin_list(self):
@@ -61,6 +63,12 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        testing_preference = self.getPreference('testing',pkg='adm') or Bag()
+        if self.check_tester and testing_preference['beta_tester_tag'] \
+            and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
+                                                            self.userTags):
+            self.forbiddenPage(root, **kwargs)
+            return
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
                 getattr(self,f'index_{custom_index}')(root)

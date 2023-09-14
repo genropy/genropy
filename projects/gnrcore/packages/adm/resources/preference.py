@@ -37,6 +37,14 @@ class AppPref(object):
         self._adm_backups(tc.contentPane(title='!!Backups', datapath='.backups'))
         self._adm_dev(tc.contentPane(title='!!Developers', datapath='.dev'))
         self._adm_helpdesk(tc.contentPane(title='!!Helpdesk', datapath='.helpdesk',_tags='_DEV_'))
+        self._adm_testing(tc.contentPane(title='!!Testing', datapath='.testing',_tags='superadmin'))
+
+    def _adm_testing(self,pane):
+        fb = pane.formbuilder()
+        fb.dbselect(value='^.beta_tester_tag',table='adm.htag',width='Beta tester tag',
+                    condition='$child_count=0',alternatePkey='authorization_tag',
+                    hasDownArrow=True,lbl='Beta tester')
+        fb.textbox(value='^.test_deny_message',lbl='Deny message')
 
     def _adm_helpdesk(self,pane):
         fb = pane.formbuilder(cols=1)
