@@ -1002,6 +1002,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1333,40 +1341,7 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-    
-    @public_method
-    def webpushSubscribe(self,subscription_token=None):
-        if not self.getService('webpush'):
-            return
-        if self.getService('webpush').isSubscribed(user_id = self.avatar.user_id,
-                                             subscription_token = subscription_token):
-            return
-        return self.getService('webpush').subscribe(user_id = self.avatar.user_id,
-                                             subscription_token = subscription_token)
 
-    @public_method
-    def webpushNotify(self,user=None,sender=None,condition=None,title=None,message=None,url=None,logNotification=None,**kwargs):
-        if not self.getService('webpush'):
-            return
-        return self.getService('webpush').notify(user=user,sender=sender or self.user,
-                                          condition=condition,
-                                          title=title,message=message,
-                                          url=url,logNotification=logNotification,**kwargs)
-
-
-    @public_method
-    def webpushUnsubscribe(self,subscription_token=None):
-        if not self.getService('webpush'):
-            return
-        return self.getService('webpush').unsubscribe(user_id = self.avatar.user_id,
-                                             subscription_token = subscription_token)
-
-    
-    @public_method
-    def webpushGetVapidPublicKey(self):
-        if not self.getService('webpush'):
-            return
-        return self.getService('webpush').vapid_public
 
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO

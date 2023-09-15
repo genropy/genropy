@@ -239,6 +239,10 @@ class GnrBaseService(object):
     def __init__(self, parent,**kwargs):
         self.parent = parent
 
+    @property
+    def currentPage(self):
+        return self.parent.currentPage
+    
     def updateServiceParameters(self,service_parameters=None,**kwargs):
         tblservice = self.parent.db.table('sys.service')
         db = self.parent.db

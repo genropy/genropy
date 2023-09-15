@@ -2203,3 +2203,13 @@ function canAccessIFrame(iframe) {
 
     return(html !== null);
 }
+
+function sessionNameSpaceKey(key,nameSpace){
+    if(nameSpace===true){
+        nameSpace = genro.pageHash;
+    }
+    if(nameSpace){
+        key = nameSpace+'_'+key;
+    }
+    return key;
+}
