@@ -18,7 +18,7 @@ class Table(object):
         tbl.aliasColumn('tag_note',relation_path='@tag_id.note')
         tbl.aliasColumn('linked_table',relation_path='@tag_id.linked_table', static=True)
         tbl.aliasColumn('require_2fa','@tag_id.require_2fa')
-        tbl.formulaColumn('tag_code','COALESCE(@tag_id.__syscode,@tag_id.hierarchical_code)')
+        tbl.aliasColumn('tag_code','@tag_id.authorization_tag')
         tbl.formulaColumn('user_or_group',"COALESCE($user,$group_code)")
 
         #tbl.aliases(relation='@user_id',user='username')

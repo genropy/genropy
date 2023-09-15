@@ -21,6 +21,7 @@ class Table(object):
         tbl.column('isreserved', 'B', name_long='!!Reserved')
         tbl.column('note',name_long='!!Notes')
         tbl.column('linked_table', name_long='Linked table')
+        tbl.formulaColumn('authorization_tag','COALESCE($__syscode,$hierarchical_code)')
 
 
     @metadata(mandatory=True)
