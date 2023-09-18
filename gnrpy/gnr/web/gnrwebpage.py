@@ -1002,6 +1002,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1333,7 +1341,8 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,

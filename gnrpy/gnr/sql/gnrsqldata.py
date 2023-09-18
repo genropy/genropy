@@ -603,7 +603,7 @@ class SqlQueryCompiler(object):
         columns = ',\n'.join(as_col_values)
         # translate all fields and related fields from $fldname to t0.fldname, t1.fldname... and prepare the JOINs
         colPars = {}
-        for key, value in self.cpl.relationDict.items():
+        for key, value in list(self.cpl.relationDict.items()):
             # self._currColKey manage exploding columns in recursive getFieldAlias without add too much parameters
             self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
