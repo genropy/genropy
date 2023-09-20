@@ -1002,6 +1002,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1333,7 +1341,8 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -2144,7 +2153,6 @@ class GnrWebPage(GnrBaseWebPage):
                 if params:
                     redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
-            root.clear()
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
             self.site.pageLog('open')
@@ -2199,15 +2207,12 @@ class GnrWebPage(GnrBaseWebPage):
         """
         :param root: the root of the page. For more information, check the
                      :ref:`webpages_main` section"""
-        dlg = root.dialog(toggle="fade", toggleDuration=250, onCreated='widget.show();')
-        #f = dlg.form()
-        #f.div(content='Forbidden Page', text_align="center", font_size='24pt')
-        tbl = dlg.contentPane(_class='dojoDialogInner').table()
-        row = tbl.tr()
-        row.td(content=msg or 'Sorry. You are not allowed to use this page.', align="center", font_size='16pt',
-               color='#c90031')
-        cell = tbl.tr().td()
-        cell.div(float='right', padding='2px').button('Back', action='genro.pageBack()')
+        root.clear()
+        box = root.div(position='absolute',top=0,left=0,right=0,bottom='20px')
+        box.iframe(height='100%', width='100%', src=self.getResourceUri('html_pages/forbidden.html'), border='0px') 
+        root.lightbutton('Logout',action='genro.logout()',position='absolute',bottom='10px',right='10px',cursor='pointer',
+                         font_weight='bold')
+        
 
     def getStartRootenv(self):
         #cookie = self.get_cookie('%s_dying_%s_%s' %(self.siteName,self.packageId,self.pagename), 'simple')

@@ -1849,31 +1849,28 @@ dojo.declare('gnr.GenroClient', null, {
         }
         return url;
     },
+    
 
 
-    setInStorage:function(sessionType, key, value,relativeKey) {
-        sessionType = sessionType || 'session';
-        if(relativeKey){
-            key = this.pageHash+key;
-        }
-        var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+    setInStorage:function(storageType, key, value,nameSpace) {
+        storageType = storageType || 'session';
+        key = sessionNameSpaceKey(key,nameSpace)
+        var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         if(isNullOrBlank(value)){
             storage.removeItem(key);
         }
         storage.setItem(key, asTypedTxt(value));
-        //console.log('Stored in ' + sessionType + 'Storage at key:' + key + '  value:' + value);
+        //console.log('Stored in ' + storageType + 'Storage at key:' + key + '  value:' + value);
     },
-    getFromStorage:function(sessionType, key,relativeKey) {
-        sessionType = sessionType || 'session';
-        if(relativeKey){
-            key = this.pageHash+key;
-        }
-        var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+    getFromStorage:function(storageType, key,nameSpace) {
+        storageType = storageType || 'session';
+        key = sessionNameSpaceKey(key,nameSpace)
+        var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         var value = storage.getItem(key);
         /*if (value) {
-            console.log('Loaded from '+sessionType+'Storage at key:'+key+'  value:'+value);
+            console.log('Loaded from '+storageType+'Storage at key:'+key+'  value:'+value);
         } else {
-            console.log('Not existing in '+sessionType+'Storage key:'+key);
+            console.log('Not existing in '+storageType+'Storage key:'+key);
         }*/
         try {
             var v = convertFromText(value)

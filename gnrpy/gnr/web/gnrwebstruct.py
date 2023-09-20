@@ -845,7 +845,7 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
-    def mobileFormBuilder(self,margin_right=None,**kwargs):
+    def mobileFormBuilder(self,margin_right=None,_class=None,**kwargs):
         margin_right = margin_right or '10px'
         box = self.div(margin_right=margin_right)
         fld_width='100%'
@@ -857,7 +857,7 @@ class GnrDomSrc(GnrStructData):
                         lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class='mobilefields')
+                        _class=_class or 'mobilefields')
         pars.update(kwargs)
         return box.formbuilder(**pars)
         
@@ -1294,13 +1294,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
-    def partitionController(self,partition_key=None,value=None):
+    def partitionController(self,partition_key=None,value=None,**kwargs):
         self.dataController(f"""
             let kw = {{}};
             kw.topic  = 'changed_partition_{partition_key}';
             kw.iframe = '*';
             genro.publish(kw,{{partition_value:value}});
-        """,value=value)
+        """,value=value,**kwargs)
         self.partitionSubscriber(partition_key)
     
     def partitionSubscriber(self,partition_key):

@@ -7,6 +7,8 @@
 
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -31,6 +33,7 @@ class FrameIndex(BaseComponent):
     auth_page = 'user'
     auth_main = 'user'
     menuClass = 'ApplicationMenu'
+    check_tester = False
 
     @property
     def plugin_list(self):
@@ -61,6 +64,12 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        testing_preference = self.getPreference('testing',pkg='adm') or Bag()
+        if self.check_tester and testing_preference['beta_tester_tag'] \
+            and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
+                                                            self.userTags):
+            self.forbiddenPage(root, **kwargs)
+            return
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
                 getattr(self,f'index_{custom_index}')(root)
@@ -254,9 +263,10 @@ class FrameIndex(BaseComponent):
                                     
         """,subscribe_iframe_stack_selected=True,tabroot=tabroot,_if='page')
 
+    @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
+        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,left_placeholder,*,right_placeholder,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
                         background='#EEEEEE',border_top='1px solid silver')
         sb.appInfo.div('^gnr.appInfo')
         applogo = sb.applogo.div()
@@ -292,6 +302,7 @@ class FrameIndex(BaseComponent):
         sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
                             action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
         sb.debugping.div(_class='ping_semaphore')
+        return sb
 
     @struct_method
     def fi_slotbar_helpdesk(self,pane,**kwargs):
@@ -314,19 +325,21 @@ class FrameIndex(BaseComponent):
     def helpdesk_help(self):
         return 
 
+    @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,*,debugping,logout,20',
+        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,left_placeholder,*,right_placeholder,debugping,logout,20',
                               _class='slotbar_toolbar framefooter',height='25px',
                         background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
-        
+
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         sb.debugping.div(_class='ping_semaphore')
         applogo = sb.applogo.div()
         if hasattr(self,'application_logo'):
             applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
         sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+        return sb
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',

@@ -1190,7 +1190,7 @@ body.tundra.mimi {
 
 .framedindex_tablist{
     background-image: none;
-    background-image:var(--frameindex-tablist-background);
+    background:var(--frameindex-tablist-background);
     color:var(--frameindex-tablist-color);
     min-height: 34px;
 }
@@ -1325,6 +1325,18 @@ body.tundra.mimi {
     font-weight: bold;
 }
 
+._common_d11.mimi .dijitSpinnerButtonContainer .dijitArrowButton .dijitArrowButtonInner{
+        background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+        transform: rotate(0) scale(1.5);
+}
+
+._common_d11.mimi .dijitSpinnerButtonContainer .dijitUpArrowButton .dijitArrowButtonInner{
+    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
+    transform: rotate(180deg) scale(1.5);
+}
+
+
+
 .tundra .dijitButtonHover .dijitButtonNode,
 .tundra .dijitButtonNodeHover,
 .tundra .dijitToggleButtonHover .dijitButtonNode,
@@ -1337,6 +1349,7 @@ body.tundra.mimi {
     background-image: none;
     background-color:#E4E4E4;
 }
+
 
 .tundra .dijitButton.dijitButtonActive .dijitButtonNode,
 .tundra .dijitButtonNodeActive,
