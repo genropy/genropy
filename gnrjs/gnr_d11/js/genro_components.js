@@ -5652,7 +5652,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         
         if(orientation=='horizontal'){
             if('height' in attributes){
-                buildKw.cell['height']= objectPop(attributes,'height');
+                buildKw.cell['min_height']= objectPop(attributes,'height');
             }
         }else{
             if('width' in attributes){
@@ -5892,7 +5892,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         pane._('StackButtons',objectUpdate({stack:scNode},slotKw));
     },
     slot_parentStackButtons:function(pane,slotValue,slotKw,frameCode){
-        slotKw['height'] = slotKw['height'] || '20px'
+        slotKw['min_height'] = slotKw['min_height'] || '20px'
         pane._('StackButtons',objectUpdate(objectUpdate({stack:pane.getParentNode().attributeOwnerNode('tag','StackContainer')},slotKw)));
     },
     
