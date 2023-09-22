@@ -5652,7 +5652,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         
         if(orientation=='horizontal'){
             if('height' in attributes){
-                buildKw.cell['min_height']= objectPop(attributes,'height');
+                buildKw.table.min_height = objectPop(attributes,'height');
             }
         }else{
             if('width' in attributes){
