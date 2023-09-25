@@ -26,9 +26,8 @@ event.waitUntil(self.registration.showNotification(title, options));
 self.addEventListener('notificationclick', function(event) {
     console.log('[Service Worker] Notification click Received.');
     this.clients.matchAll().then(m=>{console.log('match al result',m)});
-    let body =  new URLSearchParams(event.notification.data);
-
-
+    let json = event.notification.data;
+    let body =  new URLSearchParams(json);
     fetch(json.confirm_url, {
         method: "POST", // *GET, POST, PUT, DELETE, etc.
         mode: "cors", // no-cors, *cors, same-origin
@@ -46,7 +45,10 @@ self.addEventListener('notificationclick', function(event) {
     });
     event.notification.close();
         //notify to the server the notification has been clicked
-    event.waitUntil(clients.openWindow(event.notification.data.url));
+    if(json.url){
+        event.waitUntil(clients.openWindow(json.url));
+    }
+    
 
 
     
