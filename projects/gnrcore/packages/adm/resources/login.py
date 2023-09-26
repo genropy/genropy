@@ -21,18 +21,19 @@ class LoginComponent(BaseComponent):
     new_window_title = '!!New Window'
     auth_workdate = 'admin'
     auth_page = 'user'
-    index_url = 'html_pages/splashscreen.html'
+    login_splash_url = None
     closable_login = False
     loginBox_kwargs = dict()
     external_verifed_user = None
     
     @customizable
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
-        closable_login = closable_login or self.closable_login
+        closable_login = self.closable_login if closable_login is None else closable_login
         doLogin = self.avatar is None and self.auth_page
-        if doLogin and not closable_login and self.index_url:
+        if doLogin and not closable_login and self.login_splash_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
-            #pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.index_url), border='0px') 
+            if self.login_splash_url:
+                pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.login_splash_url), border='0px') 
         loginKwargs = dict(_class='lightboxDialog loginDialog' if self.loginPreference('login_flat') else 'lightboxDialog') 
         loginKwargs.update(self.loginBox_kwargs)
 
@@ -157,7 +158,6 @@ class LoginComponent(BaseComponent):
                 fbnode.attr['hidden'] = '==!_avatar || _hide '
                 fbnode.attr['_avatar'] = '^gnr.avatar.user'
                 fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
-                
         if gnrtoken or not closable_login:
             pane.dataController("""
                             var href = window.location.href;
