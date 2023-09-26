@@ -19,8 +19,35 @@ self.addEventListener('push', event=> {
 
     const title = json.title;
     const options = {body: json.text,data:json};
-
-event.waitUntil(self.registration.showNotification(title, options));
+    const on_notified_url = json.on_notified_url;
+    const body =  new URLSearchParams(json);
+    event.waitUntil(
+      
+      self.registration.showNotification(title, options).then(
+        ()=>{
+            if(!on_notified_url){
+                return;
+            }
+            fetch(on_notified_url, {
+                method: "POST", // *GET, POST, PUT, DELETE, etc.
+                mode: "cors", // no-cors, *cors, same-origin
+                cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+                credentials: "same-origin", // include, *same-origin, omit
+                headers: {
+                  //"Content-Type": "application/json",
+                   'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                redirect: "follow", // manual, *follow, error
+                referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+                body:body// body data type must match "Content-Type" header
+            }).then(response=>{
+                console.log('notified ts set')
+            });
+            
+        }
+      )
+      
+      );
 });
 
 self.addEventListener('notificationclick', function(event) {
@@ -28,21 +55,24 @@ self.addEventListener('notificationclick', function(event) {
     this.clients.matchAll().then(m=>{console.log('match al result',m)});
     let json = event.notification.data;
     let body =  new URLSearchParams(json);
-    fetch(json.confirm_url, {
-        method: "POST", // *GET, POST, PUT, DELETE, etc.
-        mode: "cors", // no-cors, *cors, same-origin
-        cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
-        credentials: "same-origin", // include, *same-origin, omit
-        headers: {
-          //"Content-Type": "application/json",
-           'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        redirect: "follow", // manual, *follow, error
-        referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-        body:body// body data type must match "Content-Type" header
-    }).then(response=>{
-        console.log('notifica accettata')
-    });
+    const on_click_url = json.on_click_url;
+    if(on_click_url){
+        fetch(on_click_url, {
+            method: "POST", // *GET, POST, PUT, DELETE, etc.
+            mode: "cors", // no-cors, *cors, same-origin
+            cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+            credentials: "same-origin", // include, *same-origin, omit
+            headers: {
+              //"Content-Type": "application/json",
+               'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            redirect: "follow", // manual, *follow, error
+            referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+            body:body// body data type must match "Content-Type" header
+        }).then(response=>{
+            console.log('clicked ts set')
+        });
+    }
     event.notification.close();
         //notify to the server the notification has been clicked
     if(json.url){
