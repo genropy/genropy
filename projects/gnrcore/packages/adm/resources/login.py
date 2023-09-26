@@ -28,7 +28,7 @@ class LoginComponent(BaseComponent):
     
     @customizable
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
-        closable_login = closable_login or self.closable_login
+        closable_login = self.closable_login if closable_login is None else closable_login
         doLogin = self.avatar is None and self.auth_page
         if doLogin and not closable_login and self.login_splash_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
@@ -158,7 +158,6 @@ class LoginComponent(BaseComponent):
                 fbnode.attr['hidden'] = '==!_avatar || _hide '
                 fbnode.attr['_avatar'] = '^gnr.avatar.user'
                 fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
-                
         if gnrtoken or not closable_login:
             pane.dataController("""
                             var href = window.location.href;

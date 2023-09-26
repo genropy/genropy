@@ -4229,7 +4229,7 @@ p {
 
 
 .pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
-    height: 18px;
+    min-height: 18px;
     font-variant:normal;
     line-height:15px;
     font-size: .9em;
@@ -4324,7 +4324,7 @@ p {
     line-height:3ex;
     font-size: .9em;
     font-variant:small-caps;
-    height: 19px;
+    min-height: 19px;
 }
 .multibutton_container .hidden.multibutton{
     display: none;
