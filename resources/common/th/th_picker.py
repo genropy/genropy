@@ -10,6 +10,7 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrdict import dictExtract
+from gnr.web.gnrwebpage import GnrMissingResourceException
 
 class THPicker(BaseComponent):
     js_requires='th/th_picker'
@@ -28,8 +29,8 @@ class THPicker(BaseComponent):
         condition= condition or picker_kwargs.pop('condition',None)
         many = relation_field or picker_kwargs.get('relation_field',None)
         table = table or picker_kwargs.get('table',None)
-        height = height or picker_kwargs.get('height','600px')
-        width = width or picker_kwargs.get('width','400px')
+        height = height or picker_kwargs.get('height')
+        width = width or picker_kwargs.get('width')
         defaults = defaults or picker_kwargs.get('defaults',False)
         if autoInsert is None:
             autoInsert = picker_kwargs.get('autoInsert',True)
@@ -57,7 +58,7 @@ class THPicker(BaseComponent):
         condition_kwargs = dictExtract(picker_kwargs,'condition_',pop=True,slice_prefix=not treepicker)
         if treepicker:
             palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,title=title,
-                            width=width,height=height)
+                            width=width or '400px',height=height or '600px')
             frame = palette.framePane(frameCode=paletteCode)
             frame.top.slotToolbar('*,searchOn,5')
             tree_kwargs = dictExtract(picker_kwargs,'tree_',pop=True)
@@ -125,21 +126,34 @@ class THPicker(BaseComponent):
             tblobj = self.db.table(table)
         paletteCode = paletteCode or '%s_picker' %table.replace('.','_')
         title = title or tblobj.name_long
+        defalut_width = '400px'
+        default_height = '600px'
+        viewResource = viewResource or 'PickerView'
+        groupable= False
+        try:
+            resource = self._th_getResClass(table=table,resourceName=viewResource)
+            if resource and hasattr(resource,'th_groupedStruct'):
+                groupable = dict(width='350px', closable='open')
+            defalut_width = '800px'
+            default_height = '500px'
+        except GnrMissingResourceException:
+            pass
 
         palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,
-                                        title=title,width=width,height=height)
+                                        title=title,width=width or defalut_width,height=height or default_height)
 
         def struct(struct):
             r = struct.view().rows()
             r.fieldcell(tblobj.attributes['caption_field'], name=tblobj.name_long, width='100%')
 
-        viewResource = viewResource or 'PickerView'
+
         bc = palette.borderContainer(_anchor=True)
         center = bc.contentPane(region='center')
         paletteth = center.plainTableHandler(table=table,viewResource=viewResource,
                                                 grid_onDrag='dragValues["%s"]=dragValues.gridrow.rowset;' %paletteCode,
                                                 grid_multiSelect=multiSelect,
                                                 view_structCb=struct,
+                                                groupable=groupable,
                                                 title=title,searchOn=searchOn,configurable=False,
                                               childname='picker_tablehandler',nodeId='%s_th' %paletteCode)
         if structure_field:
