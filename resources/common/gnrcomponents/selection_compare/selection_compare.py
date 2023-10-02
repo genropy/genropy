@@ -26,7 +26,7 @@ class SelectionCompare(BaseComponent):
         compareField = compareField or '_pkey'
         self.comp_toolbar(frame.top)
         left_frame = bc.roundedGroupFrame(title=left_kwargs.pop('title','Left selection'), region='left', width='50%')
-        left_th = self._comparingGrid(left_frame,table=table,
+        left_th = self._comparingGrid(left_frame,table=left_kwargs.pop('table', table),
                                                  viewResource=viewResource,
                                                  datapath='.left',
                                                  sections_channel=nodeId,
@@ -35,7 +35,7 @@ class SelectionCompare(BaseComponent):
                                                  **left_kwargs)
         frame.left_side = left_frame
         right_frame = bc.roundedGroupFrame(title=right_kwargs.pop('title','Right selection'), region='center')
-        right_th = self._comparingGrid(right_frame, table=table,
+        right_th = self._comparingGrid(right_frame, table=right_kwargs.pop('table',table),
                                        viewResource=viewResource,
                                        datapath='.right',
                                        sections_channel=nodeId,
