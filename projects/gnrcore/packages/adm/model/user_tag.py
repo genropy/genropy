@@ -7,9 +7,9 @@ class Table(object):
                       name_plural='!!User tags')
         self.sysFields(tbl)
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='tags',mode='foreignkey',onDelete='cascade')
-        tbl.column('user_id',size='22',group='_',name_long='User',_sendback=True).relation('user.id', mode='foreignkey', 
+        tbl.column('user_id',size='22',group='_',name_long='!!User',_sendback=True).relation('user.id', mode='foreignkey', 
                                                                             onDelete='cascade',relation_name='tags')
-        tbl.column('tag_id',size='22',group='_',name_long='Tag id').relation('htag.id', mode='foreignkey', onDelete='cascade',
+        tbl.column('tag_id',size='22',group='_',name_long='!!Tag').relation('htag.id', mode='foreignkey', onDelete='cascade',
                                                                           relation_name='users')
         tbl.aliasColumn('user',relation_path='@user_id.username')
         tbl.aliasColumn('fullname',relation_path='@user_id.fullname')

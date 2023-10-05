@@ -9,8 +9,8 @@ from gnr.web.gnrbaseclasses import BaseComponent
 class ViewFromUser(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('tag_id',name='Tag',width='20em',edit=True)
-        r.fieldcell('@tag_id.note',name='Notes',width='100%')
+        r.fieldcell('tag_id', width='20em', edit=True)
+        r.fieldcell('@tag_id.note', width='100%')
         
     def th_order(self):
         return 'tag_id'
@@ -23,8 +23,8 @@ class ViewFromUser(BaseComponent):
 class ViewFromGroup(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('tag_id',name='Tag',width='20em',edit=True)
-        r.fieldcell('@tag_id.note',name='Notes',width='100%')
+        r.fieldcell('tag_id', width='20em',edit=True)
+        r.fieldcell('@tag_id.note', width='100%')
         
     def th_order(self):
         return 'tag_id'
@@ -35,7 +35,7 @@ class ViewFromTag(BaseComponent):
         
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('user_or_group',width='20em',name='User or group')
+        r.fieldcell('user_or_group',width='20em')
         r.fieldcell('email',width='10em')
         
     def th_order(self):
