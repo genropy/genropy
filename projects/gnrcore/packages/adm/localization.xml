@@ -14,7 +14,7 @@
 		<en_access_permissions base="Access permissions"/>
 		<en_pkginfo base="Pkginfo"/>
 		<en_tableinfo base="Tableinfo"/>
-		<en_user_configurator base="User configurator"/>
+		<en_user_configurator base="User configurator" it="Configuratore utenti"/>
 		<en_unused base="Unused"/>
 		<en_menu_manager fr="Gestionnaire de Menu" de="Menu Manager" en="Menu Manager" it="Gestione Menu" base="Menu Manager"/>
 		<en_menu_pages fr="Pages de Menu" de="Menu Seiten" en="Menu Pages" it="Pagine del menu" base="Menu Pages"/>
@@ -68,7 +68,7 @@
 			<en_backup fr="Sauvegarde" de="Sicherungskopie" en="Backup" it="Di riserva" base="Backup"/>
 			<en_backups fr="Sauvegardes" de="Backups" en="Backups" it="Backup" base="Backups"/>
 			<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
-			<en_backup_start_ts fr="Ts de démarrage de sauvegarde" de="Backup Start ts" en="Backup start ts" it="Ts Avvia backup" base="Backup start ts"/>
+			<en_backup_start_ts fr="Ts de démarrage de sauvegarde" de="Backup Start ts" en="Backup start ts" it="TS Avvia backup" base="Backup start ts"/>
 			<en_backup_end_ts fr="Ts finaux de sauvegarde" de="Backup Ende ts" en="Backup end ts" it="Ts end di backup" base="Backup end ts"/>
 		</backup>
 		<ckstyle path="model/ckstyle.py" ext="py">
@@ -86,7 +86,7 @@
 			<en_userid fr="Userid" de="Benutzer-ID" en="Userid" it="Id Utente" base="Userid"/>
 			<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
 			<en_ip_number fr="Numéro IP" de="IP-Nummer" en="Ip number" it="Numero IP" base="Ip number"/>
-			<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="Inizia ts" base="Start TS"/>
+			<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="TS inizio" base="Start TS"/>
 			<en_end_ts base="End TS"/>
 			<en_end_reason fr="Fin Raison" de="End Reason" en="End Reason" it="End Ragione" base="End reason"/>
 			<en_user_agent fr="L'agent utilisateur" de="User-Agent" en="User agent" it="User agent" base="User agent"/>
@@ -216,7 +216,7 @@
 			<en_served_pages fr="Pages desservis" de="Serviert Seiten" en="Served pages" it="Pagine servite" base="Served pages"/>
 			<en_page_id fr="Id page" de="Seiten-ID" en="Page id" it="Pagina id" base="Page id"/>
 			<en_page_name fr="Nom de la page" de="Seitenname" en="Page name" it="Nome pagina" base="Page name"/>
-			<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="Inizia ts" base="Start ts"/>
+			<en_start_ts fr="Lancer ts" de="Starten ts" en="Start ts" it="TS inizio" base="Start ts"/>
 			<en_end_ts base="End ts"/>
 			<en_end_reason fr="Fin Raison" de="End Reason" en="End Reason" it="End Ragione" base="End Reason"/>
 		</served_page>
@@ -271,14 +271,14 @@
 			<en_access_group fr="groupe Accès" de="Zugriffsgruppe" en="Access group" it="Gruppo Accesso" base="Access group"/>
 		</user_access_group>
 		<user_config path="model/user_config.py" ext="py">
-			<en_user_config base="User config"/>
+			<en_user_config base="User config" it="Configurazione utente"/>
 			<en_group fr="Groupe" en="User Groups" de="Gruppe" it="Gruppi utenza" base="Group"/>
 			<en_user fr="Utilisateur" de="Benutzer" en="User" it="Utente" base="User"/>
 			<en_pkg base="Pkg"/>
-			<en_tbl base="Tbl"/>
+			<en_tbl base="Tbl" it="Tbl"/>
 			<en_data fr="Données" de="Daten" en="Data" it="Data" base="Data"/>
-			<en_quick_fields_tree base="Quick Fields Tree"/>
-			<en_full_fields_tree base="Full Fields Tree"/>
+			<en_quick_fields_tree base="Quick Fields Tree" it="Albero campi rapido"/>
+			<en_full_fields_tree base="Full Fields Tree" it="Albero campi pieno"/>
 		</user_config>
 		<user_group path="model/user_group.py" ext="py">
 			<en_user_groups base="User groups"/>
@@ -391,6 +391,7 @@
 			<en_backups fr="Sauvegardes" de="Backups" en="Backups" it="Backup" base="Backups"/>
 			<en_developers base="Developers"/>
 			<en_helpdesk base="Helpdesk"/>
+			<en_testing base="Testing"/>
 			<en_screenlock_timeout_minutes_ fr="ScreenLock timeout (minutes)" de="Screenlock Timeout (Minuten)" en="Screenlock timeout (minutes)" it="Screenlock timeout (minuti)" base="Screenlock timeout (minutes)"/>
 		</preference>
 		<prefhandler>
@@ -475,7 +476,7 @@
 				<th_group path="resources/tables/group/th_group.py" ext="py">
 					<en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"/>
 					<en_tag fr="Balise" de="Anhänger" en="Tag" it="Etichetta" base="Tag"/>
-					<en_config base="Config"/>
+					<en_config base="Config" it="Configurazione"/>
 				</th_group>
 			</group>
 			<htmltemplate>
@@ -527,23 +528,24 @@
 			<user>
 				<th_user path="resources/tables/user/th_user.py" ext="py">
 					<en_import_users_from_excel_csv base="Import users from Excel/CSV"/>
-					<en_login_data fr="Connexion données" de="Login-Daten" en="Login Data" it="Accesso dati" base="Login Data"/>
 					<en_firstname fr="Prénom" de="Vorname" en="Firstname" it="Nome" base="Firstname"/>
-					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
-					<en_existing fr="Existant" de="Vorhanden" en="Existing" it="Esistente" base="Existing"/>
 					<en_lastname fr="Nom De Famille" de="Nachname" en="Lastname" it="Cognome" base="Lastname"/>
+					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
+					<en_exists fr="Existe" de="Vorhanden" en="Exists" it="Esiste" base="Exists"/>
 					<en_required fr="Requis" de="Erforderlich" en="Required" it="Richiesto" base="Required"/>
 					<en_conf_confirmed_wait_waiting fr="conf: Confirmé, attendez: Waiting" de="conf: Bestätigt, warten: Waiting" en="conf:Confirmed,wait:Waiting" it="conf: Confermato, attendere: Attesa" base="conf:Confirmed,wait:Waiting"/>
-					<en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"/>
-					<en_exists fr="Existe" de="Vorhanden" en="Exists" it="Esiste" base="Exists"/>
-					<en_locale fr="Local" de="Lokal" en="Locale" it="Locale" base="Locale"/>
-					<en_main_group base="Main group"/>
-					<en_other_groups base="Other groups"/>
-					<en_startpage fr="Page d'accueil" de="Startseite" en="Startpage" it="Startpage" base="Startpage"/>
+					<en_locale fr="Local" de="Lokal" en="Locale" it="Localizzazione" base="Locale"/>
+					<en_main_group base="Main group" it="Gruppo principale"/>
+					<en_other_groups base="Other groups" it="Altri gruppi"/>
+					<en_startpage fr="Page d'accueil" de="Startseite" en="Startpage" it="Pagina iniziale" base="Startpage"/>
 					<en_user_start_page fr="page de démarrage de l'utilisateur" de="Benutzer Startseite" en="User start page" it="Pagina iniziale User" base="User start page"/>
+					<en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"/>
+					<en_auth base="Auth" it="Autorizzazioni"/>
+					<en_config base="Config" it="Configurazione"/>
+					<en_existing fr="Existant" de="Vorhanden" en="Existing" it="Esistente" base="Existing"/>
 					<en_group fr="Groupe" en="User Groups" de="Gruppe" it="Gruppi utenza" base="Group"/>
 					<en_tags fr="Mots clés" de="Schlagwörter" en="Tags" it="Tag" base="Tags"/>
-					<en_authentication base="Authentication"/>
+					<en_authentication base="Authentication" it="Autenticazione"/>
 					<en_preferences fr="Préférences" de="Einstellungen" en="Preferences" it="Preferenze" base="Preferences"/>
 					<en_change_password base="Change password" it="Cambia password"/>
 				</th_user>
@@ -551,11 +553,11 @@
 			<user_config>
 				<th_user_config path="resources/tables/user_config/th_user_config.py" ext="py">
 					<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
-					<en_add_rule base="Add rule"/>
-					<en_fields_tree_quick_ base="Fields Tree (quick)"/>
-					<en_fields_tree_full_ base="Fields Tree (full)"/>
-					<en_table_restrictions base="Table Restrictions"/>
-					<en_table_forbidden_actions base="Table forbidden actions"/>
+					<en_add_rule base="Add rule" it="Aggiungi regola"/>
+					<en_fields_tree_quick_ base="Fields Tree (quick)" it="Albero campi (rapido)"/>
+					<en_fields_tree_full_ base="Fields Tree (full)" it="Albero campi (pieno)"/>
+					<en_table_restrictions base="Table Restrictions" it="Restrizioni tabelle"/>
+					<en_table_forbidden_actions base="Table forbidden actions" it="Azioni proibite su tabelle"/>
 				</th_user_config>
 			</user_config>
 			<user_notification>
@@ -563,6 +565,12 @@
 					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
 				</th_user_notification>
 			</user_notification>
+			<user_tag>
+				<th_user_tag path="resources/tables/user_tag/th_user_tag.py" ext="py">
+					<en_tag fr="Balise" de="Anhänger" en="Tag" it="Etichetta" base="Tag"/>
+					<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"/>
+				</th_user_tag>
+			</user_tag>
 			<userobject>
 				<th_userobject path="resources/tables/userobject/th_userobject.py" ext="py">
 					<en_make_resource base="Make resource"/>
@@ -609,7 +617,7 @@
 			</test_pref>
 		</test>
 		<user_configuration path="webpages/user_configuration.py" ext="py">
-			<it_admin_configurator base="Admin Configurator"/>
+			<it_admin_configurator base="Admin Configurator" it="Configurazione Amministratore"/>
 		</user_configuration>
 		<user_page path="webpages/user_page.py" ext="py">
 			<en_user fr="Utilisateur" de="Benutzer" en="User" it="Utente" base="User"/>
@@ -620,8 +628,8 @@
 			<en_exists fr="Existe" de="Vorhanden" en="Exists" it="Esiste" base="Exists"/>
 			<en_required fr="Requis" de="Erforderlich" en="Required" it="Richiesto" base="Required"/>
 			<en_conf_confirmed_wait_waiting fr="conf: Confirmé, attendez: Waiting" de="conf: Bestätigt, warten: Waiting" en="conf:Confirmed,wait:Waiting" it="conf: Confermato, attendere: Attesa" base="conf:Confirmed,wait:Waiting"/>
-			<en_locale fr="Local" de="Lokal" en="Locale" it="Locale" base="Locale"/>
-			<en_startpage fr="Page d'accueil" de="Startseite" en="Startpage" it="Startpage" base="Startpage"/>
+			<en_locale fr="Local" de="Lokal" en="Locale" it="Localizzazione" base="Locale"/>
+			<en_startpage fr="Page d'accueil" de="Startseite" en="Startpage" it="Pagina iniziale" base="Startpage"/>
 			<en_user_start_page fr="page de démarrage de l'utilisateur" de="Benutzer Startseite" en="User start page" it="Pagina iniziale User" base="User start page"/>
 			<en_email fr="Email" de="E-Mail-" en="Email" it="Email" base="Email"/>
 		</user_page>
