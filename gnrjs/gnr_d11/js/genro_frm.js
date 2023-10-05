@@ -818,7 +818,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     
     openPendingChangesDlg:function(kw,saveSlot){
-        if(this.avoidPendingChangesDialog){
+        if(this.avoidPendingChangesDialog || kw.afterItemDeleted){
             kw.command='discard';
             this.publish('pendingChangesAnswer',kw);
             return;
@@ -917,7 +917,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     deleted:function(result,kw){
         var destPkey = kw.destPkey || this.deleted_destPkey || '*dismiss*';
-        this.load({destPkey:destPkey});
+        this.load({destPkey:destPkey,afterItemDeleted:true});
         this.publish('message',{message:this.msg_deleted,sound:'$ondeleted'});
         this.publish('onDeleted');
     },
