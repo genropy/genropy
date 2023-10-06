@@ -4,8 +4,9 @@
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
-    def test_1_base(self, pane):
-        """Basic button"""
+
+    def test_0_base(self, pane):
+        """You can customize initial view, headerToolbar, add custom buttons..."""
         kw = {'initialView':'dayGridMonth',
               'headerToolbar': {
                     'center': 'addEventButton'
@@ -16,7 +17,7 @@ class GnrCustomWebPage(object):
         }}
         pane.fullCalendar(box_margin='40px',box_max_width='1100px',**kw)
 
-    def test_2_event_store(self, pane):
+    def test_2_quickgrid_store(self, pane):
         bc = pane.borderContainer(height='900px')
         bc.contentPane(region='center').fullCalendar(initialView='dayGridMonth',     
         headerToolbar={
