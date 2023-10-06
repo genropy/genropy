@@ -500,21 +500,19 @@ dojo.declare("gnr.GnrStoreBag", null, {
                 regexpList[key] = dojo.data.util.filter.patternToRegExp(value, ignoreCase);
             }
         }
-        for (var i = 0; i < items.length; ++i) {
-            var item = items[i];
-            if (item != null) {
-                var match = true;
+        for (let item of items) {
+            if (item !== null) {
+                let match = true;
                 for (var key in query) {
-                    var regexp = regexpList[key];
-                    match = dojo.some(this.getValues(item, key),
-                                     function(v) {
-                                         if (v !== null && !dojo.isObject(v) && regexp) {
-                                             return (v.toString().match(regexp) != null);
-                                         } else if (v === query[key]) {
-                                             return true;
-                                         }
-                                     }
-                            );
+                    let regexp = regexpList[key];
+                    match = this.getValues(item, key).some(function(v) {
+                                if (v !== null && !dojo.isObject(v) && regexp) {
+                                    return (v.toString().match(regexp) !== null);
+                                } else if (v == query[key]) {
+                                    return true;
+                                }
+                            }
+                    );
                     if (!match) {
                         break;
                     }

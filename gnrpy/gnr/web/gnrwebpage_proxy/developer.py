@@ -9,7 +9,7 @@
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
-#from builtins import object
+
 import os
 import datetime
 import urllib.parse
@@ -54,7 +54,7 @@ class GnrWebDeveloper(GnrBaseProxy):
         if task_reference:
             return task_reference
         maintable = getattr(self.page,'maintable',None)
-        pkg = maintable.split('.')[0] or self.page.package.name
+        pkg = maintable.split('.')[0] if maintable else self.page.package.name
         project_code = self.db.application.packages[pkg].project
         siteName = self.page.siteName
         pagename = 'webpage.%s' %self.page.pagename

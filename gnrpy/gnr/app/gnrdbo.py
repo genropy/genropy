@@ -4,7 +4,6 @@
 from __future__ import print_function
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
 import datetime
 import warnings as warnings_module
 import os
@@ -496,9 +495,9 @@ class TableBase(object):
         tbl.column('df_colswidth',group='_')
 
 
-    def sysFields_counter(self,tbl,fldname,counter=None,group=None,name_long='!![en]Counter'):
+    def sysFields_counter(self,tbl,fldname,counter=None,group=None,name_long='!![en]Counter',_sysfield=True,**kwargs):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRowCounter',counter=True,
-                            _counter_fkey=counter,group=group,_sysfield=True)
+                            _counter_fkey=counter,group=group,_sysfield=_sysfield,**kwargs)
     
     def sysFields_relidx(self,tbl,fldname,relidx=None,group=None,name_long='!![en]Relative index'):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
@@ -1511,12 +1510,25 @@ class AttachmentTable(GnrDboTable):
                             copyFile=True,
                             is_foreign_document = False,
                             filename=None,
+                            external_url=None,
                             **kwargs):
         site = self.db.application.site
+        if external_url and not origin_filepath:
+            record = self.newrecord(maintable_id = maintable_id,
+                        mimetype = mimetype,
+                        description = description or external_url,
+                        filepath = None,
+                        is_foreign_document = True,
+                        external_url=external_url,
+                        **kwargs)
+            self.insert(record)
+            return record
         if is_foreign_document:
             moveFile = False
             copyFile = False
         originStorageNode = site.storageNode(origin_filepath)
+        if external_url:
+            originStorageNode.fill_from_url(external_url)
         mimetype = mimetype or mimetypes.guess_type(originStorageNode.path)[0]
         filename = filename or originStorageNode.basename
         if copyFile or moveFile:
@@ -1566,6 +1578,10 @@ class AttachmentTable(GnrDboTable):
                 snode.delete()
         except Exception:
             return
+    
+    def onUploadedAttachment(self, attachment_id=None, **kwargs):
+        pass
+    
 
 class TotalizeTable(GnrDboTable):
     def totalize_exclude(self,record=None,old_record=None):

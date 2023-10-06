@@ -64,6 +64,7 @@ from gnr.app.gnrlocalization import GnrLocString
 from base64 import b64decode
 import re
 import datetime
+from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -782,6 +783,7 @@ class GnrWebPage(GnrBaseWebPage):
             avatar = self.application.getAvatar(guestName)
         else:
             avatar = self.application.getAvatar(login['user'], password=login.get('password'),
+                                                group_code=login.get('group_code'),
                                                 authenticate=authenticate, page=self, **kwargs)
         if avatar:
             self.avatar = avatar
@@ -1000,6 +1002,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1331,7 +1341,8 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -1923,10 +1934,11 @@ class GnrWebPage(GnrBaseWebPage):
 
 
     @public_method          
-    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None):
+    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None,title=None):
         self.setInClientData(msg_path or 'gnr.servermsg', message,fired=fired,
                                          page_id=pageId, filters=filters,
-                                         attributes=dict(from_user=self.user, from_page=self.page_id))
+                                         attributes=dict(from_user=self.user, from_page=self.page_id,
+                                                         title=title))
 
         
 
@@ -2141,7 +2153,6 @@ class GnrWebPage(GnrBaseWebPage):
                 if params:
                     redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
-            root.clear()
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
             self.site.pageLog('open')
@@ -2196,27 +2207,27 @@ class GnrWebPage(GnrBaseWebPage):
         """
         :param root: the root of the page. For more information, check the
                      :ref:`webpages_main` section"""
-        dlg = root.dialog(toggle="fade", toggleDuration=250, onCreated='widget.show();')
-        #f = dlg.form()
-        #f.div(content='Forbidden Page', text_align="center", font_size='24pt')
-        tbl = dlg.contentPane(_class='dojoDialogInner').table()
-        row = tbl.tr()
-        row.td(content=msg or 'Sorry. You are not allowed to use this page.', align="center", font_size='16pt',
-               color='#c90031')
-        cell = tbl.tr().td()
-        cell.div(float='right', padding='2px').button('Back', action='genro.pageBack()')
+        root.clear()
+        box = root.div(position='absolute',top=0,left=0,right=0,bottom='20px')
+        box.iframe(height='100%', width='100%', src=self.getResourceUri('html_pages/forbidden.html'), border='0px') 
+        root.lightbutton('Logout',action='genro.logout()',position='absolute',bottom='10px',right='10px',cursor='pointer',
+                         font_weight='bold')
+        
 
     def getStartRootenv(self):
         #cookie = self.get_cookie('%s_dying_%s_%s' %(self.siteName,self.packageId,self.pagename), 'simple')
         #if cookie:
         #    return Bag(urllib.unquote(cookie.value)).getItem('rootenv')
-        if not self.root_page_id: #page not in framedindex or framedindex itself
+        currenv = self.pageStore(page_id=self.parent_page_id or self.page_id).getItem('rootenv') or Bag()
+        if not self.root_page_id and not currenv['new_window_context']: 
+            # page not in framedindex or framedindex itself and not windowcontext
+            # get the connections defaults
             connectionStore = self.connectionStore()
             defaultRootenv = Bag(connectionStore.getItem('defaultRootenv'))
             if '_workdate' in self._call_kwargs:
                 defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
             return defaultRootenv
-        return self.pageStore(page_id=self.parent_page_id).getItem('rootenv')
+        return currenv
         
 
     def onMain(self): #You CAN override this !
@@ -2731,13 +2742,11 @@ class GnrWebPage(GnrBaseWebPage):
         bag.pickle('%s.pik' % freeze_path)
         return LazyBagResolver(resolverName=name, location=location, _page=self, sourceBag=bag)
         
-
     def log(self, msg,*args, **kwargs):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print('pagename:{pagename}-:page_id:{page_id} >>\n'.format(pagename=self.pagename,
-                                    page_id=self.page_id),
+        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
                                     args,kwargs)
 
     ##### BEGIN: DEPRECATED METHODS ###

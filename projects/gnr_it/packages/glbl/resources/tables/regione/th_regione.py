@@ -20,7 +20,7 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('nome', width='20em')
         r.fieldcell('sigla',width='3em')
-        r.fieldcell('codice_istat',width='7em',sortable=False)
+        r.fieldcell('codice_istat',width='7em')
         r.fieldcell('zona',width='100%')
 
     

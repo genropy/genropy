@@ -545,6 +545,15 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             prompt_datapath = sourceNode.absDatapath(prompt_datapath);
         }
         var promptvalue_path = prompt_datapath+'.promptvalue';
+        let nodePromptValue = genro.getDataNode(promptvalue_path);
+        let kept_value = nodePromptValue?nodePromptValue.attr.kept_value:null;
+        if(kept_value){
+            dflt = dflt || new gnr.GnrBag();
+            for(let keykept in kept_value){
+                let _keep = kept_value[keykept]
+                dflt.setItem(keykept,_keep,{'_keep':_keep});
+            }
+        }
         genro.setData(promptvalue_path,dflt || null);
         dlg_kw = objectUpdate({_showParent:true,width:'280px',datapath:prompt_datapath,_class:'dlg_prompt',autoSize:true},dlg_kw);
         var dlg = genro.dlg.quickDialog(title,dlg_kw,sourceNode);
@@ -565,13 +574,21 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                             if(!validDojo){
                                 return;
                             }
-                            var v = genro.getData(promptvalue_path);
+                            var v = genro.getData(promptvalue_path);                            
                             if(mandatory && isNullOrBlank(v)){
                                 return;
                             }
                             error_message = funcApply(confirmCb,{value:genro.getData(promptvalue_path)},(sourceNode||this));
                             if(!error_message){
-                                genro.setData(promptvalue_path,null,null,false);
+                                var kept_value = {};
+                                if (v instanceof gnr.GnrBag){
+                                    for(let n of v.getNodes()){
+                                        if(n.attr._keep){
+                                            kept_value[n.label] = n.getValue();
+                                        }
+                                    }
+                                }
+                                genro.setData(promptvalue_path,null,objectNotEmpty(kept_value)?{kept_value:kept_value}:null,false);
                             }
                         }else if(command == 'cancel' && cancelCb){
                             error_message = funcApply(cancelCb,{},(sourceNode||this));
@@ -619,8 +636,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             kwbox.width=dlg_kw.width;
             var box = dlg.center._('div',kwbox);
             var fb;
-            var onEnter ='onEnter' in kw? kw.onEnter:function(){
-                actionCb('confirm');
+
+            var onEnter ='onEnter' in kw? funcCreate(kw.onEnter,null,sourceNode):function(){
+                //actionCb('confirm');
             };
             if(msg){
                 box._('div',{innerHTML:msg,color:'#666',margin_bottom:'10px',_class:'selectable'});

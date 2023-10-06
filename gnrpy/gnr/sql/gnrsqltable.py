@@ -42,12 +42,12 @@ from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
-
 from gnr.sql.gnrsql import GnrSqlException
 from collections import defaultdict
 from datetime import datetime
 import logging
 import threading
+
 
 __version__ = '1.0b'
 gnrlogger = logging.getLogger(__name__)
@@ -308,6 +308,17 @@ class SqlTable(GnrObject):
                 return "$%(field)s =:env_current_%(path)s" %partitionParameters
             elif env.get('allowed_%(path)s' %partitionParameters):
                 return "( $%(field)s IS NULL OR $%(field)s IN :env_allowed_%(path)s )" %partitionParameters
+            else:
+                partitionColumn = self.column(partitionParameters["field"])
+                relation_path = getattr(partitionColumn,'relation_path',None) or partitionParameters["field"]
+                allowedPartitionField = [f'@{c}' if not c.startswith('@') else c for c in relation_path.split('.')]+['__allowed_partition']
+                allowedPartitionField = '.'.join(allowedPartitionField)
+                try:
+                    allowedPartitionColumn = self.column(allowedPartitionField)
+                except:
+                    allowedPartitionColumn = None
+                if allowedPartitionColumn is not None:
+                    return f'{allowedPartitionField} IS TRUE'
 
     @property
     def partitionParameters(self):
@@ -559,6 +570,7 @@ class SqlTable(GnrObject):
         :param record: an object implementing dict interface as colname, colvalue
         :param null: TODO"""
         converter = self.db.typeConverter
+        _coerce_errors = []
         for k in list(record.keys()):
             if not k.startswith('@'):
                 if self.column(k) is None:
@@ -580,13 +592,27 @@ class SqlTable(GnrObject):
                             v = converter.fromText(record[k], dtype)
                             if isinstance(v,tuple):
                                 v = v[0]
+                    
                     if 'rjust' in colattr:
                         v = v.rjust(int(colattr['size']), colattr['rjust'])
                         
                     elif 'ljust' in  colattr:
                         v = v.ljust(int(colattr['size']), colattr['ljust'])
                     record[k] = v
-                    
+                if isinstance(record[k],str):
+                    record[k] = record[k].strip()
+                    record[k] = record[k] or None #avoid emptystring
+                    size = colattr.get('size')
+                    if size:
+                        sizelist = colattr['size'].split(':')
+                        max_size = int(sizelist[1] if len(sizelist)>1 else sizelist[0])
+                        if len(record[k])>max_size:
+                            _coerce_errors.append(f'Max len exceeded for field {k} {record[k]} ({max_size})')
+                            record[k] = None
+        record['_coerce_errors'] = ','.join(_coerce_errors)
+
+
+
     def buildrecord(self, fields, resolver_one=None, resolver_many=None):
         """Build a new record and return it
         
@@ -691,7 +717,8 @@ class SqlTable(GnrObject):
         self.extendDefaultValues(newrecord)
         return newrecord
 
-    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None):
+
+    def cachedRecord(self,pkey=None,virtual_columns=None,keyField=None,createCb=None,cacheInPage=None):
         keyField = keyField or self.pkey
         ignoreMissing = createCb is not None
         def recordFromCache(cache=None,pkey=None,virtual_columns_set=None):
@@ -714,7 +741,7 @@ class SqlTable(GnrObject):
             return dict(result),in_cache
         virtual_columns_set = set(virtual_columns.split(',')) if virtual_columns else set()
         return self.tableCachedData('cachedRecord',recordFromCache,pkey=pkey,
-                                virtual_columns_set=virtual_columns_set)
+                                virtual_columns_set=virtual_columns_set,cacheInPage=cacheInPage)
 
     def findDuplicates(self,allrecords=True):
         dup_records = self.query(where="($_duplicate_finder IS NOT NULL) AND ($_duplicate_finder!='')",
@@ -742,11 +769,11 @@ class SqlTable(GnrObject):
             storename = self.db.currentStorename
         return '%s.%s.%s' %(storename,topic,self.fullname)
 
-    def tableCachedData(self,topic,cb,**kwargs):
+    def tableCachedData(self,topic,cb,cacheInPage=None,**kwargs):
         currentPage = self.db.currentPage
         cacheKey = self.cachedKey(topic)
         if currentPage:
-            cacheInPage = self.db.currentEnv.get('cacheInPage')
+            cacheInPage = self.db.currentEnv.get('cacheInPage') if cacheInPage is None else cacheInPage
             if cacheInPage:
                 store = getattr(currentPage,'_pageTableCache',None)
                 if not store:

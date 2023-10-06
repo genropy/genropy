@@ -80,7 +80,10 @@ class AppPref(object):
         xfb.numbertextbox(value='^.fitToHeight',lbl='Fit To Height')
         xfb.filteringSelect(value='^.orientation',lbl='Print orientation', values='portrait,landscape')
         xfb.filteringSelect(value='^.show_title',lbl='Print title', values='footer,header')
-        
+        ntf = tc.contentPane(title='Notification')
+        nfb = ntf.formbuilder(cols=1, border_spacing='4px')
+        nfb.checkbox(value='^.notifications_enabled',label='Notification enabled')
+        nfb.textbox(value='^.notification_claim_email',lbl='Claim email')
         
     def site_config_override(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')

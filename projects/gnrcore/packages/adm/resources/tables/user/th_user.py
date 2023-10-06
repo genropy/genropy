@@ -6,7 +6,9 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,customizable
-
+from gnr.core.gnrbag import Bag
+import urllib
+from gnr.core.gnrlang import getUuid
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -59,53 +61,45 @@ class ViewPicker(BaseComponent):
         r.fieldcell('group_code',name='Group',width='10em')
 
 class Form(BaseComponent):
-    
-    #def th_form(self, form):
-    #    pane = form.record
-    #    pane.div('!!Login Data', _class='pbl_roundedGroupLabel')
-    #    fb = pane.div(margin='5px').formbuilder(cols=2, border_spacing='6px',width='100%',fld_width='100%')
-    #    fb.field('firstname',lbl='!!Firstname')
-    #    fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Existing')
-    #    fb.field('lastname',lbl='!!Lastname')
-    #    fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
-    #    fb.field('status', tag='filteringSelect', values='!!conf:Confirmed,wait:Waiting', 
-    #             validate_notnull=True, validate_notnull_error='!!Required')
-    #    fb.field('group_code')
-    #    fb.field('email', lbl='!!Email')
-    
+    py_requires="login:LoginComponent"
+
     def th_form(self,form,**kwargs):
         bc = form.center.borderContainer()
-        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
+        top = bc.borderContainer(region='top',datapath='.record',height='240px')
+        self.loginData(top.roundedGroup(title='!!User info', region='center'))
+        self.loginFields(top.roundedGroup(title='!!Login info', region='right', width='400px'))
         self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
-
-        
         
     def loginData(self,pane):
         fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px',colswidth='12em')
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
-
-        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
-        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
-        
         fb.field('status', tag='filteringSelect', # values='!!conf:Confirmed,wait:Waiting', 
                  validate_notnull=True, validate_notnull_error='!!Required')
-        fb.field('group_code')
         fb.field('locale', lbl='!!Locale')
-        fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page')
+
+        fb.field('group_code',lbl='!![en]Main group',hasDownArrow=True)
+        fb.checkBoxText('^._other_groups',lbl='!![en]Other groups',
+                        hidden='^.group_code?=!#v',
+                        table='adm.group',condition='$code!=:maingroup',
+                        condition_maingroup='^.group_code',
+                        _virtual_column='other_groups',popup=True)
+        fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page',colspan=2,width='100%')
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
         fb.field('sms_login', html_label=True)
         fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='100%')
+
+    def loginFields(self, pane):
+        fb = pane.div(margin_right='10px').formbuilder(cols=1, border_spacing='4px',colswidth='12em')
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
+        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+        fb.button('!!Reset password').dataRpc(self.login_confirmNewPassword, 
+                                                username='=.username', email='=.email')
         
     @customizable
     def adm_user_maintc(self,tc):
-        self.userAuth(tc.contentPane(title='Auth'))
-        self.userConfigView(tc.contentPane(title='Config'))
-        
-    def th_form(self,form,**kwargs):
-        bc = form.center.borderContainer()
-        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
-        self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
+        self.userAuth(tc.contentPane(title='!!Auth'))
+        self.userConfigView(tc.contentPane(title='!!Config'))
 
     def userAuth(self,pane):
         pane.inlineTableHandler(relation='@tags',viewResource='ViewFromUser',
@@ -117,6 +111,41 @@ class Form(BaseComponent):
         pane.dialogTableHandler(table='adm.user_config',margin='2px',
                                 viewResource='ViewFromUser',
                                 formResource='FormFromUser')
+        
+
+    @public_method
+    def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
+        if not newrecord:
+            other_groups= record['other_groups']
+            record.setItem('_other_groups',other_groups,_sendback=True)
+
+
+    @public_method
+    def th_onSaving(self,recordCluster,recordClusterAttr=None,resultAttr=None,**kwargs):
+        other_groups = recordCluster.pop('_other_groups')
+        return dict(other_groups=other_groups)
+
+    @public_method
+    def th_onSaved(self, record, resultAttr,other_groups=None,**kwargs):
+        user_group = self.db.table('adm.user_group')
+        user_id = record['id']
+        user_group.deleteSelection(where='$user_id=:uid',uid=user_id)
+        if other_groups:
+            for gr in other_groups.split(','):
+                user_group.insert(user_group.newrecord(user_id=user_id,group_code=gr))
+
+
+class PublicForm(BaseComponent):
+
+    def th_form(self,form,**kwargs):
+        pane = form.record
+        self.loginData(pane)
+
+    def loginData(self,pane):
+        fb = pane.mobileFormBuilder(cols=1)
+        fb.field('firstname',lbl='!!Firstname')
+        fb.field('lastname',lbl='!!Lastname')
+        fb.field('email', lbl='!!Email')
         
 
 class ExtUserForm(BaseComponent):
@@ -168,20 +197,88 @@ class FormProfile(BaseComponent):
         #
         #fb.field('sms_login', html_label=True)
         #fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='12em')
-
         tc = bc.tabContainer(margin='2px',region='center')
         self.adm_profile_tabs(tc)
     
     @customizable
     def adm_profile_tabs(self,tc):
-        self.authenticationsPane(tc.borderContainer(title='!!Authentication'))
+        self.authenticationsPane(tc.contentPane(title='!!Authentication'))
         frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
         frame_preference.top.slotToolbar('*,stackButtons,*')
         frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 
     @customizable
-    def authenticationsPane(self,bc):
-        pane = bc.contentPane(region='top')
+    def authenticationsPane(self,pane):
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
-        return bc
+        if self.getService('2fa'):
+            fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa').dataController(
+                                """dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
+                                    dlg.widget.show()
+                                """,
+                                dlg=self._dlg2faQrcode(fb),
+                                avatar_secret_2fa='=FORM.record.avatar_secret_2fa')
+            fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v').dataController(
+                                """SET #FORM.record.avatar_secret_2fa=null;""")
+            fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
+            fb.div('^#FORM.record.avatar_secret_2fa?=#v?"2FA enabled":"2FA not enabled"')
+            dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
+            frame = dlg.framePane(height='300px',width='400px')
+            frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
+        return fb
+    
+    def _dlg2faQrcode(self,pane):
+        dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
+        frame = dlg.framePane(height='300px',width='300px')
+        fb = frame.top.formbuilder(cols=1)
+        fb.textbox(value='^.secret',lbl='Secret',placeholder='Autogenerated secret',
+                   disabled='^#FORM.record.avatar_secret_2fa')
+        fb.dataRpc('#FORM.2fa_enabler.2fa_data',self.get2faData,secret='^.secret')
+        frame.center.contentPane(overflow='hidden'
+                                 ).div(height='200px',width='200px',margin='auto').img(src='^#FORM.2fa_enabler.2fa_data.qrcode_url',
+                                                        height='100%')
+        bottom = frame.bottom.div(height='50px')
+        bottom.lightbutton('Copy code to clipboard',text_align='center',cursor='pointer',
+                           font_size='.9em',font_weight='bold',color='#444',
+                      action="genro.textToClipboard(secret,'Copied')",
+                      secret='^#FORM.2fa_enabler.2fa_data.secret')       
+        fb = bottom.formbuilder()
+        fb.textbox(value='^.otp',lbl='OTP')
+        bar = frame.bottom.slotBar('*,confirm,5',childname='confirmbar',height='22px',border='1px solid silver')
+        rpc = bar.slotButton('Add').dataRpc(
+            self.confirmOTP,otp='=.otp',
+            user_id='=#FORM.record.id',
+            secret='=.secret'
+        )
+        rpc.addCallback("""if(result){
+                dlg.hide(); 
+                SET #FORM.2fa_enabler.2fa_data = null;
+                this.form.reload();
+            }else{
+                genro.dlg.alert('Wrong otp')
+            }
+        """,dlg=dlg.js_widget,otp='=.otp')
+        return dlg
+
+    @public_method
+    def get2faData(self,secret=None):
+        secret = secret or getUuid()
+        result = Bag()
+        service = self.getService('2fa')
+        secret = secret or getUuid()
+        previsioning_uri = service.getPrevisioningUri(name=self.user,secret=secret)
+        result['secret'] = str(service.get2faSecret(secret))
+        result['previsioning_uri'] = previsioning_uri
+        result['qrcode_url'] =f'/_tools/qrcode?{urllib.parse.urlencode({"url":previsioning_uri})}' 
+        self.db.commit()
+        return result
+
+    @public_method
+    def confirmOTP(self,user_id=None,otp=None,secret=None):
+        result = self.getService('2fa').verifyTOTP(secret=secret,otp=otp)
+        if result:
+            with self.db.table('adm.user').recordToUpdate(user_id) as user:
+                 user['avatar_last_2fa_otp'] = otp
+                 user['avatar_secret_2fa'] = secret
+            self.db.commit()
+        return result

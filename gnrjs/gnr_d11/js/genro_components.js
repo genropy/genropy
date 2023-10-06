@@ -4496,7 +4496,18 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
                 dojo.connect(widget,'setHiddenChild',function(child,value){
                     that.setHiddenChild(this,child,value);
                 });
-            },1)
+            },1);
+            stackNode.subscribe('onChangedChildTitle',function(kw){
+                var controllerNodes = stackNode._stackButtonsNodes;
+                var paneId = that.getPaneId(kw.child.sourceNode);
+                controllerNodes.forEach(function(c){
+                    let titleNode = c._value.getNode(paneId);
+                    if(titleNode){
+                        let innernode = titleNode.getValue().getNode('mb_caption');
+                        innernode.updAttributes({innerHTML:kw.title},true);
+                    }
+                });
+            });
         })
         return tabButtonsNode;
     },
@@ -4605,7 +4616,7 @@ dojo.declare("gnr.widgets.StackButtons", gnr.widgets.gnrwdg, {
                 multibutton_kw.innerHTML = title;
                 multibutton_kw._class = 'multibutton_caption';
             }
-            btn._('div',multibutton_kw);
+            btn._('div','mb_caption',multibutton_kw);
             if(childSourceNode.attr.closable){
                 var stack = stackNode.widget;
                 var onClosingCb = childSourceNode.attr.onClosingCb;
@@ -5641,7 +5652,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         
         if(orientation=='horizontal'){
             if('height' in attributes){
-                buildKw.cell['height']= objectPop(attributes,'height');
+                buildKw.table.min_height = objectPop(attributes,'height');
             }
         }else{
             if('width' in attributes){
@@ -5881,7 +5892,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         pane._('StackButtons',objectUpdate({stack:scNode},slotKw));
     },
     slot_parentStackButtons:function(pane,slotValue,slotKw,frameCode){
-        slotKw['height'] = slotKw['height'] || '20px'
+        slotKw['min_height'] = slotKw['min_height'] || '20px'
         pane._('StackButtons',objectUpdate(objectUpdate({stack:pane.getParentNode().attributeOwnerNode('tag','StackContainer')},slotKw)));
     },
     

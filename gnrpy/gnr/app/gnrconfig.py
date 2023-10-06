@@ -170,6 +170,8 @@ def getSiteHandler(site_name, gnr_config=None):
 def setEnvironment(gnr_config):
     environment_xml = gnr_config['gnr.environment_xml']
     if environment_xml:
+        if not environment_xml['environment']:
+            return
         for var, value in environment_xml.digest('environment:#k,#a.value'):
             var = var.upper()
             if not os.getenv(var):

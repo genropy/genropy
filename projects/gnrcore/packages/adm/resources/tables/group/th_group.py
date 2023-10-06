@@ -29,6 +29,9 @@ class Form(BaseComponent):
         fb.field('code')
         fb.field('description')
         fb.field('rootpage')
+        fb.field('require_2fa')
+        fb.field('no2fa_alternative_group',hidden='^.require_2fa?=!#v',condition='$code!=:gc AND $require_2fa IS NOT TRUE',
+                 condition_gc='^.code',hasDownArrow=True)
 
         tc = bc.tabContainer(region='center',margin='2px')
         tc.contentPane(title='!!Users').plainTableHandler(relation='@users',picker=True,

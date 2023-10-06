@@ -603,7 +603,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var currentPkey = this.getCurrentPkey();
         if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
             if(kw.modifiers=='Shift' || this.autoSave){
-                this.save(kw);
+                if(this.isValid()){
+                    this.save(kw);
+                }else{
+                    kw.command='discard';
+                    this.publish('pendingChangesAnswer',kw);
+                }
             }else{
                 this.openPendingChangesDlg(kw);
             }
@@ -614,11 +619,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var that = this;
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
+            let prompt_dflt = new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw));
             genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
                 widget:defaultPrompt.fields,
-                dflt:new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw)),
+                dflt:prompt_dflt,
                 cols:defaultPrompt.cols,
                 datapath:'.controller.defaultPrompt',
+                cancelCb:function(){
+                    that.abort();
+                },
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
@@ -809,7 +818,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     
     openPendingChangesDlg:function(kw,saveSlot){
-        if(this.avoidPendingChangesDialog){
+        if(this.avoidPendingChangesDialog || kw.afterItemDeleted){
             kw.command='discard';
             this.publish('pendingChangesAnswer',kw);
             return;
@@ -908,7 +917,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     deleted:function(result,kw){
         var destPkey = kw.destPkey || this.deleted_destPkey || '*dismiss*';
-        this.load({destPkey:destPkey});
+        this.load({destPkey:destPkey,afterItemDeleted:true});
         this.publish('message',{message:this.msg_deleted,sound:'$ondeleted'});
         this.publish('onDeleted');
     },

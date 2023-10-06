@@ -474,27 +474,32 @@ class DbModelSrc(GnrStructData):
         result =  self.table(name,maintable=maintable,**kwargs)
         resultattr = result.attributes
         for k,v in maintable_attributes.items():
-            resultattr.setdefault(k,v)
-        if maintable_src['columns'] is not None:
-            for n in maintable_src['columns']:
-                attributes = dict(n.attr)
-                attributes.pop('tag')
-                value = n.value
-                col = result.column(n.label,**attributes)
-                if value:
-                    for rn in value:
-                        rnattr = dict(rn.attr)
-                        rnattr['relation_name'] =f'{name_plural.lower().replace(" ","_")}'
-                        related_column = rnattr.pop('related_column')
-                        col.relation(related_column,**rnattr)
-        maintable_src.column('__subtable')
-        result.column('__subtable',sql_value=f"'{name}'",default=name)
+            if not k.startswith('partition_'):
+                resultattr.setdefault(k,v)
+        maintable_src.column('__subtable',size=':64',group='_',indexed=True)
+        for n in maintable_src['columns']:
+            attributes = dict(n.attr)
+            attributes.pop('tag')
+            attributes.pop('indexed',None)
+            attributes['sql_inherited'] = True
+            value = n.value
+            col = result.column(n.label,**attributes)
+            if value:
+                for rn in value:
+                    rnattr = dict(rn.attr)
+                    if rnattr.get('relation_name'):
+                        rnattr['relation_name'] = kwargs.get('relation_name') or f'{name_plural.lower().replace(" ","_")}'
+                    related_column = rnattr.pop('related_column')
+                    col.relation(related_column,**rnattr)
+        subtablename = f'{self.attributes.get("pkgcode")}.{name}'
+        result.column('__subtable',sql_value=f"'{subtablename}'",default=name,group='_',
+                    sql_inherited=True)
         maintable_src.subtable(name,condition='$__subtable=:sn',
                                condition_sn=name,
-                               table=f'{self.attributes.get("pkgcode")}.{name}',
+                               table=subtablename,
                                name_plural=kwargs.get('name_plural'))
         maintable_src.subtable('_main',condition='$__subtable IS NULL',
-                               name_plural=maintable_attributes.get('name_plural'))  #prodotto subtable IS NULL
+                               name_plural=maintable_attributes.get('name_plural'))
         maintable_attributes['default_subtable'] = '_main'
         result.subtable('_main',condition='$__subtable=:sn',condition_sn=name)
         resultattr['default_subtable'] = '_main'
@@ -728,6 +733,10 @@ class DbModelSrc(GnrStructData):
         if one_group is None and fkey_group and fkey_group!='_':
             self.attributes['group'] = '_'
             one_group = fkey_group
+        related_column = related_column.split('.')
+        if len(related_column)<3:
+            related_column = [self.getInheritedAttributes().get('pkg')]+related_column
+        related_column = '.'.join(related_column)
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
@@ -1200,11 +1209,12 @@ class DbTableObj(DbModelObj):
                     raise GnrSqlMissingColumn('Invalid column %s in table %s' % (name, self.name_full))
         if name.startswith('@'):
             relcol = self._relatedColumn(name)
-            assert relcol is not None, 'relation %s does not exist in table %s' %(relcol,name)
+            if relcol is None:
+                raise GnrSqlMissingColumn('relation %s does not exist in table %s' %(name,self.name_full))
             if colalias is None:
                 return relcol
             if not 'virtual_column' in colalias.attributes:
-                raise             
+                raise GnrSqlException('Col alias must be virtual_column')
             return AliasColumnWrapper(relcol,colalias.attributes)
      
     def _relatedColumn(self, fieldpath):
@@ -1685,7 +1695,7 @@ class AliasColumnWrapper(DbModelObj):
         mixedattributes = dict(originalColumn.attributes)
         colalias_attributes = dict(aliasAttributes)
         colalias_attributes.pop('tag')
-        colalias_attributes.pop('relation_path')
+        self.relation_path = colalias_attributes.pop('relation_path')
         mixedattributes.update(colalias_attributes)
         virtual_column = mixedattributes.pop('virtual_column', None)
         if virtual_column:

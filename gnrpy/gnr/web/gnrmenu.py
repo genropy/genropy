@@ -109,7 +109,7 @@ class MenuStruct(GnrStructData):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label=None,table=None,tags='',multipage=None, **kwargs):
+    def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
@@ -384,23 +384,23 @@ class MenuResolver(BagResolver):
             return self.level_offset+level+1
         return level
 
-    def allowedNode(self,node):
-        nodeattr = node.attr
-        auth_tags = nodeattr.get('tags')
-        checkInstance = nodeattr.get('checkInstance')
+    def allowedNode(self,node,attributes=None):
+        attributes = attributes or node.attr
+        auth_tags = attributes.get('tags')
+        checkInstance = attributes.get('checkInstance')
         if checkInstance and self.app.instanceName not in checkInstance.split(','):
             return False
         if auth_tags and \
             not self.app.checkResourcePermission(auth_tags, self._page.userTags):
             return False
-        multidb = nodeattr.get('multidb')
+        multidb = attributes.get('multidb')
         dbstore = self._page.dbstore
         if (multidb=='slave' and not dbstore) or (multidb=='master' and dbstore):
             return False
-        checkenv = nodeattr.get('checkenv')
+        checkenv = attributes.get('checkenv')
         if checkenv and not self._page.rootenv[checkenv]:
             return False
-        if not self.app.allowedByPreference(**nodeattr):
+        if not self.app.allowedByPreference(**attributes):
             return False
         return True
 
@@ -521,6 +521,8 @@ class MenuResolver(BagResolver):
         xmlresolved = kwargs.pop('resolved',False)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
+        if attributes.get('titleCounter'):
+            xmlresolved=True
         sbresolver = TableMenuResolver(xmlresolved=xmlresolved,
                             _page=self._page,cacheTime=cacheTime, 
                             level_offset=self.level,
@@ -537,6 +539,11 @@ class MenuResolver(BagResolver):
             return None,attributes
         if len(value) == 1 and value['#0']:
             path = '#0'
+            innerattr = value.getNode('#0').attr
+            innerattr.update(attributes)
+            attributes = innerattr
+            if not self.allowedNode(node,attributes=attributes):
+                raise NotAllowedException
         attributes['isDir'] = True
         return PackageMenuResolver(path=path,pkg=attributes['pkg'],level_offset=self.level,
                                 branchMethod=attributes.get('branchMethod'), tags=attributes.get('tags'),
@@ -564,7 +571,7 @@ class TableMenuResolver(MenuResolver):
     @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
                         branchIdentifier=None, cacheTime=None,caption_field=None,branchPage=None,
-                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,**kwargs):
+                        label=None,title=None,label_field=None,title_field=None,query_kwargs=None,add_kwargs=None,xmlresolved=None,**kwargs):
         super().__init__(table=table,
                             branchId=branchId,
                             label=label,
@@ -578,6 +585,7 @@ class TableMenuResolver(MenuResolver):
                             add_kwargs=add_kwargs,
                             branchPage=branchPage,
                             webpage=webpage,branchIdentifier=branchIdentifier,**kwargs)
+        self.xmlresolved = xmlresolved
         self.leaf_kwargs = kwargs
 
     @property
@@ -639,8 +647,12 @@ class TableMenuResolver(MenuResolver):
                 title = linekw.pop('title',self.title)
             else:
                 url_pkey = record['pkey']
+            formatkw = dict(record)
+            webpage = webpage.format(**formatkw)
             result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
-                           url_pkey=url_pkey,filepath=webpage,pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()})
+                           url_pkey=url_pkey,filepath=webpage,
+                           pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()},
+                           **self.leaf_kwargs)
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
             branchPage = True if self.branchPage is None else self.branchPage

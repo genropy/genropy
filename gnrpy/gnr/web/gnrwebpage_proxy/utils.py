@@ -277,7 +277,6 @@ class GnrWebUtils(GnrBaseProxy):
             result['import_modes'] = ','.join(import_modes)
             result['import_mode'] = 'insert_only'
             result['methodlist'] = ','.join([k[9:] for k in dir(tblobj) if k.startswith('importer_')])
-
         for k,i in sorted(list(reader.index.items()),key=lambda tup:tup[1]):
             columns.setItem(k,None,name=k,field=k,width='10em')
             if k in table_col_list:
@@ -314,13 +313,14 @@ class GnrWebUtils(GnrBaseProxy):
             for sheet in sheets:
                 if sheet.get('sheet') is not None:
                     reader.setMainSheet(sheet['sheet'])
-                struct = sheet['struct']
+                struct = sheet.get('struct',dict())
                 match_index = tblobj.importerMatchIndex(reader,struct=struct)
                 constants = constant_kwargs 
                 constants.update(struct.get('constants') or dict())
                 importer = struct.get('importer')
                 if importer:
-                    res = getattr(tblobj,importer)(reader)
+                    rows = self.adaptedRecords(tblobj=tblobj,reader=reader,match_index=match_index,sql_mode=sql_mode,constants=constants)
+                    res = getattr(tblobj,importer)(rows, **constants)
                 else:
                     res = self.defaultMatchImporterXls(tblobj=tblobj,reader=reader,
                                                 match_index=match_index,
@@ -391,7 +391,7 @@ class GnrWebUtils(GnrBaseProxy):
         for row in self.quickThermo(reader(),maxidx=reader.nrows if hasattr(reader,'nrows') else None,
                         labelfield=tblobj.attributes.get('caption_field') or tblobj.name):
             r = dict(constants) if constants else dict()
-            f =  {v:row[k] for k,v in match_index.items() if v != ''}
+            f =  {v:row[k] for k,v in match_index.items() if v != ''} if match_index else dict(row)
             r.update(f)
             tblobj.recordCoerceTypes(r)
             if sql_mode:

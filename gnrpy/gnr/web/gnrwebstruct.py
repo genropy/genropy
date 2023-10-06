@@ -30,7 +30,7 @@ from builtins import str
 from builtins import range
 from past.builtins import basestring
 from past.utils import old_div
-#from builtins import object
+
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
@@ -845,7 +845,7 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
-    def mobileFormBuilder(self,margin_right=None,**kwargs):
+    def mobileFormBuilder(self,margin_right=None,_class=None,**kwargs):
         margin_right = margin_right or '10px'
         box = self.div(margin_right=margin_right)
         fld_width='100%'
@@ -854,10 +854,10 @@ class GnrDomSrc(GnrStructData):
         pars = dict(border_spacing='8px 0px', 
                         width='100%',fld_width=fld_width,lblpos='T',
                         lbl_text_align='left',lbl_font_size='.8em',
-                        lbl_padding_top='4px',fld_zoom=False,
+                        lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class='mobilefields')
+                        _class=_class or 'mobilefields')
         pars.update(kwargs)
         return box.formbuilder(**pars)
         
@@ -1038,7 +1038,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                'FisheyeList', 'Loader', 'Toaster', 'FileInput', 'fileInputBlind', 'FileInputAuto', 'ColorPicker',
                'SortList', 'TimeSpinner', 'Iterator', 'ScrollPane',
                'Gallery', 'Lightbox', 'SlideShow', 'ThumbnailPicker', 'Chart',
-               'Deck', 'Slide', 'GoogleMap', 'Calendar', 'GoogleChart', 'GoogleVisualization',
+               'Deck', 'Slide', 'GoogleMap','GoogleChart', 'Calendar', 'GoogleChart', 'GoogleVisualization',
                'DojoGrid', 'VirtualGrid', 'VirtualStaticGrid']
                
     #gnrNS=['menu','menuBar','menuItem','Tree','Select','DbSelect','Combobox','Data',
@@ -1294,6 +1294,21 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
+    def partitionController(self,partition_key=None,value=None,**kwargs):
+        self.dataController(f"""
+            let kw = {{}};
+            kw.topic  = 'changed_partition_{partition_key}';
+            kw.iframe = '*';
+            genro.publish(kw,{{partition_value:value}});
+        """,value=value,**kwargs)
+        self.partitionSubscriber(partition_key)
+    
+    def partitionSubscriber(self,partition_key):
+        self.data(f'current.{partition_key}',self.page.rootenv[f'current_{partition_key}'],serverpath=f'rootenv.current_{partition_key}',dbenv=True)
+        self.dataFormula(f'current.{partition_key}','partition_value',
+                         **{f'subscribe_changed_partition_{partition_key}':True})
+
+
     def onDbChanges(self, action=None, table=None, **kwargs):
         """TODO
         
@@ -1494,6 +1509,14 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if struct or columns or not structpath:
             paletteGrid.gridStruct(struct=struct,columns=columns)
         return paletteGrid
+    
+    def googlechart(self,chartType=None,**kwargs):
+        return self.child('GoogleChart',chartType=chartType,**kwargs)
+    
+    def googlechart_column(self,field=None,name=None,dtype=None,**kwargs):
+        columns = self.attributes.setdefault('columns',[])
+        return columns.append(dict(field=field,name=name,dtype=dtype,**kwargs))
+
         
     def includedview_draganddrop(self,dropCodes=None,**kwargs):
         ivattr = self.attributes
@@ -1944,7 +1967,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 size = int(size)
             else:
                 size = 5
-            defaultZoom = self.page.pageOptions.get('enableZoom', True)
+            defaultZoom = self.getInheritedAttributes().get('enableZoom')
+            if defaultZoom is None:
+                defaultZoom = self.page.pageOptions.get('enableZoom', True)
             if lbl is not False:
                 result['lbl'] = lbl or fieldobj.table.dbtable.relationName('@%s' % fieldobj.name)
                 if kwargs.get('zoom', defaultZoom):
@@ -2304,7 +2329,7 @@ class GnrFormBuilder(object):
                     groupHiddenTargets.push(tdNode.domNode)
                     groupHiddenTargets.push(tdNode.getChild('parent/'+tdNode.label.replace('_f','_l')).domNode);
                 """ %onCreated
-            if '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
+            if lbl and '_valuelabel' not in field and not lbl.startswith('=='):  #BECAUSE IT CANNOT CALCULATE ON THE FIELD SOURCENODE SCOPE
                 field['_valuelabel'] = lbl
             if 'lbl_href' in field:
                 lblhref = field.pop('lbl_href')

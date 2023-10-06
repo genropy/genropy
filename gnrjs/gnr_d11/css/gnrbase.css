@@ -1714,6 +1714,17 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     margin-top: 2px;
 }
 
+
+.largemenu .dijitMenuItem td{
+    font-size: 1.2em;
+    padding:5px;
+}
+
+.largemenu.dijitMenu.dijitMenuTable{
+    border:1px solid silver;
+    border-collapse: collapse;
+}
+
 .smallmenu .dijitMenuItem {
     font-size: .9em;
 }
@@ -1924,7 +1935,15 @@ div.dojoxDock {
 
 .plainTextChunk{
     white-space: pre;
-    font-family: 'Courier New', Courier, monospace;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 4px;
+    border:1px solid silver;
+    margin-bottom: 10px;
 }
 /* @end */
 
@@ -1958,7 +1977,7 @@ div.dojoxDock {
     width:16px;
 }
 .box24{
-     height:24px;
+    height:24px;
     width:24px;
 }
 .box32{
@@ -4218,7 +4237,7 @@ p {
 
 
 .pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
-    height: 18px;
+    min-height: 18px;
     font-variant:normal;
     line-height:15px;
     font-size: .9em;
@@ -4313,7 +4332,7 @@ p {
     line-height:3ex;
     font-size: .9em;
     font-variant:small-caps;
-    height: 19px;
+    min-height: 19px;
 }
 .multibutton_container .hidden.multibutton{
     display: none;
@@ -5417,6 +5436,14 @@ div[disabled='true'], div[disabled='disabled']{
     right: 0;
     overflow: hidden;
 }
+
+.mode_std .mobileSizer{
+    max-width: 700px;
+    margin: auto;
+    border-left: 1px solid silver;
+    border-right: 1px solid silver;
+}
+
 .touchDevice .scroll-wrapper{
     overflow-y:scroll !important; 
     -webkit-overflow-scrolling:touch !important;    
@@ -5425,6 +5452,7 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
+
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;

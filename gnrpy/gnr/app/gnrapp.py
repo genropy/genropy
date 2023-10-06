@@ -23,7 +23,6 @@
 from __future__ import print_function
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
 import tempfile
 import atexit
 import logging
@@ -996,7 +995,11 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        return (self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]).replace('_','-')
+        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]
+        if not found_locale:
+            locale.setlocale(locale.LC_ALL, "")
+            found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
+        return (found_locale or 'en-US').replace('_','-')
 
     def setPreference(self, path, data, pkg):
         if self.db.package('adm'):

@@ -375,7 +375,7 @@ class XlsxReader(object):
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
         self.book = load_workbook(filename=self.docname,
-                                  read_only=True,
+                                  read_only= True,
                                   data_only=True,
                                   keep_links=False)
             # :param data_only: controls whether cells with formulae have either the formula (default) or the value stored the last time Excel read the sheet
@@ -388,7 +388,7 @@ class XlsxReader(object):
 
         for sheetname in self.book.sheetnames:
             self.addSheet(sheetname)
-            
+          
         mainsheet_name = self.book.active.title
         self.setMainSheet(mainsheet_name)
 
@@ -400,8 +400,16 @@ class XlsxReader(object):
     def addSheet(self,sheetname):
         sheet = self.book[sheetname]
         linegen = self._sheetlines(sheet)
-        firstline = next(linegen)
-        headers = [slugify(header, sep='_') for header in firstline if header]
+        try:
+            firstline = next(linegen)
+        except StopIteration:
+            firstline = []
+        headers = []
+        for i,header in enumerate(firstline):
+            if not header:
+                header = f'gnr_emptycol_{i}'
+            header = slugify(header, sep='_')
+            headers.append(header)
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         index = dict()
         errors = None
@@ -410,6 +418,7 @@ class XlsxReader(object):
                 errors = 'duplicated column %s' %k
             else:
                 index[k] = i
+        
         self.sheets[sheetname] = {'sheet': sheet,
                                    'headers':headers,
                                    'colindex':colindex,

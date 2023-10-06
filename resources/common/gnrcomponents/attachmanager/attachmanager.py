@@ -89,16 +89,7 @@ class Form(BaseComponent):
         bc = sc.borderContainer()
         if hasattr(self,'atc_metadata'):
             self.atc_metadata(bc)
-        iframe = bc.contentPane(region='center',overflow='hidden'
-                        ).iframe(src='^.fileurl',_virtual_column='fileurl',height='100%',
-                                  avoidCache=True,
-                                    width='100%',border='0px',documentClasses=True,
-                                    connect_onload="""
-                                        if(this.domNode.getAttribute('src') && this.domNode.getAttribute('src').indexOf('.pdf')<0){
-                                            var cw = this.domNode.contentWindow;
-                                            cw.document.body.style.zoom = GET #FORM.currentPreviewZoom;
-                                        }
-                                        """)
+        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',currentPreviewZoom='^#FORM.currentPreviewZoom')
         da = sc.contentPane().div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
             text_align='center',border='3px dotted #999',rounded=8)
         upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
@@ -113,13 +104,11 @@ class Form(BaseComponent):
                         ask = askMetadata,
                         selfsubscribe_inserted_attachment="""this.form.goToRecord($1.record_id);""",
                         onUploadingMethod=self.onUploadingAttachment,
+                        onUploadedMethod=self.onUploadedAttachment,
                         rpc_maintable_id='=#FORM.record.maintable_id',
                         rpc_attachment_table=fattr.get('table'),
                         nodeId='%(frameCode)s_uploader' %fattr)
         form.dataController("sc.switchPage(newrecord?1:0)",newrecord='^#FORM.controller.is_newrecord',sc=sc.js_widget)
-        form.dataController(""" if(iframe.getAttribute('src') && iframe.getAttribute('src').indexOf('.pdf')<0){
-            iframe.contentWindow.document.body.style.zoom = currentPreviewZoom;
-        }""",iframe=iframe.js_domNode,currentPreviewZoom='^#FORM.currentPreviewZoom')
 
     def th_options(self):
         return dict(showtoolbar=False,showfooter=False,autoSave=True)
@@ -305,11 +294,25 @@ class AttachManager(BaseComponent):
         with self.db.table(table).recordToUpdate(pkey) as record:
             record['description'] = description
         self.db.commit()
+
+    @struct_method
+    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+        sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
+        sc.contentPane(pageName='document').iframe(src=src,height='100%',
+                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
+        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        parent.dataController("""
+        let ext = src.split("?")[0].split('.').pop()
+        SET .$ext = src.split("?")[0].split('.').pop();
+        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        """,src=src,_if='src',sc=sc.js_widget)
                                                  
 
 
     @struct_method
-    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,**kwargs):            
+    def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
+                                      toolbarPosition=None,**kwargs):   
+        toolbarPosition = toolbarPosition or 'top'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
                             caption='description',parentForm=parentForm,
@@ -323,21 +326,22 @@ class AttachManager(BaseComponent):
                                 s.deleteAsk([value]);
                             """,
                             multibutton_deleteSelectedOnly=True,
+                            toolbarPosition=toolbarPosition,
                             store_order_by='$_row_count')
         frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
                 parentForm=parentForm,deleteAction=False,disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
                 _store='^.store',_flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
-        bar = frame.top.bar.replaceSlots('mbslot','mbslot,15,changeName,5,previewZoom,externalUrl')
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
+                                         hidden='^.form.viewerMode?=#v!="image"',
                                  intermediateChanges=True, width='15em',default_value=1)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
         fb.textbox(value='^.description',lbl='!!Description')
         frame.parametersForm = fb
-
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
@@ -350,21 +354,10 @@ class AttachManager(BaseComponent):
                 frm.newrecord();
             }
             """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
-            _if='!store || store.len()==0',frm=frame.form.js_form,frame=frame)
+            _fired='^#FORM.controller.loaded',
+            _if='!store || store.len()==0',
+            frm=frame.form.js_form,frame=frame)
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
-       #frame.onDbChanges(action="""
-       #    var that = this;
-       #    if(_node.attr.from_page_id!=genro.page_id){
-       #        return;
-       #    }   
-       #    dbChanges.forEach(function(c){
-       #        if(c.dbevent=='I'){
-       #            frm.goToRecord(c.pkey);
-       #        }else if(c.dbevent=='D'){
-       #            console.log('deleted',c.pkey);
-       #        }
-       #    })
-       #    """,table=table,frm=frame.form.js_form,_delay=100,store='=.store')
         return frame
 
     @public_method
@@ -383,7 +376,16 @@ class AttachManager(BaseComponent):
             if v is not None and attachment_tblobj.column(k) is not None:
                 record[k] = v
         attachment_tblobj.insert(record)
+        kwargs['attachment_id'] = record['id']
         self.db.commit()        
         self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
 
-
+    @public_method
+    def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
+                                attachment_id=None, **kwargs):
+        attachment_table = kwargs.get('attachment_table')
+        maintable_id = kwargs.get('maintable_id')
+        filename = kwargs.get('filename')
+        attachment_tblobj =  self.db.table(attachment_table)
+        attachment_tblobj.onUploadedAttachment(attachment_id)
+        

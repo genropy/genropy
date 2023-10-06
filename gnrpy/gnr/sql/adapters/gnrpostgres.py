@@ -71,7 +71,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'timestamp without time zone': 'DH',
                  'timestamp with time zone': 'DHZ',
                   'numeric': 'N', 'money': 'M',
-                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'bytea': 'O'}
+                 'integer': 'I', 'bigint': 'L', 
+                 'smallint': 'I', 
+                 'double precision': 'R', 
+                 'real': 'R',
+                'bytea': 'O',
+                'jsonb':'jsonb'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
@@ -81,7 +86,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'DH': 'timestamp without time zone',
                     'DHZ': 'timestamp with time zone',
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
-                    'serial': 'serial8', 'O': 'bytea'}
+                    'serial': 'serial8', 'O': 'bytea','jsonb':'jsonb'}
 
     _lock = threading.Lock()
     paramstyle = 'pyformat'
@@ -142,7 +147,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
                       password=dbroot.password, port=dbroot.port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        #conn = PersistentDB(psycopg2, 1000, **kwargs).connection()
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn

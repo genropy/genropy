@@ -515,7 +515,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                             searchOn:true,tree_inspect:'shift',tree_labelAttribute:null,editable:true});
         genro.setDataFromRemote('gnr.palettes.dbmodel.store', "app.dbStructure",{checkPermission:true});
         this.sqlDebugPalette(pg);
-        this.cssDebugPalette(pg);
+        //this.cssDebugPalette(pg);
         this.devUtilsPalette(pg);
         node.unfreeze();
     },

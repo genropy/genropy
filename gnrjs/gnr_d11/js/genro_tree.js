@@ -857,13 +857,15 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
             curr = currNode.getValue();
         }
         var currTree = this;
-        setTimeout(function() {
-            currTree.focusNode(treeNode);
-            currTree.setSelected(treeNode);
-            if(kw.expand){
-                currTree._expandNode(treeNode);
-            }
-        }, 100);
+        if(treeNode){
+            setTimeout(function() {
+                currTree.focusNode(treeNode);
+                currTree.setSelected(treeNode);
+                if(kw.expand){
+                    currTree._expandNode(treeNode);
+                }
+            }, 100);
+        }
     },
      mixin_showNodeAtPath:function(path) {
         var curr = this.model.store.rootData();

@@ -7,6 +7,8 @@
 
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -31,6 +33,7 @@ class FrameIndex(BaseComponent):
     auth_page = 'user'
     auth_main = 'user'
     menuClass = 'ApplicationMenu'
+    check_tester = False
 
     @property
     def plugin_list(self):
@@ -61,6 +64,12 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        testing_preference = self.getPreference('testing',pkg='adm') or Bag()
+        if self.check_tester and testing_preference['beta_tester_tag'] \
+            and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
+                                                            self.userTags):
+            self.forbiddenPage(root, **kwargs)
+            return
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
                 getattr(self,f'index_{custom_index}')(root)
@@ -84,6 +93,9 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
+        if new_window:
+            self.loginDialog(pane,new_window=True)
+            return
         pane.dataController("""var d = data.deepCopy();
                             if(deltaDays(new Date(),d.getItem('workdate'))==0){
                                 d.setItem('workdate','');
@@ -126,10 +138,7 @@ class FrameIndex(BaseComponent):
             self.prepareTop_mobile(bc,onCreatingTablist=onCreatingTablist)
             self.prepareBottom_mobile(bc)
             self.prepareCenter_mobile(bc)
-        if new_window:
-            self.loginDialog(pane,new_window=True)
-        else:
-            self.login_newPassword(pane)
+        self.login_newPassword(pane)
         return bc
         
     def prepareBottom(self,bc):
@@ -254,9 +263,10 @@ class FrameIndex(BaseComponent):
                                     
         """,subscribe_iframe_stack_selected=True,tabroot=tabroot,_if='page')
 
+    @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,manageDocumentation,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
+        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,left_placeholder,*,right_placeholder,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
                         background='#EEEEEE',border_top='1px solid silver')
         sb.appInfo.div('^gnr.appInfo')
         applogo = sb.applogo.div()
@@ -284,8 +294,6 @@ class FrameIndex(BaseComponent):
         sb.count_errors.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
                             _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
         sb.devlink.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(_class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
-        sb.manageDocumentation.slotButton("!!Help",iconClass='iconbox help',
-                            action='genro.framedIndexManager.openHelpForCurrentIframe();')
 
         #SP: electronAppDownload is still not tested and working fine.
         #if not self.isMobile :
@@ -294,27 +302,48 @@ class FrameIndex(BaseComponent):
         sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
                             action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
         sb.debugping.div(_class='ping_semaphore')
+        return sb
 
+    @struct_method
+    def fi_slotbar_helpdesk(self,pane,**kwargs):
+        documentationcb = self.helpdesk_documentation()
+        helpcb = self.helpdesk_help()
+        if not (documentationcb or helpcb):
+            return
+        
+        menu = pane.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
 
+        if documentationcb:
+            menu.menuline('!![en]Open documentation',code='documentation',
+                          action=documentationcb)
+        if helpcb:
+            menu.menuline('!![en]Ask for help',code='help',action=helpcb)
 
+    def helpdesk_documentation(self):
+        return
+
+    def helpdesk_help(self):
+        return 
+
+    @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('20,genrologo,5,applogo,*,debugping,logout,20',
+        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,left_placeholder,*,right_placeholder,debugping,logout,20',
                               _class='slotbar_toolbar framefooter',height='25px',
                         background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
-        
+
         sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
         sb.debugping.div(_class='ping_semaphore')
         applogo = sb.applogo.div()
         if hasattr(self,'application_logo'):
             applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
         sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+        return sb
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
                                 #border_left='1px solid silver',
-                                margin_left='-1px',
                                 onCreated='genro.framedIndexManager = new gnr.FramedIndexManager(this);',_class='frameindexcenter')
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
@@ -356,7 +385,7 @@ class FrameIndex(BaseComponent):
     def prepareLeft_std(self,bc):
 
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
-                                    margin_right='-4px',overflow='hidden',hidden=self.hideLeftPlugins,border_right='5px solid #eee')
+                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;

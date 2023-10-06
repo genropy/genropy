@@ -258,13 +258,14 @@ class TableHandler(BaseComponent):
     @extract_kwargs(dialog=True,default=True,form=True)
     @struct_method
     def th_dialogTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,
+                            form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
                                         tag='ContentPane',default_kwargs=default_kwargs,readOnly=readOnly,
                                         form_kwargs=form_kwargs,**kwargs)
         form_kwargs.setdefault('form_locked',True)
-        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent='onRowDblClick',
+        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent=loadEvent,
                         dialog_kwargs=dialog_kwargs,attachTo=pane,formInIframe=formInIframe,
                         formResource=formResource,default_kwargs=default_kwargs,**form_kwargs)     
         return pane
@@ -272,7 +273,7 @@ class TableHandler(BaseComponent):
     @extract_kwargs(palette=True,default=True,form=True)
     @struct_method
     def th_paletteTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,
                                         formInIframe=formInIframe,
@@ -283,7 +284,7 @@ class TableHandler(BaseComponent):
         form_kwargs.setdefault('form_locked',True)
         pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,
                                 formResource=formResource,
-                                loadEvent='onRowDblClick',
+                                loadEvent=loadEvent,
                                 palette_kwargs=palette_kwargs,attachTo=pane,default_kwargs=default_kwargs,
                                 **form_kwargs)     
         return pane
@@ -488,6 +489,7 @@ class TableHandler(BaseComponent):
         kwargs = dict([('main_%s' %k,v) for k,v in kwargs.items()])
         iframe = pane.iframe(main='th_iframedispatcher',main_methodname=method,
                             main_table=pane.getInheritedAttributes().get('table'),
+                            main_currentFormId=pane.getInheritedAttributes().get('formId'),
                             main_pkey='=#FORM.pkey',
                             src=src,**kwargs)
         pane.dataController('genro.publish({iframe:"*",topic:"frame_onChangedPkey"},{pkey:pkey})',pkey='^#FORM.pkey')
@@ -531,8 +533,9 @@ class TableHandler(BaseComponent):
         return iframe
         
     @public_method
-    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,**kwargs):
+    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,**kwargs):
         rootattr = root.attributes
+        rootattr['formId'] = correntFormId
         rootattr['datapath'] = 'main'
         rootattr['overflow'] = 'hidden'
         rootattr['_fakeform'] = True
@@ -606,7 +609,8 @@ class MultiButtonForm(BaseComponent):
                             frameCode=None,formId=None,formResource=None,
                             default_kwargs=None,modal=True,datapath=None,
                             emptyPageMessage=None,darkToolbar=False,pendingChangesMessage=None,pendingChangesTitle=None,
-                            **kwargs):
+                            toolbarPosition=None,**kwargs):
+        toolbarPosition = toolbarPosition or 'top'
         if relation:
             table,condition,fkeyfield = self._th_relationExpand(pane,relation=relation,condition=condition,
                                                     condition_kwargs=condition_kwargs,
@@ -622,7 +626,7 @@ class MultiButtonForm(BaseComponent):
         tbkw = dict()
         if darkToolbar:
             tbkw = dict(_class='darktoolbar')
-        bar = frame.top.slotToolbar('5,mbslot,*',height='20px',**tbkw)
+        bar = getattr(frame,toolbarPosition).slotToolbar('5,mbslot,*',height='20px',**tbkw)
         caption_field = caption or self.db.table(table).attributes['caption_field']
         multibutton_kwargs.setdefault('caption',caption_field)
         self.subscribeTable(table,True)
