@@ -266,6 +266,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
 
     message:function(kw){
+        if(this.avoidFloatingMessage){
+            return
+        }
+
         if (!(kw instanceof Array)){
             kw = [kw]
         }

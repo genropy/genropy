@@ -2,6 +2,7 @@ from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
+import json
 from past.builtins import basestring
 
 from gnr.core.gnrbag import Bag
@@ -903,6 +904,18 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_pwa_manifest.json':
+            try:
+                result = self.serve_manifest(response, environ, start_response, **request_kwargs)
+                if not isinstance(result, basestring):
+                    return result
+                response = self.setResultInResponse(result, response)
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1494,6 +1507,28 @@ class GnrWsgiSite(object):
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
         else:
             return result.toXml(unresolved=True, omitUnknownTypes=True)
+
+    def serve_manifest(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
+        response.content_type = "application/json"
+        sitename = self.site_name.title()
+        result = {"short_name":sitename,
+                "name": sitename,
+                "description":f"PWA {sitename}",
+                "display":"minimal-ui",
+                "start_url":"/",
+                "icons": [
+                {
+                    "src":  self.dummyPage.getResourceUri('pwa/images/logo_512.png'),
+                    "type": "image/png",
+                    "sizes": "512x512"
+                }
+                ]
+            }
+        config_pwa = self.config['pwa']
+        for k,v in config_pwa.items():
+            if v:
+                result[k] = v.replace('\t','').replace('\n','').replace('\r','').strip()
+        return json.dumps(result).encode()
 
     def parse_kwargs(self, kwargs):
         """TODO
