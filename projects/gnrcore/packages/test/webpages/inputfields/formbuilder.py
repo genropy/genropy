@@ -112,13 +112,22 @@ class GnrCustomWebPage(object):
     
     def test_5_nested(self, pane):
         "Nested formbuilders"
-        fb = pane.formbuilder(cols=2)
+        fb = pane.formbuilder(cols=2, lblpos='T')
         fb.textbox(value='^.val_1',lbl='Val 1')
         fb.textbox(value='^.val_3',lbl='Val 3')
-        nested_fb = fb.formbuilder(cols=1, lblpos='T')
+        nested_fb = fb.formbuilder(cols=1, lblpos='L')
         nested_fb.textbox(value='^.val_2',lbl='Val 2')
         nested_fb.textbox(value='^.val_4',lbl='Val 4')
-        nested_fb2 = fb.formbuilder(cols=1, lblpos='B')
+        nested_fb2 = fb.formbuilder(cols=1, lblpos='L')
         nested_fb2.textbox(value='^.val_5',lbl='Val 5')
         nested_fb2.textbox(value='^.val_6',lbl='Val 6')
+
+    def test_6_field(self, pane):
+        "You can specify table as fb attribute. This way you can use field widget"
+        fb = pane.formbuilder(cols=2, table='glbl.provincia')
+        fb.field('sigla')
+        fb.field('regione')
+        fb.field('nome')
+        fb.field('codice')
+        fb.field('codice_istat')
 
