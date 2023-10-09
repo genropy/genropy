@@ -1189,9 +1189,9 @@ class GnrWebPage(GnrBaseWebPage):
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
-        pwaEnabled = self.site.config['pwa?enabled']
-        if pwaEnabled:
-            arg_dict['pwa'] = True
+        pwa_config = self.site.pwa_config()
+        if pwa_config:
+            arg_dict['pwa'] = not pwa_config.get('disabled')
 
     def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
