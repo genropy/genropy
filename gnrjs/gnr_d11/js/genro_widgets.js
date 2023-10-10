@@ -1847,13 +1847,20 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
 
     mixin_setHiddenChild:function(child,hidden){
         if(hidden && child.selected){
-            var otherChildren = this.getChildren().filter(function(other){return other!==child});
+            var otherChildren = this.getChildren().filter((other)=>{
+                if(other.sourceNode.getAttributeFromDatasource('hidden')){
+                    return;
+                }
+                return other!==child
+            });
             if(otherChildren.length>0){
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
             }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
+        this.layout();
+
     },
 
     versionpatch_11_layout: function() {
