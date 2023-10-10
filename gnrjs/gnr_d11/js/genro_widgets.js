@@ -4895,7 +4895,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
-                attr.editCb = attr[uploadhandler_key];
+                attr._editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }
