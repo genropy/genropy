@@ -38,7 +38,7 @@ from gnr.app.gnrdeploy import PathResolver
 
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
-
+from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
 import pdb
@@ -260,6 +260,8 @@ class GnrWsgiSite(object):
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
+        self.pwa_handler = PWAHandler(self)
+
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
@@ -1520,33 +1522,7 @@ class GnrWsgiSite(object):
 
     def serve_manifest(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "application/json"
-        sitename = self.site_name.title()
-        result = {"short_name":sitename,
-                "name": sitename,
-                "description":f"PWA {sitename}",
-                "display":"minimal-ui",
-                "start_url":"/"}
-        pwa_config = dict(self.pwa_config())
-        custom_icons_path = dictExtract(pwa_config,'icon_',pop=True,slice_prefix=False)
-
-        for k,v in pwa_config.items():
-            if v:
-                result[k] = v.replace('\t','').replace('\n','').replace('\r','').strip()
-        if custom_icons_path:
-            result['icons'] = []
-            for k in sorted(custom_icons_path.keys()):
-                size = k.split('_')[1]
-                p = custom_icons_path[k]
-                v,ext = os.path.splitext(p)
-                result['icons'].append({"src":p,
-                                        "type":ext[1:],
-                                        "sizes":f'{size}x{size}'})
-        else:
-            result["icons"] =  [{"src":  self.dummyPage.getResourceUri('pwa/images/logo_512.png'),
-                    "type": "image/png",
-                    "sizes": "512x512"}]
-            
-        return json.dumps(result).encode()
+        return self.pwa_handler.manifest()
 
     def parse_kwargs(self, kwargs):
         """TODO
