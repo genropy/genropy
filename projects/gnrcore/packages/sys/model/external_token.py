@@ -18,9 +18,11 @@ class Table(object):
         tbl.column('allowed_host', name_long='!!Allowed host')
         tbl.column('page_path', name_long='!!Page path')
         tbl.column('method', name_long='!!Method')
+        tbl.column('assigned_user_id',size='22', group='_', name_long='Assigned user id'
+                    ).relation('adm.user.id', relation_name='assigned_tokens', mode='foreignkey', onDelete='cascade')
         tbl.column('parameters', dtype='X', name_long='!!Parameters')
         tbl.column('exec_user', size=':32', name_long='!!Execute as user').relation('adm.user.username')
-        tbl.column('userobject_id',size='22', group='_', name_long='Userbject'
+        tbl.column('userobject_id',size='22', group='_', name_long='Userobject'
                     ).relation('adm.userobject.id', relation_name='tokens', mode='foreignkey', onDelete='cascade')
         tbl.pyColumn('external_url',)
 
@@ -30,7 +32,7 @@ class Table(object):
     def create_token(self, page_path=None, expiry=None, allowed_host=None, 
                         allowed_user=None,connection_id=None, 
                         max_usages=None, method=None, datetime=None,
-                        parameters=None, exec_user=None,userobject_id=None):
+                        parameters=None, exec_user=None,userobject_id=None,assigned_user_id=None):
         record = self.newrecord(
                 page_path=page_path,
                 datetime= datetime or dt.now(pytz.utc),
@@ -42,6 +44,7 @@ class Table(object):
                 method=method,
                 exec_user=exec_user,
                 userobject_id=userobject_id,
+                assigned_user_id=assigned_user_id,
                 parameters=Bag(parameters))
         self.insert(record)
         return record['id']

@@ -1284,14 +1284,14 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,allowed_user=None,**kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None,method='root',max_usages=None,allowed_user=None,assigned_user_id=None,**kwargs):
         """TODO
         
         :param path: TODO
         :param method: TODO
         """
         assert 'sys' in self.site.gnrapp.packages
-        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,
+        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,assigned_user_id=assigned_user_id,
                                                                           method=method, parameters=kwargs,max_usages=max_usages,
                                                                           allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
