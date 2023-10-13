@@ -524,7 +524,7 @@ class LoginComponent(BaseComponent):
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
-                                    body=body, subject=self.loginPreference('subject') or 'Password recovery',
+                                    body=body, subject=self.loginPreference('subject') or 'Confirm user',
                                     async_=False,html=True,scheduler=False)
         self.db.commit()
         return 'ok'

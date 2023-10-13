@@ -1935,7 +1935,15 @@ div.dojoxDock {
 
 .plainTextChunk{
     white-space: pre;
-    font-family: 'Courier New', Courier, monospace;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 4px;
+    border:1px solid silver;
+    margin-bottom: 10px;
 }
 /* @end */
 
@@ -1969,7 +1977,7 @@ div.dojoxDock {
     width:16px;
 }
 .box24{
-     height:24px;
+    height:24px;
     width:24px;
 }
 .box32{

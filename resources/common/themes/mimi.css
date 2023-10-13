@@ -1530,6 +1530,10 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/open_floating_window.svg) no-repeat center center;
 }
 
+.mimi .messages{
+    background: url(/_rsrc/common/css_icons/svg/16/messages.svg) no-repeat center center;
+}
+
 .mimi .form_status_green{
     background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
 }

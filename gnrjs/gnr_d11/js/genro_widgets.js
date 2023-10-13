@@ -208,7 +208,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             attributes['for'] = objectPop(attributes, '_for');
         }
         if (attributes.onShow) {
-            attributes['onShow'] = funcCreate(attributes.onShow, 'console.log("showing")', sourceNode);
+            attributes['onShow'] = funcCreate(attributes.onShow, '', sourceNode);
         }
         if (attributes.onHide) {
             attributes['onHide'] = funcCreate(attributes.onHide, '', sourceNode);
@@ -1847,13 +1847,20 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
 
     mixin_setHiddenChild:function(child,hidden){
         if(hidden && child.selected){
-            var otherChildren = this.getChildren().filter(function(other){return other!==child});
+            var otherChildren = this.getChildren().filter((other)=>{
+                if(other.sourceNode.getAttributeFromDatasource('hidden')){
+                    return;
+                }
+                return other!==child
+            });
             if(otherChildren.length>0){
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
             }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
+        this.layout();
+
     },
 
     versionpatch_11_layout: function() {
@@ -4895,7 +4902,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
-                attr.editCb = attr[uploadhandler_key];
+                attr._editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }

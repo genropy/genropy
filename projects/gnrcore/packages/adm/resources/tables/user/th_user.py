@@ -61,35 +61,19 @@ class ViewPicker(BaseComponent):
         r.fieldcell('group_code',name='Group',width='10em')
 
 class Form(BaseComponent):
-    
-    #def th_form(self, form):
-    #    pane = form.record
-    #    pane.div('!!Login Data', _class='pbl_roundedGroupLabel')
-    #    fb = pane.div(margin='5px').formbuilder(cols=2, border_spacing='6px',width='100%',fld_width='100%')
-    #    fb.field('firstname',lbl='!!Firstname')
-    #    fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Existing')
-    #    fb.field('lastname',lbl='!!Lastname')
-    #    fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
-    #    fb.field('status', tag='filteringSelect', values='!!conf:Confirmed,wait:Waiting', 
-    #             validate_notnull=True, validate_notnull_error='!!Required')
-    #    fb.field('group_code')
-    #    fb.field('email', lbl='!!Email')
-    
+    py_requires="login:LoginComponent"
+
     def th_form(self,form,**kwargs):
         bc = form.center.borderContainer()
-        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
+        top = bc.borderContainer(region='top',datapath='.record',height='240px')
+        self.loginData(top.roundedGroup(title='!!User info', region='center'))
+        self.loginFields(top.roundedGroup(title='!!Login info', region='right', width='400px'))
         self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
-
-        
         
     def loginData(self,pane):
         fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px',colswidth='12em')
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
-
-        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
-        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
-        
         fb.field('status', tag='filteringSelect', # values='!!conf:Confirmed,wait:Waiting', 
                  validate_notnull=True, validate_notnull_error='!!Required')
         fb.field('locale', lbl='!!Locale')
@@ -104,16 +88,18 @@ class Form(BaseComponent):
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
         fb.field('sms_login', html_label=True)
         fb.field('sms_number',hidden='^.sms_login?=!#v',colspan=2,width='100%')
+
+    def loginFields(self, pane):
+        fb = pane.div(margin_right='10px').formbuilder(cols=1, border_spacing='4px',colswidth='12em')
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
+        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+        fb.button('!!Reset password').dataRpc(self.login_confirmNewPassword, 
+                                                username='=.username', email='=.email')
         
     @customizable
     def adm_user_maintc(self,tc):
-        self.userAuth(tc.contentPane(title='Auth'))
-        self.userConfigView(tc.contentPane(title='Config'))
-        
-    def th_form(self,form,**kwargs):
-        bc = form.center.borderContainer()
-        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
-        self.adm_user_maintc(bc.tabContainer(region='center',margin='2px'))
+        self.userAuth(tc.contentPane(title='!!Auth'))
+        self.userConfigView(tc.contentPane(title='!!Config'))
 
     def userAuth(self,pane):
         pane.inlineTableHandler(relation='@tags',viewResource='ViewFromUser',
@@ -147,6 +133,20 @@ class Form(BaseComponent):
         if other_groups:
             for gr in other_groups.split(','):
                 user_group.insert(user_group.newrecord(user_id=user_id,group_code=gr))
+
+
+class PublicForm(BaseComponent):
+
+    def th_form(self,form,**kwargs):
+        pane = form.record
+        self.loginData(pane)
+
+    def loginData(self,pane):
+        fb = pane.mobileFormBuilder(cols=1)
+        fb.field('firstname',lbl='!!Firstname')
+        fb.field('lastname',lbl='!!Lastname')
+        fb.field('email', lbl='!!Email')
+        
 
 class ExtUserForm(BaseComponent):
     def th_form(self, form):
