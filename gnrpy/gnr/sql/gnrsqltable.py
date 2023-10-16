@@ -61,7 +61,7 @@ class RecordUpdater(object):
             # do something
             pass"""
     
-    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,**kwargs):
+    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,assignId=None,**kwargs):
         self.tblobj = tblobj
         self.pkey = pkey
         self.mode = mode or 'record'
@@ -69,6 +69,7 @@ class RecordUpdater(object):
         self.raw = raw
         self.insertMissing = insertMissing
         self.ignoreMissing = ignoreMissing
+        self.assignId = assignId
         self.for_update = for_update or True
         self.insertMode = False
 
@@ -78,7 +79,8 @@ class RecordUpdater(object):
         if self.record.get(self.tblobj.pkey) is None:
             oldrecord = None
             if self.insertMissing:
-                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False)
+                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False,
+                                                    assignId=self.assignId)
                 for k,v in self.kwargs.items():
                     if k in self.tblobj.columns and v is not None:
                         self.record[k] = v
