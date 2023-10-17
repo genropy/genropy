@@ -14,8 +14,7 @@ class Table(object):
         self.sysFields(tbl, ins=True, upd=True, md5=True)
         tbl.column('id', size='22', group='_', readOnly='y', name_long='Id')
         tbl.column('username', size=':32', name_long='!!Username', unique='y', _sendback=True,
-                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field',
-                    unmodifiable=True)
+                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field')
         tbl.column('email', name_long='Email', validate_notnull=True,
                     validate_notnull_error='!!Mandatory field')
         tbl.column('mobile', name_long='Mobile')
@@ -87,8 +86,9 @@ class Table(object):
 
     def trigger_onUpdating(self, record, old_record=None):
         if old_record['username'] and record['username']!=old_record['username']:
-            raise self.exception('protect_update',record=record,
-                                message='!!Username is not modifiable %(username)s')
+            if not record['username']:
+                raise self.exception('protect_update',record=record,
+                                message='!!Username cannot be set to null %(username)s')
         if record['md5pwd'] and self.fieldsChanged('md5pwd',record,old_record):
             record['md5pwd'] = self.db.application.changePassword(None, None, record['md5pwd'], userid=record['username'])
         if old_record.get('md5pwd') and not record['md5pwd']:

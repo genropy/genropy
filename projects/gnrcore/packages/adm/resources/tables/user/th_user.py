@@ -173,7 +173,18 @@ class ExtUserView(BaseComponent):
     def th_order(self):
         return 'username'
 
+class FormSimple(BaseComponent):
 
+    def th_options(self):
+        return dict(modal=True,dialog_height='200px',dialog_width='300px')
+        
+    def th_form(self,form):
+        bc = form.center.borderContainer()
+        fb = bc.contentPane(region='top',datapath='.record',margin_top='10px').mobileFormBuilder(cols=1)
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
+        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+        fb.field('status')
+        fb.field('email', lbl='!!Email')
 
 class FormProfile(BaseComponent):
 
@@ -190,7 +201,7 @@ class FormProfile(BaseComponent):
         fb.img(src='^.photo',crop_height='100px',crop_width='100px',margin_left='25px',
                     crop_border='2px dotted silver',crop_rounded=6,edit=True,
                     placeholder=True,upload_folder='*',takePicture=True,rowspan=4)
-        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',readOnly=True)
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
         fb.field('locale', lbl='!!Locale',tag='combobox',values='en_En:')
         fb.br()
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
