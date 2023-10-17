@@ -27,38 +27,38 @@ class Main(BaseResourceBatch):
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
         self.backupSn = self.db.application.site.storageNode(self.dumpfolder,'backups')
-        self.tempSn = self.db.application.site.storageNode('site:maintenance', 'backups', self.dump_name)
+        self.tempSn = self.db.application.site.storageNode('site:maintenance', 'backups', self.dump_name, autocreate=True)
         
         if self.tempSn.exists:
             self.tempSn.delete()
-        self.tempSn.mkdir() #autocreate?
         self.filelist = []
         self.dump_rec = self.tblobj.newrecord(name=self.dump_name,start_ts=self.ts_start)
         self.tblobj.insert(self.dump_rec)
-
 
     def step_dumpmain(self):
         """Dump main db"""
         options = self.batch_parameters['options']
         if not options.get('storeonly'):
-            destname = self.tempSn.child('mainstore').internal_path 
-            self.filelist.append(self.db.dump(destname, excluded_schemas=self.getExcluded(), options=options))
+            destname = self.tempSn.child('mainstore').internal_path
+            mainstore = self.db.dump(destname, excluded_schemas=self.getExcluded(), options=options) 
+            self.filelist.append(mainstore)
 
     def step_dumpaux(self):
         """Dump aux db"""
         checkedDbstores = self.batch_parameters.get('checkedDbstores')
         checkedDbstores = checkedDbstores.split(',') if checkedDbstores else list(self.db.stores_handler.dbstores.keys())
         dbstoreconf = Bag()
-        dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
+        dbstoreSn = self.db.application.site.storageNode(self.db.application.instanceFolder, 'dbstores')
         options = self.batch_parameters['options']
 
         for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: 'Dumping %s' %item):
             with self.db.tempEnv(storename=s):
-                self.filelist.append(self.db.dump(os.path.join(self.folderpath,s),
+                destname = self.tempSn.child(s).internal_path
+                self.filelist.append(self.db.dump(destname),
                                     dbname=self.db.stores_handler.dbstores[s]['database'],
                                     excluded_schemas=self.getExcluded(),
-                                    options=options))
-                dbstoreconf[s] = Bag(os.path.join(dbstorefolder,'%s.xml' %s))
+                                    options=options)
+                dbstoreconf[s] = Bag(dbstoreSn.child('%s.xml' %s))
         dbStoreSn = self.tempSn.child('_dbstores.xml')
         with dbStoreSn.open('wb') as confpath:
             dbstoreconf.toXml(confpath)
@@ -72,19 +72,19 @@ class Main(BaseResourceBatch):
                 result.append(k)
         return result
 
-
     def step_end(self):
         if len(self.filelist)==1 and self.db.implementation=='postgres':
             filepath = self.filelist[0] #/.../pippo/mainstore.pgd --> /.../pippo.pgd
             fileSn = self.db.application.site.storageNode(filepath)
             destname = '%s.pdg' %self.dump_name
-            destSn = self.tempSn.child('backups', destname)
+            destSn = self.backupSn.child(destname)
             fileSn.move(destSn)
             self.tempSn.delete()
             self.result_url = destSn.url()
             return
 
         destSn = self.backupSn.child(f'{self.dump_name}.zip')
+        print(x)
         self.page.site.zipFiles(file_list=self.filelist, zipPath=destSn.fullpath)
         self.tempSn.delete()
         self.result_url = destSn.url()
