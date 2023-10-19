@@ -89,7 +89,9 @@ class FrameIndex(BaseComponent):
                 else:
                     root.frameIndexRoot(new_window=new_window,**kwargs)
             else:
-                root.div('Not allowed')
+                box = root.div(_class='flex_centered_wrapper')
+                box.div('!![en]Not allowed to use this page',font_size='1.5em',color='red')
+                box.button('!![en]Logout',font_size='1.5em',action='genro.logout();')
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
