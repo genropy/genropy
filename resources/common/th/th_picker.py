@@ -234,7 +234,7 @@ class THPicker(BaseComponent):
     def th_slotbar_thpicker(self,pane,relation_field=None,picker_kwargs=None,title=None,**kwargs):
         view = pane.parent.parent.parent    
         relation_field = relation_field or picker_kwargs.pop('relation_field',None)
-        if ',' in relation_field:
+        if relation_field and ',' in relation_field:
             pg = pane.paletteGroup(groupCode='pickers_%s' %view.getInheritedAttributes().get('nodeId'),title=title or '!!Picker',
                             dockButton=dict(parentForm=True,iconClass='iconbox app picker'))
             for rf in relation_field.split(','):
@@ -250,15 +250,23 @@ class THPicker(BaseComponent):
         commit = False
         for fkey in dragPkeys:
             commit = True
+            if not many:
+                many = '_dup_'
             d = {one:dropPkey,many:fkey}
             if many==pkeyfield:
                 with tblobj.recordToUpdate(fkey) as rec:
                     rec[one] = dropPkey
             else:
-                r = tblobj.newrecord(**d)
-                if dragDefaults:
-                    r.update(dragDefaults[fkey])
-                tblobj.insert(r)
+                if many=='_dup_':
+                    pkeyToDup = d.pop(many)
+                    if dragDefaults:
+                        d.update(dragDefaults[fkey])
+                    tblobj.duplicateRecord(pkeyToDup,**d)
+                else:
+                    r = tblobj.newrecord(**d)
+                    if dragDefaults:
+                        r.update(dragDefaults[fkey])
+                    tblobj.insert(r)
         if commit:
             self.db.commit()
 
