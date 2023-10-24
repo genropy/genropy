@@ -45,8 +45,15 @@ import re
 logger = logging.getLogger(__name__)
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None):
-    itempath = itempath.replace('.','/')
-    sql_formula = """ CAST( (xpath('/GenRoBag/%s/text()', CAST(%s as XML) ) )[1]  AS text)""" %(itempath,bagcolumn)
+    itemlist = itempath.split('.')
+    last_chunk = itemlist[-1]
+    suffix = 'text()'
+    if '?' in last_chunk:
+        last_chunk,searchattr = last_chunk.split('?')
+        suffix = f'@{searchattr}'
+        itemlist[-1] = last_chunk
+    itempath = '/'.join([c if not c.startswith('#') else f'*[{int(c[1:])+1}]' for c in itemlist])
+    sql_formula = f""" CAST( (xpath('/GenRoBag/{itempath}/{suffix}', CAST({bagcolumn} as XML) ) )[1]  AS text)"""
     dtype = dtype or 'T'
     typeconverter = {'T':'text','A':'text','C':'text','P':'text', 'N': 'numeric','B': 'boolean',
                  'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}

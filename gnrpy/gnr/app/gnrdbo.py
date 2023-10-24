@@ -1127,6 +1127,9 @@ class TableBase(object):
                 if col.startswith('@'):
                     tpl['main'] = tpl['main'].replace(col, col.replace('@','_').replace('.','_'))
             r = Bag(dict(record))
+        for k,dtype in kwargs.get('dtypes',{}).items():
+            if record.get(k) is not None and dtype == 'X':
+                r[k] = Bag(r[k])
         return templateReplace(tpl,r,**kwargs)
 
 
