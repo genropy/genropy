@@ -328,14 +328,7 @@ class PublicSlots(BaseComponent):
         else:
             pane.div()
             
-    @struct_method
-    def public_publicRoot_logout(self,pane,**kwargs):
-        if not self.isGuest:
-            pane.div(connect_onclick="genro.logout()", title="!!Logout",
-                      _class='pbl_logout buttonIcon', content='&nbsp;',**kwargs)
-        else:
-            pane.div()
-            
+
     @struct_method
     def public_publicRoot_dock(self,pane,**kwargs):
         pane.dock(id='default_dock', background='none', border=0)

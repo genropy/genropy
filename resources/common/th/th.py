@@ -130,7 +130,7 @@ class TableHandler(BaseComponent):
             if addrow is not True:
                 addrow_defaults = addrow
 
-        if picker:
+        if picker or picker_kwargs:
             top_slots.append('thpicker')
             if picker is True:
                 picker = tblobj.pkey
