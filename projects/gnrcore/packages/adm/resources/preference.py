@@ -77,7 +77,7 @@ class AppPref(object):
 
     def _adm_backups(self, pane):
         fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')
-        fb.textbox(value='^.backup_folder',lbl='Folder path')
+        fb.textbox(value='^.backup_folder',lbl='Folder path', placeholder='home:maintenance')
         fb.numberTextBox(value='^.max_copies',lbl='Max copies')
 
     def _adm_mail(self, pane):
