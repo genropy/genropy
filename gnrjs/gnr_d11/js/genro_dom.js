@@ -427,6 +427,9 @@ dojo.declare("gnr.GnrDomHandler", null, {
         let widget = sourceNode.getWidget();
         while (!(widget && widget.resize && widget.isContainer)){
             node = node.getParentNode();
+            if(!node){
+                return;
+            }
             widget = node.getWidget();
         }
         widget.resize();
