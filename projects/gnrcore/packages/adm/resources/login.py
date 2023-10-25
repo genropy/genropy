@@ -92,7 +92,8 @@ class LoginComponent(BaseComponent):
         if doLogin:
             start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
-                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
+                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user,
+                                validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
             tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dbSelect(value='^_login.group_code',table='adm.group',
@@ -113,6 +114,7 @@ class LoginComponent(BaseComponent):
             fb.dataController("""
                 SET _login.password = null;
                 SET _login.group_code = null;  
+                SET gnr.avatar = null;
             """,
                 _changed_user='^_login.user',_userChanges=True
             )
@@ -431,7 +433,7 @@ class LoginComponent(BaseComponent):
         
     def login_newUser(self,pane,closable=False,**kwargs):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',
-                            subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord();',
+                            subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord($1);',
                             subscribe_closeNewUser='this.widget.hide();')
 
         kw = self.loginboxPars()

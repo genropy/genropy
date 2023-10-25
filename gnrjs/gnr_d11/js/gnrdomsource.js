@@ -1570,7 +1570,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                         if (_onRemote) {
                             _onRemote();
                         }
-                        genro.resizeAll();
+                        genro.dom.resizeFirstContainerResizable(that);
+                        
                     });
                 }
                 delete that._remotebuilding;
