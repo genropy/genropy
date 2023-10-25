@@ -94,7 +94,7 @@ class LoginComponent(BaseComponent):
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user,
                                 validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
-            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
+            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',row_hidden=self.external_verifed_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dbSelect(value='^_login.group_code',table='adm.group',
                         condition="""$code IN :all_groups 
@@ -316,7 +316,7 @@ class LoginComponent(BaseComponent):
         if not gnrtoken:
             #change password by a logged user
             dlg.div(_class='dlg_closebtn',connect_onclick="genro.publish('closeNewPwd');")
-            fb.textbox(value='^.current_password',lbl='!!Password',type='password')
+            fb.passwordTextBox(value='^.current_password',lbl='!!Password')
         else:
             token_record = self.db.table('sys.external_token').record(id=gnrtoken, ignoreMissing=True).output('bag')
             record_user = self.db.table('adm.user').recordAs(token_record['parameters.userid'])
@@ -325,9 +325,9 @@ class LoginComponent(BaseComponent):
                            validate_notnull=True, validate_remote=self.login_checkNodupUsername)
             fb.data('.gnrtoken',gnrtoken)
 
-        fb.textbox(value='^.password',lbl='!!New password',type='password',
+        fb.passwordTextBox(value='^.password',lbl='!!New password',
                     validate_remote=self.db.table('adm.user').validateNewPassword)
-        fb.textbox(value='^.password_confirm',lbl='!!Confirm password',type='password',
+        fb.passwordTextBox(value='^.password_confirm',lbl='!!Confirm password',
                     validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
         fb.dataRpc(self.login_changePassword,_fired='^set_new_password',
                     current_password='=.current_password',
@@ -592,7 +592,7 @@ class LoginComponent(BaseComponent):
         fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',
                                 fld_width='100%',row_height='3ex')
-        fb.textbox(value='^.password',lbl='!!Password',type='password',row_hidden=False)
+        fb.passwordTextBox(value='^.password',lbl='!!Password',row_hidden=False)
         btn=fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px')
         box.div().slotBar('*,messageBox,*',messageBox_subscribeTo='failed_screenout',height='18px',width='100%',tdl_width='6em')
         fb.dataRpc('.result',self.login_checkPwd,password='=.password',user='=gnr.avatar.user',_fired='^.checkPwd')

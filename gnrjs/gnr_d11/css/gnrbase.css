@@ -6007,3 +6007,10 @@ div[disabled='true'], div[disabled='disabled']{
     justify-content: center;
     align-items: center;
 }
+
+.visibility_lock{
+    background: url(/_rsrc/common/css_icons/svg/16/visibility_lock.svg) no-repeat center center;
+    background-size: contain;
+    margin: 2px;
+    cursor: pointer;
+}
