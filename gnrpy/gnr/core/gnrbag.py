@@ -2802,11 +2802,15 @@ class GeoCoderBag(Bag):
     def __init__(self, source=None,api_key=None, **kwargs):
         super().__init__(source, **kwargs)
         self.api_key = api_key
+        
     def setGeocode(self, key, address, language='it'):
         """TODO
 
         :param key: TODO
         :param address: TODO"""
+        
+        DEBUG = True
+        
         urlparams = dict(address=address,sensor='false')
         if language:
             urlparams['language']=language
@@ -2815,6 +2819,8 @@ class GeoCoderBag(Bag):
         url = "https://maps.googleapis.com/maps/api/geocode/xml?%s" % urllib.parse.urlencode(urlparams)
         self._result = Bag()
         answer = Bag(url)
+        if DEBUG:
+            print('answer: ', answer)
         if answer['GeocodeResponse.status']=='OK':
             answer=answer['GeocodeResponse.result']
             for n in answer:
