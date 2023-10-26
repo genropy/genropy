@@ -81,7 +81,7 @@ class Main(BaseResourceBatch):
             destSn = self.backupSn.child(destname)
             fileSn.move(destSn)
             self.tempSn.delete()
-            self.result_url = destSn.url()
+            self.result_url = destSn.internal_url()
             return
 
         destSn = self.backupSn.child(f'{self.dump_name}.zip')
@@ -91,7 +91,7 @@ class Main(BaseResourceBatch):
 
         backup_rec = dict(self.dump_rec)
         self.dump_rec['end_ts'] = datetime.now()
-        self.dump_rec['file_url'] = destSn.url()
+        self.dump_rec['file_url'] = destSn.internal_url()
         self.tblobj.update(self.dump_rec, backup_rec)
         self.db.commit()
 
