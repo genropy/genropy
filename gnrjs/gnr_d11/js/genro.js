@@ -2046,7 +2046,7 @@ dojo.declare('gnr.GenroClient', null, {
     gotoURL:function(url, relative) {
         if (relative) {
             url = genro.constructUrl(url);
-        } else {
+        } else if (!url.startsWith('http')){
             url = genro.joinPath(genro.getData('gnr.homeUrl') || '', url);
         }
         window.location.assign(url);
