@@ -24,7 +24,7 @@ openpyxl
 psutil
 simpleeval
 webob
-werkzeug<2.0
+werkzeug<3.0.1
 webob
 six
 tzlocal
