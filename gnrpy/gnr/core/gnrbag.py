@@ -2809,7 +2809,7 @@ class GeoCoderBag(Bag):
         :param key: TODO
         :param address: TODO"""
         
-        DEBUG = True
+        DEBUG = False
         
         urlparams = dict(address=address,sensor='false')
         if language:
