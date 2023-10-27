@@ -268,52 +268,40 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,left_placeholder,*,right_placeholder,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
-                        background='#EEEEEE',border_top='1px solid silver')
-        sb.appInfo.div('^gnr.appInfo')
-        applogo = sb.applogo.div()
-        if hasattr(self,'application_logo'):
-            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
-        sb.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
-            msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
-                        tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
-        box = sb.preferences.div(_class='iframeroot_pref')
-        if not self.dbstore:
-            box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
-                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
-                                    _class='iframeroot_appname',
-                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv')
-            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
-            _tags=self.pageAuthTags(method='preference'))
-            box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
-        
-        sb.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
-        
-        sb.count_errors.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
-                            _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
-        sb.devlink.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(_class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
-
-        #SP: electronAppDownload is still not tested and working fine.
-        #if not self.isMobile :
-        #    self.electronAppDownload(sb)
-
-        sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
-                            action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
-        sb.debugping.div(_class='ping_semaphore')
+        sb = pane.slotToolbar("""3,applogo,genrologo,5,devlink,5,userpref,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,left_placeholder,*,
+                                    right_placeholder,debugping,5,preferences,logout,3""",
+                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
 
     @struct_method
-    def fi_slotbar_helpdesk(self,pane,**kwargs):
+    def fi_slotbar_applogo(self,slot,**kwargs):
+        applogo = slot.div()
+        if hasattr(self,'application_logo'):
+            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
+
+    @struct_method
+    def fi_slotbar_genrologo(self,slot,**kwargs):
+        slot.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+
+    @struct_method
+    def fi_slotbar_devlink(self,slot,**kwargs):
+        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
+        slot.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(
+                                    _class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
+        
+    @struct_method
+    def fi_slotbar_userpref(self,slot,**kwargs):
+        slot.div(_class='iframeroot_username', tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
+                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
+
+    @struct_method
+    def fi_slotbar_helpdesk(self,slot,**kwargs):
         documentationcb = self.helpdesk_documentation()
         helpcb = self.helpdesk_help()
         if not (documentationcb or helpcb):
             return
         
-        menu = pane.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
+        menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
 
         if documentationcb:
             menu.menuline('!![en]Open documentation',code='documentation',
@@ -326,21 +314,55 @@ class FrameIndex(BaseComponent):
 
     def helpdesk_help(self):
         return 
+    
+    @struct_method
+    def fi_slotbar_openGnrIDE(self,slot,**kwargs):
+        slot.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
+                            action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
+
+    @struct_method
+    def fi_slotbar_appdownload(self,slot,**kwargs):
+        pass
+
+    @struct_method
+    def fi_slotbar_count_errors(self,slot,**kwargs):
+        slot.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
+                            _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
+
+    @struct_method
+    def fi_slotbar_appInfo(self,slot,**kwargs):
+        slot.div('^gnr.appInfo')
+        slot.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
+                    msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
+                        tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
+    @struct_method
+    def fi_slotbar_debugping(self,slot,**kwargs):
+        slot.div(_class='ping_semaphore')
+
+    @struct_method
+    def fi_slotbar_preferences(self,slot,**kwargs):
+        box = slot.div(_class='iframeroot_pref')
+        if not self.dbstore:
+            box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                    _class='iframeroot_appname',
+                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv')
+            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
+                                    _tags=self.pageAuthTags(method='preference'))
+
+    @struct_method
+    def fi_slotbar_logout(self,slot,**kwargs):
+        slot.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
+
 
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,left_placeholder,*,right_placeholder,debugping,logout,20',
-                              _class='slotbar_toolbar framefooter',height='25px',
-                        background='#EEEEEE',border_top='1px solid silver')
+        sb = pane.slotToolbar("""20,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
+                                right_placeholder,debugping,logout,20""",
+                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
-
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
-        sb.debugping.div(_class='ping_semaphore')
-        applogo = sb.applogo.div()
-        if hasattr(self,'application_logo'):
-            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
-        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
         return sb
 
     def prepareCenter_std(self,bc):
@@ -385,7 +407,6 @@ class FrameIndex(BaseComponent):
     prepareCenter_mobile = prepareCenter_std
         
     def prepareLeft_std(self,bc):
-
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
                                    overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
