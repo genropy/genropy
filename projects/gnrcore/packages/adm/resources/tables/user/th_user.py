@@ -218,24 +218,30 @@ class FormProfile(BaseComponent):
 
     @customizable
     def authenticationsPane(self,pane):
+        pane.div('!![en]Password', _class='preference_subtitle')
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
         if self.getService('2fa'):
-            fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa').dataController(
+            self.manage2faAuthentication(pane)
+        return pane
+    
+    def manage2faAuthentication(self, pane):
+        pane.div('!![en]Two Factors Authentication', _class='preference_subtitle')
+        fb = pane.formbuilder(datapath='#FORM.record')
+        fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa').dataController(
                                 """dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
                                     dlg.widget.show()
                                 """,
                                 dlg=self._dlg2faQrcode(fb),
                                 avatar_secret_2fa='=FORM.record.avatar_secret_2fa')
-            fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v').dataController(
-                                """SET #FORM.record.avatar_secret_2fa=null;""")
-            fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
-            fb.div('^#FORM.record.avatar_secret_2fa?=#v?"2FA enabled":"2FA not enabled"')
-            dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
-            frame = dlg.framePane(height='300px',width='400px')
-            frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
-        return fb
-    
+        fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v').dataController(
+                            """SET #FORM.record.avatar_secret_2fa=null;""")
+        fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
+        fb.div('^#FORM.record.avatar_secret_2fa?=#v?"2FA enabled":"2FA not enabled"')
+        dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
+        frame = dlg.framePane(height='300px',width='400px')
+        frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
+        
     def _dlg2faQrcode(self,pane):
         dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
         frame = dlg.framePane(height='300px',width='300px')

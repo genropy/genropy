@@ -9,7 +9,7 @@
 
 # --------------------------- BaseWebtool subclass ---------------------------
 
-
+#DP2023 10 Service not working, needs to be updated 
 #MOBYT FULL DOCUMENTATION AVAILABLE HERE: https://developers.mobyt.it/?python#tpoa-api
 
 import requests
@@ -30,7 +30,7 @@ class Main(GnrBaseService):
         self.parent = parent
         self.username = username
         self.password = password
-        self.url='https://app.mobyt.it/API/v1.0/REST'
+        self.url='https://app.esendex.it/API/v1.0/REST'
     
     @public_method
     def getToken(self):

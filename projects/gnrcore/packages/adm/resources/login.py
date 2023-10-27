@@ -24,7 +24,7 @@ class LoginComponent(BaseComponent):
     login_splash_url = None
     closable_login = False
     loginBox_kwargs = dict()
-    external_verifed_user = None
+    external_verified_user = None
     
     @customizable
     def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
@@ -92,9 +92,9 @@ class LoginComponent(BaseComponent):
         if doLogin:
             start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
-                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user,
+                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verified_user,
                                 validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
-            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',row_hidden=self.external_verifed_user,
+            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',row_hidden=self.external_verified_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dbSelect(value='^_login.group_code',table='adm.group',
                         condition="""$code IN :all_groups 
@@ -122,14 +122,14 @@ class LoginComponent(BaseComponent):
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
-                pwd = pwd || tbpwd.widget.getValue() || external_verifed_user;
+                pwd = pwd || tbpwd.widget.getValue() || external_verified_user;
                 PUT _login.user = user;
                 PUT _login.password = pwd;
                 FIRE _login.checkAvatar;
             }
             
             """,_fired='^do_login_check',user='=_login.user',avatar_user='=gnr.avatar.user',
-                        tbuser=tbuser,tbpwd=tbpwd,external_verifed_user=self.external_verifed_user,
+                        tbuser=tbuser,tbpwd=tbpwd,external_verified_user=self.external_verified_user,
                         pwd='=_login.password')
 
             pane.dataRpc(self.login_checkAvatar,

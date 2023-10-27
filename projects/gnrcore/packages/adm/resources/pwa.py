@@ -11,7 +11,7 @@ class PWAPreferencePane(BaseComponent):
         fb.textbox(value='^.display',lbl='Display')
         fb.textbox(value='^.background_color',lbl='Background color')
         center = bc.borderContainer(region='center')
-        center.contentPane(region='top').div('Upload PWA images',background='#666',color='white',font_size='1.3em',text_align='center')
+        center.contentPane(region='top').div('Upload PWA images',_class='preference_subtitle')
         box = center.contentPane(region='center',margin='10px').div(style="""display: flex;
                                                     flex-wrap: wrap;
                                                     align-content: center;
