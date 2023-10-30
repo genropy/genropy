@@ -144,7 +144,7 @@
 <upgrade path="model/upgrade.py" ext="py"><en_upgrade_ base="Upgrade "></en_upgrade_>
 <en_upgrades base="Upgrades"></en_upgrades>
 <en_filename base="Filename" it="Nome file"></en_filename>
-<en_upgrade_error base="Upgrade error"></en_upgrade_error>
+<en_upgrade_error base="Upgrade error" it="Errore aggiornamento"></en_upgrade_error>
 <en_error base="Error" it="Errore"></en_error></upgrade>
 <widget path="model/widget.py" ext="py"><en_widget fr="Widget" de="Widget" en="Widget" it="Widget" base="Widget"></en_widget>
 <en_widgets base="Widgets"></en_widgets>
@@ -157,7 +157,7 @@
 <thresource_editor path="resources/package_editor/thresource_editor.py" ext="py"><en_new_viewresource base="New ViewResource"></en_new_viewresource>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm></thresource_editor></package_editor>
-<preference path="resources/preference.py" ext="py"><en_theme_variant base="Theme variant"></en_theme_variant>
+<preference path="resources/preference.py" ext="py"><en_theme_variant base="Theme variant" it="Variante tema"></en_theme_variant>
 <en_default_color_palette base="Default color palette" it="Colore palette default"></en_default_color_palette>
 <en_default_color_steps base="Default color steps" it="Gradini colore default"></en_default_color_steps>
 <en_print_options_enabled base="Print Options Enabled"></en_print_options_enabled>
@@ -197,20 +197,20 @@
 <en_caching base="Caching" it="Caching"></en_caching>
 <en_sounds base="Sounds" it="Suoni"></en_sounds>
 <en_shortcuts base="Shortcuts" it="Scorciatoie"></en_shortcuts>
-<en_theme base="Theme"></en_theme>
+<en_theme base="Theme" it="Tema"></en_theme>
 <en_device_mode base="Device mode" it="Modalità dispositivo"></en_device_mode>
 <en_12px_default_12px_small_13px_medium_14px_large_15px_extra_large fr="12px: Par défaut, 12px: Petit, 13px: Medium, 14px: Grande 15px: Extra Large" de="12px: Standard, 12px: Klein, 13px: Medium, 14px: Grosses, 15px: Extra Large" en="12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large" it="12px: Default 12px: Piccolo, 13px: Medium, 14px: Grande, 15px: Extra Large" base="12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large"></en_12px_default_12px_small_13px_medium_14px_large_15px_extra_large>
 <en_12px_small_13px_medium_14px_large_15px_extra_large fr="12px: Petit, 13px: Medium, 14px: Grande 15px: Extra Large" de="12px: Klein, 13px: Medium, 14px: Grosses, 15px: Extra Large" en="12px:Small,13px:Medium,14px:Large,15px:Extra Large" it="12px: Piccolo, 13px: Medium, 14px: Grande, 15px: Extra Large" base="12px:Small,13px:Medium,14px:Large,15px:Extra Large"></en_12px_small_13px_medium_14px_large_15px_extra_large>
-<en_on_saving base="On saving"></en_on_saving>
-<en_on_saved base="On saved"></en_on_saved>
-<en_on_error base="On error"></en_on_error>
-<en_reset_session_storage base="Reset session storage"></en_reset_session_storage>
-<en_reset_local_storage base="Reset local storage"></en_reset_local_storage>
+<en_on_saving base="On saving" it="Al salvataggio"></en_on_saving>
+<en_on_saved base="On saved" it="A salvataggio effettuato"></en_on_saved>
+<en_on_error base="On error" it="All'errore"></en_on_error>
+<en_reset_session_storage base="Reset session storage" it="Cancella cache sessione"></en_reset_session_storage>
+<en_reset_local_storage base="Reset local storage" it="Cancella cache locale"></en_reset_local_storage>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_reload fr="Recharger" en="Reload" de="Nachladen" it="Ricarica" base="Reload"></en_reload>
 <en_dismiss base="Dismiss" de="Entlassen" en="Dismiss" fr="Rejeter" it="Esci"></en_dismiss>
-<en_next_record base="Next record"></en_next_record>
-<en_prev_record base="Prev record"></en_prev_record>
+<en_next_record base="Next record" it="Prossimo record"></en_next_record>
+<en_prev_record base="Prev record" it="Record precedente"></en_prev_record>
 <en_last_record base="Last record" it="Ultimo record"></en_last_record>
 <en_first_record base="First record" it="Primo record"></en_first_record>
 <en_jump_record base="Jump record" it="Salta record"></en_jump_record></preference>
