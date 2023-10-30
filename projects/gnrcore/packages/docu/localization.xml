@@ -81,7 +81,7 @@
 <en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
 <en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
 <en_online base="Online"></en_online>
-<en_local base="Local"></en_local>
+<en_local base="Local" it="Locale"></en_local>
 <en_info fr="Infos" de="Info" en="Info" it="Info" base="Info"></en_info>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
 <en_zip base="Zip"></en_zip>
