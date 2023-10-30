@@ -335,8 +335,8 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""20,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
-                                right_placeholder,debugping,logout,20""",
+        sb = pane.slotToolbar("""5,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
+                                right_placeholder,debugping,logout,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
         return sb

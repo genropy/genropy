@@ -193,13 +193,12 @@ class FormProfile(BaseComponent):
         
     def th_form(self,form):
         bc = form.center.borderContainer()
-        top = bc.borderContainer(region='top',datapath='.record',margin_top='10px', height='210px' if self.isMobile else '150px')
+        top = bc.borderContainer(region='top',datapath='.record',margin_top='10px', height='170px' if self.isMobile else '130px')
         
         fb = top.contentPane(region='center').mobileFormBuilder(cols=1 if self.isMobile else 2)
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
-        fb.field('locale', lbl='!!Locale',tag='combobox',values='en_En:')
         fb.field('email', lbl='!!Email',colspan=2,width='100%')
         
         right = top.contentPane(region='right', width='104px', margin='10px 25px')
