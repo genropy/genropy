@@ -387,7 +387,7 @@ class FrameIndex(BaseComponent):
         underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('20,selpagetitle,*,reload,20',childname='underbar',
                                                                             height='20px',color='white')
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
-        underbar.reload.lightButton(_class='iconbox white_refresh',height='14px')
+        underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
 
         underbar.dataController("""
                                     let selectedPageTitle = basetitle;
