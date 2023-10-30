@@ -6014,3 +6014,7 @@ div[disabled='true'], div[disabled='disabled']{
     margin: 2px;
     cursor: pointer;
 }
+
+.white_refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
+}

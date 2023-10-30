@@ -2133,6 +2133,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
                 }
             }
             this._layoutChildren();
+
         }
         return show;
     },
