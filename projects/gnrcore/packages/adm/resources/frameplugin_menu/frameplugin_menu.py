@@ -95,6 +95,7 @@ class MenuIframes(BaseComponent):
                   persist='site',
                   inspect='AltShift',
                   identifier='#p',
+                  device_mode=self.device_mode,
                   getIconClass=self._menutree_getIconClass(),
                     selectedLabelClass="menutreeSelected",
                   getLabel = self._menutree_getLabel(),
@@ -129,6 +130,9 @@ class MenuIframes(BaseComponent):
                         }    
                         if($1.doSelect){
                             this.widget.setSelectedPath(null,{value:node.getFullpath(null,genro.getData(this.attr.storepath))});
+                        }
+                        if(this.attr.device_mode!='std'){
+                            genro.nodeById('standard_index').publish('hideLeft');
                         }
                   """,
 

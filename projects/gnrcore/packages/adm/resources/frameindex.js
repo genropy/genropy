@@ -218,7 +218,6 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }else{
             cb();
         }
-        //setTimeout(function(){iframe.getParentNode().domNode.src = url;},1); non serve
     },
 
     onSelectedFrame:function(rootPageName){

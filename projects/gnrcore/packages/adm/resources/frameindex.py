@@ -149,38 +149,14 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',_class='framedindex_tablist showcase_dark',height='30px')
-        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
+                          _class='framedindex_tablist showcase_dark',height='25px',childname='upperbar')
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='20px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
-
         self.pageTitle_mobile(bar.pageTitle)
-        bar.pageTitle.dataController("""
-                                        let selectedPageTitle = basetitle;
-                                        if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
-                                            let selectedNode = iframes.getNode(selectedPage);
-                                            selectedPageTitle = selectedNode.attr.fullname;
-                                        }
-                                        SET selectedPageTitle = selectedPageTitle;
-                                        """,selectedPage='^selectedFrame', 
-                                iframes='^iframes',basetitle=self.index_title,_delay=1)
-
+        
     def pageTitle_mobile(self,pane):
-        pane.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
-                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
-
-        pane.dataController("""
-        var currentpages = new gnr.GnrBag();
-        iframes = iframes || new gnr.GnrBag();
-        for(let n of iframes.getNodes()){
-            let kw = {caption:n.attr.fullname};
-            currentpages.addItem(n.label,null,kw);
-        }
-        currentpages.addItem('-')
-        currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
-        currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
-        SET gnr.currentPages = currentpages;
-        """,iframes='^iframes',reload_caption='!!Reload current page',
-                closepage_caption="!!Close current page")
+        pane.div('^gnr.windowTitle',color='white',font_size='13px',caption_path='selectedPageTitle')
 
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
@@ -396,6 +372,7 @@ class FrameIndex(BaseComponent):
             self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
             indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
+            
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         
@@ -404,7 +381,26 @@ class FrameIndex(BaseComponent):
         page.dataController("""genro.framedIndexManager.newBrowserWindowPage(newBrowserWindowPage[0]);""",
                                subscribe_newBrowserWindowPage=True)
 
-    prepareCenter_mobile = prepareCenter_std
+
+    def prepareCenter_mobile(self,bc):
+        wrapper = bc.borderContainer(region='center')
+        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('20,selpagetitle,*,reload,20',childname='underbar',
+                                                                            height='20px',color='white')
+        underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
+        underbar.reload.lightButton(_class='iconbox white_refresh',height='14px')
+
+        underbar.dataController("""
+                                    let selectedPageTitle = basetitle;
+                                    if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
+                                        let selectedNode = iframes.getNode(selectedPage);
+                                        selectedPageTitle = selectedNode.attr.fullname;
+                                    }
+                                    SET selectedPageTitle = selectedPageTitle;
+                                    """,selectedPage='^selectedFrame', 
+                            iframes='^iframes',basetitle=self.index_title,_delay=1)
+    
+        self.prepareCenter_std(wrapper)
+
         
     def prepareLeft_std(self,bc):
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
@@ -438,8 +434,11 @@ class FrameIndex(BaseComponent):
 
 
     def prepareLeft_mobile(self,bc):
-        frame = bc.framePane(region='left',width='40%',datapath='left',
-                                overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
+        frame = bc.framePane(region='left',width='100%',datapath='left',
+                                overflow='hidden',hidden=self.hideLeftPlugins)
+        frame.top.slotBar('*,close_icon,5',height='22px'
+                          ).close_icon.lightButton(_class='iconbox dojoxFloatingCloseIcon',
+                                                   ).dataController("genro.nodeById('standard_index').publish('hideLeft');")
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
