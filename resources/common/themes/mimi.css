@@ -774,10 +774,10 @@ body.tundra.mimi {
     opacity: .5;
 }
 
-.mode_mobile .menutree .label_opendir{
+._common_d11.mimi.mode_mobile .menutree .label_opendir{
     background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
 }
-.mode_mobile .menutree .label_closedir{
+._common_d11.mimi.mode_mobile .menutree .label_closedir{
     background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
 }
 
