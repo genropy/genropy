@@ -33,7 +33,6 @@ class AppPref(object):
     def prefpane_adm(self, parent, **kwargs):
         tc = parent.tabContainer(margin='2px',**kwargs)
         self._adm_general(tc.borderContainer(title='!!General'))
-        #self._adm_mail(tc.contentPane(title='!!Mail options', datapath='.mail'))
         self._adm_backups(tc.contentPane(title='!!Backups', datapath='.backups'))
         self._adm_dev(tc.contentPane(title='!!Developers', datapath='.dev'))
         self._adm_helpdesk(tc.contentPane(title='!!Helpdesk', datapath='.helpdesk',_tags='_DEV_'))
@@ -44,70 +43,55 @@ class AppPref(object):
         fb.dbselect(value='^.beta_tester_tag',table='adm.htag',width='Beta tester tag',
                     condition='$child_count=0',alternatePkey='authorization_tag',
                     hasDownArrow=True,lbl='Beta tester')
-        fb.textbox(value='^.test_deny_message',lbl='Deny message')
+        fb.textbox(value='^.test_deny_message',lbl='!![en]Deny message')
 
     def _adm_helpdesk(self,pane):
         fb = pane.formbuilder(cols=1)
-        fb.textbox(value='^.url',lbl='Url',width='40em')
-        fb.textbox(value='^.user',lbl='User',width='20em')
-        fb.textbox(value='^.password',lbl='Password',width='15em',type='password')
-        fb.textbox(value='^.client_reference',lbl='Client reference')
-        fb.textbox(value='^.documentation_url',lbl='Documentation url',width='40em')
+        fb.textbox(value='^.url',lbl='!![en]Url',width='40em')
+        fb.textbox(value='^.user',lbl='!![en]User',width='20em')
+        fb.textbox(value='^.password',lbl='!![en]Password',width='15em',type='password')
+        fb.textbox(value='^.client_reference',lbl='!![en]Client reference')
+        fb.textbox(value='^.documentation_url',lbl='!![en]Documentation url',width='40em')
         
 
     def _adm_dev(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.checkbox(value='^.connection_log_enabled',label='Connection log enabled')
+        fb.checkbox(value='^.connection_log_enabled',label='!![en]Connection log enabled')
 
     def _adm_general(self, bc):
         top = bc.contentPane(region='top')
         fb = top.formbuilder(cols=1,border_spacing='3px')
-        fb.checkbox(value='^.general.forgot_password',label='Allow password recovery')
-        fb.checkbox(value='^.general.new_user',label='New user registration')
+        fb.checkbox(value='^.general.forgot_password',label='!![en]Allow password recovery')
+        fb.checkbox(value='^.general.new_user',label='!![en]New user registration')
         if pyotp:
-            fb.checkbox(value='^.general.2fa_enabled',label='2FA authentication')
+            fb.checkbox(value='^.general.2fa_enabled',label='!![en]2FA authentication')
 
-        fb.textbox(value='^.general.password_regex',lbl='Password validate regex')
+        fb.textbox(value='^.general.password_regex',lbl='!![en]Password validate regex')
         if 'email' in self.db.packages:
-            fb.dbSelect(value='^.mail.email_account_id',lbl='Default smtp account',dbtable='email.account')
+            fb.dbSelect(value='^.mail.email_account_id',lbl='!![en]Default smtp account',dbtable='email.account')
         #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
         bc.appGuiCustomization(region='center',margin='2px',datapath='.gui_customization')
-       
-
 
     def _adm_backups(self, pane):
         fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')
-        fb.textbox(value='^.backup_folder',lbl='Folder path', placeholder='home:maintenance')
-        fb.numberTextBox(value='^.max_copies',lbl='Max copies')
+        fb.textbox(value='^.backup_folder',lbl='!![en]Folder path', placeholder='home:maintenance')
+        fb.numberTextBox(value='^.max_copies',lbl='!![en]Max copies')
 
-    def _adm_mail(self, pane):
-        fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',
-                                                    tdl_width='10em')
+class UserPref(object):
+    
+    def prefpane_adm(self, parent, **kwargs):
+        fb = parent.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
         if 'email' in self.db.packages:
-            fb.dbselect(value='^.email_account_id',lbl='Account',dbtable='email.account',hasDownArrow=True)
+            fb.dbselect(value='^.email_account_id',lbl='!![en]Account',dbtable='email.account',hasDownArrow=True)
         
-        fb.div(lbl='Mail Settings', colspan=2, lbl_font_style='italic', lbl_margin_top='1em', margin_top='1em',
+        fb.div(lbl='!![en]Mail Settings', colspan=2, lbl_font_style='italic', lbl_margin_top='1em', margin_top='1em',
                lbl_color='#7e5849',disabled='^.email_account_id')
-        fb.textbox(value='^.smtp_host', lbl='SMTP Host', dtype='T',disabled='^.email_account_id')
-        fb.textbox(value='^.from_address', lbl='From address', dtype='T',disabled='^.email_account_id')
-        fb.textbox(value='^.user', lbl='Username', dtype='T',disabled='^.email_account_id')
-        fb.textbox(value='^.password', lbl='Password', disabled='^.email_account_id', type='password')
+        fb.textbox(value='^.smtp_host', lbl='!![en]SMTP Host', dtype='T',disabled='^.email_account_id')
+        fb.textbox(value='^.from_address', lbl='!![en]From address', dtype='T',disabled='^.email_account_id')
+        fb.textbox(value='^.user', lbl='!![en]Username', dtype='T',disabled='^.email_account_id')
+        fb.textbox(value='^.password', lbl='!![en]Password', disabled='^.email_account_id', type='password')
         fb.textbox(value='^.port', lbl='Port', disabled='^.email_account_id')
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', disabled='^.email_account_id')
         fb.textbox(value='^.system_bcc', lbl='System bcc',disabled='^.email_account_id')
-
-class UserPref(object):
-    def prefpane_adm(self, parent, **kwargs):
-        fb = parent.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
-        if 'email' in self.db.packages:
-            fb.dbselect(value='^.email_account_id',lbl='Account',dbtable='email.account',hasDownArrow=True)
-        fb.div('Mail Settings', colspan=2, font_style='italic', margin_top='1em',
-               color='#7e5849')
-        fb.textbox(value='^.smtp_host', lbl='SMTP Host', dtype='T', disabled='^.email_account_id')
-        fb.textbox(value='^.from_address', lbl='From address', dtype='T', disabled='^.email_account_id')
-        fb.textbox(value='^.user', lbl='Username', dtype='T', disabled='^.email_account_id')
-        fb.textbox(value='^.password', lbl='Password', dtype='T', disabled='^.email_account_id', type='password')
-        fb.textbox(value='^.port', lbl='Port', dtype='T', disabled='^.email_account_id')
-        fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
     

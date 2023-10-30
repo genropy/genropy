@@ -2,6 +2,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 SIZES = ['48','72','96','144','168','192','384','512']
 
 class PWAPreferencePane(BaseComponent):
+    
     def pwaPreferencePane(self,parent,title='PWA',**kwargs):
         bc = parent.borderContainer(datapath='.pwa',title=title,**kwargs)
         fb = bc.contentPane(region='top',padding='10px').mobileFormBuilder(cols=3)
