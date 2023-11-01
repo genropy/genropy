@@ -38,11 +38,11 @@ class Table(object):
         result = []
         for lang in self.db.table('docu.language').query().fetch():
             l = lang['code']
-            col = dict(name='rst_%s' %l,sql_formula=sql_formula, name_long='!!Rst %s' %l)
-            sql_formula = self.model.bagItemFormula('$docbag','%s.rst' %l,kwargs=col)
+            col = dict(name='rst_%s' %l, name_long='!!Rst %s' %l)
+            col['sql_formula'] = self.model.bagItemFormula('$docbag','%s.rst' %l,kwargs=col)
             result.append(col)
-            col = dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l)
-            sql_formula = self.model.bagItemFormula('$docbag','%s.title' %l,kwargs=col)
+            col = dict(name='title_%s' %l, name_long='!!Title %s' %l)
+            col['sql_formula'] = self.model.bagItemFormula('$docbag','%s.title' %l,kwargs=col)
             result.append(col)
         return result
 
