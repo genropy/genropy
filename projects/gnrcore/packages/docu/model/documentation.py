@@ -38,10 +38,12 @@ class Table(object):
         result = []
         for lang in self.db.table('docu.language').query().fetch():
             l = lang['code']
-            sql_formula = self.model.bagItemFormula('$docbag','%s.rst' %l)
-            result.append(dict(name='rst_%s' %l,sql_formula=sql_formula, name_long='!!Rst %s' %l))
-            sql_formula = self.model.bagItemFormula('$docbag','%s.title' %l)
-            result.append(dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l))
+            col = dict(name='rst_%s' %l,sql_formula=sql_formula, name_long='!!Rst %s' %l)
+            sql_formula = self.model.bagItemFormula('$docbag','%s.rst' %l,kwargs=col)
+            result.append(col)
+            col = dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l)
+            sql_formula = self.model.bagItemFormula('$docbag','%s.title' %l,kwargs=col)
+            result.append(col)
         return result
 
     def atc_getAttachmentPath(self,pkey):
