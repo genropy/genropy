@@ -267,8 +267,8 @@ class FrameIndex(BaseComponent):
         
     @struct_method
     def fi_slotbar_userpref(self,slot,**kwargs):
-        slot.div(_class='iframeroot_username', tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
+        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
+                                action='genro.framedIndexManager.openUserPreferences()')
 
     @struct_method
     def fi_slotbar_helpdesk(self,slot,**kwargs):
@@ -325,6 +325,7 @@ class FrameIndex(BaseComponent):
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv')
             box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
                                     _tags=self.pageAuthTags(method='preference'))
+        box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username')
 
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
@@ -388,6 +389,7 @@ class FrameIndex(BaseComponent):
                                                                             height='20px',color='white')
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
         underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
+
 
         underbar.dataController("""
                                     let selectedPageTitle = basetitle;
