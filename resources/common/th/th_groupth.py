@@ -62,7 +62,7 @@ class TableHandlerGroupBy(BaseComponent):
             store_kwargs['applymethod'] = store_kwargs.get('applymethod') or self._th_hook('groupedApplymethod',mangler=frameCode)
         bc = pane.borderContainer(datapath=datapath,_class='group_by_th',_anchor=True,**kwargs)
         stack_kwargs = {}
-        if not grouper: #not called as grouper
+        if not (grouper or static): #not called as grouper
             grid_kwargs.setdefault('selected__pkeylist','#ANCHOR.details_pkeylist')
             tree_kwargs.setdefault('tree_selected__pkeylist','#ANCHOR.details_pkeylist')
             stack_kwargs.setdefault('grid_selected__pkeylist','#ANCHOR.details_pkeylist')
