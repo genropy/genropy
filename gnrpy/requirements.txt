@@ -16,7 +16,7 @@ redbaron
 future
 boto3
 smart_open==4.2.0
-tornado<5
+tornado<6.3.3
 gunicorn
 supervisor
 lxml
@@ -24,7 +24,7 @@ openpyxl
 psutil
 simpleeval
 webob
-werkzeug<2.0
+werkzeug<3.0.1
 webob
 six
 tzlocal
