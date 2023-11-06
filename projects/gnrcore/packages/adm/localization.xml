@@ -318,7 +318,7 @@
 <en_client_reference base="Client reference"></en_client_reference>
 <en_documentation_url base="Documentation url"></en_documentation_url>
 <en_connection_log_enabled base="Connection log enabled" it="Abilita log connessioni"></en_connection_log_enabled>
-<en_allow_password_recovery base="Allow password recovery" it="Abilita recupero passowrd"></en_allow_password_recovery>
+<en_allow_password_recovery base="Allow password recovery" it="Abilita recupero password"></en_allow_password_recovery>
 <en_new_user_registration base="New user registration" it="Registrazione nuovo utente"></en_new_user_registration>
 <en_2fa_authentication base="2FA authentication" it="Autenticazione a due fattori"></en_2fa_authentication>
 <en_password_validate_regex base="Password validate regex" it="Regex validazione password"></en_password_validate_regex>
