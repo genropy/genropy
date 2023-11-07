@@ -337,9 +337,10 @@ class FrameIndex(BaseComponent):
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
-                                right_placeholder,debugping,logout,5""",
+                                right_placeholder,refresh,debugping,logout,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
+        sb.refresh.lightButton(_class='iconbox refresh',height='14px',action='PUBLISH reloadFrame;')
         return sb
 
     def prepareCenter_std(self,bc):
@@ -388,7 +389,6 @@ class FrameIndex(BaseComponent):
         underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('*,selpagetitle,*',childname='underbar',
                                                                             height='20px',color='white')
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
-        #underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
 
 
         underbar.dataController("""

@@ -6025,6 +6025,11 @@ div[disabled='true'], div[disabled='disabled']{
     background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
 }
 
+.refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
+}
+
+
 
 .tundra._common_d11 .dojoxGrid-cell.right_in_cell {
     vertical-align: middle;
