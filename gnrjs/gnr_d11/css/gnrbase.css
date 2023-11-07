@@ -6054,3 +6054,12 @@ div[disabled='true'], div[disabled='disabled']{
     mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
     background-color: #888;
 }
+.mobileTemplateGrid .cellContent>div>div:last-child{
+    width: 100%;
+    padding:5px;
+}
+
+.mobileTemplateGrid .cellContent>div{
+    margin-left: 5px;
+    margin-right: 5px;
+}
