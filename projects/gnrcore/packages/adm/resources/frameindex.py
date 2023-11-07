@@ -150,8 +150,8 @@ class FrameIndex(BaseComponent):
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
-                          _class='framedindex_tablist showcase_dark',height='25px',childname='upperbar')
-        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='20px',width='30px',
+                          _class='framedindex_tablist showcase_dark',height='30px',childname='upperbar')
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='25px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
         
@@ -337,9 +337,10 @@ class FrameIndex(BaseComponent):
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
-                                right_placeholder,debugping,logout,5""",
+                                right_placeholder,refresh,debugping,logout,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
+        sb.refresh.lightButton(_class='iconbox refresh',action='PUBLISH reloadFrame;')
         return sb
 
     def prepareCenter_std(self,bc):
@@ -385,10 +386,9 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('20,selpagetitle,*,reload,20',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('*,selpagetitle,*',childname='underbar',
                                                                             height='20px',color='white')
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
-        underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
 
 
         underbar.dataController("""

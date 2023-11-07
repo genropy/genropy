@@ -674,6 +674,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (!sourceNode.dropTarget && objectNotEmpty(sourceNode.dropModes)) {
             sourceNode.dropTarget = true;
         }
+
         var attributesToKeep = '_class,pageName,autoHeight,autoRender,autoWidth,defaultHeight,elasticView,fastScroll,keepRows,model,rowCount,rowsPerPage,singleClickEdit,structure,'; //continue
         var styleDict=genro.dom.getStyleDict(attributes);
         if (styleDict.width=='auto'){
@@ -687,6 +688,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         attributes.style=objectAsStyle(styleDict);
         attributesToKeep = attributesToKeep + 'style,scaleX,scaleY,datamode,sortedBy,filterColumn,excludeCol,excludeListCb,editorEnabled,editorSaveMethod,autoInsert,autoDelete';
         var gridAttributes = objectExtract(attributes, attributesToKeep);
+        if (sourceNode.attr.mobileTemplateGrid){
+            gridAttributes._class = `${gridAttributes._class} mobileTemplateGrid`;
+            sourceNode.attr.fillDow = false;
+        }
         objectPopAll(attributes);
         objectUpdate(attributes, gridAttributes);
         attributes._identifier = identifier;
@@ -1928,8 +1933,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                             },{_position:0});
                         }
                     }
-                    if(genro.isMobile && sourceNode.attr.draggable_row){
-                        if(!rowBag.getNode('drag_handle')){
+                    if(genro.isMobile){
+                        if(sourceNode.attr.draggable_row && !rowBag.getNode('drag_handle')){
                             rowBag.setItem('drag_handle',null,{
                                 field:'_drag_handle',name:' ',width:'23px',
                                 calculated:true,_customGetter:function(){
@@ -1937,6 +1942,14 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                 }
                             },{_position:0});
                         }
+                        
+                    }
+                    if(sourceNode.attr.mobileTemplateGrid && sourceNode.attr._linkedFormId && !rowBag.getNode('right_in_icon')){
+                        rowBag.addItem('right_in_icon',null,{
+                            field:'_right_in_icon',name:' ',width:'23px',
+                            cellClasses:'right_in_cell',cellStyles:'vertical-align:middle',
+                            calculated:true
+                        });
                     }
                     if(sourceNode.attr.multiStores){
                         if(!rowBag.getNode('_storenameCol')){
