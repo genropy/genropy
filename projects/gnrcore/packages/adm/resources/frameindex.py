@@ -385,10 +385,10 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('20,selpagetitle,*,reload,20',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('*,selpagetitle,*',childname='underbar',
                                                                             height='20px',color='white')
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
-        underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
+        #underbar.reload.lightButton(_class='iconbox white_refresh',height='14px',action='PUBLISH reloadFrame;')
 
 
         underbar.dataController("""
