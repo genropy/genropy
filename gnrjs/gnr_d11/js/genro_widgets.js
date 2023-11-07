@@ -3203,6 +3203,7 @@ dojo.declare("gnr.widgets.RadioButton", gnr.widgets.baseDojo, {
 });
 
 dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
+    
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'CheckBox';
@@ -3210,8 +3211,11 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
     creating:function(attributes, sourceNode) {
         objectPop(attributes, 'width');
         var savedAttrs = objectExtract(attributes, 'action,callback');
+        var toggle = objectPop(attributes, 'toggle');
         var label = objectPop(attributes, 'label');
-
+        if (toggle){
+            savedAttrs['toggle'] = toggle;
+        }
         if (label) {
             attributes['id'] = attributes['id'] || 'id_' + sourceNode._id;
             savedAttrs['label'] = label;
@@ -3226,14 +3230,17 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
             }
             delete sourceNode._gnrcheckbox_wrapper;
         }
+        var toggle = savedAttrs['toggle'];
         var label = savedAttrs['label'];
         var dn = widget.domNode;
         var pn = widget.domNode.parentNode;
         var gnrcheckbox_wrapper = document.createElement('div')
-        gnrcheckbox_wrapper.setAttribute('class','gnrcheckbox_wrapper')
+        var wrapperClass = toggle ? 'gnrcheckbox_wrapper toggle': 'gnrcheckbox_wrapper'
+        gnrcheckbox_wrapper.setAttribute('class',wrapperClass)
         pn.replaceChild(gnrcheckbox_wrapper,dn);
         gnrcheckbox_wrapper.appendChild(dn);
         sourceNode._gnrcheckbox_wrapper = gnrcheckbox_wrapper;
+        
         if (label) {
             if(sourceNode._labelNode){
                 sourceNode._labelNode.parentNode.removeChild(sourceNode._labelNode);

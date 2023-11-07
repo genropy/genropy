@@ -198,6 +198,30 @@ cursorZoom_plus{
     white-space: nowrap;
 }
 
+/*Checkbox toggle icon*/
+.toggle .dijitCheckBox, .toggle .dijitCheckBoxIcon{
+    width: 35px;
+    height: 25px;
+    background-image: none;
+    mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #666;
+}
+.toggle .dijitCheckBoxChecked{
+    mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #0F75E0;
+}
+.toggle .dijitCheckBoxInput{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+}
+
 .cell_editable .gnrcheckbox_wrapper{
     left: 25%;
     position: relative;
