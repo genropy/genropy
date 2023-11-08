@@ -1948,6 +1948,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         rowBag.addItem('right_in_icon',null,{
                             field:'_right_in_icon',name:' ',width:'23px',
                             cellClasses:'right_in_cell',cellStyles:'vertical-align:middle',
+                            format_onclick:"this.publish('editrow',{pkey:this.widget.rowByIndex($1.rowIndex)._pkey,rowIndex:$1.rowIndex});",
+                            format_isbutton:true,
                             calculated:true
                         });
                     }
