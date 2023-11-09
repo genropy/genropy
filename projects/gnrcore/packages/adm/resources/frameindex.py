@@ -325,7 +325,6 @@ class FrameIndex(BaseComponent):
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv')
             box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
                                     _tags=self.pageAuthTags(method='preference'))
-        box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username')
 
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):

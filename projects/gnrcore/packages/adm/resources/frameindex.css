@@ -198,23 +198,11 @@
 .iframeroot_userpref{
     cursor: pointer;
     display: inline-block;
-    background: url(/_rsrc/common/css_icons/svg/16/user_profile.svg) no-repeat center center;
-    color:#444;
+    mask: url(/_rsrc/common/css_icons/svg/16/user_profile.svg);
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/user_profile.svg);
+    background-color:#777;
     width: 15px;
     height: 15px;
-}
-
-
-.iframeroot_username{
-    cursor: pointer;
-    display: inline-block;
-    background: whitesmoke;
-    color:#444;
-    padding: 1px;
-    padding-left: 6px;
-    padding-right: 6px;
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
 }
 
 .iframeroot_pref{
