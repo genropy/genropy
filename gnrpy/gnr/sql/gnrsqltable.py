@@ -506,7 +506,7 @@ class SqlTable(GnrObject):
         reltableobj = self.db.table(related_table)
         caption_field = caption_field or reltableobj.attributes.get('caption_field')
         sep = sep or ','
-        order_by = order_by or f'${reltableobj.pkey}'
+        order_by = order_by or reltableobj.attributes.get('order_by') or f'${reltableobj.pkey}'
         where = f"${reltableobj.pkey} = ANY(string_to_array(#THIS.{field},'{sep}'))"
         return dict(name=f'{field}_captions',sql_formula= f"array_to_string(ARRAY(#captions),'{sep}')",
                         select_captions=dict(
