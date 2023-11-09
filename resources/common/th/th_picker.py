@@ -168,7 +168,36 @@ class THPicker(BaseComponent):
                                                  structure_tbl=structure_tbl, paletteCode=paletteCode, checkbox=checkbox, uniqueRow=uniqueRow, 
                                                  grid=grid, many=many, condition=condition, condition_kwargs=condition_kwargs, 
                                                  structure_kwargs=structure_kwargs, **kwargs)
+        if checkbox or self.isMobile:
+            paletteth.view.grid.attributes.update(onCreating="""function(attributes,handler){
+                    handler.addNewSetColumn(this,{field:'pickerset'});
+                }""")
+            bar = paletteth.view.bottom.slotBar('*,moveButton,2',margin_bottom='2px',_class='slotbar_dialog_footer')
+            bar.moveButton.slotButton('!!Pick checked',
+                                        action="""
+                                            if(!pickerset){
+                                                return;
+                                            }
+                                            var rows = [];
+                                            pickerset.split(',').forEach(function(pkey){
+                                                rows.push(sourcegrid.rowBagNodeByIdentifier(pkey).attr);
+                                            });
+                                            if(destgrid){
+                                                destgrid.fireEvent('.dropped_'+paletteCode,rows);
+                                            } 
+                                            PUT .grid.sets.pickerset = null;
+                                        """,sourcegrid=paletteth.view.grid.js_widget,
+                                        pickerset='=.grid.sets.pickerset',
+                                        destgrid=grid,paletteCode=paletteCode)
+
+        if condition:
+            paletteth.view.store.attributes.update(condition=condition,**condition_kwargs)
+        if not condition_kwargs:
+            paletteth.view.store.attributes.update(_onStart=True)
+        if grid and uniqueRow:
+            paletteth.view.grid.attributes.update(filteringGrid=grid.js_sourceNode(),filteringColumn='_pkey:%s' %many)
         return palette
+        
         
     def plainPickerStructure(self, top, paletteth=None, structure_field=None, structure_tbl=None, condition=None, 
                                         structure_kwargs=None, condition_kwargs=None, **kwargs):
@@ -223,35 +252,7 @@ class THPicker(BaseComponent):
                                                     """ %(hpkey_ref,'%%',fkey_ref),
                                   hierarchical_pkey='^#ANCHOR.structuretree.tree.hierarchical_pkey',
                                   selected_pkey='^#ANCHOR.structuretree.tree.pkey',_delay=500)
-        if checkbox or self.isMobile:
-            paletteth.view.grid.attributes.update(onCreating="""function(attributes,handler){
-                    handler.addNewSetColumn(this,{field:'pickerset'});
-                }""")
-            bar = paletteth.view.bottom.slotBar('*,moveButton,2',margin_bottom='2px',_class='slotbar_dialog_footer')
-            bar.moveButton.slotButton('!!Pick checked',
-                                        action="""
-                                            if(!pickerset){
-                                                return;
-                                            }
-                                            var rows = [];
-                                            pickerset.split(',').forEach(function(pkey){
-                                                rows.push(sourcegrid.rowBagNodeByIdentifier(pkey).attr);
-                                            });
-                                            if(destgrid){
-                                                destgrid.fireEvent('.dropped_'+paletteCode,rows);
-                                            } 
-                                            PUT .grid.sets.pickerset = null;
-                                        """,sourcegrid=paletteth.view.grid.js_widget,
-                                        pickerset='=.grid.sets.pickerset',
-                                        destgrid=grid,paletteCode=paletteCode)
 
-        if condition:
-            paletteth.view.store.attributes.update(condition=condition,**condition_kwargs)
-        if not condition_kwargs:
-            paletteth.view.store.attributes.update(_onStart=True)
-        if grid and uniqueRow:
-            paletteth.view.grid.attributes.update(filteringGrid=grid.js_sourceNode(),filteringColumn='_pkey:%s' %many)
-                
     @struct_method
     def th_slotbar_thpicker(self,pane,relation_field=None,picker_kwargs=None,title=None,**kwargs):
         view = pane.parent.parent.parent    
