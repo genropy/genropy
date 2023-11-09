@@ -1556,13 +1556,15 @@ class SqlTable(GnrObject):
         
         :param record: a dictionary representing the record that must be inserted"""
         self.db.insert(self, record, **kwargs)
+        return record
         
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
         
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_insert(self, record, **kwargs)
-            
+        return record
+
         
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
@@ -1661,6 +1663,7 @@ class SqlTable(GnrObject):
         if record.get(self.pkey) == pkey:
             pkey = None
         self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
+        return record
         
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):
         """Receive a changeSet and execute insert, delete or update
