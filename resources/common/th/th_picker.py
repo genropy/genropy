@@ -126,7 +126,7 @@ class THPicker(BaseComponent):
             tblobj = self.db.table(table)
         paletteCode = paletteCode or '%s_picker' %table.replace('.','_')
         title = title or tblobj.name_long
-        defalut_width = '400px'
+        default_width = '400px'
         default_height = '600px'
         viewResource = viewResource or 'PickerView'
         groupable= False
@@ -134,13 +134,13 @@ class THPicker(BaseComponent):
             resource = self._th_getResClass(table=table,resourceName=viewResource)
             if resource and hasattr(resource,'th_groupedStruct'):
                 groupable = dict(width='350px', closable='open')
-            defalut_width = '800px'
+            default_width = '800px'
             default_height = '500px'
         except GnrMissingResourceException:
             pass
 
         palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,
-                                        title=title,width=width or defalut_width,height=height or default_height)
+                                        title=title,width=width or default_width,height=height or default_height)
 
         def struct(struct):
             r = struct.view().rows()
@@ -162,12 +162,11 @@ class THPicker(BaseComponent):
             structure_tbl = tblobj.column(structure_field).relatedTable().fullname
             if not structure_tblobj.attributes.get('hierarchical'):
                 self.plainPickerStructure(top, paletteth=paletteth, structure_field=structure_field, structure_tbl=structure_tbl,
-                                          condition=condition, condition_kwargs=condition_kwargs, structure_kwargs=structure_kwargs, **kwargs)
+                                                structure_kwargs=structure_kwargs, **kwargs)
             else:
-                self.hierarchicalPickerStructure(top, paletteth=paletteth, structure_field=structure_field, maintable=maintable, 
-                                                 structure_tbl=structure_tbl, paletteCode=paletteCode, checkbox=checkbox, uniqueRow=uniqueRow, 
-                                                 grid=grid, many=many, condition=condition, condition_kwargs=condition_kwargs, 
-                                                 structure_kwargs=structure_kwargs, **kwargs)
+                self.hierarchicalPickerStructure(top, paletteth=paletteth, structure_field=structure_field, 
+                                                maintable=maintable, structure_tbl=structure_tbl, paletteCode=paletteCode, 
+                                                checkbox=checkbox, structure_kwargs=structure_kwargs, **kwargs)
         if checkbox or self.isMobile:
             paletteth.view.grid.attributes.update(onCreating="""function(attributes,handler){
                     handler.addNewSetColumn(this,{field:'pickerset'});
@@ -199,18 +198,17 @@ class THPicker(BaseComponent):
         return palette
         
         
-    def plainPickerStructure(self, top, paletteth=None, structure_field=None, structure_tbl=None, condition=None, 
-                                        structure_kwargs=None, condition_kwargs=None, **kwargs):
+    def plainPickerStructure(self, top, paletteth=None, structure_field=None, structure_tbl=None, 
+                                            structure_kwargs=None, **kwargs):
         th = top.plainTableHandler(table=structure_tbl, configurable=False, view_store__onStart=True,
                                             **structure_kwargs, **kwargs)
         th.view.dataController("""SET #ANCHOR.structuretree.selectedStructureField = selectedId;""", 
                                             selectedId='^.grid.selectedId', _delay=1)
         paletteth.view.store.attributes.update(where=f"${structure_field}=:sel", 
-                                                sel='^#ANCHOR.structuretree.selectedStructureField', **condition_kwargs)
+                                                sel='^#ANCHOR.structuretree.selectedStructureField')
         
     def hierarchicalPickerStructure(self, top, paletteth=None, structure_field=None, maintable=None, structure_tbl=None, 
-                                            paletteCode=None, checkbox=None, uniqueRow=None, grid=None, many=None,
-                                            condition=None, condition_kwargs=None, structure_kwargs=None, **kwargs):
+                                            paletteCode=None, checkbox=None, structure_kwargs=None, **kwargs):
         defaultPickerStructure = False
         if maintable:
             defaultPickerStructure =  structure_field if structure_field in self.db.table(maintable).columns else False
