@@ -2538,18 +2538,22 @@ class GnrGridStruct(GnrStructData):
                 columns.append(dict(field=f'{code}_{i+1:02}',name=name,value=self.page.catalog.fromText(val,dtype)))
         return columns 
         
-    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
+    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,columns=None,**kwargs):
         return self.columnset(code=code,name=name ,
                         cells_radioButton = code,
                         cells_tag='checkboxcolumn',
-                        columns=self._collist(code,values,dtype=dtype),**kwargs)
+                        columns=columns or self._collist(code,values,dtype=dtype),**kwargs)
     
-    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,**kwargs):
+    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,columns=None,**kwargs):
         return self.columnset(code=code,name=name ,
                         cells_checkBoxAggr = aggr,
                         cells_checkBox = code,
                         cells_tag='checkboxcolumn',
-                        columns=self._collist(code,values,dtype=dtype),**kwargs)
+                        cells__customGetter="""function(rowdata,rowidx){
+                            let result = rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
+                            return result;
+                        }""",
+                        columns=columns or self._collist(code,values,dtype=dtype),**kwargs)
 
 
 

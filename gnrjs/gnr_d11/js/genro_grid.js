@@ -3857,7 +3857,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
     },
 
-    mixin_onCheckedColumn_one:function(idx,fieldname,checked,cellkw,evt) {
+    mixin_onCheckedColumn_one:function(idx,fieldname,original_checked,cellkw,evt) {
         var rowIndex = this.absIndex(idx);
         var grid = this;
         var rowpath = '#' + rowIndex;
@@ -3936,10 +3936,10 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 if(typeof(assignedValue)=='string'){
                     checkBoxAggr = checkBoxAggr || ',';
                     valueToAssign = valueToAssign?valueToAssign.split(checkBoxAggr):[];
-                    if(newval){
-                        valueToAssign.push(assignedValue);
-                    }else{
+                    if(valueToAssign.includes(assignedValue)){
                         valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
+                    }else{
+                        valueToAssign.push(assignedValue);
                     }
                     valueToAssign = valueToAssign.sort().join(checkBoxAggr) || null;
                 }else{
@@ -4072,6 +4072,11 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
+        if((celldata.checkBox || celldata.radioButton) && typeof(celldata.assignedValue)=='string'){
+            celldata._customGetter=function(rowdata,rowidx){
+                return rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
+            }
+        }
         return celldata;
     },
     mixin_getCheckedId:function(fieldname,checkedField){
