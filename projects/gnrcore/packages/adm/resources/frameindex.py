@@ -27,7 +27,6 @@ class FrameIndex(BaseComponent):
     index_page = False
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
-    index_title = 'Index'
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
@@ -35,6 +34,10 @@ class FrameIndex(BaseComponent):
     menuClass = 'ApplicationMenu'
     check_tester = False
 
+    @property
+    def index_title(self):
+        return 'Index'
+    
     @property
     def plugin_list(self):
         if self.device_mode!='std':
@@ -162,12 +165,15 @@ class FrameIndex(BaseComponent):
     def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
         leftbar = bc.contentPane(region='left',overflow='hidden').div(display='inline-block', margin_left='10px',margin_top='4px')  
-        for btn in ['menuToggle']+self.plugin_list.split(','):
-            getattr(self,'btn_%s' %btn)(leftbar)
-            
-        if self.custom_plugin_list:
-            for btn in self.custom_plugin_list.split(','):
+        if self.plugin_list or self.custom_plugin_list:
+            plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
+            for btn in plugins_standard:
                 getattr(self,'btn_%s' %btn)(leftbar)
+                
+            if self.custom_plugin_list:
+                for btn in self.custom_plugin_list.split(','):
+                    getattr(self,'btn_%s' %btn)(leftbar)
+        
         self.prepareTablist(bc.contentPane(region='center',margin_top='4px'),onCreatingTablist=onCreatingTablist)
         
     def prepareTablist(self,pane,onCreatingTablist=False):
@@ -202,9 +208,7 @@ class FrameIndex(BaseComponent):
         pane.dataController("""if(!data && !externalWindows){
                                     if(indexTab){
                                         genro.callAfter(function(){
-                                            var data = new gnr.GnrBag();
-                                            data.setItem('indexpage',null,{'fullname':indexTab,pageName:'indexpage',fullpath:'indexpage'});
-                                            this.setRelativeData("iframes",data);
+                                            genro.framedIndexManager.selectIframePage({file:indexTab,url: indexTab});
                                         },1,this);
                                     }
                                 }else{
@@ -404,6 +408,8 @@ class FrameIndex(BaseComponent):
 
         
     def prepareLeft_std(self,bc):
+        if not (self.plugin_list or self.custom_plugin_list):
+            return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
                                    overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',

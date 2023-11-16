@@ -417,8 +417,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
 
 
     changeFrameLabel:function(kw){
-        this.iframesbag.getNode(kw.pageName).updAttributes({fullname:kw.title});
-        this.stackSourceNode.fireEvent('refreshTablist',true);
+        if(kw.pageName && this.iframesbag.getNode(kw.pageName)){
+            this.iframesbag.getNode(kw.pageName).updAttributes({fullname:kw.title});
+            this.stackSourceNode.fireEvent('refreshTablist',true);
+        }
     },
 
     deleteFramePage:function(pageName){
