@@ -1447,7 +1447,24 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def userTags(self):
         """TODO"""
-        return self.avatar.user_tags if self.avatar else ''
+        if not self.avatar:
+            return ''
+        
+        tags = self.avatar.user_tags
+        user_local_tags = self.userLocalTags
+        if user_local_tags:
+            tags = tags.split(',')
+            for t in user_local_tags.split(','):
+                if not t in tags:
+                    tags.append(t)
+            tags = ','.join(tags)
+        return tags
+    
+    @property
+    def userLocalTags(self):
+        if not hasattr(self,'_rootenv'):
+             return
+        return self.rootenv['user_local_tags']
     
     @property
     def userMenu(self):
