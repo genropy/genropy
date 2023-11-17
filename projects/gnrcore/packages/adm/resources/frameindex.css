@@ -181,7 +181,17 @@
 .iframeroot_bar .multibutton_selected.multibutton{
     border-color: #444;
 }
-
+.iframeroot_username{
+    cursor: pointer;
+    display: inline-block;
+    background: whitesmoke;
+    color:#444;
+    padding: 1px;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
 
 .iframeroot_appname{
     cursor: pointer;

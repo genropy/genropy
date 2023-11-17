@@ -92,6 +92,7 @@ class FrameIndex(BaseComponent):
                 else:
                     root.frameIndexRoot(new_window=new_window,**kwargs)
             else:
+
                 box = root.div(_class='flex_centered_wrapper')
                 box.div('!![en]Not allowed to use this page',font_size='1.5em',color='red')
                 box.button('!![en]Logout',font_size='1.5em',action='genro.logout();')
@@ -329,6 +330,7 @@ class FrameIndex(BaseComponent):
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv')
             box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
                                     _tags=self.pageAuthTags(method='preference'))
+        box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username')
 
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
