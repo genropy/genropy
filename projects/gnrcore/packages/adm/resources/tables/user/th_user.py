@@ -220,7 +220,7 @@ class FormProfile(BaseComponent):
         pane.div('!![en]Password', _class='preference_subtitle')
         fb = pane.formbuilder(datapath='#FORM.record')
         fb.button('!!Change password',action="genro.mainGenroWindow.genro.publish('openNewPwd')")
-        if self.getService('2fa'):
+        if self.packages['adm']._2faService:
             self.manage2faAuthentication(pane)
         return pane
     
@@ -280,7 +280,7 @@ class FormProfile(BaseComponent):
     def get2faData(self,secret=None):
         secret = secret or getUuid()
         result = Bag()
-        service = self.getService('2fa')
+        service = self.get2faService()
         secret = secret or getUuid()
         previsioning_uri = service.getPrevisioningUri(name=self.user,secret=secret)
         result['secret'] = str(service.get2faSecret(secret))
@@ -291,7 +291,7 @@ class FormProfile(BaseComponent):
 
     @public_method
     def confirmOTP(self,user_id=None,otp=None,secret=None):
-        result = self.getService('2fa').verifyTOTP(secret=secret,otp=otp)
+        result = self.get2faService().verifyTOTP(secret=secret,otp=otp)
         if result:
             with self.db.table('adm.user').recordToUpdate(user_id) as user:
                  user['avatar_last_2fa_otp'] = otp

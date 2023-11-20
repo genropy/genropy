@@ -254,11 +254,11 @@ class LoginComponent(BaseComponent):
         return result
     
     def login_require2fa(self,avatar):
-        service = self.getService('2fa')
+        service = self.get2faService()
         if not service:
             return False
         enabled = avatar.extra_kwargs.get('secret_2fa') 
-        return enabled and not self.getService('2fa').saved2fa(avatar.user_id)
+        return enabled and not self.get2faService().saved2fa(avatar.user_id)
     
     def login_completeRootEnv(self,result,avatar=None,serverTimeDelta=None):
         data = Bag()
@@ -393,14 +393,14 @@ class LoginComponent(BaseComponent):
         last_2fa_otp = self.pageStore().getItem('last_2fa_otp')
         if otp_code==last_2fa_otp:
             return False
-        result = self.getService('2fa').verifyTOTP(user_id,otp=otp_code)
+        result = self.get2faService().verifyTOTP(user_id,otp=otp_code)
         if not result:
             return False
         with self.db.table('adm.user').recordToUpdate(user_id) as rec:
             rec['avatar_last_2fa_otp'] = otp_code
         self.db.commit()
         if otp_remember:
-            self.getService('2fa').remember2fa(user_id)
+            self.get2faService().remember2fa(user_id)
         with self.pageStore() as ps:
             ps.setItem('waiting2fa',None)
             ps.setItem('last_2fa_otp',otp_code)

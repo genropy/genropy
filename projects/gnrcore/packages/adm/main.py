@@ -92,6 +92,11 @@ class Package(GnrDboPackage):
 
     def loginUrl(self):
         return 'adm/login'
+    
+    def get2faService(self):
+        _2fa_service = self.db.table('sys.service').readColumns(
+                        where="$service_type=:fa AND $implementation=:sv", fa='2fa', sv='service', columns='$service_name')
+        return self.getService(_2fa_service)
 
     
 class Table(GnrDboTable):
