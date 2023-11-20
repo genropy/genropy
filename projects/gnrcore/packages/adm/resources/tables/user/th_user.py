@@ -199,7 +199,7 @@ class FormProfile(BaseComponent):
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
-        fb.field('email', lbl='!!Email',colspan=2,width='100%')
+        fb.field('email', lbl='!!Email')
         
         right = top.contentPane(region='right', width='104px', margin='10px 25px')
         right.img(src='^.photo',crop_height='100px',crop_width='100px',
@@ -226,17 +226,19 @@ class FormProfile(BaseComponent):
     
     def manage2faAuthentication(self, pane):
         pane.div('!![en]Two Factors Authentication', _class='preference_subtitle')
-        fb = pane.formbuilder(datapath='#FORM.record')
-        fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa').dataController(
-                                """dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
-                                    dlg.widget.show()
-                                """,
-                                dlg=self._dlg2faQrcode(fb),
+        fb = pane.formbuilder(datapath='#FORM.record', cols=3)
+        fb.button('Enable 2fa', hidden='^#FORM.record.avatar_secret_2fa'
+                                ).dataController(
+                                        """dlg.setRelativeData('.secret',avatar_secret_2fa  || genro.time36Id());
+                                            dlg.widget.show()
+                                        """,
+                                dlg=self._dlg2faQrcode(pane),
                                 avatar_secret_2fa='=FORM.record.avatar_secret_2fa')
-        fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v').dataController(
-                            """SET #FORM.record.avatar_secret_2fa=null;""")
-        fb.div('^#FORM.record.last_2fa_otp',lbl='2fa ENABLED',hidden='^#FORM.enabled_2fa?=!#v')
-        fb.div('^#FORM.record.avatar_secret_2fa?=#v?"2FA enabled":"2FA not enabled"')
+        fb.button('Disable 2fa', hidden='^#FORM.record.avatar_secret_2fa?=!#v'
+                                ).dataController(
+                                        """SET #FORM.record.avatar_secret_2fa=null;""")
+        fb.semaphore('^#FORM.record.avatar_secret_2fa')
+        
         dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
         frame = dlg.framePane(height='300px',width='400px')
         frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
