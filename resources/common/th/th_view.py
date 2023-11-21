@@ -608,7 +608,7 @@ class TableHandlerView(BaseComponent):
         m = self._th_hook('sections_%s' %sections,mangler=th_root,defaultCb=False)
         sectionslist = None
         meta = self._th_sectionsMetadata(m,original_kwargs=kwargs)
-        remote = meta.get('remote')
+        remote = meta.pop('remote',None)
         if remote:
             parent.dataRpc(None,self._th_remoteSectionsDispatcher,
             _onResult="""
