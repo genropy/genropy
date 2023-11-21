@@ -27,6 +27,7 @@ from past.builtins import basestring
 #from builtins import object
 from past.utils import old_div
 import re
+import datetime
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -837,8 +838,7 @@ class GnrWhereTranslator(object):
             column = '$%s' % column
         if dtype in ('D', 'DH','DHZ'):
             if not self.checkValueIsField(value):
-                if isinstance(value,str): #not a field bust still a string describing period
-                    value, op = self.decodeDates(value, op, 'D')
+                value, op = self.decodeDates(value, op, 'D')
             if dtype=='DH' or dtype=='DHZ':
                 column = 'date(%s)' % column
         if not dtype in ('A', 'T') and op in (
@@ -858,6 +858,8 @@ class GnrWhereTranslator(object):
         return result
 
     def decodeDates(self, value, op, dtype):
+        if isinstance(value, datetime.date):
+            return value, op
         if op == 'isnull':
             return value, op
         if op == 'in' and ',' in value: # is a in search with multiple (single date) arguments: don't use periods!!!
