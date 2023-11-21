@@ -26,6 +26,7 @@ from past.builtins import basestring
 #from builtins import object
 from past.utils import old_div
 import re
+import datetime
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -856,6 +857,8 @@ class GnrWhereTranslator(object):
         return result
 
     def decodeDates(self, value, op, dtype):
+        if isinstance(value, datetime.date):
+            return value, op
         if op == 'isnull':
             return value, op
         if op == 'in' and ',' in value: # is a in search with multiple (single date) arguments: don't use periods!!!
