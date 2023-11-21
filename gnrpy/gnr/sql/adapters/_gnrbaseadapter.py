@@ -836,7 +836,8 @@ class GnrWhereTranslator(object):
             column = '$%s' % column
         if dtype in ('D', 'DH','DHZ'):
             if not self.checkValueIsField(value):
-                value, op = self.decodeDates(value, op, 'D')
+                if isinstance(value,str): #not a field bust still a string describing period
+                    value, op = self.decodeDates(value, op, 'D')
             if dtype=='DH' or dtype=='DHZ':
                 column = 'date(%s)' % column
         if not dtype in ('A', 'T') and op in (
