@@ -417,9 +417,10 @@ class TableHandlerMain(BaseComponent):
         if not publicCollapse:
             insidePublic = boolean(th_public) is True
         tablecode = self.maintable.replace('.','_')
+        
         kwargs.update(th_options)
         if kwargs['virtualStore'] is False:
-            kwargs['extendedQuery'] = False
+            kwargs.setdefault('extendedQuery',False)
             kwargs['view_root_tablehandler'] = True
         extendedQuery = kwargs.pop('extendedQuery','*') 
         lockable = kwargs.pop('lockable',True)
