@@ -397,8 +397,8 @@ dojo.declare('gnr.GenroClient', null, {
     _registerUserEvents:function(){
         var cb = function(evt){
             if (genro.wsk.wsroot && genro.sendAllEvents){
-                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x,'y':evt.y,
-                                                'keyCode':evt.keyCode,'keyChar':evt.keyChar,'timeStamp':evt.timeStamp,
+                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x?evt.x:'','y':evt.y?evt.y:'',
+                                                'keyCode':evt.keyCode?evt.keyCode:'','keyChar':evt.keyChar?evt.keyChar:'','timeStamp':evt.timeStamp?evt.timeStamp:'',
                                                 'targetId':evt.target?evt.target.id:''}});
             }
             
