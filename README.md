@@ -1,5 +1,10 @@
-genropy
+GenroPy
 =======
+
+GenroPy is a web framework for line-of-business applications in Python and Javascript.
+
+Installation
+============
 
 Genropy framework. To complete the installation:
 	
