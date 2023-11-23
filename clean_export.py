@@ -13,7 +13,7 @@ INCLUDED_PATHS = [
  'LICENSE',
  'projects/gnr_it',
  'projects/gnrcore',
- 'README.rst',
+ 'README.md',
  'resources/common',
  'resources/js_libs/ckeditor',
  'resources/js_libs/codemirror',

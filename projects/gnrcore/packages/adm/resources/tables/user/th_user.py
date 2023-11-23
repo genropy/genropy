@@ -239,10 +239,7 @@ class FormProfile(BaseComponent):
                                         """SET #FORM.record.avatar_secret_2fa=null;""")
         fb.semaphore('^#FORM.record.avatar_secret_2fa')
         
-        dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
-        frame = dlg.framePane(height='300px',width='400px')
-        frame.center.contentPane().img(src='^.2fa_data.previsioning_uri?="/_tools/qrcode/"+#v',height='100%',width='100%')
-        
+    
     def _dlg2faQrcode(self,pane):
         dlg = pane.dialog(title='Enabling 2fa',closable=True,datapath='#FORM.2fa_enabler')
         frame = dlg.framePane(height='300px',width='300px')

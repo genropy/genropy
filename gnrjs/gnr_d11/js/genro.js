@@ -397,8 +397,8 @@ dojo.declare('gnr.GenroClient', null, {
     _registerUserEvents:function(){
         var cb = function(evt){
             if (genro.wsk.wsroot && genro.sendAllEvents){
-                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x,'y':evt.y,
-                                                'keyCode':evt.keyCode,'keyChar':evt.keyChar,'timeStamp':evt.timeStamp,
+                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x?evt.x:'','y':evt.y?evt.y:'',
+                                                'keyCode':evt.keyCode?evt.keyCode:'','keyChar':evt.keyChar?evt.keyChar:'','timeStamp':evt.timeStamp?evt.timeStamp:'',
                                                 'targetId':evt.target?evt.target.id:''}});
             }
             
@@ -1220,7 +1220,7 @@ dojo.declare('gnr.GenroClient', null, {
                 v = stringStrip(dojo.currency.format(v, f));
             }
         }else if(Array.isArray(v)){
-            v = genro.formatter.asText(v,f.joiner);
+            v = genro.formatter.asText(v,{joiner:f.joiner,format:f.pattern,cols:f.cols});
    
         }else if(v instanceof gnr.GnrBag){
             v = v.getFormattedValue(objectExtract(f,'bag_*',true));

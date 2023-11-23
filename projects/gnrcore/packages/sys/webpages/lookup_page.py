@@ -47,7 +47,7 @@ class GnrCustomWebPage(object):
                     condition_kwargs = dictExtract(attr,'condition_',slice_prefix=False)
                     cell_edit = attr.setdefault('cell_edit',dict())
                     cell_edit['condition'] = condition
-                    cell_edit['condition_kwargs'] = condition_kwargs
+                    cell_edit.update(condition_kwargs)
                 r.fieldcell(k,edit=attr['cell_edit'] if 'cell_edit' in attr else True)
         if '__syscode' in struct.tblobj.model.columns and self.application.checkResourcePermission('_DEV_,superadmin', self.userTags):
             r.fieldcell('__syscode',edit=True)

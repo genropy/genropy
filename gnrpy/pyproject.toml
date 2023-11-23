@@ -1,0 +1,160 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gnr"
+dynamic = ["version", "readme"]
+
+authors = [
+    {name = "Softwell Srl", email = "info@genropy.org"},
+]
+
+maintainers = [
+  {name = "Michele Bertoldi", email = "michele.bertoldi@softwell.it" }
+]
+description = "GenroPy Web Framework"
+requires-python = ">=3.9"
+keywords = ["web", "framework", "SPA applications"]
+license = {file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: LGPL",
+]
+dependencies = [
+	     "python-dateutil",
+	     "paste",
+	     "mako",
+	     "vobject",
+	     "pytz",
+	     "babel",
+	     "httplib2",
+#	     "selectors34", #apparently abandoned
+#	     "serpent<1.30", #it's a pyro dependencies, so it seem
+                             #not necessary to list it here
+	     "pyro4",
+	     "argparse",
+	     "xlrd",
+	     "xlwt",
+	     "docutils",
+	     "redbaron",
+	     "future", # evaluate if needed
+	     "boto3",
+	     "smart_open==4.2.0",
+	     "gunicorn",
+	     "supervisor",
+	     "lxml",
+	     "openpyxl",
+	     "psutil",
+	     "simpleeval",
+	     "webob",
+	     "werkzeug<2.0",
+	     "six", # evaluate if needed
+	     "tzlocal",
+	     "pyyaml",
+	     "chardet",
+	     "jsmin",
+	     "paramiko", # gnr.core.gnrssh
+	     ]
+
+[project.optional-dependencies]
+pgsql = ["psycopg2"]
+mysql = ["mysqlclient"]
+sqlite = ["pysqlite3"]
+developer = ["nose", "graphviz", "coverage"]
+
+[project.scripts]
+# gnr.core
+gnr = 'gnr.core.cli.gnr:main'
+# gnr.xtnd
+gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
+gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
+# gnr.web
+gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
+gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
+gnrtaskworker = 'gnr.web.cli.gnrtaskworker:main'
+gnrwsgiserve = 'gnr.web.cli.gnrwsgiserve:main'
+# gnr.app
+gnrasync = 'gnr.app.cli.gnrasync:main'
+gnrdaemon = 'gnr.app.cli.gnrdaemon:main'
+gnrdbsetup = 'gnr.app.cli.gnrdbsetup:main'
+gnrdbsetupparallel = 'gnr.app.cli.gnrdbsetupparallel:main'
+gnrdbshell = 'gnr.app.cli.gnrdbshell:main'
+gnrheartbeat = 'gnr.app.cli.gnrheartbeat:main'
+gnrmkapachesite = 'gnr.app.cli.gnrmkapachesite:main'
+gnrremotebagserve = 'gnr.app.cli.gnrremotebagserve:main'
+gnrrms = 'gnr.app.cli.gnrrms:main'
+gnrsendmail = 'gnr.app.cli.gnrsendmail:main'
+gnrserviceworker = 'gnr.app.cli.gnrserviceworker:main'
+gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
+gnrupdate = 'gnr.app.cli.gnrupdate:main'
+initgenropy = 'gnr.app.cli.initgenropy:main'
+# gnr.dev
+gnraddprojectrepo = 'gnr.dev.cli.gnraddprojectrepo:main'
+gnrdbgraph = 'gnr.dev.cli.gnrdbgraph:main'
+gnrdbstruct = 'gnr.dev.cli.gnrdbstruct:main'
+gnrdeploybuilder = 'gnr.dev.cli.gnrdeploybuilder:main'	
+gnrlocalizer = 'gnr.dev.cli.gnrlocalizer:main'	
+gnrmkinstance = 'gnr.dev.cli.gnrmkinstance:main'
+gnrmkpackage = 'gnr.dev.cli.gnrmkpackage:main'
+gnrmkproject = 'gnr.dev.cli.gnrmkproject:main'
+gnrmksite = 'gnr.dev.cli.gnrmksite:main'
+gnrmkthresource = 'gnr.dev.cli.gnrmkthresource:main'
+gnrsitelocalize = 'gnr.dev.cli.gnrsitelocalize:main'	
+gnrsql2py = 'gnr.dev.cli.gnrsql2py:main'
+gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
+
+
+[project.urls]  
+"Homepage" = "https://www.genropy.org/"
+"Bug Reports" = "https://bitbucket.org/genropy/"
+"Source" = "https://bitbucket.org/genropy/"
+
+[tool.setuptools.dynamic]
+version = {attr = "gnr.VERSION"}
+readme = {file = ["README.md"]}
+
+
+[tool.setuptools]
+include-package-data = true
+
+packages = [
+	    'gnr',
+	    'gnr.app',
+	    'gnr.app.cli',
+	    'gnr.core',
+	    'gnr.core.cli',
+	    'gnr.dev',
+	    'gnr.dev.cli',
+	    'gnr.prj',
+	    'gnr.utils',
+	    'gnr.web.batch',
+	    'gnr.web.cli',
+	    'gnr.web.components',
+	    'gnr.web.gnrwebpage_plugin',
+	    'gnr.web.gnrwebpage_proxy',
+    	    'gnr.web.gnrwebpage_proxy.frontend',	
+	    'gnr.web.gnrwsgisite_proxy',
+	    'gnr.xtnd',
+	    'gnr.xtnd.cli',
+   	    'gnr.lib',
+   	    'gnr.sql.adapters',
+    	    'gnr.sql',
+    	    'gnr.sql.gnrsqltable_proxy',
+      	    'gnr.lib.services',	
+      	    'gnr.web',
+	    'gnr.gnrjs',
+	    'gnr.projects',
+	    'gnr.dojo_libs',
+	    'gnr.resources',
+	    'gnr.webtools',
+	    ]
+
+
+[tool.setuptools.package-dir]
+"gnr" = "gnr"
+"gnr.gnrjs" = "../gnrjs"
+"gnr.projects" = "../projects"
+"gnr.dojo_libs" = "../dojo_libs"
+"gnr.resources" = "../resources"
+"gnr.webtools" = "../webtools"

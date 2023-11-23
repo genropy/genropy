@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+import sys
+import argparse
+from gnr.app.gnrapp import GnrApp
+        
+try:
+    import jedi
+    print ("\n*** Note: jedi is installed, autocompletion may not work properly ***\n")
+    # pip uninstall jedi
+    # %config IPCompleter.use_jedi = False
+except:
+    pass
+
+
+class AutoTable(object):
+    def __init__(self, pkg_name):
+        self._package_name = pkg_name
+
+    def __getattr__(self, name):
+        # cached in genropy?
+        if name=='__wrapped__':  # jedi fix ?
+            return self.__dir__()
+        return db.table('%s.%s' % (self._package_name, name))
+
+    def __dir__(self):
+        pkg = db.package(self._package_name)
+        return list(pkg.tables)
+
+    def __str__(self):
+        return "<AutoTable for package '%s'>" % self._package_name
+    __repr__ = __str__
+
+description = "an interactive helper utility for handling tables"
+def main():
+    parser = argparse.ArgumentParser(usage)
+    parser.add_argument("instance_name")
+    options = parser.parse_args()
+
+    gnrapp = GnrApp(options.instance_name)
+    db = gnrapp.db
+    packages = list(db.packages)
+    for pkg_name in packages:
+        locals()[pkg_name] = AutoTable(pkg_name)
+    print ("\nPackages: %s"%' '.join(packages))
+    try:
+        from IPython import embed
+    except:
+        print("Python", sys.version)
+        print("\nMissing IPython, please install it")
+        print("pip install ipython")
+        sys.exit(1)
+        
+
+
+    # start IPython
+    embed(colors="neutral", display_banner=False)
+
+
+if __name__ == "__main__":
+    main()

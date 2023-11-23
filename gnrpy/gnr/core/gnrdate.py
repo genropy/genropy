@@ -181,11 +181,11 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
     datestr = datestr.strip()
     if datestr:
         months = months or gnrlocale.getMonthNames(locale)
-        def_months = gnrlocale.getMonthNames()
+        def_months = gnrlocale.getMonthNames(locale)
         days = days or gnrlocale.getDayNames(locale)
-        def_days = gnrlocale.getDayNames()
+        def_days = gnrlocale.getDayNames(locale)
         quarters = quarters or gnrlocale.getQuarterNames(locale)
-        def_quarters = gnrlocale.getQuarterNames()
+        def_quarters = gnrlocale.getQuarterNames(locale)
         dateStart = None
         dateEnd = None
         workdate = workdate or datetime.date.today()
