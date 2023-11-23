@@ -72,6 +72,7 @@ class TableHandlerView(BaseComponent):
             viewhook(view)
         self._th_view_printEditorDialog(view)
         self._th_userObjectEditorDialog(view)
+        self._th_dependingRelationExplorer(view)
 
         if structure_field:
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
@@ -101,7 +102,77 @@ class TableHandlerView(BaseComponent):
 
 
 
+    def _th_dependingRelationExplorer(self,view):
+        th_root = view.attributes['th_root']
+        paletteCode = f'{th_root}_depending_relation_explorer'
+        gridattr = view.grid.attributes
+        gridattr['selfsubscribe_open_depending_relation_explorer'] = f'PUBLISH {paletteCode}_show;'
+        pane = view.palettePane(paletteCode=paletteCode,
+                                title='Depending relation explorer',palette_width='400px',
+                                dockTo='dummyDock',datapath='.depending_relation_explorer')
+        pane.remote(self._th_dependingRelationExplorerContent,th_root=th_root,table=gridattr['table'])
+    
+    @public_method
+    def _th_dependingRelationExplorerContent(self,pane,th_root=None,table=None):
+        bc = pane.borderContainer(nodeId=f'{th_root}_dep_tables_root')
+        self.mixinComponent('th/th_dynamic:DynamicTableHandler')
+        def struct(struct):
+            r=struct.view().rows()
+            #r.cell('table_name',name='Table')
+            r.cell('dbtable',name='fullname')
+            r.cell('fkey',name='On Key')
+            r.cell('count',dtype='L',name='Cnt.',width='5em')
+            r.cell('condition',hidden=True)
+        frame = bc.contentPane(region='top',height='50%').bagGrid(frameCode=f'{th_root}_dep_tables',datapath='.depending_tables',storepath='.store',
+                                                          struct=struct,datamode='attr',
+                                                          grid_selected_dbtable=f'#{th_root}_dep_tables_root.selectedDbTable',
+                                                          grid_selected_condition=f'#{th_root}_dep_tables_root.selectedCondition',
+                                                          addrow=False,delrow=False)
+        frame.dataRpc('.store',self.th_dependingRelationExplorerStore,
+                      sourcePkey=f'^#{th_root}_grid.selectedId',table=table,_delay=100)
+        bc.dataController(f""" PUT #{th_root}_dep_tables_root.selectedDetailTable = null
+                               SET #{th_root}_dep_tables_root.selectedDetailTable = table;
+                          """,
+            table=f'^#{th_root}_dep_tables_root.selectedDbTable',
+            th_condition=f'^#{th_root}_dep_tables_root.selectedCondition',
+            _delay=100
+        )
+        bc.contentPane(region='center').dynamicTableHandler(th_wdg='plain',th_viewResource='ViewFromDepRelation',
+                                                            datapath=f'#{th_root}_dep_tables_root.depending_table_detailth',
+                                                            table=f'^#{th_root}_dep_tables_root.selectedDetailTable',
+                                                            th_condition=f'=#{th_root}_dep_tables_root.selectedCondition',
+                                                            th_condition_pk=f'^#{th_root}_grid.selectedId',
+                                                            th_delrow=True)
 
+
+    @public_method
+    def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
+        tblobj = self.db.table(table)
+        sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
+        result = Bag()
+        if not sourcePkey:
+            return result
+        i = 0
+        for n in tblobj.model.relations:
+            joiner =  n.attr.get('joiner')
+            if joiner and joiner['mode'] == 'M':
+                if joiner.get('external_relation'):
+                    continue
+                fldlist = joiner['many_relation'].split('.')
+                tblname = fldlist[0:2]
+                dbtable = '.'.join(tblname)
+                linktblobj = self.db.table('.'.join(tblname))
+                fkey = fldlist[-1]
+                joinkey = joiner['one_relation'].split('.')[-1]
+                count_source = linktblobj.query(where='$%s=:spkey' %fkey,spkey=sourceRecord[joinkey]).count()
+                linktblobj_name = linktblobj.attributes.get('name_plural',linktblobj.name_long).replace('!!','')
+                if count_source:
+                    result.addItem(f'r_{i:02}',None,table_name=linktblobj_name,
+                                      dbtable=dbtable,fkey=fkey,
+                                      count=count_source,condition=f'${fkey}=:pk')
+                i+=1
+        return result
+    
     def _th_userObjectEditorDialog(self,view):
         th_root = view.attributes['th_root']
         dlgId = '{th_root}_userobject_editor_dlg'.format(th_root=th_root)
@@ -411,6 +482,10 @@ class TableHandlerView(BaseComponent):
 
         b.rowchild(label='!![en]External query editor',
                     action="genro.nodeById('{rootNodeId}').publish('open_userobject_editor',{{objtype:'rpcquery'}})".format(rootNodeId=rootNodeId))
+        
+        b.rowchild(label='!![en]Depending relation explorer',tags='_DEV_',
+                    action="genro.nodeById('{rootNodeId}').publish('open_depending_relation_explorer')".format(rootNodeId=rootNodeId))
+        
         if statsEnabled:
             b.rowchild(label='-')
             b.rowchild(label='!!Group by',action='SET .statsTools.selectedPage = "groupby"; SET .viewPage= "statsTools";')

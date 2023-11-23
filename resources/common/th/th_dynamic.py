@@ -34,7 +34,7 @@ class DynamicTableHandler(BaseComponent):
                                             _onRemote='FIRE #ANCHOR.load_data;',
                                             rootId=rootId,th_kwargs=th_kwargs,_fired=_fired)
 
-    def dh_lookupTablesDefaultStruct(self,struct):
+    def dh_defaultInlineEditableStruct(self,struct):
         r = struct.view().rows()
         for k,v in list(struct.tblobj.model.columns.items()):
             attr = v.attributes
@@ -43,20 +43,29 @@ class DynamicTableHandler(BaseComponent):
             elif not (attr.get('_sysfield') or attr.get('dtype') == 'X'):
                 r.fieldcell(k,edit=attr['cell_edit'] if 'cell_edit' in attr else True)
 
+   
+
+
     @public_method
     def dh_remoteTh(self,pane,table=None,fixeed_table=None,rootId=None,th_kwargs=None):
         datapath = th_kwargs.pop('datapath','.th')
         pane.data(datapath,Bag())
         if not table:
-            pane.div('!!Select a table from the popup menu',margin_left='5em',margin_top='5px', color='#8a898a',text_align='center',font_size='large')
+            pane.div('!!Select a table',margin_left='5em',margin_top='5px', color='#8a898a',text_align='center',font_size='large')
         else:
+            tblobj= self.db.table(table)
             wdg = th_kwargs.get('wdg','inline')
             viewResource = th_kwargs.pop('viewResource','LookupView')
             if not (th_kwargs.get('view_grid_structpath') or th_kwargs.get('grid_structpath')):
-                view_structCb = self.dh_lookupTablesDefaultStruct
+                if wdg=='inline':
+                    view_structCb = self.dh_defaultInlineEditableStruct
+                else:
+                    def view_structCb(struct):
+                        r = struct.view().rows()
+                        r.fieldcell(tblobj.attributes.get('caption_field') or tblobj.pkey, name=tblobj.name_long, width='100%')
             else:
                 view_structCb = None
-            tblobj= self.db.table(table)
+            
             getattr(pane,'%sTableHandler' %wdg)(table=table,viewResource=viewResource,
                     datapath=datapath,autoSave=False,
                     nodeId='%s_mainth' %rootId,
