@@ -20,7 +20,10 @@ class Main(BaseResourceAction):
 
 
     def do(self):
-        selection = self.get_selection(columns='*,$__is_protected_row')
+        columns = '*'
+        if self.tblobj.column('__is_protected_row') is not None:
+            columns='*,$__is_protected_row'
+        selection = self.get_selection(columns=columns)
         for r in self.btc.thermo_wrapper(selection, 'record'):
             if r.get('__is_protected_row'):
                 continue
