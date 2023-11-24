@@ -206,7 +206,7 @@ class GnrWsgiWebApp(GnrApp):
         :param page: TODO"""
         if user:
             page = page or self.site.currentPage
-            if page and page.connectionStore().getItem('external_verifed_user') == user:
+            if page and page.connectionStore().getItem('external_verified_user') == user:
                 authenticate = False
             authmethods = self.config['authentication']
             if user=='gnrtoken':

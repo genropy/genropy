@@ -208,7 +208,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             attributes['for'] = objectPop(attributes, '_for');
         }
         if (attributes.onShow) {
-            attributes['onShow'] = funcCreate(attributes.onShow, 'console.log("showing")', sourceNode);
+            attributes['onShow'] = funcCreate(attributes.onShow, '', sourceNode);
         }
         if (attributes.onHide) {
             attributes['onHide'] = funcCreate(attributes.onHide, '', sourceNode);
@@ -1847,13 +1847,20 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
 
     mixin_setHiddenChild:function(child,hidden){
         if(hidden && child.selected){
-            var otherChildren = this.getChildren().filter(function(other){return other!==child});
+            var otherChildren = this.getChildren().filter((other)=>{
+                if(other.sourceNode.getAttributeFromDatasource('hidden')){
+                    return;
+                }
+                return other!==child
+            });
             if(otherChildren.length>0){
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
             }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
+        this.layout();
+
     },
 
     versionpatch_11_layout: function() {
@@ -2126,6 +2133,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
                 }
             }
             this._layoutChildren();
+
         }
         return show;
     },
@@ -2673,13 +2681,16 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 }
             }
         }
+        ctxSourceNode._lastContextClickEvent = e
         genro._lastCtxTargetSourceNode = ctxSourceNode;
         this.ctxTargetSourceNode = ctxSourceNode;
         if (sourceNode) {
             var resolver = sourceNode.getResolver();
             if (resolver && resolver.expired()) {
+                var optkwargs = {};
                 if(sourceNode.attr.onOpeningMenu){
-                    var optkwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode);
+                    let extraOptKwargs = funcApply(sourceNode.attr.onOpeningMenu,{evt:e},sourceNode) || {};
+                    objectUpdate(optkwargs,extraOptKwargs)
                 }
                 var result = sourceNode.getValue('notrigger',optkwargs);
                 if (result instanceof gnr.GnrBag) {
@@ -3192,6 +3203,7 @@ dojo.declare("gnr.widgets.RadioButton", gnr.widgets.baseDojo, {
 });
 
 dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
+    
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'CheckBox';
@@ -3199,8 +3211,11 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
     creating:function(attributes, sourceNode) {
         objectPop(attributes, 'width');
         var savedAttrs = objectExtract(attributes, 'action,callback');
+        var toggle = objectPop(attributes, 'toggle');
         var label = objectPop(attributes, 'label');
-
+        if (toggle){
+            savedAttrs['toggle'] = toggle;
+        }
         if (label) {
             attributes['id'] = attributes['id'] || 'id_' + sourceNode._id;
             savedAttrs['label'] = label;
@@ -3215,14 +3230,17 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
             }
             delete sourceNode._gnrcheckbox_wrapper;
         }
+        var toggle = savedAttrs['toggle'];
         var label = savedAttrs['label'];
         var dn = widget.domNode;
         var pn = widget.domNode.parentNode;
         var gnrcheckbox_wrapper = document.createElement('div')
-        gnrcheckbox_wrapper.setAttribute('class','gnrcheckbox_wrapper')
+        var wrapperClass = toggle ? 'gnrcheckbox_wrapper toggle': 'gnrcheckbox_wrapper'
+        gnrcheckbox_wrapper.setAttribute('class',wrapperClass)
         pn.replaceChild(gnrcheckbox_wrapper,dn);
         gnrcheckbox_wrapper.appendChild(dn);
         sourceNode._gnrcheckbox_wrapper = gnrcheckbox_wrapper;
+        
         if (label) {
             if(sourceNode._labelNode){
                 sourceNode._labelNode.parentNode.removeChild(sourceNode._labelNode);
@@ -3579,21 +3597,28 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
     onBuilding:function(sourceNode){
         sourceNode.freeze();
         let cm = sourceNode._('comboMenu',{'_class':'menupane',onOpen:function(){
-            let datatime = sourceNode.getAttributeFromDatasource('value');
-            let kw = splitDateAndTime(datatime);
-            sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
-            sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
-
+            let datetime = sourceNode.getAttributeFromDatasource('value');
+            if(datetime){
+                let kw = splitDateAndTime(datetime);
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_date`,kw._date)
+                sourceNode.setRelativeData(`${sourceNode.attr.value}?_time`,kw._time)
+            }
         }});
         let box = cm._('menuItem',{})._('div',{'padding':'5px'});
         var fb = genro.dev.formbuilder(box, 2,{border_spacing:'5px'});
         let dateValue = `${sourceNode.attr.value}?_date`;
-        let timeValue = `${sourceNode.attr.value}?_time`;
-        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true});
+        var timeValue = `${sourceNode.attr.value}?_time`;
+        fb.addField('dateTextBox',{value:dateValue,width:'7em',lbl:_T('Date'),popup:true,
+                                    validate_onAccept:function(value,userChanged){
+                                        let currentTimeValue = this.getRelativeData(timeValue);
+                                        if(!currentTimeValue){
+                                            this.setRelativeData(timeValue, newTimeObject());
+                                        }
+                                    }});
         fb.addField('timeTextBox',{value:timeValue,width:'7em',lbl:_T('Time'),popup:true});
         sourceNode._('dataFormula',{path:sourceNode.attr.value.slice(1),
-                                        formula:'combineDateAndTime(d,t)',
-                                        d:dateValue,t:timeValue,_if:'d&&t'});
+                                        formula:'combineDateAndTime(d,t || d)',
+                                        d:dateValue,t:timeValue,_if:'d'});
         sourceNode.unfreeze(true);
 
     },
@@ -4885,7 +4910,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
-                attr.editCb = attr[uploadhandler_key];
+                attr._editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }

@@ -198,6 +198,30 @@ cursorZoom_plus{
     white-space: nowrap;
 }
 
+/*Checkbox toggle icon*/
+.toggle .dijitCheckBox, .toggle .dijitCheckBoxIcon{
+    width: 35px;
+    height: 25px;
+    background-image: none;
+    mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #666;
+}
+.toggle .dijitCheckBoxChecked{
+    mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #0F75E0;
+}
+.toggle .dijitCheckBoxInput{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+}
+
 .cell_editable .gnrcheckbox_wrapper{
     left: 25%;
     position: relative;
@@ -1714,6 +1738,17 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     margin-top: 2px;
 }
 
+
+.largemenu .dijitMenuItem td{
+    font-size: 1.2em;
+    padding:5px;
+}
+
+.largemenu.dijitMenu.dijitMenuTable{
+    border:1px solid silver;
+    border-collapse: collapse;
+}
+
 .smallmenu .dijitMenuItem {
     font-size: .9em;
 }
@@ -1922,9 +1957,23 @@ div.dojoxDock {
     line-height: normal;
 }
 
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+    border-right: 0;
+}
+
 .plainTextChunk{
     white-space: pre;
-    font-family: 'Courier New', Courier, monospace;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 4px;
+    border:1px solid silver;
+    margin-bottom: 10px;
 }
 /* @end */
 
@@ -1958,7 +2007,7 @@ div.dojoxDock {
     width:16px;
 }
 .box24{
-     height:24px;
+    height:24px;
     width:24px;
 }
 .box32{
@@ -4218,7 +4267,7 @@ p {
 
 
 .pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
-    height: 18px;
+    min-height: 18px;
     font-variant:normal;
     line-height:15px;
     font-size: .9em;
@@ -4313,7 +4362,7 @@ p {
     line-height:3ex;
     font-size: .9em;
     font-variant:small-caps;
-    height: 19px;
+    min-height: 19px;
 }
 .multibutton_container .hidden.multibutton{
     display: none;
@@ -5974,4 +6023,67 @@ div[disabled='true'], div[disabled='disabled']{
 
 .mc_negative.mc_ovf{
     background: darkred;
+}
+
+
+.flex_centered_wrapper{
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    right:0;
+    justify-content: center;
+    align-items: center;
+}
+
+.visibility_lock{
+    background: url(/_rsrc/common/css_icons/svg/16/visibility_lock.svg) no-repeat center center;
+    background-size: contain;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.white_refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
+}
+
+.refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
+}
+
+
+
+.tundra._common_d11 .dojoxGrid-cell.right_in_cell {
+    vertical-align: middle;
+    border-left: 0;
+}
+
+.right_in_cell .cellContent{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    background-color: #888;
+}
+
+._common_d11 .mobileTemplateGrid .dojoxGrid-row{
+    border-bottom: 1px solid #efefef;
+}
+
+._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
+    display:none;
+}
+.mobile_left_out{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    background-color: #888;
+}
+.mobileTemplateGrid .cellContent>div>div:last-child{
+    width: 100%;
+    padding:5px;
+}
+
+.mobileTemplateGrid .cellContent>div{
+    margin-left: 5px;
+    margin-right: 5px;
 }

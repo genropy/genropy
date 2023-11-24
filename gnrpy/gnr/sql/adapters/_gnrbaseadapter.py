@@ -22,6 +22,7 @@
 
 from __future__ import division
 from builtins import str
+from datetime import datetime
 from past.builtins import basestring
 #from builtins import object
 from past.utils import old_div
@@ -866,7 +867,6 @@ class GnrWhereTranslator(object):
                     [decodeDatePeriod(v, workdate=self.db.workdate, locale=self.db.locale, dtype=dtype) for v in
                      value.split(',')])
             return value, op
-
         value = decodeDatePeriod(value, workdate=self.db.workdate, locale=self.db.locale, dtype=dtype)
         mode = None
         if value.startswith(';'):

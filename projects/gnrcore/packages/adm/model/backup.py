@@ -11,7 +11,9 @@ class Table(object):
         tbl.column('name' ,name_long='!!Name')
         tbl.column('start_ts',dtype='DH',name_long='!!Backup start ts')
         tbl.column('end_ts',dtype='DH',name_long='!!Backup end ts')
-        tbl.formulaColumn('dl_link',""" '/_site/maintenance/backups/'|| $name """)
+        tbl.column('file_url', name_long='!!Download')
+        
+        tbl.formulaColumn('completed', "$end_ts IS NOT NULL", name_long='!!Completed')
 
     def trigger_onInserted(self, record):
         if self.db.application.getPreference(path='backups.max_copies',pkg='adm'):
@@ -22,10 +24,11 @@ class Table(object):
         self.deleteBackupFile(filename=record['name'])
 
     def deleteBackupFile(self, filename=None):
+        backups_folder = self.db.application.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance'
         try:
-            path = self.db.application.site.getStaticPath(f'site:maintenance','backups','{filename}.zip')
-            print('backup to delete',path)
-            os.remove(path)
+            backupSn = self.db.application.site.storageNode(backups_folder,'backups',f'{filename}.zip')
+            print('backup to delete',backupSn.internal_path)
+            backupSn.delete()
         except Exception:
             pass
 

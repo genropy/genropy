@@ -6,6 +6,7 @@ class Menu(object):
         tests.directoryBranch("Components", folder="components")
         tests.directoryBranch("Datastore elements", folder="datastore")
         tests.directoryBranch("Dojo", folder="dojo")
+        tests.directoryBranch("Google", folder="google")
         tests.directoryBranch("Drag & Drop", folder="drag_drop")
         tests.directoryBranch("Gnr widgets", folder="gnrwdg")
         tests.directoryBranch("HTML", folder="html")

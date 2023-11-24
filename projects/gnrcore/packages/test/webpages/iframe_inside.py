@@ -29,10 +29,10 @@ class GnrCustomWebPage(object):
     def main(self,pane,**kwargs):
         form = pane.frameForm(frameCode='baseform',border='1px solid silver',datapath='form',
                             rounded_bottom=10,height='180px',width='600px',
-                            pkeyPath='.prov',background='white',
-                            formsubscribe_onDismissed='genro.publish({"topic":"switchPage","parent":true,nodeId:"maintab"},0);')
-        form.dataController("this.form.publish('load',{destPkey:pkey})",pkey="^pkey")
-        form.testToolbar()
+                            pkeyPath='.prov',background='white')
+        form.dataController("this.form.publish('load',{destPkey:pkey});", pkey="^pkey")
+        #form.testToolbar()
+        #Toolbar removed, you can restore it by removing this comment
         store = form.formStore(table='glbl.provincia',storeType='Item',
                                handler='recordCluster',startKey='*norecord*',onSaved='dismiss')
             

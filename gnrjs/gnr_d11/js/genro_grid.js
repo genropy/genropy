@@ -674,6 +674,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if (!sourceNode.dropTarget && objectNotEmpty(sourceNode.dropModes)) {
             sourceNode.dropTarget = true;
         }
+
         var attributesToKeep = '_class,pageName,autoHeight,autoRender,autoWidth,defaultHeight,elasticView,fastScroll,keepRows,model,rowCount,rowsPerPage,singleClickEdit,structure,'; //continue
         var styleDict=genro.dom.getStyleDict(attributes);
         if (styleDict.width=='auto'){
@@ -687,6 +688,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         attributes.style=objectAsStyle(styleDict);
         attributesToKeep = attributesToKeep + 'style,scaleX,scaleY,datamode,sortedBy,filterColumn,excludeCol,excludeListCb,editorEnabled,editorSaveMethod,autoInsert,autoDelete';
         var gridAttributes = objectExtract(attributes, attributesToKeep);
+        if (sourceNode.attr.mobileTemplateGrid){
+            gridAttributes._class = `${gridAttributes._class} mobileTemplateGrid`;
+            sourceNode.attr.fillDow = false;
+        }
         objectPopAll(attributes);
         objectUpdate(attributes, gridAttributes);
         attributes._identifier = identifier;
@@ -1054,38 +1059,72 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if(!grid.gridEditor){
             return;
         }
+        if(!grid.gridEditor.enabled()){
+            return;
+        }
+        var rowsFromClipboard = function(txt){
+            if(!grid.gridEditor){
+                return;
+            }
+            if(!txt || txt[0]!='<'){
+                if(txt && grid.gridEditor.editorPars.pasteCb){
+                    funcApply(grid.gridEditor.editorPars.pasteCb,{'txt':txt},grid)
+                }
+                return;
+            }
+            var rows = new gnr.GnrBag(txt);
+            if(!rows.len()){
+                return;
+            }
+            return rows;
+        };
+        var getEditedRow = function(n){
+            let r = {};
+            for(let k in n.attr){
+                let cell = grid.cellmap[k];
+                if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
+                    r[k] = n.attr[k];
+                }
+            }
+            return r;
+        }
         var pasterows = function(){
             navigator.clipboard.readText().then(function(txt){
-                if(!grid.gridEditor){
-                    return;
-                }
-                if(!txt || txt[0]!='<'){
-                    if(txt && grid.gridEditor.editorPars.pasteCb){
-                        funcApply(grid.gridEditor.editorPars.pasteCb,{'txt':txt},grid)
-                    }
-                    return;
-                }
-                var rows = new gnr.GnrBag(txt);
-                if(!rows.len()){
+                let rows = rowsFromClipboard(txt);
+                if(!rows || rows.len()==0){
                     return;
                 }
                 rows._nodes.forEach(function(n){
-                    let r = {};
+                    let r = getEditedRow(n);
                     let label = '#id';
                     if(grid.rowIdentity(r)){
                         label = flattenString(grid.rowIdentity(r),['.',' '])
-                    }
-                    for(let k in n.attr){
-                        let cell = grid.cellmap[k];
-                        if(cell && (cell.edit || (cell.relating_column in grid.cellmap))){
-                            r[k] = n.attr[k];
-                        }
                     }
                     grid.addBagRow(label, '*', grid.newBagRow(r));
                 });
             });
         }
+        var fillfromclipboard = function(){
+            navigator.clipboard.readText().then(function(txt){
+                let rows = rowsFromClipboard(txt);
+                if(!rows || rows.len()==0){
+                    return;
+                }
+                let selectedIdx = grid.getSelectedRowidx();
+                while(selectedIdx.length){
+                    for(let n of rows.getNodes()){
+                        let r = getEditedRow(n);
+                        let editIdx = selectedIdx.shift();
+                        for(let k in r){
+                            grid.gridEditor.setCellValue(editIdx,k,r[k]);
+                        }
+                    }
+                }
+            });
+        };
         menu.setItem('#id',null,{caption:_T('Paste rows from clipboard'),action:pasterows});
+        menu.setItem('#id',null,{caption:_T('Fill rows from clipboard'),action:fillfromclipboard});
+
     },
 
    // cm_plugin_print:function(sourceNode,menu){
@@ -1894,8 +1933,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                             },{_position:0});
                         }
                     }
-                    if(genro.isMobile && sourceNode.attr.draggable_row){
-                        if(!rowBag.getNode('drag_handle')){
+                    if(genro.isMobile){
+                        if(sourceNode.attr.draggable_row && !rowBag.getNode('drag_handle')){
                             rowBag.setItem('drag_handle',null,{
                                 field:'_drag_handle',name:' ',width:'23px',
                                 calculated:true,_customGetter:function(){
@@ -1903,6 +1942,16 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                                 }
                             },{_position:0});
                         }
+                        
+                    }
+                    if(sourceNode.attr.mobileTemplateGrid && sourceNode.attr._linkedFormId && !rowBag.getNode('right_in_icon')){
+                        rowBag.addItem('right_in_icon',null,{
+                            field:'_right_in_icon',name:' ',width:'23px',
+                            cellClasses:'right_in_cell',cellStyles:'vertical-align:middle',
+                            format_onclick:"this.publish('editrow',{pkey:this.widget.rowByIndex($1.rowIndex)._pkey,rowIndex:$1.rowIndex});",
+                            format_isbutton:true,
+                            calculated:true
+                        });
                     }
                     if(sourceNode.attr.multiStores){
                         if(!rowBag.getNode('_storenameCol')){
@@ -3808,7 +3857,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
         }
     },
 
-    mixin_onCheckedColumn_one:function(idx,fieldname,checked,cellkw,evt) {
+    mixin_onCheckedColumn_one:function(idx,fieldname,original_checked,cellkw,evt) {
         var rowIndex = this.absIndex(idx);
         var grid = this;
         var rowpath = '#' + rowIndex;
@@ -3887,10 +3936,10 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
                 if(typeof(assignedValue)=='string'){
                     checkBoxAggr = checkBoxAggr || ',';
                     valueToAssign = valueToAssign?valueToAssign.split(checkBoxAggr):[];
-                    if(newval){
-                        valueToAssign.push(assignedValue);
-                    }else{
+                    if(valueToAssign.includes(assignedValue)){
                         valueToAssign.splice(valueToAssign.indexOf(assignedValue),1);
+                    }else{
+                        valueToAssign.push(assignedValue);
                     }
                     valueToAssign = valueToAssign.sort().join(checkBoxAggr) || null;
                 }else{
@@ -4023,6 +4072,11 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
+        if((celldata.checkBox || celldata.radioButton) && typeof(celldata.assignedValue)=='string'){
+            celldata._customGetter=function(rowdata,rowidx){
+                return rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
+            }
+        }
         return celldata;
     },
     mixin_getCheckedId:function(fieldname,checkedField){

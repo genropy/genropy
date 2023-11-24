@@ -27,7 +27,7 @@ class View(BaseComponent):
                             dict(field='from_address', lbl='From address')],cols=5,isDefault=True)
 
     def th_order(self):
-        return '__ins_ts'
+        return '__ins_ts:d'
 
     def th_query(self):
         return dict(column='subject',op='contains', val='',runOnStart=False)

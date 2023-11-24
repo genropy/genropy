@@ -34,9 +34,9 @@ class AppPref(object):
         tc = tc.tabContainer(margin='2px',**kwargs)
         stylepane = tc.contentPane(title='Styling')
         fb = stylepane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
-        fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='Theme variant')       
-        fb.textbox(value='^.palette_colors',lbl='Default color palette')
-        fb.textbox(value='^.palette_steps',lbl='Default color steps')
+        fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='!![en]Theme variant')       
+        fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
+        fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
 
 
         pdfpane = tc.borderContainer(title='Print')
@@ -44,49 +44,52 @@ class AppPref(object):
                                     region='top',height='100px').formbuilder(cols=1, border_spacing='4px')
         fb.checkbox(value='^.print.ask_options_enabled',label='!![en]Print Options Enabled')
         fb.checkBoxText(value='^.print.modes',values='pdf:PDF,server_print:Server Print,mail_pdf:PDF Mail,mail_deliver:Mail Deliver',lbl='Print modes')
-        fb.checkbox(value='^.print.enable_pdfform',label='Enable pdf forms (Requires pdftk)')
-        fb = pdfpane.roundedGroup(title='PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
-        fb.checkbox(value='^.wk_legacy',label='Legacy mode (use wkhtmltopdf)')
+        fb.checkbox(value='^.print.enable_pdfform',label='!![en]Enable pdf forms (Requires pdftk)')
+        fb = pdfpane.roundedGroup(title='!![en]PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
+        fb.checkbox(value='^.wk_legacy',label='!![en]Legacy mode (use wkhtmltopdf)')
 
-        fb.textbox(value='^.margin_top',lbl='Margin top')
-        fb.textbox(value='^.margin_bottom',lbl='Margin bottom')
-        fb.textbox(value='^.margin_left',lbl='Margin left')
-        fb.textbox(value='^.margin_right',lbl='Margin right')
-        fb.textbox(value='^.zoom',lbl='Pdf zoom',width='5em')
-        fb.checkbox(value='^.keep_html',label='Keep HTML (for debug)')
+        fb.textbox(value='^.margin_top',lbl='!![en]Margin top')
+        fb.textbox(value='^.margin_bottom',lbl='!![en]Margin bottom')
+        fb.textbox(value='^.margin_left',lbl='!![en]Margin left')
+        fb.textbox(value='^.margin_right',lbl='!![en]Margin right')
+        fb.textbox(value='^.zoom',lbl='!![en]Pdf zoom',width='5em')
+        fb.checkbox(value='^.keep_html',label='!![en]Keep HTML (for debug)')
         
-        dev = tc.contentPane(title='Developer')
+        dev = tc.contentPane(title='!![en]Developer')
         fb = dev.formbuilder()
 
-        fb.checkbox(value='^.jsPdfViewer',label='Extended pdf viewer')
-        fb.comboBox(value='^.experimental.remoteForm',lbl='Remote forms',values='onEnter,delayed')
-        self.site_config_override(tc.contentPane(title='!!Site config',datapath='.site_config'))
+        fb.checkbox(value='^.jsPdfViewer',label='!![en]Extended pdf viewer')
+        fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
+        self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
 
-        pane = tc.contentPane(title='Tables Configuration')
+        pane = tc.contentPane(title='!![en]Tables Configuration')
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
-        fb.textbox(value='^.archivable_tag',lbl='Archivable tag')
+        fb.textbox(value='^.archivable_tag',lbl='!![en]Archivable tag')
         
-        xlspane = tc.contentPane(title='XLSX Print', datapath='.xlsx_print')
+        xlspane = tc.contentPane(title='!![en]XLSX Print', datapath='.xlsx_print')
         xfb = xlspane.formbuilder(cols=1, border_spacing='4px')
         
-        xfb.numbertextbox(value='^.top',lbl='Print Margin top')
-        xfb.numbertextbox(value='^.bottom',lbl='Print Margin bottom')
-        xfb.numbertextbox(value='^.left',lbl='Print Margin left')
-        xfb.numbertextbox(value='^.right',lbl='Print Margin right')
-        xfb.numbertextbox(value='^.footer',lbl='Print Margin footer')
-        xfb.numbertextbox(value='^.header',lbl='Print Margin header')
-        xfb.numbertextbox(value='^.scale',lbl='Print Scale')
-        xfb.numbertextbox(value='^.fitToWidth',lbl='Fit To Width')
-        xfb.numbertextbox(value='^.fitToHeight',lbl='Fit To Height')
-        xfb.filteringSelect(value='^.orientation',lbl='Print orientation', values='portrait,landscape')
-        xfb.filteringSelect(value='^.show_title',lbl='Print title', values='footer,header')
-        
+        xfb.numbertextbox(value='^.top',lbl='!![en]Print Margin top')
+        xfb.numbertextbox(value='^.bottom',lbl='!![en]Print Margin bottom')
+        xfb.numbertextbox(value='^.left',lbl='!![en]Print Margin left')
+        xfb.numbertextbox(value='^.right',lbl='!![en]Print Margin right')
+        xfb.numbertextbox(value='^.footer',lbl='!![en]Print Margin footer')
+        xfb.numbertextbox(value='^.header',lbl='!![en]Print Margin header')
+        xfb.numbertextbox(value='^.scale',lbl='!![en]Print Scale')
+        xfb.numbertextbox(value='^.fitToWidth',lbl='!![en]Fit To Width')
+        xfb.numbertextbox(value='^.fitToHeight',lbl='!![en]Fit To Height')
+        xfb.filteringSelect(value='^.orientation',lbl='!![en]Print orientation', values='portrait,landscape')
+        xfb.filteringSelect(value='^.show_title',lbl='!![en]Print title', values='footer,header')
+        ntf = tc.contentPane(title='!![en]Notification')
+        nfb = ntf.formbuilder(cols=1, border_spacing='4px')
+        nfb.checkbox(value='^.notifications_enabled',label='!![en]Notification enabled')
+        nfb.textbox(value='^.notification_claim_email',lbl='!![en]Claim email')
         
     def site_config_override(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.numberTextBox(value='^.cleanup?interval',lbl='Cleanup interval',placeholder=self.site.config['cleanup?interval'])
-        fb.numberTextBox(value='^.cleanup?page_max_age',lbl='Page max age',placeholder=self.site.config['cleanup?page_max_age'])
-        fb.numberTextBox(value='^.cleanup?connection_max_age',lbl='Connection max age',placeholder=self.site.config['cleanup?connection_max_age'])
+        fb.numberTextBox(value='^.cleanup?interval',lbl='!![en]Cleanup interval',placeholder=self.site.config['cleanup?interval'])
+        fb.numberTextBox(value='^.cleanup?page_max_age',lbl='!![en]Page max age',placeholder=self.site.config['cleanup?page_max_age'])
+        fb.numberTextBox(value='^.cleanup?connection_max_age',lbl='!![en]Connection max age',placeholder=self.site.config['cleanup?connection_max_age'])
 
 
     @public_method
@@ -97,16 +100,16 @@ class AppPref(object):
 class UserPref(object):
     def prefpane_sys(self, tc, **kwargs):
         tc = tc.tabContainer(margin='2px',**kwargs)
-        self.pref_cache(tc.contentPane(title='Caching', datapath='.cache'))
-        self.pref_sound(tc.contentPane(title='Sounds', datapath='.sounds'))
-        self.pref_shortcuts(tc.contentPane(title='Shortcuts', datapath='.shortcuts'))
-        self.pref_theme(tc.contentPane(title='Theme', datapath='.theme'))
+        self.pref_cache(tc.contentPane(title='!![en]Caching', datapath='.cache'))
+        self.pref_sound(tc.contentPane(title='!![en]Sounds', datapath='.sounds'))
+        self.pref_shortcuts(tc.contentPane(title='!![en]Shortcuts', datapath='.shortcuts'))
+        self.pref_theme(tc.contentPane(title='!![en]Theme', datapath='.theme'))
 
 
 
     def pref_theme(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.filteringSelect('^.device_mode',lbl='Device mode',
+        fb.filteringSelect('^.device_mode',lbl='!![en]Device mode',
                         values='std:Standard,mobile:Mobile,xmobile:Large mobile')
 
         #fb.checkbox(value='^.bordered_icons',label='Bordered icons')
@@ -128,28 +131,28 @@ class UserPref(object):
 
     def pref_sound(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.filteringSelect(value='^.onsaving', lbl='On saving', values=self._allSounds(),
+        fb.filteringSelect(value='^.onsaving', lbl='!![en]On saving', values=self._allSounds(),
                            validate_onAccept='if(value){genro.playSound(value);}')
-        fb.filteringSelect(value='^.onsaved', lbl='On saved', values=self._allSounds(),
+        fb.filteringSelect(value='^.onsaved', lbl='!![en]On saved', values=self._allSounds(),
                            validate_onAccept='if(value){genro.playSound(value);}')
-        fb.filteringSelect(value='^.error', lbl='On error', values=self._allSounds(),
+        fb.filteringSelect(value='^.error', lbl='!![en]On error', values=self._allSounds(),
                            validate_onAccept='if(value){genro.playSound(value);}')
 
     def pref_cache(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.button('Reset session storage', action='if(sessionStorage){sessionStorage.clear();}')
-        fb.button('Reset local storage', action='if(localStorage){localStorage.clear();}')
+        fb.button('!![en]Reset session storage', action='if(sessionStorage){sessionStorage.clear();}')
+        fb.button('!![en]Reset local storage', action='if(localStorage){localStorage.clear();}')
 
     def pref_shortcuts(self,pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
-        fb.comboBox(value='^.save',values='f1,alt+s,cmd+s',lbl='Save',placeholder='f1')
-        fb.comboBox(value='^.reload',values='f9,alt+r',lbl='Reload',placeholder='f9')
-        fb.comboBox(value='^.dismiss',values='alt+up,alt+q',lbl='Dismiss',placeholder='alt+up')
-        fb.comboBox(value='^.next_record',values='alt+right',lbl='Next record',placeholder='alt+right')
-        fb.comboBox(value='^.prev_record',values='alt+left',lbl='Prev record',placeholder='alt+left')
-        fb.comboBox(value='^.last_record',values='ctrl+alt+right',lbl='Last record',placeholder='ctrl+alt+right')
-        fb.comboBox(value='^.first_record',values='ctrl+alt+left',lbl='First record',placeholder='ctrl+alt+left')
-        fb.comboBox(value='^.jump_record',values='alt+j',lbl='Jump record',placeholder='alt+j')
+        fb.comboBox(value='^.save',values='f1,alt+s,cmd+s',lbl='!![en]Save',placeholder='f1')
+        fb.comboBox(value='^.reload',values='f9,alt+r',lbl='!![en]Reload',placeholder='f9')
+        fb.comboBox(value='^.dismiss',values='alt+up,alt+q',lbl='!![en]Dismiss',placeholder='alt+up')
+        fb.comboBox(value='^.next_record',values='alt+right',lbl='!![en]Next record',placeholder='alt+right')
+        fb.comboBox(value='^.prev_record',values='alt+left',lbl='!![en]Prev record',placeholder='alt+left')
+        fb.comboBox(value='^.last_record',values='ctrl+alt+right',lbl='!![en]Last record',placeholder='ctrl+alt+right')
+        fb.comboBox(value='^.first_record',values='ctrl+alt+left',lbl='!![en]First record',placeholder='ctrl+alt+left')
+        fb.comboBox(value='^.jump_record',values='alt+j',lbl='!![en]Jump record',placeholder='alt+j')
 
 
 

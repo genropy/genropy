@@ -14,21 +14,18 @@ class Table(object):
         self.sysFields(tbl, ins=True, upd=True, md5=True)
         tbl.column('id', size='22', group='_', readOnly='y', name_long='Id')
         tbl.column('username', size=':32', name_long='!!Username', unique='y', _sendback=True,
-                   indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field',
-                   unmodifiable=True)
+                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field')
         tbl.column('email', name_long='Email', validate_notnull=True,
-                   validate_notnull_error='!!Mandatory field')
-
+                    validate_notnull_error='!!Mandatory field')
         tbl.column('mobile', name_long='Mobile')
-
         tbl.column('firstname', name_long='!!First name',
-                   validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
         tbl.column('lastname', name_long='!!Last name',
-                   validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
         tbl.column('registration_date', 'D', name_long='!!Registration Date')
         tbl.column('auth_tags', name_long='!!Authorization Tags')
         tbl.column('status', name_long='!!Status', size=':4',
-                   values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
+                    values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
         tbl.column('locale', name_long='!!Default Language', size=':12')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
@@ -38,7 +35,6 @@ class Table(object):
         tbl.column('sms_number',name_long='!!Sms Number')
         tbl.column('photo',dtype='P', name_long='!![en]Photo')
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
-         
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
         tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
         tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
@@ -69,12 +65,16 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
+        group_code = self.db.currentEnv.get('current_group_code') or record['group_code']
         alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
                                                             secret_2fa=record['avatar_secret_2fa'],
-                                                            gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
+                                                            gc=group_code,
                                                             columns='$tag_code',distinct=True).fetch()
-        return ','.join([r['tag_code'] for r in alltags])
+        tag_list = [r['tag_code'] for r in alltags]
+        if group_code:
+            tag_list.append(f'grp_{group_code}')
+        return ','.join(tag_list)
     
     
     def partitionioning_pkeys(self):
@@ -85,9 +85,10 @@ class Table(object):
         return password
 
     def trigger_onUpdating(self, record, old_record=None):
-        if record['username']!=old_record['username']:
-            raise self.exception('protect_update',record=record,
-                                 msg='!!Username is not modifiable %(username)s')
+        if old_record['username'] and record['username']!=old_record['username']:
+            if not record['username']:
+                raise self.exception('protect_update',record=record,
+                                message='!!Username cannot be set to null %(username)s')
         if record['md5pwd'] and self.fieldsChanged('md5pwd',record,old_record):
             record['md5pwd'] = self.db.application.changePassword(None, None, record['md5pwd'], userid=record['username'])
         if old_record.get('md5pwd') and not record['md5pwd']:
@@ -244,20 +245,22 @@ class Table(object):
         return True
 
     
-    def sendInvitationEmail(self,user_record=None,**mailkwargs):
+    def sendInvitationEmail(self,user_record=None,template=None,origin=None,**mailkwargs):
         data = Bag(user_record)
         loginPreference = self.loginPreference()
         tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
         site = self.db.application.site
         mailservice = site.getService('mail')
-        data['link'] = self.db.currentPage.externalUrlToken(site.homepage, userid=user_record['id'],max_usages=1)
+        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, 
+                                                            assigned_user_id=user_record['id'],
+                                                            userid=user_record['id'],max_usages=1)
         data['greetings'] = data['firstname'] or data['lastname']
         email = data['email']
-        if tpl_userconfirm_id:
-            mailservice.sendUserTemplateMail(record_id=data,template_id=tpl_userconfirm_id,**mailkwargs)
+        if template or tpl_userconfirm_id:
+            return mailservice.sendUserTemplateMail(record_id=data,template=template,template_id=tpl_userconfirm_id,**mailkwargs)
         else:
             body = loginPreference['confirm_user_tpl'] or 'Dear $greetings to confirm click $link'
-            mailservice.sendmail_template(data,to_address=email,
+            return mailservice.sendmail_template(data,to_address=email,
                                 body=body, subject=loginPreference['subject'] or 'Confirm user',
                                 **mailkwargs)
 
@@ -271,9 +274,9 @@ class Table(object):
     @public_method
     def inviteUser(self, username=None, email=None, group_code=None, 
                             inviting_table=None, inviting_id=None, **kwargs):
-        new_user = self.newrecord(username=username, email=email, group_code=group_code, 
-                                                        status='invt', **kwargs)
+        new_user = self.newrecord(username=username, email=email, group_code=group_code, status='invt', **kwargs)
         self.insert(new_user)
-        with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
-            inviting_rec['user_id'] = new_user['id']
+        if inviting_table:
+            with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
+                inviting_rec['user_id'] = new_user['id']
         self.db.commit()

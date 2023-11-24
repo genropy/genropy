@@ -1002,6 +1002,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1181,9 +1189,9 @@ class GnrWebPage(GnrBaseWebPage):
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
-        pwaEnabled = self.site.config['pwa?enabled']
-        if pwaEnabled:
-            arg_dict['pwa'] = True
+        pwa_config = self.site.pwa_handler.configuration()
+        if pwa_config is not None:
+            arg_dict['pwa'] = not pwa_config.get('disabled')
 
     def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
@@ -1276,14 +1284,14 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,allowed_user=None,**kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None,method='root',max_usages=None,allowed_user=None,assigned_user_id=None,**kwargs):
         """TODO
         
         :param path: TODO
         :param method: TODO
         """
         assert 'sys' in self.site.gnrapp.packages
-        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,
+        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,assigned_user_id=assigned_user_id,
                                                                           method=method, parameters=kwargs,max_usages=max_usages,
                                                                           allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
@@ -1333,7 +1341,8 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -1438,7 +1447,24 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def userTags(self):
         """TODO"""
-        return self.avatar.user_tags if self.avatar else ''
+        if not self.avatar:
+            return ''
+        
+        tags = self.avatar.user_tags
+        user_local_tags = self.userLocalTags
+        if user_local_tags:
+            tags = tags.split(',')
+            for t in user_local_tags.split(','):
+                if not t in tags:
+                    tags.append(t)
+            tags = ','.join(tags)
+        return tags
+    
+    @property
+    def userLocalTags(self):
+        if not hasattr(self,'_rootenv'):
+             return
+        return self.rootenv['user_local_tags']
     
     @property
     def userMenu(self):
@@ -1925,10 +1951,11 @@ class GnrWebPage(GnrBaseWebPage):
 
 
     @public_method          
-    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None):
+    def sendMessageToClient(self, message, pageId=None, filters=None, msg_path=None, fired=None,title=None):
         self.setInClientData(msg_path or 'gnr.servermsg', message,fired=fired,
                                          page_id=pageId, filters=filters,
-                                         attributes=dict(from_user=self.user, from_page=self.page_id))
+                                         attributes=dict(from_user=self.user, from_page=self.page_id,
+                                                         title=title))
 
         
 
@@ -2143,7 +2170,6 @@ class GnrWebPage(GnrBaseWebPage):
                 if params:
                     redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
-            root.clear()
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
             self.site.pageLog('open')
@@ -2198,15 +2224,12 @@ class GnrWebPage(GnrBaseWebPage):
         """
         :param root: the root of the page. For more information, check the
                      :ref:`webpages_main` section"""
-        dlg = root.dialog(toggle="fade", toggleDuration=250, onCreated='widget.show();')
-        #f = dlg.form()
-        #f.div(content='Forbidden Page', text_align="center", font_size='24pt')
-        tbl = dlg.contentPane(_class='dojoDialogInner').table()
-        row = tbl.tr()
-        row.td(content=msg or 'Sorry. You are not allowed to use this page.', align="center", font_size='16pt',
-               color='#c90031')
-        cell = tbl.tr().td()
-        cell.div(float='right', padding='2px').button('Back', action='genro.pageBack()')
+        root.clear()
+        box = root.div(position='absolute',top=0,left=0,right=0,bottom='20px')
+        box.iframe(height='100%', width='100%', src=self.getResourceUri('html_pages/forbidden.html'), border='0px') 
+        root.lightbutton('Logout',action='genro.logout()',position='absolute',bottom='10px',right='10px',cursor='pointer',
+                         font_weight='bold')
+        
 
     def getStartRootenv(self):
         #cookie = self.get_cookie('%s_dying_%s_%s' %(self.siteName,self.packageId,self.pagename), 'simple')

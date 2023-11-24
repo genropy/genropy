@@ -5057,6 +5057,21 @@ dojo.declare("gnr.widgets.ComboArrow", gnr.widgets.gnrwdg, {
     }
 });
 
+
+
+dojo.declare("gnr.widgets.PasswordTextBox", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode,kw,childSourceNode){
+        kw.type = 'password'
+        let tb = sourceNode._('textbox',kw);
+        tb._('comboArrow',{_class:'visibility_lock',action:function(){
+            let input = this.getParentNode().getParentNode().getDomNode();
+            let currType = input.type;
+            input.setAttribute('type',currType=='password'?'text':'password');
+        }})
+        return tb;
+    }
+});
+
 dojo.declare("gnr.widgets.PackageSelect", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){
         kw.hasDownArrow = true;
@@ -5652,7 +5667,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         
         if(orientation=='horizontal'){
             if('height' in attributes){
-                buildKw.cell['height']= objectPop(attributes,'height');
+                buildKw.table.min_height = objectPop(attributes,'height');
             }
         }else{
             if('width' in attributes){
@@ -5892,7 +5907,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
         pane._('StackButtons',objectUpdate({stack:scNode},slotKw));
     },
     slot_parentStackButtons:function(pane,slotValue,slotKw,frameCode){
-        slotKw['height'] = slotKw['height'] || '20px'
+        slotKw['min_height'] = slotKw['min_height'] || '20px'
         pane._('StackButtons',objectUpdate(objectUpdate({stack:pane.getParentNode().attributeOwnerNode('tag','StackContainer')},slotKw)));
     },
     

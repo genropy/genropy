@@ -642,7 +642,6 @@ dojo.declare("gnr.GnrBag", null, {
             return this._parentnode._resolver;
         }
     },
-
     /**
      * @id getItem
      */

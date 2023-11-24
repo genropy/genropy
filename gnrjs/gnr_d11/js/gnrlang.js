@@ -180,6 +180,20 @@ function arrayUniquify(arr){
     return result;
 };
 
+urlB64ToUint8Array = function(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
 
 function arrayMatch(a, matchString) {
     if (matchString.indexOf('*') >= 0) {
@@ -1916,16 +1930,20 @@ function combineDateAndTime(date, time) {
     return combined;
 }
 
+function newTimeObject(hours,minutes,seconds,milliseconds){
+    let result = new Date(1970,0,1,hours || 0, minutes || 0, seconds || 0, milliseconds || 0);
+    result._gnrdtype = 'H';
+    return result;
+}
+
 function splitDateAndTime(dt){
     let year = dt.getFullYear();
     let month = dt.getMonth();
     let day = dt.getDate();
-
     let date = new Date(year,month,day);
     date._gnrdtype = 'D';
-    let time = new Date(1970,0,1,dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
+    let time = newTimeObject(dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
     time._gnrdtype = 'H'
-    console.log('time',time)
     return {_date:date,_time:time};
 }
 
@@ -2184,4 +2202,14 @@ function canAccessIFrame(iframe) {
     }
 
     return(html !== null);
+}
+
+function sessionNameSpaceKey(key,nameSpace){
+    if(nameSpace===true){
+        nameSpace = genro.pageHash;
+    }
+    if(nameSpace){
+        key = nameSpace+'_'+key;
+    }
+    return key;
 }

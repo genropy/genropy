@@ -54,7 +54,8 @@ from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, R
 import six
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
-RELFINDER = re.compile(r"(\W|^)(\@([\w.@:]+))")
+RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
+
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
@@ -603,7 +604,7 @@ class SqlQueryCompiler(object):
         columns = ',\n'.join(as_col_values)
         # translate all fields and related fields from $fldname to t0.fldname, t1.fldname... and prepare the JOINs
         colPars = {}
-        for key, value in self.cpl.relationDict.items():
+        for key, value in list(self.cpl.relationDict.items()):
             # self._currColKey manage exploding columns in recursive getFieldAlias without add too much parameters
             self._currColKey = key
             colPars[key] = self.getFieldAlias(value)

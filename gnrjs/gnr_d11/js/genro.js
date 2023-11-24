@@ -397,8 +397,8 @@ dojo.declare('gnr.GenroClient', null, {
     _registerUserEvents:function(){
         var cb = function(evt){
             if (genro.wsk.wsroot && genro.sendAllEvents){
-                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x,'y':evt.y,
-                                                'keyCode':evt.keyCode,'keyChar':evt.keyChar,'timeStamp':evt.timeStamp,
+                    genro.wsk.send('user_event',{event:{'type':evt.type,'modifiers':genro.dom.getEventModifiers(evt),'x':evt.x?evt.x:'','y':evt.y?evt.y:'',
+                                                'keyCode':evt.keyCode?evt.keyCode:'','keyChar':evt.keyChar?evt.keyChar:'','timeStamp':evt.timeStamp?evt.timeStamp:'',
                                                 'targetId':evt.target?evt.target.id:''}});
             }
             
@@ -1849,31 +1849,28 @@ dojo.declare('gnr.GenroClient', null, {
         }
         return url;
     },
+    
 
 
-    setInStorage:function(sessionType, key, value,relativeKey) {
-        sessionType = sessionType || 'session';
-        if(relativeKey){
-            key = this.pageHash+key;
-        }
-        var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+    setInStorage:function(storageType, key, value,nameSpace) {
+        storageType = storageType || 'session';
+        key = sessionNameSpaceKey(key,nameSpace)
+        var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         if(isNullOrBlank(value)){
             storage.removeItem(key);
         }
         storage.setItem(key, asTypedTxt(value));
-        //console.log('Stored in ' + sessionType + 'Storage at key:' + key + '  value:' + value);
+        //console.log('Stored in ' + storageType + 'Storage at key:' + key + '  value:' + value);
     },
-    getFromStorage:function(sessionType, key,relativeKey) {
-        sessionType = sessionType || 'session';
-        if(relativeKey){
-            key = this.pageHash+key;
-        }
-        var storage = (sessionType == 'local') ? localStorage : sessionStorage;
+    getFromStorage:function(storageType, key,nameSpace) {
+        storageType = storageType || 'session';
+        key = sessionNameSpaceKey(key,nameSpace)
+        var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         var value = storage.getItem(key);
         /*if (value) {
-            console.log('Loaded from '+sessionType+'Storage at key:'+key+'  value:'+value);
+            console.log('Loaded from '+storageType+'Storage at key:'+key+'  value:'+value);
         } else {
-            console.log('Not existing in '+sessionType+'Storage key:'+key);
+            console.log('Not existing in '+storageType+'Storage key:'+key);
         }*/
         try {
             var v = convertFromText(value)
@@ -2049,7 +2046,7 @@ dojo.declare('gnr.GenroClient', null, {
     gotoURL:function(url, relative) {
         if (relative) {
             url = genro.constructUrl(url);
-        } else {
+        } else if (!url.startsWith('http')){
             url = genro.joinPath(genro.getData('gnr.homeUrl') || '', url);
         }
         window.location.assign(url);

@@ -891,7 +891,7 @@ class GnrBaseAsyncServer(object):
             server.listen(int(self.port))
         sockets_dir = os.path.join(self.gnrsite.site_path, 'sockets')
         if len(sockets_dir)>90:
-            sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.site_path), 'gnr_sock')
+            sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.instance_path), 'gnr_sock')
         print('sockets_dir',sockets_dir)
         if not os.path.exists(sockets_dir):
             os.mkdir(sockets_dir)

@@ -18,9 +18,12 @@ class Table(object):
         tbl.column('allowed_host', name_long='!!Allowed host')
         tbl.column('page_path', name_long='!!Page path')
         tbl.column('method', name_long='!!Method')
+        tbl.column('assigned_user_id',size='22', group='_', name_long='Assigned user id'
+                    ).relation('adm.user.id', relation_name='assigned_tokens', mode='foreignkey',
+                                onDelete='cascade',deferred=True)
         tbl.column('parameters', dtype='X', name_long='!!Parameters')
         tbl.column('exec_user', size=':32', name_long='!!Execute as user').relation('adm.user.username')
-        tbl.column('userobject_id',size='22', group='_', name_long='Userbject'
+        tbl.column('userobject_id',size='22', group='_', name_long='Userobject'
                     ).relation('adm.userobject.id', relation_name='tokens', mode='foreignkey', onDelete='cascade')
         tbl.pyColumn('external_url',)
 
@@ -30,7 +33,7 @@ class Table(object):
     def create_token(self, page_path=None, expiry=None, allowed_host=None, 
                         allowed_user=None,connection_id=None, 
                         max_usages=None, method=None, datetime=None,
-                        parameters=None, exec_user=None,userobject_id=None):
+                        parameters=None, exec_user=None,userobject_id=None,assigned_user_id=None):
         record = self.newrecord(
                 page_path=page_path,
                 datetime= datetime or dt.now(pytz.utc),
@@ -42,11 +45,12 @@ class Table(object):
                 method=method,
                 exec_user=exec_user,
                 userobject_id=userobject_id,
+                assigned_user_id=assigned_user_id,
                 parameters=Bag(parameters))
         self.insert(record)
         return record['id']
 
-    def use_token(self, token, host=None, commit=False):
+    def use_token(self, token, host=None):
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
             record = self.record(id=token, ignoreMissing=True).output('bag')
             record = self.check_token(record, host)
@@ -54,10 +58,8 @@ class Table(object):
                 if record['max_usages']:
                     self.db.table('sys.external_token_use').insert(
                             dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
-                    if commit:
-                        self.db.commit()
+                    self.db.commit()
                 user = record['exec_user']
-                
                 return record['method'], [], dict(record['parameters'] or {}), user
         return None, None, None, None
 
@@ -70,7 +72,7 @@ class Table(object):
         if record['expiry'] and record['expiry'] < dt.now(pytz.utc):
             return False
         if record['max_usages']:
-            uses = self.db.table('sys.external_token_use').query(where='external_token_id =:cid',
+            uses = self.db.table('sys.external_token_use').query(where='$external_token_id =:cid',
                                                                  cid=record['id']).count()
             if uses >= record['max_usages']:
                 return False

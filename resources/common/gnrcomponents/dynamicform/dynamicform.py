@@ -84,6 +84,8 @@ class DynamicFormBagManager(BaseComponent):
         fb.br()
         fb.checkbox(value='^.wdg_kwargs.speech',label='!!Vocal input', row_class='df_row field_enterable')
         fb.br()
+        fb.checkbox(value='^.wdg_kwargs.fullTextSearch',label='!!Full text search', row_class='df_row field_filteringselect')
+        fb.br()
         fb.checkbox(value='^.wdg_kwargs.editor',label='!!Full text editor', row_class='df_row field_simpletextarea')
         fb.br()
         fb.simpleTextArea(value='^.source_filteringselect',lbl='!!Source',colspan=3,row_class='df_row field_filteringselect',

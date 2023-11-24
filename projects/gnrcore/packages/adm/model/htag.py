@@ -9,18 +9,19 @@ class Table(object):
                         rowcaption='$code,$description',caption_field='hierarchical_description',
                         newrecord_caption='!!New tag',hierarchical_caption_field='description',
                         sysRecord_masterfield='hierarchical_code')
-        self.sysFields(tbl,hierarchical='code:unique,description')
+        self.sysFields(tbl,hierarchical='code,description')
         #self.htableFields(tbl)
         #tbl.column('parent_code').relation('htag.code',onDelete='cascade')
 
         tbl.column('code',name_long='!!Code',validate_notnull=True,validate_nodup=True,
-                    unmodifable=True)
+                    unmodifable=True,unique=True)
         tbl.column('description',name_long='!!Description',validate_notnull=True)
         tbl.column('require_2fa', dtype='B', name_long='Require 2fa')
 
         tbl.column('isreserved', 'B', name_long='!!Reserved')
         tbl.column('note',name_long='!!Notes')
         tbl.column('linked_table', name_long='Linked table')
+        tbl.formulaColumn('authorization_tag','COALESCE($__syscode,$hierarchical_code)')
 
 
     @metadata(mandatory=True)
@@ -58,4 +59,27 @@ class Table(object):
     def sysRecord__SYSTEM_(self):
         return self.newrecord(code='_SYSTEM_',description='System',
                             isreserved=True,hierarchical_code='_SYSTEM_')
+
+    def createSysRecords(self,do_update=False):
+        self.createSysRecords_(do_update=do_update)
+        for pkg in self.db.packages.keys():
+            self.checkPackageTags(pkg)
+            
+    def checkPackageTags(self,pkg):
+        pkgobj = self.db.package(pkg)
+        packageTags = pkgobj.attributes.get('packageTags')
+        packageTags = packageTags.split(',') if packageTags else []
+        if not packageTags:
+            return
+        parent_id = self.checkPackageTag(code=pkg,description=pkg)['id']
+        for code,description in map(lambda c: c.split(':'),packageTags):
+            self.checkPackageTag(code=code,description=description,parent_id=parent_id)
+
+
+    def checkPackageTag(self,code=None,description=None,parent_id=None):
+        record = self.record(__syscode=code,ignoreMissing=True).output('dict')
+        if not record:
+            record = self.newrecord(__syscode=code,code=code,description=description,parent_id=parent_id)
+            self.insert(record)
+        return record
 

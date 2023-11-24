@@ -21,24 +21,26 @@ class LoginComponent(BaseComponent):
     new_window_title = '!!New Window'
     auth_workdate = 'admin'
     auth_page = 'user'
-    index_url = 'html_pages/splashscreen.html'
+    login_splash_url = None
     closable_login = False
     loginBox_kwargs = dict()
-    external_verifed_user = None
+    external_verified_user = None
     
     @customizable
-    def loginDialog(self,pane,gnrtoken=None,**kwargs):
+    def loginDialog(self,pane,gnrtoken=None,closable_login=None,**kwargs):
+        closable_login = self.closable_login if closable_login is None else closable_login
         doLogin = self.avatar is None and self.auth_page
-        if doLogin and not self.closable_login and self.index_url:
+        if doLogin and not closable_login and self.login_splash_url:
             pane.css('.dijitDialogUnderlay.lightboxDialog_underlay',"opacity:0;")
-            #pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.index_url), border='0px') 
+            if self.login_splash_url:
+                pane.iframe(height='100%', width='100%', src=self.getResourceUri(self.login_splash_url), border='0px') 
         loginKwargs = dict(_class='lightboxDialog loginDialog' if self.loginPreference('login_flat') else 'lightboxDialog') 
         loginKwargs.update(self.loginBox_kwargs)
 
         dlg = pane.dialog(subscribe_openLogin="this.widget.show()",
                           subscribe_closeLogin="this.widget.hide()",**loginKwargs)
         box = dlg.div(**self.loginboxPars())
-        if self.closable_login:
+        if closable_login:
             dlg.div(_class='dlg_closebtn',connect_onclick='PUBLISH closeLogin;')
         login_title = self.loginPreference('login_title')
         new_window_title = self.loginPreference('new_window_title')
@@ -47,7 +49,7 @@ class LoginComponent(BaseComponent):
        #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
-        self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg)
+        self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg,closable_login=closable_login)
         footer = self.login_commonFooter(box)
         self.loginDialog_bottom_left(footer.leftbox,dlg)
         self.loginDialog_bottom_right(footer.rightbox,dlg)
@@ -80,7 +82,7 @@ class LoginComponent(BaseComponent):
     def loginDialog_bottom_right(self,pane,dlg):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
-    def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None):
+    def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
         fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
@@ -90,8 +92,9 @@ class LoginComponent(BaseComponent):
         if doLogin:
             start = 3
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',row_hidden=False,
-                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verifed_user)
-            tbpwd = fb.textbox(value='^_login.password',lbl='!!Password',type='password',row_hidden=self.external_verifed_user,
+                                nodeId='tb_login_user',autocomplete='username',disabled=self.external_verified_user,
+                                validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
+            tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',row_hidden=self.external_verified_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.dbSelect(value='^_login.group_code',table='adm.group',
                         condition="""$code IN :all_groups 
@@ -111,6 +114,7 @@ class LoginComponent(BaseComponent):
             fb.dataController("""
                 SET _login.password = null;
                 SET _login.group_code = null;  
+                SET gnr.avatar = null;
             """,
                 _changed_user='^_login.user',_userChanges=True
             )
@@ -118,14 +122,14 @@ class LoginComponent(BaseComponent):
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
-                pwd = pwd || tbpwd.widget.getValue() || external_verifed_user;
+                pwd = pwd || tbpwd.widget.getValue() || external_verified_user;
                 PUT _login.user = user;
                 PUT _login.password = pwd;
                 FIRE _login.checkAvatar;
             }
             
             """,_fired='^do_login_check',user='=_login.user',avatar_user='=gnr.avatar.user',
-                        tbuser=tbuser,tbpwd=tbpwd,external_verifed_user=self.external_verifed_user,
+                        tbuser=tbuser,tbpwd=tbpwd,external_verified_user=self.external_verified_user,
                         pwd='=_login.password')
 
             pane.dataRpc(self.login_checkAvatar,
@@ -156,8 +160,7 @@ class LoginComponent(BaseComponent):
                 fbnode.attr['hidden'] = '==!_avatar || _hide '
                 fbnode.attr['_avatar'] = '^gnr.avatar.user'
                 fbnode.attr['_hide'] = '%s?hidden' %fbnode.value['#1.#0?value']
-                
-        if gnrtoken or not self.closable_login:
+        if gnrtoken or not closable_login:
             pane.dataController("""
                             var href = window.location.href;
                             if(window.location.search){
@@ -197,12 +200,11 @@ class LoginComponent(BaseComponent):
                     dlg_otp=self.login_otpDialog(pane,dlg).js_widget,subscribe_getOtpDialog=True)
 
         pane.dataController("""
-            LoginComponent.confirmAvatar(fb,rpcmethod,closable_login,dlg,doLogin,error_msg,standAlonePage)
+            LoginComponent.confirmAvatar(fb,rpcmethod,dlg,doLogin,error_msg,standAlonePage)
         """,fb=fb,
             _fired='^do_login',
             rpcmethod=rpcmethod,
             standAlonePage=self.pageOptions.get('standAlonePage'),
-            closable_login=self.closable_login,
             error_msg='!!Invalid login',
             dlg=dlg.js_widget,
             doLogin=doLogin,
@@ -314,15 +316,22 @@ class LoginComponent(BaseComponent):
         if not gnrtoken:
             #change password by a logged user
             dlg.div(_class='dlg_closebtn',connect_onclick="genro.publish('closeNewPwd');")
-            fb.textbox(value='^.current_password',lbl='!!Password',type='password')
+            fb.passwordTextBox(value='^.current_password',lbl='!!Password')
         else:
+            token_record = self.db.table('sys.external_token').record(id=gnrtoken, ignoreMissing=True).output('bag')
+            record_user = self.db.table('adm.user').recordAs(token_record['parameters.userid'])
+            if not record_user['username']:
+                fb.textbox(value='^.newusername',lbl='!![en]Choose Username',
+                           validate_notnull=True, validate_remote=self.login_checkNodupUsername)
             fb.data('.gnrtoken',gnrtoken)
-        fb.textbox(value='^.password',lbl='!!New password',type='password',
+
+        fb.passwordTextBox(value='^.password',lbl='!!New password',
                     validate_remote=self.db.table('adm.user').validateNewPassword)
-        fb.textbox(value='^.password_confirm',lbl='!!Confirm password',type='password',
+        fb.passwordTextBox(value='^.password_confirm',lbl='!!Confirm password',
                     validate_call='return value==GET .password;',validate_call_message='!!Passwords must be equal')
         fb.dataRpc(self.login_changePassword,_fired='^set_new_password',
                     current_password='=.current_password',
+                    newusername='=.newusername',
                     password='=.password',password_confirm='=.password_confirm',
                     _if='password==password_confirm',_box=box,
                     _else="genro.dlg.floatingMessage(_box,{message:'Passwords must be equal',messageType:'error',yRatio:.95})",
@@ -334,7 +343,14 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn')
         return dlg
-
+    
+    @public_method
+    def login_checkNodupUsername(self,value=None,**kwargs):
+        if not value:
+            return Bag(dict(errorcode='Insert username'))
+        if self.db.table('adm.user').checkDuplicate(username=value):
+            return Bag(dict(errorcode=f'Existing username {value}'))
+        return True
     def login_otpDialog(self,pane,dlg_login=None):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',datapath='otp_prompt')
         box = dlg.div(**self.loginboxPars())
@@ -417,7 +433,7 @@ class LoginComponent(BaseComponent):
         
     def login_newUser(self,pane,closable=False,**kwargs):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',
-                            subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord();',
+                            subscribe_openNewUser='this.widget.show(); genro.formById("newUser_form").newrecord($1);',
                             subscribe_closeNewUser='this.widget.hide();')
 
         kw = self.loginboxPars()
@@ -510,7 +526,7 @@ class LoginComponent(BaseComponent):
         else:
             body = self.loginPreference('confirm_user_tpl') or 'Dear $greetings to confirm click $link'
             mailservice.sendmail_template(recordBag,to_address=email,
-                                    body=body, subject=self.loginPreference('subject') or 'Password recovery',
+                                    body=body, subject=self.loginPreference('subject') or 'Confirm user',
                                     async_=False,html=True,scheduler=False)
         self.db.commit()
         return 'ok'
@@ -545,7 +561,7 @@ class LoginComponent(BaseComponent):
             #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)
 
     @public_method
-    def login_changePassword(self,password=None,gnrtoken=None,current_password=None,**kwargs):
+    def login_changePassword(self,password=None,gnrtoken=None,current_password=None,newusername=None,**kwargs):
         if gnrtoken:
             method,args,kwargs,user_id = self.db.table('sys.external_token').use_token(gnrtoken)
             if not kwargs:
@@ -557,7 +573,10 @@ class LoginComponent(BaseComponent):
             else:
                 return 'Wrong password'
         if userid:
-            self.db.table('adm.user').batchUpdate(dict(status='conf',md5pwd=password),_pkeys=userid)
+            updater = dict(status='conf',md5pwd=password)
+            if newusername:
+                updater['username'] = newusername
+            self.db.table('adm.user').batchUpdate(updater,_pkeys=userid)
             self.db.commit()
 
 
@@ -573,7 +592,7 @@ class LoginComponent(BaseComponent):
         fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',
                                 fld_width='100%',row_height='3ex')
-        fb.textbox(value='^.password',lbl='!!Password',type='password',row_hidden=False)
+        fb.passwordTextBox(value='^.password',lbl='!!Password',row_hidden=False)
         btn=fb.div(width='100%',position='relative',row_hidden=False).button('!!Enter',action='FIRE .checkPwd;this.widget.setAttribute("disabled",true);',position='absolute',right='-5px',top='8px')
         box.div().slotBar('*,messageBox,*',messageBox_subscribeTo='failed_screenout',height='18px',width='100%',tdl_width='6em')
         fb.dataRpc('.result',self.login_checkPwd,password='=.password',user='=gnr.avatar.user',_fired='^.checkPwd')
