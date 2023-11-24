@@ -80,7 +80,8 @@ class AppPref(object):
 class UserPref(object):
     
     def prefpane_adm(self, parent, **kwargs):
-        fb = parent.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
+        pane = parent.contentPane(**kwargs)
+        fb = pane.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
         if 'email' in self.db.packages:
             fb.dbselect(value='^.email_account_id',lbl='!![en]Account',dbtable='email.account',hasDownArrow=True)
         

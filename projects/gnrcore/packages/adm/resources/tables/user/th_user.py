@@ -275,7 +275,6 @@ class FormProfile(BaseComponent):
 
     @public_method
     def get2faData(self,secret=None):
-        print('calling get2faData')
         secret = secret or getUuid()
         result = Bag()
         service = self.getService('2fa')
