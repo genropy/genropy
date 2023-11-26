@@ -3957,10 +3957,10 @@ table.draggedItem {
     font-weight: bold;
 }
 
-.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent,
-.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent,
-.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent,
-.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent{
+.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent, .dynamicTable td.cell_R,
+.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent, .dynamicTable td.cell_I,
+.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent, .dynamicTable td.cell_N,
+.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent, .dynamicTable td.cell_L{
     text-align: right;
 }
 
@@ -6087,3 +6087,28 @@ div[disabled='true'], div[disabled='disabled']{
     margin-left: 5px;
     margin-right: 5px;
 }
+
+.fixTableHead{
+    overflow-y: auto;
+}
+
+.fixTableHead thead th {
+    position: sticky;
+    top: 0;
+ }
+
+ .dynamicTable table{
+    border-collapse: collapse;
+    width: 100%;
+ }
+ .dynamicTable thead th{
+    background: #444;
+    color:white;
+    font-weight: bold;
+    border: 1px solid silver;
+ }
+
+ .dynamicTable tbody td{
+    color:#444;
+    border: 1px solid silver;
+ }

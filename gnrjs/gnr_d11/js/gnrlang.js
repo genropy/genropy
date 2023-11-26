@@ -1298,9 +1298,14 @@ var gnrformatter = {
         //    });
         //}
     },
-    format_AR:function(value,joiner,formatKw){
+    format_AR:function(value,format,formatKw){
+        if(format=='json_table'){
+            return genro.dom.jsonTable(
+                value,formatKw
+            );
+        }
         value = dojo.map(value,function(n){return _F(n)});
-        return value.join(joiner || ',');
+        return value.join(formatKw.joiner || ',');
     },
     format_NN:function(value,format,formatKw){
         return '';
