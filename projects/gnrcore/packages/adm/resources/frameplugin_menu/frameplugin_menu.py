@@ -76,7 +76,10 @@ class MenuIframes(BaseComponent):
             let label = node.attr.label;
             if(node.attr.titleCounter && node.attr.isDir){
                 let v = node.getValue();
-                let count = v? v.len():0;
+                let count = 0;
+                if(v && v instanceof gnr.GnrBag){
+                    count = v.len();
+                }
                 if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
                     count-=1;
                 }
