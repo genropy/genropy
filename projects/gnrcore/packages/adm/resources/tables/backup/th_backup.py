@@ -11,11 +11,11 @@ class View(BaseComponent):
         r.fieldcell('completed', semaphore=True, width='2.5em', name='OK')
         r.fieldcell('start_ts', width='10em')
         r.fieldcell('file_url', name='DL', width='2.5em',
-               template='<a href="$file_url"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" width="15px" /></a>')
+               template='<a href="$file_url"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
         r.fieldcell('file_url', name='Filepath', width='auto')
 
     def th_order(self):
-        return 'start_ts'
+        return 'start_ts:d'
 
     def th_query(self):
         return dict(column='start_ts', op='equal', val='!![en]This month')
