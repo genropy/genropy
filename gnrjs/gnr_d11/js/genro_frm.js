@@ -635,7 +635,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
-                        that.insertAndLoad(kw.default_kw);
+                        that.insertAndLoad(kw.default_kw,defaultPrompt.doSave===true?null:defaultPrompt.doSave);
                     }else{
                         that.doload_store(kw);
                     }
@@ -658,11 +658,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.load({destPkey:'*newrecord*', default_kw:default_kw});
     },
 
-    insertAndLoad:function(default_kw){
+    insertAndLoad:function(default_kw,insertMethod){
         var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
         genro.lockScreen(true,this.formId,{thermo:true});
-        genro.serverCall('app.insertRecord',
+        genro.serverCall(insertMethod || 'app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
                                 that.doload_store({destPkey:resultPkey});
