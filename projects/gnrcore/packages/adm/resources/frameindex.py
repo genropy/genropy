@@ -272,8 +272,9 @@ class FrameIndex(BaseComponent):
         
     @struct_method
     def fi_slotbar_userpref(self,slot,**kwargs):
-        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                action='genro.framedIndexManager.openUserPreferences()')
+        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
+            self.user if not self.isGuest else 'guest')).dataController(
+                        'genro.framedIndexManager.openUserPreferences()')
 
     @struct_method
     def fi_slotbar_helpdesk(self,slot,**kwargs):
@@ -330,7 +331,8 @@ class FrameIndex(BaseComponent):
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv')
             box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
                                     _tags=self.pageAuthTags(method='preference'))
-        box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username')
+        box.lightButton(self.user if not self.isGuest else 'guest', _class='iframeroot_username').dataController(
+                                    'genro.framedIndexManager.openUserPreferences()')
 
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
