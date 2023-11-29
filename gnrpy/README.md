@@ -6,17 +6,42 @@ GenroPy is a web framework for line-of-business applications in Python and Javas
 Installation
 ============
 
-Genropy framework. To complete the installation:
-	
-	sudo pip install paver
-	
-inside the folder **gnrpy** 
+inside the folder **gnrpy** you can execute 2 different installation:
 
-	sudo paver develop
+	sudo pip install .
 	
-for making the environment configuration 
+which will install the framework inside your system libraries or virtualenv.
 
-	python initgenropy.py
+You can install also optional dependencies, 4 different profiles are provided
+
+* pgsql - for PostgreSQL database usage
+* mysql - for MySQL database usage
+* sqlite - for Sqlite database usage
+* developer - will install extra tools usefule for genropy's development
+
+By executing:
+
+	sudo pip install .[profile_name]
+   
+For example:
+
+	sudo pip install .[pgsql]
+	
+Multiple profiles are supported too:
+
+	sudo pip install .[pgsql,developer]
+	
+
+To avoid system installation, you can run:
+
+	./setup.py develop
+	
+which will link to the current folder code rather than install the files. Useful for
+development work.
+	
+To create the enviroment configuration you can now execute:
+
+	gnr app initgenropy
 
 Configuration files are: 
 
@@ -40,24 +65,22 @@ Inside folder genropy_projects
 
 Run a db setup
 
-    gnrdbsetup sandbox
+    gnr app dbsetup sandbox
 
 Genropy webapplications needs a daemon
 
 Run inside another terminal
 
-	gnrdaemon
+	gnr app daemon
 
 Now we are ready for running **sandbox** website
 
-	gnrwsgiserve sandbox
+	gnr app wsgiserve sandbox
 	
-If you want to edit tutorial files through the application itself run **gnrwsgiserve** with **remote_edit** option
+If you want to edit tutorial files through the application itself run **gnr app wsgiserve** with **remote_edit** option
 
-	gnrwsgiserve sandbox --remote_edit
+	gnr app wsgiserve sandbox --remote_edit
 	
-
-
 
 License
 =======
