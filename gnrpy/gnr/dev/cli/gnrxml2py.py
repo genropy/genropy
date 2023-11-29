@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 
 
-usage = """
-gnrxml2py is used to translate 4d genro xml to python model files"""
+description = "translate 4d genro xml to python model files"
 
-parser = argparse.ArgumentParser(usage)
-
-parser.add_argument('xmlpath')
 
 def structToPy(tables, path):
     #shutil.rmtree(path,True)
@@ -46,6 +42,8 @@ class Table(object):
 
 
 def main():
+    parser = GnrCliArgParse(description=description)
+    parser.add_argument('xmlpath')
     options = parser.parse_args()
     struct = Bag(options.xmlpath)
     packages = struct.get('package', None)

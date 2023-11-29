@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
+
+from gnr.core.cli import GnrCliArgParse
 from gnr.xtnd.sync4Dapp_new import GnrAppSync4D
-import argparse
 
-usage = """
-gnrsync4d is used to sync genropy instances with 4d genro xml sync files
-"""
 
+description = "sync genropy instances with 4d genro xml sync files"
 
 def main():
-    parser = argparse.ArgumentParser(prog='gnrsync4d',
-                                     description=usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-v', '--verbose',
                       dest='verbose',
                       action='store_true',

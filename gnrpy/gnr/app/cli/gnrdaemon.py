@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import sys
-import argparse
+from gnr.core.cli import GnrCliArgParse
 
 from gnr.web.gnrdaemonhandler import GnrDaemon,GnrDaemonProxy
 
@@ -10,9 +10,7 @@ PYRO_PORT = 40004
 PYRO_HMAC_KEY = 'supersecretkey'
 description = "Main Genropy Daemon for request handling"
 def getOptions():
-    if " " not in sys.argv[0]:
-        print("\n\033[91m *** DEPRECATION WARNING: please use 'gnr' script! *** \033[00m\n")
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename',nargs='?')
     parser.add_argument('-C', '--command',
                     help="Command")

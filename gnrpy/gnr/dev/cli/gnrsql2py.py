@@ -3,8 +3,8 @@
 
 import os
 import re
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrdeploy import PackageMaker, PathResolver
 from gnr.sql.gnrsql import GnrSqlDb
 
@@ -53,8 +53,10 @@ def parse_connection_string(connection_string):
     conn['database'] = match.group('database') or None
     return conn
 
+description = "used to translate an existing database to python model files"
+
 def main():
-    parser = argparse.ArgumentParser(description="gnrsql2py is used to translate an existing database to python model files")
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-i', '--implementation',
                       dest='implementation', default='postgres',
                       help='Database implementation (postgres|mysql|sqlite|mssql')

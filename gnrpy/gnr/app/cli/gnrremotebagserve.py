@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import argparse
-
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrremotebag import RemoteBagServer
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 
-usage = "\ngnrremotebagserve"
+description = ""
 
 def getOptions():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     
     parser.add_argument('-n', '--name',
                       help="The name of the configured server")

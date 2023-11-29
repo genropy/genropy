@@ -2,9 +2,9 @@
 # encoding: utf-8
 from builtins import object
 import os
-import argparse
 from collections import defaultdict
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import uniquify
@@ -170,8 +170,10 @@ class ThResourceMaker(object):
             self.packageMenues[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
                                                             table='%s.%s' %(package,table), tag='thpage')
 
+description = "create TableHandler resources automatically from model"
+
 def main():
-    description = """
+    old_description = """
     gnrmkthresource is used to create TableHandler resources
     automatically from model
     
@@ -185,7 +187,7 @@ def main():
     - \"packageName\": name of the package
     - \"tableName\": name of the table for which you create the resource
     """
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("-f", "--force", dest="force", action='store_true', default=False,
                         help="force the resource creation also if destination file exists")
     parser.add_argument("-m", "--menu", dest="menu", action='store_true', default=False,
@@ -204,7 +206,6 @@ def main():
 
     parser.add_argument("args", nargs="*")
     options = parser.parse_args()
-    print(options.args)
     thresourcemaker = ThResourceMaker(options, options.args)
     thresourcemaker.makeResources()
         

@@ -3,8 +3,8 @@
 
 import os
 import glob
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
@@ -121,7 +121,7 @@ def import_db(filepath, options):
     app.db.commit()
 
 def main():
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     
     parser.add_argument('-c', '--check',
                         dest='check',

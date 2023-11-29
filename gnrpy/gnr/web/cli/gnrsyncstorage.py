@@ -2,7 +2,8 @@
 # encoding: utf-8
 
 import os
-import argparse
+
+from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.core.gnrsys import expandpath
 
@@ -12,9 +13,7 @@ try:
 except ImportError:
     PROGRESS = None
 
-usage = """
-sync_storage <site_name> <from_storage> <to_storage> will copy files from <from_storage> to <to_storage>.
-    """
+description = "copy files between tow storages"
 
 def sync_to_service(site=None, from_storage=None, to_storage=None, skip_existing=True, skip_same_size=False):
     done_path = expandpath('~/.gnrstsync.%s.%s.%s'%(site, from_storage, to_storage))
@@ -33,7 +32,7 @@ def sync_to_service(site=None, from_storage=None, to_storage=None, skip_existing
     os.unlink(done_path)
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-s', '--skip_same_size', action="store_true", dest='skip_same_size',
                         help="Skip same size files")
     parser.add_argument('-e', '--skip_existing', action="store_true", dest='skip_existing',

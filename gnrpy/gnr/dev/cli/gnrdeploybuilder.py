@@ -8,22 +8,15 @@ usage: gnrdeploybuilder site
 """
 import os
 import sys
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrdeploy import GunicornDeployBuilder, gnrdaemonServiceBuilder
 from gnr.app.gnrdeploy import gnrsiterunnerServiceBuilder,createVirtualEnv
 
-
-usage = """
-gnrdeploybuilder can create:
-- nginx virtualhosts
-- gnrsiterunner systemd services
-- gnrdaemon services
-- virtualenvs
-"""
+description = "create nginx vhosts, siterunner systemd service, virtualenvs, gnrdaemon services"
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("-d", "--domain", dest="domain",
                       help="The nginx domain")
     parser.add_argument('-s', '--make_service',dest='make_service',

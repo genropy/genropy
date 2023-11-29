@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
-import argparse
 import glob
 import grp
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import getGnrConfig
@@ -75,8 +75,9 @@ def build_apache_site(site_name, apache_path='/etc/apache2/sites-available/',
     """ % params
     print(apache_file_content)
 
+description = "will output an apache site configuration file"
 def main():
-    description = """
+    old_description = """
     gnrmkapachesite <site_name> <domain_name> will output an apache site configuration file.
     example usage:
     gnrmkapachesite genro www.genro.org > genro_site
@@ -92,7 +93,7 @@ def main():
     gid = os.getgid()
     current_group = grp.getgrgid(gid)[0]
     
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("-u", "--user", dest="user",default=current_user,
                         help="user for wsgi process execution")
     parser.add_argument("-g", "--group", dest="group",default=current_group,

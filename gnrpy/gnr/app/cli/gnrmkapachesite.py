@@ -3,8 +3,8 @@
 from builtins import str
 import sys, os
 import glob, grp
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import getGnrConfig
@@ -100,7 +100,7 @@ def main():
     gid = os.getgid()
     current_group = grp.getgrgid(gid)[0]
     
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("-u", "--user", dest="user",default=current_user,
                        help="user for wsgi process execution")
     parser.add_argument("-g", "--group", dest="group",default=current_group,

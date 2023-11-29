@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import sys, os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrasync import GnrAsyncServer
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import gnrConfigPath,getSiteHandler,getGnrConfig
 
-usage = """
-gnrasync <instance_name> will run a websocket server for <site_name> using tornado.
-"""
+description = "will run a websocket server for <site_name> using tornado."
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-p', '--port',
                   dest='port',
                   help="Listen port")     

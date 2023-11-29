@@ -63,7 +63,9 @@ class CommandManager():
             print(f"\n\033[92m[{section}]\033[00m\n")
             for command, cmd_impl in self.script_tree[section].items():
                 missing_doc =  "\033[91mMISSING DESCRIPTION\033[00m"
-                description = getattr(cmd_impl[2], "description", missing_doc)
+                description = getattr(cmd_impl[2], "description", "")
+                if not description:
+                    description = missing_doc
                 print(f"  {command :>20} - {description}")
             
     def run(self):

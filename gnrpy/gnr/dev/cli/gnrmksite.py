@@ -2,16 +2,15 @@
 # encoding: utf-8
 
 import sys, os, shutil
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import SiteMaker, PathResolver
 
-usage = "gnrmksite site_name"
-
+description = ""
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("-b", "--base-path", dest="base_path",
                       help="base path where project will be created")
     parser.add_argument("site_name", nargs=1)

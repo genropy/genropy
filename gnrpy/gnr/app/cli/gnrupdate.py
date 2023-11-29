@@ -2,10 +2,11 @@
 # encoding: utf-8
 import re
 import os
-import argparse
+
 from builtins import object
 from subprocess import Popen
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrconfig import gnrConfigPath, getGnrConfig,IniConfStruct
@@ -226,7 +227,7 @@ class UwsgiUpdater(BaseUpdater):
 
 description = "update something (FIXME)"
 def main():
-    parser = argparse.ArgumentParser()
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('--stop',
                         dest='stop',
                         action='store_true',

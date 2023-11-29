@@ -5,16 +5,15 @@ create a new genroproject
 
 """
 import sys, os, shutil
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import InstanceMaker, PathResolver
 
-usage = "gnrmkinstance instancename"
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse()
     parser.add_argument("-b", "--base-path", dest="base_path",
                       help="base path where project will be created")
 

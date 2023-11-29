@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import argparse
-
+from gnr.core.cli import GnrCliArgParse
 from gnr.lib.services.rms import RMS
 from gnr.app.gnrconfig import setRmsOptions
 
@@ -16,10 +15,10 @@ def register_pod(pod=None, service_url=None,customer_code=None,rebuild=None):
     rms = RMS()
     rms.registerPod()
 
-usage = ""
+description = ""
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('--pod','-p',
                         dest='pod',
                         help="Pod")

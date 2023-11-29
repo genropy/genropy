@@ -2,11 +2,11 @@
 # encoding: utf-8
 import sys
 import os
-import argparse
 import glob
 import logging
 from multiprocessing import Pool
-    
+
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
@@ -125,7 +125,7 @@ def check_store(args):
     app.db.closeConnection()
 
 def main():
-    parser = argparse.ArgumentParser(description=description)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-c', '--check',
                         dest='check',
                         action='store_true',

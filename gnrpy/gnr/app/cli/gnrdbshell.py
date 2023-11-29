@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-import argparse
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
         
 try:
@@ -32,7 +32,7 @@ class AutoTable(object):
 
 description = "an interactive helper utility for handling tables"
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name")
     options = parser.parse_args()
 

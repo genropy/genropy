@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import sys
-import argparse
-
 import urllib.request, urllib.parse, urllib.error
 
-usage = "gnrdbstruct <port> [path]"
+from gnr.core.cli import GnrCliArgParse
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse()
     parser.add_argument('port',nargs=1)
     parser.add_argument('path',nargs='?')
     options = parser.parse_args()

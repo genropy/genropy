@@ -2,9 +2,9 @@
 # -*- encoding: utf-8 -*-
 import sys
 import subprocess
-import argparse
 from io import StringIO
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 
 """example:   gnrdbgraph -O genropynet sys adm"""
@@ -40,9 +40,12 @@ def writeDigraph(title, relations, remove_package_prefix, out):
             print("  ", quote(tbl2), "->", quote(tbl1), file=out)
     print("}", file=out)
 
+
+description="This program requires graphviz"
+
 def main():
-    p = argparse.ArgumentParser(
-        description="This program requires graphviz"
+    p = GnrCliArgParse(
+        description=description
     )
 
     p.add_argument('-T', '--type', dest='output_type',

@@ -2,15 +2,14 @@
 # encoding: utf-8
 
 import os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrtransactiond import GnrAppTransactionAgent
 
-usage = """
-gnrtrdaemon is used to apply synced 4d transaction pending"""
+description = "used to apply synced 4d transaction pending"
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-v', '--verbose',
                         dest='verbose',
                         action='store_true',

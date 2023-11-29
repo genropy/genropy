@@ -7,16 +7,14 @@ usage: gnrmkproject projectname
 """
 
 import os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, SiteMaker,PackageMaker, PathResolver
 
-usage = 'gnrmkproject projectname'
-
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse()
     parser.add_argument("-b", "--base-path", dest="base_path",
                       help="base path where project will be created")
     parser.add_argument("-i", "--create-instance", dest="create_instance", default=False,

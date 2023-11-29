@@ -4,15 +4,14 @@ import os
 import sys
 import glob
 import time
-import argparse
+
 import urllib.request, urllib.parse, urllib.error
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import getGnrConfig
 
-usage = """
-gnrheartbeat"""
 
 def site_name_to_path(gnr_config, site_name):
     path_list = []
@@ -59,9 +58,10 @@ def get_site_url(site_name):
             site_config = get_site_config(site_path, gnr_config)
             return 'http://localhost:%s'%site_config['wsgi?port']
 
+description = "heartbeat"
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-v', '--verbose',
                       dest='verbose',
                       action='store_true',

@@ -3,13 +3,16 @@
 
 import re
 import os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
+
+description = ""
 
 class SiteLocalizer(object):
     def __init__(self):
-        parser = argparse.ArgumentParser()
+        parser = GnrCliArgParse(description=description)
+        
         parser.add_argument("sitepath", nargs="?",
                             default=os.getcwd(),
                             help="the instance path")

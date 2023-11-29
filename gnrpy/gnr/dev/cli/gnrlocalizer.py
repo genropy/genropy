@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import sys, os
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 
-usage = """
-    gnrlocalizer <instance_name> will analize packages of related instance
-    and update localization.xml file in every package.
-    """
+description = "analize packages of related instance and update localization.xml file for each one"
 
 def main():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('-a', '--all',
                         dest='scan_all',
                         action='store_true',

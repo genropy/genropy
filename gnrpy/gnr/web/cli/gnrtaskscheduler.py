@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 # 
-
+from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrtask import GnrTaskScheduler
-import argparse
 
-usage = """
-gnrtaskworker sitename """
+
+description = ""
 
 def getOptions():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename')
     arguments= parser.parse_args()
     return arguments.__dict__

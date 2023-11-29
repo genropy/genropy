@@ -2,14 +2,12 @@
 # encoding: utf-8
 # 
 from gnr.web.gnrtask import GnrTaskWorker
+from gnr.core.cli import GnrCliArgParse
 
-import argparse
-
-usage = """
-gnrtaskworker sitename """
+description = ""
 
 def getOptions():
-    parser = argparse.ArgumentParser(usage)
+    parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename')
     parser.add_argument('-L', '--loglevel', type=int,
                        help="Log level")
