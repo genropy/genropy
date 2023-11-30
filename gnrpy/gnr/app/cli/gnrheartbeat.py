@@ -71,7 +71,7 @@ def main():
                       dest='site_opt',
                       help="Use command on instance identified by supplied site")
 
-    parser.add_argument("site", nargs="*"
+    parser.add_argument("site", nargs="*")
     
     parser.add_argument('--interval',
                       dest='interval',
