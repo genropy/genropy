@@ -73,7 +73,7 @@ def get_app(options):
         config_path = None
         
     gnr_config = getGnrConfig(config_path=config_path, set_environment=True)
-    instance_name = options.instance or args[0]
+    instance_name = options.instance
     
     if instance_name:
         if '.' in instance_name:
