@@ -237,9 +237,10 @@ class Server(object):
                       action='store_true',
                       help='Verbose')
     parser.add_argument('-s', '--site',
-                      dest='site_name',
+                      dest='site_name_opt',
                       help="Use command on site identified by supplied name")
     parser.add_argument('site_name', nargs='?')
+    
     parser.add_argument('-n', '--noclean',
                       dest='noclean',
                       help="Don't perform a clean (full reset) restart",
@@ -290,8 +291,7 @@ class Server(object):
             self.config_path = gnrConfigPath()
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
 
-        #self.site_name = self.options.site_name or (self.args and self.args[0]) or os.getenv('GNR_CURRENT_SITE')
-        self.site_name = self.options.site_name or os.getenv('GNR_CURRENT_SITE')
+        self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
         
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
