@@ -66,7 +66,7 @@ class CommandManager():
                 description = getattr(cmd_impl[2], "description", "")
                 if not description:
                     description = missing_doc
-                print(f"  {command :>20} - {description}")
+                print(f"  {command :>15} - {description}")
     def lookup_new_name(self, old_name):
         """
         Lookup the 'right' command name when a script
