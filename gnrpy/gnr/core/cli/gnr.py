@@ -67,7 +67,19 @@ class CommandManager():
                 if not description:
                     description = missing_doc
                 print(f"  {command :>20} - {description}")
-            
+    def lookup_new_name(self, old_name):
+        """
+        Lookup the 'right' command name when a script
+        is executed through a old legacy script
+        """
+        new_name = old_name
+        for section, commands in self.script_tree.items():
+            for new_cmd_name, cmd_impl in commands.items():
+                if cmd_impl[0].name == old_name:
+                    new_name = f"gnr {section} {new_cmd_name}"
+                    break
+        return new_name
+    
     def run(self):
         if not self.argv:
             self.print_main_help()
@@ -105,8 +117,8 @@ class CommandManager():
                 
             else:
                 print("Command not found! please run with --help")
-        
+
+cmd = CommandManager()        
 def main():
-    cmd = CommandManager()
     cmd.run()
 
