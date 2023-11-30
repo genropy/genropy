@@ -292,6 +292,9 @@ class Server(object):
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
 
         self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
+        if self.site_name is None:
+                print("site name is required")
+                sys.exit(1)
         
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
