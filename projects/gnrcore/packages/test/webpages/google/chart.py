@@ -103,19 +103,20 @@ class GnrCustomWebPage(object):
 
     def test_4_timeline(self, pane):
         b = Bag()
-        b.addItem('r1',Bag(dict(person='Maurice', start=datetime(2023, 10, 15), end=datetime(2023, 12, 31))))    
-        b.addItem('r2',Bag(dict(person='John', start=datetime(2023, 10, 15), end=datetime(2023, 10, 30))))
-        b.addItem('r3',Bag(dict(person='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
-        b.addItem('r4',Bag(dict(person='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
+        b.addItem('r1',Bag(dict(code='123', lbl='Maurice', start=datetime(2023, 10, 15), end=datetime(2023, 12, 31))))    
+        b.addItem('r2',Bag(dict(code='456', lbl='John', start=datetime(2023, 10, 15), end=datetime(2023, 10, 30))))
+        b.addItem('r3',Bag(dict(code='789', lbl='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
+        b.addItem('r4',Bag(dict(code='012', lbl='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
         pane.data('.source',b)
         pane.dataFormula('.store','source',source='=.source',_onStart=True)
 
         bc = pane.borderContainer(height='600px',width='900px')
         struct = Bag()
         columns = Bag()
-        columns.addItem('c1',None, field='person', name='Person')
-        columns.addItem('c2',None, field='start', name='Start', dtype='D')
-        columns.addItem('c3',None, field='end', name='End', dtype='D')
+        columns.addItem('c1',None, field='code', name='Person')
+        columns.addItem('c2',None, field='lbl', name='Name')
+        columns.addItem('c3',None, field='start', name='Start', dtype='D')
+        columns.addItem('c4',None, field='end', name='End', dtype='D')
         struct['columns'] = columns
         bc.data('.struct', struct)        
         bc.contentPane(region='center').GoogleChart('Timeline',
@@ -124,4 +125,5 @@ class GnrCustomWebPage(object):
                                 border='1px solid silver',
                                 title='Project timeline',
                                 storepath='.store',
-                                structpath='.struct')
+                                structpath='.struct', 
+                                chart_timeline=dict(showRowLabels=True))
