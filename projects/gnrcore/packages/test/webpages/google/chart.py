@@ -1,10 +1,37 @@
 # -*- coding: utf-8 -*-
 
 from gnr.core.gnrbag import Bag
+from datetime import datetime
+
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_1_pie(self, pane):
+        b = Bag()
+        b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
+        b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
+        b.addItem('r3',Bag(dict(flavour='Zucchini',quantity=1,quantity_2=3)))
+        b.addItem('r4',Bag(dict(flavour='Pepperoni',quantity=2,quantity_2=1)))
+        pane.data('.source',b)
+        pane.dataFormula('.store','source',source='=.source',_onStart=True)
+
+        bc = pane.borderContainer(height='600px',width='900px')
+        struct = Bag()
+        columns = Bag()
+        columns.addItem('c1',None, field='flavour', name='Flav')
+        columns.addItem('c2',None, field='quantity', name='Qty', dtype='L', color='red')
+        columns.addItem('c3',None, field='quantity_2', name='Qty 2', dtype='L', color='lime')
+        struct['columns'] = columns
+        bc.data('.struct', struct)        
+        bc.contentPane(region='center').GoogleChart('ColumnChart',
+                                height='500px',
+                                width='500px',
+                                border='1px solid silver',
+                                title='Pizze varie',
+                                storepath='.store',
+                                structpath='.struct')
+
+    def test_2_pie(self, pane):
         b = Bag()
         b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
         b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
@@ -21,20 +48,18 @@ class GnrCustomWebPage(object):
         qc.column('quantity',name='Qt',width='6em',edit=True,dtype='L')
         qc.column('quantity_2',name='Qt2',width='6em',edit=True,dtype='L')
 
-        center = bc.contentPane(region='center')
-        gc = center.GoogleChart('ColumnChart',
+        gc = bc.contentPane(region='center').GoogleChart('ColumnChart',
                                 height='500px',
                                 width='500px',
                                 border='1px solid silver',
-                                title='Pizze varie',grid=qc)
-        gc.column('flavour',name='Flv')
-        gc.column('quantity')
-        #gc.column('quantity_2')
+                                title='Pizze varie',
+                                grid=qc)
+        gc.struct.column('flavour',name='Flv')
+        gc.struct.column('quantity', background='lime')
+        gc.struct.column('quantity_2', color='green')
 
 
-
-    def test_2_organigramma(self, pane):
-
+    def test_3_organigramma(self, pane):
         """
         var data = new google.visualization.DataTable();
         data.addColumn('string', 'Name');
@@ -76,3 +101,27 @@ class GnrCustomWebPage(object):
         center.GoogleChart('OrgChart',storepath='.data')
 
 
+    def test_4_timeline(self, pane):
+        b = Bag()
+        b.addItem('r1',Bag(dict(person='Maurice', start=datetime(2023, 10, 15), end=datetime(2023, 12, 31))))    
+        b.addItem('r2',Bag(dict(person='John', start=datetime(2023, 10, 15), end=datetime(2023, 10, 30))))
+        b.addItem('r3',Bag(dict(person='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
+        b.addItem('r4',Bag(dict(person='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
+        pane.data('.source',b)
+        pane.dataFormula('.store','source',source='=.source',_onStart=True)
+
+        bc = pane.borderContainer(height='600px',width='900px')
+        struct = Bag()
+        columns = Bag()
+        columns.addItem('c1',None, field='person', name='Person')
+        columns.addItem('c2',None, field='start', name='Start', dtype='D')
+        columns.addItem('c3',None, field='end', name='End', dtype='D')
+        struct['columns'] = columns
+        bc.data('.struct', struct)        
+        bc.contentPane(region='center').GoogleChart('Timeline',
+                                height='500px',
+                                width='500px',
+                                border='1px solid silver',
+                                title='Project timeline',
+                                storepath='.store',
+                                structpath='.struct')
