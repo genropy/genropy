@@ -458,7 +458,7 @@ class Bag(GnrObject):
         self._rootattributes = None
         source=source or kwargs
         if source:
-            self.fillFrom(source,**kwargs)
+            self.fillFrom(source)
                     
     def _get_parent(self):
         return self._parent
@@ -1918,7 +1918,7 @@ class Bag(GnrObject):
             if not b: b = Bag()
             self._nodes[:] = b._nodes[:]
         elif hasattr(source, 'read'):
-            self.fillFrom(source.read(),**kwargs)
+            self.fillFrom(source.read())
         elif isinstance(source, Bag):
             self._nodes = [BagNode(self, *x.asTuple()) for x in source]
             

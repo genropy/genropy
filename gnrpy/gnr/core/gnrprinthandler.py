@@ -1,6 +1,3 @@
-from __future__ import print_function
-from builtins import str
-
 from gnr.core.gnrlang import  GnrException
 
 try:
@@ -12,10 +9,10 @@ except ImportError:
     
 import os.path
 
-from gnr.core.gnrbag import Bag, DirectoryResolver
+from gnr.core.gnrbag import Bag
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrdecorator import extract_kwargs
-import sys
+
 
 
 class PrintHandlerError(GnrException):

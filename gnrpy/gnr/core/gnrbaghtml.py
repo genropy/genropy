@@ -6,21 +6,14 @@
 # Created by Francesco Porcari on 2010-10-16.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
-from builtins import range
-
-from past.utils import old_div
-from past.builtins import basestring
 import os
 from gnr.core.gnrstring import toText,templateReplace
 
 from gnr.core.gnrhtml import GnrHtmlBuilder
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.core.gnrdecorator import extract_kwargs, deprecated
+from gnr.core.gnrdecorator import  deprecated
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrnumber import decimalRound
 from collections import defaultdict
 import tempfile
 
@@ -523,9 +516,9 @@ class BagToHtml(object):
 
     def copyHeight(self):
         """TODO"""
-        return old_div((self.page_height - self.page_margin_top - self.page_margin_bottom -\
+        return (self.page_height - self.page_margin_top - self.page_margin_bottom -\
                 self.page_header_height - self.page_footer_height -\
-                self.copy_extra_height * (self.copies_per_page - 1)), self.copies_per_page)
+                self.copy_extra_height * (self.copies_per_page - 1))//self.copies_per_page
 
     def copyWidth(self):
         """TODO"""
@@ -660,7 +653,7 @@ class BagToHtml(object):
         captions_kw = getattr(self,'totalize_%s' %self.renderMode,None) if self.renderMode else {}
         if captions_kw is True:
             captions_kw = dict()
-        elif isinstance(captions_kw,basestring):
+        elif isinstance(captions_kw,str):
             captions_kw = dict(caption=captions_kw,content_class='totalize_caption')
         elif isinstance(captions_kw,dict):
             captions_kw = dict(captions_kw)

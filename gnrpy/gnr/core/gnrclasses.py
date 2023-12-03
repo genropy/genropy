@@ -23,8 +23,6 @@
 from __future__ import division
 from __future__ import print_function
 
-from builtins import str
-from past.builtins import basestring, str as old_str
 
 from past.utils import old_div
 import datetime
@@ -106,7 +104,7 @@ class GnrClassCatalog(object):
         :param key: TODO
         :returns: TODO
         """
-        if isinstance(key, basestring):
+        if isinstance(key, (str, bytes)):
             key = self.classes.get(key.upper())
         if key in self.names:
             v = self.empty.get(self.names[key])
@@ -122,7 +120,7 @@ class GnrClassCatalog(object):
         :param key: TODO
         :returns: TODO
         """
-        if isinstance(key, basestring):
+        if isinstance(key, (str, bytes)):
             key = self.classes.get(key.upper())
         if key in self.names:
             return self.align.get(self.names[key])
@@ -176,7 +174,7 @@ class GnrClassCatalog(object):
         :param translate_cb: TODO. 
         :returns: TODO
         """
-        if isinstance(o, basestring):
+        if isinstance(o, (str, bytes)):
             result = o
             if translate_cb: # a translation is needed, if no locale leave all as is including "!!"
                 result = translate_cb(result)
@@ -218,7 +216,7 @@ class GnrClassCatalog(object):
         if not txt:
             return self.getEmpty(clsname)
     
-        if not isinstance(txt,basestring):
+        if not isinstance(txt,(str, bytes)):
             if self.getType(txt)==clsname:
                 return txt
             else:
@@ -319,7 +317,7 @@ class GnrClassCatalog(object):
         """
         from gnr.core.gnrbag import Bag
         
-        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[basestring, old_str, str], empty='')
+        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[bytes, str], empty='')
         #self.addSerializer("asText", unicode, lambda txt: txt)
         
         self.addClass(cls=float, key='R', aliases=['REAL', 'FLOAT', 'F'], align='R', empty=0.0)
