@@ -155,7 +155,7 @@ class TableHandlerForm(BaseComponent):
                 th_class = th_attributes.get('_class') or ''
                 th_attributes['_class'] = '%s th_form_not_allowed' %th_class
         table = form.getInheritedAttributes()['table']
-        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): caption ): (titleTemplate? dataTemplate(titleTemplate,record) : tablename+': '+(caption||''));
+        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): caption ): (titleTemplate? dataTemplate(titleTemplate,record) : (caption||''));
                             
                             SET #FORM.controller.title = title;
                             this.form.publish('onChangedTitle',{title:title});
@@ -191,6 +191,8 @@ class TableHandlerForm(BaseComponent):
 
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
+        avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
+
         form_add = options.pop('form_add',True)
         form_save = options.pop('form_save',True)
         form_delete = options.pop('form_delete',True)
@@ -199,7 +201,7 @@ class TableHandlerForm(BaseComponent):
         annotations = options.pop('annotations',False)
         single_record = options.get('single_record') or options.pop('linker',False)
 
-        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid)
+        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid,form_avoidFloatingMessage=avoidFloatingMessage)
         if autoSave:
             form.store.attributes.update(autoSave=autoSave,firstAutoSave=firstAutoSave)
 

@@ -2,6 +2,7 @@ from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
+import json
 from past.builtins import basestring
 
 from gnr.core.gnrbag import Bag
@@ -27,6 +28,7 @@ import mimetypes
 from gnr.core.gnrsys import expandpath
 import pickle
 from gnr.core.gnrstring import boolean
+from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
@@ -36,7 +38,7 @@ from gnr.app.gnrdeploy import PathResolver
 
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
-
+from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
 import pdb
@@ -258,6 +260,8 @@ class GnrWsgiSite(object):
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
+        self.pwa_handler = PWAHandler(self)
+
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
@@ -851,6 +855,15 @@ class GnrWsgiSite(object):
         if mandatory and result is None:
             print('Missing mandatory configuration item: %s' %path)
         return result
+    
+    def pwa_config(self):
+        pwa = self.config['pwa']
+        if pwa:
+            result = {}
+            for k,v in pwa.items():
+                result[k] = v.replace('\t','').replace('\n','').replace('\r','').strip()
+            return result
+        return self.config.getAttr('pwa')
 
     def _dispatcher(self, environ, start_response):
         """Main :ref:`wsgi` dispatcher, calls serve_staticfile for static files and
@@ -897,6 +910,18 @@ class GnrWsgiSite(object):
                 if not isinstance(result, basestring):
                     return result
                 response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSiteMaintenance=self.currentMaintenance)
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
+        if first_segment == '_pwa_manifest.json':
+            try:
+                result = self.serve_manifest(response, environ, start_response, **request_kwargs)
+                if not isinstance(result, basestring):
+                    return result
+                response = self.setResultInResponse(result, response)
                 self.cleanup()
             except Exception as exc:
                 raise
@@ -1494,6 +1519,10 @@ class GnrWsgiSite(object):
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
         else:
             return result.toXml(unresolved=True, omitUnknownTypes=True)
+
+    def serve_manifest(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
+        response.content_type = "application/json"
+        return self.pwa_handler.manifest()
 
     def parse_kwargs(self, kwargs):
         """TODO

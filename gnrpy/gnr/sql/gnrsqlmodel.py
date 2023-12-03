@@ -44,9 +44,17 @@ import re
 
 logger = logging.getLogger(__name__)
 
-def bagItemFormula(bagcolumn=None,itempath=None,dtype=None):
-    itempath = itempath.replace('.','/')
-    sql_formula = """ CAST( (xpath('/GenRoBag/%s/text()', CAST(%s as XML) ) )[1]  AS text)""" %(itempath,bagcolumn)
+def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
+    itemlist = itempath.split('.')
+    last_chunk = itemlist[-1]
+    suffix = 'text()'
+    if '?' in last_chunk:
+        last_chunk,searchattr = last_chunk.split('?')
+        suffix = f'@{searchattr}'
+        itemlist[-1] = last_chunk
+    itempath = '/'.join([c if not c.startswith('#') else f'*[{int(c[1:])+1}]' for c in itemlist])
+    sql_formula = f""" CAST( (xpath(:calculated_path, CAST({bagcolumn} as XML) ) )[1]  AS text)"""
+    kwargs['var_calculated_path'] = f'/GenRoBag/{itempath}/{suffix}'
     dtype = dtype or 'T'
     typeconverter = {'T':'text','A':'text','C':'text','P':'text', 'N': 'numeric','B': 'boolean',
                  'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}
@@ -652,9 +660,18 @@ class DbModelSrc(GnrStructData):
         :param itempath: path inside the bag
         :returns: an aliasColumn
         """
-        return self.virtual_column(name, sql_formula=bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype),
+        sql_formula = bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype,kwargs=kwargs)
+        return self.virtual_column(name, sql_formula=sql_formula, 
                                 dtype=dtype, bagcolumn=bagcolumn, itempath=itempath, **kwargs)
 
+        
+    def subQueryColumn(self,name,query=None,mode=None,**kwargs):
+        if mode=='json':
+            tname = f"{self.attributes.get('fullname').replace('.','_')}_{name}"
+            sql_formula = f"SELECT json_agg(row_to_json({tname}_json)) FROM #nestedselect {tname}_json"
+            return self.virtual_column(name,sql_formula=sql_formula,select_nestedselect=query,subquery=True,
+                                       format='json_table', **kwargs)
+        return self.virtual_column(name,select=query,subquery=True,subquery_aggr=mode, **kwargs)
 
     def formulaColumn(self, name, sql_formula=None,select=None, exists=None,dtype='A', **kwargs):
         """Insert a formulaColumn into a table, that is TODO. The aliasColumn is a child of the table
@@ -1380,9 +1397,9 @@ class DbTableObj(DbModelObj):
         opkg, otbl, ofld = joiner['one_relation'].split('.')
         return dict(mode=joiner['mode'], mpkg=mpkg, mtbl=mtbl, mfld=mfld, opkg=opkg, otbl=otbl, ofld=ofld)
 
-    def bagItemFormula(self,bagcolumn=None,itempath=None,dtype=None):
-        return bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype)
-
+    def bagItemFormula(self,bagcolumn=None,itempath=None,dtype=None,kwargs=None):
+        return bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype,kwargs=kwargs)
+    
     def getJoiner(self,related_table):
         reltableobj = self.db.table(related_table)
         related_field = reltableobj.column(reltableobj.pkey).fullname

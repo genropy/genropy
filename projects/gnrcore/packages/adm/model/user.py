@@ -14,8 +14,7 @@ class Table(object):
         self.sysFields(tbl, ins=True, upd=True, md5=True)
         tbl.column('id', size='22', group='_', readOnly='y', name_long='Id')
         tbl.column('username', size=':32', name_long='!!Username', unique='y', _sendback=True,
-                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field',
-                    unmodifiable=True)
+                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field')
         tbl.column('email', name_long='Email', validate_notnull=True,
                     validate_notnull_error='!!Mandatory field')
         tbl.column('mobile', name_long='Mobile')
@@ -66,12 +65,16 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
+        group_code = self.db.currentEnv.get('current_group_code') or record['group_code']
         alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
                                                             secret_2fa=record['avatar_secret_2fa'],
-                                                            gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
+                                                            gc=group_code,
                                                             columns='$tag_code',distinct=True).fetch()
-        return ','.join([r['tag_code'] for r in alltags])
+        tag_list = [r['tag_code'] for r in alltags]
+        if group_code:
+            tag_list.append(f'grp_{group_code}')
+        return ','.join(tag_list)
     
     
     def partitionioning_pkeys(self):
@@ -83,8 +86,9 @@ class Table(object):
 
     def trigger_onUpdating(self, record, old_record=None):
         if old_record['username'] and record['username']!=old_record['username']:
-            raise self.exception('protect_update',record=record,
-                                message='!!Username is not modifiable %(username)s')
+            if not record['username']:
+                raise self.exception('protect_update',record=record,
+                                message='!!Username cannot be set to null %(username)s')
         if record['md5pwd'] and self.fieldsChanged('md5pwd',record,old_record):
             record['md5pwd'] = self.db.application.changePassword(None, None, record['md5pwd'], userid=record['username'])
         if old_record.get('md5pwd') and not record['md5pwd']:
@@ -247,7 +251,9 @@ class Table(object):
         tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
         site = self.db.application.site
         mailservice = site.getService('mail')
-        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, userid=user_record['id'],max_usages=1)
+        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, 
+                                                            assigned_user_id=user_record['id'],
+                                                            userid=user_record['id'],max_usages=1)
         data['greetings'] = data['firstname'] or data['lastname']
         email = data['email']
         if template or tpl_userconfirm_id:

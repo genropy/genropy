@@ -1,6 +1,5 @@
 /* @group Icons */
 
-
 .pbl_menu_icon {
     background: url(icons/sidemenu.png) no-repeat center center;
     width: 30px;
@@ -580,4 +579,10 @@ element.style {
     padding-bottom: 1px;
 }
 
+.preference_subtitle{
+    background:#666;
+    color: white;
+    font-size: 1.3em;
+    text-align:center;
+}
 

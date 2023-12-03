@@ -367,6 +367,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
         genro.src.getNode()._('div', alertCode);
         kw = kw || {};
+        let closable = objectPop(kw,'closable');
         buttons = buttons || {confirm:'Confirm',cancel:'Cancel'};
         var action,actions;
         var that = this;
@@ -380,7 +381,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             actions = resultPathOrActions || {};
             action = "genro.wdgById('"+alertCode+"').hide();if (this.attr.act){funcCreate(this.attr.act).call();};";
         }
-        var dlg = node._('dialog', {nodeId:alertCode,title:title,_class:'dlg_alert',
+        var dlg = node._('dialog', {nodeId:alertCode,title:title,_class:'dlg_alert',closable:closable,
                                     connect_show:function(){
                                         that.alert_count+=1;
                                     },connect_hide:function(){

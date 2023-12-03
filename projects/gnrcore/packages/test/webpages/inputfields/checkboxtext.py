@@ -77,3 +77,6 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.currval',lbl='val')
         fb.textbox(value='^.currval?_displayedValue',lbl='val caption')
 
+    def test_9_toggle(self, pane):
+        "Use toggle attribute to display checkbox with a toggle icon"
+        pane.checkbox(value='^.enabled',label='Enabled', toggle=True)

@@ -130,7 +130,7 @@ class TableHandler(BaseComponent):
             if addrow is not True:
                 addrow_defaults = addrow
 
-        if picker:
+        if picker or picker_kwargs:
             top_slots.append('thpicker')
             if picker is True:
                 picker = tblobj.pkey
@@ -258,13 +258,14 @@ class TableHandler(BaseComponent):
     @extract_kwargs(dialog=True,default=True,form=True)
     @struct_method
     def th_dialogTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,
+                            form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
                                         tag='ContentPane',default_kwargs=default_kwargs,readOnly=readOnly,
                                         form_kwargs=form_kwargs,**kwargs)
         form_kwargs.setdefault('form_locked',True)
-        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent='onRowDblClick',
+        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent=loadEvent,
                         dialog_kwargs=dialog_kwargs,attachTo=pane,formInIframe=formInIframe,
                         formResource=formResource,default_kwargs=default_kwargs,**form_kwargs)     
         return pane
@@ -272,7 +273,7 @@ class TableHandler(BaseComponent):
     @extract_kwargs(palette=True,default=True,form=True)
     @struct_method
     def th_paletteTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,
                                         formInIframe=formInIframe,
@@ -283,7 +284,7 @@ class TableHandler(BaseComponent):
         form_kwargs.setdefault('form_locked',True)
         pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,
                                 formResource=formResource,
-                                loadEvent='onRowDblClick',
+                                loadEvent=loadEvent,
                                 palette_kwargs=palette_kwargs,attachTo=pane,default_kwargs=default_kwargs,
                                 **form_kwargs)     
         return pane

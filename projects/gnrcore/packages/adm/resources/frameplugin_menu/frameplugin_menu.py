@@ -76,7 +76,10 @@ class MenuIframes(BaseComponent):
             let label = node.attr.label;
             if(node.attr.titleCounter && node.attr.isDir){
                 let v = node.getValue();
-                let count = v? v.len():0;
+                let count = 0;
+                if(v && v instanceof gnr.GnrBag){
+                    count = v.len();
+                }
                 if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
                     count-=1;
                 }
@@ -95,6 +98,7 @@ class MenuIframes(BaseComponent):
                   persist='site',
                   inspect='AltShift',
                   identifier='#p',
+                  device_mode=self.device_mode,
                   getIconClass=self._menutree_getIconClass(),
                     selectedLabelClass="menutreeSelected",
                   getLabel = self._menutree_getLabel(),
@@ -129,6 +133,9 @@ class MenuIframes(BaseComponent):
                         }    
                         if($1.doSelect){
                             this.widget.setSelectedPath(null,{value:node.getFullpath(null,genro.getData(this.attr.storepath))});
+                        }
+                        if(this.attr.device_mode!='std'){
+                            genro.nodeById('standard_index').publish('hideLeft');
                         }
                   """,
 

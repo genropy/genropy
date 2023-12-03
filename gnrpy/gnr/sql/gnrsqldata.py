@@ -53,7 +53,8 @@ from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, R
     GnrSqlMissingField, GnrSqlMissingColumn
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
-RELFINDER = re.compile(r"(\W|^)(\@(\w[\w.@:]+))")
+RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
+
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")

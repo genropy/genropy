@@ -88,8 +88,9 @@ class Form(BaseComponent):
         fb.field('page_path')
         fb.field('method')
         fb.field('exec_user')
-        bc.roundedGroupFrame(title='Parameters',region='center').multiValueEditor(value='^#FORM.record.parameters')
 
+        bc.roundedGroupFrame(title='Parameters',region='right',width='50%').multiValueEditor(value='^#FORM.record.parameters')
+        bc.contentPane(region='center').plainTableHandler(relation='@usages',delrow=True)
 
     def th_options(self):
         return dict(dialog_height='400px', dialog_width='600px')

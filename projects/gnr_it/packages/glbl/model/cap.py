@@ -1,7 +1,7 @@
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('cap', pkey='cap', name_long='CAP', caption_field='cap')
+        tbl = pkg.table('cap', pkey='cap', name_long='CAP', caption_field='descrizione_cap')
         # self.sysFields(tbl)
         tbl.column('cap', size='5', name_long='CAP')
         tbl.column('provincia', size='2', name_long='Provincia', name_short='Prov.'
@@ -20,4 +20,5 @@ class Table(object):
                           name_long='Distanza', name_short='Dist.')
 
         tbl.aliasColumn('regione', '@provincia.regione', name_long='Regione')
+        tbl.formulaColumn('descrizione_cap',"$provincia || ' - '||$cap")
 

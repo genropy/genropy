@@ -208,7 +208,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             attributes['for'] = objectPop(attributes, '_for');
         }
         if (attributes.onShow) {
-            attributes['onShow'] = funcCreate(attributes.onShow, 'console.log("showing")', sourceNode);
+            attributes['onShow'] = funcCreate(attributes.onShow, '', sourceNode);
         }
         if (attributes.onHide) {
             attributes['onHide'] = funcCreate(attributes.onHide, '', sourceNode);
@@ -1847,13 +1847,20 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
 
     mixin_setHiddenChild:function(child,hidden){
         if(hidden && child.selected){
-            var otherChildren = this.getChildren().filter(function(other){return other!==child});
+            var otherChildren = this.getChildren().filter((other)=>{
+                if(other.sourceNode.getAttributeFromDatasource('hidden')){
+                    return;
+                }
+                return other!==child
+            });
             if(otherChildren.length>0){
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
             }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
+        this.layout();
+
     },
 
     versionpatch_11_layout: function() {
@@ -2126,6 +2133,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
                 }
             }
             this._layoutChildren();
+
         }
         return show;
     },
@@ -3195,6 +3203,7 @@ dojo.declare("gnr.widgets.RadioButton", gnr.widgets.baseDojo, {
 });
 
 dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
+    
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'CheckBox';
@@ -3202,8 +3211,11 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
     creating:function(attributes, sourceNode) {
         objectPop(attributes, 'width');
         var savedAttrs = objectExtract(attributes, 'action,callback');
+        var toggle = objectPop(attributes, 'toggle');
         var label = objectPop(attributes, 'label');
-
+        if (toggle){
+            savedAttrs['toggle'] = toggle;
+        }
         if (label) {
             attributes['id'] = attributes['id'] || 'id_' + sourceNode._id;
             savedAttrs['label'] = label;
@@ -3218,14 +3230,17 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
             }
             delete sourceNode._gnrcheckbox_wrapper;
         }
+        var toggle = savedAttrs['toggle'];
         var label = savedAttrs['label'];
         var dn = widget.domNode;
         var pn = widget.domNode.parentNode;
         var gnrcheckbox_wrapper = document.createElement('div')
-        gnrcheckbox_wrapper.setAttribute('class','gnrcheckbox_wrapper')
+        var wrapperClass = toggle ? 'gnrcheckbox_wrapper toggle': 'gnrcheckbox_wrapper'
+        gnrcheckbox_wrapper.setAttribute('class',wrapperClass)
         pn.replaceChild(gnrcheckbox_wrapper,dn);
         gnrcheckbox_wrapper.appendChild(dn);
         sourceNode._gnrcheckbox_wrapper = gnrcheckbox_wrapper;
+        
         if (label) {
             if(sourceNode._labelNode){
                 sourceNode._labelNode.parentNode.removeChild(sourceNode._labelNode);
@@ -4895,7 +4910,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         uploadCb();
                     }
                 };
-                attr.editCb = attr[uploadhandler_key];
+                attr._editCb = attr[uploadhandler_key];
                  attr.onDrop_dataUrl = function(dropInfo,data){
                     cbOnDropData(dropInfo,data)
                  }

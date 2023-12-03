@@ -59,8 +59,8 @@ class RecordUpdater(object):
         with self.recordToUpdate(pkey) as record:
             # do something
             pass"""
-
-    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,**kwargs):
+    
+    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,assignId=None,**kwargs):
         self.tblobj = tblobj
         self.pkey = pkey
         self.mode = mode or 'record'
@@ -68,6 +68,7 @@ class RecordUpdater(object):
         self.raw = raw
         self.insertMissing = insertMissing
         self.ignoreMissing = ignoreMissing
+        self.assignId = assignId
         self.for_update = for_update or True
         self.insertMode = False
 
@@ -77,7 +78,8 @@ class RecordUpdater(object):
         if self.record.get(self.tblobj.pkey) is None:
             oldrecord = None
             if self.insertMissing:
-                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False)
+                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False,
+                                                    assignId=self.assignId)
                 for k,v in self.kwargs.items():
                     if k in self.tblobj.columns and v is not None:
                         self.record[k] = v
@@ -495,6 +497,23 @@ class SqlTable(GnrObject):
         return dict(name='{field}_{side}filled'.format(field=field,side=side),
                                             sql_formula=sql_formula,
                                             **kwargs)
+
+
+
+    def variantColumn_captions(self, field, related_table=None,caption_field=None,
+                               sep=None,order_by=None,**kwargs):
+        reltableobj = self.db.table(related_table)
+        caption_field = caption_field or reltableobj.attributes.get('caption_field')
+        sep = sep or ','
+        order_by = order_by or reltableobj.attributes.get('order_by') or f'${reltableobj.pkey}'
+        where = f"${reltableobj.pkey} = ANY(string_to_array(#THIS.{field},'{sep}'))"
+        return dict(name=f'{field}_captions',sql_formula= f"array_to_string(ARRAY(#captions),'{sep}')",
+                        select_captions=dict(
+                        table=related_table,
+                        columns=f'${caption_field}',
+                        where=where,
+                        order_by=order_by
+                    ),**kwargs)
 
 
     #def variantColumn_repaccent(self, field, **kwargs):
@@ -1567,14 +1586,16 @@ class SqlTable(GnrObject):
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.insert(self, record, **kwargs)
-
+        return record
+        
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_insert(self, record, **kwargs)
+        return record
 
-
+        
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
 
@@ -1672,7 +1693,8 @@ class SqlTable(GnrObject):
         if record.get(self.pkey) == pkey:
             pkey = None
         self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
-
+        return record
+        
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):
         """Receive a changeSet and execute insert, delete or update
 
