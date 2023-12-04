@@ -34,10 +34,11 @@ Multiple profiles are supported too:
 
 To avoid system installation, you can run:
 
-	./setup.py develop
+	sudo pip install --editable .
 	
 which will link to the current folder code rather than install the files. Useful for
-development work.
+development work. This replace the '''./setup.py develop''' command which is being
+deprecated.
 	
 To create the enviroment configuration you can now execute:
 
