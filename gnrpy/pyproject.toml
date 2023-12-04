@@ -61,7 +61,7 @@ dependencies = [
 pgsql = ["psycopg2"]
 mysql = ["mysqlclient"]
 sqlite = ["pysqlite3"]
-developer = ["nose", "graphviz", "coverage"]
+developer = ["nose", "graphviz", "coverage", "build"]
 
 [project.scripts]
 # gnr.core
