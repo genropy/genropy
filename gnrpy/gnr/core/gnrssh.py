@@ -3,12 +3,16 @@
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
-#from builtins import object
+from gnr.core.gnrlang import GnrException
+
 import getpass
 import select
 import socketserver
 import threading
-import paramiko
+try: 
+    import paramiko
+except ImportError:
+    paramiko = False
 import atexit
 import _thread
 import re
@@ -84,6 +88,8 @@ class SshTunnel(object):
         return self._local_port
 
     def prepare_tunnel(self):
+        if not paramiko:
+            raise GnrException('Missing required library paramiko. Please run pip install paramiko')
         if not self.forwarded_host:
             raise IncompleteConfigurationException('Missing Forwarded Host')
         if not self.forwarded_port:
