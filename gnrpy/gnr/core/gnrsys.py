@@ -23,7 +23,6 @@
 from __future__ import print_function
 import os
 import sys
-import six
 
 def progress(count, total, status=''):
     bar_len = 60
@@ -47,14 +46,15 @@ def mkdir(path, privileges=0o777):
         mkdir(head, privileges)
         os.mkdir(path, privileges)
         
-def expandpath(path):
+def expandpath(path, full=False):
     """Expand user home directory (~) and environment variables. Return the
     expanded path
     
     :param path: the path to expand"""
-    if six.PY2:
-        path = path.encode('utf-8')
-    return os.path.expanduser(os.path.expandvars(path))
+    path = os.path.expanduser(os.path.expandvars(path))
+    if full:
+        path = os.path.realpath(os.path.normpath(path))
+    return path
     
 def listdirs(path, invisible_files=False):
     """Return a list of all the files contained in a path and its descendant
