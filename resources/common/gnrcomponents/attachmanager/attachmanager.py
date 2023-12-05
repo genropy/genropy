@@ -21,7 +21,7 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrstring import slugify
 import os
 
@@ -135,10 +135,11 @@ class AttachManager(BaseComponent):
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
+    @extract_kwargs(default=True)
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,
-                            design=None,maintable_id=None,uploaderButton=False,ask=None,**kwargs):
+                            design=None,maintable_id=None,uploaderButton=False,ask=None,default_kwargs=None,**kwargs):
         design = design or 'sidebar'
         bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
@@ -149,13 +150,9 @@ class AttachManager(BaseComponent):
                                         hider=True,statusColumn=True,
                                         addrow=False,pbl_classes=pbl_classes,
                                      semaphore=False, searchOn=False,datapath=datapath,**kwargs)
-        th.view.grid.attributes.update(dropTarget_grid='Files',onDrop='AttachManager.onDropFiles(this,files);',
-                                        dropTypes='Files',_uploader_fkey='=#FORM.pkey',
-                                        _uploader_onUploadingMethod=self.onUploadingAttachment)
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
-        if uploaderButton or ask:
-            th.view.bottom.dropUploader(
+        th.view.bottom.dropUploader(
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
                             ask=ask,
@@ -163,7 +160,8 @@ class AttachManager(BaseComponent):
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
                             _class='importerPaletteDropUploaderBox',
-                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes)
+                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
+                            **{f'rpc_{k}':v for k,v in default_kwargs.items()})
 
         readerpane = bc.contentPane(region='center',datapath=datapath,margin='2px',border='1px solid silver',overflow='hidden')
         readerpane.dataController('SET .reader_url=fileurl',fileurl='^.view.grid.selectedId?fileurl')
