@@ -836,7 +836,7 @@ class StorageResolver(BagResolver):
             addIt = True
             try:
                 mtime,size,isdir = storagenode.ext_attributes
-            except ImportError:
+            except TypeError:
                 mtime,size,isdir = None,None,None
             if isdir:
                 ext = 'directory'
