@@ -25,7 +25,7 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
+
 import inspect
 #import weakref
 import sys, imp, traceback, datetime
@@ -37,7 +37,6 @@ import uuid
 import base64
 from gnr.core.gnrdecorator import deprecated,extract_kwargs # keep for compatibility
 from types import MethodType
-import six
 from io import IOBase
 try:
     file_types = (file, IOBase)
@@ -241,8 +240,8 @@ def timer_call(time_list=None, print_time=True):
 
 def getUuid():
     """Return a Python Universally Unique IDentifier 3 (UUID3) through the Python \'base64.urlsafe_b64encode\' method"""
-    t_id = six.moves._thread.get_ident()
-    t_id = bytes(t_id) if six.PY2 else str(t_id)
+    t_id = _thread.get_ident()
+    t_id = str(t_id)
     uuid_to_encode = uuid.uuid3(uuid.uuid1(), t_id).bytes
     return base64.urlsafe_b64encode(uuid_to_encode)[0:22].replace(b'-', b'_').decode()
 
@@ -292,7 +291,7 @@ def moduleDict(module, proplist):
         result.update(dict([(getattr(x, prop).lower(), x) for x in modulelist]))
     return result
 
-def gnrImport_PY3(source, importAs=None, avoidDup=False, silent=True,avoid_module_cache=None):
+def gnrImport(source, importAs=None, avoidDup=False, silent=True,avoid_module_cache=None):
     import importlib
     modkey = source
     path_sep = os.path.sep
@@ -328,69 +327,7 @@ def gnrImport_PY3(source, importAs=None, avoidDup=False, silent=True,avoid_modul
         module = None
     sys.modules[modkey] = module
     return module
-    
-  
-def gnrImport(source, importAs=None, avoidDup=False, silent=True,avoid_module_cache=None):
-    """TODO
-    
-    :param source: TODO
-    :param importAs: TODO
-    :param avoidDup: if ``True``, allow to avoid duplicates"""
-    if six.PY3:
-        return gnrImport_PY3(source, importAs=importAs, avoidDup=avoidDup, silent=silent,
-            avoid_module_cache=avoid_module_cache)
-    else:
-        return gnrImport_PY2(source, importAs=importAs, avoidDup=avoidDup, silent=silent,
-            avoid_module_cache=avoid_module_cache)
 
-def gnrImport_PY2(source, importAs=None, avoidDup=False, silent=True,avoid_module_cache=None):
-    modkey = source
-    path_sep = os.path.sep
-    if path_sep in source:
-        if avoidDup and not importAs:
-            importAs = os.path.splitext(source)[0].replace(path_sep, '_').replace('.', '_')
-        modkey = importAs or os.path.splitext(os.path.basename(source))[0]
-    if not avoid_module_cache:
-        try:
-            m = sys.modules[modkey]
-            return m
-        except KeyError:
-            pass
-    path = None
-    if path_sep in source:
-        path = [os.path.dirname(source)]
-        source = os.path.splitext(os.path.basename(source))[0]
-    segments = source.split('.')
-    error = None
-    for segment in segments:
-        module_file = None
-        try:
-            #imp.acquire_lock()
-            module_file, module_path, module_description = imp.find_module(segment, path)
-        except ImportError:
-            #imp.release_lock()
-            return None
-        if importAs and segment == segments[-1]:
-            segment = importAs
-        try:
-            module = imp.load_module(segment, module_file, module_path, module_description)
-            path = getattr(module, '__path__', None)
-        except SyntaxError as e:
-            raise
-        except ImportError as e:
-            raise
-        except Exception as e:
-            if not silent:
-                raise
-            module = None
-        finally:
-            if module_file:
-                module_file.close()
-            if imp.lock_held():
-                imp.release_lock()
-    return module
-
-    
 class GnrException(Exception):
     """Standard Gnr Exception"""
     code = 'GNR-001'
@@ -1063,7 +1000,7 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
         method = getattr(source, name)
         if type(method) == MethodType:
             method = method.__func__
-        k = six.create_bound_method(method, obj)
+        k = MethodType(method, obj)
         
         #method = getattr(source, name).__func__
         method.__mixin_pkg = __mixin_pkg

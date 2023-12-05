@@ -16,9 +16,7 @@ import tempfile
 import mimetypes
 from datetime import datetime
 import warnings
-import six
-if six.PY3:
-    warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
 
 class S3LocalFile(object):
@@ -164,6 +162,18 @@ class Service(StorageService):
     def mkdir(self, *args, **kwargs):
         with self.open(*args+('.gnrdir',),mode='w') as dotfile:
             dotfile.write('.gnrdircontent')
+
+    def ext_attributes(self, *args):
+        s3 = self._client
+        internalpath = self.internal_path(*args)
+        try:
+            response = s3.head_object(
+                    Bucket=self.bucket,
+                    Key=internalpath)
+            lastModified = response['LastModified']
+            return (lastModified.timestamp(),response['ContentLength'],self.isdir(*args))
+        except botocore.exceptions.ClientError as e:
+            return
 
     def mtime(self, *args):
         s3 = self._client
