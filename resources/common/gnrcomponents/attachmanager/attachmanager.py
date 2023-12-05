@@ -137,7 +137,8 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
-                            screenshot=False,viewResource=None,design=None,maintable_id=None,uploaderButton=False,**kwargs):
+                            screenshot=False,viewResource=None,
+                            design=None,maintable_id=None,uploaderButton=False,ask=None,**kwargs):
         design = design or 'sidebar'
         bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
@@ -153,10 +154,11 @@ class AttachManager(BaseComponent):
                                         _uploader_onUploadingMethod=self.onUploadingAttachment)
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
-        if uploaderButton:
+        if uploaderButton or ask:
             th.view.bottom.dropUploader(
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
+                            ask=ask,
                             onUploadingMethod=self.onUploadingAttachment,
                             rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
                             rpc_attachment_table= th.view.grid.attributes['table'],
