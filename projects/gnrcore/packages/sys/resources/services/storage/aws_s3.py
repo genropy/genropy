@@ -171,9 +171,12 @@ class Service(StorageService):
                     Bucket=self.bucket,
                     Key=internalpath)
             lastModified = response['LastModified']
-            return (lastModified.timestamp(),response['ContentLength'],self.isdir(*args))
-        except botocore.exceptions.ClientError as e:
-            return
+            lastModified = lastModified.timestamp()
+            contentLength = response['ContentLength']
+        except botocore.exceptions.ClientError:
+            lastModified = None
+            contentLength = None
+        return (lastModified,contentLength,self.isdir(*args))
 
     def mtime(self, *args):
         s3 = self._client
