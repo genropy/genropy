@@ -6,7 +6,7 @@ all packages in the gnr namespace, organize them in section and commands,
 and shift argv to let each script handle arguments by itself.
 """
 
-import os.path
+import os, os.path
 import sys
 import argparse
 from importlib import import_module
@@ -67,6 +67,7 @@ class CommandManager():
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")
+                
     def lookup_new_name(self, old_name):
         """
         Lookup the 'right' command name when a script
@@ -82,12 +83,21 @@ class CommandManager():
     
     def run(self):
         if not self.argv:
+            if "GNR_AUTOCOMPLETE" in os.environ:
+                print(" ".join(self.script_tree.keys()))
+                return
             self.print_main_help()
+            return
 
         if len(self.argv) == 1:
+            if "GNR_AUTOCOMPLETE" in os.environ:
+                print(" ".join(self.script_tree[self.argv[0]].keys()))
+                return
+            
             if self.argv[0] in ["-h", "--help"]:
                 self.print_main_help()
                 return
+            
             if self.argv[0] in self.script_tree:
                 self.print_section_help(self.argv[0])
             else:
@@ -101,6 +111,7 @@ class CommandManager():
             if self.argv[1] in ["--help", "-h"]:
                 self.print_section_commands(self.argv[0])
                 return
+            
             
             if self.argv[1] in self.script_tree[self.argv[0]]:
                 cmd_impl = self.script_tree[self.argv[0]][self.argv[1]]
@@ -122,3 +133,5 @@ cmd = CommandManager()
 def main():
     cmd.run()
 
+if __name__ == "__main__":
+    main()
