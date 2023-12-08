@@ -39,3 +39,12 @@
     font-size: .9em;
 }
 
+.atc_iframe_resizer{
+    height: 500px;
+}
+.atc_iframe_wrapper{
+    width:100%;
+    transform: scale(0.8);
+    transform-origin: 50% 50%;
+    border:1px solid silver;
+}

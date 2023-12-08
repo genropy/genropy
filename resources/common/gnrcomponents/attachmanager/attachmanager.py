@@ -28,6 +28,25 @@ import os
 
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif')
 
+
+
+class ViewAtcMobile(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('fileurl',width='100%', 
+                    template='<div class="atc_iframe_wrapper"><iframe src="#" width="100%" height="100%" class="atc_iframe_resizer" frameBorder="0"></iframe><div>')
+
+class FormAtcMobile(BaseComponent):
+    def th_form(self, form):
+        bc = form.center.borderContainer()
+        bc.contentPane(region='center',datapath='.record').iframe(src='^.fileurl',_virtual_column='fileurl',height='100%',width='100%',border=0)
+
+    def th_options(self):
+        return dict(formCaption=True,modal='navigation')
+
+    
+
+
 class AttachManagerViewBase(BaseComponent):
 
     def th_hiddencolumns(self):
@@ -134,6 +153,21 @@ class FormPalette(Form):
 class AttachManager(BaseComponent):
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
+
+
+    @struct_method
+    def at_attachmentReadOnlyViewer(self,pane,title=None,datapath='.attachments',**kwargs):
+        th =pane.stackTableHandler(relation='@atc_attachments',
+                                        viewResource='gnrcomponents/attachmanager/attachmanager:ViewAtcMobile',
+                                        formResource='gnrcomponents/attachmanager/attachmanager:FormAtcMobile',
+                                        grid_mobileTemplateGrid=True,
+                                        searchOn=False,datapath=datapath,configurable=False,
+                                     **kwargs)
+        view = th.view
+        view.top.pop('bar')
+        th.view.attributes['_class'] = f"{th.view.attributes['_class']} noselect templateGrid"
+        return th 
+
 
     @extract_kwargs(default=True)
     @struct_method
