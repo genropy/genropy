@@ -157,15 +157,15 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentReadOnlyViewer(self,pane,title=None,datapath='.attachments',**kwargs):
-        th =pane.stackTableHandler(relation='@atc_attachments',
+        th =pane.dialogTableHandler(relation='@atc_attachments',
+                                    title='!![en]Attachments',
                                         viewResource='gnrcomponents/attachmanager/attachmanager:ViewAtcMobile',
                                         formResource='gnrcomponents/attachmanager/attachmanager:FormAtcMobile',
-                                        grid_mobileTemplateGrid=True,
+                                        mobileTemplateGrid=True,
                                         searchOn=False,datapath=datapath,configurable=False,
                                      **kwargs)
         view = th.view
         view.top.pop('bar')
-        th.view.attributes['_class'] = f"{th.view.attributes['_class']} noselect templateGrid"
         return th 
 
 

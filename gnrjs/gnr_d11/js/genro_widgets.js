@@ -1319,6 +1319,8 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var w = {h:Math.floor(window.innerHeight*.98),w:Math.floor(window.innerWidth*.98)};
         var windowRatio = this.sourceNode.attr.windowRatio;
         var parentRatio = this.sourceNode.attr.parentRatio;
+        var fullScreen = this.sourceNode.attr.fullScreen;
+       
         var c = dojo.coords(this.domNode);
         var doResize = false;
         var starting;
@@ -1332,6 +1334,9 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
             c['w'] = Math.floor(w.w*windowRatio);
             c['h'] = Math.floor(w.h*windowRatio);
             doResize = true;
+        }else if(fullScreen){
+            console.log('xxxx')
+
         }else{
             for(var k in w){
                 starting = '_starting_'+k;
@@ -1363,6 +1368,9 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         objectPop(attributes, 'centerOn');
         objectPop(attributes, 'position');
         objectPop(attributes, 'autoSize');
+        if(attributes.fullScreen){
+            attributes._class = 'fullscreenDialog';
+        }
         var closable = ('closable' in attributes) ? objectPop(attributes, 'closable') : false;
         attributes.title = _T(attributes.title || '');
         if (!closable) {

@@ -2561,6 +2561,25 @@ div.dojoxDock {
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
+.tundra._common_d11 .fullscreenDialog.dijitDialog{
+    border-radius: 0;
+    border-width: 0;
+    box-shadow:none;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+    height: 100%;
+    width: 100%;
+}
+
+._common_d11 .fullscreenDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+}
 
 .tundra._common_d11 .dijitDialogPaneContent{
     overflow: hidden !important;
@@ -2570,7 +2589,7 @@ div.dojoxDock {
     overflow: hidden;
 }
 
-._common_d11 .lightboxDialog .dijitDialogTitleBar{
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar{
     display:none;
 }
 
