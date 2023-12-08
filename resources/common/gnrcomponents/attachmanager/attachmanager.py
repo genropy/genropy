@@ -36,6 +36,13 @@ class ViewAtcMobile(BaseComponent):
         r.fieldcell('fileurl',width='100%', 
                     template='<div class="atc_iframe_wrapper"><iframe src="#" width="100%" height="100%" class="atc_iframe_resizer" frameBorder="0"></iframe><div>')
 
+class ViewAtcMobileNoPreview(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('description',width='100%', 
+                    template='<div class="atc_description">#<div>')
+
+
 class FormAtcMobile(BaseComponent):
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -156,10 +163,16 @@ class AttachManager(BaseComponent):
 
 
     @struct_method
-    def at_attachmentReadOnlyViewer(self,pane,title=None,datapath='.attachments',**kwargs):
-        th =pane.dialogTableHandler(relation='@atc_attachments',
-                                    title='!![en]Attachments',
-                                        viewResource='gnrcomponents/attachmanager/attachmanager:ViewAtcMobile',
+    def at_attachmentReadOnlyViewer(self,pane,title=None,
+                                    datapath='.attachments',
+                                    relation=None,table=None,preview=True,
+                                    **kwargs):
+        if not table:
+            relation=relation or '@atc_attachments'
+        viewResource = 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview'
+        th =pane.dialogTableHandler(relation=relation,table=table,
+                                    title=title or '!![en]Attachments',
+                                        viewResource=viewResource,
                                         formResource='gnrcomponents/attachmanager/attachmanager:FormAtcMobile',
                                         mobileTemplateGrid=True,
                                         searchOn=False,datapath=datapath,configurable=False,

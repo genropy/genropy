@@ -48,3 +48,7 @@
     transform-origin: 50% 50%;
     border:1px solid silver;
 }
+.atc_description{
+    padding:5px;
+    font-size:1.2em;
+}
