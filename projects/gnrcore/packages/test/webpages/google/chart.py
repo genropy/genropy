@@ -6,7 +6,8 @@ from datetime import datetime
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
-    def test_1_pie(self, pane):
+    def test_1_columns(self, pane):
+        "GoogleChart component using a Bag (structpath and storepath parameters)"
         b = Bag()
         b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
         b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
@@ -31,7 +32,8 @@ class GnrCustomWebPage(object):
                                 storepath='.store',
                                 structpath='.struct')
 
-    def test_2_pie(self, pane):
+    def test_2_columns(self, pane):
+        "Same as before, but manually building a struct"
         b = Bag()
         b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
         b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
@@ -59,8 +61,9 @@ class GnrCustomWebPage(object):
         gc.struct.column('quantity_2', color='green')
 
 
-    def test_3_organigramma(self, pane):
-        """
+    def test_3_organization(self, pane):
+        """Organization chart
+
         var data = new google.visualization.DataTable();
         data.addColumn('string', 'Name');
         data.addColumn('string', 'Manager');
@@ -87,8 +90,6 @@ class GnrCustomWebPage(object):
         b.addItem('l1.v2.sm',Bag(),label='Davide Paci')
         b.addItem('l1.v2.pr',Bag(),label='Daniela Ale')
 
-
-
         pane.data('.source',b)
         pane.dataFormula('.data','source',source='=.source',_onStart=True)
 
@@ -102,11 +103,12 @@ class GnrCustomWebPage(object):
 
 
     def test_4_timeline(self, pane):
+        "GoogleChart component using a Bag (structpath and storepath parameters)"
         b = Bag()
-        b.addItem('r1',Bag(dict(code='123', lbl='Maurice', start=datetime(2023, 10, 15), end=datetime(2023, 12, 31))))    
-        b.addItem('r2',Bag(dict(code='456', lbl='John', start=datetime(2023, 10, 15), end=datetime(2023, 10, 30))))
-        b.addItem('r3',Bag(dict(code='789', lbl='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
-        b.addItem('r4',Bag(dict(code='012', lbl='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
+        b.addItem('r1',Bag(dict(code='Maurice', lbl='Maurice', start=datetime(2023, 10, 15), end=datetime(2023, 12, 31))))    
+        b.addItem('r2',Bag(dict(code='John', lbl='John', start=datetime(2023, 10, 15), end=datetime(2023, 10, 30))))
+        b.addItem('r3',Bag(dict(code='David', lbl='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
+        b.addItem('r4',Bag(dict(code='Francis', lbl='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
         pane.data('.source',b)
         pane.dataFormula('.store','source',source='=.source',_onStart=True)
 
@@ -127,3 +129,38 @@ class GnrCustomWebPage(object):
                                 storepath='.store',
                                 structpath='.struct', 
                                 chart_timeline=dict(showRowLabels=True))
+        
+    def test_5_pie(self, pane):
+        "Pie"
+        b = Bag()
+        b.addItem('r1',Bag(dict(activity='Work', duration=8)))    
+        b.addItem('r2',Bag(dict(activity='Eat', duration=2)))
+        b.addItem('r3',Bag(dict(activity='Play', duration=2)))
+        b.addItem('r4',Bag(dict(activity='Watch TV', duration=4)))
+        b.addItem('r5',Bag(dict(activity='Sleep', duration=8)))
+        pane.data('.source',b)
+        pane.dataFormula('.store','source',source='=.source',_onStart=True)
+
+        bc = pane.borderContainer(height='600px',width='900px')
+        struct = Bag()
+        columns = Bag()
+        columns.addItem('c1',None, field='activity', name='Activity')
+        columns.addItem('c2',None, field='duration', name='Duration')
+        struct['columns'] = columns
+        bc.data('.struct', struct)        
+        bc.contentPane(region='left', width='50%').GoogleChart('Timeline',
+                                height='500px',
+                                width='500px',
+                                border='1px solid silver',
+                                title='My Daily Activities',
+                                storepath='.store',
+                                structpath='.struct', 
+                                chart_is3D=True)
+        bc.contentPane(region='center').GoogleChart('Timeline',
+                                height='500px',
+                                width='500px',
+                                border='1px solid silver',
+                                title='My Daily Activities',
+                                storepath='.store',
+                                structpath='.struct', 
+                                chart_pieHole=0.4)
