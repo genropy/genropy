@@ -186,9 +186,16 @@ class TableHandlerForm(BaseComponent):
         tree_kwargs = dictExtract(options,'tree_',pop=True) 
 
         readOnly = options.pop('readOnly',False)
-        modal = options.pop('modal',False)
+        modal = options.pop('modal',dict())
+        if modal is True:
+            modal = dict(mode='ask' if not readOnly else 'confirm')
+        elif isinstance(modal,str):
+            modal = dict(mode=modal)
+        
+        modal.update(dictExtract(options,'modal_'))
         autoSave = options.pop('autoSave',False)
         firstAutoSave = options.pop('firstAutoSave',None)
+        attachmentDrawer = options.pop('attachmentDrawer',None)
 
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
@@ -237,16 +244,7 @@ class TableHandlerForm(BaseComponent):
         if 'parentLock' in options:
             form.attributes.update(form_parentLock=options.pop('parentLock'))
         if modal:
-            if modal is True:
-                slots= '*,cancel' if readOnly else 'revertbtn,*,cancel,savebtn'
-                bar = form.bottom.slotBar(slots,margin_bottom='2px',_class='slotbar_dialog_footer')
-                bar.cancel.button('!!Cancel' if not readOnly else '!![en]Close',action='this.form.abort();')
-                if not readOnly:
-                    bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v',hidden=readOnly)
-                    bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})',hidden=readOnly)
-            elif modal=='navigation':
-                form.top.slotBar('dismissTitle,*,prevUp,nextDown',height='25px',color='#888',border_bottom='1px solid silver')
-
+            self._th_handleModalBar(form,**modal)
         elif showtoolbar:
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
@@ -295,7 +293,9 @@ class TableHandlerForm(BaseComponent):
             slots = options.pop('slots',default_slots)
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
-        
+        if attachmentDrawer:
+            self.mixinComponent("""gnrcomponents/attachmanager/attachmanager:AttachManager""")
+            form.bottom.attachmentBottomDrawer()
         if hierarchical:
             form_attributes = form.attributes
             fkeyfield = form_attributes.get('fkeyfield')
@@ -348,6 +348,20 @@ class TableHandlerForm(BaseComponent):
         form.store.handler('save',onSavingHandler=self._th_hook('onSaving',mangler=mangler),
                                  onSavedHandler=self._th_hook('onSaved',mangler=mangler))
         form._current_options = options
+
+    def _th_handleModalBar(self,form,mode=None,**kwargs):
+        if mode=='navigation':
+            form.top.slotBar('dismissTitle,*,prevUp,nextDown',height=kwargs.pop('height','25px'),
+                             color=kwargs.pop('color','#888'),border_bottom=kwargs.pop('border','1px solid silver'),
+                            **kwargs)
+        else:
+            slots= '*,cancel' if mode=='confirm' else 'revertbtn,*,cancel,savebtn'
+            bar = form.bottom.slotBar(slots,margin_bottom='2px',_class='slotbar_dialog_footer')
+            bar.cancel.button('!!Cancel' if not mode=='confirm' else '!![en]Close',action='this.form.abort();')
+            if mode=='ask':
+                bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')
+                bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})')
+            
 
 
     @struct_method
