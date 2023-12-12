@@ -351,7 +351,12 @@ class TableHandlerForm(BaseComponent):
 
     def _th_handleModalBar(self,form,mode=None,**kwargs):
         if mode=='navigation':
-            form.top.slotBar('dismissTitle,*,prevUp,nextDown',height=kwargs.pop('height','25px'),
+            if form.store.attributes.get('storeType') == 'Collection':
+                slots = 'dismissTitle,*,prevUp,nextDown'
+            else:
+                slots = 'dismissTitle'
+                kwargs['dismissTitle_back_title'] = '!![en]Back'
+            form.top.slotBar(slots,height=kwargs.pop('height','25px'),
                              color=kwargs.pop('color','#888'),border_bottom=kwargs.pop('border','1px solid silver'),
                             **kwargs)
         else:
