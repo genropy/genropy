@@ -1320,6 +1320,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var windowRatio = this.sourceNode.attr.windowRatio;
         var parentRatio = this.sourceNode.attr.parentRatio;
         var fullScreen = this.sourceNode.attr.fullScreen;
+        if(fullScreen){
+            windowRatio = 1;
+            w = {h:Math.floor(window.innerHeight),w:Math.floor(window.innerWidth)};
+        }
        
         var c = dojo.coords(this.domNode);
         var doResize = false;
@@ -1334,9 +1338,6 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
             c['w'] = Math.floor(w.w*windowRatio);
             c['h'] = Math.floor(w.h*windowRatio);
             doResize = true;
-        }else if(fullScreen){
-            console.log('xxxx')
-
         }else{
             for(var k in w){
                 starting = '_starting_'+k;

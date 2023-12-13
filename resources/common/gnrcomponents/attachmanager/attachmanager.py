@@ -161,22 +161,48 @@ class AttachManager(BaseComponent):
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
-
     @struct_method
-    def at_attachmentReadOnlyViewer(self,pane,title=None,
-                                    datapath='.attachments',
-                                    relation=None,table=None,preview=True,
-                                    **kwargs):
+    def at_attachmentBottomDrawer(self,bottom,title=None,**kwargs):
+        title = title or '!![en]Attachments'
+        bottom.attributes.update(
+            height='300px',
+            closable_label=title,closable='close', closable__class='drawer_allegati'
+        )
+        th = bottom.attachmentViewer(preview=False,margin='5px',margin_top=0,title=title,**kwargs)
+        th.view.grid_envelope.attributes['border'] = '1px solid silver'
+        th.view.grid_envelope.attributes['border_radius'] = '10px'
+        th.view.grid_envelope.attributes['margin'] = '10px'
+        th.view.grid_envelope.attributes['margin_top'] = '0'
+
+    @extract_kwargs(default=True)
+    @struct_method
+    def at_attachmentViewer(self,pane,title=None,
+                            datapath='.attachments',maintable_id=None,
+                            relation=None,table=None,preview=True,delrow=False,
+                            uploaderButton=None,ask=None,default_kwargs=None,
+                            **kwargs):
         if not table:
             relation=relation or '@atc_attachments'
         viewResource = 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview'
-        th =pane.dialogTableHandler(relation=relation,table=table,
+        th = pane.dialogTableHandler(relation=relation,table=table,
                                     title=title or '!![en]Attachments',
                                         viewResource=viewResource,
                                         formResource='gnrcomponents/attachmanager/attachmanager:FormAtcMobile',
                                         mobileTemplateGrid=True,
-                                        searchOn=False,datapath=datapath,configurable=False,
+                                        searchOn=False,datapath=datapath,configurable=False,delrow=delrow,
                                      **kwargs)
+        if uploaderButton:
+            th.view.bottom.dropUploader(
+                            label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
+                            height='40px',
+                            ask=ask,
+                            onUploadingMethod=self.onUploadingAttachment,
+                            rpc_maintable_id= maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
+                            rpc_attachment_table= th.view.grid.attributes['table'],
+                            _class='importerPaletteDropUploaderBox',
+                            cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
+                            **{f'rpc_{k}':v for k,v in default_kwargs.items()})
+
         view = th.view
         view.top.pop('bar')
         return th 
