@@ -198,30 +198,6 @@ cursorZoom_plus{
     white-space: nowrap;
 }
 
-/*Checkbox toggle icon*/
-.toggle .dijitCheckBox, .toggle .dijitCheckBoxIcon{
-    width: 35px;
-    height: 25px;
-    background-image: none;
-    mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
-    mask-size: 100%;
-    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_off.svg') center center no-repeat;
-    -webkit-mask-size: 100%;
-    background-color: #666;
-}
-.toggle .dijitCheckBoxChecked{
-    mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
-    mask-size: 100%;
-    -webkit-mask: url('/_rsrc/common/css_icons/svg/16/toggle_on.svg') center center no-repeat;
-    -webkit-mask-size: 100%;
-    background-color: #0F75E0;
-}
-.toggle .dijitCheckBoxInput{
-    width: 35px;
-    height: 25px;
-    cursor: pointer;
-}
-
 .cell_editable .gnrcheckbox_wrapper{
     left: 25%;
     position: relative;
@@ -6156,3 +6132,105 @@ div[disabled='true'], div[disabled='disabled']{
     color:#444;
     border: 1px solid silver;
  }
+
+ /*GOOGLE ICONS*/
+
+ /*Checkbox toggle icon*/
+.toggle .dijitCheckBox, .toggle .dijitCheckBoxIcon{
+    width: 35px;
+    height: 25px;
+    background-image: none;
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #666;
+}
+.toggle .dijitCheckBoxChecked{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #0F75E0;
+}
+.toggle .dijitCheckBoxInput{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.google_icon{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+    mask-size: 100%;
+    -webkit-mask-size: 100%;
+}
+.add_circle{
+    mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
+}
+.counter_1{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_1.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_1.svg') center center no-repeat;
+}
+.counter_2{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_2.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_2.svg') center center no-repeat;
+}
+.counter_3{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_3.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_3.svg') center center no-repeat;
+}
+.counter_4{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_4.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_4.svg') center center no-repeat;
+}
+.counter_5{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_5.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_5.svg') center center no-repeat;
+}
+.counter_6{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_6.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_6.svg') center center no-repeat;
+}
+.counter_7{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_7.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_7.svg') center center no-repeat;
+}
+.counter_8{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_8.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_8.svg') center center no-repeat;
+}
+.counter_9{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_9.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_9.svg') center center no-repeat;
+}
+.counter_0{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
+}
+.cancel{
+    mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
+}
+.check{
+    mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
+}
+.radio_button_checked{
+    mask: url('/_rsrc/common/css_icons/google_icons/radio_button_checked.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/radio_button_checked.svg') center center no-repeat;
+}
+.radio_button_unchecked{
+    mask: url('/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg') center center no-repeat;
+}
+.toggle_on{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+}
+.toggle_off{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+}
