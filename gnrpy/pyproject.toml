@@ -56,12 +56,12 @@ dependencies = [
 	     "chardet",
 	     "jsmin",
 	     "paramiko", # gnr.core.gnrssh
+	     "pysqlite3", # alway installed by default
 	     ]
 
 [project.optional-dependencies]
 pgsql = ["psycopg2"]
 mysql = ["mysqlclient"]
-sqlite = ["pysqlite3"]
 developer = ["nose", "graphviz", "coverage", "build", "twine"]
 
 [project.scripts]

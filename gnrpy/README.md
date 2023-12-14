@@ -12,12 +12,14 @@ inside the folder **gnrpy** you can execute 2 different installation:
 	
 which will install the framework inside your system libraries or virtualenv.
 
-You can install also optional dependencies, 4 different profiles are provided
+You can install also optional dependencies, 3 different profiles are provided
 
 * pgsql - for PostgreSQL database usage
 * mysql - for MySQL database usage
-* sqlite - for Sqlite database usage
 * developer - will install extra tools usefule for genropy's development
+
+Note: sqlite3 driver is installed by default with the base installation, no need
+to use a specific profile.
 
 By executing:
 
