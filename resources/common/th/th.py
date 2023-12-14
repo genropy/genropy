@@ -259,15 +259,21 @@ class TableHandler(BaseComponent):
     @struct_method
     def th_dialogTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
                             formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,
-                            form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
+                            form_kwargs=None,loadEvent='onRowDblClick',mobileTemplateGrid=None,**kwargs):
+        if mobileTemplateGrid:
+            dialog_kwargs.setdefault('fullScreen',True)
+            kwargs.setdefault('configurable',False)
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
+                                        grid_mobileTemplateGrid=mobileTemplateGrid,
                                         tag='ContentPane',default_kwargs=default_kwargs,readOnly=readOnly,
                                         form_kwargs=form_kwargs,**kwargs)
         form_kwargs.setdefault('form_locked',True)
         pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent=loadEvent,
                         dialog_kwargs=dialog_kwargs,attachTo=pane,formInIframe=formInIframe,
                         formResource=formResource,default_kwargs=default_kwargs,**form_kwargs)     
+        if mobileTemplateGrid:
+            pane.view.attributes['_class'] = f"{pane.view.attributes['_class']} noselect templateGrid"
         return pane
     
     @extract_kwargs(palette=True,default=True,form=True)

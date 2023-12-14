@@ -4381,6 +4381,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
 
     gnrwdg_makeButtons:function(items){
         items = items || new gnr.GnrBag();
+        genro.dom.setClass(this.multibuttonSource.getParentNode(),'singleChildMultibutton',items.len()<2)
         var sourceNode = this.sourceNode;
         var mb = this.multibuttonSource;
         mb.clear(true);
