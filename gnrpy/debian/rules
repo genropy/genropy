@@ -1,5 +1,9 @@
 #!/usr/bin/make -f
 export PYBUILD_NAME=genropy
+
+# FIXME: re-enable tests before building package
+# when tests will be working correctly
 export PYBUILD_DISABLE=test
+
 %:
 	dh $@ --with python3 --buildsystem=pybuild
