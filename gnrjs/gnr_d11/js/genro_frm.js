@@ -933,7 +933,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var that = this;
         controllerData.setItem('temp',null);
         if(data){
-            this.setFormData(data);
+            try {
+                this.setFormData(data);
+            } catch (error) {
+                console.error('error in loading',this.formId,error)
+            }
+            
         }
         this.publish('onLoaded',{pkey:this.getCurrentPkey(),data:data});
         this.setHider(false);
