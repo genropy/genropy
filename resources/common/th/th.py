@@ -763,6 +763,8 @@ class MultiButtonForm(BaseComponent):
         if store_kwargs['order_by']:
             columnslist.append([c.strip() for c in store_kwargs['order_by'].split(' ')][0])
         store_kwargs['columns'] = ','.join(columnslist)
+        resetpkey = "this.setRelativeData('.value','*norecord*');"
+        store_kwargs['_onCalling'] = f'{resetpkey};{store_kwargs["_onCalling"]}' if store_kwargs.get("_onCalling") else resetpkey
         rpc = mb.store(table=table,condition=condition,**store_kwargs)
         frame.multiButtonView = mb
         return frame
