@@ -6233,3 +6233,9 @@ div[disabled='true'], div[disabled='disabled']{
     mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
 }
+
+
+.largeCell{
+    padding:5px;
+    font-size:1.2em;
+}

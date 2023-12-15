@@ -936,7 +936,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             try {
                 this.setFormData(data);
             } catch (error) {
-                console.error('error in loading',this.formId,error)
+                console.error('error in loading',this.getControllerData('table'),this.formId,error)
             }
             
         }
