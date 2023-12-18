@@ -154,13 +154,13 @@ class FrameIndex(BaseComponent):
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
         bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
-                          _class='framedindex_tablist showcase_dark',height='30px',childname='upperbar')
-        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='25px',
+                          _class='framedindex_tablist showcase_dark',height='34px',childname='upperbar')
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
         self.pageTitle_mobile(bar.pageTitle)
         
     def pageTitle_mobile(self,pane):
-        pane.div('^gnr.windowTitle',color='white',font_size='13px',caption_path='selectedPageTitle')
+        pane.div('^gnr.windowTitle',color='white',font_size='15px',font_weight='bold',caption_path='selectedPageTitle')
 
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
@@ -393,9 +393,9 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overfloe='hidden').slotBar('*,selpagetitle,*',childname='underbar',
-                                                                            height='20px',color='white')
-        underbar.selpagetitle.div('^selectedPageTitle',padding='2px')
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,selpagetitle,*',childname='underbar',
+                                                                            height='30px',color='white')
+        underbar.selpagetitle.div('^selectedPageTitle',padding='2px',font_weight='bold',font_size='13px')
 
 
         underbar.dataController("""
@@ -448,7 +448,7 @@ class FrameIndex(BaseComponent):
         frame = bc.framePane(region='left',width='100%',datapath='left',
                                 overflow='hidden',hidden=self.hideLeftPlugins)
         frame.top.slotBar('*,close_icon,5',height='22px'
-                          ).close_icon.lightButton(_class='iconbox dojoxFloatingCloseIcon',
+                          ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
                                                    ).dataController("genro.nodeById('standard_index').publish('hideLeft');")
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;

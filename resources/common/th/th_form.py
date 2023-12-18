@@ -356,7 +356,7 @@ class TableHandlerForm(BaseComponent):
             else:
                 slots = 'dismissTitle'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'
-            form.top.slotBar(slots,height=kwargs.pop('height','25px'),
+            form.top.slotBar(slots,height=kwargs.pop('height','30px'),
                              color=kwargs.pop('color','#888'),border_bottom=kwargs.pop('border','1px solid silver'),
                             **kwargs)
         else:

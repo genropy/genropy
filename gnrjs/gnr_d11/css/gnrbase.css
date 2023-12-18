@@ -6209,7 +6209,7 @@ div[disabled='true'], div[disabled='disabled']{
     mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
 }
-.cancel{
+.google_cancel{
     mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
 }
