@@ -750,6 +750,8 @@ class MultiButtonForm(BaseComponent):
             form.dataController("""
                 mb.setRelativeData('.value',pkey=='*newrecord*'?'_newrecord_':pkey);
                 """,formsubscribe_onCancel=True,mb=mb,pkey='=.pkey')
+            resetpkey = "this.setRelativeData('.value','*norecord*');"
+            store_kwargs['_onCalling'] = f'{resetpkey};{store_kwargs["_onCalling"]}' if store_kwargs.get("_onCalling") else resetpkey
         store_kwargs['_if'] = store_kwargs.pop('if',None) or store_kwargs.pop('_if',None)
         store_kwargs['_else'] = "this.store.clear(); SET .value = '*norecord*'"
         tblobj = self.db.table(table)
@@ -763,8 +765,7 @@ class MultiButtonForm(BaseComponent):
         if store_kwargs['order_by']:
             columnslist.append([c.strip() for c in store_kwargs['order_by'].split(' ')][0])
         store_kwargs['columns'] = ','.join(columnslist)
-        resetpkey = "this.setRelativeData('.value','*norecord*');"
-        store_kwargs['_onCalling'] = f'{resetpkey};{store_kwargs["_onCalling"]}' if store_kwargs.get("_onCalling") else resetpkey
+        
         rpc = mb.store(table=table,condition=condition,**store_kwargs)
         frame.multiButtonView = mb
         return frame
