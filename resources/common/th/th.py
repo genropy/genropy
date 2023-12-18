@@ -54,7 +54,7 @@ class TableHandler(BaseComponent):
                             liveUpdate=None,
                             picker_kwargs=True,subtable=None,
                             dbstore=None,hider_kwargs=None,view_kwargs=None,preview_kwargs=None,parentForm=None,
-                            form_kwargs=None,relation_kwargs=None,**kwargs):
+                            form_kwargs=None,relation_kwargs=None,roundedEnvelope=False,**kwargs):
         fkeyfield=None
         if relation:
             table,condition,fkeyfield = self._th_relationExpand(pane,relation=relation,condition=condition,
@@ -194,6 +194,7 @@ class TableHandler(BaseComponent):
                                 parentForm=parentForm,liveUpdate=liveUpdate,
                                 excludeDraft = store_excludeDraft,
                                 excludeLogicalDeleted = store_excludeLogicalDeleted,
+                                roundedEnvelope=roundedEnvelope,
                                 **view_kwargs) 
         hiderRoot = wdg if kwargs.get('tag') == 'BorderContainer' else wdg.view
         if hider:
@@ -273,7 +274,7 @@ class TableHandler(BaseComponent):
                         dialog_kwargs=dialog_kwargs,attachTo=pane,formInIframe=formInIframe,
                         formResource=formResource,default_kwargs=default_kwargs,**form_kwargs)     
         if mobileTemplateGrid:
-            pane.view.attributes['_class'] = f"{pane.view.attributes['_class']} noselect templateGrid"
+            pane.view.attributes['_class'] = f"{pane.view.attributes['_class']} templateGrid"
         return pane
     
     @extract_kwargs(palette=True,default=True,form=True)

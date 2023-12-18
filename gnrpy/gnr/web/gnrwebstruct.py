@@ -1655,7 +1655,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         .. note:: a slotToolbar is a :ref:`slotBar <slotbar>` with some css preset
         """
-        kwargs['toolbar'] = True
+        kwargs.setdefault('toolbar', True)
         return self.slotBar(*args,**kwargs)
         
     def slotFooter(self,*args,**kwargs):
