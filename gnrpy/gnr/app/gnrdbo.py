@@ -343,7 +343,8 @@ class TableBase(object):
                                                                                         one_name='!![en]Parent',many_name='!![en]Children',
                                                                                         deferred=True,
                                                                                         one_group=group,many_group=group)
-            tbl.formulaColumn('child_count','(SELECT count(*) FROM %s.%s_%s AS children WHERE children.parent_id=#THIS.id)' %(pkg,pkg,tblname),group='*', dtype='L')
+            tbl.formulaColumn('child_count', select=dict(table=f'{pkg}.{tblname}', 
+                                                         where='@_children.parent_id=#THIS.id', columns='COUNT(*)'),group='*', dtype='L')
             tbl.formulaColumn('hlevel',"""length($hierarchical_pkey)-length(replace($hierarchical_pkey,'/',''))+1""",group='*')
             if hierarchical_root_id:
                 tbl.column('root_id',sql_value="substring(:hierarchical_pkey from 1 for 22)",
