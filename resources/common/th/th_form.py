@@ -356,8 +356,8 @@ class TableHandlerForm(BaseComponent):
             else:
                 slots = 'dismissTitle'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'
-            form.top.slotBar(slots,height=kwargs.pop('height','25px'),
-                             color=kwargs.pop('color','#888'),border_bottom=kwargs.pop('border','1px solid silver'),
+            form.top.slotBar(slots,height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
+                             color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid silver'),
                             **kwargs)
         else:
             slots= '*,cancel' if mode=='confirm' else 'revertbtn,*,cancel,savebtn'

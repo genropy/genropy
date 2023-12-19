@@ -97,15 +97,12 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
             sourceNode.setRelativeData('#WORKSPACE.columns',columnsBag);
             sourceNode.attr.columns = attributes.columns;
         }
-        let storepath = connectedGrid? connectedGrid.absDatapath(connectedGrid.attr.storepath):attributes.storepath;
-        attributes.storepath = storepath;
-        attributes.containerId = attributes.id
-        sourceNode.attr.containerId = attributes.containerId
-        storepath = sourceNode.absDatapath(storepath);
-        sourceNode.attr.storepath = storepath;
-        sourceNode.registerDynAttr('storepath');
         sourceNode._connectedGrid = connectedGrid;
         sourceNode.attr.chartAttributes = chartAttributes;
+        attributes.containerId = attributes.id;
+        sourceNode.attr.containerId = attributes.containerId;
+        this._prepareDynamicAttribute(sourceNode,attributes,'storepath',connectedGrid)
+        this._prepareDynamicAttribute(sourceNode,attributes,'structpath',connectedGrid)
         return {chartAttributes:chartAttributes}
     },
     created:function(widget, savedAttrs, sourceNode){
@@ -131,17 +128,35 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
         sourceNode._chartWrapper.draw();
     },
 
+    _prepareDynamicAttribute:function(sourceNode,attributes,attribute,externalWidgetNode){
+        let path = externalWidgetNode? externalWidgetNode.absDatapath(externalWidgetNode.attr[attribute]):sourceNode.absDatapath(attributes[attribute]);
+        attributes[attribute] = path;
+        sourceNode.attr[attribute] = path;
+        sourceNode.registerDynAttr(attribute);
+    },
+
     getOptions:function(sourceNode){
         let result = sourceNode.evaluateOnNode(sourceNode.attr.chartAttributes);
         return result;
     },
 
+    getStruct:function(sourceNode, path){
+        let structpath = sourceNode.getAttributeFromDatasource('structpath') || '.struct';
+        let structbag = sourceNode.getRelativeData(structpath) || new gnr.GnrBag();
+        if(path){
+            return structbag.getItem(path);
+        }
+        return structbag;
+    },
 
-    getColumns:function(sourceNode){
+    getColumns:function(sourceNode,path){
         let columns = sourceNode.getAttributeFromDatasource('columns');
+        if(!columns){
+            columns = this.getStruct(sourceNode,"columns");
+        }
         if(columns instanceof gnr.GnrBag){
             return columns.getNodes().map((n)=>{
-                return {'type':GoogleTypeConverter[n.attr.dtype],
+                return {'type':GoogleTypeConverter[n.attr.dtype] || 'string',
                          'label':n.attr.name || n.attr.field,
                          'field':n.attr.field_getter || n.attr.field};
             });
@@ -164,13 +179,20 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
         this.gnr.getDataTable(this.sourceNode);
     },
 
-    mixin_gnr_storepath:function(value){
+    mixin_gnr_refresh:function(){
         this.sourceNode._chartWrapper.dataTable = this.gnr_getDataTable();
         this.sourceNode._chartWrapper.draw();
     },
 
+    mixin_gnr_storepath:function(value){
+        this.gnr_refresh();
+    },
+
     mixin_gnr_columns:function(value){
-        this.sourceNode._chartWrapper.dataTable = this.gnr_getDataTable();
-        this.sourceNode._chartWrapper.draw();
+        this.gnr_refresh();
+    },
+
+    mixin_gnr_structpath:function(value){
+        this.gnr_refresh();
     },
 });

@@ -6057,11 +6057,13 @@ div[disabled='true'], div[disabled='disabled']{
 
 .mobileTemplateGridTop{
     font-weight: bold;
-    font-size: 1.4em;
+    font-size: 1.2em;
+    line-height: 35px;
+    
 }
 
 ._common_d11 .mobileTemplateGrid .dojoxGrid-row{
-    border-bottom: 1px solid #efefef;
+    border-bottom: 1px solid #ddd;
 }
 
 ._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
@@ -6209,7 +6211,7 @@ div[disabled='true'], div[disabled='disabled']{
     mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
 }
-.cancel{
+.google_cancel{
     mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
 }
@@ -6232,4 +6234,18 @@ div[disabled='true'], div[disabled='disabled']{
 .toggle_off{
     mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+}
+
+
+.largeCell{
+    padding:5px;
+    font-size:1.2em;
+}
+
+.gridRoundedEnvelope{
+    border:1px solid #ddd;
+    border-radius: 10px;
+    margin:10px;
+    margin-top:0;
+    margin-bottom: 20px;
 }

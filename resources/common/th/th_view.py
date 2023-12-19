@@ -325,7 +325,7 @@ class TableHandlerView(BaseComponent):
                        top_kwargs=None,condition=None,condition_kwargs=None,grid_kwargs=None,configurable=True,groupable=None,
                        unlinkdict=None,searchOn=True,count=None,title=None,root_tablehandler=None,structCb=None,preview_kwargs=None,loadingHider=True,
                        store_kwargs=None,parentForm=None,liveUpdate=None,bySample=None,resourceOptions=None,
-                       excludeDraft=None,excludeLogicalDeleted=None,**kwargs):
+                       excludeDraft=None,excludeLogicalDeleted=None,roundedEnvelope=None,**kwargs):
         page_hooks = self._th_hook('page',mangler=frameCode,asDict=True)
         if condition:
             condition_kwargs['condition'] = condition
@@ -352,6 +352,10 @@ class TableHandlerView(BaseComponent):
                 base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5',statsSlot,'advancedTools','10',pageHooksSelector,'*','count','5']
             else:
                 base_slots = extendedQuery.split(',')
+        elif roundedEnvelope:
+            top_kwargs['toolbar'] = False
+            base_slots = ['*','vtitle','*']
+            top_kwargs['_class']='mobileTemplateGridTop'
         elif not virtualStore:
             if root_tablehandler:
                 base_slots = ['5','searchOn','5','count','viewsMenu','5','menuUserSets','*','export','5',statsSlot,'advancedTools','10',pageHooksSelector,'5','resourcePrints','resourceMails','resourceActions',batchAssign,'10']
@@ -369,7 +373,7 @@ class TableHandlerView(BaseComponent):
             top_kwargs['slots'] = top_kwargs['slots'].replace('#',base_slots)
         else:
             top_kwargs['slots']= base_slots
-        top_kwargs['_class'] = 'th_view_toolbar'
+        top_kwargs.setdefault('_class', 'th_view_toolbar')
         grid_kwargs.setdefault('gridplugins', 'configurator,chartjs,print' if extendedQuery else 'configurator,chartjs,export_xls,print')
         grid_kwargs['item_name_singular'] = self.db.table(table).name_long
         grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs.get('item_name')
@@ -384,7 +388,7 @@ class TableHandlerView(BaseComponent):
         frame = pane.frameGrid(frameCode=frameCode,childname='view',table=table,
                                struct = structcb,grid_baseViewName=baseViewName,
                                datapath = '.view',top_kwargs = top_kwargs,_class = 'frameGrid',
-                               grid_kwargs = grid_kwargs,iconSize=16,_newGrid=True,advancedTools=True,
+                               grid_kwargs = grid_kwargs,iconSize=16,_newGrid=True,advancedTools=True,roundedEnvelope=roundedEnvelope,
                                configurable=configurable,groupable=groupable,**kwargs)  
         if statsEnabled:
             self._th_handle_stats_pages(frame)
