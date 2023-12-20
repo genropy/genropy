@@ -249,7 +249,7 @@
 <en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente"></en_previous>
 <en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
 <en_last base="Last" de="Letzte" en="Last" fr="Dernier" it="Ultimo"></en_last>
-<en_close base="Close" de="Schließen" en="Close" fr="Près" it="Vicino"></en_close>
+<en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
 <en_add_and_close base="Add and Close" de="Hinzufügen und Schließen" en="Add and Close" fr="Ajouter et fermer" it="Aggiungi e chiudi"></en_add_and_close></includedview>
 <macrowidgets path="resources/common/foundation/macrowidgets.py" ext="py"><en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"></en_prev>
 <en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
@@ -442,7 +442,7 @@
 <en_print_output base="Print output"></en_print_output></gridcustomizer>
 <htablehandler path="resources/common/gnrcomponents/htablehandler.py" ext="py"><en_hierarchical base="Hierarchical" de="Hierarchische" en="Hierarchical" fr="Hiérarchique" it="Gerarchica"></en_hierarchical>
 <en_plain base="Plain" de="Ebene" en="Plain" fr="Plaine" it="Piatta"></en_plain>
-<en_close base="Close" de="Schließen" en="Close" fr="Près" it="Vicino"></en_close>
+<en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
 <en_lock base="Lock" de="Sperren" en="Lock" fr="Bloquer" it="Serratura"></en_lock>
 <en_unlock base="Unlock" de="Öffnen" en="Unlock" fr="Ouvrir" it="Sbloccare"></en_unlock>
 <en_deleting_record base="Deleting record" de="Löschen Rekord" en="Deleting record" fr="Suppression fiche" it="Eliminazione di record di"></en_deleting_record>
