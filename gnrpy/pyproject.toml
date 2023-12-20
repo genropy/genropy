@@ -11,6 +11,7 @@ authors = [
 ]
 
 maintainers = [
+  {name = "Francesco Porcari", email = "francesco.porcari@softwell.it" },
   {name = "Michele Bertoldi", email = "michele.bertoldi@softwell.it" }
 ]
 description = "GenroPy Web Framework"
@@ -62,7 +63,10 @@ dependencies = [
 [project.optional-dependencies]
 pgsql = ["psycopg2"]
 mysql = ["mysqlclient"]
-developer = ["nose", "graphviz", "coverage", "build", "twine"]
+developer = [
+	  "pytest", "nose", "graphviz",
+	  "coverage", "build", "twine"
+	    ]
 
 [project.scripts]
 # gnr.core
