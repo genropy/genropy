@@ -18,13 +18,13 @@ class GnrCustomWebPage(object):
     
     def th_form(self,form,**kwargs):
         bc = form.center.borderContainer()
-        self.loginData(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
+        self.topForm(bc.roundedGroup(title='Login',region='top',datapath='.record',height='200px'))
         center = bc.tabContainer(region='center',margin='2px')
 
         self.userAuth(center.contentPane(title='Auth'))
         self.userConfigView(center.contentPane(title='Config'))
     
-    def loginData(self,pane):
+    def topForm(self,pane):
         fb = pane.div(margin_right='10px').formbuilder(cols=2, border_spacing='4px',colswidth='12em')
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
