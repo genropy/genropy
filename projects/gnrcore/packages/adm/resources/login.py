@@ -101,7 +101,9 @@ class LoginComponent(BaseComponent):
                                     AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
                         condition_secret_2fa='=gnr.avatar.secret_2fa',
                     condition_all_groups='^.all_groups',validate_notnull='^.group_selector',
-                    row_hidden='^.group_selector?=!#v',lbl='!![en]Group',hasDownArrow=True,
+                    disabled='^.group_selector?=!#v',
+                    row_hidden='^.group_selector?=!#v',
+                    lbl='!![en]Group',hasDownArrow=True,
                     validate_onAccept="""
                     if(userChange){
                         let avatar_group_code = GET gnr.avatar.group_code;
