@@ -264,7 +264,7 @@ class LoginComponent(BaseComponent):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
         data['group_selector'] = False
-        if avatar.extra_kwargs.get('main_group_code'):
+        if avatar.extra_kwargs.get('multi_group'):
             other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
             data['all_groups'] = [avatar.main_group_code]
             if other_groups:

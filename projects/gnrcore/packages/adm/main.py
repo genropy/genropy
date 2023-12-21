@@ -54,6 +54,7 @@ class Package(GnrDboPackage):
                 kwargs['firstname'] = user_record['firstname']
                 kwargs['lastname'] = user_record['lastname']
                 kwargs['user_id'] = user_record['id']
+                kwargs['multi_group'] = len(all_groups)>0
                 kwargs['group_code'] = group_code
                 kwargs['main_group_code'] = user_record['group_code']
                 kwargs['avatar_rootpage'] = user_record['avatar_rootpage'] or group_record.get('rootpage')
