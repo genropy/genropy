@@ -190,6 +190,14 @@ var genro_plugin_grid_configurator = {
             });
     },
 
+    configuratorExtendedColumnEditor:function(gridId,cell,parentDomNode){
+        genro.dlg.remoteFloatingPane('extendedColumnEditor_'+gridId,'extendedColumnEditor',{
+            gridId:gridId
+        },{height:'500px',width:'600px',title:'Extended column editor'});
+
+    },
+
+
     configuratorCellTooltip:function(gridId,cell,parentDomNode){
         if(!cell){
             return;
@@ -201,8 +209,10 @@ var genro_plugin_grid_configurator = {
         var that = this;
         genro.dlg.quickTooltipPane({modal:true,domNode:parentDomNode},
             function(tp,tpkw){
+                let bc = tp._('')
                 var pane = tp._('div',{datapath:`${structpath}.view_0.rows_0.${cell._nodelabel}`,font_size:'.9em'});
                 var topbar = pane._('div',{_class:'commonTitleBar',innerHTML:`Edit cell ${cell.field}`});
+
                 topbar._('menu',{'_class':'smallMenu','modifiers':'*','storepath':`#${gridId}.menuColsConfigMenu`,
                                     action:function(kw){
                                         genro.nodeById(tpkw.tooltipOpenerId).publish('close');

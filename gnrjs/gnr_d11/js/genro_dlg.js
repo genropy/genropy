@@ -485,6 +485,27 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         dlgNode.widget.show();
     },
     
+
+    remoteFloatingPane:function(name,remote,remoteKw,kw){
+        remoteKw = remoteKw || {};
+        kw = kw || {};
+        kw.autoSize = kw.autoSize || false;
+        kw.nodeId = 'remote_palette_'+name;
+        var sourceNode = genro.nodeById(kw.nodeId);
+        if(!sourceNode){
+            kw.closable = true;
+            var floatingPane = genro.src.create('FloatingPane',kw,'_remote_palette');
+            var kw = {};
+            for (var k in remoteKw){
+                kw['remote_'+k] = remoteKw[kw];
+            }
+            kw.remote = remote;
+            floatingPane._('contentPane',kw);
+            sourceNode = floatingPane.getParentNode();
+        }
+        sourceNode.widget.show();
+    },
+
     askParameters:function(cb,ask_params,parameters,sourceNode,argnames,argvalues){
         var promptkw = objectUpdate({},ask_params);
         let doAsk = true;

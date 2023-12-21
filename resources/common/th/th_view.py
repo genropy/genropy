@@ -374,7 +374,7 @@ class TableHandlerView(BaseComponent):
         else:
             top_kwargs['slots']= base_slots
         top_kwargs.setdefault('_class', 'th_view_toolbar')
-        grid_kwargs.setdefault('gridplugins', 'configurator,chartjs,print' if extendedQuery else 'configurator,chartjs,export_xls,print')
+        grid_kwargs.setdefault('gridplugins', 'configurator,configureColumn,configureColset,chartjs,print' if extendedQuery else 'configurator,configureColumn,configureColset,chartjs,export_xls,print')
         grid_kwargs['item_name_singular'] = self.db.table(table).name_long
         grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs.get('item_name')
         grid_kwargs.setdefault('loadingHider',loadingHider)

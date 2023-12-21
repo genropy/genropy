@@ -1000,9 +1000,19 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         menu.setItem('#id',null,{caption:_T('Configure grid'),action:"$2.widget.configuratorPalette();"});
     },
 
+    cm_plugin_configureColumn:function(sourceNode,menu){
+        let cell = sourceNode._lastContextClickEvent.cell;
+        menu.setItem('#id',null,{caption:_T('Configure column '+cell.original_name),action:"$2.widget.configuratorCellTooltip($2._lastContextClickEvent);"});
+    },
+
+    cm_plugin_configureColset:function(sourceNode,menu){
+        menu.setItem('#id',null,{caption:_T('Configure colset'),action:"$2.widget.configuratorColsetTooltip(null,$3);"});
+    },
+
     cm_plugin_export_xls:function(sourceNode,menu){
         menu.setItem('#id',null,{caption:_T('Export XLS'),action:"$2.widget.serverAction({command:'export',allRows:true,opt:{export_mode:'xls',rawData:true,localized_data:true,downloadAs:$2.attr.nodeId+'_export'}});"});
     },
+    
 
     cm_plugin_copyCell:function(sourceNode,menu){
         var copycell = function(){
@@ -1160,7 +1170,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         if(!gridplugins){
             gridplugins = 'export_xls,print';
             if(sourceNode.attr.configurable && genro.grid_configurator){
-                gridplugins = 'configurator,'+gridplugins;
+                gridplugins = 'configurator,configureColumn,configureColset'+gridplugins;
+                
             }
         }
         gridplugins+=',copyCell,copyRows,pasteRows,dynamicSearchOn';
@@ -4339,7 +4350,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_configuratorCellTooltip:function(event){
         if(this.sourceNode.attr.configurable && genro.grid_configurator){
-            genro.grid_configurator.configuratorCellTooltip(this.sourceNode.attr.nodeId || this.sourceNode._id,event.cell,event.target);
+            genro.grid_configurator.configuratorExtendedColumnEditor(this.sourceNode.attr.nodeId || this.sourceNode._id,event.cell,event.target);
         }
     },
 

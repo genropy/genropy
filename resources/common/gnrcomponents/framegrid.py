@@ -560,6 +560,13 @@ class FrameGrid(BaseComponent):
             if resvalue is not None and resvalue!='':
                 value[path[1:]] = resvalue
 
+
+    @public_method
+    def extendedColumnEditor(self,pane,gridId=None,**kwargs):
+        bc = pane.borderContainer()
+        bc.contentPane(region='top',height='20px',background='pink')
+        bc.contentPane(region='center',background='lime').div(gridId)
+
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
     @struct_method
