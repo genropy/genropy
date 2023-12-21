@@ -37,6 +37,8 @@ class Package(GnrDboPackage):
                 if group_code and (group_code not in all_groups):
                     group_code = None
                 group_code = group_code or user_record.get('group_code')
+                if not group_code and len(all_groups)==1:
+                    group_code = all_groups[0]
                 group_record = dict()
                 if group_code:
                     group_record = self.db.table('adm.group').cachedRecord(pkey=group_code)
