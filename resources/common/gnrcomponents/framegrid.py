@@ -563,25 +563,30 @@ class FrameGrid(BaseComponent):
 
     @public_method
     def extendedColumnEditor(self,pane,gridId=None,structpath=None,startKey=None,**kwargs):
-        frame = pane.framePane(frameCode=f'ext_col_editor_{gridId}',_workspace=True)
-        bar = frame.top.slotToolbar('5,stackButtons,*,saveConfiguration,5')
+        sc = pane.stackContainer(nodeId=f'sc_{gridId}_extendedColumnEditor',_workspace=True)
+        self.extendedColumnEditor_colsEditor(sc,gridId=gridId,structpath=structpath,startKey=startKey)
+        self.extendedColumnEditor_colsSets(sc.framePane(title='Columnsets'),gridId=gridId,structpath=structpath)
+
+    def extendedColumnEditor_colsSets(self,frame,gridId=None,structpath=None):
+        bar = frame.top.slotToolbar('5,parentStackButtons,*,saveConfiguration,5')
         bar.saveConfiguration.slotButton('Save configuration',iconClass='iconbox save',
                 action=f"""genro.grid_configurator.saveGridView("{gridId}");""")
         
-
-        sc = frame.center.stackContainer()
-        self.extendedColumnEditor_colsEditor(sc.stackContainer(title='Columns'),gridId=gridId,structpath=structpath)
-        self.extendedColumnEditor_colsSets(sc.contentPane(title='Columnsets'))
-
-    def extendedColumnEditor_colsSets(self,pane):
-        pass
-
-    def extendedColumnEditor_colsEditor(self,sc,gridId=None,structpath=None,startKey=None,**kwargs):
+    def extendedColumnEditor_colsEditor(self,mainsc,gridId=None,structpath=None,startKey=None,**kwargs):
+        sc = mainsc.stackContainer(title='Columns')
         fg = sc.contentPane(pageName='view').bagGrid(frameCode=f'V_{gridId}_extendedColumnEditor',childname='view',
                                                      storepath=f'{structpath}.view_0.rows_0',datamode='attr',
                                                     datapath='#WORKSPACE.extendedColumnEditor.view',
                                                     store__identifier = '_cell_label',
                                                     struct=self._extendedColumnEditor_struct)
+        bar = fg.top.bar.replaceSlots('#','5,stackButtons,*,delrow,addrow,saveConfiguration,5',
+                                      stackButtons_stackNodeId=f'sc_{gridId}_extendedColumnEditor')
+
+        bar.saveConfiguration.slotButton('Save configuration',iconClass='iconbox save',
+                action=f"""genro.grid_configurator.saveGridView("{gridId}");""")
+        
+
+
 
         form = fg.grid.linkedForm(frameCode=f'F_{gridId}_extendedColumnEditor',
                                   datapath='#WORKSPACE.extendedColumnEditor.form',
@@ -602,6 +607,7 @@ class FrameGrid(BaseComponent):
         fb = pane.formbuilder(datapath='.record')
         fb.textbox(value='^.field',unmodifiable=True,lbl='Field')
         fb.textbox(value='^.sqlcolumn',disabled=True,hidden='^.calculated')
+        fb.checkbox(value='^.hidden',label='Hidden')
         fb.checkbox(value='^.calculated',label='Calculated')
         fb.filteringSelect(value='^.dtype',lbl='Dtype',disabled='^.sqlcolumn',
                            values='T:Text,L:Integer,N:Decimal,D:Date,DH:DateTime,DHZ:DateTime(TZ),B:Boolean,H:Time,P:Image')
@@ -611,15 +617,23 @@ class FrameGrid(BaseComponent):
                     hidden='^.dtype?="NRFLI".indexOf(#v)<0')
 
         fb.textbox(value='^.format',lbl='Format')
+
         fb.filteringSelect(value='^.sort',lbl='Sort',values='a:Ascending,d:Descending')
 
-        pane = tc.contentPane(title='Styles').codemirror(
-            value='^.record.customStyles'
-        )
+        pane = tc.contentPane(title='Styles',overflow='hidden')
+        fb = pane.formbuilder(cols=1,datapath='.record')
+        fb.textbox(value='^.width',lbl='Width')
+        fb.textbox(value='^.border',lbl='Border')
+        fb.colorTextBox(value='^.background',lbl='Background',mode='rgba')
+        fb.colorTextBox(value='^.Color',lbl='Color')
+        fb.textbox(value='^.font_size',lbl='Font size')
+        fb.filteringSelect(value='^.font_style',lbl='Font style',values='italic,underline')
+        fb.filteringSelect(value='^.font_weight',lbl='Font weight',values='bold,bolder')
+        fb.textbox(value='^.font_family',lbl='Font family')
 
-
-
-
+        bc = tc.borderContainer(title='Row template',overflow='hidden',datapath='.record',hidden='^.calculated?=!#v')
+        bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
+                            value='^.rowTemplate')#css_value='^.data.content_css')
 
 
     def _extendedColumnEditor_struct(self,struct):
