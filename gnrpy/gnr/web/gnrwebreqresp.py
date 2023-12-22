@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -19,11 +19,8 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-from future import standard_library
-standard_library.install_aliases()
+
 from gnr.web.gnrcookie import BaseCookie, MarshalCookie
-
-
 
 cookie_types = {'marshal': MarshalCookie,
                 'simple': BaseCookie}

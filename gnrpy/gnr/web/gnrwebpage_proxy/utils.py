@@ -6,17 +6,16 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.utils import old_div
-from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+
 import os
 import urllib.request, urllib.parse, urllib.error
 import io
 import datetime
 import zipfile
+
+from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlist import getReader

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
@@ -22,18 +22,15 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-#import weakref
-from future import standard_library
-standard_library.install_aliases()
-#from builtins import object
-from gnr.core.gnrbag import Bag, BagNode
-from gnr.core.gnrstructures import GnrStructData
-from gnr.core import gnrstring
-from gnr.core.gnrsys import expandpath
 from lxml import etree
 from z3c.rml import document as pdfdoc
 import io
 import os
+
+from gnr.core.gnrbag import Bag, BagNode
+from gnr.core.gnrstructures import GnrStructData
+from gnr.core import gnrstring
+from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import optArgs
 
 class GnrRmlSrcError(Exception):

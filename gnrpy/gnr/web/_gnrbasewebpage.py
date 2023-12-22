@@ -25,16 +25,14 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
+
 import os
 import sys
 import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
-
 import logging
 
 gnrlogger = logging.getLogger(__name__)

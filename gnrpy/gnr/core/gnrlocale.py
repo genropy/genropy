@@ -214,8 +214,8 @@ def parselocal_date(txt, locale):
     else:
         try:
             date = dates.parse_date(txt, locale)
-        except:
-            raise GnrException('Invalid date')
+        except Exception as e:
+            raise GnrException(f'Invalid date - {e}')
         return date
         
 def parselocal_datetime(txt, locale):
@@ -283,7 +283,7 @@ def getQuarterNames(locale=None):
     return d
 
 def defaultLocale():
-    return os.environ.get('GNR_LOCALE',locale.getdefaultlocale()[0])
+    return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
 
 def currentLocale(locale=None):
     return (locale or defaultLocale()).replace('-', '_')

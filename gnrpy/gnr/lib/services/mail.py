@@ -20,28 +20,30 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from future import standard_library
-standard_library.install_aliases()
+
 from builtins import chr
 from builtins import str
 from past.builtins import basestring
+import _thread
+import os
+import datetime
+import time
+
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.utils import formatdate
+
 import re, html.entities
 import mimetypes
+
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrstring import templateReplace
-import _thread
-import os
-import datetime
-import time
 
 
 from gnr.lib.services import GnrBaseService,BaseServiceType

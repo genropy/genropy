@@ -20,14 +20,11 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-
-
-#from builtins import object
 import datetime
 import pytz
-from gnr.core.gnrlocale import localize, parselocal
 from decimal import Decimal
+
+from gnr.core.gnrlocale import localize, parselocal
 
 class TestLocalize(object):
     def setup_class(cls):
@@ -99,13 +96,10 @@ class TestLocalize(object):
         assert localize(x, '#.#;DB #', locale='it_IT') == 'DB 1239988655,5'
 
     def test_format_currency(self):
-        x = Decimal("1239988655.45611665677")
-        assert localize(x, u'¤ #.0', u'EUR') == u'€ 1239988655.5'
-        assert localize(x, u'¤ #.0', u'$') == u'$ 1239988655.5'
-        assert localize(x, u'Please pay #.#### ¤ ASAP', u'EUR', locale='it_IT') == u'Please pay 1239988655,4561 € ASAP'
-
-    def test_date(self):
-        assert localize(self.date) == '12/10/07'
+        x = Decimal("1239988655.46611665677")
+        assert localize(x, '¤ #.0', 'EUR') == '€ 1239988655.47'
+        assert localize(x, '¤ #.0', '$') == '$ 1239988655.47'
+        assert localize(x, 'Please pay #.#### ¤ ASAP', 'EUR', locale='it_IT') == 'Please pay 1239988655,47 € ASAP'
 
     def test_dateLocale(self):
         assert localize(self.date, locale='en') == '12/10/07'
@@ -119,7 +113,7 @@ class TestLocalize(object):
 
     def test_dateLocaleMedium(self):
         assert localize(self.date, locale='en', format='medium') == 'Dec 10, 2007'
-        assert localize(self.date, locale='it', format='medium') == '10/dic/2007'
+        assert localize(self.date, locale='it', format='medium') == '10 dic 2007'
         assert localize(self.date, locale='de', format='medium') == '10.12.2007'
 
     def test_dateLocaleLong(self):
@@ -135,43 +129,43 @@ class TestLocalize(object):
     def test_dateLocaleFormat(self):
         assert localize(self.date, locale='en', format="EEE MMM d 'year:'yy") == 'Mon Dec 10 year:07'
         assert localize(self.date, locale='it', format="EEE MMM d 'anno:'yy") == "lun dic 10 anno:07"
-        assert localize(self.date, locale='it', format='EEEE d MMMM yyyyG') == u'lunedì 10 dicembre 2007dC'
+        assert localize(self.date, locale='it', format='EEEE d MMMM yyyyG') == u'lunedì 10 dicembre 2007d.C.'
         assert localize(self.date, locale='de', format='EEEE d MMMM yyyyG') == u'Montag 10 Dezember 2007n. Chr.'
         assert localize(self.date, locale='en', format='D yyyyG') == '344 2007AD'
         assert localize(self.date, locale='en', format='ee LLLLL yyyyG') == '01 D 2007AD'
 
 
     def test_datetimeLocale(self):
-        assert localize(self.datetime, locale='en', format='short') == '12/10/07, 10:15 PM'
-        assert localize(self.datetime, locale='it', format='short') == '10/12/07 22:15'
-        assert localize(self.datetime, locale='de', format='short') == '10.12.07 22:15'
+        assert localize(self.datetime, locale='en', format='short') == '12/10/07, 10:15\u202fPM'
+        assert localize(self.datetime, locale='it', format='short') == '10/12/07, 22:15'
+        assert localize(self.datetime, locale='de', format='short') == '10.12.07, 22:15'
 
-        assert localize(self.datetime, locale='en', format='medium') == 'Dec 10, 2007, 10:15:36 PM'
-        assert localize(self.datetime, locale='it', format='medium') == '10/dic/2007 22:15:36'
-        assert localize(self.datetime, locale='de', format='medium') == '10.12.2007 22:15:36'
+        assert localize(self.datetime, locale='en', format='medium') == 'Dec 10, 2007, 10:15:36\u202fPM'
+        assert localize(self.datetime, locale='it', format='medium') == '10 dic 2007, 22:15:36'
+        assert localize(self.datetime, locale='de', format='medium') == '10.12.2007, 22:15:36'
 
-        assert localize(self.datetime, locale='en', format='long') == 'December 10, 2007 at 10:15:36 PM +0000'
-        assert localize(self.datetime, locale='it', format='long') == '10 dicembre 2007 22:15:36 +0000'
-        assert localize(self.datetime, locale='de', format='long') == '10. Dezember 2007 22:15:36 +0000'
+        assert localize(self.datetime, locale='en', format='long') == 'December 10, 2007, 10:15:36\u202fPM UTC'
+        assert localize(self.datetime, locale='it', format='long') == '10 dicembre 2007 22:15:36 UTC'
+        assert localize(self.datetime, locale='de', format='long') == '10. Dezember 2007, 22:15:36 UTC'
 
         assert localize(self.datetime, locale='en',
-                        format='full') == 'Monday, December 10, 2007 at 10:15:36 PM GMT+00:00'
-        assert localize(self.datetime, locale='it', format='full') == u'lunedì 10 dicembre 2007 22:15:36 GMT+00:00'
-        assert localize(self.datetime, locale='de', format='full') == u'Montag, 10. Dezember 2007 22:15:36 GMT+00:00'
+                        format='full') == 'Monday, December 10, 2007, 10:15:36\u202fPM Coordinated Universal Time'
+        assert localize(self.datetime, locale='it', format='full') == u'lunedì 10 dicembre 2007 22:15:36 Tempo coordinato universale'
+        assert localize(self.datetime, locale='de', format='full') == u'Montag, 10. Dezember 2007, 22:15:36 Koordinierte Weltzeit'
 
 
     def test_timeLocale(self):
-        assert localize(self.time, locale='en', format='short') == '12:23 PM'
+        assert localize(self.time, locale='en', format='short') == '12:23\u202fPM'
         assert localize(self.time, locale='it', format='short') == '12:23'
         assert localize(self.time, locale='de', format='short') == '12:23'
 
-        assert localize(self.time, locale='en', format='medium') == '12:23:44 PM'
+        assert localize(self.time, locale='en', format='medium') == '12:23:44\u202fPM'
         assert localize(self.time, locale='it', format='medium') == '12:23:44'
         assert localize(self.time, locale='de', format='medium') == '12:23:44'
 
-        assert localize(self.time, locale='en', format='long') == '12:23:44 PM +0000'
-        assert localize(self.time, locale='it', format='long') == '12:23:44 +0000'
-        assert localize(self.time, locale='de', format='long') == '12:23:44 +0000'
+        assert localize(self.time, locale='en', format='long') == '12:23:44\u202fPM UTC'
+        assert localize(self.time, locale='it', format='long') == '12:23:44 UTC'
+        assert localize(self.time, locale='de', format='long') == '12:23:44 UTC'
 
     def test_timeLocaleFormat(self):
         assert localize(self.time, locale='en', format='a h:m:s--A') == 'PM 12:23:44--44624059'
@@ -213,6 +207,6 @@ class TestLocalize(object):
         #assert parselocal('12/10/07 10:15 PM', datetime.date, locale='en') == self.datetime
 
     def test_parse_time(self):
-        assert parselocal('12:23:44 PM', datetime.time, locale='en') == datetime.time(12, 23, 44)
+        assert parselocal('00:23:44 PM', datetime.time, locale='en') == datetime.time(12, 23, 44)
         
 

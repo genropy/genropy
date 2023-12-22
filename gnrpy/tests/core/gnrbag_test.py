@@ -1,9 +1,8 @@
-from __future__ import print_function
 from builtins import str
-#from builtins import object
-from gnr.core.gnrbag import Bag, BagNode, BagResolver
 import datetime
 import socket, os
+
+from gnr.core.gnrbag import Bag, BagNode, BagResolver
 
 
 def setup_module(module):
@@ -28,7 +27,7 @@ class TestBasicBag(object):
         assert b == self.mybag
 
     def test_fillFromUrl(self):
-        b = Bag('http://genropy.wordpress.com/feed/')
+        b = Bag('https://www.genropy.org/feed/')
         assert b['rss.channel.title'] == 'Genropy'
 
     def test_fillFromXml(self):
@@ -64,11 +63,14 @@ class TestBasicBag(object):
         assert self.mybag['phone.#sim=tom'] == 444230450
 
     def test_setItemPos(self):
-        b = Bag({'a': 1, 'b': 2, 'c': 3, 'd': 4})
+        b = Bag({'a': 1})
+        b.setItem('b', 2)
+        b.setItem('c', 3)
+        b.setItem('d', 4)
         b.setItem('e', 5, _position='<')
         assert b['#0'] == 5
         b.setItem('f', 6, _position='<c')
-        assert b['#2'] == 6
+        assert b['#3'] == 6
         b.setItem('g', 7, _position='<#3')
         assert b['#3'] == 7
 

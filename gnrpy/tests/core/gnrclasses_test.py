@@ -1,11 +1,13 @@
 import pytz
 import datetime
 from decimal import Decimal
+
 from gnr.core.gnrbag import Bag
 import gnr.core.gnrstring as gs
 
 class TestTypedJSON(object):
-    def __init__(self) -> None:
+    
+    def setup_method(self) -> None:
         now = datetime.datetime.now()
         self.values = dict(
             val_I = 42,
@@ -24,10 +26,10 @@ class TestTypedJSON(object):
         val_X.setItem('test_attributes',None,**self.values)
         #self.values['val_X'] = val_X
 
-    def test_toJSONValues(self,v=None):
+    def toJSONValues(self,v=None):
         return gs.toTypedJSON(v or self.values)
 
-    def test_fromJSONValues(self,j):
+    def fromJSONValues(self,j):
         return gs.fromTypedJSON(j)
 
     
@@ -40,41 +42,26 @@ class TestTypedJSON(object):
             result = [self.compare(original[idx],v) for idx,v in enumerate(restored)]
         else:
             result = original == restored
-            if result is False:
-                print('ERROR',original,'DIFF',restored)
         return result
         
-        
+    def test_main1(self):
+        ttj = self
+        val = ttj.values
+        dumped_original = ttj.toJSONValues()
+        restored = ttj.fromJSONValues(dumped_original)
+        assert(ttj.compare(ttj.values,restored))
 
-def main_1():
-    ttj = TestTypedJSON()
-    val = ttj.values
-    #original_data = [{'date':val['val_D'],'foo':33},{'spam':8,'zuz':[1,2,{'bar':'ccc','uden':['agua','fuego',88]}]},Decimal('44.3'),False] #[val['val_D'],38]
-    dumped_original = ttj.test_toJSONValues()
-    restored = ttj.test_fromJSONValues(dumped_original)
-    print('restored',restored)
-    result = ttj.compare(ttj.values,restored)
-    print('result',result)
-
-def main_2():
-    b = Bag()
-    ttj = TestTypedJSON()
-    val = ttj.values
-    b.addItem('val_D',val['val_D'])
-    b.addItem('val_LL',[val['val_D'],val['val_B'],val['val_N']])
-    b.addItem('val_ZZ',None,ll=[val['val_D'],val['val_B'],val['val_N']])
-    b.addItem('val_ZZ',None,val_D = val['val_D'],val_B = val['val_B'],val_N = val['val_N'])
-    print('bag',b)
-    x = b.toXml(pretty=True)
-    print(x)
-    r = Bag(x)
-    print(r)
-    print(r==b)
-
-
-if __name__ ==  '__main__':
-    #main_1()
-    main_2()
+    def test_main2(self):
+        b = Bag()
+        ttj = self
+        val = ttj.values
+        b.addItem('val_D',val['val_D'])
+        b.addItem('val_LL',[val['val_D'],val['val_B'],val['val_N']])
+        b.addItem('val_ZZ',None,ll=[val['val_D'],val['val_B'],val['val_N']])
+        b.addItem('val_ZZ',None,val_D = val['val_D'],val_B = val['val_B'],val_N = val['val_N'])
+        x = b.toXml(pretty=True)
+        r = Bag(x)
+        assert(r==b)
 
 
 

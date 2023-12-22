@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <GenRoBag>
 	<db>
-		<postgres host="localhost" password="postgres" user="postgres" dbname="testdb" />
+		<postgres host="localhost" password="cgabriel" user="cgabriel" dbname="testdb" />
 		<sqlite filename="testsqlite.db" />
 	</db>
 </GenRoBag>

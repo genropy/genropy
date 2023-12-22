@@ -24,17 +24,17 @@
 """
 Some useful operations on lists.
 """
-from __future__ import print_function
 from past.builtins import cmp,basestring
 from functools import cmp_to_key
 from builtins import range
+import datetime
+import csv
+
 
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrexporter import BaseWriter
-import datetime
-import csv
 
 class FakeList(list):
     pass

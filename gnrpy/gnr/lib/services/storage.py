@@ -1,25 +1,26 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 
 import os
 import re
 import random
 from datetime import datetime
-from gnr.core import gnrstring
-from gnr.core.gnrbag import Bag,DirectoryResolver,BagResolver
-from gnr.lib.services import GnrBaseService,BaseServiceType
 import os
 import shutil
-from gnr.core.gnrsys import expandpath
+
 import mimetypes
 from paste import fileapp
 from paste.httpheaders import ETAG
 from subprocess import call,check_call, check_output
 import stat
+
+from gnr.core.gnrsys import expandpath
+from gnr.core import gnrstring
+from gnr.core.gnrbag import Bag,DirectoryResolver,BagResolver
+from gnr.lib.services import GnrBaseService,BaseServiceType
+
 class NotExistingStorageNode(Exception):
     pass
 

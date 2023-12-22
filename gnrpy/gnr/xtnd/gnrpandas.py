@@ -4,17 +4,15 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
-#from builtins import object
+
 import os
-from gnr.core.gnrbag import Bag
-from datetime import datetime
-from gnr.core.gnrstring import toText
-#from gnr.core.gnrdecorator import timer_call
 from collections import defaultdict,OrderedDict
+from datetime import datetime
+
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import toText
 from gnr.core.gnrstring import splitAndStrip
 
 REPORT_INDEX_HTML = """

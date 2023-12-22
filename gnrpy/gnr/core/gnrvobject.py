@@ -51,13 +51,12 @@ UID         Unique Identifier   Specifies a value that represents a persistent, 
 VERSION     Version Version of the vCard Specification
 KEY         Public Key  The public encryption key associated with the vCard object
 """
-from __future__ import print_function
 
-
-from gnr.core.gnrbag import Bag
 import os.path
 import sys
 import vobject
+
+from gnr.core.gnrbag import Bag
 
 VALID_VCARD_TAGS = ['n','fn','nickname','photo','bday','adr','label','tel','email',
               'mailer','tz','geo','title','role','logo','agent','org','note',

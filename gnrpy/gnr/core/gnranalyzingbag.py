@@ -1,8 +1,7 @@
-from __future__ import division
-#import itertools
 from builtins import str
 from past.builtins import basestring
 from past.utils import old_div
+
 from gnr.core.gnrbag import Bag
 
 class AnalyzingBag(Bag):

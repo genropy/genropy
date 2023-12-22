@@ -1,4 +1,3 @@
-from __future__ import print_function
 from gnr.core.gnrbag import Bag, BagCbResolver
 
 def hello(x=''):

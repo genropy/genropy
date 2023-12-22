@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package            : GenroPy web - see LICENSE for details
@@ -22,21 +22,16 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from future import standard_library
-standard_library.install_aliases()
-
 import _thread
-
 from time import time
+from threading import RLock
+from collections import defaultdict
+
 from gnr.core.gnrstring import boolean
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
-from threading import RLock
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
-
-
-from collections import defaultdict
 
 class SharedLockedObject(object):
     """docstring for SharedLockedObject"""

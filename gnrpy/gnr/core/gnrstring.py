@@ -20,10 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import division
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
 from builtins import filter
 from builtins import chr
 from builtins import str
@@ -545,7 +541,7 @@ def asDict(myString, itemSep=',', argSep='=', symbols=None):
         item = item.strip().strip(itemSep)
         key, value = split(item, argSep)
 
-        key = key.strip().encode()
+        key = key.strip()
         value = value.strip()
         if value.startswith("'"): result[key] = value.strip("'")
         elif value.startswith('"'): result[key] = value.strip('"')

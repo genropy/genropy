@@ -1,2 +1,5 @@
 coverage
 logs.log
+.coverage
+dbstructure.xml
+sql/data/*.pik

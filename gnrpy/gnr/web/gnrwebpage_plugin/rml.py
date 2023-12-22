@@ -7,12 +7,12 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 # --------------------------- GnrWebPage subclass ---------------------------
-from __future__ import absolute_import
-from future import standard_library
-standard_library.install_aliases()
+
 from builtins import str
-from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
 from .mako.lookup import TemplateLookup
+
+from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
+
 
 
 class Plugin(GnrBasePlugin):

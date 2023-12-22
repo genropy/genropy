@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -20,14 +20,13 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
-import sys
 
+import sys
 import re
 import select
+
 try:
     import psycopg2
 except ImportError:

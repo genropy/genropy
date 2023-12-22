@@ -20,24 +20,24 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
 
 import inspect
-#import weakref
-import sys, imp, traceback, datetime
+import sys, traceback, datetime
+import importlib
+from importlib.machinery import SourceFileLoader
 import os.path
 import _thread
 import warnings
 import atexit
 import uuid
 import base64
-from gnr.core.gnrdecorator import deprecated,extract_kwargs # keep for compatibility
 from types import MethodType
 from io import IOBase
+
+from gnr.core.gnrdecorator import deprecated,extract_kwargs # keep for compatibility
+
 try:
     file_types = (file, IOBase)
 except NameError:
@@ -292,7 +292,6 @@ def moduleDict(module, proplist):
     return result
 
 def gnrImport(source, importAs=None, avoidDup=False, silent=True,avoid_module_cache=None):
-    import importlib
     modkey = source
     path_sep = os.path.sep
     if path_sep in source:
@@ -467,11 +466,12 @@ class GnrImportedModule(object):
         
     def load(self):
         """TODO"""
+        m_name = os.path.basename(self.path).split(".")[0]
         if self.path.endswith('py'):
-            self.module = imp.load_source(self.name, self.path)
+            script_path = os.path.abspath(self.path)
+            self.module = SourceFileLoader(m_name, script_path).load_module()
         else:
             self.module = imp.load_compiled(self.name, self.path)
-            #globals()[self.name]=self.module
             
     def update(self):
         """TODO"""

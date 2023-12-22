@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqltable : Genro sql table object.
@@ -21,9 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-#import weakref
-from __future__ import division
-from __future__ import print_function
 from past.builtins import cmp
 from builtins import str
 from builtins import range

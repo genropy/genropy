@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
 #
 from datetime import datetime
 import logging
 from multiprocessing import Process, log_to_stderr, get_logger, Manager
+import atexit
+import os
+import time
+import Pyro4
+
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 from gnr.core.gnrlang import gnrImport
 from gnr.core.gnrbag import Bag,NetBag
@@ -18,12 +20,9 @@ from gnr.app.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlog import log_styles
-import atexit
-import os
-import time
-import Pyro4
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
 from gnr.web.gnrtask import GnrTaskScheduler
+
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):

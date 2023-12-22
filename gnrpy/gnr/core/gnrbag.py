@@ -54,14 +54,11 @@ to interact with BagNode instances inside a Bag.
           You will see this notation frequently in the :ref:`Genro Library Reference <library_reference>`
           
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
-from __future__ import print_function
 
 #import weakref
 from past.builtins import cmp
 from functools import cmp_to_key
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import zip
 from builtins import chr
 from builtins import str

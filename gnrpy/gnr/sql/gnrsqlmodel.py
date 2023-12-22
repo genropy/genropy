@@ -20,15 +20,15 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-#import weakref
-from __future__ import print_function
 from builtins import str
 from builtins import range
-#from builtins import object
 import logging
 import copy
-
 from datetime import datetime,timedelta
+import threading
+import re
+
+
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
@@ -39,8 +39,6 @@ from gnr.sql.gnrsqlutils import SqlModelChecker, ModelExtractor
 from gnr.sql.gnrsqltable import SqlTable
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlMissingTable,\
     GnrSqlMissingColumn, GnrSqlRelationError
-import threading
-import re
 
 logger = logging.getLogger(__name__)
 
