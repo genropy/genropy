@@ -665,7 +665,6 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         objectExtract(attributes, 'selected*');
         var savedAttrs = {};        
         var identifier = attributes.identifier || '_pkey';
-        console.log('attributes',attributes,identifier)
         attributes.datamode = attributes.datamode || 'attr';
         attributes.rowsPerPage = attributes.rowsPerPage || 10;
         attributes.rowCount = attributes.rowCount || 0;

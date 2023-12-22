@@ -3035,10 +3035,12 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
                 }
                 formData.setItem(pkeyField,newPkey);
             }
-            parentStore.newItemFromRecord(formData);
+            parentStore.newItemFromRecord(newPkey,formData);
+            destPkey = newPkey;
         }else{
-            parentStore.updateItemFromRecord(formData);
+            parentStore.updateItemFromRecord(formData,newPkey,currPkey);
         }
+        form.setCurrentPkey(newPkey);
         var result = {};
         this.saved(result);
         if(destPkey){

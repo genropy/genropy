@@ -6260,8 +6260,16 @@ dojo.declare("gnr.stores._Collection",null,{
     newItemFromRecord:function(record){
 
     },
-    updateItemFromRecord:function(pkey,record){
-        this.updateRowNode(this.rowBagNodeByIdentifier(pkey),this.rowFromItem(record))
+    updateItemFromRecord:function(record,pkey,oldpkey){
+        var row = {};
+        record.forEach(function(n){
+            let v = n.getValue();
+            row[n.label] = v;
+        })
+        row[this.identifier] = pkey
+        let rowNode = this.rowBagNodeByIdentifier(oldpkey);
+        this.updateRowNode(rowNode,row);
+        rowNode.label = pkey;
     },
 
     deleteRows:function(pkeys,protectPkeys){
@@ -6702,6 +6710,15 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
 
         return result;
     },
+    newItemFromRecord:function(pkey,record){
+        var row = {};
+        record.forEach(function(n){
+            let v = n.getValue();
+            row[n.label] = v;
+        });
+        record.setItem(this.identifier,pkey);
+        this.getData().addItem(pkey,record.deepCopy());
+    },
 
     updateRowNode:function(rowNode,updDict){
         var rowData = rowNode.getValue();
@@ -6769,6 +6786,16 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         result[this.identifier] = isNullOrBlank(result[this.identifier])? item.label:result[this.identifier];
         return result;
     },
+    newItemFromRecord:function(pkey,record){
+        var row = {};
+        record.forEach(function(n){
+            let v = n.getValue();
+            row[n.label] = v;
+        });
+        row[this.identifier] = pkey;
+        this.getData().addItem(pkey,null,row);
+    },
+
     updateRowNode:function(rowNode,updDict){
         var idx = this.getData().index(rowNode.label);
         rowNode.updAttributes(updDict,{editedRowIndex:idx});
