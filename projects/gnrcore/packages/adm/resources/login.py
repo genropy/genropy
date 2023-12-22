@@ -100,7 +100,8 @@ class LoginComponent(BaseComponent):
                         condition="""$code IN :all_groups 
                                     AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
                         condition_secret_2fa='=gnr.avatar.secret_2fa',
-                    condition_all_groups='^.all_groups',validate_notnull='^.group_selector',
+                    condition_all_groups='^.all_groups?=#v || []',
+                    validate_notnull='^.group_selector',
                     disabled='^.group_selector?=!#v',
                     row_hidden='^.group_selector?=!#v',
                     lbl='!![en]Group',hasDownArrow=True,
@@ -267,11 +268,14 @@ class LoginComponent(BaseComponent):
         data['serverTimeDelta'] = serverTimeDelta
         data['group_selector'] = False
         if avatar.extra_kwargs.get('multi_group'):
-            other_groups = self.db.table('adm.user_group').query(where='$user_id=:uid',uid=avatar.user_id).fetch()
+            other_groups = self.db.table('adm.user').readColumns(columns='$other_groups',pkey=avatar.user_id)
+            other_groups = [r for r in other_groups.split(',') if r]
             data['all_groups'] = [avatar.main_group_code]
             if other_groups:
-                data['all_groups'] = [avatar.main_group_code] + [g['group_code'] for g in other_groups]
+                data['all_groups'] = [avatar.main_group_code] + other_groups
                 data['group_selector'] = True
+        elif avatar.main_group_code:
+            data['all_groups'] = [avatar.main_group_code]
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
         default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()
