@@ -187,7 +187,8 @@ class TableHandlerForm(BaseComponent):
 
         readOnly = options.pop('readOnly',False)
         modal = options.pop('modal',dict())
-        if modal is True:
+        modal_modes = ('ask','confirm')
+        if boolean(modal) and modal not in modal_modes:
             modal = dict(mode='ask' if not readOnly else 'confirm')
         elif isinstance(modal,str):
             modal = dict(mode=modal)

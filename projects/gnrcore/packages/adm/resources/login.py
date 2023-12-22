@@ -274,7 +274,7 @@ class LoginComponent(BaseComponent):
             if other_groups:
                 data['all_groups'] = [avatar.main_group_code] + other_groups
                 data['group_selector'] = True
-        elif avatar.main_group_code:
+        elif avatar.extra_kwargs.get('main_group_code'):
             data['all_groups'] = [avatar.main_group_code]
         self.callPackageHooks('onUserSelected',avatar,data)
         canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
