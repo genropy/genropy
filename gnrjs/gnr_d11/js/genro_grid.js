@@ -665,6 +665,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         objectExtract(attributes, 'selected*');
         var savedAttrs = {};        
         var identifier = attributes.identifier || '_pkey';
+        console.log('attributes',attributes,identifier)
         attributes.datamode = attributes.datamode || 'attr';
         attributes.rowsPerPage = attributes.rowsPerPage || 10;
         attributes.rowCount = attributes.rowCount || 0;
@@ -1975,6 +1976,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
 
                     var that = this;
                     rowBag.forEach(function(n){
+                        n.attr._cell_label = n.label;
                         cell = that.structFromBag_cell(sourceNode,n,columnsets);
                         row.push(cell);
                         cellmap[cell.field] = cell;

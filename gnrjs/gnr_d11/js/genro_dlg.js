@@ -468,10 +468,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         if(!dlgNode){
             dlgKw.autoSize = false;
             dlgKw.closable = true;
-            var dlg = genro.src.create('dialog',dlgKw,'_rmt_dlg');
-            var kw = {};
-            for (var k in remoteKw){
-                kw['remote_'+k] = remoteKw[kw];
+            let dlg = genro.src.create('dialog',dlgKw,'_rmt_dlg');
+            let kw = {};
+            for (let k in remoteKw){
+                kw['remote_'+k] = remoteKw[k];
             }
             kw.min_height = '1px';
             kw.min_width = '1px';
@@ -486,18 +486,19 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
     
 
-    remoteFloatingPane:function(name,remote,remoteKw,kw){
+    remoteFloatingPane:function(name,remote,remoteKw,floatingKW){
         remoteKw = remoteKw || {};
-        kw = kw || {};
-        kw.autoSize = kw.autoSize || false;
-        kw.nodeId = 'remote_palette_'+name;
-        var sourceNode = genro.nodeById(kw.nodeId);
+        floatingKW = floatingKW || {};
+        floatingKW.autoSize = floatingKW.autoSize || false;
+        floatingKW.nodeId = 'remote_palette_'+name;
+        var sourceNode = genro.nodeById(floatingKW.nodeId);
         if(!sourceNode){
-            kw.closable = true;
-            var floatingPane = genro.src.create('FloatingPane',kw,'_remote_palette');
-            var kw = {};
-            for (var k in remoteKw){
-                kw['remote_'+k] = remoteKw[kw];
+            floatingKW.closable = true;
+            floatingKW.dockable = false;
+            var floatingPane = genro.src.create('FloatingPane',floatingKW,'_remote_palette');
+            let kw = {};
+            for (let k in remoteKw){
+                kw['remote_'+k] = remoteKw[k];
             }
             kw.remote = remote;
             floatingPane._('contentPane',kw);

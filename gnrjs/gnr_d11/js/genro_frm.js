@@ -2992,15 +2992,11 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             envelope.setItem('record',data,{_newrecord:true,lastTS:null,caption:kw.newrecord_caption});
             
         }else{
-            var dataNode = this.parentStore.rowBagNodeByIdentifier(currPkey);
-            genro.assert(dataNode,'Missing data for currentPath',currPkey);
-            var kw = objectExtract(dataNode.attr,'lastTS,caption,_protect_delete,_protect_write,_pkey',true);
-            var recordLoaded = new gnr.GnrBag();
-            var d = dataNode.getValue().deepCopy();
-            d.walk(function(n){n.attr = {}})
-            d.forEach(function(n){
-                recordLoaded.setItem(n.label,n.getValue());
-            });
+            var parentIdx = this.parentStore.getIdxFromPkey(currPkey);
+            var row = this.parentStore.rowByIndex(parentIdx,true);
+            genro.assert(row,'Missing data for currentPath',currPkey);
+            let kw = objectExtract(row,'lastTS,caption,_protect_delete,_protect_write,_pkey',true);
+            var recordLoaded = new gnr.GnrBag(row);
             envelope.setItem('record',recordLoaded,kw);
         }
         var result = envelope.getNode('record');    
@@ -3010,6 +3006,51 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
     
     
     save_memory:function(kw){
+        //COLLECTION
+        var form = this.form;
+        var saveKw = form.sourceNode.evaluateOnNode(this.handlers.save.kw);
+        saveKw = objectUpdate(saveKw,kw);
+        var destPkey = objectPop(saveKw,'destPkey');
+        var parentStore = this.parentStore;
+        //var sourceBag = form.sourceNode.getRelativeData(this.locationpath);
+        var formData = form.getFormData();
+        var onSaving = objectPop(saveKw,'onSaving');
+        if(onSaving){
+            var dosave = funcApply(onSaving,{data:formData},this);
+            if(dosave===false){
+                this.form.setOpStatus(null);
+                return;
+            }
+        }
+        var currPkey = form.getCurrentPkey();
+        var pkeyField = this.pkeyField || '_pkey';
+        var newPkey = pkeyField?formData.getItem(pkeyField):null;
+        var newrecord = currPkey=='*newrecord*';
+        if(newrecord){
+            if (!newPkey){
+                if(this.newPkeyCb){
+                    newPkey = funcApply(this.newPkeyCb,{record:formData},form);
+                }else{
+                    newPkey = 'r_'+genro.time36Id();
+                }
+                formData.setItem(pkeyField,newPkey);
+            }
+            parentStore.newItemFromRecord(formData);
+        }else{
+            parentStore.updateItemFromRecord(formData);
+        }
+        var result = {};
+        this.saved(result);
+        if(destPkey){
+            this.form.reset();
+            this.form.load({destPkey:destPkey});
+        }else{
+            this.form.load({destPkey:newPkey}); 
+        }
+
+    },
+
+    old_save_memory:function(kw){
         //COLLECTION
         var form = this.form;
         var saveKw = form.sourceNode.evaluateOnNode(this.handlers.save.kw);
@@ -3073,6 +3114,8 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
         }
 
     },
+
+
     del_memory:function(pkey,callkw){
         //COLLECTION
         var sourceBag = this.form.sourceNode.getRelativeData(this.locationpath);

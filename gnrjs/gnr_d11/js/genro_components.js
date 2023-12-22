@@ -6257,6 +6257,13 @@ dojo.declare("gnr.stores._Collection",null,{
     },
     
     
+    newItemFromRecord:function(record){
+
+    },
+    updateItemFromRecord:function(pkey,record){
+        this.updateRowNode(this.rowBagNodeByIdentifier(pkey),this.rowFromItem(record))
+    },
+
     deleteRows:function(pkeys,protectPkeys){
         return;
     },
@@ -6625,8 +6632,9 @@ dojo.declare("gnr.stores.BagRows",gnr.stores._Collection,{
             grid.selection.unselectAll()
         });
         var that = this;
-        pkeys.forEach(function(n){
-            data.popNode(n);
+        pkeys.forEach(function(pkey){
+            let node = that.rowBagNodeByIdentifier(pkey);
+            data.popNode(node.label);
         });
         this.linkedGrids().forEach(function(grid){
             grid.sourceNode.publish('onDeletedRows',{pkeys:pkeys,protectPkeys:protectPkeys})

@@ -562,10 +562,36 @@ class FrameGrid(BaseComponent):
 
 
     @public_method
-    def extendedColumnEditor(self,pane,gridId=None,**kwargs):
-        bc = pane.borderContainer()
-        bc.contentPane(region='top',height='20px',background='pink')
-        bc.contentPane(region='center',background='lime').div(gridId)
+    def extendedColumnEditor(self,pane,gridId=None,structpath=None,**kwargs):
+        sc = pane.stackContainer(_workspace=True)
+        fg = sc.contentPane(pageName='view').bagGrid(frameCode=f'V_{gridId}_extendedColumnEditor',childname='view',
+                                                     storepath=f'{structpath}.view_0.rows_0',datamode='attr',
+                                                    datapath='#WORKSPACE.extendedColumnEditor.view',
+                                                    store__identifier = '_cell_label',
+                                                    struct=self._extendedColumnEditor_struct)
+        form = fg.grid.linkedForm(frameCode=f'F_{gridId}_extendedColumnEditor',
+                                  datapath='#WORKSPACE.extendedColumnEditor.form',
+                                 loadEvent='onRowDblClick',formRoot=sc,
+                                 handlerType='stack',
+                                 childname='form',attachTo=sc,store='memory',
+                                 default_dtype='T',default_calculated='T'
+                                 ,store_pkeyField='_cell_label')
+        self._extendedColumnEditor_form(form)
+    
+    def _extendedColumnEditor_form(self,form):
+        form.record.div('^.field')
+
+        
+    def _extendedColumnEditor_struct(self,struct):
+        r=struct.view().rows()
+        r.cell('field',name='Field',width='12em')
+        r.cell('dtype',name='Type',width='5em')
+        r.cell('name',name='Name',width='12em')
+        r.cell('formula',name='Formula',width='12em')
+        r.cell('columnset',name='Columnset')
+
+
+
 
 class TemplateGrid(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/tpleditor:ChunkEditor'
