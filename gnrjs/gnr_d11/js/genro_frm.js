@@ -3012,7 +3012,6 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
         saveKw = objectUpdate(saveKw,kw);
         var destPkey = objectPop(saveKw,'destPkey');
         var parentStore = this.parentStore;
-        //var sourceBag = form.sourceNode.getRelativeData(this.locationpath);
         var formData = form.getFormData();
         var onSaving = objectPop(saveKw,'onSaving');
         if(onSaving){

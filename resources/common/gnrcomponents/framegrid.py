@@ -562,26 +562,66 @@ class FrameGrid(BaseComponent):
 
 
     @public_method
-    def extendedColumnEditor(self,pane,gridId=None,structpath=None,**kwargs):
-        sc = pane.stackContainer(_workspace=True)
+    def extendedColumnEditor(self,pane,gridId=None,structpath=None,startKey=None,**kwargs):
+        frame = pane.framePane(frameCode=f'ext_col_editor_{gridId}',_workspace=True)
+        bar = frame.top.slotToolbar('5,stackButtons,*,saveConfiguration,5')
+        bar.saveConfiguration.slotButton('Save configuration',iconClass='iconbox save',
+                action=f"""genro.grid_configurator.saveGridView("{gridId}");""")
+        
+
+        sc = frame.center.stackContainer()
+        self.extendedColumnEditor_colsEditor(sc.stackContainer(title='Columns'),gridId=gridId,structpath=structpath)
+        self.extendedColumnEditor_colsSets(sc.contentPane(title='Columnsets'))
+
+    def extendedColumnEditor_colsSets(self,pane):
+        pass
+
+    def extendedColumnEditor_colsEditor(self,sc,gridId=None,structpath=None,startKey=None,**kwargs):
         fg = sc.contentPane(pageName='view').bagGrid(frameCode=f'V_{gridId}_extendedColumnEditor',childname='view',
                                                      storepath=f'{structpath}.view_0.rows_0',datamode='attr',
                                                     datapath='#WORKSPACE.extendedColumnEditor.view',
                                                     store__identifier = '_cell_label',
                                                     struct=self._extendedColumnEditor_struct)
+
         form = fg.grid.linkedForm(frameCode=f'F_{gridId}_extendedColumnEditor',
                                   datapath='#WORKSPACE.extendedColumnEditor.form',
                                  loadEvent='onRowDblClick',formRoot=sc,
                                  handlerType='stack',
+                                 store_newPkeyCb="return 'cell_'+genro.time36Id()",
+                                 pageName='form',store_startKey=startKey,
                                  childname='form',attachTo=sc,store='memory',
                                  default_dtype='T',default_calculated='T'
                                  ,store_pkeyField='_cell_label')
         self._extendedColumnEditor_form(form)
     
     def _extendedColumnEditor_form(self,form):
-        form.record.div('^.field')
+        form.top.slotToolbar('5,navigation,10,ftitle,*,form_delete,form_add,form_save,semaphore,5')
 
-        
+        tc = form.center.tabContainer(margin='2px')
+        pane = tc.contentPane(title='Column info')
+        fb = pane.formbuilder(datapath='.record')
+        fb.textbox(value='^.field',unmodifiable=True,lbl='Field')
+        fb.textbox(value='^.sqlcolumn',disabled=True,hidden='^.calculated')
+        fb.checkbox(value='^.calculated',label='Calculated')
+        fb.filteringSelect(value='^.dtype',lbl='Dtype',disabled='^.sqlcolumn',
+                           values='T:Text,L:Integer,N:Decimal,D:Date,DH:DateTime,DHZ:DateTime(TZ),B:Boolean,H:Time,P:Image')
+        fb.textbox(value='^.name',lbl='Name')
+        fb.textbox(value='^.customClasses',lbl='Custom classes')
+        fb.checkbox(value='^.totalize',label='Totalize',
+                    hidden='^.dtype?="NRFLI".indexOf(#v)<0')
+
+        fb.textbox(value='^.format',lbl='Format')
+        fb.filteringSelect(value='^.sort',lbl='Sort',values='a:Ascending,d:Descending')
+
+        pane = tc.contentPane(title='Styles').codemirror(
+            value='^.record.customStyles'
+        )
+
+
+
+
+
+
     def _extendedColumnEditor_struct(self,struct):
         r=struct.view().rows()
         r.cell('field',name='Field',width='12em')

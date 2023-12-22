@@ -193,7 +193,7 @@ var genro_plugin_grid_configurator = {
     configuratorExtendedColumnEditor:function(gridId,cell,parentDomNode){
         var gridNode = genro.nodeById(gridId);
         genro.dlg.remoteFloatingPane('extendedColumnEditor_'+gridId,'extendedColumnEditor',{
-            'gridId':gridId,
+            'gridId':gridId,'startKey':cell._cell_label,
             'structpath':gridNode.absDatapath(gridNode.attr.structpath),
         },{height:'500px',width:'600px',title:'Extended column editor'});
 
