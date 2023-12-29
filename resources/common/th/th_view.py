@@ -28,10 +28,12 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_tableViewer(self,pane,frameCode=None,table=None,th_pkey=None,viewResource=None,
                        virtualStore=None,condition=None,condition_kwargs=None,
-                       structure_field=None,structure_field_kwargs=None,sections_kwargs=None,store_kwargs=None,**kwargs):
+                       structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
+                       store_kwargs=None,extendedQuery=None,**kwargs):
         self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
-    
-        options = self._th_hook('options',mangler=frameCode)() or dict()
+        options = self._th_getOptions(frameCode)
+        if extendedQuery is None:
+            extendedQuery = options.get('extendedQuery')
         structure_field = structure_field or options.get('structure_field')
         store_kwargs.setdefault('subtable',options.get('subtable'))
         kwargs.update(dictExtract(options,'grid_'),slice_prefix=False)
@@ -58,7 +60,7 @@ class TableHandlerView(BaseComponent):
                                  condition=condition,condition_kwargs=condition_kwargs,
                                  _sections_dict=sections_kwargs,
                                  selectedPage='^.viewPage',resourceOptions=options,
-                                 store_kwargs=store_kwargs,**kwargs)
+                                 store_kwargs=store_kwargs,extendedQuery=extendedQuery,**kwargs)
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
@@ -563,7 +565,7 @@ class TableHandlerView(BaseComponent):
 
     @struct_method
     def th_slotbar_importer(self,pane,frameCode=None,importer=None,**kwargs):
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         tags = options.get('uploadTags') or '_DEV_,superadmin'
         inattr = pane.getInheritedAttributes()
         table = inattr['table']
@@ -998,7 +1000,7 @@ class TableHandlerView(BaseComponent):
         pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
                         table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
 
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         #SOURCE MENUPRINT
         pane.dataRemote('.resources.print.menu',self.th_printMenu,table=table,
                         flags=options.get('print_flags'),
@@ -1144,7 +1146,7 @@ class TableHandlerView(BaseComponent):
             querybase = self._th_hook('query',mangler=th_root)() or dict(column=(tblobj.attributes.get('caption_field') or tblobj.pkey),op='contains',val='')
         queryBag = self.th_prepareQueryBag(querybase,table=table)
         frame.data('.baseQuery', queryBag)
-        options = self._th_hook('options',mangler=th_root)() or dict()
+        options = self._th_getOptions(th_root)
         pageOptions = self.pageOptions or dict()
         #liveUpdate: 'NO','LOCAL','PAGE'
         liveUpdate = liveUpdate or options.get('liveUpdate') or pageOptions.get('liveUpdate') or self.site.config['options?liveUpdate'] or 'LOCAL'
@@ -1460,7 +1462,7 @@ class TableHandlerView(BaseComponent):
                   th.querymanager = th.querymanager || new gnr.QueryManager(th,this,table);""" 
                , _init=True, _onBuilt=True, table=table,th_root = th_root)
         fmenupath = 'gnr.qb.%s.fieldsmenu' %tablecode
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options =  self._th_getOptions(pane)
         pane.dataRemote(fmenupath,self.relationExplorer,item_type='QTREE',
                         branch=options.get('branch'),
                         table=table,omit='_*')
@@ -1543,7 +1545,7 @@ class TableHandlerView(BaseComponent):
         tblattr = dict(self.db.table(table).attributes)
         tblattr.pop('tag',None)
         pane.data('.table',table,**tblattr)
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         excludeLogicalDeleted = options.get('excludeLogicalDeleted',excludeLogicalDeleted)
         if excludeLogicalDeleted is None:
             excludeLogicalDeleted = True

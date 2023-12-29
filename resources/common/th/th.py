@@ -470,7 +470,7 @@ class TableHandler(BaseComponent):
                                         default_kwargs=default_kwargs,configurable=configurable,
                                         _foreignKeyFormPath='=#FORM',**kwargs)
         remoteRowController = self._th_hook('remoteRowController',dflt=None,mangler=wdg.view) or None
-        options = self._th_hook('options',mangler=wdg.view)() or dict()
+        options = self._th_getOptions(wdg.view)
         wdg.view.store.attributes.update(recordResolver=False)
         wdg.view.grid.attributes.update(remoteRowController=remoteRowController,
                                         defaultPrompt = defaultPrompt or options.get('defaultPrompt'),
@@ -751,8 +751,16 @@ class MultiButtonForm(BaseComponent):
             form.dataController("""
                 mb.setRelativeData('.value',pkey=='*newrecord*'?'_newrecord_':pkey);
                 """,formsubscribe_onCancel=True,mb=mb,pkey='=.pkey')
-            resetpkey = "this.setRelativeData('.value','*norecord*');"
+            resetpkey = """SET .lastkey = GET .value;
+                           PUT .value = '*norecord*';"""
+            restorepkey = """let lastkey = GET .lastkey;
+                            if(result && result.getValue().getNodeByAttr('_pkey',lastkey)){
+                                SET .value = lastkey;
+                            }
+            """
+
             store_kwargs['_onCalling'] = f'{resetpkey};{store_kwargs["_onCalling"]}' if store_kwargs.get("_onCalling") else resetpkey
+            store_kwargs['_onResult'] = f'{restorepkey};{store_kwargs["_onResult"]}' if store_kwargs.get("_onResult") else restorepkey
         store_kwargs['_if'] = store_kwargs.pop('if',None) or store_kwargs.pop('_if',None)
         store_kwargs['_else'] = "this.store.clear(); SET .value = '*norecord*'"
         tblobj = self.db.table(table)
@@ -770,6 +778,7 @@ class MultiButtonForm(BaseComponent):
         rpc = mb.store(table=table,condition=condition,**store_kwargs)
         frame.multiButtonView = mb
         return frame
+    
 
 
     def _th_appendExternalForm(self,sc,formId=None,pars=None,columnslist=None,switchdict=None,storetable=None,
