@@ -22,7 +22,7 @@ class TableHandlerForm(BaseComponent):
         table = table or pane.attributes.get('table')
         self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
         options = dfltoption_kwargs
-        options.update(self._th_hook('options',mangler=frameCode,dflt=dict())())
+        options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
         options['store_startKey'] = options.get('store_startKey') or options.get('startKey')
         linkTo = pane        
@@ -122,7 +122,7 @@ class TableHandlerForm(BaseComponent):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
         self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
-        resource_options = self._th_hook('options',mangler=formId,dflt=dict())()
+        resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)
         if not handlerType:

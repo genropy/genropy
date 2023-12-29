@@ -470,7 +470,7 @@ class TableHandler(BaseComponent):
                                         default_kwargs=default_kwargs,configurable=configurable,
                                         _foreignKeyFormPath='=#FORM',**kwargs)
         remoteRowController = self._th_hook('remoteRowController',dflt=None,mangler=wdg.view) or None
-        options = self._th_hook('options',mangler=wdg.view)() or dict()
+        options = self._th_getOptions(wdg.view)
         wdg.view.store.attributes.update(recordResolver=False)
         wdg.view.grid.attributes.update(remoteRowController=remoteRowController,
                                         defaultPrompt = defaultPrompt or options.get('defaultPrompt'),

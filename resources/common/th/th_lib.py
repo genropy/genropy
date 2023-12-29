@@ -118,6 +118,17 @@ class TableHandlerCommon(BaseComponent):
         resourceName = self._th_getResourceName(resourceName,defaultModule,defaultClass)
         return self.importTableResource(table,resourceName)
             
+    def _th_getOptions(self,mangler=None):
+        if isinstance(mangler,Bag):
+            inattr = mangler.getInheritedAttributes()
+            mangler = inattr.get('th_root') or inattr.get('frameCode') or inattr.get('nodeId')
+        options = self._th_hook('options',mangler=mangler)() or dict()
+        options_extra = self._th_hook('options',mangler=mangler,asDict=True)
+        for fname,hook in options_extra.items():
+            key = fname.replace(f'{mangler}_options_','')
+            options[key] = hook()
+        return options
+    
     def _th_hook(self,method,mangler=None,asDict=False,dflt=None,defaultCb=None):
         if isinstance(mangler,Bag):
             inattr = mangler.getInheritedAttributes()
