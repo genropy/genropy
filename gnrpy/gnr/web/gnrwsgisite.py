@@ -1028,7 +1028,7 @@ class GnrWsgiSite(object):
         if request_kwargs.get('_subdomain'):
             self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
         if request_kwargs.get('temp_dbstore','').startswith('@'):
-            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"]}'
+            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
 
     def _registerAuxInstanceDbStore(self,storename):
         instance_name = storename.replace('instance_','')

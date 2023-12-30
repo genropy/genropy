@@ -203,6 +203,7 @@ class GnrWebPage(GnrBaseWebPage):
                                            connection_id=request_kwargs.pop('_connection_id', None),
                                            user=request_kwargs.pop('_user', None))
         page_id = request_kwargs.pop('page_id', None)
+        self.subdomain = request_kwargs.pop('_subdomain',None) if page_id else request_kwargs.get('_subdomain')        
         self.root_page_id = None
         self.parent_page_id = None
         self.sourcepage_id = request_kwargs.pop('sourcepage_id', None)
