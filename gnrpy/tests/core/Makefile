@@ -13,7 +13,7 @@ string:
 	py.test gnrstring_test.py $(COVER_OPTS) --cov=gnr.core.gnrstring
 
 locale:
-	py.test locale_test.py $(COVER_OPTS) --cov=gnr.core.gnrlocale
+	py.test gnrlocale_test.py $(COVER_OPTS) --cov=gnr.core.gnrlocale
 
 resolver:
-	py.test resolver_test.py $(COVER_OPTS) --cov=gnr.core
+	py.test gnrresolver_test.py $(COVER_OPTS) --cov=gnr.core
