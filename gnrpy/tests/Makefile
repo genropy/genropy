@@ -1,4 +1,4 @@
+COVER_OPTS=--cov-report=html --cov=gnr
+
 tests:
-	coverage run -m pytest core sql web
-	coverage report 
-	coverage html
+	py.test $(COVER_OPTS) core sql web
