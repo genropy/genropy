@@ -136,7 +136,9 @@ def sortByAttr(l, *args):
     return l
 
 def merge(*args):
-    """TODO"""
+    """TODO
+    FIXME: args elements must be iterable, but they're not checked
+    """
     result = list(args[0])
     for l in args[1:]:
         for el in l:
@@ -561,7 +563,13 @@ class XmlReader(object):
         
             
 class GnrNamedList(list):
-    """Row object. Allow access to data by column name. Allow also to add columns and alter data."""
+    """Row object. Allow access to data by column name. Allow also to add columns and alter data.
+    
+    :param index: a dict object with the column name as key, and the integer index of the value
+    :param values: a list of values ordered as 'index' key/values definition
+
+    FIXME: costructor's parameters types/interfaces are not checked.
+    """
     def __init__(self, index, values=None):
         self._index = index
         if values is None:
