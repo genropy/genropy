@@ -1,4 +1,4 @@
-COVER_OPTS=--cov-report=html
+COVER_OPTS=--cov-report=html --cov=gnr.core
 
 tests:
 	py.test *.py $(COVER_OPTS) --cov=gnr.core
