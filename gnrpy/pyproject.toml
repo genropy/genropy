@@ -67,8 +67,8 @@ dependencies = [
 pgsql = ["psycopg2"]
 mysql = ["mysqlclient"]
 developer = [
-	  "pytest", "nose", "graphviz",
-	  "coverage", "build", "twine"
+	  "pytest", "pytest-cov", "graphviz",
+	  "build", "twine"
 	    ]
 
 [project.scripts]
