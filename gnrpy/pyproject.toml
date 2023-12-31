@@ -58,6 +58,9 @@ dependencies = [
 	     "jsmin",
 	     "paramiko", # gnr.core.gnrssh
 	     "pysqlite3", # alway installed by default
+	     "dulwich", # needed by gnrgit
+	     "reportlab",
+	     "caldav", 
 	     ]
 
 [project.optional-dependencies]
