@@ -29,7 +29,7 @@ dependencies = [
 	     "mako",
 	     "vobject",
 	     "pytz",
-	     "babel",
+	     "babel==2.13.1",
 	     "httplib2",
 #	     "selectors34", #apparently abandoned
 #	     "serpent<1.30", #it's a pyro dependencies, so it seem
