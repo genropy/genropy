@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 
 from gnr.core.gnrbag import Bag
+from gnr.core import gnrclasses
 import gnr.core.gnrstring as gs
 
 class TestTypedJSON(object):
@@ -65,3 +66,59 @@ class TestTypedJSON(object):
 
 
 
+def test_gnrclasscatalog():
+    gnrclasses.GnrClassCatalog.convert()
+    cc = gnrclasses.GnrClassCatalog()
+    cc.addClass(int, "integer")
+    res = cc.getEmpty("foo")
+    assert res is None
+    res = cc.getEmpty("integer")
+    assert res is None
+    res = cc.getEmpty("BAG")
+    assert res.__class__ == Bag
+
+    res = cc.getAlign("BAG")
+    assert res == 'L'
+    res = cc.getAlign(Bag)
+    assert res == 'L'
+    res = cc.getAlign(1)
+    assert res == 'L'
+
+    res = cc.getClassKey(1)
+    assert res == 'integer'
+    res = cc.getClass('integer')
+    assert res == int
+
+    res = cc.asText(1)
+    assert res == '1'
+    
+    res = cc.asText('integer', translate_cb=lambda x: f'{x} translated')
+    assert res == "integer translated"
+
+    res = cc.asText('integer', quoted=True,
+                    translate_cb=lambda x: f'{x} translated')
+    assert res == '"integer translated"'
+
+    res = cc.quoted('"foobar"')
+    assert res == '\'"foobar"\''
+
+    res = cc.isTypedText("foobar")
+    assert res == False
+
+    res = cc.isTypedText("foobar::HTML")
+    assert res == True
+    res = cc.isTypedText("foobar::SARCHIAPONE")
+    assert res == False
+
+    res = cc.fromTypedText(1)
+    assert res == 1
+
+    res = cc.asTypedText(1, quoted=True)
+    assert res == '"1::integer"'
+
+
+    res = cc.asTextAndType(1)
+    FIXME
+    print(type(res))
+    print(res)
+    assert False
