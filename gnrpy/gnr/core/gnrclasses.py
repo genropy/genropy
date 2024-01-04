@@ -380,7 +380,7 @@ class GnrClassCatalog(object):
         module,clsname = txt.split(':')
         m = gnrImport(module)
         c = getattr(m,clsname)
-        if hasattr(c,'__safe__'):
+        if hasattr(c,'__safe__'): # pragma: no cover
             return c
         else:
             raise Exception('Unsecure class %s' %txt)
@@ -416,7 +416,7 @@ class GnrClassCatalog(object):
             tz = tzlocal.get_localzone()
 
             # FIXME: can't find a way to have this condition true
-            if hasattr(tz,'localize'):
+            if hasattr(tz,'localize'): # pragma: no cover
                 ts = tz.localize(ts)
             else:
                 ts = ts.replace(tzinfo=tz)
@@ -504,7 +504,7 @@ class GnrClassCatalog(object):
     #c.addParser(float, lambda txt: c.parse_float(txt.replace('.','').replace(',','.')))
     #return c
         
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     pass
     # NISO: The following lines don't work properly (asText() doesn't accept the "locale" attribute),
     #       so I put "pass" on the if __name__ == '__main__':

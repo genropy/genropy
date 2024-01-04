@@ -195,12 +195,28 @@ def test_gnrclasscatalog():
     # parse_date
     res = cc.parse_date("2024-01-04")
     assert res.year == 2024 and res.month == 1 and res.day == 4
-
     res = cc.parse_date("0000-00-00")
     assert res is None
-
     res = cc.parse_date(None)
     assert res[0] is None and res[1] is None
-            
-    print(res)
-    assert False
+
+    # toJson
+
+    res = cc.toJson(dict(a=1))
+    assert res == '{"a": 1}'
+    
+    res = cc.toJsonJS(dict(a=1))
+    assert res == '{"a": 1}'
+
+
+    # fromText
+
+    # non valid json txt (1st param)
+    res = cc.fromText("babbala", "JS")
+    assert res == "babbala"
+
+    res = cc.fromText(1, "integer")
+    assert res == 1
+    res = cc.fromText(1, "JS")
+    assert res == 1
+
