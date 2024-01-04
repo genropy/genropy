@@ -6235,6 +6235,14 @@ div[disabled='true'], div[disabled='disabled']{
     mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
 }
+.search{
+    mask: url('/_rsrc/common/css_icons/google_icons/search.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/search.svg') center center no-repeat;
+}
+.close{
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+}
 
 
 .largeCell{
