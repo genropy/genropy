@@ -23,7 +23,6 @@
 from builtins import str
 from past.builtins import basestring, str as old_str
 #from builtins import object
-from past.utils import old_div
 import datetime
 import re
 import six
@@ -376,6 +375,8 @@ class GnrClassCatalog(object):
         
 
     def parseClass(self,txt):
+        """FIXME: must improve input validation.
+        """
         module,clsname = txt.split(':')
         m = gnrImport(module)
         c = getattr(m,clsname)
@@ -413,6 +414,8 @@ class GnrClassCatalog(object):
     def serialize_datetime(self,ts):
         if not ts.tzinfo:
             tz = tzlocal.get_localzone()
+
+            # FIXME: can't find a way to have this condition true
             if hasattr(tz,'localize'):
                 ts = tz.localize(ts)
             else:
@@ -428,20 +431,13 @@ class GnrClassCatalog(object):
 
         
     def serialize_timedelta(self,td):
-        microseconds = td.total_seconds() - td.seconds
-
-        t = td.seconds
-        seconds = t%60
-        seconds += microseconds
-        t = old_div(t,60)
-        minutes = t%60
-        t = old_div(t,60)
-        hours = t%24
-        days = old_div(t,24)
-        result = "%02i:%02i:%02s" %(hours,minutes,('%.3f' %seconds).zfill(6)) 
-        if days:
-            "%s days %s" %(days,result)
-        return result
+        mm, ss = divmod(td.seconds, 60)
+        hh, mm = divmod(mm, 60)
+        ss_mil = ss+td.microseconds
+        s = f"{hh:02}:{mm:02}:{ss_mil:.3f}"
+        if td.days:
+            s = ("%d days " % td.days) + s
+        return s
 
     def parse_date(self, txt, workdate=None):
         """Add???
