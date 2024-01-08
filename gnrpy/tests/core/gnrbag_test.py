@@ -1,7 +1,8 @@
+import pytest
 from builtins import str
 import datetime
 import socket, os
-
+import gnr.core.gnrbag as bm
 from gnr.core.gnrbag import Bag, BagNode, BagResolver
 
 
@@ -132,6 +133,82 @@ class TestBasicBag(object):
         # you can sum only int
         assert c == 14
 
+    def test_normalizeItemPath(self):
+        res = bm.normalizeItemPath(("a", ".b", ".c"))
+        assert res == "('a', '_b', '_c')"
+        res = bm.normalizeItemPath("babbala")
+        assert res == 'babbala'
+        res = bm.normalizeItemPath("babbala.ragazzo")
+        assert res == 'babbala.ragazzo'
+
+        class PathStrangeClass(object):
+            def __init__(self, string):
+                self.string = string
+
+            def __str__(self):
+                return self.string
+
+        test_path = PathStrangeClass("babbala.ragazzo")
+
+        res = bm.normalizeItemPath(test_path)
+        assert res == 'babbala_ragazzo'
+
+    def test_BagNodeInternals(self):
+        b = Bag()
+        bn = BagNode(b, "testnode", 10, _attributes=dict(test1=2, test2=1))
+        assert "test1" in bn.attr
+        assert bn.attr.get('test2') == 1
+
+        assert str(bn) == "BagNode : testnode"
+        assert repr(bn) == "BagNode : testnode at {}".format(id(bn))
+        assert bn.tag == "testnode"
+        assert bn.label == "testnode"
+        bn.setLabel("testnodelabel")
+        assert bn.getLabel() == "testnodelabel"
+
+        res = bn._get_fullpath()
+        assert res == None
+
+        bn.parentbag = b
+        assert bn.parentbag == b
+
+        bn2 = BagNode(b, "testnode2", "hellohellohello", validators=dict(length="10,20",
+                                                                        inList="hellohellohello,bubu"))
+
+        assert len(bn2._validators) == 2
+        b2 = Bag()
+        b2.parent = b
+        bn2.parentbag = b2
+        res = bn2._get_fullpath()
+        print(res)
+        
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode3", "hello", validators=dict(length="10,20"))
+        assert "Value hello too short" in str(excinfo.value)
+
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode4", "hello", validators=dict(length="1,3"))
+        assert "Value hello too long" in str(excinfo.value)
+
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode5", 1, validators=dict(case="lower"))
+        assert "not a string value 1" in str(excinfo.value)
+        
+        assert False
+
+        
+    def test_BagAsXml(self):
+        bax = bm.BagAsXml("babbala")
+        assert bax.value == "babbala"
+
+    def test_BagDeprecatedCall(self):
+        e = bm.BagDeprecatedCall("ab", "cb")
+        try:
+            raise e
+        except Exception as e:
+            assert e.errcode == "ab"
+            assert e.message == "cb"
+        
     def test_digest(self):
         result = self.mybag.digest()
         assert result[0][0] == 'name'
