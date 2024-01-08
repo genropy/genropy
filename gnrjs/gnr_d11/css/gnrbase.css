@@ -6061,6 +6061,13 @@ div[disabled='true'], div[disabled='disabled']{
     line-height: 35px;
     
 }
+.mobileTemplateGridTop .searchInputBox{
+    line-height: normal;
+}
+.mobileTemplateGridTop .searchboxLabel{
+    display: none;
+}
+
 
 ._common_d11 .mobileTemplateGrid .dojoxGrid-row{
     border-bottom: 1px solid #ddd;
