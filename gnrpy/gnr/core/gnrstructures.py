@@ -566,5 +566,3 @@ class TestStructModule(object):
 class GnrStructureError(Exception):
     pass
         
-if __name__ == '__main__':
-    pass
