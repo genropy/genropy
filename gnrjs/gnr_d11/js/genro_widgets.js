@@ -4383,7 +4383,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     },
     created: function(widget, savedAttrs, sourceNode) {
         if (savedAttrs.auxColumns) {
-            widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption)});
+            widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption),
+                                                            auxColumns_template:sourceNode.attr.auxColumns_template});
             dojo.connect(widget,'open',function(){
                 var popup = this._popupWidget.domNode.parentNode;
                 var popupcoords = dojo.coords(popup);

@@ -1150,6 +1150,20 @@ table.formbuilder {
     background-color: #f3f3f3; /*width: 100%;*/
 }
 
+.multiColumnSelect.templateAuxColumns{
+}
+
+.multiColumnSelect.templateAuxColumns table{
+    background-color: white;
+    width:30em;
+}
+.multiColumnSelect.templateAuxColumns td{
+    white-space: normal;
+    padding: 4px;
+    border: 1px solid #efefef;
+
+}
+
 .multiColumnSelect {
     background-color: #f3f3f3;
     overflow:hidden;
@@ -1211,6 +1225,23 @@ table.formbuilder {
     background-color: #60a1ea;
     background: #60a1ea;
     color:#fff;
+}
+
+.tundra.touchDevice .multiColumnSelect table {
+    border-collapse: collapse;
+    font-size: 10px;
+    background-color: #f3f3f3; /*width: 100%;*/
+}
+
+.tundra.touchDevice .multiColumnSelect.templateAuxColumns table{
+    background-color: white;
+    width:30em;
+}
+.tundra.touchDevice .multiColumnSelect.templateAuxColumns td{
+    white-space: normal;
+    padding: 4px;
+    border: 1px solid #efefef;
+
 }
 
 
