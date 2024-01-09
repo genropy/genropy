@@ -94,3 +94,38 @@ def test_GnrNamedList():
 
 
     gnl = gl.GnrNamedList(dict(name=0, surname=1))
+
+
+def test_sortByItem():
+    test_l = [dict(a=1), dict(b=None), dict(b=2, a=2), dict(c=3), dict(b=2, c=4)]
+    res = gl.sortByItem(test_l)
+    assert res == test_l
+    res = gl.sortByItem(test_l, "a", "b:*", "c:d", hkeys=True)
+
+
+def test_sortByAttr():
+    class MockObj(object):
+        a = 1
+
+    m1 = MockObj()
+    m2 = MockObj()
+    m2.a = 2
+    m3 = MockObj()
+    m3.a = 3
+    test_l = [m1, m2, m3]
+    r = gl.sortByAttr(test_l, "a")
+    print(r)
+
+    m1 = MockObj()
+    m1.a = MockObj()
+    m2 = MockObj()
+    m2.a = MockObj()
+    
+    r = gl.sortByAttr(test_l, "a.a:d")
+    print(r)
+    #r = gl.sortByAttr(test_l, "a.a:d")
+    #print(r)
+
+    assert False
+    
+                

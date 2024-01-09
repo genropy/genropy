@@ -20,7 +20,7 @@ def test_ColoredFormatter(caplog):
 
     
     gl.root_logger = None
-    gl.enable_colored_logging(stream=open('/dev/pts/1', 'w'),
+    gl.enable_colored_logging(stream=sys.stdout,
                               level=logging.DEBUG, reset_handlers=True)
     gl.root_logger.log(msg="hello2", level=logging.DEBUG)
     assert "hello" in caplog.messages

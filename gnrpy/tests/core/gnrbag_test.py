@@ -179,7 +179,7 @@ class TestBasicBag(object):
         b2 = Bag()
         b2.parent = b
         bn2.parentbag = b2
-        res = bn2._get_fullpath()
+        res = bn2.fullpath
         print(res)
         
         with pytest.raises(bm.BagValidationError) as excinfo:
