@@ -22,7 +22,7 @@
 
 from builtins import range
 from past.builtins import basestring
-
+import warnings
 
 def dictExtract(mydict, prefix, pop=False, slice_prefix=True,is_list=False):
     """Return a dict of the items with keys starting with prefix.
@@ -32,6 +32,9 @@ def dictExtract(mydict, prefix, pop=False, slice_prefix=True,is_list=False):
     :param pop: removes the items from the sourcedict
     :param slice_prefix: shortens the keys of the output dict removing the prefix
     :returns: a dict of the items with keys starting with prefix"""
+
+    # FIXME: the is_list parameter is never used.
+    
     lprefix = len(prefix) if slice_prefix else 0
     
     cb = mydict.pop if pop else mydict.get
@@ -77,7 +80,9 @@ class GnrDict(dict):
         return dict.get(self, self._label_convert(label), default)
         
     def __getitem__(self, label):
-        return dict.__getitem__(self, self._label_convert(label))
+        # FIXME: handle slices from 'label',
+        # which is currently not supported by self._label_convert
+        return dict.__getitem__(self, self._label_convert(label)) 
         
     def _label_convert(self, label):
         try:
@@ -177,11 +182,13 @@ class GnrDict(dict):
         
     def __sub__(self, o):
         return GnrDict([(k, self[k]) for k in self if not k in o])
-        
-    def __getslice__(self, start=None, end=None):
+
+    def __getslice__(self, start=None, end=None):  # pragma: no cover
+        warnings.warn("__getslice__ is deprecated since Python2")
         return GnrDict([(k, self[k]) for k in self._list[start:end]])
-        
-    def __setslice__(self, start=None, end=None, val=None):
+
+    def __setslice__(self, start=None, end=None, val=None): # pragma: no cover
+        warnings.warn("__getslice__ is deprecated since Python2")
         [dict.__delitem__(self, k) for k in self._list[start:end]]
         val = GnrDict(val)
         l = list(self._list)
@@ -195,11 +202,11 @@ class GnrDict(dict):
         """TODO"""
         self._list.reverse()
         
-    def sort(self, cmpfunc=None):
-        """TODO
+    def sort(self, cmpfunc=None, reverse=False):
+        """in-place sorting of the ordered dict keys
         
-        :param cmpfunc: TODO"""
-        self._list.sort(cmpfunc)
+        :param key: callable as sorting function compare"""
+        self._list.sort(key=cmpfunc, reverse=reverse)
         
 class GnrNumericDict(GnrDict):
     """TODO"""
@@ -212,11 +219,3 @@ class GnrNumericDict(GnrDict):
     def __iter__(self):
         for k in self._list:
             yield self[k]
-            
-if __name__ == '__main__':
-    a = GnrDict([('pino', 55), ('gionni', 88)], ugo=56, mario=False)
-    print(a.get('#1'))
-    try:
-        print(a['gvhjf hvj'])
-    except:
-        print(36)
