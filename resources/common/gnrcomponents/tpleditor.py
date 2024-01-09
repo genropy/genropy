@@ -251,7 +251,11 @@ class TemplateEditor(TemplateEditorBase):
                     }
                     """)
         if storepath:
-            sc.dataFormula(storepath,'data.deepCopy()',data='^#ANCHOR.data',_delay=1)
+            sc.dataController('this.setRelativeData(storepath,data.deepCopy(),null,null,"_valuebag_")',
+                              data='^#ANCHOR.data',_delay=1,storepath=storepath,
+                              _if='_triggerpars.kw.reason!="_start_value_"')
+            sc.dataController("""this.setRelativeData('.data',data.deepCopy(),null,null,'_start_value_')""",data=f'^{storepath}',
+                              _if='_triggerpars.kw.reason!="_valuebag_"')
         return sc
     
     def _te_varsgrid_struct(self,struct):

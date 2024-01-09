@@ -12,7 +12,8 @@ class GnrCustomWebPage(object):
         "Template Editor can be embedded directly in contentPane"
         bc = pane.borderContainer(height='600px')
         bc.contentPane(region='center').templateEditor(maintable='fatt.fattura',
-                                                       storepath='.#parent.salva_qui',
+                                                       datapath='.appoggio',
+                                                       storepath='.#parent.contenuto',
                                                        emailChunk=True)
 
     def test_1_importTemplate(self,pane):
