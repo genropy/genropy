@@ -11,7 +11,9 @@ class GnrCustomWebPage(object):
     def test_0_templateEditor(self,pane):
         "Template Editor can be embedded directly in contentPane"
         bc = pane.borderContainer(height='600px')
-        bc.contentPane(region='center').templateEditor(maintable='fatt.fattura')
+        bc.contentPane(region='center').templateEditor(maintable='fatt.fattura',
+                                                       storepath='.#parent.salva_qui',
+                                                       emailChunk=True)
 
     def test_1_importTemplate(self,pane):
         "ckEditor is just the Template Editor block where text can be edited"
