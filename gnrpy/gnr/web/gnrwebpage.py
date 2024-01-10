@@ -145,9 +145,11 @@ class GnrWebPage(GnrBaseWebPage):
             self.application.db.clearCurrentEnv() #new a brand new page
         self.extraFeatures = copy.deepcopy(self.site.extraFeatures)
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
-        dbstore = request_kwargs.pop('temp_dbstore',None) or None
-        self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
+        self.base_dbstore = request_kwargs.pop('base_dbstore',None)
+        self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
+        self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
         self.user_agent = request.user_agent.string or []
         self._environ = environ
         self._event_subscribers = {}
@@ -204,6 +206,7 @@ class GnrWebPage(GnrBaseWebPage):
                                            connection_id=request_kwargs.pop('_connection_id', None),
                                            user=request_kwargs.pop('_user', None))
         page_id = request_kwargs.pop('page_id', None)
+        self.subdomain = request_kwargs.pop('_subdomain',None) if page_id else request_kwargs.get('_subdomain')        
         self.root_page_id = None
         self.parent_page_id = None
         self.sourcepage_id = request_kwargs.pop('sourcepage_id', None)

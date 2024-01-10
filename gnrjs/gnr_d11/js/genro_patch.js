@@ -315,7 +315,21 @@ genropatches.comboBox = function() {
             var columns = lfa.columns.split(',');
             var headers = lfa.headers.split(',');
             var tblclass = 'multiColumnSelect' + ' ' + lfa.resultClass;
-            genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'tblclass':tblclass});
+            var tplRow = this.params.auxColumns_template;
+            var max_height = null;
+            if(tplRow){
+                console.log('tplRow',tplRow)
+                results.forEach(n=>{
+                    n.attr._template_value = dataTemplate(tplRow,n.attr);
+                });
+                columns = ['_template_value']
+                headers = ['*']
+                tblclass += ' templateAuxColumns'
+                max_height = '400px'
+
+            }
+            genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'tblclass':tblclass,
+                                                                                max_height:max_height});
             this.domNode.onmouseover = dojo.hitch(this, 'onmouseover');
             // this.nextButton.style.display='none';
             //  this.previousButton.style.display='none';

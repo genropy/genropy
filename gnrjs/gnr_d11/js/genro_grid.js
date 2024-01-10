@@ -2963,7 +2963,12 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             row.customClasses = row.customClasses?row.customClasses + ' _gnrRegularRow': '_gnrRegularRow';
         }
         if(this.rowCustomClassesCb){
-            row.customClasses = (row.customClasses || '')+' '+(this.rowCustomClassesCb(attr)||'');
+            try {
+                row.customClasses = (row.customClasses || '')+' '+(this.rowCustomClassesCb(attr)||'');
+            } catch (error) {
+                console.error(error);
+            }
+            
         }
         if (attr.__is_draft){
             row.customClasses = row.customClasses?row.customClasses + ' gnrDraftRow': 'gnrDraftRow';

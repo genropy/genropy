@@ -329,7 +329,7 @@
 <en_account base="Account"></en_account>
 <en_mail_settings base="Mail Settings" it="Impostazioni e-mail"></en_mail_settings>
 <en_smtp_host base="SMTP Host" it="Host SMTP"></en_smtp_host>
-<en_from_address base="From address"></en_from_address>
+<en_from_address base="From address" it="Mittente"></en_from_address>
 <en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"></en_username></preference>
 <prefhandler><prefhandler path="resources/prefhandler/prefhandler.py" ext="py"><en_login_customizations base="Login customizations" it="Personalizzazione login"></en_login_customizations>
 <en_e_mail_templates base="E-mail templates" it="Template e-mail"></en_e_mail_templates>

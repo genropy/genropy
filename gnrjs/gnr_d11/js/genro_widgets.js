@@ -1319,6 +1319,12 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var w = {h:Math.floor(window.innerHeight*.98),w:Math.floor(window.innerWidth*.98)};
         var windowRatio = this.sourceNode.attr.windowRatio;
         var parentRatio = this.sourceNode.attr.parentRatio;
+        var fullScreen = this.sourceNode.attr.fullScreen;
+        if(fullScreen){
+            windowRatio = 1;
+            w = {h:Math.floor(window.innerHeight),w:Math.floor(window.innerWidth)};
+        }
+       
         var c = dojo.coords(this.domNode);
         var doResize = false;
         var starting;
@@ -1363,6 +1369,9 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         objectPop(attributes, 'centerOn');
         objectPop(attributes, 'position');
         objectPop(attributes, 'autoSize');
+        if(attributes.fullScreen){
+            attributes._class = 'fullscreenDialog';
+        }
         var closable = ('closable' in attributes) ? objectPop(attributes, 'closable') : false;
         attributes.title = _T(attributes.title || '');
         if (!closable) {
@@ -4374,7 +4383,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     },
     created: function(widget, savedAttrs, sourceNode) {
         if (savedAttrs.auxColumns) {
-            widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption)});
+            widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption),
+                                                            auxColumns_template:sourceNode.attr.auxColumns_template});
             dojo.connect(widget,'open',function(){
                 var popup = this._popupWidget.domNode.parentNode;
                 var popupcoords = dojo.coords(popup);

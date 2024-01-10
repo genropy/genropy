@@ -737,15 +737,18 @@ body.tundra.mimi {
 
 }
 
+.mode_mobile .menutree{
+    margin:10px;
+}
 .mode_mobile .menutree .menu_shape{
     border-radius:4px;
     margin-left:0px;
-    font-size:13px;
+    font-size:16px;
     padding-left: 0px;
     background:none;
     padding-top: 0;
     padding-bottom: 0;
-    line-height: 24px;
+    line-height: 30px;
     color:white;
     padding-left: 12px;
 
@@ -760,8 +763,8 @@ body.tundra.mimi {
 }
 
 .mode_mobile .menutree .menu_shape.menu_level_1{
-    font-size:14px;
-    line-height: 28px;
+    font-size:18px;
+    line-height: 35px;
 }
 
 .mode_mobile .menutree .opendir{

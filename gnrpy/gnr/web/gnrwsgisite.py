@@ -897,7 +897,10 @@ class GnrWsgiSite(object):
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
         #print 'site dispatcher: ',path_list
-        self.checkForDbStore(path_list,request_kwargs)
+        if path_list:
+            self._checkFirstSegment(path_list,request_kwargs)
+
+        self.checkForDbStore(request_kwargs)
        #if path_list and (path_list[0] in self.dbstores):
        #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
         path_list = path_list or ['index']
@@ -1004,44 +1007,47 @@ class GnrWsgiSite(object):
         if uri:
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
-    
-    def handleSubdomain(self,path_list,request_kwargs=None):
-        self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
 
-    def checkForDbStore(self,path_list,request_kwargs):
-        if not path_list and not (request_kwargs.get('temp_dbstore') or '').startswith('@'):
-            return
+    def checkForDbStore(self,request_kwargs):
+        for k in ('temp_dbstore','base_dbstore'):
+            storename = request_kwargs.get(k)        
+            if storename and storename.startswith('instance_'):
+                self._registerAuxInstanceDbStore(storename)
+
+    def _checkFirstSegment(self,path_list,request_kwargs):
         first = path_list[0]
-        instanceNode = None
-        dbstore = None
         if first.startswith('@'):
-            instanceNode = self.gnrapp.config.getNode('aux_instances.%s' %first[1:])
-            if not instanceNode:
-                self.handleSubdomain(path_list,request_kwargs=request_kwargs)
-                return
+            first = first[1:]
+            path_list.pop(0)
+            if self.gnrapp.config.getNode(f'aux_instances.{first}'):
+                request_kwargs['base_dbstore'] = f'instance_{first}'
+            else:
+                request_kwargs['_subdomain'] = request_kwargs.get('_subdomain') or first
         else:
-            dbstore = self.db.stores_handler.get_dbstore(first)
-        if dbstore or instanceNode:
-            request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
-        temp_dbstore = request_kwargs.get('temp_dbstore')
-        if temp_dbstore and temp_dbstore.startswith('@'):
-            instance_name = temp_dbstore[1:]
-            storename = 'instance_%s' %instance_name
-            request_kwargs['temp_dbstore'] = storename
-            if not storename in self.dbstores:
-                auxapp = self.gnrapp.getAuxInstance(instance_name)
-                if not auxapp:
-                    raise Exception('not existing aux instance %s' %instance_name)
-                dbattr = auxapp.config.getAttr('db')
-                if auxapp.remote_db:
-                    remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
-                    if remote_db_attr:
-                        if 'ssh_host' in remote_db_attr:
-                            host = remote_db_attr['ssh_host'].split('@')[1] if '@' in remote_db_attr['ssh_host'] else remote_db_attr['ssh_host']
-                            port = remote_db_attr.get('port')
-                            dbattr['remote_host'] = host
-                            dbattr['remote_port'] = port
-                self.db.stores_handler.add_store(storename,dbattr=dbattr)
+            if self.db.stores_handler.get_dbstore(first):
+                request_kwargs['base_dbstore'] = path_list.pop(0)
+        if request_kwargs.get('_subdomain'):
+            self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
+        if request_kwargs.get('temp_dbstore','').startswith('@'):
+            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
+
+    def _registerAuxInstanceDbStore(self,storename):
+        instance_name = storename.replace('instance_','')
+        auxapp = self.gnrapp.getAuxInstance(instance_name)
+        if not auxapp:
+            raise Exception('not existing aux instance %s' %instance_name)
+        if self.db.stores_handler.get_dbstore(storename):
+            return
+        dbattr = auxapp.config.getAttr('db')
+        if auxapp.remote_db:
+            remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
+            if remote_db_attr:
+                if 'ssh_host' in remote_db_attr:
+                    host = remote_db_attr['ssh_host'].split('@')[1] if '@' in remote_db_attr['ssh_host'] else remote_db_attr['ssh_host']
+                    port = remote_db_attr.get('port')
+                    dbattr['remote_host'] = host
+                    dbattr['remote_port'] = port
+        self.db.stores_handler.add_store(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
