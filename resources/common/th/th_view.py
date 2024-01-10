@@ -858,8 +858,7 @@ class TableHandlerView(BaseComponent):
                                 dtstart=dtstart, 
                                 count=count)):
             currdate = dt.date()
-            condition = "to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"\
-                        .format(column=column)
+            condition = f"to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
