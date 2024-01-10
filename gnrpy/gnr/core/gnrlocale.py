@@ -165,6 +165,8 @@ def parselocal_float(txt, locale):
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
     loc = Locale.parse(locale).number_symbols
+    if 'latn' in loc:
+        loc=loc['latn']
     txt = txt.replace(loc['group'], '')
     txt = txt.replace(loc['decimal'], '.')
     return float(txt)
@@ -175,6 +177,8 @@ def parselocal_decimal(txt, locale):
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
     loc = Locale.parse(locale).number_symbols
+    if 'latn' in loc:
+        loc=loc['latn']
     txt = txt.replace(loc['group'], '')
     txt = txt.replace(loc['decimal'], '.')
     return Decimal(txt)

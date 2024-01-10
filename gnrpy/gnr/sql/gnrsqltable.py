@@ -1071,8 +1071,18 @@ class SqlTable(GnrObject):
         fkeysColsToRead = defaultdict(dict)
         for colname,colobj in self.columns.items():
             defaultFrom = colobj.attributes.get('defaultFrom')
-            if newrecord.get(colname) is not None or not defaultFrom:
+            dtype = colobj.attributes.get('dtype')
+            if not defaultFrom:
                 continue
+            newrec_value = newrecord.get(colname)
+            
+            if newrec_value is not None:
+                if isinstance(newrec_value,Bag):
+                    if len(newrec_value)>0:
+                        continue
+                else:
+                    continue
+            
             pathlist = defaultFrom.split('.') #eg @foo_id.bar, fromFkey = foo_id 
             if pathlist[-1].startswith('@'):
                 pathlist.append(colname)
@@ -1080,6 +1090,7 @@ class SqlTable(GnrObject):
             colToRead = '.'.join(pathlist[1:])
             fromKeyValue = newrecord.get(fromFkey)
             if fromKeyValue is None:
+                print(colname,'c')
                 continue
             colToRead = colToRead if colToRead.startswith('@') else f'${colToRead}'
             fkeysColsToRead[(fromFkey,fromKeyValue)][colname] = colToRead
@@ -1092,6 +1103,7 @@ class SqlTable(GnrObject):
             if not cachedDefaults:
                 fkey,fkeyValue = identifier
                 columns = ','.join([f"{colToRead} AS {colname}" for colname,colToRead in coldict.items()])
+
                 relatedTblobj = self.column(fkey).relatedTable().dbtable
                 f = relatedTblobj.query(where=f'${relatedTblobj.pkey}=:fkeyValue',
                                         fkeyValue=fkeyValue,columns=columns,
@@ -1100,7 +1112,11 @@ class SqlTable(GnrObject):
                                         ignorePartition=True,
                                         excludeLogicalDeleted=False,subtable='*'
                                         ).fetch()
-                cachedDefaults = dict(f[0]) if f else {}
+                cachedDefaults = dict()
+                for k,v in f[0].items():
+                    if self.column(k).getAttr('dtype')=='X':
+                        v = Bag(v) 
+                    cachedDefaults[k]=v
                 currEnv[cacheIdentifier] = cachedDefaults
             newrecord.update(cachedDefaults)
 

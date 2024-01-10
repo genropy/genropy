@@ -19,8 +19,8 @@ class Table(object):
         tbl.column('page_path', name_long='!!Page path')
         tbl.column('method', name_long='!!Method')
         tbl.column('assigned_user_id',size='22', group='_', name_long='Assigned user id'
-                    ).relation('adm.user.id', relation_name='assigned_tokens', mode='foreignkey',
-                                onDelete='cascade',deferred=True)
+                    ).relation('adm.user.id', relation_name='assigned_tokens',
+                                onDelete='cascade')
         tbl.column('parameters', dtype='X', name_long='!!Parameters')
         tbl.column('exec_user', size=':32', name_long='!!Execute as user').relation('adm.user.username')
         tbl.column('userobject_id',size='22', group='_', name_long='Userobject'

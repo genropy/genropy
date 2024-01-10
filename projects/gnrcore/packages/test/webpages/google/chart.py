@@ -32,33 +32,33 @@ class GnrCustomWebPage(object):
                                 storepath='.store',
                                 structpath='.struct')
 
-    def test_2_columns(self, pane):
-        "Same as before, but manually building a struct"
-        b = Bag()
-        b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
-        b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
-        b.addItem('r3',Bag(dict(flavour='Zucchini',quantity=1,quantity_2=3)))
-        b.addItem('r4',Bag(dict(flavour='Pepperoni',quantity=2,quantity_2=1)))
-        pane.data('.source',b)
-        pane.dataFormula('.data','source',source='=.source',_onStart=True)
-
-        bc = pane.borderContainer(height='600px',width='900px')
-        qc = bc.contentPane(region='left',width='300px').quickGrid('^.data',height='100%',width='100%')
-        qc.tools('addrow,delrow')
-        qc.column('flavour',name='Flav',
-                  width='16em',edit=True)
-        qc.column('quantity',name='Qt',width='6em',edit=True,dtype='L')
-        qc.column('quantity_2',name='Qt2',width='6em',edit=True,dtype='L')
-
-        gc = bc.contentPane(region='center').GoogleChart('ColumnChart',
-                                height='500px',
-                                width='500px',
-                                border='1px solid silver',
-                                title='Pizze varie',
-                                grid=qc)
-        gc.struct.column('flavour',name='Flv')
-        gc.struct.column('quantity', background='lime')
-        gc.struct.column('quantity_2', color='green')
+    #def test_2_columns(self, pane):
+    #    "Same as before, but manually building a struct"
+    #    b = Bag()
+    #    b.addItem('r1',Bag(dict(flavour='Mushrooms',quantity=3,quantity_2=5)))
+    #    b.addItem('r2',Bag(dict(flavour='Onions',quantity=1,quantity_2=2)))
+    #    b.addItem('r3',Bag(dict(flavour='Zucchini',quantity=1,quantity_2=3)))
+    #    b.addItem('r4',Bag(dict(flavour='Pepperoni',quantity=2,quantity_2=1)))
+    #    pane.data('.source',b)
+    #    pane.dataFormula('.data','source',source='=.source',_onStart=True)
+#
+    #    bc = pane.borderContainer(height='600px',width='900px')
+    #    qc = bc.contentPane(region='left',width='300px').quickGrid('^.data',height='100%',width='100%')
+    #    qc.tools('addrow,delrow')
+    #    qc.column('flavour',name='Flav',
+    #              width='16em',edit=True)
+    #    qc.column('quantity',name='Qt',width='6em',edit=True,dtype='L')
+    #    qc.column('quantity_2',name='Qt2',width='6em',edit=True,dtype='L')
+#
+    #    gc = bc.contentPane(region='center').GoogleChart('ColumnChart',
+    #                            height='500px',
+    #                            width='500px',
+    #                            border='1px solid silver',
+    #                            title='Pizze varie',
+    #                            grid=qc)
+    #    gc.struct.column('flavour',name='Flv')
+    #    gc.struct.column('quantity', background='lime')
+    #    gc.struct.column('quantity_2', color='green')
 
 
     def test_3_organization(self, pane):
@@ -110,7 +110,6 @@ class GnrCustomWebPage(object):
         b.addItem('r3',Bag(dict(code='David', lbl='David', start=datetime(2023, 11, 1), end=datetime(2023, 12, 31))))
         b.addItem('r4',Bag(dict(code='Francis', lbl='Francis', start=datetime(2023, 10, 15), end=datetime(2024, 3, 31))))
         pane.data('.source',b)
-        pane.dataFormula('.store','source',source='=.source',_onStart=True)
 
         bc = pane.borderContainer(height='600px',width='900px')
         struct = Bag()
@@ -126,7 +125,7 @@ class GnrCustomWebPage(object):
                                 width='500px',
                                 border='1px solid silver',
                                 title='Project timeline',
-                                storepath='.store',
+                                storepath='.source',
                                 structpath='.struct', 
                                 chart_timeline=dict(showRowLabels=True))
         
