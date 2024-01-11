@@ -356,7 +356,7 @@ class TableHandlerView(BaseComponent):
                 base_slots = extendedQuery.split(',')
         elif roundedEnvelope:
             top_kwargs['toolbar'] = False
-            base_slots = ['*','vtitle','*']
+            base_slots = ['*','vtitle','*'] if not searchOn else ['10','vtitle','*','searchOn','10']
             top_kwargs['_class']='mobileTemplateGridTop'
         elif not virtualStore:
             if root_tablehandler:
