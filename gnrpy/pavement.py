@@ -24,7 +24,7 @@ Please refer to documention on https://www.genropy.org/
 
 'paver develop' command has been replaced by:
 
-    ./setup.py develop
+    pip install --editable .
 """)
 
 
