@@ -24,10 +24,8 @@
 """
 Some useful operations on lists.
 """
-from __future__ import print_function
-from past.builtins import cmp,basestring
 from functools import cmp_to_key
-from builtins import range
+
 
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
@@ -66,7 +64,7 @@ def sortByItem(l, *args, **kwargs):
         elif b is None:
             return 1
         else:
-            return cmp(a, b)
+            return ((a > b) - (a < b))
             
     def hGetItem(obj, attr):
         if obj is None: return None
@@ -151,7 +149,7 @@ def readTab(doc):
     
     :param doc: the file to read
     """
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -172,14 +170,14 @@ def readTab(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readCSV_new(doc):
     """This reads a CSV file - done by Jeff
     
     :param doc: the file to read"""
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -203,14 +201,14 @@ def readCSV_new(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readCSV(doc):
     """read a CSV file
     
     :param doc: the file to read"""
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -229,7 +227,7 @@ def readCSV(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readXLS(doc):
@@ -238,7 +236,7 @@ def readXLS(doc):
     :param doc: the file to read"""
     import xlrd
     
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         filename = doc
         file_contents = None
     else:

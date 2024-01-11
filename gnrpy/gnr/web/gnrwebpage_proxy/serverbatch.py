@@ -7,7 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 from builtins import str
-from past.builtins import basestring
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbag import Bag
 from datetime import datetime
@@ -79,7 +78,7 @@ class GnrWebBatch(GnrBaseProxy):
         url = None
         result = 'Execution completed'
         result_attr = dict()
-        if isinstance(batch_result, basestring):
+        if isinstance(batch_result, (bytes,str)):
             url = batch_result
         else:
             url = batch_result['url']
@@ -100,7 +99,7 @@ class GnrWebBatch(GnrBaseProxy):
         self.title = title
         self.line_codes = []
         if thermo_lines:
-            if isinstance(thermo_lines, basestring):
+            if isinstance(thermo_lines, str):
                 self.line_codes = thermo_lines.split(',')
             else:
                 self.line_codes = [line['code'] for line in thermo_lines]
@@ -257,7 +256,7 @@ class GnrWebBatch(GnrBaseProxy):
                         progress/maximum. If it's omitted the line_code is used for message
         :param keep: boolean. TODO
         :param kwargs: any given kwargs is passed to the iterable method"""
-        if isinstance(iterable, basestring):
+        if isinstance(iterable, str):
             iterable = iterable.split(',')
         if callable(iterable):
             iterable = iterable(**kwargs)

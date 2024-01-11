@@ -22,10 +22,6 @@
 
 from __future__ import print_function
 from collections import defaultdict
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
 
 import re, os
 import datetime
@@ -209,7 +205,7 @@ class _SaxImporter(sax.handler.ContentHandler):
             curr, attributes = self.bags.pop()
             if value or isValidValue(value):
                 if curr:
-                    if isinstance(value, basestring):
+                    if isinstance(value, (bytes,str)):
                         value = value.strip()
                     if value:
                         curr.nodes.append(BagNode(curr, '_', value))
@@ -413,7 +409,6 @@ class BagToXml(object):
         t = cls
         if not t:
             if value != '':
-                #if not isinstance(value, basestring):
                 if isinstance(value, Bag):
                     if self.addBagTypeAttr:
                         value, t = '', 'BAG'
@@ -442,7 +437,7 @@ class BagToXml(object):
                 return value
             if self.omitUnknownTypes:
                 attributes = dict([(k, v) for k, v in list(attributes.items())
-                                    if isinstance(v,basestring) or
+                                    if isinstance(v,(bytes,str)) or
                                                 ( type(v) in (int, float, int,
                                                   datetime.date, datetime.time, datetime.datetime,
                                                   bool, type(None), list, tuple, dict, Decimal) ) or (callable(v) and

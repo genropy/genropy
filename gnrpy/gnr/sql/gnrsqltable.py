@@ -21,15 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-#import weakref
-from __future__ import division
-from __future__ import print_function
-from past.builtins import cmp
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
-#from builtins import object
 import os
 import re
 
@@ -246,7 +237,7 @@ class SqlTable(GnrObject):
         :param exception: the exception raised.
         :param record: TODO.
         :param msg: TODO."""
-        if isinstance(exception,basestring):
+        if isinstance(exception, str):
             exception = EXCEPTIONS.get(exception)
             if not exception:
                 raise exception
@@ -372,7 +363,7 @@ class SqlTable(GnrObject):
                     result = 20
                 else:
                     result = 12
-            elif isinstance(size, basestring):
+            elif isinstance(size, str):
                 if ':' in size:
                     size = size.split(':')[1]
                 size = float(size)
@@ -599,14 +590,16 @@ class SqlTable(GnrObject):
                 v = record[k]
                 if (v is None) or (v == null) or v=='':
                     record[k] = None
-                elif dtype in ['T', 'A', 'C'] and not isinstance(v, basestring):
+                elif dtype in ['T', 'A', 'C'] and not isinstance(v, str):
+                    if isinstance(v, bytes):
+                        v = v.decode()
                     record[k] = str(v if not isinstance(v,float) else int(v))
-                elif dtype == 'B' and not isinstance(v, basestring):
+                elif dtype == 'B' and not isinstance(v, str):
                     record[k] = bool(v)
                 elif dtype == 'O' and isinstance(v, bytes):
                     record[k] = v
                 else:
-                    if dtype and isinstance(v, basestring):
+                    if dtype and isinstance(v, str):
                         if dtype not in ['T', 'A', 'C', 'X']:
                             v = converter.fromText(record[k], dtype)
                             if isinstance(v,tuple):
@@ -934,7 +927,7 @@ class SqlTable(GnrObject):
     def currentRelations(self,recordOrPkey,checkOnly=False):
         result = Bag()
         i = 0
-        if isinstance(recordOrPkey,basestring):
+        if isinstance(recordOrPkey, str):
             record = self.record(pkey=recordOrPkey).output('dict')
         else:
             record = recordOrPkey
@@ -1217,7 +1210,7 @@ class SqlTable(GnrObject):
             if not _pkeys:
                 return
             kwargs['where'] = '$%s IN :_pkeys' %self.pkey
-            if isinstance(_pkeys,basestring):
+            if isinstance(_pkeys, str):
                 _pkeys = _pkeys.strip(',').split(',')
             kwargs['_pkeys'] = _pkeys
             kwargs.setdefault('excludeDraft',False)
@@ -1312,7 +1305,7 @@ class SqlTable(GnrObject):
         return result
             
     def fieldsChanged(self,fieldNames,record,old_record=None):
-        if isinstance(fieldNames,basestring):
+        if isinstance(fieldNames, str):
             fieldNames = fieldNames.split(',')
         for field in fieldNames:
             if record.get(field) != old_record.get(field):
@@ -1343,7 +1336,7 @@ class SqlTable(GnrObject):
             elif aggregator=='MIN':
                 data = min(dd)
             elif aggregator=='AVG':
-                data = old_div(sum(dd),len(dd)) if len(dd) else 0
+                data = (sum(dd)/len(dd)) if len(dd) else 0
             elif aggregator=='CNT':
                 data = len(data) if data else 0
         else:
@@ -1498,7 +1491,7 @@ class SqlTable(GnrObject):
             if not _pkeys:
                 return
             kwargs['where'] = '$%s IN :_pkeys' %self.pkey
-            if isinstance(_pkeys,basestring):
+            if isinstance(_pkeys, str):
                 _pkeys = _pkeys.strip(',').split(',')
             kwargs['_pkeys'] = _pkeys
             kwargs.setdefault('excludeDraft',False)
@@ -1506,7 +1499,7 @@ class SqlTable(GnrObject):
             kwargs.setdefault('excludeLogicalDeleted',False)
         method = method or 'update'
         for_update = method=='update'
-        handler = getattr(self,method) if isinstance(method,basestring) else method
+        handler = getattr(self,method) if isinstance(method, str) else method
         onUpdating = None
         if method != 'update':
             columns = columns or getattr(handler,'columns',None)
@@ -1541,7 +1534,7 @@ class SqlTable(GnrObject):
     def expandBagFields(self,record,columns=None):
         if not columns:
             columns = [k for k,v in list(self.model.columns.items()) if v.dtype=='X']
-        if isinstance(columns,basestring):
+        if isinstance(columns, str):
             columns = columns.split(',')
         for c in columns:
             record[c] = Bag(record.get(c))
@@ -1618,7 +1611,7 @@ class SqlTable(GnrObject):
         """Delete a single record from this table.
         
         :param record: a dictionary, bag or pkey (string)"""
-        if isinstance(record, basestring):
+        if isinstance(record, str):
             record = self.record(pkey=record,for_update=True,ignoreMissing=True).output('dict')
             if not record:
                 return
@@ -2087,7 +2080,7 @@ class SqlTable(GnrObject):
         result = []
         if not columns:
             return result
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = gnrstring.splitAndStrip(columns)
         for col in columns:
             if not col[0] in ('@','$','('):
@@ -2311,7 +2304,7 @@ class SqlTable(GnrObject):
                                       "logical deleted"
         :param excludeDraft: TODO
         :param source_records: TODO"""
-        if isinstance(instance,basestring):
+        if isinstance(instance, str):
             instance = self.db.application.getAuxInstance(instance)
         dest_db = instance.db
         self.copyToDb(self.db,dest_db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
@@ -2327,7 +2320,7 @@ class SqlTable(GnrObject):
                                       "logical deleted"
         :param excludeDraft: TODO
         :param source_records: TODO"""
-        if isinstance(instance,basestring):
+        if isinstance(instance, str):
             instance = self.db.application.getAuxInstance(instance)
 
         source_db = instance.db

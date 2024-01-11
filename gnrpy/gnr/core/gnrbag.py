@@ -56,16 +56,8 @@ to interact with BagNode instances inside a Bag.
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
 from __future__ import print_function
 
-#import weakref
-from past.builtins import cmp
 from functools import cmp_to_key
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import zip
-from builtins import chr
-from builtins import str
-from past.builtins import basestring
 import copy
 import pickle as pickle
 from datetime import datetime, timedelta
@@ -82,7 +74,7 @@ import re
 gnrlogger = logging.getLogger(__name__)
 
 def normalizeItemPath(item_path):
-    if isinstance(item_path,basestring) or isinstance(item_path,list):
+    if isinstance(item_path, str) or isinstance(item_path,list):
         return item_path
     return str(item_path).replace('.','_')
     
@@ -385,7 +377,7 @@ class BagNode(object):
 
     def delAttr(self, *attrToDelete):
         """Receive one or more attributes' labels and remove them from the node's attributes"""
-        if isinstance(attrToDelete, basestring):
+        if isinstance(attrToDelete, str):
             attrToDelete = attrToDelete.split(',')
         for attr in attrToDelete:
             if attr in list(self.attr.keys()):
@@ -549,7 +541,7 @@ class Bag(GnrObject):
         in the Bag, ``False`` otherwise
         
         :param what: the key path to test"""
-        if isinstance(what, basestring):
+        if isinstance(what, str):
             return bool(self.getNode(what))
         elif isinstance(what, BagNode):
             return (what in self._nodes)
@@ -599,7 +591,7 @@ class Bag(GnrObject):
         if not path:
             return self
         path = normalizeItemPath(path)
-        if isinstance(path, basestring):
+        if isinstance(path, str):
             if '?' in path:
                 path, mode = path.split('?')
                 if mode == '': mode = 'k'
@@ -631,9 +623,9 @@ class Bag(GnrObject):
         :param attributes: keys to copy as attributes of the leaves. Default value
                            is ``*`` (= select all the attributes)"""
         #if isinstance(group_by, str) or isinstance(group_by, unicode): 
-        # just test if is instance of basestring 
+        # just test if is instance of str 
         # both str and unicode will return True
-        if isinstance(group_by, basestring):
+        if isinstance(group_by, str):
             group_by = group_by.split(',')
         result = Bag()
         for key, item in self.items():
@@ -663,9 +655,9 @@ class Bag(GnrObject):
             elif b is None:
                 return 1
             else:
-                return cmp(a, b)
+                return ((a > b) - (a < b))
 
-        if not isinstance(pars, basestring):
+        if not isinstance(pars, str):
             self._nodes.sort(key=pars)
         else:
             levels = pars.split(',')
@@ -770,8 +762,7 @@ class Bag(GnrObject):
         :param autocreate: boolean. If ``True``, it creates all the not existing nodes of the pathlist
         :param returnLastMatch: boolean. TODO"""
         curr = self
-        if isinstance(pathlist, basestring):
-            orpa=pathlist
+        if isinstance(pathlist, str):
             pathlist = gnrstring.smartsplit(pathlist.replace('../', '#^.'), '.')
             pathlist = [x for x in pathlist if x]
             if not pathlist:
@@ -861,7 +852,7 @@ class Bag(GnrObject):
                 if currtype == 'NoneType': currtype = 'None'
                 if '.' in currtype: currtype = currtype.split('.')[-1]
                 if not isinstance(value, str):
-                    if isinstance(value, basestring):
+                    if isinstance(value, bytes):
                         value = value.decode('UTF-8', 'ignore')
                 outlist.append(("%s - (%s) %s: %s  %s" % (str(idx), currtype,
                                                           el.label, str(value), attr)))
@@ -967,7 +958,7 @@ class Bag(GnrObject):
 
         if not what:
             what = '#k,#v,#a'
-        if isinstance(what, basestring):
+        if isinstance(what, str):
             if ':' in what:
                 where, what = what.split(':')
                 obj = self[where]
@@ -1010,7 +1001,7 @@ class Bag(GnrObject):
         
         :param cols: TODO
         :param attrMode: boolean. TODO"""
-        if isinstance(cols, basestring):
+        if isinstance(cols, str):
             cols = cols.split(',')
         mode = ''
         if attrMode:
@@ -1108,7 +1099,7 @@ class Bag(GnrObject):
             for k, v in list(otherbag.items()):
                 self.setItem(k, v)
             return
-        if isinstance(otherbag, basestring):
+        if isinstance(otherbag, str):
             cls = self.__class__
             b = Bag()
             b.fromXml(otherbag, bagcls=cls, empty=cls)
@@ -1415,7 +1406,7 @@ class Bag(GnrObject):
         and the first list's element label.
         
         :param path: the given path"""
-        if isinstance(path, basestring):
+        if isinstance(path, str):
             escape = "\\."
             if escape in path:
                 path = path.replace(escape, chr(1))
@@ -1910,10 +1901,10 @@ class Bag(GnrObject):
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
     def fillFrom(self, source, **kwargs):
-        """Fill a void Bag from a source (basestring, Bag or list)
+        """Fill a void Bag from a source (str, Bag or list)
         
         :param source: the source for the Bag"""
-        if isinstance(source, basestring):
+        if isinstance(source, (bytes,str)):
             b = self._fromSource(*self._sourcePrepare(source))
             if not b: b = Bag()
             self._nodes[:] = b._nodes[:]
@@ -1967,7 +1958,7 @@ class Bag(GnrObject):
         """Generate a Bag from a generic xml
         
         :param source: an xml string or a path to an xml document
-        :type source: basestring
+        :type source: str
         :returns: source, fromFile, mode
         
         "source" parameter can be either a URI (file path or URL) or a string.
@@ -2047,8 +2038,8 @@ class Bag(GnrObject):
 
 
     def fromJson(self,json,listJoiner=None):
-        if isinstance(json,basestring):
-            json = gnrstring.fromJson(json)
+        if isinstance(json,str):
+            json = json.loads(json)
         if not (isinstance(json,list) or isinstance(json,dict)):
             json = dict(value = json)
         self._nodes[:] = self._fromJson(json,listJoiner=listJoiner)._nodes
@@ -2059,7 +2050,7 @@ class Bag(GnrObject):
         if isinstance(json,list):
             if not json:
                 return
-            if listJoiner and all([isinstance(r,basestring) and not converter.isTypedText(r) for r in json]):
+            if listJoiner and all([isinstance(r, str) and not converter.isTypedText(r) for r in json]):
                 return listJoiner.join(json)
             for n,v in enumerate(json):
                 result.addItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
@@ -2070,7 +2061,7 @@ class Bag(GnrObject):
             for k,v in list(json.items()):
                 result.setItem(k,self._fromJson(v,listJoiner=listJoiner))
         else:
-            if isinstance(json,basestring) and converter.isTypedText(json):
+            if isinstance(json, str) and converter.isTypedText(json):
                 json = converter.fromTypedText(json)
             return json
         return result
@@ -2263,7 +2254,7 @@ class Bag(GnrObject):
         :param result: TODO"""
         if result is None:
             result = []
-        if isinstance(pathlist, basestring):
+        if isinstance(pathlist, str):
             pathlist = gnrstring.smartsplit(pathlist.replace('../', '#^.'), '.')
             pathlist = [x for x in pathlist if x]
         label = pathlist.pop(0)
@@ -2395,7 +2386,7 @@ class Bag(GnrObject):
             result = None
             
         if _parentTag:
-            if isinstance(_parentTag, basestring):
+            if isinstance(_parentTag, str):
                 _parentTag = gnrstring.splitAndStrip(_parentTag, ',')
             actualParentTag = where.getAttr('', tag)
             if not actualParentTag in _parentTag:
@@ -2452,7 +2443,7 @@ class BagValidationList(object):
         
         :param validator: type of validator
         :param parameterString: the string that contains the parameters for the validators"""
-        if isinstance(validator, basestring):
+        if isinstance(validator, str):
             validator = getattr(self, 'validate_%s' % validator, self.defaultExt)
         if not validator in self.validators:
             self.validators.append(validator)
@@ -2478,7 +2469,7 @@ class BagValidationList(object):
         :param oldvalue: TODO
         :param parameterString: values = 'upper' or 'lower' or 'capitalize'"""
         mode = parameterString
-        if not isinstance(value, basestring):
+        if not isinstance(value, str):
             raise BagValidationError('not a string value %s The value is not a string' %value)
         else:
             if mode.lower() == 'upper':
@@ -2757,7 +2748,7 @@ class BagResolver(object):
 
 class VObjectBag(Bag):
     def fillFrom(self,source):
-        if isinstance(source,basestring):
+        if isinstance(source, (bytes,str)):
             source, fromFile, mode = self._sourcePrepare(source)
             if fromFile:
                 urlobj = urllib.request.urlopen(source)
@@ -3065,7 +3056,7 @@ class BagResolverNew(object):
         
     def _getPar(self, name):
         attr = getattr(self, name)
-        if isinstance(attr, basestring) or\
+        if isinstance(attr, (bytes,str)) or\
            isinstance(attr, int) or\
            isinstance(attr, float):
             return attr

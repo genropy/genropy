@@ -23,11 +23,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
 #from builtins import object
 import os
 import sys
@@ -908,7 +903,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.charset = 'utf-8'
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
-        if not isinstance(tpl, basestring):
+        if not isinstance(tpl, str):
             tpl = '%s.%s' % (self.pagename, 'tpl')
         lookup = TemplateLookup(directories=self.tpldirectories, output_encoding=self.charset,
                                 encoding_errors='replace')
@@ -1109,7 +1104,7 @@ class GnrWebPage(GnrBaseWebPage):
          :param exception: the exception raised.
          :param record: TODO.
          :param msg: TODO."""
-         if isinstance(exception,basestring):
+         if isinstance(exception, str):
              exception = EXCEPTIONS.get(exception)
              if not exception:
                  raise exception
@@ -1250,7 +1245,7 @@ class GnrWebPage(GnrBaseWebPage):
     def checkTablePermission(self,table=None,permissions=None):
         if not permissions:
             return True
-        permissions = set(permissions.split(',') if isinstance(permissions,basestring) else permissions)
+        permissions = set(permissions.split(',') if isinstance(permissions, str) else permissions)
         availablePermissions = set(self.db.table(table).availablePermissions.split(',')).union(set(['hidden','readonly']))
         if not permissions.issubset(availablePermissions):
             raise self.exception('generic',description='Permissions %s are not defined in table %s' %(','.join(permissions.difference(availablePermissions)),table))

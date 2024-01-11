@@ -19,11 +19,7 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-from __future__ import print_function
-from __future__ import absolute_import
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
+
 import time
 import os
 import base64
@@ -364,7 +360,7 @@ class GnrWebSocketHandler(websocket.WebSocketHandler,GnrBaseHandler):
         result = dict()
         for k, v in list(kwargs.items()):
             k = k.strip()
-            if isinstance(v, basestring):
+            if isinstance(v, (bytes,str)):
                 try:
                     v = catalog.fromTypedText(v)
                     result[k] = v

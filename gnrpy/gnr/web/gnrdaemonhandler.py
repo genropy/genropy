@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-#
+
 from datetime import datetime
 import logging
 from multiprocessing import Process, log_to_stderr, get_logger, Manager
@@ -342,7 +337,7 @@ class GnrDaemon(object):
     def siteregister_stop(self,sitename=None,saveStatus=False,**kwargs):
         if sitename == '*':
             sitelist = list(self.siteregisters.keys())
-        elif isinstance(sitename,basestring):
+        elif isinstance(sitename, str):
             sitelist = sitename.split(',')
         else:
             sitelist = sitename

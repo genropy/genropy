@@ -22,14 +22,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-#import weakref
 
-from __future__ import division
-from __future__ import print_function
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
 
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
@@ -227,7 +220,7 @@ def struct_method(func_or_name):
                     "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
         GnrDomSrc._external_methods[name] = func_name
         
-    if isinstance(func_or_name, basestring):
+    if isinstance(func_or_name, str):
         name = func_or_name
         
         def decorate(func):
@@ -791,7 +784,7 @@ class GnrDomSrc(GnrStructData):
         :param event: TODO
         :param func: TODO"""
         objPath = None
-        if not isinstance(what, basestring):
+        if not isinstance(what, str):
             objPath = what.fullpath
             what = None
         return self.child('subscribe', obj=what, objPath=objPath, event=event, childcontent=func, **kwargs)
@@ -1869,7 +1862,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
     def radiogroup(self, labels, group, cols=1, datapath=None, **kwargs):
         """.. warning:: deprecated since version 0.7"""
-        if isinstance(labels, basestring):
+        if isinstance(labels, str):
             labels = labels.split(',')
         pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
         for label in labels:
@@ -2730,7 +2723,7 @@ class GnrGridStruct(GnrStructData):
         
         r.fields('name/Name:20,address/My Addr:130px....')"""
         tableobj = self.tblobj
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = columns.replace('\n', '').replace('\t', '')
             col_list = gnrstring.splitAndStrip(columns, ',')
             if '[' in columns:
@@ -2771,7 +2764,7 @@ class GnrGridStruct(GnrStructData):
             
         if totalWidth:
             for j, w in enumerate(widths):
-                widths[j] = int(old_div(w * totalWidth, wtot))
+                widths[j] = int(w * totalWidth/wtot)
         for j, field in enumerate(fields):
             #self.child('cell', field=field, childname=names[j], width='%i%s'%(widths[j],unit), dtype=dtypes[j])
             self.cell(field=field, name=names[j], width='%i%s' % (widths[j], unit), dtype=dtypes[j], **fld_kwargs[j])

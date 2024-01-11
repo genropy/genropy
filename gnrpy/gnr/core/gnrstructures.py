@@ -20,9 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
-from past.builtins import basestring
-
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrlang import GnrObject,GnrException
 from gnr.core.gnrdict import GnrDict
@@ -71,7 +68,7 @@ class GnrStructData(Bag):
         :param checker: TODO"""
         if checker is None:
             checker= lambda v:True
-        if isinstance(checker,basestring):
+        if isinstance(checker,(str, bytes)):
             checker = lambda v:v==checker
         if self._parentNode:
             if attrname in self._parentNode.attr and checker(self._parentNode.attr[attrname]):
@@ -107,7 +104,7 @@ class GnrStructData(Bag):
             validpars = '0:' if validpars is True else validpars
             if isinstance(validpars,int):
                 validpars = str(validpars)
-            l = validpars.split(':') if isinstance(validpars,basestring) else validpars
+            l = validpars.split(':') if isinstance(validpars, str) else validpars
             if len(l)==1:
                 minval = validpars
                 maxval = minval
@@ -200,7 +197,7 @@ class GnrStructData(Bag):
         if _childcounter:
             kwargs['_childcounter'] = len(where)
         if _parentTag:
-            if isinstance(_parentTag, basestring):
+            if isinstance(_parentTag, str):
                 _parentTag = gnrstring.splitAndStrip(_parentTag, ',')
             actualParentTag = where.getAttr('', tag)
             if not actualParentTag in _parentTag:
@@ -415,7 +412,7 @@ class GnrStructObj(GnrObject):
         
     def _htraverse(self, pathlist, **kwargs):
         curr = self
-        if isinstance(pathlist, basestring):
+        if isinstance(pathlist, str):
             pathlist = gnrstring.smartsplit(pathlist.replace('../', '#^.'), '.')
             pathlist = [x for x in pathlist if x]
             if not pathlist:

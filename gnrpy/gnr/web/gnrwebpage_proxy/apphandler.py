@@ -25,10 +25,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
 import os
 import re
 import time
@@ -565,7 +561,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                 if joinBag['condition']: # may be a relatedcolumns only
                     params = (joinBag['params'] or Bag()).asDict(ascii=True)
                     for k, v in list(params.items()):
-                        if isinstance(v, basestring):
+                        if isinstance(v, str):
                             if v.startswith('^'):
                                 params[k] = storedata[v[1:]]
                             elif hasattr(self, '%s_%s' % (sqlContextName, v)):
@@ -671,7 +667,7 @@ class GnrWebAppHandler(GnrBaseProxy):
 
     @public_method      
     def deleteFileRows(self,files=None,**kwargs):
-        if isinstance(files,basestring):
+        if isinstance(files,str):
             files = files.split(',')
         for f in files:
             self.page.site.storageNode(f).delete()
@@ -1074,7 +1070,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                 linkedPkeys = self.page.freezedPkeys(self.db.table(linkedSelectionPars['masterTable']),linkedSelectionPars['linkedSelectionName'],
                                                             page_id=linkedSelectionPars['linkedPageId'])
             where = ' OR '.join([" (%s IN :_masterPkeys) " %r for r in linkedSelectionPars['relationpath'].split(',')])
-            return dict(where=' ( %s ) ' %where,linkedPkeys=linkedPkeys.split(',') if isinstance(linkedPkeys,basestring) else linkedPkeys)
+            return dict(where=' ( %s ) ' %where,linkedPkeys=linkedPkeys.split(',') if isinstance(linkedPkeys, str) else linkedPkeys)
 
 
 
@@ -1094,7 +1090,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             where = linkedSelectionKw['where']
             kwargs['_masterPkeys'] = linkedSelectionKw['linkedPkeys']
         elif pkeys:
-            if isinstance(pkeys, basestring):
+            if isinstance(pkeys, str):
                 pkeys = pkeys.strip(',').split(',')
             if len(pkeys)==0:
                 kwargs['limit'] = 0
@@ -1110,7 +1106,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         if condition and not pkeys:
             where = ' ( %s ) AND ( %s ) ' % (where, condition) if where else condition
         if filteringPkeys:
-            if isinstance(filteringPkeys,basestring):
+            if isinstance(filteringPkeys, str):
                 filteringWhere = None
                 if ',' in filteringPkeys:
                     filteringPkeys = filteringPkeys.split(',')
@@ -1288,7 +1284,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                 size = kwargs.pop('size', None)
                 size = kwargs.pop('print_width', size)
                 if size:
-                    if isinstance(size, basestring):
+                    if isinstance(size, str):
                         if ':' in size:
                             size = size.split(':')[1]
                     size = int(size)
@@ -1768,7 +1764,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             order_by = order_by or tblobj.attributes.get('order_by') or showcolumns[0]
             order_list.append(order_by if order_by[0] in ('$','@') else '$%s' %order_by)
             order_by = ', '.join(order_list)
-            cond = '(%s) AND (%s)' %(condition or 'TRUE',weakCondition) if isinstance(weakCondition,basestring) else condition
+            cond = '(%s) AND (%s)' %(condition or 'TRUE',weakCondition) if isinstance(weakCondition, str) else condition
             selection = selectHandler(tblobj=tblobj, querycolumns=querycolumns, querystring=querystring,
                                       resultcolumns=resultcolumns, condition=cond, exclude=exclude,
                                       limit=limit, order_by=order_by,
@@ -1870,7 +1866,7 @@ class GnrWebAppHandler(GnrBaseProxy):
 
         exclude_list = None
         if exclude:
-            if isinstance(exclude, basestring):
+            if isinstance(exclude, str):
                 exclude_list = [t.strip() for t in exclude.split(',')]
             else:
                 exclude_list = [t for t in exclude if t] # None values break the query
@@ -2009,7 +2005,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         if not columns:
             columns = [colname for colname, col in list(tblobj.columns.items()) if
                        not col.isReserved and not col.dtype == 'X'and not col.dtype == 'Z']
-        elif isinstance(columns, basestring):
+        elif isinstance(columns, str):
             columns = splitAndStrip(columns)
         fb.placeFields(','.join(columns))
 
@@ -2048,7 +2044,7 @@ class GnrWebAppHandler(GnrBaseProxy):
 
     def _getStoreBag(self, storebag):
         # da finire
-        if isinstance(storebag, basestring):
+        if isinstance(storebag, str):
             if storebag.startswith('gnrsel:'):
                 x, tbl, filename = storebag.split(':', 2)
                 sel = self.unfreezeSelection(self.app.db.table(tbl), filename)

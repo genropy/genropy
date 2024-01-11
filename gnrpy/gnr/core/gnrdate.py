@@ -20,13 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import division
-from past.builtins import cmp
-from builtins import str
-from builtins import map
-from past.builtins import basestring
-
-from past.utils import old_div
 import re
 import logging
 import datetime
@@ -41,6 +34,9 @@ from dateutil import rrule
 from babel import dates
 
 logger = logging.getLogger(__name__)
+
+def cmp(x, y):
+        return (x > y) - (x < y)
 
 def toDHZ(date,time,timezone=None):
     ts = datetime.datetime.combine(date,time)
@@ -468,7 +464,7 @@ def toTime(t):
         return t.time()
     elif isinstance(t, datetime.time):
         return t
-    elif isinstance(t, basestring):
+    elif isinstance(t, str):
         try:
             return datetime.time(*list(map(int, t.split(':'))))
         except ValueError:
@@ -529,7 +525,7 @@ def minutes_to_time(mins):
     
     >>> minutes_to_time(480)
     datetime.time(8, 0)"""
-    hours = old_div(mins, 60)
+    hours = mins//60
     mins = mins % 60
     return datetime.time(hours, mins)
 
@@ -601,7 +597,7 @@ class TimeInterval(object):
                 other = start
                 start = other.start
                 stop = other.stop
-            elif isinstance(start, basestring):
+            elif isinstance(start, str):
                 (start, sep, stop) = start.partition('-')
             else:
                 start, stop = start
@@ -732,7 +728,7 @@ class TimeInterval(object):
     @minutes.setter
     def minutes(self, value):
         mins = self.start.hour * 60 + self.start.minute + value
-        hours = old_div(mins, 60)
+        hours = mins//60
         mins = mins % 60
         self.stop = datetime.time(hours, mins)
 
@@ -771,7 +767,7 @@ class TimePeriod(object):
         self._intervals = []
         if len(intervals) == 1:
             iv = intervals[0]
-            if isinstance(iv, basestring):
+            if isinstance(iv, str):
                 intervals = [s.strip() for s in iv.split(',')]
         for interval in intervals:
             self.add(interval)

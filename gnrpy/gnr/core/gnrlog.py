@@ -1,4 +1,3 @@
-from builtins import range
 import sys, logging
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))

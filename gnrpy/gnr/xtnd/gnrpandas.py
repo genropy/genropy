@@ -4,11 +4,7 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
+
 import os
 from gnr.core.gnrbag import Bag
 from datetime import datetime
@@ -176,7 +172,7 @@ class GnrPandas(object):
 
     def __getitem__(self,dfname):
         df = self.dataframes[dfname]
-        if isinstance(df,basestring):
+        if isinstance(df,str):
             path = df
             df = GnrDataframe(dfname)
             df.from_pickle(path)
