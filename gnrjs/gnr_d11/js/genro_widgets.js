@@ -5455,7 +5455,7 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
                 }
             }
         });
-        if(sourceNode.attr.autoFit){
+        if(sourceNode.attr.autoFit && sourceNode.markers && sourceNode.markers.length>1){
             sourceNode.delayedCall(function(){
                 var bounds = new google.maps.LatLngBounds();
                 for(var k in sourceNode.markers){
@@ -5490,21 +5490,26 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
 
     setMap_center:function(domnode,v){
         var sourceNode=domnode.sourceNode;
-        if(!sourceNode.map){
-            var kw = objectExtract(sourceNode.attr,'map_*',true);
-            kw.center = v;
-            return this.makeMap(sourceNode,kw);
-        }
         var that = this;
-        this.onPositionCall(sourceNode,v,function(center){
-            if (center){
-                 sourceNode.map.setCenter(center);
-                 var centerMarker = sourceNode.attr.centerMarker;
-                 if(centerMarker){
-                    that.setMarker(sourceNode,'center_marker',center,centerMarker==true?{}:centerMarker);
+        sourceNode.watch('waiting_maps',function(){
+            return window.google && window.google.maps;
+        },function(){
+                if(!sourceNode.map){
+                    let kw = objectExtract(sourceNode.attr,'map_*',true);
+                    kw.center = v;
+                    return that.makeMap(sourceNode,kw);
                 }
+                that.onPositionCall(sourceNode,v,function(center){
+                    if (center){
+                         sourceNode.map.setCenter(center);
+                         let centerMarker = sourceNode.attr.centerMarker;
+                         if(centerMarker){
+                            that.setMarker(sourceNode,'center_marker',center,centerMarker==true?{}:centerMarker);
+                        }
+                    }
+                });
             }
-        });
+        )
     },
 
     setMap_zoom:function(domnode,v){

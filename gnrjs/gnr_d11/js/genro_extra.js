@@ -92,7 +92,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
         var cb = function(){
             setTimeout(function(){
                 that.initialize(widget,savedAttrs.calAttrs);
-            },000);
+            });
         }
         if(!window.FullCalendar){
             this.loadFullCalendar(cb);
