@@ -25,7 +25,6 @@ import inspect
 import sys, traceback, datetime
 import importlib
 from importlib.machinery import SourceFileLoader
-import imp
 import os.path
 import _thread
 import warnings
@@ -466,11 +465,8 @@ class GnrImportedModule(object):
     def load(self):
         """TODO"""
         m_name = os.path.basename(self.path).split(".")[0]
-        if self.path.endswith('py'):
-            script_path = os.path.abspath(self.path)
-            self.module = SourceFileLoader(m_name, script_path).load_module()
-        else:
-            self.module = imp.load_compiled(self.name, self.path)
+        script_path = os.path.abspath(self.path)
+        self.module = SourceFileLoader(m_name, script_path).load_module()
             
     def update(self):
         """TODO"""
