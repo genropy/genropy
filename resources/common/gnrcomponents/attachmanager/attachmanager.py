@@ -157,7 +157,44 @@ class ViewPalette(BaseComponent):
 class FormPalette(Form):
     pass
 
+class UploaderViewerPane(BaseComponent):
+    js_requires='gnrcomponents/attachmanager/attachmanager'
+    css_requires = 'gnrcomponents/attachmanager/attachmanager'
+
+    @struct_method
+    def upv_viewerStack(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+        sc = parent.stackContainer(**kwargs)
+        sc.contentPane(pageName='document').iframe(src=src,height='100%',
+                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
+        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        parent.dataController("""
+        let ext = src.split("?")[0].split('.').pop()
+        SET .$ext = src.split("?")[0].split('.').pop();
+        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        """,src=src,_if='src',sc=sc.js_widget)
+
+    @extract_kwargs(uploader=True)
+    @struct_method
+    def upv_uploaderViewerPane(self,parent,fileurl=None,upload_message=None,uploader_kwargs=None,**kwargs):
+        sc = parent.stackContainer(_workspace=True,**kwargs)
+        bc = sc.borderContainer()
+        bc.attachmentPreviewViewer(src=fileurl,
+                                   region='center',overflow='hidden',
+                                   currentPreviewZoom='^#WORKSPACE.currentPreviewZoom')
+        da = sc.contentPane().div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
+            text_align='center',border='3px dotted #999',rounded=8)
+        if not upload_message:
+            upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
+        center_cell = da.table(height='100%',width='100%').tr().td()
+        center_cell.div(upload_message,width='100%',font_size='30px',color='#999')
+        da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
+                        _class='attachmentDropUploader',
+                        **uploader_kwargs)
+        bc.dataController("""console.log('fileurl',fileurl);
+                                sc.switchPage(fileurl?0:1)""",fileurl=fileurl,sc=sc.js_widget)
+
 class AttachManager(BaseComponent):
+    py_requires = 'gnrcomponents/attachmanager/attachmanager:UploaderViewerPane'
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
@@ -207,6 +244,17 @@ class AttachManager(BaseComponent):
         view.top.pop('bar')
         return th 
 
+    @struct_method
+    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+        sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
+        sc.contentPane(pageName='document').iframe(src=src,height='100%',
+                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
+        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        parent.dataController("""
+        let ext = src.split("?")[0].split('.').pop()
+        SET .$ext = src.split("?")[0].split('.').pop();
+        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        """,src=src,_if='src',sc=sc.js_widget)
 
     @extract_kwargs(default=True)
     @struct_method
@@ -368,18 +416,6 @@ class AttachManager(BaseComponent):
             record['description'] = description
         self.db.commit()
 
-    @struct_method
-    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
-        sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
-        sc.contentPane(pageName='document').iframe(src=src,height='100%',
-                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
-        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
-        parent.dataController("""
-        let ext = src.split("?")[0].split('.').pop()
-        SET .$ext = src.split("?")[0].split('.').pop();
-        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
-        """,src=src,_if='src',sc=sc.js_widget)
-                                                 
 
 
     @struct_method
@@ -452,6 +488,7 @@ class AttachManager(BaseComponent):
         kwargs['attachment_id'] = record['id']
         self.db.commit()        
         self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
+
 
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
