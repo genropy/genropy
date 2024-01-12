@@ -280,16 +280,28 @@ class FrameIndex(BaseComponent):
     def fi_slotbar_helpdesk(self,slot,**kwargs):
         documentationcb = self.helpdesk_documentation()
         helpcb = self.helpdesk_help()
-        if not (documentationcb or helpcb):
+        usergroup_documentation = self.helpdesk_userGroupDocumentation()
+        if not (usergroup_documentation or documentationcb or helpcb):
             return
-        
         menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
-
-        if documentationcb:
-            menu.menuline('!![en]Open documentation',code='documentation',
-                          action=documentationcb)
+        if documentationcb or usergroup_documentation:
+            m = menu.menuline('!![en]Open documentation',code='documentation',
+                              documentationcb=documentationcb)
+            if usergroup_documentation:
+                m = m.menu(action="genro.openBrowserTab($1.url);")
+                for r in usergroup_documentation:
+                    m.menuline(r['title'],url=r['url'])
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+
+    def helpdesk_userGroupDocumentation(self):
+        if not self.avatar.group_code:
+            return
+        return self.db.table('adm.group_helpdoc').query(
+            where='$group_code=:gc',
+            gc = self.avatar.group_code,
+        ).fetch()
+
 
     def helpdesk_documentation(self):
         return

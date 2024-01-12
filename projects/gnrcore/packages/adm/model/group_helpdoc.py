@@ -13,4 +13,5 @@ class Table(object):
         tbl.column('helpdoc_id',size='22', group='_', name_long='Help document'
                     ).relation('helpdoc.id', relation_name='connected_groups', 
                                mode='foreignkey', onDelete='cascade')
+        tbl.aliasColumn('url','@helpdoc_id.url',name_long='Url',static=True)
         

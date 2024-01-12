@@ -351,7 +351,7 @@ class TableBase(object):
                                                     deferred=True,
                                                     onDelete='ignore')
             if hierarchical_virtual_roots:
-                tbl.column('_virtual_node',dtype='B',name_lomg="!![en]H.Virtual node",copyFromParent=True)
+                tbl.column('_virtual_node',dtype='B',name_long="!![en]H.Virtual node",copyFromParent=True)
 
             hfields = []
             for fld in hierarchical.split(','):
@@ -1429,7 +1429,7 @@ class AttachmentTable(GnrDboTable):
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
-            tbl.column('atc_download',dtype='B',name_lomg='DL')
+            tbl.column('atc_download',dtype='B',name_long='DL')
         self.onTableConfig(tbl)
 
     def onArchiveExport(self,records,files=None):
