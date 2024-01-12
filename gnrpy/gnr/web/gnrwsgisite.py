@@ -1,5 +1,3 @@
-from builtins import str
-from past.builtins import basestring
 import json
 import os
 import re
@@ -909,7 +907,7 @@ class GnrWsgiSite(object):
             try:
                 self.log_print('kwargs: %s' % str(request_kwargs), code='PING')
                 result = self.serve_ping(response, environ, start_response, **request_kwargs)
-                if not isinstance(result, basestring):
+                if not isinstance(result, (bytes,str)):
                     return result
                 response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSiteMaintenance=self.currentMaintenance)
                 self.cleanup()
@@ -921,7 +919,7 @@ class GnrWsgiSite(object):
         if first_segment == '_pwa_manifest.json':
             try:
                 result = self.serve_manifest(response, environ, start_response, **request_kwargs)
-                if not isinstance(result, basestring):
+                if not isinstance(result, (bytes,str)):
                     return result
                 response = self.setResultInResponse(result, response)
                 self.cleanup()
@@ -1069,7 +1067,7 @@ class GnrWsgiSite(object):
             response.mimetype = kwargs.get('mimetype') or response.mimetype or 'text/plain'
             response.data=result # PendingDeprecationWarning: .unicode_body is deprecated in favour of Response.text
         
-        elif isinstance(result, basestring):
+        elif isinstance(result, (bytes,str)):
             response.data=result
         elif isinstance(result, Response):
             response = result
@@ -1537,7 +1535,7 @@ class GnrWsgiSite(object):
         result = dict()
         for k, v in list(kwargs.items()):
             k = k.strip()
-            if isinstance(v, basestring):
+            if isinstance(v, (bytes,str)):
                 try:
                     v = catalog.fromTypedText(v)
                     result[k] = v
@@ -1616,7 +1614,7 @@ class GnrWsgiSite(object):
         :param zipPath: the result path of the zipped file"""
         import zipfile
         zipresult = self.storageNode(zipPath)
-        if isinstance(file_list,basestring):
+        if isinstance(file_list, str):
             file_list = file_list.split(',')
         with zipresult.open(mode='wb') as zipresult:
             zip_archive = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED,allowZip64=True)

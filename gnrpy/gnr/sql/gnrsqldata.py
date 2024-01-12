@@ -20,16 +20,10 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import zip
-from builtins import map
-from builtins import filter
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
+
 import os
 import shutil
 import re
-#import weakref
 import pickle
 import itertools
 import hashlib
@@ -231,7 +225,7 @@ class SqlQueryCompiler(object):
                     select_dict['default'] = fldalias.select or fldalias.exists
                 if select_dict:
                     for susbselect,sq_pars in list(select_dict.items()):
-                        if isinstance(sq_pars,basestring):
+                        if isinstance(sq_pars, str):
                             sq_pars = getattr(self.tblobj.dbtable,'subquery_%s' %sq_pars)()
                         sq_pars = dict(sq_pars)
                         cast = sq_pars.pop('cast',None)
@@ -454,8 +448,9 @@ class SqlQueryCompiler(object):
         
     def embedFieldPars(self,sql):
         for k,v in list(self.sqlparams.items()):
-            if isinstance(v,basestring):
-                v = six.ensure_str(v)
+            if isinstance(v, bytes):
+                v = v.decode()
+            if isinstance(v, str):
                 doreplace=False
                 if v.startswith('@'):
                     doreplace = v.split('.')[0] in self.tblobj.relations
@@ -720,7 +715,7 @@ class SqlQueryCompiler(object):
 
 
     def _handle_virtual_columns(self, virtual_columns):
-        if isinstance(virtual_columns, basestring):
+        if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         virtual_columns = (virtual_columns or []) + list(self.tblobj.static_virtual_columns.keys())
         if not virtual_columns:
@@ -1390,7 +1385,7 @@ class SqlSelection(object):
                 filterCb = lambda r: r[self.key] in subtotalNode.attr['idx']
         if mode == 'pkeylist' or mode == 'records':
             columns = 'pkey'
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = gnrstring.splitAndStrip(columns, ',')
         if not columns:
             columns = self.allColumns
@@ -1663,10 +1658,10 @@ class SqlSelection(object):
             elif key == '#':
                 key = None
             if group_by:
-                group_by = [x.replace('@', '_').replace('.', '_').replace('$', '') if isinstance(x, basestring) else x
+                group_by = [x.replace('@', '_').replace('.', '_').replace('$', '') if isinstance(x, str) else x
                             for x in group_by]
             if keep:
-                keep = [x.replace('@', '_').replace('.', '_').replace('$', '') if isinstance(x, basestring) else x for x
+                keep = [x.replace('@', '_').replace('.', '_').replace('$', '') if isinstance(x, str) else x for x
                         in keep]
             self.analyzeKey = key
             self.analyzeBag.analyze(self, group_by=group_by, sum=sum, collect=collect,
@@ -1706,7 +1701,7 @@ class SqlSelection(object):
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
                         clause in the traditional sql query. For more information, check the
                         :ref:`sql_columns` section. """
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = gnrstring.splitAndStrip(columns, ',')
             
         tbag = self.totalizer(path)
@@ -1720,7 +1715,7 @@ class SqlSelection(object):
 
 
     def sum(self,columns=None):            
-        if isinstance(columns,basestring):
+        if isinstance(columns, str):
             columns = columns.split(',')
         result  = list()
         if not columns or not self.data:
@@ -1973,7 +1968,7 @@ class SqlSelection(object):
                                                    joinConditions=self.joinConditions,
                                                    sqlContextName=self.sqlContextName)
             if caption:
-                if isinstance(caption, basestring):
+                if isinstance(caption, str):
                     rowcaption = caption
                 else:
                     rowcaption = None
@@ -2044,7 +2039,7 @@ class SqlSelection(object):
         if not kwargs['dtype']:
             kwargs['dtype'] = GnrClassCatalog.convert().asTypedText(45)[-1]
         if size:
-            if isinstance(size, basestring):
+            if isinstance(size, str):
                 if ':' in size:
                     size = size.split(':')[1]
             kwargs['width'] = '%iem' % int(int(size) * .7)

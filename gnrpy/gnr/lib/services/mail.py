@@ -20,10 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-from builtins import chr
-from builtins import str
-from past.builtins import basestring
 import _thread
 import os
 import datetime
@@ -190,7 +186,7 @@ class MailService(GnrBaseService):
         :param to_address: the email receiver
         :param multiple_mode: TODO"""
         cc = bcc = None
-        if isinstance(to_address, basestring):
+        if isinstance(to_address, str):
             to_address = [address.strip() for address in to_address.replace(';', ',').split(',') if address]
         multiple_mode = (multiple_mode or '').lower().strip()
         if multiple_mode == 'to':

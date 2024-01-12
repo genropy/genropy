@@ -20,12 +20,8 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
-from past.builtins import basestring, str as old_str
-#from builtins import object
 import datetime
 import re
-import six
 from gnr.core import gnrstring
 from gnr.core.gnrdate import decodeOneDate, decodeDatePeriod
 from gnr.core.gnrlang import gnrImport, serializedFuncName
@@ -103,7 +99,7 @@ class GnrClassCatalog(object):
         :param key: TODO
         :returns: TODO
         """
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = self.classes.get(key.upper())
         if key in self.names:
             v = self.empty.get(self.names[key])
@@ -119,7 +115,7 @@ class GnrClassCatalog(object):
         :param key: TODO
         :returns: TODO
         """
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             key = self.classes.get(key.upper())
         if key in self.names:
             return self.align.get(self.names[key])
@@ -173,7 +169,7 @@ class GnrClassCatalog(object):
         :param translate_cb: TODO. 
         :returns: TODO
         """
-        if isinstance(o, basestring):
+        if isinstance(o, (bytes,str)):
             result = o
             if translate_cb: # a translation is needed, if no locale leave all as is including "!!"
                 result = translate_cb(result)
@@ -215,7 +211,7 @@ class GnrClassCatalog(object):
         if not txt:
             return self.getEmpty(clsname)
     
-        if not isinstance(txt,basestring):
+        if not isinstance(txt, (str, bytes)):
             if self.getType(txt)==clsname:
                 return txt
             else:
@@ -316,7 +312,7 @@ class GnrClassCatalog(object):
         """
         from gnr.core.gnrbag import Bag
         
-        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[basestring, old_str, six.text_type], empty='')
+        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[bytes], empty='')
         #self.addSerializer("asText", unicode, lambda txt: txt)
         
         self.addClass(cls=float, key='R', aliases=['REAL', 'FLOAT', 'F'], align='R', empty=0.0)

@@ -20,8 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
-from past.builtins import basestring
 
 import inspect
 import sys, traceback, datetime
@@ -135,7 +133,7 @@ def boolean(x):
     * "False" strings: ``FALSE``, ``F``, ``N``, ``NO``, ``0``
     
     :param x: the string to be checked"""
-    if isinstance(x, basestring):
+    if isinstance(x, str):
         x = x.upper()
         if x in ('TRUE', 'T', 'Y', 'YES', '1'):
             return True
@@ -282,7 +280,7 @@ def moduleDict(module, proplist):
     :param module: TODO
     :param proplist: TODO"""
     result = {}
-    if isinstance(module, basestring):
+    if isinstance(module, str):
         module = gnrImport(module)
     for prop in [x.strip() for x in proplist.split(',')]:
         modulelist = [getattr(module, x) for x in dir(module) if
@@ -370,7 +368,7 @@ class GnrException(Exception):
         if self.localizer:
             msg = self.localize(msg)
             for k, v in list(msgargs.items()):
-                if isinstance(v, basestring) and v.startswith('!!'):
+                if isinstance(v, str) and v.startswith('!!'):
                     msgargs[k] = self.localize(msgargs[k])
         return msg % msgargs % msgargs # msgargs is use 2 times as we could have msgargs nested(max 1 level)
 
@@ -397,7 +395,7 @@ class GnrObject(object):
         """TODO
         
         :param cls: the python class to mixin"""
-        if isinstance(cls, basestring):
+        if isinstance(cls, str):
             drive, cls = os.path.splitdrive(cls)
             modulename, cls = cls.split(':')
             modulename = '%s%s'%(drive, modulename)
@@ -411,7 +409,7 @@ class GnrObject(object):
 class GnrImportedModule(object):
     """TODO"""
     def __init__(self, source):
-        if isinstance(source, basestring):
+        if isinstance(source, str):
             self.path = source
             self.name = inspect.getmodulename(source)
             self.module = None
@@ -552,7 +550,7 @@ class GnrAddOn(object):
         :param src: is a string of a python function or an imported function
         :param importAs: a name for identify the function in error messages
         :param bound: boolean. If ``True`` the function will be bounded to this instance"""
-        if isinstance(src, basestring):
+        if isinstance(src, str):
             if not importAs: importAs = 'abcd'
             compiled = compile(src, importAs, 'exec')
             auxDict = {}
@@ -802,11 +800,11 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
     :param only_callables: TODO
     :param exclude: TODO. If not *methods* then all methods are added"""
     
-    if isinstance(methods, basestring):
+    if isinstance(methods, str):
         methods = methods.split(',')
-    if isinstance(exclude, basestring):
+    if isinstance(exclude, str):
         exclude = exclude.split(',')
-    if isinstance(source_class, basestring):
+    if isinstance(source_class, str):
         drive, source_class = os.path.splitdrive(source_class)
         asProxy = None
         if ' AS ' in source_class:
@@ -949,12 +947,12 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
     
     if _mixined is None:
         _mixined=[]
-    if isinstance(methods, basestring):
+    if isinstance(methods, str):
         methods = methods.split(',')
-    if isinstance(exclude, basestring):
+    if isinstance(exclude, str):
         exclude = exclude.split(',')
     exclude = exclude or ''
-    if isinstance(source, basestring):
+    if isinstance(source, str):
         drive, source = os.path.splitdrive(source)
         if ':' in source:
             modulename, clsname = source.split(':')
@@ -1027,7 +1025,7 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
         attributes = [k for k in source_dir if
                       not callable(getattr(source, k)) and not k.startswith('_') and not k in exclude]
     if attributes:
-        if isinstance(attributes, basestring):
+        if isinstance(attributes, str):
             attributes = attributes.split(',')
         for attribute in attributes:
             if hasattr(source, attribute):
@@ -1080,7 +1078,7 @@ def instanceOf(obj, *args, **kwargs):
     """TODO
     
     :param obj: TODO"""
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         drive, obj = os.path.splitdrive(obj)
         modulename, clsname = obj.split(':')
         modulename = '%s%s'%(drive,modulename)

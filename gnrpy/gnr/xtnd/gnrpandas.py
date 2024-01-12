@@ -4,8 +4,6 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from builtins import str
-from past.builtins import basestring
 
 import os
 from collections import defaultdict,OrderedDict
@@ -174,7 +172,7 @@ class GnrPandas(object):
 
     def __getitem__(self,dfname):
         df = self.dataframes[dfname]
-        if isinstance(df,basestring):
+        if isinstance(df,str):
             path = df
             df = GnrDataframe(dfname)
             df.from_pickle(path)

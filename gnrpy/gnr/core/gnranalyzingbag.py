@@ -1,7 +1,3 @@
-from builtins import str
-from past.builtins import basestring
-from past.utils import old_div
-
 from gnr.core.gnrbag import Bag
 
 class AnalyzingBag(Bag):
@@ -11,7 +7,7 @@ class AnalyzingBag(Bag):
         totalize = sum
 
         def groupLabel(row, group):
-            if isinstance(group, basestring):
+            if isinstance(group, str):
                 if group.startswith('*'):
                     label = group[1:]
                 else:
@@ -20,7 +16,7 @@ class AnalyzingBag(Bag):
                 label = group(row)
             if label is None:
                 return ''
-            if not isinstance(label, basestring):
+            if not isinstance(label, str):
                 label = str(label)
             return label
 
@@ -39,7 +35,7 @@ class AnalyzingBag(Bag):
                     lbl = 'sum_%s' % fld
                     tt = attr[lbl] = attr.get(lbl, 0) + (row.get(fld, 0) or 0)
                     lbl = 'avg_%s' % fld
-                    attr[lbl] = float(old_div(tt, attr['count']))
+                    attr[lbl] = tt/ attr['count']
             if collect is not None:
                 for fld in collect:
                     lbl = 'collect_%s' % fld

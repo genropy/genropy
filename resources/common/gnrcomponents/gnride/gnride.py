@@ -4,7 +4,6 @@
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2018 Softwell. All rights reserved.
 
-from builtins import str
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs

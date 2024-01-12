@@ -20,9 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
-from past.builtins import basestring
-
 import time
 import _thread
 import Pyro4
@@ -538,7 +535,7 @@ class PageRegister(BaseRegister):
             value = page[fltname]
             if not value:
                 return
-            if not isinstance(value, basestring):
+            if not isinstance(value, (bytes,str)):
                 return fltval == value
             try:
                 return re.match(fltval, value)
@@ -898,10 +895,10 @@ class SiteRegister(BaseRemoteObject):
 
 
     def _parse_change_value(self, change_value):
-        if isinstance(change_value, basestring):
+        if isinstance(change_value, (bytes,str)):
             try:
                 v = self.catalog.fromTypedText(change_value)
-                if isinstance(v, basestring) and hasattr(v, 'decode'):
+                if isinstance(v, (bytes,str)) and hasattr(v, 'decode'):
                     v = v.decode('utf-8')
                 return v
             except Exception as e:

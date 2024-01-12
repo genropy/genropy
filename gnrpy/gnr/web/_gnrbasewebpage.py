@@ -25,9 +25,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from builtins import str
-from past.builtins import basestring
-
 import os
 import sys
 import time
@@ -219,7 +216,7 @@ class GnrBaseWebPage(GnrObject):
         :param name: TODO
         :param page_id: TODO"""
         assert name, 'name is mandatory'
-        if isinstance(dbtable, basestring):
+        if isinstance(dbtable, str):
             dbtable = self.db.table(dbtable)
         selection = self.db.unfreezeSelection(self.pageLocalDocument(name,page_id=page_id))
         if dbtable and selection is not None:
@@ -228,7 +225,7 @@ class GnrBaseWebPage(GnrObject):
     
     def freezedPkeys(self,dbtable=None,name=None,page_id=None):
         assert name, 'name is mandatory'
-        if isinstance(dbtable, basestring):
+        if isinstance(dbtable, str):
             dbtable = self.db.table(dbtable)
         return self.db.freezedPkeys(self.pageLocalDocument(name,page_id=page_id))
 
@@ -252,7 +249,7 @@ class GnrBaseWebPage(GnrObject):
         # table is for checking if the selection belong to the table
         assert selectionName, 'selectionName is mandatory'
         page_id = self.sourcepage_id or self.page_id
-        if isinstance(table, basestring):
+        if isinstance(table, str):
             table = self.db.table(table)
         selection = self.unfreezeSelection(dbtable=table, name=selectionName,page_id=page_id)
         table = table or selection.dbtable
@@ -266,7 +263,7 @@ class GnrBaseWebPage(GnrObject):
             filterCb = self.getPublicMethod('rpc',filterCb)
             selection.filter(filterCb)
         elif selectedRowidx:
-            if isinstance(selectedRowidx, basestring):
+            if isinstance(selectedRowidx, str):
                 selectedRowidx = [int(x) for x  in selectedRowidx.split(',')]
                 selectedRowidx = set(selectedRowidx) #use uniquify (gnrlang) instead
             selection.filter(lambda r: r['rowidx'] in selectedRowidx)
@@ -739,7 +736,7 @@ class GnrBaseWebPage(GnrObject):
                 tr = tbl.tr()
                 tr.td(node.label, align='right')
                 try:
-                    if not isinstance(v, basestring):
+                    if not isinstance(v, (bytes,str)):
                         v = str(v)
                     if not isinstance(v, str):
                         v = v.decode('ascii', 'ignore')
@@ -753,7 +750,7 @@ class GnrBaseWebPage(GnrObject):
         """TODO
         
         :param resolverPars: TODO"""
-        if isinstance(resolverPars, basestring):
+        if isinstance(resolverPars, str):
             resolverPars = json.loads(resolverPars) #should never happen
         resolverclass = resolverPars['resolverclass']
         resolvermodule = resolverPars['resolvermodule']

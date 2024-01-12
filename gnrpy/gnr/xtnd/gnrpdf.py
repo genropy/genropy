@@ -1,7 +1,3 @@
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-#from builtins import object
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrlang import GnrException
@@ -74,9 +70,9 @@ class GnrPdf(object):
                                                              'lowerx', 'lowery', 'upperx', 'uppery')
                                                              
     def __init__(self, filename='test.pdf', pagesize='A4', unit='inch'):
-        if isinstance(pagesize, basestring):
+        if isinstance(pagesize, str):
             pagesize = getattr(pdflib.pagesizes, pagesize, pdflib.pagesizes.A4)
-        if isinstance(unit, basestring):
+        if isinstance(unit, str):
             unit = getattr(pdflib.units, unit, pdflib.units.inch)
         self.canvas = canvas.Canvas(filename, pagesize)
         self.root = GnrPdfSrc.makeRoot()

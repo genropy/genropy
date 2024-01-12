@@ -21,10 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 # 
 
-from __future__ import print_function
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
 from datetime import datetime
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
@@ -40,7 +36,7 @@ import time
 
 def lock_item(func):
     def decore(self, obj, *args, **kwargs):
-        key = obj if isinstance(obj, basestring) else obj['register_item_id']
+        key = obj if isinstance(obj, str) else obj['register_item_id']
         with self.locked(self.item_key(key), caller=func.__name__):
             result = func(self, obj, *args, **kwargs)
             return result
@@ -684,7 +680,7 @@ class PageRegister(BaseRegister):
             value = page[fltname]
             if not value:
                 return
-            if not isinstance(value, basestring):
+            if not isinstance(value, str):
                 return fltval == value
             try:
                 return re.match(fltval, value)

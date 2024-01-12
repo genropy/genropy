@@ -20,8 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
-from past.builtins import basestring
 
 import sys
 import re
@@ -190,7 +188,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         command = 'DROP TABLE IF EXISTS %s;'
         if cascade:
             command = 'DROP TABLE %s CASCADE;'
-        tablename = dbtable if isinstance(dbtable,basestring) else dbtable.model.sqlfullname
+        tablename = dbtable if isinstance(dbtable, str) else dbtable.model.sqlfullname
         self.dbroot.execute(command % tablename)
 
     def dump(self, filename,dbname=None,excluded_schemas=None, options=None,**kwargs):

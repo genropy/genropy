@@ -6,13 +6,12 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-import sys
-
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrdecorator import extract_kwargs
+
 
 class GnrHtmlSrcError(Exception):
     pass

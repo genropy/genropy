@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from builtins import str
-from builtins import range
-from past.builtins import basestring
+
 import datetime
 import os
 import locale
@@ -32,7 +30,7 @@ def localize(obj, format=None, currency=None, locale=None):
         return str(obj)
 
 def formatHandler(obj):
-    if isinstance(obj,basestring) and '::' in obj:
+    if isinstance(obj, str) and '::' in obj:
         obj,dtype = obj.rsplit('::',1)
     else:
         dtype = type(obj)
@@ -108,14 +106,14 @@ def localize_img(value, locale, format=None, **kwargs):
     if format == 'img':
         return """<img src="%s"/>""" %value
     cropper_zoom = None
-    if isinstance(format,basestring) and format.startswith('auto'):
+    if isinstance(format, str) and format.startswith('auto'):
         cropper_zoom = float(format.split(':')[1]) if ':' in format else None
         if '?' in value:
             value,format = value.split('?')
             format = format.replace('=',':').replace('&',',').replace('v_','')
         else:
             format = dict()
-    if isinstance(format,basestring):
+    if isinstance(format, str):
         format = dict([p.split(':') for p in format.split(',')])
     format.update(kwargs)
     cropper = '%s'
@@ -315,12 +313,12 @@ def getKeywords(sourcedict,keyword, locale=None):
     if not keydict and len(locale) > 2: # like en_us
         keydict = sourcedict.get(locale[:2], {})
         
-    if isinstance(keyword, basestring):
+    if isinstance(keyword, str):
         keyword = [keyword]
     result = []
     for k in keyword:
         kloc = keydict.get(k, k)
-        if isinstance(kloc, basestring):
+        if isinstance(kloc, str):
             result.append(kloc)
         else:
             result.extend(kloc)
