@@ -29,7 +29,7 @@ dependencies = [
 	     "mako",
 	     "vobject",
 	     "pytz",
-	     "babel==2.13.1",
+	     "babel",
 	     "httplib2",
 #	     "selectors34", #apparently abandoned
 #	     "serpent<1.30", #it's a pyro dependencies, so it seem
@@ -42,7 +42,7 @@ dependencies = [
 	     "redbaron",
 	     "future", # evaluate if needed
 	     "boto3",
-	     "smart_open==4.2.0",
+	     "smart_open",
 	     "gunicorn",
 	     "supervisor",
 	     "lxml",
@@ -50,7 +50,7 @@ dependencies = [
 	     "psutil",
 	     "simpleeval",
 	     "webob",
-	     "werkzeug<2.0",
+	     "werkzeug<3.0",
 	     "six", # evaluate if needed
 	     "tzlocal",
 	     "pyyaml",
