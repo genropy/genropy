@@ -356,7 +356,7 @@ class TableHandlerView(BaseComponent):
                 base_slots = extendedQuery.split(',')
         elif roundedEnvelope:
             top_kwargs['toolbar'] = False
-            base_slots = ['*','vtitle','*']
+            base_slots = ['*','vtitle','*'] if not searchOn else ['10','vtitle','*','searchOn','10']
             top_kwargs['_class']='mobileTemplateGridTop'
         elif not virtualStore:
             if root_tablehandler:
@@ -858,8 +858,7 @@ class TableHandlerView(BaseComponent):
                                 dtstart=dtstart, 
                                 count=count)):
             currdate = dt.date()
-            condition = "to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"\
-                        .format(column=column)
+            condition = f"to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
