@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 from gnr.core import gnrstring
 import datetime
 
@@ -77,7 +76,8 @@ def test_asDict():
 
 def test_stringDict():
     """docstring for test_stringDict"""
-    assert gnrstring.stringDict({'height': 22, 'width': 33}) == 'width=33,height=22'
+    assert gnrstring.stringDict({'height': 22, 'width': 33}) in ['width=33,height=22',
+                                                                 'height=22,width=33']
 
 def test_updateString():
     """docstring for test_updateString"""
@@ -123,4 +123,8 @@ def test_fromIsoDate():
 
 def test_toJson():
     res = gnrstring.toJson([{'a': 2}, {'b': 3, 'c': 6}, {'z': 9}])
-    assert res == '[{"a": 2}, {"c": 6, "b": 3}, {"z": 9}]'
+    assert res in [
+        '[{"a": 2}, {"b": 3, "c": 6}, {"z": 9}]',
+        '[{"a": 2}, {"c": 6, "b": 3}, {"z": 9}]'
+    ]
+        

@@ -25,13 +25,10 @@
 """
 this test module focus on SqlQuery's methods
 """
-from __future__ import print_function
-
-#from builtins import object
 import os
 import datetime
 
-import py.test
+import pytest
 import logging
 
 gnrlogger = logging.getLogger('gnr')
@@ -43,12 +40,7 @@ from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.core.gnrbag import Bag
 from a_structure_load_test import configurePackage
 
-
-def setup_module(module):
-    logging.getLogger('gnr.sql.gnrsql').setLevel(logging.INFO)
-    module.CONFIG = Bag('data/configTest.xml')
-    module.SAMPLE_XMLSTRUCT = 'data/dbstructure_base.xml'
-    module.SAMPLE_XMLDATA = 'data/dbdata_base.xml'
+from common import setup_module
 
 class BaseSql(object):
     def setup_class(cls):

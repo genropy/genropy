@@ -25,14 +25,13 @@
 """
 this test module focus on SqlSelection's methods
 """
-from __future__ import print_function
 
 from past.builtins import basestring
-#from builtins import object
-import os
+
+import os, os.path
 import datetime
 
-import py.test
+import pytest
 
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery
@@ -42,10 +41,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
-def setup_module(module):
-    module.CONFIG = Bag('data/configTest.xml')
-    module.SAMPLE_XMLSTRUCT = 'data/dbstructure_base.xml'
-    module.SAMPLE_XMLDATA = 'data/dbdata_base.xml'
+from common import setup_module
 
 # this module test all the post-process methods on selection resolver
 
@@ -98,8 +94,9 @@ class BaseDb(object):
         self.mysel.filter()
 
     def test_freeze(self):
-        self.mysel.freeze('data/myselection')
-        sel = self.db.table('video.cast').frozenSelection('data/myselection')
+        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
+        self.mysel.freeze(freeze_fname)
+        sel = self.db.table('video.cast').frozenSelection(freeze_fname)
         assert self.mysel.data == sel.data
 
     def xtest_formatSelection(self):

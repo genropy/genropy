@@ -11,7 +11,9 @@ class GnrBaseTask(object):
         pass
         
 
-def testTask(site_name=None, table_name=None, command=None, parameters=None):
+def testTask(site_name=None, table_name=None, command=None, parameters=None): # pragma: no cover
+    # FIXME: this should be moved to gnr.web, outside
+    # of gnr.core, due to its dependency on gnr.web
     from gnr.web.gnrwsgisite import GnrWsgiSite
     from webob import Request, Response
     

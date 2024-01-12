@@ -23,19 +23,21 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-#from builtins import object
 import os
 import sys
 import shutil
 import urllib.request, urllib.parse, urllib.error
 import _thread
 import copy
-
 from time import time
 from datetime import timedelta
+from mako.lookup import TemplateLookup
+from base64 import b64decode
+import re
+import datetime
+
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
-from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
@@ -56,9 +58,6 @@ from gnr.core.gnrdecorator import public_method,deprecated,callers
 from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
-from base64 import b64decode
-import re
-import datetime
 from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0

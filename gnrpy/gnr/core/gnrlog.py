@@ -31,8 +31,8 @@ COLORS = {
 class ColoredFormatter(logging.Formatter):
     """A formatter for the python :mod:`logging` module that colors the log messages depending on their severity"""
     
-    def __init__(self, msg, use_color=True):
-        logging.Formatter.__init__(self, msg)
+    def __init__(self, fmt, use_color=True):
+        logging.Formatter.__init__(self, fmt)
         self.use_color = use_color
         
     def format(self, record):
@@ -50,7 +50,7 @@ COLOR_FORMAT = formatter_message(FORMAT, True)
 
 root_logger = None
 
-def enable_colored_logging(stream=sys.stderr, level=None):
+def enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
     """Enable colored logging
     
     :param stream: TODO
@@ -58,6 +58,8 @@ def enable_colored_logging(stream=sys.stderr, level=None):
     global root_logger
     if not root_logger:
         root_logger = logging.getLogger()
+        if reset_handlers:
+            root_logger.handlers = []
         if len(root_logger.handlers) == 0:
             hdlr = logging.StreamHandler(stream)
             if hasattr(stream, 'isatty') and stream.isatty():

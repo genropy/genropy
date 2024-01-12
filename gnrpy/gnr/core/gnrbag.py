@@ -54,7 +54,6 @@ to interact with BagNode instances inside a Bag.
           You will see this notation frequently in the :ref:`Genro Library Reference <library_reference>`
           
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
-from __future__ import print_function
 
 from functools import cmp_to_key
 
@@ -463,7 +462,7 @@ class Bag(GnrObject):
             self._parent = parent
 
     parent = property(_get_parent, _set_parent)
-
+    
     def _get_fullpath(self):
         if self.parent != None:
             parentFullPath = self.parent.fullpath
@@ -2414,7 +2413,7 @@ class BagValidationList(object):
         self.validatorsdata = {}
         self.status = None
         self.errMsg = None
-
+    
     def getdata(self, validator, label=None, dflt=None):
         """This method get the validatorsdata of a validator"""
         if validator in self.validatorsdata:
@@ -2455,7 +2454,11 @@ class BagValidationList(object):
         :param validator: the validator to remove"""
         if validator in self.validators:
             self.validators.remove(validator)
-            
+
+    def __len__(self):
+        """Return the numbers of validators in this list"""
+        return len(self.validators)
+
     def __call__(self, value, oldvalue):
         """Apply the validation to a BagNode value."""
         for validator in self.validators:
@@ -2516,8 +2519,8 @@ class BagValidationList(object):
         :param oldvalue: TODO
         :param parameterString: TODO"""
         minmax = parameterString.split(',')
-        min = minmax[0]
-        max = minmax[1]
+        min = int(minmax[0])
+        max = int(minmax[1])
         n = len(value)
         if (not min is None) and n < min:
             raise BagValidationError('Value %s too shortThe length of value is too short' %value)

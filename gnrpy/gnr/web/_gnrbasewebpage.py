@@ -30,7 +30,6 @@ import sys
 import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
-
 import logging
 
 gnrlogger = logging.getLogger(__name__)

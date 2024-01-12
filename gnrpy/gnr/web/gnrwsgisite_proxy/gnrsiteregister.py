@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -28,11 +28,11 @@ import re
 import sys
 from datetime import datetime
 from collections import defaultdict
+
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.app.gnrconfig import gnrConfigPath
-
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
