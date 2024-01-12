@@ -23,7 +23,6 @@
 
 
 
-from builtins import str
 
 import Pyro4
 if hasattr(Pyro4.config, 'METADATA'):

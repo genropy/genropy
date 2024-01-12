@@ -6,8 +6,6 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from past.builtins import basestring
-
 from gnr.core.gnrbag import Bag, DirectoryResolver
 import os
 import re
@@ -526,7 +524,7 @@ class ResourceLoader(object):
         application = self.gnrapp
         if ':' in respath:
             table, respath = respath.split(':')
-        if isinstance(table, basestring):
+        if isinstance(table, str):
             table = application.db.table(table)
         if not table:
             modPathList = self.getResourceList(page.resourceDirs, os.path.join('tables', '_default', *(respath.split('/'))), 'py') or []

@@ -20,15 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import filter
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
-
-
 import logging
 import pickle
 import os
@@ -471,7 +462,7 @@ class GnrSqlDb(GnrObject):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
                 sqlargs[k] = v
-            if isinstance(v,basestring):
+            if isinstance(v, str):
                 if (v.startswith(r'\$') or v.startswith(r'\@')):
                     sqlargs[k] = v[1:]
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False:
@@ -613,7 +604,7 @@ class GnrSqlDb(GnrObject):
         :param tblobj: the table object
         :param record: an object implementing dict interface as colname, colvalue"""
         deletable = tblobj.attributes.get('deletable',True)
-        if isinstance(deletable,basestring):
+        if isinstance(deletable, str):
             deletable = self.application.checkResourcePermission(deletable, self.currentEnv['userTags'])
         if not deletable:
             raise GnrSqlException('The records of table %s cannot be deleted' %tblobj.name_long)

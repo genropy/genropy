@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import print_function
-from builtins import str
-from past.builtins import basestring
 import datetime
 import warnings as warnings_module
 import os
@@ -1468,7 +1465,7 @@ class AttachmentTable(GnrDboTable):
             Returns the new pdf attachment record
         :param attachment: source attachment record or pket"""
 
-        if isinstance(attachment, basestring):
+        if isinstance(attachment, str):
             attachment = self.recordAs(attachment, mode='dict')
         site = self.db.application.site
         docConverter = site.getService('doctopdf')
@@ -1608,7 +1605,7 @@ class TotalizeTable(GnrDboTable):
                     result['cb'] = getattr(self,'%s_%s' %(attr_key,colname))
                 elif attr_val is True:
                     result['field'] = colname
-                elif isinstance(attr_val,basestring):
+                elif isinstance(attr_val, str):
                     result['field'] = attr_val
                 else:
                     result['const'] = attr_val

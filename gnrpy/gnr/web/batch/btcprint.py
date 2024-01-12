@@ -6,8 +6,6 @@
 #Created by Francesco Porcari on 2010-10-16.
 #Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import print_function
-from past.builtins import basestring
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrbag import Bag
@@ -59,9 +57,9 @@ class BaseResourcePrint(BaseResourceBatch):
         thermo_s.update(thermo_selection or {})
         thermo_r = dict(line_code='record', message='get_record_caption')
         thermo_r.update(thermo_record or {})
-        if isinstance(thermo_s['message'], basestring) and hasattr(self, thermo_s['message']):
+        if isinstance(thermo_s['message'], str) and hasattr(self, thermo_s['message']):
             thermo_s['message'] = getattr(self, thermo_s['message'])
-        if isinstance(thermo_r['message'], basestring) and hasattr(self.htmlMaker, thermo_r['message']):
+        if isinstance(thermo_r['message'], str) and hasattr(self.htmlMaker, thermo_r['message']):
             thermo_r['message'] = getattr(self.htmlMaker, thermo_r['message'])
         records = self.get_records()
         pkeyfield = self.tblobj.pkey

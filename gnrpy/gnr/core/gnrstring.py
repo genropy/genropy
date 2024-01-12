@@ -20,16 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import division
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import filter
-from builtins import chr
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
 
 import re
 import pickle
@@ -133,7 +123,7 @@ try:
             dtype = self.dtypes.get(as_name)
             if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
                 value = self.urlformatter(value)
-            if (isinstance(value,basestring) or isinstance(value,str)) and dtype:
+            if (isinstance(value,str)) and dtype:
                 value = '%s::%s' %(value,dtype)
             if mask and '#' in mask:
                 caption = self.localizer.translate(caption) if self.localizer else caption.replace('!!','')
@@ -437,9 +427,9 @@ def filter(item, include=None, exclude=None, wildcard='%'):
     :param wildcard: TODO. Default value is ``%``
     :returns: TODO
     """
-    if include and isinstance(include, basestring):
+    if include and isinstance(include, str):
         include = include.split(',')
-    if exclude and isinstance(exclude, basestring):
+    if exclude and isinstance(exclude, str):
         exclude = exclude.split(',')
     if exclude:
         for excl in exclude:
@@ -673,7 +663,7 @@ def countOf(myString, srcString):
     >>> countOf(a,b)
     3
     """
-    return old_div((len(myString) - len(myString.replace(srcString, ''))), len(srcString))
+    return (len(myString) - len(myString.replace(srcString, '')))//len(srcString)
 
 def split(path, sep='.'):
     """Return a list splitting a path string at any occurrency of separation character.
@@ -797,7 +787,7 @@ def baseEncode(number, base='/16', nChars=None):
     result = []
     while (number >= 1):
         result.insert(0, base[int(math.fmod(number, b))])
-        number = math.floor(old_div(number, b))
+        number = math.floor((number//b))
 
     if (len(result) > nChars): result = []
     elif (len(result) < nChars):
@@ -901,7 +891,7 @@ def boolean(obj):
     (the ``obj`` is lowered before comparing it)
 
     :param obj: The given object"""
-    if obj and isinstance(obj, basestring):
+    if obj and isinstance(obj, str):
         if obj.lower() in ('n', 'no', 'f', 'false', '0'):
             obj = False
     return bool(obj)

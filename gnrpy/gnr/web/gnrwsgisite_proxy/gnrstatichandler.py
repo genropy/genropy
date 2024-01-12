@@ -1,9 +1,4 @@
-from __future__ import print_function
-
 # -*- coding: utf-8 -*-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring

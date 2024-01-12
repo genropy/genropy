@@ -8,9 +8,7 @@
 #
 
 
-from __future__ import division
-from past.utils import old_div
-#from builtins import object
+
 from gnr.core.gnrbag import Bag, BagNode
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrstructures import GnrStructData
@@ -239,7 +237,7 @@ class GnrHtmlBuilder(object):
 
         if layout.elastic_rows:
             if layout.height:
-                height = old_div((layout.height - sum([row.height for row in list(layout.values()) if row.height])), len(
+                height = ((layout.height - sum([row.height for row in list(layout.values()) if row.height]))/ len(
                         layout.elastic_rows))
                 for row in layout.elastic_rows:
                     row.height = height
@@ -319,7 +317,7 @@ class GnrHtmlBuilder(object):
 
         if layout.elastic_rows:
             if layout.height:
-                height = old_div((layout.height - sum([row.height for row in list(layout.values()) if row.height])), len(
+                height = ((layout.height - sum([row.height for row in list(layout.values()) if row.height]))/ len(
                         layout.elastic_rows))
                 for row in layout.elastic_rows:
                     row.height = height
@@ -350,7 +348,7 @@ class GnrHtmlBuilder(object):
         width = layout.width
         if row.elastic_cells:
             if width:
-                elastic_width = old_div((width - sum([cell.width for cell in list(row.values()) if cell.width])), len(
+                elastic_width = ((width - sum([cell.width for cell in list(row.values()) if cell.width]))/ len(
                         row.elastic_cells))
                 for cell in row.elastic_cells:
                     cell.width = elastic_width

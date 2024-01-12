@@ -23,9 +23,6 @@
 #Created by Giovanni Porcari and Francesco Cavazzana on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from future import standard_library
-standard_library.install_aliases()
-#from builtins import object
 import zipfile
 import io
 import datetime

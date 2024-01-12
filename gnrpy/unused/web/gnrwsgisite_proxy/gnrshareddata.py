@@ -21,13 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 # 
 
-from __future__ import division
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.utils import old_div
-#from builtins import object
+
 try:
     import memcache
 
@@ -129,7 +123,7 @@ class GnrSharedData(object):
         while k:
             if self.add('%s_lock' % key, True, expiry=lock_time):
                 if max_retry - k > DEBUG_LIMIT:
-                    print("TRIED TO LOCK AND GOT AFTER: %f" % (old_div((max_retry-k), RETRY_TIME)))
+                    print("TRIED TO LOCK AND GOT AFTER: %f" % (((max_retry-k)/ RETRY_TIME)))
                 return True
             k -= 1
             time.sleep(retry_time)

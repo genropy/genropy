@@ -1,6 +1,5 @@
 from urllib import request
 from suds.client import Client
-from past.builtins import basestring
 from gnr.core.gnrbag import Bag
 from suds.client import Client
 from suds import byte_str

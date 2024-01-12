@@ -23,7 +23,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from past.builtins import basestring
 import os,math,re
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbaghtml import BagToHtml
@@ -115,7 +114,7 @@ def zzzcomponent_hook(func_or_name):
                     "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
         GnrDomSrc._external_methods[name] = func_name
         
-    if isinstance(func_or_name, basestring):
+    if isinstance(func_or_name, str):
         name = func_or_name
         
         def decorate(func):
@@ -562,7 +561,7 @@ class TableScriptToHtml(BagToHtmlWeb):
             attr = n.attr
             field =  attr.get('caption_field') or attr.get('field')
             field_getter = attr.get('field_getter') or field
-            if isinstance(field_getter,basestring):
+            if isinstance(field_getter, str):
                 field_getter = self._flattenField(field_getter)
             group_aggr = attr.get('group_aggr')
             if group_aggr:

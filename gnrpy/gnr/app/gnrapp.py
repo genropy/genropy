@@ -20,9 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from builtins import str
-from past.builtins import basestring
 import tempfile
 import atexit
 import logging
@@ -1291,7 +1288,7 @@ class GnrApp(object):
         resourceTags = resourceTags or ''
         newTags = newTags or ''
         resourceTags = resourceTags.split(',')
-        if isinstance(newTags, basestring):
+        if isinstance(newTags, str):
             newTags = newTags.split(',')
         for tag in newTags:
             if tag not in resourceTags:
@@ -1335,7 +1332,7 @@ class GnrApp(object):
         if isinstance(body, str):
             body = body.encode('utf-8', 'ignore')
         msg = MIMEText(body, _charset='utf-8')
-        if isinstance(to_address, basestring):
+        if isinstance(to_address, str):
             to_address = [k.strip() for k in to_address.split(',')]
         msg['Subject'] = subject
         msg['From'] = from_address
@@ -1526,7 +1523,7 @@ class GnrAvatar(object):
         
         :param tags: a string with the tags to be added"""
         t = self.user_tags.split(',')
-        if isinstance(tags, basestring):
+        if isinstance(tags, str):
             tags = tags.split(',')
         for tag in tags:
             if not tag in t:

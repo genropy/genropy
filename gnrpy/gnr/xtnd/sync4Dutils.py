@@ -2,11 +2,6 @@
 # Genro  
 # Copyright (c) 2004 Softwell sas - Milano see LICENSE for details
 # Author Giovanni Porcari, Francesco Cavazzana, Saverio Porcari, Francesco Porcari
-from __future__ import print_function
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-#from builtins import object
 import os.path
 from gnr.core.gnrbag import Bag
 
@@ -38,7 +33,7 @@ class Utils4D(object):
         return result
 
     def checkValue(self,v):
-        if isinstance(v,basestring):
+        if isinstance(v,str):
             v = v.strip()
             if self.emptyAsNone and v == '':
                 v = None

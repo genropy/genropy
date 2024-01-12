@@ -1,7 +1,3 @@
-from __future__ import print_function
-from past.builtins import execfile
-from builtins import str
-from past.builtins import basestring
 import os
 import sys
 import site
@@ -379,8 +375,8 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
 def projectBag(project_name,packages=None,branches=None,exclude_branches=None):
     p=PathResolver()
     result = Bag()
-    branches = branches.split(',') if isinstance(branches,basestring) else (branches or [])
-    packages = packages.split(',') if isinstance(packages,basestring) else (packages or [])
+    branches = branches.split(',') if isinstance(branches, str) else (branches or [])
+    packages = packages.split(',') if isinstance(packages, str) else (packages or [])
 
     dr = DirectoryResolver(p.project_name_to_path(project_name),include='*.py',dropext=True)
     for pkg,pkgval in list(dr['packages'].items()):
@@ -1013,7 +1009,7 @@ class ThPackageResourceMaker(object):
             for column, size, dtype in columns:
                 tag=''
                 if dtype=='X':
-                    if isinstance( self.bag_columns['form'], basestring):
+                    if isinstance( self.bag_columns['form'], str):
                         tag = ", tag='%s'" %  self.bag_columns['form'] 
                 self.write("fb.field('%s' %s)"% (column, tag), indent=2)
                 
