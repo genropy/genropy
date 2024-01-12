@@ -26,7 +26,8 @@ import logging
 import shutil
 import locale
 import sys
-import imp
+import types
+import importlib
 import os
 import hashlib
 import re
@@ -115,7 +116,7 @@ class GnrModuleFinder(object):
             if 'gnrpkg' in sys.modules:
                 pkg_module=sys.modules['gnrpkg']
             else:
-                pkg_module=imp.new_module('gnrpkg')
+                pkg_module=types.ModuleType('gnrpkg')
                 sys.modules['gnrpkg']=pkg_module
                 pkg_module.__file__ = None
                 pkg_module.__name__ = 'gnrpkg'
@@ -133,8 +134,8 @@ class GnrModuleFinder(object):
             mod_fullname='.'.join(splitted[2:])
             if self.pkg_in_app_list(pkg):
                 pkg_module = self._get_gnrpkg_module(pkg)
-                mod_file,mod_pathname,mod_description=imp.find_module(mod_fullname, pkg_module.__path__)
-                return GnrModuleLoader(mod_file,mod_pathname,mod_description)
+                spec = importlib.machinery.PathFinder().find_spec(mod_full_name, pkg_module.__path__)
+                return GnrModuleLoader(spec.origin, spec.name, spec.name)
         return None
     
     def pkg_in_app_list(self, pkg):
@@ -148,7 +149,7 @@ class GnrModuleFinder(object):
         if gnrpkg_module_name in sys.modules:
             pkg_module=sys.modules[gnrpkg_module_name]
         else:
-            pkg_module=imp.new_module(gnrpkg_module_name)
+            pkg_module=types.ModuleType(gnrpkg_module_name)
             sys.modules[gnrpkg_module_name]=pkg_module
             if os.path.isdir(os.path.join(gnrpkg.customFolder,'lib')):
                 module_path=[os.path.join(gnrpkg.customFolder,'lib')]
@@ -176,12 +177,9 @@ class GnrModuleLoader(object):
             mod = sys.modules[fullname]
         else:
             try:
-                imp.acquire_lock()
-                mod = imp.load_module(fullname,self.file, self.pathname, self.description)
+                mod = importlib.machinery.SourceFileLoader(fullname, self.file).load_module()
                 sys.modules[fullname]=mod
             finally:
-                if imp.lock_held():
-                    imp.release_lock()
                 if self.file:
                     self.file.close()
         return mod
