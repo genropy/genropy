@@ -43,7 +43,7 @@ class Form(BaseComponent):
                             picker_condition='$child_count=0',
                             picker_viewResource=True)
         tc.contentPane(title='!!Help documents').plainTableHandler(
-            relation='@helpdocs',
+            relation='@helpdocs',picker='helpdoc_id',
             pbl_classes=True,margin='2px',
             viewResource='ViewFromGroup',
             view_grid_selfDragRows=True
