@@ -15,7 +15,7 @@ maintainers = [
   {name = "Michele Bertoldi", email = "michele.bertoldi@softwell.it" }
 ]
 description = "GenroPy Web Framework"
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 keywords = ["web", "framework", "SPA applications"]
 license = {file = "LICENSE" }
 classifiers = [
