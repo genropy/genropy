@@ -24,7 +24,6 @@ class GnrCustomWebPage(object):
         result=Bag()
         for pkg_code,pkg in self.db.application.packages.items():
             result.setItem(pkg_code, None, caption=pkg.attributes['name_long'], _pkey=pkg_code)
-        print(x)
         return result,dict(columns='caption', headers='Package')
 
     def test_1_remoteSelect_user(self,pane):

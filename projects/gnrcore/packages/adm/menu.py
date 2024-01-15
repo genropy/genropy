@@ -26,6 +26,7 @@ class Menu(object):
         root.thpage(u"!!Auth tags", table="adm.htag")
         root.thpage(u"!!Group", table="adm.group")
         root.thpage(u"!!Access groups", table="adm.access_group",tags='_DEV_,superadmin')
+        root.thpage(u"!!Help documents", table="adm.group_helpdoc")
         root.webpage('!!User preferences',filepath='/adm/user_preference')
 
     def utilitySubmenu(self,utility,**kwargs):
@@ -35,7 +36,7 @@ class Menu(object):
         utility.thpage(u"!!Days", table="adm.day")
         utility.thpage(u"!!Userobjects", table="adm.userobject")
         utility.thpage(u"!!Counters", table="adm.counter",tags='_DEV_,superadmin')
-        utility.lookups(u"!!Utility tables", lookup_manager="adm")
+        utility.lookupBranch(u"!!Utility tables", pkg="adm")
         utility.webpage('!!Application preferences',tags='admin',filepath='/adm/app_preference')
 
     def developerSubmenu(self,dev,**kwargs):
