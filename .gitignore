@@ -19,4 +19,5 @@ gnrpy/gnr/lib/services/.DS_Store
 docker/*
 .python-version
 .spyproject/
+.coverage
 
