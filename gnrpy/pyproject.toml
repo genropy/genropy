@@ -68,7 +68,7 @@ mysql = ["mysqlclient"]
 developer = [
 	  "pytest", "pytest-cov", "graphviz",
 	  "build", "twine",
-	  "psycopg2", # needed for tests, assuming developers runs tests
+	  "psycopg2","testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 
 [project.scripts]

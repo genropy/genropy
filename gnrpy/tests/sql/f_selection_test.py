@@ -41,7 +41,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
-from common import setup_module
+from common import *
 
 # this module test all the post-process methods on selection resolver
 
@@ -125,13 +125,13 @@ class TestGnrSqlDb_sqlite(BaseDb):
 class TestGnrSqlDb_postgres(BaseDb):
     def init(cls):
         cls.name = 'postgres'
-        cls.dbname = CONFIG['db.postgres?dbname']
+        cls.dbname = 'test2'
         cls.db = GnrSqlDb(implementation='postgres',
-                          host=CONFIG['db.postgres?host'],
-                          port=CONFIG['db.postgres?port'],
+                          host=pg_conf.get("host"),
+                          port=pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=CONFIG['db.postgres?user'],
-                          password=CONFIG['db.postgres?password']
+                          user=pg_conf.get("user"),
+                          password=''
                           )
 
     init = classmethod(init)

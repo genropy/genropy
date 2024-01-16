@@ -40,7 +40,7 @@ from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.core.gnrbag import Bag
 from a_structure_load_test import configurePackage
 
-from common import setup_module
+from common import *
 
 class BaseSql(object):
     def setup_class(cls):
@@ -194,18 +194,15 @@ class TestGnrSqlDb_sqlite(BaseSql):
 class TestGnrSqlDb_postgres(BaseSql):
     def init(cls):
         cls.name = 'postgres'
-        cls.dbname = CONFIG['db.postgres?dbname']
+        cls.dbname = 'test2'
         cls.db = GnrSqlDb(implementation='postgres',
-                          host=CONFIG['db.postgres?host'],
-                          port=CONFIG['db.postgres?port'],
+                          host=pg_conf.get("host"),
+                          port=pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=CONFIG['db.postgres?user'],
-                          password=CONFIG['db.postgres?password']
+                          user=pg_conf.get("user"),
+                          password=''
                           )
-
+        
     init = classmethod(init)
 
 
-def teardown_module(module):
-    print('teardown sql_test')
-    
