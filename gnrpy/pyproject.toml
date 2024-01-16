@@ -67,7 +67,8 @@ pgsql = ["psycopg2"]
 mysql = ["mysqlclient"]
 developer = [
 	  "pytest", "pytest-cov", "graphviz",
-	  "build", "twine"
+	  "build", "twine",
+	  "psycopg2", # needed for tests, assuming developers runs tests
 	    ]
 
 [project.scripts]
