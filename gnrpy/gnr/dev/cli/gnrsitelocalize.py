@@ -36,7 +36,7 @@ class SiteLocalizer(object):
             for missing in list(mbag.values()):
                 _key = missing['txt']
 
-                lbl = re.sub('\W', '_', _key).replace('__', '_')
+                lbl = re.sub(r'\W', '_', _key).replace('__', '_')
 
                 if not lbl in pkgloc:
                     pkgloc.setItem(lbl, None, _key=_key, it=_key, en='', fr='', de='')

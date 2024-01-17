@@ -15,8 +15,8 @@ from gnr.web.gnrdaemonhandler import GnrDaemonProxy
 
 APACHE_SITES ='/etc/apache2/sites-enabled'
 
-UWSGIVASSALFINDER = re.compile('(?:^pyargv *= *)(\w+)$',re.I |re.M)
-APACHECONFFINDER = re.compile('(?:WSGIScriptAlias[ /\w]*sites/)(\w*)(?:/root\.py)$',re.I |re.M)
+UWSGIVASSALFINDER = re.compile(r'(?:^pyargv *= *)(\w+)$',re.I |re.M)
+APACHECONFFINDER = re.compile(r'(?:WSGIScriptAlias[ /\w]*sites/)(\w*)(?:/root\.py)$',re.I |re.M)
 
 class BaseUpdater(object):
     def __init__(self,instances=None,daemonRestart=None,skip_dbsetup=False,upgrade=None,**kwargs):
