@@ -11,7 +11,7 @@ from paste import fileapp
 from paste.httpheaders import ETAG
 
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrdecorator import callers
+from gnr.dev.decorator import callers
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrDebugException

@@ -64,7 +64,7 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.core.gnrlang import setCallable, GnrObject, GnrException
+from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
 import os.path
 import logging
@@ -1845,13 +1845,13 @@ class Bag(GnrObject):
             result = pickle.loads(source)
         return result
         
-    def setCallable(self, name, argstring=None, func='pass'):
-        """TODO
-        
-        :param name: TODO
-        :param argstring: TODO
-        :param func: TODO"""
-        setCallable(self, name, argstring=argstring, func=func)
+#    def setCallable(self, name, argstring=None, func='pass'):
+#        """TODO
+#        
+#        :param name: TODO
+#        :param argstring: TODO
+#        :param func: TODO"""
+#        setCallable(self, name, argstring=argstring, func=func)
         
     #-------------------- toXml --------------------------------
     def toXml(self, filename=None, encoding='UTF-8', typeattrs=True, typevalue=True, unresolved=False,
