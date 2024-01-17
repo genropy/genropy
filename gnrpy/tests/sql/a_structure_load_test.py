@@ -25,7 +25,7 @@
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrbag import Bag
 
-from common import setup_module
+from common import *
 
 class TestDbModelSrc(object):
     def setup_class(cls):
@@ -95,10 +95,6 @@ class TestDbModelSrc(object):
 
     def teardown_class(cls):
         pass
-
-def teardown_module(module):
-    print('teardown sql_test')
-
 
 def configurePackage(pkg):
     pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')

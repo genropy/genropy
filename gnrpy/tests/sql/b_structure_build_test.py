@@ -31,7 +31,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj, DbTableListObj, DbColumnListObj, DbIndexListObj
 from gnr.core.gnrbag import Bag
 
-from common import setup_module
+from common import *
 
 class TestSqlStructure(object):
     def setup_class(cls):
@@ -113,6 +113,3 @@ class TestSqlStructure(object):
         pass
 
 
-def teardown_module(module):
-    print('teardown sql_test')
-    
