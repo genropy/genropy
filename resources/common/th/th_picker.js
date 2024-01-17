@@ -1,6 +1,7 @@
 var THPicker = {
 
-    onDropElement:function(sourceNode,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup){
+    onDropElement:function(sourceNode,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup,dropDefaults){
+        dropDefaults =dropDefaults || {}
         if(data.structure_many){
             //dragging from structure tree
             many = data.structure_many;
@@ -67,7 +68,7 @@ var THPicker = {
                     objectUpdate(kw.dragDefaults[pkey],editorDefaults);
                 });
             }
-            genro.serverCall(rpcmethod,kw,function(){},null,'POST');
+            genro.serverCall(rpcmethod,objectUpdate(dropDefaults,kw),function(){},null,'POST');
         }
 
     }

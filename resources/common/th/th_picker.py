@@ -32,6 +32,7 @@ class THPicker(BaseComponent):
         height = height or picker_kwargs.get('height')
         width = width or picker_kwargs.get('width')
         defaults = defaults or picker_kwargs.get('defaults',False)
+        dropDefaults = dictExtract(kwargs,'default_',pop=True,slice_prefix=False)
         if autoInsert is None:
             autoInsert = picker_kwargs.get('autoInsert',True)
         title = title or picker_kwargs.get('title')
@@ -94,12 +95,13 @@ class THPicker(BaseComponent):
                     formtblobj = self.db.table(formNode.attr.get('table'))
                     oneJoiner = formtblobj.model.getJoiner(maintable)
                     one = oneJoiner.get('many_relation').split('.')[-1]
-                controller = "THPicker.onDropElement(this,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup)" if autoInsert is True else autoInsert
+                controller = "THPicker.onDropElement(this,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup,objectExtract(_kwargs,'default_*',false,false))" if autoInsert is True else autoInsert
                 grid.dataController(controller,data='^.dropped_%s' %paletteCode,
                     droppedInfo='=.droppedInfo_%s' %paletteCode,
                     mainpkey='=#FORM.pkey' if formNode else None,nodup=nodup,
                         rpcmethod=method,treepicker=treepicker,tbl=maintable,
-                        one=one,many=many,grid=grid.js_widget,defaults=defaults)  
+                        one=one,many=many,grid=grid.js_widget,defaults=defaults,
+                        **dropDefaults)  
         return palette
 
 
@@ -268,12 +270,13 @@ class THPicker(BaseComponent):
     def _th_insertPicker(self,dragPkeys=None,dropPkey=None,tbl=None,one=None,many=None,dragDefaults=None,**kwargs):
         tblobj = self.db.table(tbl)
         pkeyfield = tblobj.pkey
+        dropDefaults = dictExtract(kwargs,'default_')
         commit = False
         for fkey in dragPkeys:
             commit = True
             if not many:
                 many = '_dup_'
-            d = {one:dropPkey,many:fkey}
+            d = {one:dropPkey,many:fkey,**dropDefaults}
             if many==pkeyfield:
                 with tblobj.recordToUpdate(fkey) as rec:
                     rec[one] = dropPkey
