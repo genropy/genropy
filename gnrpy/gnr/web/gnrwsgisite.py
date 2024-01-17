@@ -22,7 +22,7 @@ from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
 from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
-from gnr.core.gnrdecorator import public_method, callers
+from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrconfig import getGnrConfig
 
 from gnr.core.gnrsys import expandpath
@@ -496,7 +496,6 @@ class GnrWsgiSite(object):
             return self.not_found_exception(environ, start_response)
         return storageNode.serve(environ, start_response,**kwargs)
 
-    #@callers()
     def getStaticPath(self, static, *args, **kwargs):
         """TODO
 

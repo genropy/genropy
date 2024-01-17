@@ -1302,9 +1302,6 @@ class GnrWebAppHandler(GnrBaseProxy):
                 r.child('cell', childname=colname, field=colname, **kwargs)
         return structure
 
-        #@timer_call()
-
-    #
     def _getRecord_locked(self, tblobj, record, recInfo):
         #locked,aux=self.page.site.lockRecord(self.page,tblobj.fullname,record[tblobj.pkey])
         locked = False
