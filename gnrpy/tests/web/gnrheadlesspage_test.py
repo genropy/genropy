@@ -1,1 +1,3 @@
-import gnr.web.gnrheadlesspage
+import gnr.web.gnrheadlesspage as hlp
+
+
