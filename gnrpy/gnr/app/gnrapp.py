@@ -58,12 +58,31 @@ class GnrRestrictedAccessException(GnrException):
 
 class NullLoader(object):
     """TODO"""
+
+    def __init__(self, name, module_path, package):
+        self.name = name
+        self.module_path = module_path
+        self.package=package
+
     def load_module(self,fullname):
         """TODO
-        
+
         :param fullname: TODO"""
         if fullname in sys.modules:
             return sys.modules[fullname]
+
+    def exec_module(self, module):
+        #sys.modules[self.name]=module
+        pass
+
+    def create_module(self, spec):
+        pkg_module=types.ModuleType(self.name)
+        pkg_module.__file__ = None
+        pkg_module.__name__ = self.name
+        pkg_module.__path__ = None
+        pkg_module.__loader__ = self
+        pkg_module.__package__ = self.package
+        return pkg_module
 
 class ApplicationCache(object):
     def __init__(self,application=None):
@@ -103,86 +122,38 @@ class GnrModuleFinder(object):
     def __str__(self):
         return '<%s for "%s">' % (self.__class__.__name__, self.path_entry)
 
-    def find_module(self, fullname, path=None):
-        """TODO
-        
-        :param fullname: TODO
-        :param path: TODO"""
+    def find_spec(self, fullname, target=None):
         splitted=fullname.split('.')
         if splitted[0] != 'gnrpkg':
             return
         n_segments = len(splitted)
         if n_segments==1:
             if 'gnrpkg' in sys.modules:
-                pkg_module=sys.modules['gnrpkg']
+                return sys.modules['gnrpkg'].__spec__
             else:
-                pkg_module=types.ModuleType('gnrpkg')
-                sys.modules['gnrpkg']=pkg_module
-                pkg_module.__file__ = None
-                pkg_module.__name__ = 'gnrpkg'
-                pkg_module.__path__ = [self.instance_lib]
-                pkg_module.__loader__ = self
-                pkg_module.__package__ = 'gnrpkg'
-            return NullLoader()
+                spec = importlib.machinery.ModuleSpec('gnrpkg', NullLoader('gnrpkg', [self.instance_lib], 'gnrpkg'),is_package=True)
+                spec.submodule_search_locations=None
+                return spec
         elif n_segments==2:
             pkg = splitted[1]
-            pkg_module = self._get_gnrpkg_module(pkg)
-            if pkg_module:
-                return NullLoader()
-        elif n_segments>2:
-            pkg = splitted[1]
-            mod_fullname='.'.join(splitted[2:])
-            if self.pkg_in_app_list(pkg):
-                pkg_module = self._get_gnrpkg_module(pkg)
-                spec = importlib.machinery.PathFinder().find_spec(mod_full_name, pkg_module.__path__)
-                return GnrModuleLoader(spec.origin, spec.name, spec.name)
-        return None
-    
+            spec= self._get_gnrpkg_module_spec(pkg)
+            return spec
+
     def pkg_in_app_list(self, pkg):
         for a in self.app_list:
             if pkg in a.packages:
                 return a.packages[pkg]
 
-    def _get_gnrpkg_module(self, pkg):
+    def _get_gnrpkg_module_spec(self, pkg):
         gnrpkg = self.pkg_in_app_list(pkg)
+        if not gnrpkg:
+            return
         gnrpkg_module_name= 'gnrpkg.%s'%pkg 
-        if gnrpkg_module_name in sys.modules:
-            pkg_module=sys.modules[gnrpkg_module_name]
-        else:
-            pkg_module=types.ModuleType(gnrpkg_module_name)
-            sys.modules[gnrpkg_module_name]=pkg_module
-            if os.path.isdir(os.path.join(gnrpkg.customFolder,'lib')):
-                module_path=[os.path.join(gnrpkg.customFolder,'lib')]
-            else:
-                module_path=[]
-            module_path.append(os.path.join(gnrpkg.packageFolder,'lib'))
-            pkg_module.__file__ = None
-            pkg_module.__name__ = gnrpkg_module_name
-            pkg_module.__path__ = module_path
-            self.path_list.extend(module_path)
-            pkg_module.__loader__ = self
-            pkg_module.__package__ = 'gnrpkg'
-        return pkg_module
-            
-class GnrModuleLoader(object):
-    """TODO"""
-    def __init__(self, file, pathname, description):
-        self.file=file
-        self.pathname=pathname
-        self.description=description
-
-    def load_module(self, fullname):
-        """TODO"""
-        if fullname in sys.modules:
-            mod = sys.modules[fullname]
-        else:
-            try:
-                mod = importlib.machinery.SourceFileLoader(fullname, self.file).load_module()
-                sys.modules[fullname]=mod
-            finally:
-                if self.file:
-                    self.file.close()
-        return mod
+        spec = importlib.machinery.ModuleSpec(gnrpkg_module_name, NullLoader(gnrpkg_module_name, [self.instance_lib], 'gnrpkg'), is_package=True)
+        if os.path.isdir(os.path.join(gnrpkg.customFolder,'lib')):
+            spec.submodule_search_locations.append(os.path.join(gnrpkg.customFolder,'lib'))
+        spec.submodule_search_locations.append(os.path.join(gnrpkg.packageFolder,'lib'))
+        return spec
 
 class GnrImportException(GnrException):
     """TODO"""
