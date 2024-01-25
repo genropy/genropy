@@ -5455,17 +5455,20 @@ dojo.declare("gnr.widgets.GoogleMap", gnr.widgets.baseHtml, {
                 }
             }
         });
-        if(sourceNode.attr.autoFit && sourceNode.markers && sourceNode.markers.length>1){
+    },
+    
+    fitMarkers:function(sourceNode){
+        if(sourceNode.markers && Object.keys(sourceNode.markers).length>1){
             sourceNode.delayedCall(function(){
                 var bounds = new google.maps.LatLngBounds();
                 for(var k in sourceNode.markers){
                     bounds.extend(sourceNode.markers[k].position);
                 }
                 sourceNode.map.fitBounds(bounds);
+                
             },10,'fitBounds'); 
         }
     },
-
 
     addMarkerType:function(code,cls){
         this.markers_types[code] = cls
