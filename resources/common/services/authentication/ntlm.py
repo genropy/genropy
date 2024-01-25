@@ -7,8 +7,6 @@
 #    pip install python-ntlm
 #
 
-from future import standard_library
-standard_library.install_aliases()
 from gnr.lib.services import GnrBaseService
 import urllib.request, urllib.error, urllib.parse
 from ntlm import HTTPNtlmAuthHandler

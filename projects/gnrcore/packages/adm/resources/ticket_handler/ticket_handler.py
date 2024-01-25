@@ -1,5 +1,3 @@
-from future import standard_library
-standard_library.install_aliases()
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
