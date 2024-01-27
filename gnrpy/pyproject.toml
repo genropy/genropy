@@ -98,6 +98,7 @@ gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
 gnrupdate = 'gnr.app.cli.gnrupdate:main'
 initgenropy = 'gnr.app.cli.initgenropy:main'
 # gnr.dev
+gnrnotes = 'gnr.dev.cli.gnrnotes:main'
 gnraddprojectrepo = 'gnr.dev.cli.gnraddprojectrepo:main'
 gnrdbgraph = 'gnr.dev.cli.gnrdbgraph:main'
 gnrdbstruct = 'gnr.dev.cli.gnrdbstruct:main'
