@@ -2880,6 +2880,7 @@ class DirectoryResolver(BagResolver):
                    'readOnly': True,
                    'invisible': False,
                    'relocate': '',
+                   # FIXME: intercept #file# - emacs' jnl
                    'ext': 'xml',
                    'include': '',
                    'exclude': '',
