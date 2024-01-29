@@ -125,6 +125,12 @@ def test_gnrclasscatalog():
     res = cc.asTextAndType(b"asdasdasd")
     assert res[1] == 'T'
 
+    # test unknown type
+    unknown_type = type("super_secret_type", (), {})
+    ot = unknown_type()
+    res = cc.asTextAndType(ot)
+    assert res[1] == 'T'
+    
     # cover for getType using a GnrClassCatalog.typegetters
     res = cc.getType(datetime.datetime.now())
     assert res == "DH"

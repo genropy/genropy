@@ -1491,6 +1491,8 @@ class GnrAvatar(object):
         """Add tags to an avatar
         
         :param tags: a string with the tags to be added"""
+
+        # FIXME: please consider using a set
         t = self.user_tags.split(',')
         if isinstance(tags, str):
             tags = tags.split(',')

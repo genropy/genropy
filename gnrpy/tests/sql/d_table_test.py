@@ -27,6 +27,7 @@ this test module focus on SqlTable's methods
 """
 import os
 import datetime
+import tempfile
 
 import pytest
 import logging
@@ -130,7 +131,8 @@ class BaseSql(object):
 
     def test_createStructureFromCode(self):
         configurePackage(self.db.packageSrc('video'))
-        self.db.saveModel('dbstructure.xml')
+        with tempfile.NamedTemporaryFile(delete=True) as tmpdbfile:
+            self.db.saveModel(tmpdbfile.name)
         assert self.db.model.src['packages.video.tables.people?pkey'] == 'id'
 
     def teardown_class(cls):

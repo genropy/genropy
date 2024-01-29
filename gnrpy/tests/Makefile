@@ -1,4 +1,4 @@
-COVER_OPTS=--cov-report=html:skip-covered --cov=gnr
+COVER_OPTS=--cov-report=html --cov=gnr
 
 tests:
-	py.test $(COVER_OPTS) core sql web
+	pytest $(COVER_OPTS) core web app sql
