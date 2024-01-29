@@ -162,7 +162,7 @@ class UploaderViewerPane(BaseComponent):
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
     @struct_method
-    def upv_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+    def upv_viewerStack(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(**kwargs)
         sc.contentPane(pageName='document').iframe(src=src,height='100%',
                                   avoidCache=True,width='100%',border='0px',documentClasses=True)
@@ -244,6 +244,17 @@ class AttachManager(BaseComponent):
         view.top.pop('bar')
         return th 
 
+    @struct_method
+    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+        sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
+        sc.contentPane(pageName='document').iframe(src=src,height='100%',
+                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
+        sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        parent.dataController("""
+        let ext = src.split("?")[0].split('.').pop()
+        SET .$ext = src.split("?")[0].split('.').pop();
+        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        """,src=src,_if='src',sc=sc.js_widget)
 
     @extract_kwargs(default=True)
     @struct_method
@@ -477,6 +488,7 @@ class AttachManager(BaseComponent):
         kwargs['attachment_id'] = record['id']
         self.db.commit()        
         self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
+
 
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,

@@ -2545,7 +2545,6 @@ div.dojoxDock {
 }
 
 .index_loginbox .index_loginsubtitle{
-    font-variant:small-caps;
     font-size: .9em;
     font-style: italic;
     text-align: center;
@@ -6259,6 +6258,10 @@ div[disabled='true'], div[disabled='disabled']{
 .check{
     mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
+}
+.download{
+    mask: url('/_rsrc/common/css_icons/google_icons/download.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/download.svg') center center no-repeat;
 }
 .radio_button_checked{
     mask: url('/_rsrc/common/css_icons/google_icons/radio_button_checked.svg') center center no-repeat;

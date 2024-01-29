@@ -218,24 +218,17 @@ class TemplateEditor(TemplateEditorBase):
     py_requires='gnrcomponents/framegrid:FrameGrid,public:Public'
     css_requires='public'
     @struct_method
-    def te_templateEditor(self,pane,storepath=None,datapath=None,maintable=None,
-                          editorConstrain=None,plainText=False,
-                          datasourcepath=None,metadata=False,runParameters=False,emailChunk=False,**kwargs):
-        sc = self._te_mainstack(pane,table=maintable,storepath=storepath,datapath=datapath)
-        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),
-                           table=maintable,datasourcepath=datasourcepath,
-                           metadata=metadata,runParameters=runParameters)
-        self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',
-                                        childname='edit'),
-                                        editorConstrain=editorConstrain,
-                                        plainText=plainText,emailChunk=emailChunk)
+    def te_templateEditor(self,pane,storepath=None,maintable=None,editorConstrain=None,plainText=False,datasourcepath=None,**kwargs):
+        sc = self._te_mainstack(pane,table=maintable)
+        self._te_frameInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=maintable,datasourcepath=datasourcepath)
+        self._te_frameEdit(sc.framePane(title='!!Edit',pageName='edit',childname='edit',editorConstrain=editorConstrain,plainText=plainText))
         self._te_framePreview(sc.framePane(title='!!Preview',pageName='preview',childname='preview'),table=maintable)
         #self._te_frameHelp(sc.framePane(title='!!Help',pageName='help',childname='help'))
-            
+        
         return sc
     
-    def _te_mainstack(self,pane,table=None,storepath=None,datapath=None):
-        sc = pane.stackContainer(selectedPage='^.status',_anchor=True,datapath=datapath)
+    def _te_mainstack(self,pane,table=None):
+        sc = pane.stackContainer(selectedPage='^.status',_anchor=True)
         sc.dataRpc('dummy',self.te_compileTemplate,varsbag='=.data.varsbag',
                         content_css='=.data.content_css',
                         parametersbag='=.data.parameters',
@@ -250,8 +243,6 @@ class TemplateEditor(TemplateEditorBase):
                         SET .preview.letterhead_id = GET .data.metadata.default_letterhead;
                     }
                     """)
-        if storepath:
-            sc.dataFormula(storepath,'data.deepCopy()',data='^#ANCHOR.data',_delay=1)
         return sc
     
     def _te_varsgrid_struct(self,struct):
@@ -368,18 +359,13 @@ class TemplateEditor(TemplateEditorBase):
                                 parentForm=False,
                                 selfDragRows=True,**kwargs)
         
-    def _te_frameInfo(self,frame,table=None,datasourcepath=None,metadata=None,runParameters=None,**kwargs):
+    def _te_frameInfo(self,frame,table=None,datasourcepath=None,**kwargs):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
-        if metadata is not False:
-            self._te_info_top(bc.contentPane(region='top'))
-        if runParameters is False:
-            self._te_info_vars(bc,table=table,region='center',
+        self._te_info_top(bc.contentPane(region='top'))
+        self._te_info_vars(bc,table=table,region='bottom',height='60%',
                 fieldsTree_currRecordPath=datasourcepath)
-        else:
-            self._te_info_vars(bc,table=table,region='bottom',height='60%',
-                    fieldsTree_currRecordPath=datasourcepath)
-            self._te_info_parameters(bc,region='center')
+        self._te_info_parameters(bc,region='center')
         
     def _te_pickers(self,tc):
         tc.dataController("""var result = new gnr.GnrBag();

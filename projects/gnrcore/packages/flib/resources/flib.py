@@ -16,8 +16,10 @@ class FlibBase(BaseComponent):
     def flib_flibSavedFilesGrid(self, pane, checked_categories=None, reloader=None, label=None,
                                 viewResource=None,preview=None,configurable=False):
         viewResource = viewResource or ':LoadedFilesView'
-        th = pane.inlineTableHandler(table='flib.item',configurable=configurable,pbl_classes=True,
-                        viewResource=viewResource,nodeId='flib_item_%s' %id(pane),margin='2px',autoSave=True,
+        bc = pane.borderContainer()
+        nodeId = 'flib_item_%s' %id(pane)
+        th = bc.contentPane(region='center').inlineTableHandler(table='flib.item',configurable=configurable,pbl_classes=True,
+                        viewResource=viewResource,nodeId=nodeId,margin='2px',autoSave=True,
                         addrow=False,delrow=True)
         if checked_categories:
             storePars = {}
@@ -32,19 +34,17 @@ class FlibBase(BaseComponent):
         th.view.grid.attributes.update(hiddencolumns='$__ins_ts,$thumb_url,$url,$ext,$file_ext,$metadata')
         if preview:
             preview_height = '200px'
-            footer = th.view.bottom.slotBar('preview',closable='open',closable_tip='!!Preview',splitter=True, height=preview_height)
-            ppane = footer.preview.contentPane(width='100%', height='100%')
-            sc = ppane.stackContainer(selectedPage='^.preview_type',margin='2px')
-            sc.dataController("""const imageExt = ['.png','.jpg','.jpeg'];
+            sc = bc.stackContainer(region='bottom',closable='open',closable_tip='!!Preview',splitter=True, height=preview_height)
+            bc.dataController("""const imageExt = ['.png','.jpg','.jpeg'];
                                     var file_ext = file_ext;
                                     if(imageExt.includes(file_ext)){
                                         SET .preview_type = 'image';
                                     }else{
                                         SET .preview_type = 'no_prev';
-                                    }""", file_ext="^.grid.selectedId?file_ext")
+                                    }""", file_ext="^.grid.selectedId?file_ext",datapath=f'#{nodeId}.view')
             sc.contentPane(pageName='image',_class='pbl_roundedGroup').img(
-                                                height=preview_height, src='^.grid.selectedId?url')
-            sc.contentPane(pageName='no_prev',_class='pbl_roundedGroup').div(innerHTML='^.grid.selectedId?_thumb')
+                                                height=preview_height, src=f'^#{nodeId}.view.grid.selectedId?url')
+            sc.contentPane(pageName='no_prev',_class='pbl_roundedGroup').div(innerHTML=f'^#{nodeId}.view.grid.selectedId?_thumb')
         return th
     
     

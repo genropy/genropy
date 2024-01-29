@@ -1494,6 +1494,7 @@ class SqlTable(GnrObject):
             if isinstance(_pkeys, str):
                 _pkeys = _pkeys.strip(',').split(',')
             kwargs['_pkeys'] = _pkeys
+            kwargs.setdefault('subtable','*')
             kwargs.setdefault('excludeDraft',False)
             kwargs.setdefault('ignorePartition',True)
             kwargs.setdefault('excludeLogicalDeleted',False)

@@ -47,7 +47,7 @@ class Main(BaseResourceBatch):
     def step_dumpaux(self):
         """Dump aux db"""
         checkedDbstores = self.batch_parameters.get('checkedDbstores')
-        checkedDbstores = checkedDbstores.split(',') if checkedDbstores else list(self.db.stores_handler.dbstores.keys())
+        checkedDbstores = checkedDbstores.split(',') if checkedDbstores else [s for s in self.db.stores_handler.dbstores.keys() if not s.startswith('instance_')]
         dbstoreconf = Bag()
         dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
         options = self.batch_parameters['options']
