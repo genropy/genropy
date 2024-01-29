@@ -169,6 +169,12 @@ packages = [
 "gnr.webtools" = "../webtools"
 
 
+# COVERAGE
+[tool.coverage.run]
+omit = [
+     "*/cli/*",
+]
+
 # LINTERS
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
