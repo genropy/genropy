@@ -1,36 +1,55 @@
-import os, os.path
+"""
+Tests for gnr.app.gnrconfig package
+"""
 import pytest
 import gnr.app.gnrconfig as gnrc
 from common import BaseGnrTest
 
 class TestGnrConfig(BaseGnrTest):
-    def test_gnrConfigPath(self):
+    """
+    unit tests for gnr.app.gnrconfig module
+    """
+    def test_gnrconfigpath(self):
+        """
+        Test gnrConfigPath function
+        """
         r = gnrc.gnrConfigPath()
         assert r == self.local_dir
 
-    def test_getGnrConfig(self):
-        r = gnrc.getGnrConfig()
+    def test_getgnrconfig(self):
+        """
+        Test getGnrConfig function
+        """
+        gnrc.getGnrConfig()
 
         # ask for a non existing path
         with pytest.raises(Exception) as excinfo:
-            r = gnrc.getGnrConfig("/k3ipiojfij3ojesjkhflsij3")
+            gnrc.getGnrConfig("/k3ipiojfij3ojesjkhflsij3")
         assert "Missing" in str(excinfo)
 
         # set enviroment
-        r = gnrc.getGnrConfig(set_environment=True)
+        gnrc.getGnrConfig(set_environment=True)
 
-    def test_getGenroRoot(self):
+    def test_getgenroroot(self):
+        """
+        Test for getGenroRoot function
+        """
         r = gnrc.getGenroRoot()
         assert r == self.test_genro_root
-    
-    def test_ConfigStruct(self):
-        a = gnrc.ConfigStruct()
 
-    def test_RmsOptions(self):
+    def test_configstruct(self):
+        """
+        test for gnrconfig.ConfigStruct class
+        """
+        gnrc.ConfigStruct()
+
+    def test_rmsoptions(self):
+        """
+        Test for getRmsOptions function
+        """
         b = gnrc.getRmsOptions()
         assert b is None
         gnrc.setRmsOptions(a=1)
         b = gnrc.getRmsOptions()
         assert b is not None
         assert 'a' in b
-    

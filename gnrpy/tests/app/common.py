@@ -1,14 +1,24 @@
-import os, os.path
+"""
+Common objects for gnr.app testing, mostly custom Genropy environment
+"""
+import os
+import os.path
 
 class BaseGnrTest:
+    """
+    Base classe for testing environment
+    """
     @classmethod
     def setup_class(cls):
+        """ 
+        Setup the testing environment 
+        """
         cls.local_dir = os.path.dirname(__file__)
         os.environ['GENRO_GNRFOLDER'] = cls.local_dir
         cls.test_genro_root = os.path.abspath(os.path.join(cls.local_dir, "..", "..", ".."))
         cls.test_app_path = os.path.join(cls.test_genro_root, "projects")
         cls.ENV_FILENAME = os.path.join(cls.local_dir, "environment.xml")
-        with open(cls.ENV_FILENAME, "w") as env_file_fd:
+        with open(cls.ENV_FILENAME, "w", encoding='utf-8') as env_file_fd:
             env_file_fd.write(f"""<?xml version="1.0" ?>
             <GenRoBag>
   <environment>
@@ -38,7 +48,6 @@ class BaseGnrTest:
 """)
     @classmethod
     def teardown_class(cls):
+        """Teardown testing environment"""
         os.unlink(cls.ENV_FILENAME)
-        os.environ.pop("GENRO_GNRFOLDER")    
-
-    
+        os.environ.pop("GENRO_GNRFOLDER")
