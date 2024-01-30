@@ -403,7 +403,12 @@ class GnrPackage(object):
         self.id = pkg_id
         filename = filename or pkg_id
         self.application = application
+
+        # FIXME: os.path.join won't accept None as a value
+        # for path, which is the default value of the method
+        # parameter, and no checks are being made on it.
         self.packageFolder = os.path.join(path, filename)
+        
         self.libPath = os.path.join(self.packageFolder, 'lib')
         sys.path.append(self.libPath)
         self.attributes = {}
@@ -411,14 +416,20 @@ class GnrPackage(object):
         self.plugins = {}
         self.loadPlugins()
         self.projectInfo = None
+
+        # TODO: verify that this 'info.xml' loading is really needed,
+        # couldn't find any trace of usage around.
         if not project:
             projectPath = os.path.normpath(os.path.join(self.packageFolder,'..','..'))
             projectInfoPath = os.path.join(projectPath,'info.xml')
             project = os.path.split(projectPath)[1]
             if os.path.exists(projectInfoPath):
                 self.projectInfo = Bag(projectInfoPath)
+
+                
         if not self.projectInfo:
-            self.projectInfo = Bag(('project',None,dict(name=project,code=project,language='en'))) 
+            self.projectInfo = Bag(('project',None,dict(name=project,code=project,language='en')))
+            
         self.project = project 
         self.customFolder = os.path.join(self.application.instanceFolder, 'custom', pkg_id)
         try:

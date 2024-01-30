@@ -7,13 +7,14 @@ import pytest
 import gnr.app.gnrapp as ga
 
 from common import BaseGnrTest
+
 class TestGnrApp(BaseGnrTest):
     """
     Tests class for gnr.app.gnrapp package
     """
     app_name = 'gnrdevelop'
     app = ga.GnrApp(app_name, forTesting=True)
-
+ 
     def test_nullloader(self):
         """
         Tests for NullLoader
@@ -101,6 +102,27 @@ class TestGnrApp(BaseGnrTest):
         r = self.app.packages['sys'].loadPlugins()
         assert r is None
 
+        gpp = ga.GnrPackagePlugin(self.app.packages['sys'], "/")
+        assert gpp.path == "/"
+        assert gpp.application == self.app
+
+    def test_gnrpackage(self):
+        """
+        Test for GnrPackage
+        """
+        p = self.app.packages['sys']
+        assert isinstance(p, ga.GnrPackage)
+        cfg_attr = p.config_attributes()
+        assert cfg_attr['comment'] == 'sys'
+        assert cfg_attr['_syspackage']
+        assert p.onAuthentication("babbala") is None
+        p.configure()
+
+        with pytest.raises(ga.GnrImportException):
+            p = ga.GnrPackage("ahhdkjhfjsh", self.app, path=self.test_app_path)
+        # TODO: projectInfo attributes for GnrPackage
+        # TODO: custom_mixin for GnrPackage
+                                
     def test_gnrmixinobj(self):
         """
         Tests for GnrMixinObj"""
@@ -146,3 +168,13 @@ class TestGnrApp(BaseGnrTest):
         """
         d = self.app.gnrdaemon
         assert d
+
+    
+    def test_gnrsqlappdb(self):
+        """
+        Test GnrSqlAppDb class
+
+        FIXME: maybe this should be moved to gnr.sql
+        """
+        a = ga.GnrSqlAppDb()
+        assert a.application is None
