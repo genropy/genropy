@@ -11,7 +11,7 @@ from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import InstanceMaker, PathResolver
 
-
+description = """Create a new Genropy istance"""
 def main():
     parser = GnrCliArgParse()
     parser.add_argument("-b", "--base-path", dest="base_path",

@@ -8,7 +8,7 @@ from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import SiteMaker, PathResolver
 
-description = ""
+description = "Create a new Genropy site"
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("-b", "--base-path", dest="base_path",

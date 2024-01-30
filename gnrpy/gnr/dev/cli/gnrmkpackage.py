@@ -8,7 +8,7 @@ from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PackageMaker, PathResolver
 
-
+description = """Create a new Genropy package"""
 
 def main():
     parser = GnrCliArgParse()

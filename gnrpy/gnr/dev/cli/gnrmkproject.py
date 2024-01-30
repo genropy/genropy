@@ -13,6 +13,8 @@ from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, SiteMaker,PackageMaker, PathResolver
 
+description = "Bootstrap a new project folder and subfolders"
+
 def main():
     parser = GnrCliArgParse()
     parser.add_argument("-b", "--base-path", dest="base_path",
