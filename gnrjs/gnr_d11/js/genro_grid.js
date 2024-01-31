@@ -1922,7 +1922,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         rowBag.popNode('_linenumber');
                     }
 
-                    if(sourceNode.attr.rowStatusColumn){
+                    if(sourceNode.attr.rowStatusColumn && !sourceNode.attr.mobileTemplateGrid){
                         if(!rowBag.getNode('_protectionStatus')){
                             rowBag.setItem('_protectionStatus',null,{
                                 field:'_protectionStatus',name:' ',width:'20px',

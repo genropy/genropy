@@ -357,7 +357,7 @@ class TableHandlerGroupBy(BaseComponent):
 
         pane.dataController("""
                             if(pkeylist){
-                                var queryvars = {};
+                                var queryvars = {subtable:'*',ignorePartition:true,excludeDraft:false,excludeLogicalDeleted:false};
                                 queryvars.condition = '$pkey IN :currpkeylist';
                                 queryvars.currpkeylist = pkeylist.split(',');
                                 grid.collectionStore().loadData(queryvars);

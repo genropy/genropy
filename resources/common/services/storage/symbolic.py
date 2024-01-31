@@ -103,8 +103,8 @@ class Service(BaseLocalService):
         else:
             return '%s_gnr/%s/%s' % (self.home_uri, version, '/'.join(args))
 
-    def url_temp(self, path):
-        pass
+    def url_temp(self, path, *args):
+        return ''
 
     def url_user(self, user, *args, **kwargs):
         return '%s_user/%s/%s' % (self.home_uri, user, '/'.join(args))

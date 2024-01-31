@@ -514,7 +514,7 @@ class DbModelSrc(GnrStructData):
             self.child('subtable_list', 'subtables')
         condition_kwargs = dictExtract(kwargs,'condition_')
         self.attributes.setdefault('group_subtables','!![en]Subtables')
-        self.formulaColumn(f'subtable_{name}',condition,
+        self.formulaColumn(f'subtable_{name}',condition,dtype='B',
         name_long=name_long or name,group='subtables',_addClass=f'subtable_{name}',**{f'var_{k}':v for k,v in condition_kwargs.items()})
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
     

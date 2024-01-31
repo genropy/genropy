@@ -307,6 +307,10 @@ class FrameGridTools(BaseComponent):
                                 return;
                             }}
                             var queryvars = {{}};
+                            queryvars.subtable='*';
+                            queryvars.excludeDraft=false;
+                            queryvars.ignorePartition=true;
+                            queryvars.excludeLogicalDeleted=false;
                             queryvars.condition = '$pkey IN :currpkeylist';
                             queryvars.currpkeylist = grouperPkeyList.split(',');
                             queryvars.query_reason = 'grouper';
