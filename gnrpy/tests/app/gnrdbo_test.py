@@ -1,5 +1,5 @@
 import gnr.app.gnrdbo
-from common import BaseGnrTest
+from common import BaseGnrAppTest
 
-class TestGnrDbo(BaseGnrTest):
+class TestGnrDbo(BaseGnrAppTest):
     pass

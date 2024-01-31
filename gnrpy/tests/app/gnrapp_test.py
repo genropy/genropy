@@ -6,9 +6,9 @@ import os.path
 import pytest
 import gnr.app.gnrapp as ga
 
-from common import BaseGnrTest
+from common import BaseGnrAppTest
 
-class TestGnrApp(BaseGnrTest):
+class TestGnrApp(BaseGnrAppTest):
     """
     Tests class for gnr.app.gnrapp package
     """

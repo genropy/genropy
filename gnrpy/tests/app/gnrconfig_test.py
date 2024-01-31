@@ -3,9 +3,9 @@ Tests for gnr.app.gnrconfig package
 """
 import pytest
 import gnr.app.gnrconfig as gnrc
-from common import BaseGnrTest
+from common import BaseGnrAppTest
 
-class TestGnrConfig(BaseGnrTest):
+class TestGnrConfig(BaseGnrAppTest):
     """
     unit tests for gnr.app.gnrconfig module
     """

@@ -4,9 +4,9 @@ Common objects for gnr.app testing, mostly custom Genropy environment
 import os
 import os.path
 
-class BaseGnrTest:
+class BaseGnrAppTest:
     """
-    Base classe for testing environment
+    Base class for testing environment
     """
     @classmethod
     def setup_class(cls):

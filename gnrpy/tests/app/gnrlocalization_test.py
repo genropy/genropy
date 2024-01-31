@@ -1,9 +1,9 @@
 import pytest
 import gnr.app.gnrlocalization as gl
 import gnr.app.gnrapp as ga
-from common import BaseGnrTest
+from common import BaseGnrAppTest
 
-class TestGnrLocalization(BaseGnrTest):
+class TestGnrLocalization(BaseGnrAppTest):
     app_name = 'gnr_it'
     app = ga.GnrApp(app_name, forTesting=True)
 
