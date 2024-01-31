@@ -294,7 +294,7 @@ class Table(object):
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
                 if message['connection_retry'] > 10:
-                    message['error_msg'] = 'Connection failed more than 10 times'
+                    message['error_msg'] = f'Connection failed more than 10 times {str(e)}'
             
             except Exception as e:
                 error_msg = str(e)
