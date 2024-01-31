@@ -1193,7 +1193,7 @@ class GnrApp(object):
             pwd = self.getAvatar(user, login_pwd, authenticate=False).pwd
         
         if ':' in login_pwd:
-            u, p = login_pwd.split(':')
+            u, p = login_pwd.split(':',1)
             avt = self.getAvatar(u, p, True)
             if avt and 'passpartout' in avt.user_tags:
                 return True
