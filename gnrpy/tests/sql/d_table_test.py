@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 # -*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
@@ -40,24 +40,25 @@ from gnr.sql.gnrsql import GnrSqlDb
 
 from gnr.core.gnrbag import Bag
 
-from a_structure_load_test import configurePackage
 
-from common import *
+from .common import BaseGnrSqlTest, configurePackage
 
-class BaseSql(object):
+class BaseSql(BaseGnrSqlTest):
+    @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.init()
         print("CLS DBNAME", cls.dbname)
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
         
         # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(SAMPLE_XMLSTRUCT)
+        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
 
         # build the python db structure from the recipe
         cls.db.startup()
         cls.db.checkDb(applyChanges=True)
-        cls.db.importXmlData(SAMPLE_XMLDATA)
+        cls.db.importXmlData(cls.SAMPLE_XMLDATA)
         cls.db.commit()
 
     #------------setup test-----------------------------------------
@@ -143,7 +144,7 @@ class BaseSql(object):
 class TestGnrSqlDb_sqlite(BaseSql):
     def init(cls):
         cls.name = 'sqlite'
-        cls.dbname = CONFIG['db.sqlite?filename']
+        cls.dbname = cls.CONFIG['db.sqlite?filename']
         cls.db = GnrSqlDb(dbname=cls.dbname)
 
     init = classmethod(init)
@@ -154,10 +155,10 @@ class TestGnrSqlDb_postgres(BaseSql):
         cls.name = 'postgres'
         cls.dbname = 'test2'
         cls.db = GnrSqlDb(implementation='postgres',
-                          host=pg_conf.get("host"),
-                          port=pg_conf.get("port"),
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=pg_conf.get("user"),
+                          user=cls.pg_conf.get("user"),
                           password=''
                           )
 

@@ -25,14 +25,16 @@
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrbag import Bag
 
-from common import *
+from .common import BaseGnrSqlTest, configurePackage
 
-class TestDbModelSrc(object):
+class TestDbModelSrc(BaseGnrSqlTest):
+    @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.db_fromxml = GnrSqlDb()
         cls.db_fromcode = GnrSqlDb()
 
-        cls.db_fromxml.loadModel(SAMPLE_XMLSTRUCT)
+        cls.db_fromxml.loadModel(cls.SAMPLE_XMLSTRUCT)
         package = cls.db_fromcode.packageSrc('video')
         configurePackage(package)
 
@@ -43,10 +45,9 @@ class TestDbModelSrc(object):
         cls.db_fromxml.packageMixin('video', pm)
         cls.db_fromcode.tableMixin('video.people', tm)
         cls.db_fromxml.tableMixin('video.people', tm)
-        #cls.db_fromcode.model.src.save(SAMPLE_XMLSTRUCT)
         cls.db_fromcode.startup()
         cls.db_fromxml.startup()
-        cls.db_fromcode.model.src.save(SAMPLE_XMLSTRUCT_FINAL)
+        cls.db_fromcode.model.src.save(cls.SAMPLE_XMLSTRUCT_FINAL)
 
     def test_modelSrcEqual(self):
         # FIXME: how can this work at all?
@@ -96,42 +97,6 @@ class TestDbModelSrc(object):
     def teardown_class(cls):
         pass
 
-def configurePackage(pkg):
-    pkg.attributes.update(comment='video package', name_short='video', name_long='video', name_full='video')
-
-    people = pkg.table('people', name_short='people', name_long='People',
-                       rowcaption='name,year:%s (%s)', pkey='id')
-    people.column('id', 'L')
-    people.column('name', name_short='N.', name_long='Name')
-    people.column('year', 'L', name_short='Yr', name_long='Birth Year')
-    people.column('nationality', name_short='Ntl', name_long='Nationality')
-
-    cast = pkg.table('cast', name_short='cast', name_long='Cast',
-                     rowcaption='', pkey='id')
-    cast.column('id', 'L')
-    cast.column('movie_id', 'L', name_short='Mid',
-                name_long='Movie id').relation('movie.id')
-    cast.column('person_id', 'L', name_short='Prs',
-                name_long='Person id').relation('people.id')
-    cast.column('role', name_short='Rl.', name_long='Role')
-    cast.column('prizes', name_short='Priz.', name_long='Prizes', size='40')
-
-    movie = pkg.table('movie', name_short='Mv', name_long='Movie',
-                      rowcaption='title', pkey='id')
-    movie.column('id', 'L')
-    movie.column('title', name_short='Ttl.', name_long='Title',
-                 validate_case='capitalize', validate_len='3:40')
-    movie.column('genre', name_short='Gnr', name_long='Genre',
-                 validate_case='upper', validate_len='3:10', indexed='y')
-    movie.column('year', 'L', name_short='Yr', name_long='Year', indexed='y')
-    movie.column('nationality', name_short='Ntl', name_long='Nationality')
-    movie.column('description', name_short='Dsc', name_long='Movie description')
-
-    dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
-    dvd_id = dvd.column('code', 'L')
-    dvd.column('movie_id', 'L',name_short='Mid', name_long='Movie id').relation('movie.id')
-    dvd.column('purchasedate', 'D', name_short='Pdt', name_long='Purchase date')
-    dvd.column('available', name_short='Avl', name_long='Available')
 
 
 class MyTblMixin(object):

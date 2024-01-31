@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 # -*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
@@ -31,12 +31,14 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj, DbTableListObj, DbColumnListObj, DbIndexListObj
 from gnr.core.gnrbag import Bag
 
-from common import *
+from .common import BaseGnrSqlTest
 
-class TestSqlStructure(object):
+class TestSqlStructure(BaseGnrSqlTest):
+    @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.db = GnrSqlDb()
-        cls.db.loadModel(SAMPLE_XMLSTRUCT)
+        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
         cls.db.startup()
 
     def test_modelObj(self):
