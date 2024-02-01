@@ -498,7 +498,11 @@ class CsvReader(object):
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
+
+        # FIXME: why an explit "encoding" parameter for the constructor but
+        # ignoring its value?
         encoding = None
+        
         if detect_encoding and not encoding:
             encoding = self.detect_encoding()
         if encoding:
@@ -725,7 +729,7 @@ def getReader(file_path,filetype=None,**kwargs):
             try:
                 import openpyxl
                 reader = XlsxReader(file_path,**kwargs)
-            except ImportError:
+            except ImportError: # pragma: no cover
                 import sys
                 print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
                 reader = XlsReader(file_path,**kwargs)

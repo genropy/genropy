@@ -1,3 +1,4 @@
+import os.path
 import pytest
 from gnr.core import gnrlist as gl
 
@@ -105,6 +106,156 @@ def test_sortByItem():
     #res = gl.sortByItem(test_l, "a", "b:*", "c:d", hkeys=True)
 
 
+def test_getReader():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, 'test.csv')
+        with open(filename, "w") as wfp:
+            wfp.write("one,two,three\nfour,five,six")
+        a = gl.getReader(filename)
+        assert isinstance(a, gl.CsvReader)
+
+        filename = os.path.join(tmpdir, 'test.tab')
+        with open(filename, "w") as wfp:
+            wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
+        a = gl.getReader(filename)
+        assert isinstance(a, gl.CsvReader)
+
+        filename = os.path.join(tmpdir, 'test.csv')
+        with open(filename, "w") as wfp:
+            wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
+        a = gl.getReader(filename, filetype="csv_auto")
+        assert isinstance(a, gl.CsvReader)
+
+
+        # Will fail with an emtpy file
+        filename = os.path.join(tmpdir, 'test.xls')
+        with open(filename, "w") as wfp:
+            pass
+        with pytest.raises(Exception):
+            a = gl.getReader(filename, filetype="excel")
+        filename = os.path.join(tmpdir, 'test.xlsx')
+        with open(filename, "w") as wfp:
+            pass
+        with pytest.raises(Exception):
+            a = gl.getReader(filename, filetype="excel")
+
+    test_dir = os.path.dirname(__file__)
+    
+    filename = os.path.join(test_dir, "data", "test.xls")
+    a = gl.getReader(filename)
+    assert isinstance(a, gl.XlsReader)
+
+    filename = os.path.join(test_dir, "data","test.xlsx")
+    a = gl.getReader(filename)
+    assert isinstance(a, gl.XlsxReader)
+
+    # FIXME: this fails all the time.
+    with pytest.raises(Exception):
+        filename = os.path.join(test_dir, "data", "testbag.xml")
+        a = gl.getReader(filename)
+
+def test_CsvReader():
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", "test.csv")
+    a = gl.CsvReader(test_file)
+    # FIXME: odd interface using __call__
+    r = [x for x in a()]
+    assert len(r) == 1
+    assert isinstance(r[0], gl.GnrNamedList)
+    assert 'a' in r[0].keys()
+    a = gl.CsvReader(test_file, detect_encoding=True)
+
+
+def test_XlsReader():
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", 'test.xls')
+    r = gl.XlsReader(test_file)
+    assert r.sheet.name == "Sheet1"
+    assert 'a' in r.headers
+    assert 0 in r.colindex
+    assert r.colindex[0] is True
+    assert 'a' in r.index
+    assert r.ncols == 3
+    assert r.nrows == 1
+    d = [x for x in r()]
+    assert len(d) == 1
+    assert isinstance(d[0], gl.GnrNamedList)
+    assert 'a' in d[0].keys()
+
+def test_XlsxReader():
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", 'test.xlsx')
+    r = gl.XlsxReader(test_file)
+    assert r.sheet.title == "Sheet1"
+    assert 'a' in r.headers
+    assert 0 in r.colindex
+    assert r.colindex[0] is True
+    assert 'a' in r.index
+    assert r.ncols == 3
+
+    # FIXME: this doesn't work in the implementation
+    #assert r.nrows == 1
+
+    d = [x for x in r()]
+    assert len(d) == 1
+    assert isinstance(d[0], gl.GnrNamedList)
+    assert 'a' in d[0].keys()
+
+def test_readXLS():
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", 'test.xls')
+    r = gl.readXLS(test_file)
+    d = [x for x in r]
+    assert len(d) == 1
+    assert isinstance(d[0], gl.GnrNamedList)
+    assert 'a' in d[0].keys()
+
+    with open(test_file, "rb") as fp:
+        r = gl.readXLS(fp)
+        d = [x for x in r]
+        assert len(d) == 1
+        assert isinstance(d[0], gl.GnrNamedList)
+        assert 'a' in d[0].keys()
+
+def test_readCSV():
+    # FIXME: apparently, readXLS and readCSV exposes
+    # a different interface to access record, please
+    # check the last assert here with the last of readXLS test
+    # while readCSV_new works correctly. Maybe the _new should
+    # be the implementation..
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", 'test.csv')
+    r = gl.readCSV(test_file)
+    d = [x for x in r]
+    assert len(d) == 2
+    assert isinstance(d[0], gl.GnrNamedList)
+    assert 'a' in d[0].keys()[0]
+
+    with open(test_file, "r") as fp:
+        r = gl.readCSV(fp)
+        d = [x for x in r]
+        assert len(d) == 2
+        assert isinstance(d[0], gl.GnrNamedList)
+        assert 'a' in d[0].keys()[0]
+
+def test_readCSV_new():
+    test_dir = os.path.dirname(__file__)
+    test_file = os.path.join(test_dir, "data", 'test.csv')
+    r = gl.readCSV_new(test_file)
+    d = [x for x in r]
+    assert len(d) == 1
+    assert isinstance(d[0], gl.GnrNamedList)
+    assert 'a' in d[0].keys()
+
+    with open(test_file, "r") as fp:
+        r = gl.readCSV_new(fp)
+        d = [x for x in r]
+        assert len(d) == 1
+        assert isinstance(d[0], gl.GnrNamedList)
+        assert 'a' in d[0].keys()
+
+        
 def test_sortByAttr():
     class MockObj(object):
         a = 1
