@@ -109,10 +109,12 @@ class BaseProxy(object):
 
 class FilterList(list):
     """TODO"""
+    
     def __contains__old(self, item):
         return len([k for k in self if k == item or k.endswith('*') and item.startswith(k[0:-1])]) > 0
 
     def __contains__(self, item):
+        # FIXME: if an element of the list is not a string will lead to AttributeError
         for my_item in self:
             if my_item == item or my_item.endswith('*') and item.startswith(my_item[0:-1]):
                 return True
@@ -256,6 +258,8 @@ class GnrException(Exception):
             st = inspect.stack()
             description = "%s:%i"%(st[1][1],st[1][2])
         self.description = description
+        # FIXME: why a localizer param saved as attribute
+        # and immediately discarded?
         self.localizer = localizer
         self.msgargs = kwargs
         self.localizer = None
