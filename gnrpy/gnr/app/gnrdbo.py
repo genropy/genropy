@@ -1583,6 +1583,24 @@ class AttachmentTable(GnrDboTable):
     def onUploadedAttachment(self, attachment_id=None, **kwargs):
         pass
     
+    def getAttachmentsPdf(self, maintable_id, output_path=None):
+        imgConverter = self.db.application.site.getService('imgtopdf')
+        pdfJoiner = self.db.application.site.getService('pdf')
+        attachments = self.query(where='$maintable_id=:m_id', m_id = maintable_id).fetch()
+        resultNode = sn = self.db.application.site.storageNode(output_path)
+        joinable_pdf = []
+        for a in attachments:
+            path = a['filepath']
+            sn = self.db.application.site.storageNode(path)
+            if not sn.ext.lower() in ['pdf','jpg','jpeg','png','gif','tiff']:
+                continue
+            if sn.ext.lower() == 'pdf':
+                joinable_pdf.append(sn)
+                continue
+            outPdfSn = self.db.application.site.storageNode(f'temp:{sn.cleanbasename}.pdf')
+            joinable_pdf.append(imgConverter.imgToPdf(sn, outPdfSn))
+        pdfJoiner.joinPdf(joinable_pdf,resultNode)
+        return resultNode
 
 class TotalizeTable(GnrDboTable):
     def totalize_exclude(self,record=None,old_record=None):

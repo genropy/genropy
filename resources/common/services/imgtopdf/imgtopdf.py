@@ -8,3 +8,4 @@ class Service(ImgToPdfService):
         with srcNode.open('rb') as infile:
             with destNode.open('wb') as outfile:
                 Image.open(infile).save(outfile, "PDF" ,resolution=100.0, save_all=True)
+        return destNode
