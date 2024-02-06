@@ -3658,6 +3658,7 @@ dojo.declare("gnr.widgets.DatetimeTextBox", gnr.widgets.DateTextBox, {
 dojo.declare("gnr.widgets.TimeTextBox", gnr.widgets._BaseTextBox, {
     onChanged:function(widget, value) {
         if (value) {
+            value._gnrdtype = 'H'
             this._doChangeInData(widget.domNode, widget.sourceNode, value, {dtype:'H'});
         }
         else {
