@@ -5,10 +5,12 @@
 from datetime import datetime
 import logging
 from multiprocessing import Process, log_to_stderr, get_logger, Manager
+import ipaddress
 import atexit
 import os
 import time
-import Pyro4
+from Pyro5.compatibility import Pyro4
+from Pyro5.server import expose
 
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 from gnr.core.gnrlang import gnrImport
@@ -23,19 +25,16 @@ from gnr.web.gnrtask import GnrTaskScheduler
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
-if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
-    Pyro4.config.REQUIRE_EXPOSE = False
-OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
+    
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
-PYRO_HMAC_KEY = 'supersecretkey'
 
 def createSiteRegister(sitename=None,daemon_uri=None,host=None, socket=None,
-                         hmac_key=None,storage_path=None,debug=None,autorestore=False,
+                         storage_path=None,debug=None,autorestore=False,
                          port=None):
     server = GnrSiteRegisterServer(sitename=sitename,daemon_uri=daemon_uri,
         storage_path=storage_path,debug=debug)
-    server.start(host=host,socket=socket,hmac_key=hmac_key,port=port or '*',autorestore=autorestore)
+    server.start(host=host,socket=socket,port=port or '*',autorestore=autorestore)
 
 def createHeartBeat(site_url=None,interval=None,**kwargs):
     server = GnrHeartBeat(site_url=site_url,interval=interval,**kwargs)
@@ -92,14 +91,20 @@ class GnrHeartBeat(object):
         self.logger.warn('%s -> will retry in %i seconds' %(reason,3*self.interval))
         time.sleep(3*self.interval)
 
+def ip_is_loopback(host):
+    if host == 'localhost':
+        return True
+    try:
+        return ipaddress.IPv4Address(host).is_loopback
+    except:
+        return ipaddress.IPv6Address(host).is_loopback
+
+        
 class GnrDaemonProxy(object):
-    def __init__(self,host=None,port=None, socket=None,hmac_key=None,compression=True,use_environment=False,serializer='pickle'):
-        options=dict(host=host, socket=socket, port=port,hmac_key=hmac_key,compression=compression)
+    def __init__(self,host=None,port=None, socket=None,compression=True,use_environment=False,serializer='pickle'):
+        options=dict(host=host, socket=socket, port=port,compression=compression)
         if use_environment:
             options = getFullOptions(options=options)
-        self.hmac_key = options.get('hmac_key') or PYRO_HMAC_KEY
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = self.hmac_key
         Pyro4.config.SERIALIZER = options.get('serializer','pickle')
         Pyro4.config.COMPRESSION = options.get('compression',True)
 
@@ -111,7 +116,6 @@ class GnrDaemonProxy(object):
 
     def proxy(self):
         proxy = Pyro4.Proxy(self.uri)
-        proxy._pyroHmacKey = self.hmac_key
         return proxy
 
 class GnrDaemon(object):
@@ -127,19 +131,19 @@ class GnrDaemon(object):
         self.task_execution_dicts = dict()
         self.logger = log_to_stderr()
 
-
     def start(self,use_environment=False,**kwargs):
         if use_environment:
             options =  getFullOptions(options=kwargs)
         self.do_start(**options)
 
-    def do_start(self, host=None, port=None, socket=None, hmac_key=None,
+    def do_start(self, host=None, port=None, socket=None,
                       debug=False,compression=False,timeout=None,
                       multiplex=False,polltimeout=None,use_environment=False, size_limit=None,
                       sockets=None, loglevel=None, **kwargs):
         self.loglevel = loglevel or logging.ERROR
         self.logger.setLevel(self.loglevel)
-        self.pyroConfig(host=host,port=port, socket=socket, hmac_key=hmac_key,debug=debug,
+        
+        self.pyroConfig(host=host,port=port, socket=socket,debug=debug,
                         compression=compression,timeout=timeout,
                         multiplex=multiplex,polltimeout=polltimeout, size_limit=size_limit,
                         sockets=sockets)
@@ -147,28 +151,29 @@ class GnrDaemon(object):
             self.logger.info('Start daemon new socket {}'.format(self.socket))
             self.daemon = Pyro4.Daemon(unixsocket=self.socket)
         else:
+            # FIXME: since Pyro5 can use only SSL with 2-way certificate for security
+            # we've disabled listening of the daemon outside of loopback
+            if not ip_is_loopback(self.host):
+                raise NotImplementedError("Can't listen outside of loopback, please enquiry with Genropy team")
+            
+            self.logger.info(f"Starting daemon on {self.host}:{self.port}")
             self.daemon = Pyro4.Daemon(host=self.host,port=int(self.port))
-        if not OLD_HMAC_MODE:
-            self.daemon._pyroHmacKey = self.hmac_key
+            
         self.main_uri = self.daemon.register(self,'GnrDaemon')
         self.logger.info("uri={}".format(self.main_uri))
-#        print "uri=",self.main_uri
         print('{color_blue}Daemon is running{nostyle}'.format(**log_styles()))
         self.running = True
         atexit.register(self.stop)
         self.daemon.requestLoop(lambda : self.running)
 
-    def pyroConfig(self,host=None,port=None, socket=None, hmac_key=None,
-                      debug=False,compression=False,timeout=None,
-                      multiplex=False,polltimeout=None, size_limit=None,sockets=None):
-        Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+    def pyroConfig(self,host=None,port=None, socket=None,
+                   debug=False,compression=False,timeout=None,
+                   multiplex=False,polltimeout=None, size_limit=None,sockets=None):
+        #Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
         self.port=port or PYRO_PORT
         self.host = host or PYRO_HOST
         self.socket = socket
         self.sockets = sockets
-        self.hmac_key = hmac_key or PYRO_HMAC_KEY
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = self.hmac_key
         if compression:
             Pyro4.config.COMPRESSION = True
         if multiplex:
@@ -180,12 +185,14 @@ class GnrDaemon(object):
         if size_limit:
             Pyro4.config.SIZE_LIMIT = size_limit
 
+    @expose
     def onRegisterStart(self,sitename,server_uri=None,register_uri=None):
         self.siteregisters[sitename]['server_uri'] = server_uri
         self.siteregisters[sitename]['register_uri'] = register_uri
         self.siteregisters[sitename]['register_port'] = int(register_uri.split(':')[-1])
         print('registered ',sitename,server_uri)
 
+    @expose
     def onRegisterStop(self,sitename=None):
         print('onRegisterStop',sitename)
         self.siteregisters.pop(sitename,None)
@@ -194,9 +201,11 @@ class GnrDaemon(object):
             if name!='register' and process and process.is_alive():
                 process.terminate()
 
+    @expose
     def ping(self,**kwargs):
         return 'ping'
 
+    @expose
     def getSite(self,sitename=None,create=False,storage_path=None,autorestore=None,**kwargs):
         if sitename in self.siteregisters and self.siteregisters[sitename]['server_uri']:
             return self.siteregisters[sitename]
@@ -204,6 +213,7 @@ class GnrDaemon(object):
             self.addSiteRegister(sitename,storage_path=storage_path,autorestore=autorestore)
             return dict()
 
+    @expose
     def stop(self,saveStatus=False,**kwargs):
         self.daemon.close()
         self.siteregister_stop('*',saveStatus=saveStatus)
@@ -211,9 +221,11 @@ class GnrDaemon(object):
             t.stop()
         self.running = False
 
+    @expose
     def restart(self, sitename=None, **kwargs):
         self.stop(saveStatus=True)
 
+    @expose
     def restartServiceDaemon(self,sitename=None,service_name=None):
         sitedict = self.siteregisters_process[sitename]
         if service_name in sitedict:
@@ -224,6 +236,7 @@ class GnrDaemon(object):
     def on_reloader_restart(self, sitename=None):
         pass
 
+    @expose
     def startCronProcess(self, sitename=None, batch_pars=None, batch_queue=None):
         siteregister_processes_dict = self.siteregisters_process[sitename]
         cron_handler = GnrCronHandler(self, sitename=sitename, batch_queue=batch_queue,
@@ -274,6 +287,7 @@ class GnrDaemon(object):
             return has_sys and not secondary
         return False
 
+    @expose
     def addSiteRegister(self,sitename,storage_path=None,autorestore=False,port=None):
         if not sitename in self.siteregisters:
             siteregister_processes_dict = dict()
@@ -281,14 +295,14 @@ class GnrDaemon(object):
             siteregister_dict = dict()
             self.siteregisters[sitename] = siteregister_dict
             socket = os.path.join(self.sockets,'%s_daemon.sock' %sitename) if self.sockets else None
-            process_kwargs = dict(sitename=sitename,daemon_uri=self.main_uri,host=self.host,socket=socket
-                                   ,hmac_key=self.hmac_key, storage_path=storage_path,autorestore=autorestore,
-                                   port=port)
+            process_kwargs = dict(sitename=sitename,daemon_uri=self.main_uri,host=self.host,socket=socket,
+                                  storage_path=storage_path,autorestore=autorestore,
+                                  port=port)
             childprocess = Process(name='sr_%s' %sitename, target=createSiteRegister,kwargs=process_kwargs)
             siteregister_dict.update(sitename=sitename,server_uri=False,
-                                        register_uri=False,start_ts=datetime.now(),
-                                        storage_path=storage_path,
-                                        autorestore=autorestore)
+                                     register_uri=False,start_ts=datetime.now(),
+                                     storage_path=storage_path,
+                                     autorestore=autorestore)
             childprocess.daemon = True
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
@@ -302,17 +316,12 @@ class GnrDaemon(object):
             self.startServiceProcesses(sitename,sitedict=sitedict)
             #self.startGnrDaemonServiceManager(sitename)
             #self.siteregisters_process[sitename] = sitedict
-
-
         else:
             print('ALREADY EXISTING ',sitename)
 
     def pyroProxy(self,url):
         proxy = Pyro4.Proxy(url)
-        if not OLD_HMAC_MODE:
-            proxy._pyroHmacKey = self.hmac_key
         return proxy
-
 
     def siteRegisters(self,**kwargs):
         sr = dict(self.siteregisters)
@@ -330,7 +339,7 @@ class GnrDaemon(object):
         with self.pyroProxy(uri) as proxy:
             return proxy.dump()
 
-
+    @expose
     def setSiteInMaintenance(self,sitename,status=None,allowed_users=None):
         uri = self.siteregisters[sitename]['register_uri']
         with self.pyroProxy(uri) as proxy:

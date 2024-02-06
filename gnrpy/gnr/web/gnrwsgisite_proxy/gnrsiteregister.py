@@ -22,12 +22,14 @@
 
 import time
 import _thread
-import Pyro4
 import os
 import re
 import sys
 from datetime import datetime
 from collections import defaultdict
+
+from Pyro5.compatibility import Pyro4
+from Pyro5.server import expose
 
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
@@ -36,10 +38,7 @@ from gnr.app.gnrconfig import gnrConfigPath
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
-if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
-    Pyro4.config.REQUIRE_EXPOSE = False
 
-OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
 DAEMON_TIMEOUT_START = 5
 PROCESS_SELFDESTROY_TIMEOUT = 600
 
@@ -48,8 +47,6 @@ class GnrDaemonException(Exception):
 
 class GnrDaemonLocked(GnrDaemonException):
     pass
-
-
 
 try:
     import pickle as pickle
@@ -60,7 +57,6 @@ BAG_INSTANCE = Bag()
 
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
-PYRO_HMAC_KEY = 'supersecretkey'
 PYRO_MULTIPLEX = True
 LOCK_MAX_RETRY = 50
 LOCK_EXPIRY_SECONDS = 10
@@ -112,21 +108,16 @@ class RemoteStoreBagHandler(BaseRemoteObject):
 #------------------------------- REMOTEBAG CLIENT SIDE ---------------------------
 
 class RemoteStoreBag(object):
-    def __init__(self,uri=None,register_name=None,register_item_id=None,rootpath=None,hmac_key=None):
+    def __init__(self,uri=None,register_name=None,register_item_id=None,rootpath=None):
         self.register_name = register_name
         self.register_item_id = register_item_id
         self.rootpath = rootpath
         self.uri = uri
         self.proxy=Pyro4.Proxy(uri)
-        self.hmac_key = hmac_key
-        if not OLD_HMAC_MODE:
-            self.proxy._pyroHmacKey = hmac_key
 
     def chunk(self,path):
         return RemoteStoreBag(uri=self.uri,register_name=self.register_name,
-                            register_item_id=self.register_item_id,rootpath=self.rootpath,
-                            hmac_key=self.hmac_key)
-
+                            register_item_id=self.register_item_id,rootpath=self.rootpath)
 
     @remotebag_wrapper
     def __str__(self,*args,**kwargs):
@@ -260,6 +251,7 @@ class BaseRegister(BaseRemoteObject):
             data = Bag()
         return data
 
+    @expose
     def get_item(self,register_item_id,include_data=False):
         item = self.registerItems.get(register_item_id)
         self.updateTS(register_item_id)
@@ -298,7 +290,6 @@ class BaseRegister(BaseRemoteObject):
     def registerName(self):
         return self.__class__.__name__
 
-
     def drop_item(self,register_item_id):
         register_item = self.registerItems.pop(register_item_id,None)
         self.itemsData.pop(register_item_id,None)
@@ -324,7 +315,6 @@ class BaseRegister(BaseRemoteObject):
 
     def reset_datachanges(self,register_item_id):
         return self.update_item(register_item_id,dict(datachanges=list(),datachanges_idx=0))
-
 
     def set_datachange(self,register_item_id, path, value=None, attributes=None, fired=False, reason=None, replace=False, delete=False):
         register_item = self.get_item(register_item_id)
@@ -615,7 +605,8 @@ class PageRegister(BaseRegister):
                     self.set_datachange(page_id,path=attr.pop('_client_path'),value=changeNode.value,attributes=attr, fired=attr.pop('fired', None))
             else:
                 self.set_datachange(page_id,path=path,value=value,reason=reason, attributes=attributes, fired=fired)
-
+                
+@expose
 class SiteRegister(BaseRemoteObject):
     def __init__(self,server,sitename=None,storage_path=None):
         self.server = server
@@ -636,8 +627,6 @@ class SiteRegister(BaseRemoteObject):
     def on_reloader_restart(self):
         if self.server.gnr_daemon_uri:
             with Pyro4.Proxy(self.server.gnr_daemon_uri) as proxy:
-                if not OLD_HMAC_MODE:
-                    proxy._pyroHmacKey = self.server.hmac_key
                 proxy.on_reloader_restart(sitename=self.sitename)
 
     def on_site_stop(self):
@@ -648,6 +637,7 @@ class SiteRegister(BaseRemoteObject):
             if table in register.cached_tables:
                 register.invalidateTableCache(table)
 
+    @expose
     def setConfiguration(self,cleanup=None):
         cleanup = cleanup or dict()
         self.cleanup_interval = int(cleanup.get('interval') or 120)
@@ -655,6 +645,7 @@ class SiteRegister(BaseRemoteObject):
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
 
+    @expose
     def new_connection(self,connection_id,connection_name=None,user=None,user_id=None,
                             user_name=None,user_tags=None,user_ip=None,user_agent=None,browser_name=None,avatar_extra=None,
                             electron_static=None):
@@ -703,7 +694,7 @@ class SiteRegister(BaseRemoteObject):
     def connection_pages(self,connection_id):
         return self.page_register.connection_pages(connection_id=connection_id)
 
-
+    @expose
     def new_page(self,page_id,pagename=None,connection_id=None,subscribed_tables=None,user=None,user_ip=None,user_agent=None ,
                 relative_url=None,data=None):
         page_item = self.page_register.create(page_id, pagename = pagename,connection_id=connection_id,user=user,
@@ -720,6 +711,7 @@ class SiteRegister(BaseRemoteObject):
     def subscribed_table_pages(self,table=None):
         return self.page_register.subscribed_table_pages(table)
 
+    @expose
     def pages(self, connection_id=None,user=None,index_name=None, filters=None,include_data=None):
         if index_name:
             print('call subscribed_table_pages instead of pages')
@@ -736,10 +728,11 @@ class SiteRegister(BaseRemoteObject):
     def user(self,user):
         return self.user_register.get_item(user)
 
-
+    @expose
     def users(self,include_data=None):
         return self.user_register.values(include_data)
 
+    @expose
     def connections(self,user=None,include_data=None):
         return self.connection_register.connections(user=user,include_data=include_data)
 
@@ -763,6 +756,7 @@ class SiteRegister(BaseRemoteObject):
         if not self.connection_register.connections(olduser):
             self.drop_user(olduser)
 
+    @expose
     def refresh(self, page_id, last_user_ts=None,last_rpc_ts=None,pageProfilers=None):
         refresh_ts = datetime.now()
         page = self.page_register.refresh(page_id,last_user_ts=last_user_ts,last_rpc_ts=last_rpc_ts,refresh_ts=refresh_ts)
@@ -905,7 +899,7 @@ class SiteRegister(BaseRemoteObject):
                 raise e
         return change_value
 
-
+    @expose
     def dump(self):
         """TODO"""
         with open(self.storage_path, 'w') as storagefile:
@@ -913,6 +907,8 @@ class SiteRegister(BaseRemoteObject):
             self.connection_register.dump(storagefile)
             self.page_register.dump(storagefile)
 
+
+    @expose
     def load(self):
         try:
             with open(self.storage_path) as storagefile:
@@ -1012,7 +1008,6 @@ class SiteRegisterClient(object):
             print('uso sitedaemon')
             print(params)
             if sitedaemon_pid and pid_exists(sitedaemon_pid):
-                self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
                 self.siteregisterserver_uri = params.get('main_uri')
                 self.siteregister_uri = params.get('register_uri')
                 print(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
@@ -1031,13 +1026,7 @@ class SiteRegisterClient(object):
             daemon_uri = 'PYRO:GnrDaemon@./u:%(socket)s' %daemonconfig
         else:
             daemon_uri = 'PYRO:GnrDaemon@%(host)s:%(port)s' %daemonconfig
-        daemon_hmac = daemonconfig['hmac_key']
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = daemon_hmac
         self.gnrdaemon_proxy = Pyro4.Proxy(daemon_uri)
-        self.hmac_key =  daemon_hmac
-        if not OLD_HMAC_MODE:
-            self.gnrdaemon_proxy._pyroHmacKey = self.hmac_key
 
         with self.gnrdaemon_proxy as daemonProxy:
             if not self.runningDaemon(daemonProxy):
@@ -1045,18 +1034,14 @@ class SiteRegisterClient(object):
             t_start = time.time()
             while not self.checkSiteRegisterServerUri(daemonProxy):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
-                    raise Exception('GnrDaemon timout')
+                    raise Exception('GnrDaemon timeout')
         print('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
         self.initSiteRegister()
     
     def initSiteRegister(self):
         self.siteregister = Pyro4.Proxy(self.siteregister_uri)
-        if not OLD_HMAC_MODE:
-            self.siteregister._pyroHmacKey = self.hmac_key
         self.remotebag_uri =self.siteregister_uri.replace(':SiteRegister@',':RemoteData@')
         self.siteregister.setConfiguration(cleanup = self.site.custom_config.getAttr('cleanup'))
-        #print('fine init')
-
 
     def checkSiteRegisterServerUri(self,daemonProxy):
         if not self.siteregisterserver_uri:
@@ -1080,8 +1065,6 @@ class SiteRegisterClient(object):
 
     def pyroProxy(self,url):
         proxy = Pyro4.Proxy(url)
-        if not OLD_HMAC_MODE:
-            proxy._pyroHmacKey = self.hmac_key
         return proxy
 
 
@@ -1155,7 +1138,7 @@ class SiteRegisterClient(object):
 
     def add_data_to_register_item(self,register_item):
         register_item['data'] = RemoteStoreBag(self.remotebag_uri, register_item['register_name'],
-                                                register_item['register_item_id'],hmac_key=self.hmac_key)
+                                                register_item['register_item_id'])
         return register_item
 
     def page(self,page_id,include_data=None):
@@ -1219,7 +1202,7 @@ class GnrSiteRegisterServer(object):
             print('SAVED STATUS STATUS')
         self._running = False
 
-    def start(self,port=None,host=None,socket=None,hmac_key=None,compression=None,multiplex=None,
+    def start(self,port=None,host=None,socket=None,compression=None,multiplex=None,
                     timeout=None,polltimeout=None,autorestore=False, run_now=True):
         if socket:
             pyrokw = dict(unixsocket=socket)
@@ -1227,11 +1210,8 @@ class GnrSiteRegisterServer(object):
             pyrokw = dict(host=host)
             if port != '*':
                 pyrokw['port'] = int(port or PYRO_PORT)
-        Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
-        self.hmac_key= hmac_key = (hmac_key or PYRO_HMAC_KEY)
+
         multiplex = multiplex or PYRO_MULTIPLEX
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = hmac_key
         if compression:
             Pyro4.config.COMPRESSION = True
         if multiplex:
@@ -1241,8 +1221,6 @@ class GnrSiteRegisterServer(object):
         if polltimeout:
             Pyro4.config.POLLTIMEOUT = timeout
         self.daemon = Pyro4.Daemon(**pyrokw)
-        if not OLD_HMAC_MODE:
-            self.daemon._pyroHmacKey = hmac_key
         self.siteregister = SiteRegister(self,sitename=self.sitename,storage_path=self.storage_path)
         autorestore = autorestore and os.path.exists(self.storage_path)
         self.main_uri = self.daemon.register(self,'SiteRegisterServer')
@@ -1251,8 +1229,6 @@ class GnrSiteRegisterServer(object):
         print("uri=",self.main_uri)
         if self.gnr_daemon_uri:
             with Pyro4.Proxy(self.gnr_daemon_uri) as proxy:
-                if not OLD_HMAC_MODE:
-                    proxy._pyroHmacKey = hmac_key
                 proxy.onRegisterStart(self.sitename,server_uri=str(self.main_uri),
                                     register_uri=str(self.register_uri))
         if run_now:
@@ -1261,8 +1237,11 @@ class GnrSiteRegisterServer(object):
 ########################################### SERVER STORE #######################################
 
 class ServerStore(object):
-    def __init__(self, parent,register_name=None, register_item_id=None, triggered=True,max_retry=None,retry_delay=None):
-        #self.parent = parent
+    def __init__(self, parent, register_name=None,
+                 register_item_id=None, triggered=True,
+                 max_retry=None, retry_delay=None):
+        
+        self.parent = parent
         self.siteregister = parent #parent.siteregister
         self.register_name = register_name
         self.register_item_id = register_item_id
@@ -1322,6 +1301,7 @@ class ServerStore(object):
         return self.register_item['subscribed_paths']
 
     def __getattr__(self, fname):
+        print(dir(BAG_INSTANCE))
         if hasattr(BAG_INSTANCE, fname):
             def decore(*args,**kwargs):
                 data = self.data

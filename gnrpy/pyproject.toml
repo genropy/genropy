@@ -34,7 +34,7 @@ dependencies = [
 #	     "selectors34", #apparently abandoned
 #	     "serpent<1.30", #it's a pyro dependencies, so it seem
                              #not necessary to list it here
-	     "pyro4",
+	     "pyro5",
 	     #"argparse",# it's parte of the stdlib
 	     "xlrd",
 	     "xlwt",

@@ -23,21 +23,17 @@
 
 
 
+from Pyro5.compatibility import Pyro4
 
-import Pyro4
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
     Pyro4.config.REQUIRE_EXPOSE = False
 
-OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
-
 from gnr.core.gnrbag import Bag
 
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
-PYRO_HMAC_KEY = 'supersecretkey'
-
 
 def wrapper(func):
     def decore(self,*args,**kwargs):
@@ -136,29 +132,24 @@ class RemoteBagServer(RemoteBagServerBase):
     class_prefix = ''
     child_factory = RemoteBagSpace
 
-    def start(self,host=None,port=None,hmac_key=None,
-                      debug=False,compression=False,timeout=None,
-                      multiplex=False,polltimeout=None):
-        
-        Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+    def start(self,host=None,port=None,
+              debug=False,compression=False,
+              timeout=None,
+              multiplex=False,polltimeout=None):
+
+        # FIXME
+        #Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
         
         port=port or PYRO_PORT
         host=host or PYRO_HOST
-        hmac_key=hmac_key or PYRO_HMAC_KEY
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = str(hmac_key)
-
         if compression:
             Pyro4.config.COMPRESSION = True
         if multiplex:
             Pyro4.config.SERVERTYPE = "multiplex"
-        if timeout:
-            Pyro4.config.TIMEOUT = timeout
         if polltimeout:
             Pyro4.config.POLLTIMEOUT = timeout
         self.daemon = Pyro4.Daemon(host=host,port=int(port))
-        if not OLD_HMAC_MODE:
-            self.daemon._pyroHmacKey = PYRO_HMAC_KEY
+
         self.main_uri = self.daemon.register(self,'RemoteBagServer')
         print("uri=",self.main_uri)
         self.daemon.requestLoop()
@@ -234,19 +225,13 @@ class RemoteBagClientSpace(RemoteBagClientBase):
 class RemoteBagClient(RemoteBagClientBase):
     factory = RemoteBagClientSpace
 
-    def __init__(self,uri=None,port=None,host=None,hmac_key=None):
+    def __init__(self,uri=None,port=None,host=None):
         host = host or PYRO_HOST
         port = port or PYRO_PORT
-        hmac_key = str(hmac_key or PYRO_HMAC_KEY)
-        if OLD_HMAC_MODE:
-            Pyro4.config.HMAC_KEY = hmac_key
         Pyro4.config.SERIALIZER = 'pickle'
         uri = uri or 'PYRO:RemoteBagServer@%s:%i' %(host,port)
         self.proxy=Pyro4.Proxy(uri)
-        if not OLD_HMAC_MODE:
-            self.proxy._pyroHmacKey = hmac_key
 
-        
     def __call__(self,name):
         return self[name]
       

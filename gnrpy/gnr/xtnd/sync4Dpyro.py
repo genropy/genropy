@@ -1,11 +1,11 @@
 from __future__ import print_function
 import os
 
-import Pyro4.core
-
+import Pyro5
+from Pyro5 import api 
 from gnr.xtnd.sync4Dapp import GnrAppSync4D
 
-class Sync4DCommander(Pyro4.core.DaemonObject):
+class Sync4DCommander(Pyro5.server.DaemonObject):
     def __init__(self, daemon, instancefolder):
         super().__init__(self)
 
@@ -22,7 +22,7 @@ class Sync4DCommander(Pyro4.core.DaemonObject):
     def run(self):
         self.app.beforeLoop()
 
-        self.ns = Pyro4.locateNS()
+        self.ns = api.locate_ns()
         self.daemon.useNameServer(self.ns)
         uri = self.daemon.connect(self, "sync4d_%s" % self.instancename)
 

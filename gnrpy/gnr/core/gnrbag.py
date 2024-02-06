@@ -3306,12 +3306,6 @@ class TraceBackResolver(BagResolver):
 def testfunc (**kwargs):
     print(kwargs)
 
-#import Pyro.core
-#class PyroBag(Bag, Pyro.core.ObjBase):
-#    def __init__(self):
-#        Bag.__init__(self)
-#        Pyro.core.ObjBase.__init__(self)
-
 if __name__ == '__main__':
     b = Bag()
     b.setItem('aa', 4, _attributes={'aa': 4, 'bb': None}, _removeNullAttributes=False)
