@@ -825,7 +825,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     creating: function(attributes, sourceNode) {
 
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
-        var toolbar = objectPop(attributes, 'toolbar');
+        var toolbar = objectPop(attributes, 'toolbar', 'standard');
         var config = objectExtract(attributes, 'config_*');
         var stylesheet = objectPop(attributes,'stylesheet');
         var customStyles = objectPop(attributes,'customStyles');
