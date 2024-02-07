@@ -695,8 +695,9 @@ class SiteRegister(BaseRemoteObject):
         return self.page_register.connection_pages(connection_id=connection_id)
 
     @expose
-    def new_page(self,page_id,pagename=None,connection_id=None,subscribed_tables=None,user=None,user_ip=None,user_agent=None ,
-                relative_url=None,data=None):
+    def new_page(self, page_id, pagename=None, connection_id=None, subscribed_tables=None,
+                 user=None, user_ip=None, user_agent=None,
+                 relative_url=None, data=None):
         page_item = self.page_register.create(page_id, pagename = pagename,connection_id=connection_id,user=user,
                                             user_ip=user_ip,user_agent=user_agent,relative_url=relative_url, data=data)
         return page_item
@@ -1006,7 +1007,6 @@ class SiteRegisterClient(object):
             params = sitedaemon_bag.getAttr('params')
             sitedaemon_pid = params.get('pid')
             print('uso sitedaemon')
-            print(params)
             if sitedaemon_pid and pid_exists(sitedaemon_pid):
                 self.siteregisterserver_uri = params.get('main_uri')
                 self.siteregister_uri = params.get('register_uri')
@@ -1301,7 +1301,9 @@ class ServerStore(object):
         return self.register_item['subscribed_paths']
 
     def __getattr__(self, fname):
-        print(dir(BAG_INSTANCE))
+        # check if the requested item is part of a bag
+        # or something else. This is why hasattr executes
+        # on an empty Bag singleton
         if hasattr(BAG_INSTANCE, fname):
             def decore(*args,**kwargs):
                 data = self.data
