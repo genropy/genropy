@@ -753,7 +753,6 @@ dojo.declare('gnr.GenroClient', null, {
             genro.publish('onPageStart');
             genro.dom.removeClass(dojo.body(),'startingPage');
             genro._pageStarted = true;
-            genro.getUserLocation();
         }, 100);
     },
 
