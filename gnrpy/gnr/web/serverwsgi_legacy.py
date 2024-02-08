@@ -236,6 +236,7 @@ class Server(object):
                       dest='verbose',
                       action='store_true',
                       help='Verbose')
+    
     parser.add_argument('-s', '--site',
                       dest='site_name_opt',
                       help="Use command on site identified by supplied name")
