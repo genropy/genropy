@@ -63,12 +63,12 @@ dependencies = [
 	     ]
 
 [project.optional-dependencies]
-pgsql = ["psycopg2"]
+pgsql = ["psycopg2-binary"]
 mysql = ["mysqlclient"]
 developer = [
 	  "pytest", "pytest-cov", "graphviz",
 	  "build", "twine",
-	  "psycopg2","testing.postgresql" # needed for tests, assuming developers runs tests
+	  "psycopg2-binary","testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 
 [project.scripts]

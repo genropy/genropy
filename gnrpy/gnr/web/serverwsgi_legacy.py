@@ -7,8 +7,8 @@ import sys
 import re
 import atexit
 import logging
-import argparse
 
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -161,7 +161,7 @@ class Server(object):
                       'error': logging.ERROR,
                       'critical': logging.CRITICAL}
 
-    parser = argparse.ArgumentParser(description=summary)
+    parser = GnrCliArgParse(description=summary)
     parser.add_argument('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
                       help="Logging level",
                       choices=list(LOGGING_LEVELS.keys()),
@@ -236,6 +236,7 @@ class Server(object):
                       dest='verbose',
                       action='store_true',
                       help='Verbose')
+    
     parser.add_argument('-s', '--site',
                       dest='site_name_opt',
                       help="Use command on site identified by supplied name")

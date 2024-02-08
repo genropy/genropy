@@ -4,6 +4,7 @@
 from gnr.web.server import NewServer
 
 description = """Start application server for site"""
+
 def main():
     server = NewServer()
     server.run()
