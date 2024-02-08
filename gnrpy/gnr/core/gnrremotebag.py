@@ -22,14 +22,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-
-from Pyro5.compatibility import Pyro4
-
-if hasattr(Pyro4.config, 'METADATA'):
-    Pyro4.config.METADATA = False
-if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
-    Pyro4.config.REQUIRE_EXPOSE = False
-
+import Pyro5
 from gnr.core.gnrbag import Bag
 
 PYRO_HOST = 'localhost'
@@ -137,18 +130,16 @@ class RemoteBagServer(RemoteBagServerBase):
               timeout=None,
               multiplex=False,polltimeout=None):
 
-        # FIXME
-        #Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
         
         port=port or PYRO_PORT
         host=host or PYRO_HOST
         if compression:
-            Pyro4.config.COMPRESSION = True
+            Pyro5.config.COMPRESSION = True
         if multiplex:
-            Pyro4.config.SERVERTYPE = "multiplex"
+            Pyro5.config.SERVERTYPE = "multiplex"
         if polltimeout:
-            Pyro4.config.POLLTIMEOUT = timeout
-        self.daemon = Pyro4.Daemon(host=host,port=int(port))
+            Pyro5.config.POLLTIMEOUT = timeout
+        self.daemon = Pyro5.server.Daemon(host=host,port=int(port))
 
         self.main_uri = self.daemon.register(self,'RemoteBagServer')
         print("uri=",self.main_uri)
@@ -162,10 +153,15 @@ class RemoteBagServer(RemoteBagServerBase):
 
 class RemoteBag(object):
     def __init__(self,uri=None,parent=None,rootpath=None):
-        self.proxy=Pyro4.Proxy(uri) if uri else None
+        self.uri = uri
         self.parent=parent
         self.rootpath=rootpath
 
+    @property
+    def proxy(self):
+        if self.uri:
+            return Pyro5.api.Proxy(uri)
+    
     def chunk(self,path):
         return RemoteBag(parent=self,rootpath=path)
         
@@ -203,7 +199,7 @@ class RemoteBag(object):
 
 class RemoteBagClientBase(object):
     def __init__(self,uri):
-        self.proxy=Pyro4.Proxy(uri)
+        self.proxy=Pyro5.api.Proxy(uri)
 
     def __getitem__(self,name):
         uri =  self.proxy.getUri(name)
@@ -228,9 +224,8 @@ class RemoteBagClient(RemoteBagClientBase):
     def __init__(self,uri=None,port=None,host=None):
         host = host or PYRO_HOST
         port = port or PYRO_PORT
-        Pyro4.config.SERIALIZER = 'pickle'
         uri = uri or 'PYRO:RemoteBagServer@%s:%i' %(host,port)
-        self.proxy=Pyro4.Proxy(uri)
+        self.proxy=Pyro5.api.Proxy(uri)
 
     def __call__(self,name):
         return self[name]

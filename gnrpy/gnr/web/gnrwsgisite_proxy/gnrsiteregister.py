@@ -28,16 +28,14 @@ import sys
 from datetime import datetime
 from collections import defaultdict
 
-from Pyro5.compatibility import Pyro4
+import Pyro5.api
+import Pyro5.errors
 from Pyro5.server import expose
 
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.app.gnrconfig import gnrConfigPath
-
-if hasattr(Pyro4.config, 'METADATA'):
-    Pyro4.config.METADATA = False
 
 DAEMON_TIMEOUT_START = 5
 PROCESS_SELFDESTROY_TIMEOUT = 600
@@ -113,7 +111,7 @@ class RemoteStoreBag(object):
         self.register_item_id = register_item_id
         self.rootpath = rootpath
         self.uri = uri
-        self.proxy=Pyro4.Proxy(uri)
+        self.proxy=Pyro5.api.Proxy(uri)
 
     def chunk(self,path):
         return RemoteStoreBag(uri=self.uri,register_name=self.register_name,
@@ -605,7 +603,7 @@ class PageRegister(BaseRegister):
                     self.set_datachange(page_id,path=attr.pop('_client_path'),value=changeNode.value,attributes=attr, fired=attr.pop('fired', None))
             else:
                 self.set_datachange(page_id,path=path,value=value,reason=reason, attributes=attributes, fired=fired)
-                
+
 @expose
 class SiteRegister(BaseRemoteObject):
     def __init__(self,server,sitename=None,storage_path=None):
@@ -626,7 +624,7 @@ class SiteRegister(BaseRemoteObject):
 
     def on_reloader_restart(self):
         if self.server.gnr_daemon_uri:
-            with Pyro4.Proxy(self.server.gnr_daemon_uri) as proxy:
+            with Pyro5.api.Proxy(self.server.gnr_daemon_uri) as proxy:
                 proxy.on_reloader_restart(sitename=self.sitename)
 
     def on_site_stop(self):
@@ -986,6 +984,14 @@ class SiteRegister(BaseRemoteObject):
 
 
 ################################### CLIENT ##########################################
+class PyroProxyHelper(object):
+    def __init__(self, uri):
+        self._uri = uri
+        self._proxy = Pyro5.api.Proxy(self._uri)
+    def __getattr__(self, aname):
+        print(f"Requesting proxy method {aname}")
+        self._proxy._pyroClaimOwnership()
+        return getattr(self._proxy, aname)
 
 class SiteRegisterClient(object):
     STORAGE_PATH = 'siteregister_data.pik'
@@ -996,8 +1002,9 @@ class SiteRegisterClient(object):
         self.siteregisterserver_uri = None
         self.siteregister_uri = None
         self.storage_path = os.path.join(self.site.site_path, self.STORAGE_PATH)
-        self.errors = Pyro4.errors
-        Pyro4.config.SERIALIZER = 'pickle'
+        self.errors = Pyro5.errors
+        # FIXME
+        #Pyro5.config.SERIALIZER = 'pickle'
         daemonconfig = self.site.config.getAttr('gnrdaemon')
         sitedaemonconfig = self.site.config.getAttr('sitedaemon') or {}
         sitedaemon_xml_path = os.path.join(self.site.site_path,'sitedaemon.xml')
@@ -1026,26 +1033,32 @@ class SiteRegisterClient(object):
             daemon_uri = 'PYRO:GnrDaemon@./u:%(socket)s' %daemonconfig
         else:
             daemon_uri = 'PYRO:GnrDaemon@%(host)s:%(port)s' %daemonconfig
-        self.gnrdaemon_proxy = Pyro4.Proxy(daemon_uri)
+        #self.gnrdaemon_proxy = Pyro5.api.Proxy(daemon_uri)
 
-        with self.gnrdaemon_proxy as daemonProxy:
+        #with self.gnrdaemon_proxy as daemonProxy:
+        with Pyro5.api.Proxy(daemon_uri) as daemonProxy:
             if not self.runningDaemon(daemonProxy):
                 raise Exception('GnrDaemon is not started')
             t_start = time.time()
             while not self.checkSiteRegisterServerUri(daemonProxy):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
                     raise Exception('GnrDaemon timeout')
-        print('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
+        print('creating proxy',self.siteregister_uri,
+              self.siteregisterserver_uri)
         self.initSiteRegister()
-    
+
     def initSiteRegister(self):
-        self.siteregister = Pyro4.Proxy(self.siteregister_uri)
+        #self.siteregister = Pyro5.api.Proxy(self.siteregister_uri)
+        self.siteregister = PyroProxyHelper(self.siteregister_uri)
         self.remotebag_uri =self.siteregister_uri.replace(':SiteRegister@',':RemoteData@')
         self.siteregister.setConfiguration(cleanup = self.site.custom_config.getAttr('cleanup'))
 
     def checkSiteRegisterServerUri(self,daemonProxy):
         if not self.siteregisterserver_uri:
-            info = daemonProxy.getSite(self.site.site_name,create=True,storage_path=self.storage_path,autorestore=True)
+            info = daemonProxy.getSite(self.site.site_name,
+                                       create=True,
+                                       storage_path=self.storage_path,
+                                       autorestore=True)
             self.siteregisterserver_uri = info.get('server_uri',False)
             if not self.siteregisterserver_uri:
                 time.sleep(1)
@@ -1059,12 +1072,13 @@ class SiteRegisterClient(object):
             try:
                 daemonProxy.ping()
                 return True
-            except Pyro4.errors.CommunicationError:
+            except Pyro5.errors.CommunicationError:
                 raise
         return False
 
-    def pyroProxy(self,url):
-        proxy = Pyro4.Proxy(url)
+    def bubu_pyroProxy(self,url):
+        # seems unused
+        proxy = Pyro5.api.Proxy(url)
         return proxy
 
 
@@ -1213,14 +1227,14 @@ class GnrSiteRegisterServer(object):
 
         multiplex = multiplex or PYRO_MULTIPLEX
         if compression:
-            Pyro4.config.COMPRESSION = True
+            Pyro5.config.COMPRESSION = True
         if multiplex:
-            Pyro4.config.SERVERTYPE = "multiplex"
+            Pyro5.config.SERVERTYPE = "multiplex"
         if timeout:
-            Pyro4.config.TIMEOUT = timeout
+            Pyro5.config.TIMEOUT = timeout
         if polltimeout:
-            Pyro4.config.POLLTIMEOUT = timeout
-        self.daemon = Pyro4.Daemon(**pyrokw)
+            Pyro5.config.POLLTIMEOUT = timeout
+        self.daemon = Pyro5.server.Daemon(**pyrokw)
         self.siteregister = SiteRegister(self,sitename=self.sitename,storage_path=self.storage_path)
         autorestore = autorestore and os.path.exists(self.storage_path)
         self.main_uri = self.daemon.register(self,'SiteRegisterServer')
@@ -1228,9 +1242,9 @@ class GnrSiteRegisterServer(object):
         self.register_uri = self.daemon.register(self.siteregister,'SiteRegister')
         print("uri=",self.main_uri)
         if self.gnr_daemon_uri:
-            with Pyro4.Proxy(self.gnr_daemon_uri) as proxy:
+            with Pyro5.api.Proxy(self.gnr_daemon_uri) as proxy:
                 proxy.onRegisterStart(self.sitename,server_uri=str(self.main_uri),
-                                    register_uri=str(self.register_uri))
+                                      register_uri=str(self.register_uri))
         if run_now:
             self.run(autorestore=autorestore)
 
@@ -1254,7 +1268,9 @@ class ServerStore(object):
     def __enter__(self):
         k = 0
         self.start_locking_time = time.time()
-        while not self.siteregister.lock_item(self.register_item_id,reason=self.thread_id,register_name=self.register_name):
+        while not self.siteregister.lock_item(self.register_item_id,
+                                              reason=self.thread_id,
+                                              register_name=self.register_name):
             time.sleep(self.retry_delay)
             k += 1
             if k>self.max_retry:
@@ -1266,8 +1282,8 @@ class ServerStore(object):
         return self
 
     def __exit__(self, type, value, tb):
-        self.siteregister.unlock_item(self.register_item_id,reason=self.thread_id,register_name=self.register_name)
-        #print 'locked',self.register_name,self.register_item_id,'time to lock',self.success_locking_time-self.start_locking_time,'locking time',time.time()-self.success_locking_time
+        self.siteregister.unlock_item(self.register_item_id,reason=self.thread_id,
+                                      register_name=self.register_name)
 
     def reset_datachanges(self):
         return self.siteregister.reset_datachanges(self.register_item_id,register_name=self.register_name)

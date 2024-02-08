@@ -7,7 +7,6 @@ import urllib.request, urllib.parse, urllib.error
 import httplib2
 import _thread
 import mimetypes
-import pickle
 from time import time
 from collections import defaultdict
 from threading import RLock
@@ -339,9 +338,12 @@ class GnrWsgiSite(object):
             if not self.db.package('adm'):
                 self._connectionLogEnabled = False
             else:
-                self._connectionLogEnabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
+                try:
+                    # FIXME: if it's not ready, site daemon won't start
+                    self._connectionLogEnabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
+                except:
+                    self._connectionLogEnabled = False
         return self._connectionLogEnabled
-
 
     @property
     def remote_edit(self):

@@ -9,7 +9,8 @@ import ipaddress
 import atexit
 import os
 import time
-from Pyro5.compatibility import Pyro4
+import Pyro5.errors
+import Pyro5.api
 from Pyro5.server import expose
 
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
@@ -23,9 +24,6 @@ from gnr.core.gnrlog import log_styles
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
 from gnr.web.gnrtask import GnrTaskScheduler
 
-if hasattr(Pyro4.config, 'METADATA'):
-    Pyro4.config.METADATA = False
-    
 PYRO_HOST = 'localhost'
 PYRO_PORT = 40004
 
@@ -105,17 +103,18 @@ class GnrDaemonProxy(object):
         options=dict(host=host, socket=socket, port=port,compression=compression)
         if use_environment:
             options = getFullOptions(options=options)
-        Pyro4.config.SERIALIZER = options.get('serializer','pickle')
-        Pyro4.config.COMPRESSION = options.get('compression',True)
+        Pyro5.config.SERIALIZER = options.get('serializer','pickle')
+        Pyro5.config.COMPRESSION = options.get('compression',True)
 
         if options.get('socket'):
             self.uri='PYRO:GnrDaemon@./u:%s' % options.get('socket')
         else:
             self.uri = 'PYRO:GnrDaemon@%s:%s' %(options.get('host') or PYRO_HOST,options.get('port') or PYRO_PORT)
 
-
-    def proxy(self):
-        proxy = Pyro4.Proxy(self.uri)
+            
+    def bubu_proxy(self):
+        # seems unused, renamed from 'proxy'
+        proxy = Pyro5.api.Proxy(self.uri)
         return proxy
 
 class GnrDaemon(object):
@@ -149,7 +148,7 @@ class GnrDaemon(object):
                         sockets=sockets)
         if self.socket:
             self.logger.info('Start daemon new socket {}'.format(self.socket))
-            self.daemon = Pyro4.Daemon(unixsocket=self.socket)
+            self.daemon = Pyro5.server.Daemon(unixsocket=self.socket)
         else:
             # FIXME: since Pyro5 can use only SSL with 2-way certificate for security
             # we've disabled listening of the daemon outside of loopback
@@ -157,7 +156,7 @@ class GnrDaemon(object):
                 raise NotImplementedError("Can't listen outside of loopback, please enquiry with Genropy team")
             
             self.logger.info(f"Starting daemon on {self.host}:{self.port}")
-            self.daemon = Pyro4.Daemon(host=self.host,port=int(self.port))
+            self.daemon = Pyro5.server.Daemon(host=self.host,port=int(self.port))
             
         self.main_uri = self.daemon.register(self,'GnrDaemon')
         self.logger.info("uri={}".format(self.main_uri))
@@ -169,21 +168,22 @@ class GnrDaemon(object):
     def pyroConfig(self,host=None,port=None, socket=None,
                    debug=False,compression=False,timeout=None,
                    multiplex=False,polltimeout=None, size_limit=None,sockets=None):
+        # FIXME
         #Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
         self.port=port or PYRO_PORT
         self.host = host or PYRO_HOST
         self.socket = socket
         self.sockets = sockets
         if compression:
-            Pyro4.config.COMPRESSION = True
+            Pyro5.config.COMPRESSION = True
         if multiplex:
-            Pyro4.config.SERVERTYPE = "multiplex"
+            Pyro5.config.SERVERTYPE = "multiplex"
         if timeout:
-            Pyro4.config.TIMEOUT = timeout
+            Pyro5.config.TIMEOUT = timeout
         if polltimeout:
-            Pyro4.config.POLLTIMEOUT = timeout
+            Pyro5.config.POLLTIMEOUT = timeout
         if size_limit:
-            Pyro4.config.SIZE_LIMIT = size_limit
+            Pyro5.config.SIZE_LIMIT = size_limit
 
     @expose
     def onRegisterStart(self,sitename,server_uri=None,register_uri=None):
@@ -263,7 +263,7 @@ class GnrDaemon(object):
             if serv.attr.get('daemon'):
                 service_process = self.startServiceDaemon(sitename,serv.label)
                 siteregister_processes_dict[serv.label] = service_process
-
+    @expose
     def startServiceDaemon(self,sitename, service_name=None):
         p = PathResolver()
         siteconfig = p.get_siteconfig(sitename)
@@ -320,9 +320,10 @@ class GnrDaemon(object):
             print('ALREADY EXISTING ',sitename)
 
     def pyroProxy(self,url):
-        proxy = Pyro4.Proxy(url)
+        proxy = Pyro5.api.Proxy(url)
         return proxy
 
+    @expose
     def siteRegisters(self,**kwargs):
         sr = dict(self.siteregisters)
         for k,v in list(sr.items()):
