@@ -6292,6 +6292,11 @@ div[disabled='true'], div[disabled='disabled']{
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
     height: 35px;
 }
+.filter_list{
+    mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    height: 35px;
+}
 
 
 .largeCell{
