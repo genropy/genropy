@@ -4,8 +4,10 @@ import gnr.app.gnrapp as ga
 from common import BaseGnrAppTest
 
 class TestGnrLocalization(BaseGnrAppTest):
-    app_name = 'gnr_it'
-    app = ga.GnrApp(app_name, forTesting=True)
+
+    def setup_method(self, method):
+        self.app_name = 'gnr_it'
+        self.app = ga.GnrApp(self.app_name, forTesting=True)
 
     def test_gnrlocstring(self):
         """

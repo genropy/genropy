@@ -14,7 +14,7 @@ class TestGnrConfig(BaseGnrAppTest):
         Test gnrConfigPath function
         """
         r = gnrc.gnrConfigPath()
-        assert r == self.local_dir
+        assert r == self.conf_dir
 
     def test_getgnrconfig(self):
         """
