@@ -126,6 +126,9 @@ class BagNode(object):
         if validators:
             self.setValidators(validators)
         self.setValue(value, trigger=False)
+
+    def __getstate__(self):
+        return dict(self.__dict__)
         
     def __eq__(self, other):
         """One BagNode is equal to another one if its key, value, attributes and resolvers are the same of the other one"""
@@ -1149,6 +1152,7 @@ class Bag(GnrObject):
         return '\n'.join(result)
 
     def __getstate__(self):
+        self.makePicklable()
         result = dict(self.__dict__)
         for k in ('_upd_subscribers','_del_subscribers','_ins_subscribers'):
             result[k] = {}
