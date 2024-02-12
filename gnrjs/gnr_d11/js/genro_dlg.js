@@ -638,9 +638,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             var box = dlg.center._('div',kwbox);
             var fb;
 
-            var onEnter ='onEnter' in kw? funcCreate(kw.onEnter,null,sourceNode):function(){
-                //actionCb('confirm');
-            };
+            var onEnter ='onEnter' in kw? funcCreate(kw.onEnter,null,sourceNode):null;
             if(msg){
                 box._('div',{innerHTML:msg,color:'#666',margin_bottom:'10px',_class:'selectable'});
             }
