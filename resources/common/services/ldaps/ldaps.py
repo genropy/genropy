@@ -8,7 +8,7 @@
 #
 
 from __future__ import print_function
-from builtins import str
+
 from gnr.core.gnrstring import boolean
 from gnr.lib.services.ldaps import LdapsService
 from gnr.core.gnrdecorator import extract_kwargs

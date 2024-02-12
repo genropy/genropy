@@ -19,7 +19,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 """Component for thermo"""
-from builtins import object
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrstring import toText
 from gnr.core.gnrdate import dayIterator

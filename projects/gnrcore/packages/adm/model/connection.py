@@ -1,6 +1,6 @@
 # encoding: utf-8
 from past.builtins import basestring
-from builtins import object
+
 from datetime import datetime
 
 class Table(object):

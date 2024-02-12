@@ -21,7 +21,7 @@
 """
 Component for dynamicform:
 """
-from builtins import str
+
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag

@@ -3,8 +3,8 @@
 # Created by Francesco Porcari on 2010-09-22 and updated by Davide Paci on 2022-01-25.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
-from builtins import range
-from builtins import object
+
+
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):

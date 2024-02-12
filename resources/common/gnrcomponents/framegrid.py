@@ -4,7 +4,7 @@
 # Created by Francesco Porcari on 2011-04-16.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from builtins import str
+
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method

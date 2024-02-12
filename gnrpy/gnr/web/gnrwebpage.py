@@ -1024,8 +1024,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         if callable(method):
@@ -1073,8 +1073,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         handler = None
@@ -1993,7 +1993,7 @@ class GnrWebPage(GnrBaseWebPage):
     def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
-        :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
+        :param _auth: the page authorizations. For more information, check the :ref:`auth` page
         :param debugger: TODO"""
         page = self.domSrcFactory.makeRoot(self)
         self._root = page

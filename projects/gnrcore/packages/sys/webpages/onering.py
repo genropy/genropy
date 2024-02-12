@@ -7,8 +7,8 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 from __future__ import division
-from builtins import range
-from builtins import object
+
+
 from past.utils import old_div
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag

@@ -7,7 +7,7 @@
 #Copyright (c) 2011 Softwell. All rights reserved.
 
 from __future__ import print_function
-from builtins import str
+
 
 from gnr.core.gnrbag import Bag
 from datetime import datetime

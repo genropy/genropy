@@ -2,7 +2,7 @@
 # 
 """replab_base"""
 
-from builtins import object
+
 from reportlab.pdfgen import canvas
 from gnr.core.gnrdecorator import public_method
 from io import BytesIO

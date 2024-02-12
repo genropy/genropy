@@ -30,7 +30,6 @@
 # SOFTWARE.
 # */
 
-from builtins import str
 from io import StringIO
 
 def jsmin(js):

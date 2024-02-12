@@ -4,16 +4,17 @@ Tests for gnr.app package
 import sys
 import os.path
 import pytest
-import gnr.app.gnrapp as ga
 
 from common import BaseGnrAppTest
+import gnr.app.gnrapp as ga
 
 class TestGnrApp(BaseGnrAppTest):
     """
     Tests class for gnr.app.gnrapp package
     """
-    app_name = 'gnrdevelop'
-    app = ga.GnrApp(app_name, forTesting=True)
+    def setup_method(self, method):
+        self.app_name = 'gnrdevelop'
+        self.app = ga.GnrApp(self.app_name, forTesting=True)
  
     def test_nullloader(self):
         """

@@ -6,7 +6,7 @@
 
 """genrodlg"""
 
-from builtins import object
+
 import os
 from gnr.core.gnrbag import Bag
 import random

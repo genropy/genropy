@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Red Baron test"""
 
-from builtins import object
+
 import sys
 from gnr.core.gnrdecorator import public_method
 from redbaron import RedBaron

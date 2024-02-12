@@ -1,7 +1,7 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from builtins import str
+
 import os
 import tempfile
 from gnr.core.gnrdecorator import extract_kwargs

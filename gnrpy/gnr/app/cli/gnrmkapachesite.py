@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from builtins import str
 import sys, os
 import glob, grp
 

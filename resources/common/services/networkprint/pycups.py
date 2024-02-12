@@ -1,8 +1,8 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from builtins import str
-from builtins import object
+
+
 try:
     import cups
 

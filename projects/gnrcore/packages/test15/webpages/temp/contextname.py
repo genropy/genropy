@@ -6,7 +6,7 @@
 
 "Test page description"
 from __future__ import print_function
-from builtins import object
+
 class GnrCustomWebPage(object):
     auto_polling=0
     user_polling=0
