@@ -77,17 +77,23 @@ class BaseRemoteObject(object):
         print('vargs, kwargs', vargs, kwargs)
         print('**********')
 
-#------------------------------- REMOTEBAG server SIDE ---------------------------
+#------------------------------- REMOTEBAG SERVER SIDE ---------------------------
 class RemoteStoreBagHandler(BaseRemoteObject):
     def __init__(self,siteregister):
         self.siteregister = siteregister
 
-
+    @expose
+    def exposedattr(self, name, *args, **kwargs):
+        return getattr(self, name)(*args, **kwargs)
+    
     def __getattr__(self,name):
         if name=='_pyroId':
             if not '_pyroId' in self.__dict__:
                 raise AttributeError
             return self._pyroId
+        if name=='exposedattr':
+            return self.exposedattr
+        
         def decore(*args,**kwargs):
             register_name = kwargs.pop('_siteregister_register_name',None)
             register_item_id = kwargs.pop('_siteregister_register_item_id',None)
@@ -100,7 +106,7 @@ class RemoteStoreBagHandler(BaseRemoteObject):
                 raise AttributeError("PyroSubBag at %s has no attribute '%s'" % (_pyrosubbag,name))
             else:
                 return h(*args,**kwargs)
-
+            decore._pyroExposed = True
         return decore
 
 #------------------------------- REMOTEBAG CLIENT SIDE ---------------------------
@@ -120,12 +126,25 @@ class RemoteStoreBag(object):
     @remotebag_wrapper
     def __str__(self,*args,**kwargs):
         with self.proxy as p:
-            return p.asString(*args,**kwargs)
+            robj = p.exposedattr("asString", *args,**kwargs)
+            return robj
 
     @remotebag_wrapper
     def __getitem__(self,*args,**kwargs):
         with self.proxy as p:
-            return p.__getitem__(*args,**kwargs)
+            return p.exposedattr("__getitem__", *args, **kwargs)
+
+    def __getattr__(self,name):
+        with self.proxy as p:
+            h = p.exposedattr(name)
+            if not callable(h):
+                return h
+            def decore(*args,**kwargs):
+                kwargs['_pyrosubbag'] = self.rootpath
+                kwargs['_siteregister_register_name'] = self.register_name
+                kwargs['_siteregister_register_item_id'] = self.register_item_id
+                return h(*args,**kwargs)
+            return decore
 
     @remotebag_wrapper
     def __setitem__(self,*args,**kwargs):
@@ -147,17 +166,6 @@ class RemoteStoreBag(object):
         with self.proxy as p:
             return p.__eq__(*args,**kwargs)
 
-    def __getattr__(self,name):
-        with self.proxy as p:
-            h = getattr(p,name)
-            if not callable(h):
-                return h
-            def decore(*args,**kwargs):
-                kwargs['_pyrosubbag'] = self.rootpath
-                kwargs['_siteregister_register_name'] = self.register_name
-                kwargs['_siteregister_register_item_id'] = self.register_item_id
-                return h(*args,**kwargs)
-            return decore
 
 #------------------------------- END REMOTEBAG  ---------------------------
 
