@@ -3,7 +3,7 @@
 #
 
 from __future__ import print_function
-from builtins import object
+
 from gnr.web.gnrsoappagenew import GnrSoapPage as page_factory
 
 

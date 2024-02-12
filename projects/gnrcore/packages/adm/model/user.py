@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from builtins import object
+
 import os
 import re
 from gnr.core.gnrdecorator import metadata, public_method

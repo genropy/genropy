@@ -2,7 +2,7 @@
 # encoding: utf-8
 from __future__ import print_function
 from past.builtins import basestring
-from builtins import object
+
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 from gnr.core.gnrdecorator import metadata
 from gnr.core.gnrbag import Bag

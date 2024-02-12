@@ -1,6 +1,6 @@
 # encoding: utf-8
 from __future__ import print_function
-from builtins import object
+
 import os
 import hashlib
 from gnr.core.gnrbag import Bag,DirectoryResolver

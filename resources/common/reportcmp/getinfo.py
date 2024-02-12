@@ -8,7 +8,7 @@
 #
 
 """ info """
-from builtins import object
+
 import re
 from gnr.core.gnrstring import toJson
 from collections import defaultdict

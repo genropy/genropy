@@ -6,7 +6,7 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
-from builtins import object
+
 import pstats
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method

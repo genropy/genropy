@@ -2,8 +2,8 @@
 
 """Registered connections tester"""
 
-from builtins import str
-from builtins import object
+
+
 import datetime
 from gnr.core.gnrbag import Bag, BagResolver
 

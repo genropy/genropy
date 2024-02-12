@@ -3,7 +3,6 @@
 import re
 import os
 
-from builtins import object
 from subprocess import Popen
 
 from gnr.core.cli import GnrCliArgParse

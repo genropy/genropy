@@ -4,7 +4,7 @@
 # Created by Giovanni Porcari on 2010-08-09.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from builtins import str
+
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 

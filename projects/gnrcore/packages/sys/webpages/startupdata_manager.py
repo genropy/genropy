@@ -7,7 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-from builtins import object
 import os
 import gzip
 from io import StringIO

@@ -7,7 +7,6 @@
 #    pip install python-ntlm
 #
 
-
 from gnr.lib.services import GnrBaseService
 import urllib.request, urllib.error, urllib.parse
 from ntlm import HTTPNtlmAuthHandler

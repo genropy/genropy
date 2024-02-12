@@ -1,5 +1,5 @@
 import pytest
-from builtins import str
+
 import datetime
 import socket, os
 import gnr.core.gnrbag as bm

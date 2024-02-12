@@ -3,7 +3,7 @@
 #  Created by Francesco Porcari
 #
 # --------------------------- GnrWebPage subclass ---------------------------
-from builtins import object
+
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrbag import Bag
 from gnrpkg.multidb.utility import getSyncTables

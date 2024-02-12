@@ -5,8 +5,8 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from __future__ import division
-from builtins import str
-from builtins import range
+
+
 from past.utils import old_div
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag

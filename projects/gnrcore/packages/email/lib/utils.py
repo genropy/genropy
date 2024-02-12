@@ -3,9 +3,8 @@
 
 from __future__ import print_function
 
-from builtins import str
 from past.builtins import basestring
-from builtins import object
+
 import email, imaplib,datetime
 from email.generator import Generator as EmailGenerator
 from gnr.core.gnrlang import getUuid

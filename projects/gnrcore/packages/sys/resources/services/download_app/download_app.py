@@ -5,7 +5,6 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
-
 from gnr.lib.services import GnrBaseService                                                  
 import urllib.request, urllib.error, urllib.parse
 import os

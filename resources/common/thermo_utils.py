@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from builtins import range
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag
 

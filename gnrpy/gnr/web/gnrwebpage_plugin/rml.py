@@ -8,7 +8,7 @@
 
 # --------------------------- GnrWebPage subclass ---------------------------
 
-from builtins import str
+
 from .mako.lookup import TemplateLookup
 
 from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
