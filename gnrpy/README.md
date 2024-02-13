@@ -74,15 +74,15 @@ Genropy webapplications needs a daemon
 
 Run inside another terminal
 
-	gnr app daemon
+	gnr web daemon
 
 Now we are ready for running **sandbox** website
 
-	gnr app wsgiserve sandbox
+	gnr web wsgiserve sandbox
 	
-If you want to edit tutorial files through the application itself run **gnr app wsgiserve** with **remote_edit** option
+If you want to edit tutorial files through the application itself run **gnr web wsgiserve** with **remote_edit** option
 
-	gnr app wsgiserve sandbox --remote_edit
+	gnr web wsgiserve sandbox --remote_edit
 	
 
 License
