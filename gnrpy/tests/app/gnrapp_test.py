@@ -3,6 +3,7 @@ Tests for gnr.app package
 """
 import sys
 import os.path
+import _frozen_importlib
 import pytest
 
 from common import BaseGnrAppTest
@@ -20,7 +21,7 @@ class TestGnrApp(BaseGnrAppTest):
         """
         Tests for NullLoader
         """
-        a = ga.NullLoader()
+        a = ga.NullLoader('gnrpkg', '.', 'gnrpkg')
         r = a.load_module('sys')
         assert r == sys
         r = a.load_module('babbala')
@@ -71,30 +72,14 @@ class TestGnrApp(BaseGnrAppTest):
         r = mf.pkg_in_app_list("sys")
         assert r.id == 'sys'
 
-        r = mf.find_module("gnrpkg")
-        assert isinstance(r, ga.NullLoader)
+        r = mf.find_spec("gnrpkg")
+        assert isinstance(r, _frozen_importlib.ModuleSpec)
 
-        # FIXME - can't find a valid entry for >2 component path
-        with pytest.raises(ImportError) as excinfo:
-            r = mf.find_module('gnrpkg.sys.menu')
-
-        r = mf.find_module('gnrpkg.gnrcore.sys')
+        r = mf.find_spec('gnrpkg.gnrcore.sys')
         assert r is None
 
-        r = mf.find_module('gnrpkg.sys')
-        assert isinstance(r, ga.NullLoader)
-
-    def test_gnrmoduleloader(self):
-        """
-        Test for GnrModuleLoader
-        """
-        ml = ga.GnrModuleLoader("sys", self.test_app_path, "Sysadmin modules")
-        ml.load_module("gnrpkg.sys")
-        assert 'gnrpkg.sys' in sys.modules
-
-        # FIXME: waiting for IMP vs Importlib changes
-        with pytest.raises(AttributeError):
-            ml.load_module("gnrpkg.adm")
+        r = mf.find_spec('gnrpkg.sys')
+        assert isinstance(r, _frozen_importlib.ModuleSpec)
 
     def test_gnrpackageplugin(self):
         """
