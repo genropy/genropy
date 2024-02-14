@@ -1,4 +1,4 @@
-
+import sys
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -296,6 +296,9 @@ class Server(object):
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
 
         self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
+        if not self.site_name and not self.site_script:
+            print("site name is required")
+            sys.exit(1)
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
         self.remote_db = ''
