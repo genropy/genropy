@@ -186,7 +186,7 @@ class TableHandlerForm(BaseComponent):
         tree_kwargs = dictExtract(options,'tree_',pop=True) 
 
         readOnly = options.pop('readOnly',False)
-        modal = options.pop('modal',dict())
+        modal = options.pop('modal',None) or dict()
         modal_modes = ('ask','confirm','navigation')
         if boolean(modal) and modal not in modal_modes:
             modal = dict(mode='ask' if not readOnly else 'confirm')
