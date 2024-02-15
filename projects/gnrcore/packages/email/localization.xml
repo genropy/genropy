@@ -101,7 +101,7 @@
 <en_ready_to_send base="Ready to send" it="Pronti per l'invio"></en_ready_to_send>
 <en_sending_error base="Sending error" it="Errore invio"></en_sending_error>
 <en_sent base="Sent" it="Inviato"></en_sent>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_draft base="Draft" it="Bozza"></en_draft>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>

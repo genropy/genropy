@@ -716,7 +716,7 @@
 <en_records base="Records"></en_records>
 <en_stats_tools base="Stats tools"></en_stats_tools>
 <en_importer base="Importer"></en_importer>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_following_months base="Following months" it="Mesi successivi"></en_following_months>
 <en_previous_months base="Previous months"></en_previous_months>
 <en_find_all_duplicates base="Find all duplicates"></en_find_all_duplicates>

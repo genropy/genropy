@@ -364,11 +364,11 @@
 <th_backup path="resources/tables/backup/th_backup.py" ext="py"><en_this_month base="This month" en="This month" it="Questo mese"></en_this_month></th_backup></backup>
 <connection><th_connection path="resources/tables/connection/th_connection.py" ext="py"><en_open base="Open" en="Open" it="Aperto"></en_open>
 <en_closed base="Closed" it="Chiuso"></en_closed>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all></th_connection></connection>
+<en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all></th_connection></connection>
 <counter><action><initialize path="resources/tables/counter/action/initialize.py" ext="py"><en_initialize_counter fr="Initialisation compteur" de="Initialisieren Gegen" en="Initialize counter" it="Inizializza contatore" base="Initialize counter"></en_initialize_counter>
 <en_package fr="Paquet" de="Paket" en="Package" it="Pacchetto" base="Package"></en_package>
 <en_tables fr="Tableaux" de="Tische" en="Tables" it="Tabelle" base="Tables"></en_tables></initialize></action>
-<th_counter path="resources/tables/counter/th_counter.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<th_counter path="resources/tables/counter/th_counter.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_ok fr="Bien" de="Ok" en="Ok" it="Ok" base="Ok"></en_ok>
 <en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"></en_holes>
 <en_duplicates fr="Doublons" de="Duplikate" en="Duplicates" it="Duplicati" base="Duplicates"></en_duplicates>
@@ -395,14 +395,14 @@
 <en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"></en_center_height>
 <en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"></en_center_width>
 <en_s_width _tag="en__s_width" fr="%s Largeur" en="[0] width" de="%s Breite" it="%s larghezza" base="%s width"></en_s_width></th_htmltemplate></htmltemplate>
-<install_checklist><th_install_checklist path="resources/tables/install_checklist/th_install_checklist.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<install_checklist><th_install_checklist path="resources/tables/install_checklist/th_install_checklist.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_to_do base="To do"></en_to_do>
 <en_done base="Done"></en_done></th_install_checklist></install_checklist>
 <notification><th_notification path="resources/tables/notification/th_notification.py" ext="py"><en_template fr="Modèle" de="Schablone" en="Template" it="Sagoma" base="Template"></en_template>
 <en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"></en_users></th_notification></notification>
 <served_page><th_served_page path="resources/tables/served_page/th_served_page.py" ext="py"><en_open base="Open" en="Open" it="Aperto"></en_open>
 <en_closed base="Closed" it="Chiuso"></en_closed>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all></th_served_page></served_page>
+<en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all></th_served_page></served_page>
 <tblinfo><th_tblinfo path="resources/tables/tblinfo/th_tblinfo.py" ext="py"><en_undo base="Undo" it="Annulla"></en_undo>
 <en_apply base="Apply"></en_apply></th_tblinfo></tblinfo>
 <user><th_user path="resources/tables/user/th_user.py" ext="py"><en_import_users_from_excel_csv base="Import users from Excel/CSV"></en_import_users_from_excel_csv>
@@ -431,7 +431,7 @@
 <en_password fr="Mot de passe" de="Passwort" en="Password" it="Password" base="Password"></en_password>
 <en_change_password base="Change password" it="Cambia password"></en_change_password>
 <en_two_factors_authentication base="Two Factors Authentication" it="Autenticazione a due fattori"></en_two_factors_authentication></th_user></user>
-<user_config><th_user_config path="resources/tables/user_config/th_user_config.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<user_config><th_user_config path="resources/tables/user_config/th_user_config.py" ext="py"><en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_add_rule base="Add rule" it="Aggiungi regola"></en_add_rule>
 <en_fields_tree_quick_ base="Fields Tree (quick)" it="Albero campi (rapido)"></en_fields_tree_quick_>
 <en_fields_tree_full_ base="Fields Tree (full)" it="Albero campi (pieno)"></en_fields_tree_full_>

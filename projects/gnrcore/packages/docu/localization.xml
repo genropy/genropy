@@ -79,7 +79,7 @@
 <en_doc_root base="Doc root"></en_doc_root>
 <en_language base="Language"></en_language>
 <en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
-<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
+<en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
 <en_online base="Online"></en_online>
 <en_local base="Local" it="Locale"></en_local>
 <en_info fr="Infos" de="Info" en="Info" it="Info" base="Info"></en_info>
