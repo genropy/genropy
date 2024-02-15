@@ -15,7 +15,6 @@ class View(BaseComponent):
         r.fieldcell('bcc_address',width='18em')
         r.fieldcell('uid',width='7em')
         r.fieldcell('__ins_ts',width='7em')
-        #r.fieldcell('sent',width='7em') #use send_date instead
         #r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='12em')
 
@@ -123,7 +122,6 @@ class ViewFromMailbox(View):
         r.fieldcell('html',width='7em')
         r.fieldcell('subject',width='7em')
         r.fieldcell('send_date',width='7em')
-        r.fieldcell('sent',width='7em')
         r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='35em')
 

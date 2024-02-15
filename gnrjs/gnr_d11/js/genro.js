@@ -2310,6 +2310,21 @@ dojo.declare('gnr.GenroClient', null, {
         return this._googleHandler;  
     },
 
+    getUserLocation:function(){
+        var successCb = function(position){
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            genro.setData('gnr.user_coords', latitude+','+longitude);
+        };
+        
+        var errorCb = function(error){
+            genro.setData('gnr.user_coords', null);
+        };
+        
+        navigator.geolocation.getCurrentPosition(successCb,errorCb);
+
+    },
+
     lockScreen:function(locking, reason, options) {
         if(options===true){
             options = {};

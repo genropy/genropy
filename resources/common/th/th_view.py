@@ -868,11 +868,11 @@ class TableHandlerView(BaseComponent):
         if all_following:
             sections.append(dict(code='all_following',condition='{column}>=:endlast'.format(column=column),
                                 condition_endlast=endlast,
-                                caption='!![en]Following months'))
+                                caption='!![en]Following months' if all_following is True else all_following))
         if all_previous:
             all_prev_section = dict(code='all_previous',condition='{column}<:dtstart'.format(column=column),
                                 condition_dtstart=dtstart,
-                                caption='!![en]Previous months')
+                                caption='!![en]Previous months' if all_previous is True else all_previous)
             sections.insert(0,all_prev_section)
         if allPosition:
             all_section = dict(code='all',caption='!![en]All')

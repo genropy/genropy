@@ -1316,13 +1316,14 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
     },
 
     mixin_adjustDialogSize:function(parentDialog){
-        var w = {h:Math.floor(window.innerHeight*.98),w:Math.floor(window.innerWidth*.98)};
+        var mainDiv = document.getElementById('mainWindowWrapper') || document.getElementById('mainWindow')
+        var w = {h:Math.floor(mainDiv.clientHeight*.98),w:Math.floor(mainDiv.clientWidth*.98)};
         var windowRatio = this.sourceNode.attr.windowRatio;
         var parentRatio = this.sourceNode.attr.parentRatio;
         var fullScreen = this.sourceNode.attr.fullScreen;
         if(fullScreen){
             windowRatio = 1;
-            w = {h:Math.floor(window.innerHeight),w:Math.floor(window.innerWidth)};
+            w = {h:Math.floor(mainDiv.clientHeight),w:Math.floor(mainDiv.clientWidth)};
         }
        
         var c = dojo.coords(this.domNode);

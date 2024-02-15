@@ -893,7 +893,7 @@ class SqlTable(GnrObject):
                     upd_destRec = True
                 updater[fkey] = destRecord[joinkey]
                 updatedpkeys = tblobj.batchUpdate(updater,where='$%s=:spkey' %fkey,spkey=sourceRecord[joinkey],_raw_update=True)
-                moved_relations.setItem('relations.%s' %tblname.replace('.','_'), ','.join(updatedpkeys),tblname=tblname,fkey=fkey)
+                moved_relations.setItem('relations.%s' %tblname.replace('.','_'), ','.join([str(pk) for pk in updatedpkeys]),tblname=tblname,fkey=fkey)
         if upd_destRec:
             self.raw_update(destRecord,old_destRecord)
         return moved_relations
