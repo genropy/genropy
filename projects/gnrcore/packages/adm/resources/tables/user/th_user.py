@@ -161,6 +161,7 @@ class ExtUserForm(BaseComponent):
     def th_options(self):
         return dict(modal=True,height='150px',width='380px')
 
+
 class ExtUserView(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -171,6 +172,7 @@ class ExtUserView(BaseComponent):
         
     def th_order(self):
         return 'username'
+
 
 class FormSimple(BaseComponent):
 
@@ -185,10 +187,8 @@ class FormSimple(BaseComponent):
         fb.field('status')
         fb.field('email', lbl='!!Email')
 
-class FormProfile(BaseComponent):
 
-    def th_options(self):
-        return dict(showtoolbar=False)
+class FormProfile(BaseComponent):
         
     def th_form(self,form):
         bc = form.center.borderContainer()
@@ -206,6 +206,9 @@ class FormProfile(BaseComponent):
                     placeholder=True,upload_folder='*',takePicture=True,rowspan=4)
         
         self.adm_profile_tabs(bc.tabContainer(margin='2px',region='center'))
+    
+    def th_options(self):
+        return dict(showtoolbar=False)
     
     @customizable
     def adm_profile_tabs(self,tc):
@@ -294,3 +297,23 @@ class FormProfile(BaseComponent):
                  user['avatar_secret_2fa'] = secret
             self.db.commit()
         return result
+    
+
+class FormProfileMobile(FormProfile):
+
+    def th_form(self,form):
+        bc = form.center.borderContainer()
+        top = bc.borderContainer(region='top',datapath='.record',margin_top='10px', height='170px')
+        
+        fb = top.contentPane(region='center').mobileFormBuilder(cols=1)
+        fb.field('firstname',lbl='!!Firstname')
+        fb.field('lastname',lbl='!!Lastname')
+        fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
+        fb.field('email', lbl='!!Email')
+        
+        right = top.contentPane(region='right', width='104px', margin='10px 25px')
+        right.img(src='^.photo',crop_height='100px',crop_width='100px',
+                    crop_border='2px dotted silver',crop_rounded=6,edit=True,
+                    placeholder=True,upload_folder='*',takePicture=True,rowspan=4)
+        
+        self.adm_profile_tabs(bc.tabContainer(margin='2px',region='center'))

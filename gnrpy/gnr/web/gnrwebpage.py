@@ -2090,9 +2090,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController('genro.dlg.serverMessage("gnr.servermsg");', _fired='^gnr.servermsg')
         #page.dataController("genro.dom.setClass(dojo.body(),'bordered_icons',bordered);",
         #            bordered="^gnr.user_preference.sys.theme.bordered_icons",_onStart=True)
-        
-        #page.dataController("""genro.dom.setRootStyle(rs)""",rs="^gnr.user_preference.sys.theme.rootstyle",_if='rs')
-        #da sistemare
+        rspath = '^gnr.user_preference.sys.theme.mobile' if self.isMobile else '^gnr.user_preference.sys.theme.desktop'
+        page.dataController("""genro.dom.setRootStyle(rs);""", rs=rspath, _if='rs', _onStart=True)   
         page.dataController("genro.getDataNode(nodePath).refresh(true);",
                             nodePath="^gnr.serverEvent.refreshNode")
                             

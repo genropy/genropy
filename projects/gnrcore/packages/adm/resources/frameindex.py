@@ -329,6 +329,15 @@ class FrameIndex(BaseComponent):
         slot.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
                     msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
                         tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
+    
+    @struct_method
+    def fi_slotbar_settings(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+
+    @struct_method
+    def fi_slotbar_refresh(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox refresh').dataController('PUBLISH reloadFrame;')
+
     @struct_method
     def fi_slotbar_debugping(self,slot,**kwargs):
         slot.div(_class='ping_semaphore')
@@ -347,6 +356,12 @@ class FrameIndex(BaseComponent):
                                     'genro.framedIndexManager.openUserPreferences()')
 
     @struct_method
+    def fi_slotbar_username(self,slot,**kwargs):
+        slot.div(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"admin";',
+                                    _owner_name='^gnr.avatar.user',
+                                    envbag='=gnr.rootenv', font_size='1.2em', font_weight='600')
+        
+    @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
         slot.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
@@ -355,11 +370,11 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
-                                right_placeholder,refresh,debugping,logout,5""",
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,debugping,left_placeholder,*,
+                                right_placeholder,username,logout,5""",
                                 _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
         pane.div(height='10px',background='black')
-        sb.refresh.lightButton(_class='iconbox refresh',action='PUBLISH reloadFrame;')
+        #sb.refresh.lightButton(_class='iconbox refresh',action='PUBLISH reloadFrame;')
         return sb
 
     def prepareCenter_std(self,bc):
