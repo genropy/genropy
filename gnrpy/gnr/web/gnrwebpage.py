@@ -1864,7 +1864,11 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param path: TODO"""
         path = kwargs.get('path') or kwargs.get('prefpath') or '*'
-        return self.getPreference(path,pkg=pkg)
+        app_preference = self.getPreference(path,pkg=pkg)
+        owner_name = app_preference['adm.instance_data.owner_name']
+        if not owner_name:
+            app_preference['adm.instance_data.owner_name'] = app_preference['adm.gui_customization.owner.owner_name']
+        return app_preference
 
     @public_method
     def setUserPreference(self, path, data, pkg='', username=''):
