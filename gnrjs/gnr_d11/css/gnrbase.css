@@ -2972,6 +2972,10 @@ border='1px solid gray',margin='2px', rounded=10,
 */
 
 /* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
 .tundra .filteredGrid .dojoxGrid-cell{
 }
 

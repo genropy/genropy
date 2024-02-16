@@ -1017,7 +1017,7 @@ body.tundra.mimi {
     border-bottom: 1px solid #DDDDDD;
 }
 
-.tundra._common_d11 .templateGrid .dojoxGrid-content>div{
+.tundra._common_d11 .templateGrid .dojoxGrid-content>div,.tundra._common_d11 .mobileTemplateGrid .dojoxGrid-content>div{
     border-bottom: 1px solid transparent;
 }
 
