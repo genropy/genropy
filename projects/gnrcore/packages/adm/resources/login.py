@@ -545,6 +545,8 @@ class LoginComponent(BaseComponent):
         for u in users:
             userid = u['id']
             recordBag = usertbl.record(userid).output('bag')
+            if recordBag['status']!='conf':
+                return 'err'
             recordBag['link'] = self.externalUrlToken(self.site.homepage, userid=recordBag['id'],max_usages=1)
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'
