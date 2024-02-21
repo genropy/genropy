@@ -23,11 +23,11 @@
 from gnr.core.gnrdecorator import public_method
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
-Courier, monospace
-'Comic Sans MS', cursive
 Verdana, Geneva, sans-serif
 'Palatino Linotype', 'Book Antiqua', Palatino, serif
-'Times New Roman', Times, serif"""
+'Times New Roman', Times, serif
+Roboto condensed
+Fira Sans condensed"""
 
 class AppPref(object):
     def prefpane_sys(self, tc, **kwargs):
@@ -100,10 +100,10 @@ class AppPref(object):
 class UserPref(object):
     def prefpane_sys(self, tc, **kwargs):
         tc = tc.tabContainer(margin='2px',**kwargs)
-        self.pref_cache(tc.contentPane(title='!![en]Caching', datapath='.cache'))
-        self.pref_sound(tc.contentPane(title='!![en]Sounds', datapath='.sounds'))
-        self.pref_shortcuts(tc.contentPane(title='!![en]Shortcuts', datapath='.shortcuts'))
-        self.pref_theme(tc.contentPane(title='!![en]Theme', datapath='.theme'))
+        self.pref_cache(tc.contentPane(title='!![en]Caching', padding='10px', datapath='.cache'))
+        self.pref_sound(tc.contentPane(title='!![en]Sounds', padding='10px', datapath='.sounds'))
+        self.pref_shortcuts(tc.contentPane(title='!![en]Shortcuts', padding='10px', datapath='.shortcuts'))
+        self.pref_theme(tc.contentPane(title='!![en]Theme', padding='10px', datapath='.theme'))
 
 
 
@@ -113,10 +113,10 @@ class UserPref(object):
                         values='std:Standard,mobile:Mobile,xmobile:Large mobile')
 
         #fb.checkbox(value='^.bordered_icons',label='Bordered icons')
-        #fb.filteringSelect(value='^.rootstyle.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Font size')
-        #fb.comboBox(value='^.rootstyle.font_family',values=FONTFAMILIES,lbl='Font family')
-
-
+        fb.filteringSelect(value='^.desktop.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Desktop Font size')
+        fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
+        fb.filteringSelect(value='^.mobile.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Mobile Font size')
+        fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')
 
        #fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
        #                minimum=0,maximum=360,lbl='Color rotate',livePreference=True)

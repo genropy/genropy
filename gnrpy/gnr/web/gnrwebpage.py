@@ -1862,7 +1862,11 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param path: TODO"""
         path = kwargs.get('path') or kwargs.get('prefpath') or '*'
-        return self.getPreference(path,pkg=pkg)
+        app_preference = self.getPreference(path,pkg=pkg)
+        owner_name = app_preference['adm.instance_data.owner_name']
+        if not owner_name:
+            app_preference['adm.instance_data.owner_name'] = app_preference['adm.gui_customization.owner.owner_name']
+        return app_preference
 
     @public_method
     def setUserPreference(self, path, data, pkg='', username=''):
@@ -2088,9 +2092,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController('genro.dlg.serverMessage("gnr.servermsg");', _fired='^gnr.servermsg')
         #page.dataController("genro.dom.setClass(dojo.body(),'bordered_icons',bordered);",
         #            bordered="^gnr.user_preference.sys.theme.bordered_icons",_onStart=True)
-        
-        #page.dataController("""genro.dom.setRootStyle(rs)""",rs="^gnr.user_preference.sys.theme.rootstyle",_if='rs')
-        #da sistemare
+        rspath = '^gnr.user_preference.sys.theme.mobile' if self.isMobile else '^gnr.user_preference.sys.theme.desktop'
+        page.dataController("""genro.dom.setRootStyle(rs);""", rs=rspath, _if='rs', _onStart=True)   
         page.dataController("genro.getDataNode(nodePath).refresh(true);",
                             nodePath="^gnr.serverEvent.refreshNode")
                             

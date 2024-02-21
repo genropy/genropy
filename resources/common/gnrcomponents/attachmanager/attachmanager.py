@@ -18,7 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
+from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
@@ -78,12 +78,16 @@ class AttachManagerView(AttachManagerViewBase):
             r.fieldcell('atc_type',edit=True,name='Type')
         if hasattr(r.tblobj,'atc_download'):
             r.fieldcell('atc_download',edit=True,name='DL')
-        r.cell('imp',calculated=True,name='!!Imp.',format_isbutton=True,format_buttonclass='iconbox document',
+        if r.tblobj.attributes.get('handle_ocr'):
+            r.cell('imp',calculated=True,name='!!Imp.',format_isbutton=True,format_buttonclass='iconbox document',
                 format_onclick="""
                     genro.serverCall('_table.'+this.attr.table+'.atc_importAttachment',{pkey:this.widget.rowIdByIndex($1.rowIndex)},
                                      function(){console.log("ocr done")});
                 """,width='22px')
-
+        for field,c in r.tblobj.columns.items():
+            cellkw = dictExtract(c.attributes,'cell_')
+            if cellkw:
+                r.fieldcell(field,**cellkw)
 
 
 class AttachGalleryView(AttachManagerViewBase):
@@ -270,7 +274,7 @@ class AttachManager(BaseComponent):
                                         viewResource=viewResource or 'gnrcomponents/attachmanager/attachmanager:AttachManagerView',
                                         hider=True,statusColumn=True,
                                         addrow=False,pbl_classes=pbl_classes,
-                                     semaphore=False, searchOn=False,datapath=datapath,**kwargs)
+                                     semaphore=False, searchOn=searchOn,datapath=datapath,**kwargs)
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
         th.view.bottom.dropUploader(

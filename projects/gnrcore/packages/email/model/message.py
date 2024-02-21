@@ -34,7 +34,6 @@ class Table(object):
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
         tbl.column('send_date','DH',name_long='!!Send date')
-        tbl.column('sent','B',name_long='!!Sent')
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -52,6 +51,11 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+
+        tbl.formulaColumn('sent','$send_date IS NOT NULL"', name_long='!!Sent')
+        tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
+        tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
+        tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
 
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))

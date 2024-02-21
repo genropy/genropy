@@ -2604,6 +2604,9 @@ div.dojoxDock {
 .tundra .dijitDialogUnderlayWrapper {
     z-index: 498;
 }
+.tundra .dijitDialogUnderlay.fullscreenDialog_underlay{
+    display: none;
+}
 
 
 /* @group FileInput */
@@ -2969,6 +2972,10 @@ border='1px solid gray',margin='2px', rounded=10,
 */
 
 /* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
 .tundra .filteredGrid .dojoxGrid-cell{
 }
 
@@ -5217,8 +5224,15 @@ div[disabled='true'], div[disabled='disabled']{
 ._common_d11 .dojoxGrid {
     background-color: white;
     margin-left: -1px;
+    font-family: inherit;
+    font-size: inherit;
 }
-
+/*.bodySize_phone._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}
+._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}*/
 
 ._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
     background: rgba(58, 84, 186, 0.05);
@@ -5501,7 +5515,6 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
-
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;
@@ -6286,6 +6299,16 @@ div[disabled='true'], div[disabled='disabled']{
 .close{
     mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+}
+.filters{
+    mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
+    height: 35px;
+}
+.filter_list{
+    mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    height: 35px;
 }
 
 

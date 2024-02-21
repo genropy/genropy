@@ -249,11 +249,22 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""3,applogo,genrologo,5,devlink,5,userpref,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,left_placeholder,*,
-                                    right_placeholder,debugping,5,preferences,logout,3""",
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,20,count_errors,devlink,openGnrIDE,left_placeholder,*,
+                                    right_placeholder,owner_name,user_name,logout,debugping,5""",
                                     _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
+    
+    recuperare = 'applogo,userpref,appdownload,appInfo,preferences' #DP togliere
 
+    @customizable
+    def prepareBottom_mobile(self,bc):
+        pane = bc.contentPane(region='bottom',overflow='hidden')
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,left_placeholder,*,
+                                right_placeholder,user_name,logout,debugping,5""",
+                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
+        pane.div(height='10px',background='black')
+        return sb
+    
     @struct_method
     def fi_slotbar_applogo(self,slot,**kwargs):
         applogo = slot.div()
@@ -329,38 +340,38 @@ class FrameIndex(BaseComponent):
         slot.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
                     msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
                         tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
+    
+    @struct_method
+    def fi_slotbar_settings(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+
+    @struct_method
+    def fi_slotbar_refresh(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox refresh').dataController('PUBLISH reloadFrame;')
+
     @struct_method
     def fi_slotbar_debugping(self,slot,**kwargs):
         slot.div(_class='ping_semaphore')
 
     @struct_method
-    def fi_slotbar_preferences(self,slot,**kwargs):
+    def fi_slotbar_user_name(self,slot,**kwargs):
+        slot.div(innerHTML='==user_name', user_name='^gnr.avatar.user_name', 
+                 _class='iframeroot_pref')
+
+    @struct_method
+    def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
         if not self.dbstore:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
-                                    _class='iframeroot_appname',
-                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv')
+                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
             box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
                                     _tags=self.pageAuthTags(method='preference'))
-        box.lightButton(self.user if not self.isGuest else 'guest', _class='iframeroot_username').dataController(
-                                    'genro.framedIndexManager.openUserPreferences()')
-
+        
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
         slot.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
 
-
-
-    @customizable
-    def prepareBottom_mobile(self,bc):
-        pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,5,helpdesk,5,userpref,5,applogo,left_placeholder,*,
-                                right_placeholder,refresh,debugping,logout,5""",
-                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
-        pane.div(height='10px',background='black')
-        sb.refresh.lightButton(_class='iconbox refresh',action='PUBLISH reloadFrame;')
-        return sb
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
@@ -505,7 +516,7 @@ class FrameIndex(BaseComponent):
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
         pane.div(_class='windowaddIcon iconbox',tip='!!New Window',connect_onclick='genro.openBrowserTab(genro.addParamsToUrl(window.location.href,{new_window:true}));')
-
+        
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):
         pane.div(_class='button_block iframetab').lightButton(_class=iconClass,tip=caption,

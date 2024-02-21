@@ -79,7 +79,7 @@ class AppPrefHandler(BasePreferenceTabs):
     def _ph_appGuiCustomization_ownerLogoAndName(self, pane):
         fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%',
                                                 tdl_width='10em')
-        fb.textbox(value='^.owner_name', lbl='!!Owner name',livePreference=True,width='100%')
+        fb.textbox(value='^#adm.instance_data.owner_name', lbl='!!Owner name',livePreference=True,width='100%')
         fb.img(src='^.cover_logo',src_back='.cover_logo_original', 
                         lbl='!!Cover logo', 
                         crop_border='2px dotted silver',
