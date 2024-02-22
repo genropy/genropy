@@ -1431,6 +1431,13 @@ class AttachmentTable(GnrDboTable):
         if hasattr(self,'atc_download'):
             tbl.column('atc_download',dtype='B',name_long='DL')
         self.onTableConfig(tbl)
+        tbl.pyColumn('missing_file',name_long='Missing file',dtype='B')
+        
+    def pyColumn_missing_file(self,record,**kwargs):
+        sn = self.db.application.site.storageNode(record['filepath'])
+        return sn.exists
+    
+    
 
     def onArchiveExport(self,records,files=None):
         site = self.db.application.site
