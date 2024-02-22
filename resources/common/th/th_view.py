@@ -709,7 +709,7 @@ class TableHandlerView(BaseComponent):
                 _onBuilt=True,remotehandler=remote,**meta.get('remotepars'))
         elif m:
             sectionslist = m()
-        elif sections in  tblobj.model.columns and (tblobj.column(sections).relatedTable() is not None or 
+        elif tblobj.model.column(sections) is not None and (tblobj.column(sections).relatedTable() is not None or 
                                                 tblobj.column(sections).attributes.get('values')):
             sectionslist = self._th_section_from_type(tblobj,sections,condition=condition,condition_kwargs=condition_kwargs,
                                                     all_begin=all_begin,all_end=all_end,include_inherited=include_inherited)
