@@ -1435,7 +1435,7 @@ class AttachmentTable(GnrDboTable):
         
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
-        return sn.exists
+        return not sn.exists
     
     
 
