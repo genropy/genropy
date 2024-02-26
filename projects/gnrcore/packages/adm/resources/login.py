@@ -248,7 +248,10 @@ class LoginComponent(BaseComponent):
         result['avatar'] = Bag(avatar.as_dict())
         if avatar.status != 'conf':
             return result
-        self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        try:
+            self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        except GnrRestrictedAccessException as e:
+            return Bag(login_error_msg=e.description)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:

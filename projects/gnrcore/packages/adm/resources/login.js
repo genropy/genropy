@@ -11,6 +11,11 @@ const LoginComponent = {
             sourceNode.setRelativeData('gnr.avatar', null);
             return;
         }
+        if(avatar.getItem('status')=='bann'){
+            genro.publish('failed_login_msg',{'message':_T('User is banned')});
+            sourceNode.setRelativeData('gnr.avatar.error' ,_T('User is banned'));
+            return;
+        }
         if(avatar.getItem('status')!='conf'){
             sourceNode.setRelativeData('gnr.avatar', avatar);
             genro.publish('confirmUserDialog');
