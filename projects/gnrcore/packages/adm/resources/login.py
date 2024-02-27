@@ -248,7 +248,10 @@ class LoginComponent(BaseComponent):
         result['avatar'] = Bag(avatar.as_dict())
         if avatar.status != 'conf':
             return result
-        self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        try:
+            self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
+        except GnrRestrictedAccessException as e:
+            return Bag(login_error_msg=e.description)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
@@ -551,6 +554,8 @@ class LoginComponent(BaseComponent):
         for u in users:
             userid = u['id']
             recordBag = usertbl.record(userid).output('bag')
+            if recordBag['status']!='conf':
+                return 'err'
             recordBag['link'] = self.externalUrlToken(self.site.homepage, userid=recordBag['id'],max_usages=1)
             recordBag['greetings'] = recordBag['firstname'] or recordBag['lastname']
             body = self.loginPreference('confirm_password_tpl') or 'Dear $greetings set your password $link'

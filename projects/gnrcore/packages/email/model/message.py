@@ -55,7 +55,7 @@ class Table(object):
         tbl.formulaColumn('sent','$send_date IS NOT NULL"', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
-
+        tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
 
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))

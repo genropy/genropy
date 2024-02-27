@@ -2972,6 +2972,10 @@ border='1px solid gray',margin='2px', rounded=10,
 */
 
 /* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
 .tundra .filteredGrid .dojoxGrid-cell{
 }
 
@@ -5220,8 +5224,15 @@ div[disabled='true'], div[disabled='disabled']{
 ._common_d11 .dojoxGrid {
     background-color: white;
     margin-left: -1px;
+    font-family: inherit;
+    font-size: inherit;
 }
-
+/*.bodySize_phone._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}
+._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}*/
 
 ._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
     background: rgba(58, 84, 186, 0.05);
@@ -5504,7 +5515,6 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
-
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;

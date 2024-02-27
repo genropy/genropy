@@ -707,10 +707,11 @@ class TableHandlerView(BaseComponent):
                 """ %sections,
                 th_root=th_root,datapath='.sections',_sectionname=sections,
                 _onBuilt=True,remotehandler=remote,**meta.get('remotepars'))
-        elif m:
+        elif m is not None:
             sectionslist = m()
-        elif sections in  tblobj.model.columns and (tblobj.column(sections).relatedTable() is not None or 
-                                                tblobj.column(sections).attributes.get('values')):
+        elif tblobj.model.column(sections) is not None \
+                   and ((hasattr(tblobj.column(sections),'relatedTable')  and tblobj.column(sections).relatedTable() is not None)\
+                         or tblobj.column(sections).attributes.get('values')):
             sectionslist = self._th_section_from_type(tblobj,sections,condition=condition,condition_kwargs=condition_kwargs,
                                                     all_begin=all_begin,all_end=all_end,include_inherited=include_inherited)
         sectionsBag = self._th_buildSectionsBag(sectionslist,meta=meta)

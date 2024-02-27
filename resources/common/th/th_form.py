@@ -296,7 +296,8 @@ class TableHandlerForm(BaseComponent):
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
         if attachmentDrawer:
             self.mixinComponent("""gnrcomponents/attachmanager/attachmanager:AttachManager""")
-            form.bottom.attachmentBottomDrawer()
+            attachmentDrawer = dict() if attachmentDrawer is True else attachmentDrawer
+            form.bottom.attachmentBottomDrawer(**attachmentDrawer)
         if hierarchical:
             form_attributes = form.attributes
             fkeyfield = form_attributes.get('fkeyfield')
