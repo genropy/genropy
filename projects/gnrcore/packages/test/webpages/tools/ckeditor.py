@@ -13,10 +13,11 @@ class GnrCustomWebPage(object):
                         config_stylesSet='/_site/styles/style_pippo.js',
                         constrain_width='^.width', constrain_border='1px solid red')
 
-    def test_2_toolbar(self, pane):                             #DP Da sistemare
-        "Toolbar can be full or can be hidden"
-        pane.ckEditor(value='^.testdata', toolbar=False, toolbarCanCollapse=True)    #config_toolbarCanCollapse=True)
-                                                            #toolbar values?
+    def test_2_toolbar(self, pane):                             
+        "Toolbar can be simple or standard and can be hidden"
+        pane.ckEditor(value='^.testdata', toolbar='standard', 
+                                            config_toolbarCanCollapse=True)    
+                                                                                            
 
     def test_3_gallery_handler(self,pane):
         "Image palette to drag and drop images into editor"

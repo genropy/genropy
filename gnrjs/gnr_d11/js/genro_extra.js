@@ -810,22 +810,35 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     },
 
     toolbar_dict:{
-        'simple':[['Source','-','Bold', 'Italic', '-', 'NumberedList', 'BulletedList', '-','Image','Table','HorizontalRule','PageBreak'],
-                   ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-                   ['Styles','Format','Font','FontSize','TextColor','BGColor']],
+        'simple':[
+                    { name: 'document', items: [ 'Source' ] },
+                    { name: 'clipboard', items: [ 'Cut', 'Copy', 'Paste'] },
+                    { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline'] },
+                    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList', '-', 'Outdent', 'Indent' ] },
+                    { name: 'links', items: [ 'Link', 'Unlink' ] },
+                    { name: 'insert', items: [ 'Image', 'Table', 'HorizontalRule' ] },
+                    { name: 'styles', items: [ 'Styles', 'Format' ] },
+                    ],
         'standard':[
-                   ['Source','-','Bold', 'Italic', '-', 'NumberedList', 'BulletedList', '-', 'Link', 'Unlink','-','Templates'],
-                   ['Image','Table','HorizontalRule','PageBreak'],
-                   ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-                   ['Styles','Format','Font','FontSize'],
-                   ['TextColor','BGColor'],['Maximize', 'ShowBlocks']
+                    { name: 'document', items: [ 'Source' ] },
+                    { name: 'clipboard', items: [ 'Cut', 'Copy', 'Paste', 'PasteText', 'PasteFromWord', '-', 'Undo', 'Redo' ] },
+                    { name: 'editing', items: [ 'Scayt' ] },
+                    '/',
+                    { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline', 'Strike', 'Subscript', 'Superscript', '-', 'RemoveFormat' ] },
+                    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote' ] },
+                    { name: 'links', items: [ 'Link', 'Unlink', 'Anchor' ] },
+                    { name: 'insert', items: [ 'Image', 'Table', 'HorizontalRule', 'SpecialChar' ] },
+                    '/',
+                    { name: 'styles', items: [ 'Styles', 'Format' ] },
+                    { name: 'tools', items: [ 'Maximize' ] },
+                    { name: 'about', items: [ 'About' ] }
                    ]
     },
     
     creating: function(attributes, sourceNode) {
 
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
-        var toolbar = objectPop(attributes, 'toolbar', 'standard');
+        var toolbar = objectPop(attributes, 'toolbar', 'simple');
         var config = objectExtract(attributes, 'config_*');
         var stylesheet = objectPop(attributes,'stylesheet');
         var customStyles = objectPop(attributes,'customStyles');
@@ -843,7 +856,6 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         }
         var showtoolbar = true;
         if (toolbar===false){
-            toolbar=[];
             showtoolbar = false;
         }
         if (typeof(toolbar) == 'string') {
@@ -854,10 +866,9 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             }
         }
         ;
-        if (toolbar) {
-            config.toolbar = 'custom';
-            config.toolbar_custom = toolbar;
-        }
+        config.toolbar = 'custom';
+        config.toolbar_custom = toolbar;
+        
         var savedAttrs = {'config':config,showtoolbar:showtoolbar,enterMode:objectPop(attributes,'enterMode'),bodyStyle:objectPop(attributes,'bodyStyle',{margin:'2px'})};
         savedAttrs.customStyles = customStyles;
         savedAttrs.contentsCss = contentsCss;
@@ -960,7 +971,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             toolbar: 'Custom', //makes all editors use this toolbar
             toolbarStartupExpanded : false,
             toolbarCanCollapse  : false,
-            toolbar_Custom: '' //define an empty array or whatever buttons you want.
+            toolbar_Custom: [] //define an empty array or whatever buttons you want.
             });
         }
 
