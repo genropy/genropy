@@ -70,6 +70,7 @@ class AttachManagerViewBase(BaseComponent):
 class AttachManagerView(AttachManagerViewBase):
     def th_struct(self,struct):
         r = struct.view().rows()
+        r.fieldcell('full_external_url',hidden=True)
         r.fieldcell('_row_count',counter=True,hidden=True)
         #tbl.column('filepath' ,name_long='!!Filepath')
         r.fieldcell('description',edit=True,width='20em')
@@ -78,6 +79,14 @@ class AttachManagerView(AttachManagerViewBase):
             r.fieldcell('atc_type',edit=True,name='Type')
         if hasattr(r.tblobj,'atc_download'):
             r.fieldcell('atc_download',edit=True,name='DL')
+        r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
+                    format_buttonclass='copy iconbox',
+                    format_isbutton=True,
+                    format_onclick="""
+            var row = this.widget.rowByIndex($1.rowIndex);
+            var external_url = row.full_external_url;
+            genro.textToClipboard(external_url,_T('Copied into clipboard'));
+            """)
         if r.tblobj.attributes.get('handle_ocr'):
             r.cell('imp',calculated=True,name='!!Imp.',format_isbutton=True,format_buttonclass='iconbox document',
                 format_onclick="""
