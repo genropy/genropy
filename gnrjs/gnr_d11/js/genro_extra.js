@@ -971,8 +971,8 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             toolbar: 'Custom', //makes all editors use this toolbar
             toolbarStartupExpanded : false,
             toolbarCanCollapse  : false,
-            toolbar_Custom: [] //define an empty array or whatever buttons you want.
-            });
+            toolbar_Custom: [], //define an empty array or whatever buttons you want.
+        });
         }
 
         if(savedAttrs.customStyles){

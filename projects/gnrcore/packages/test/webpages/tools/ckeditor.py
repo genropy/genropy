@@ -27,8 +27,8 @@ class GnrCustomWebPage(object):
         bar.xxx.imgPickerPalette(folders='rsrc:common/html_pages/images:Image HTML,rsrc:common/icons:Icons',dockButton=True)
         frame.center.contentPane(overflow='hidden').ckEditor(value='^.testgallery')
 
-    def test_4_simpleTextAreaEditor(self,pane):                 #DP Da sistemare
-        "Quick editor version"
+    def test_4_simpleTextAreaEditor(self,pane):              
+        "Quick editor version in external palette"
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.quickEditor(value='^.test',nodeId='aaa',
                         height='100px',
@@ -38,17 +38,16 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.aaa',lbl='field 2')
         fb.textbox(value='^.ooo',lbl='field 3')
 
-    def test_5_simpleTextAreaEditor(self,pane):                 #DP Da sistemare, qui proviamo la floating toolbar
-        "Floating toolbar"
-        pane.div(_class='quickEditor',height='100px',width='400px').ckEditor(value='^.ccc',
-                    constrain_margin_top='1px',
-                    constrain_margin='2px',
-                    toolbar=False)
+    def test_5_inline_edit(self,pane):                 #DP Da sistemare, qui proviamo la floating toolbar
+        "Inline edit can be used to show a minimal toolbar while writing instead"
+        fb = pane.formbuilder(cols=1,border_spacing='3px')
+        pass
 
     def test_6_simpleTextAreaInGrid(self,pane):
+        "Editor used in grid"
         grid = pane.contentPane(region='center').quickGrid(value='^.griddata',
                         height='500px',width='700px' ,border='1px solid silver',
-                        default_description='<span style="color:red">ciao</span> come <i>va?</i>'
+                        default_description='<span style="color:red">Hi there</span> come <i>va?</i>'
                         #connect_onCellDblClick='console.log("sss")'
                         )
         grid.tools('addrow,delrow')

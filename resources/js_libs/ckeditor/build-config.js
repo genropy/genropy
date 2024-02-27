@@ -72,7 +72,7 @@ var CKBUILDER_CONFIG = {
 		'indentlist' : 1,
 		'link' : 1,
 		'list' : 1,
-		'magicline' : 1,
+		'magicline' : 0,
 		'maximize' : 1,
 		'pastefromgdocs' : 1,
 		'pastefromlibreoffice' : 1,
