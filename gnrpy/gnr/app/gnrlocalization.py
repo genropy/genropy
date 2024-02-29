@@ -29,12 +29,8 @@ from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
-
 LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\6\)""")
-
-
 TRANSLATION = re.compile(r"^\!\!(?:\[(?P<lang>.{2})\])?(?:{(\w*)})?(?P<value>.*)$|(?:\[\!\!(?:\[(?P<lang_emb>.{2})\])?)(?:{(\w*)})?(?P<value_emb>.*?)\]")
-
 PACKAGERELPATH = re.compile(r".*/packages/(.*)")
 
 class GnrLocString(str):
@@ -78,10 +74,7 @@ class AppLocalizer(object):
     @property
     def languages(self):
         if not self._languages:
-            if self.translator:
-                self._languages = self.translator.languages
-            else:
-                self._languages = dict(en='English',it='Italian',fr='French')
+            return {x['code']:x['name'] for x in self.application.db.table('adm.language').query(columns='$code,$name').fetch()}
         return self._languages
 
     def buildLocalizationDict(self):
@@ -140,14 +133,15 @@ class AppLocalizer(object):
 
     
 
-    def autoTranslate(self,languages):
+    def autoTranslate(self,languages, localizationBlock=None):
         languages = languages.split(',')
+        safedict = dict()
         def cb(m):
             safekey = '[%i]' %len(safedict)
             safedict[safekey] = m.group(1)
             return safekey
+        print(x)
         for lockey,locdict in list(self.localizationDict.items()):
-            safedict = dict()
             base_to_translate = SAFEAUTOTRANSLATE.sub(cb,locdict['base'])
             baselang = lockey.split('_',1)[0]
             for lang in languages:
