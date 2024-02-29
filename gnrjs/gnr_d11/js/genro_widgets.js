@@ -2914,7 +2914,7 @@ dojo.declare("gnr.widgets._ButtonLogic",null, {
     clickHandler:function(sourceNode,e) {
         e.stopPropagation();
         e.preventDefault();
-        if(sourceNode.disabled){
+        if(sourceNode.disabled || sourceNode.getAttributeFromDatasource('disabled')){
             return;
         }
         var inattr = sourceNode.getInheritedAttributes();
