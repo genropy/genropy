@@ -53,8 +53,8 @@ class Main(TranslationService):
             safedict[safekey] = m.group(1)
             return safekey
         base_to_translate = SAFETRANSLATE.sub(cb,what)
-        print('safedict',safedict)
-        print('base_to_translate',base_to_translate)
+        #print('safedict',safedict)
+        #print('base_to_translate',base_to_translate)
         result = self.translator.translate(base_to_translate, '-'.join(direction),format=format)
         if result['code'] == 200:
             txt = result['text'][0]

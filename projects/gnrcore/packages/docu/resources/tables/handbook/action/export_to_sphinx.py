@@ -195,17 +195,13 @@ class Main(BaseResourceBatch):
             toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
-            params_lbl, attachments_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
-                                            lang=self.handbook_record['language'], columns='$params_lbl,$attachments_lbl')
-            params_lbl = params_lbl or 'Parameters'
-            attachments_lbl = attachments_lbl or 'Attachments'
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
             if df_rst:
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params_lbl}:**\n\n{df_rst}' 
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + '\n\n**{params}:**\n\n{df_rst}'.format(params='!![en]Parameters', df_rst=df_rst)
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{attachments_lbl}:**\n\n{atc_rst}'
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + '\n\n**{attachments}:**\n\n{atc_rst}'.format(attachments='!![en]Attachments', atc_rst=atc_rst)
             
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)

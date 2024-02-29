@@ -132,14 +132,14 @@ class GnrCustomWebPage(object):
         bar.mb.multiButton(value='^.currentLocalizationBlock',items='^.blocks',caption='code')
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')
-        bar.updateLoc.slotButton('Rebuild',do_autotranslate=False,
+        bar.updateLoc.slotButton('!![en]Rebuild', do_autotranslate=False,
                                 ask=dict(title='!![en]Options',
                                         fields=[dict(name='do_autotranslate',tag='checkbox',
                                                      label='!![en]Autotranslate')]),
                                 action='FIRE #FORM.rebuildLocalization = do_autotranslate')
-        bar.dataRpc('dummy',self.rebuildLocalizationFiles,do_autotranslate='^#FORM.rebuildLocalization',
-                        enabledLanguages='=#FORM.enabledLanguages',
-                    _onResult='this.form.reload()',localizationBlock='=.currentLocalizationBlock')
+        bar.dataRpc(self.rebuildLocalizationFiles,do_autotranslate='^#FORM.rebuildLocalization',
+                        enabledLanguages='=#FORM.enabledLanguages', _lockScreen=True,
+                        _onResult='this.form.reload()',localizationBlock='=.currentLocalizationBlock')
         form.dataController("""var attr = blocks.getAttr(currentLocalizationBlock);
                                 this.form.goToRecord(attr.folderPath);""",
                                 currentLocalizationBlock='^.currentLocalizationBlock',blocks='=.blocks',

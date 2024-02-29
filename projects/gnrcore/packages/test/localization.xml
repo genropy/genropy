@@ -1,124 +1,46 @@
-<?xml version="1.0" ?>
-<GenRoBag>
-	<model>
-		<_packages>
-			<glbl>
-				<regione ext="py" path="model/_packages/glbl/regione.py">
-					<en_prov_principali base="Prov principali" de="Prov Haupt" en="Prov principali" fr="Prov principale" it="Prov principali"/>
-								<en_prov_principali_nuts_ base="Prov principali (nuts)" de="Prov principali (Nüsse)" en="Prov principali (nuts)" fr="Prov principali (noix)" it="Prov Principali (dadi)"/>
-				</regione>
-			</glbl>
-		</_packages>
-		<animal ext="py" path="model/animal.py">
-			<en_animal base="Animal" de="Tier" en="Animal" fr="Animal" it="Animale"/>
-				<en_animals base="Animals" de="Animals" en="Animals" fr="Animaux" it="Animali"/>
-				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-				<en_age base="Age" de="Alter" en="Age" fr="Âge" it="Età"/>
-				<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"/>
-		</animal>
-		<nodetbl ext="py" path="model/nodetbl.py">
-			<en_node_tbl base="Node tbl" de="Node tbl" en="Node tbl" fr="Noeud tbl" it="Nodo tbl"/>
-				<en_partenza base="Partenza" de="Abfahrt" en="Partenza" fr="Départ" it="Partenza"/>
-				<en_arrivo base="Arrivo" de="Ankunft" en="Arrivo" fr="Arrivée" it="Arrivo"/>
-		</nodetbl>
-		<recursive ext="py" path="model/recursive.py">
-			<en_description base="Description" en="Description" it="Descrizione"/>
-		</recursive>
-		<species ext="py" path="model/species.py">
-			<en_species base="Species" de="Spezies" en="Species" fr="Espèce" it="Specie"/>
-				<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"/>
-		</species>
-	</model>
-
-	<resources>
-		<tables>
-			<_packages>
-				<glbl>
-					<provincia>
-						<th_provincia ext="py" path="resources/tables/_packages/glbl/provincia/th_provincia.py">
-							<en_nord base="Nord" de="Norden" en="Nord" fr="Nord" it="A nord"/>
-												<en_centro base="Centro" de="Center" en="Centro" fr="Centre" it="Centro"/>
-												<en_sud base="Sud" de="Süden" en="Sud" fr="Sud" it="Sud"/>
-												<en_isole base="Isole" de="Islands" en="Isole" fr="Îles" it="Isole"/>
-						</th_provincia>
-					</provincia>
-				</glbl>
-			</_packages>
-		</tables>
-	</resources>
-
-	<webpages>
-		<components>
-			<advanced_form ext="py" path="webpages/components/advanced_form.py">
-				<en_terapia base="Terapia" de="Therapie" en="Terapia" fr="Thérapie" it="Terapia"/>
-			</advanced_form>
-				<drop_uploader ext="py" path="webpages/components/drop_uploader.py">
-				<en_description base="Description" en="Description" it="Descrizione"/>
-						<en_loaded_content base="loaded content" de="geladenen Inhalt" en="loaded content" fr="contenu chargé" it="contenuto caricato"/>
-						<en_xls_rows base="Xls Rows" de="Xls Rows" en="Xls Rows" fr="Rangées XLS" it="Righe xls"/>
-			</drop_uploader>
-				<includedview ext="py" path="webpages/components/includedview.py">
-				<en_products base="Products" de="Produkte" en="Products" fr="Produits" it="Prodotti"/>
-			</includedview>
-		</components>
-		<dd>
-			<dd_grid ext="py" path="webpages/dd/dd_grid.py">
-				<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"/>
-						<en_too_long base="Too long" de="Zu lang" en="Too long" fr="Trop long" it="Troppo lungo"/>
-						<en_too_short base="Too short" de="Zu kurz" en="Too short" fr="Trop court" it="Troppo corta"/>
-			</dd_grid>
-		</dd>
-		<dojo>
-			<form>
-				<displayed_value ext="py" path="webpages/dojo/form/displayed_value.py">
-					<en_too_long base="Too long" de="Zu lang" en="Too long" fr="Trop long" it="Troppo lungo"/>
-								<en_too_short base="Too short" de="Zu kurz" en="Too short" fr="Trop court" it="Troppo corta"/>
-				</displayed_value>
-			</form>
-		</dojo>
-		<gnrwdg>
-			<checkboxtext ext="py" path="webpages/gnrwdg/checkboxtext.py">
-				<it_fattura base="Fattura"/>
-						<it_cliente base="Cliente"/>
-			</checkboxtext>
-				<formclientstore ext="py" path="webpages/gnrwdg/formclientstore.py">
-				<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"/>
-			</formclientstore>
-				<formdocumentstore ext="py" path="webpages/gnrwdg/formdocumentstore.py">
-				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-						<en_description base="Description" en="Description" it="Descrizione"/>
-						<en_date base="Date" de="Datum" en="Date" fr="Date" it="Data"/>
-			</formdocumentstore>
-				<formhandler_baggrid ext="py" path="webpages/gnrwdg/formhandler_baggrid.py">
-				<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"/>
-			</formhandler_baggrid>
-				<formhandler_selection ext="py" path="webpages/gnrwdg/formhandler_selection.py">
-				<en_regione base="Regione" de="Region" en="Regione" fr="Région" it="Regione"/>
-			</formhandler_selection>
-				<framepane ext="py" path="webpages/gnrwdg/framepane.py">
-				<en_save base="Save" de="Speichern" en="Save" fr="Sauvegarder" it="Salva"/>
-			</framepane>
-				<palette_importer ext="py" path="webpages/gnrwdg/palette_importer.py">
-				<en_table_from_csv_xls base="Table from csv/xls"/>
-			</palette_importer>
-		</gnrwdg>
-		<tools>
-			<newregisterexplorer ext="py" path="webpages/tools/newregisterexplorer.py">
-				<en_message base="Message" de="Nachricht" en="Message" fr="Message" it="Messaggio"/>
-						<en_the_system_is_going_to_be_restarted_finish_your_pending_tasks base="The system is going to be restarted. Finish your pending tasks" de="Das System wird neu gestartet werden. Beenden Sie Ihre anstehenden Aufgaben" en="The system is going to be restarted. Finish your pending tasks" fr="Le système va être redémarré. Terminez vos tâches en attente" it="Il sistema sta per essere riavviato. Finite le vostre attività in corso"/>
-						<en_you_are_going_to_stop_every_user_activity base="You are going to stop every user activity" de="Sie werden alle Benutzeraktivitäten zu stoppen" en="You are going to stop every user activity" fr="Vous allez arrêter toutes les activités de l'utilisateur" it="Avete intenzione di fermare ogni attività degli utenti"/>
-						<en_exclude_guest base="Exclude guest" de="Ausschließen Gast" en="Exclude guest" fr="Exclure invité" it="Escludi ospite"/>
-						<en_rpc_details base="Rpc details" de="RPC-Details" en="Rpc details" fr="Détails Rpc" it="Dettagli Rpc"/>
-						<en_maintenance base="Maintenance" de="Wartung" en="Maintenance" fr="Entretien" it="Manutenzione"/>
-			</newregisterexplorer>
-				<serverpath ext="py" path="webpages/tools/serverpath.py">
-				<en_specialit_ base="Specialità" de="Spezialität" en="Specialità" fr="Spécialité" it="Specialità"/>
-			</serverpath>
-		</tools>
-		<ws>
-			<debugger ext="py" path="webpages/ws/debugger.py">
-				<en_command base="Command" de="Befehl" en="Command" fr="Commandement" it="Comando"/>
-			</debugger>
-		</ws>
-	</webpages>
-</GenRoBag>
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><model><_packages><glbl><regione ext="py" path="model/_packages/glbl/regione.py"><en_prov_principali base="Prov principali" de="Prov Haupt" en="Prov principali" fr="Prov principale" it="Prov principali"></en_prov_principali>
+<en_prov_principali_nuts_ base="Prov principali (nuts)" de="Prov principali (Nüsse)" en="Prov principali (nuts)" fr="Prov principali (noix)" it="Prov Principali (dadi)"></en_prov_principali_nuts_></regione></glbl></_packages>
+<animal ext="py" path="model/animal.py"><en_animal base="Animal" de="Tier" en="Animal" fr="Animal" it="Animale"></en_animal>
+<en_animals base="Animals" de="Animals" en="Animals" fr="Animaux" it="Animali"></en_animals>
+<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
+<en_age base="Age" de="Alter" en="Age" fr="Âge" it="Età"></en_age>
+<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"></en_abilities></animal>
+<nodetbl ext="py" path="model/nodetbl.py"><en_node_tbl base="Node tbl" de="Node tbl" en="Node tbl" fr="Noeud tbl" it="Nodo tbl"></en_node_tbl>
+<en_partenza base="Partenza" de="Abfahrt" en="Partenza" fr="Départ" it="Partenza"></en_partenza>
+<en_arrivo base="Arrivo" de="Ankunft" en="Arrivo" fr="Arrivée" it="Arrivo"></en_arrivo></nodetbl>
+<recursive ext="py" path="model/recursive.py"><en_description base="Description" en="Description" it="Descrizione"></en_description></recursive>
+<species ext="py" path="model/species.py"><en_species base="Species" de="Spezies" en="Species" fr="Espèce" it="Specie"></en_species>
+<en_abilities base="Abilities" de="Fähigkeiten" en="Abilities" fr="Capacités" it="Abilità"></en_abilities></species></model>
+<resources><tables><_packages><glbl><provincia><th_provincia ext="py" path="resources/tables/_packages/glbl/provincia/th_provincia.py"><en_nord base="Nord" de="Norden" en="Nord" fr="Nord" it="A nord"></en_nord>
+<en_centro base="Centro" de="Center" en="Centro" fr="Centre" it="Centro"></en_centro>
+<en_sud base="Sud" de="Süden" en="Sud" fr="Sud" it="Sud"></en_sud>
+<en_isole base="Isole" de="Islands" en="Isole" fr="Îles" it="Isole"></en_isole></th_provincia></provincia></glbl></_packages></tables></resources>
+<webpages><components><advanced_form ext="py" path="webpages/components/advanced_form.py"><en_terapia base="Terapia" de="Therapie" en="Terapia" fr="Thérapie" it="Terapia"></en_terapia></advanced_form>
+<drop_uploader ext="py" path="webpages/components/drop_uploader.py"><en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_loaded_content base="loaded content" de="geladenen Inhalt" en="loaded content" fr="contenu chargé" it="contenuto caricato"></en_loaded_content>
+<en_xls_rows base="Xls Rows" de="Xls Rows" en="Xls Rows" fr="Rangées XLS" it="Righe xls"></en_xls_rows></drop_uploader>
+<includedview ext="py" path="webpages/components/includedview.py"><en_products base="Products" de="Produkte" en="Products" fr="Produits" it="Prodotti"></en_products></includedview></components>
+<dd><dd_grid ext="py" path="webpages/dd/dd_grid.py"><en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required>
+<en_too_long base="Too long" de="Zu lang" en="Too long" fr="Trop long" it="Troppo lungo"></en_too_long>
+<en_too_short base="Too short" de="Zu kurz" en="Too short" fr="Trop court" it="Troppo corta"></en_too_short></dd_grid></dd>
+<dojo><form><displayed_value ext="py" path="webpages/dojo/form/displayed_value.py"><en_too_long base="Too long" de="Zu lang" en="Too long" fr="Trop long" it="Troppo lungo"></en_too_long>
+<en_too_short base="Too short" de="Zu kurz" en="Too short" fr="Trop court" it="Troppo corta"></en_too_short></displayed_value></form></dojo>
+<gnrwdg><checkboxtext ext="py" path="webpages/gnrwdg/checkboxtext.py"><it_fattura base="Fattura"></it_fattura>
+<it_cliente base="Cliente"></it_cliente></checkboxtext>
+<formclientstore ext="py" path="webpages/gnrwdg/formclientstore.py"><en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required></formclientstore>
+<formdocumentstore ext="py" path="webpages/gnrwdg/formdocumentstore.py"><en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_date base="Date" de="Datum" en="Date" fr="Date" it="Data"></en_date></formdocumentstore>
+<formhandler_baggrid ext="py" path="webpages/gnrwdg/formhandler_baggrid.py"><en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required></formhandler_baggrid>
+<formhandler_selection ext="py" path="webpages/gnrwdg/formhandler_selection.py"><en_regione base="Regione" de="Region" en="Regione" fr="Région" it="Regione"></en_regione></formhandler_selection>
+<framepane ext="py" path="webpages/gnrwdg/framepane.py"><en_save base="Save" de="Speichern" en="Save" fr="Sauvegarder" it="Salva"></en_save></framepane>
+<palette_importer ext="py" path="webpages/gnrwdg/palette_importer.py"><en_table_from_csv_xls base="Table from csv/xls"></en_table_from_csv_xls></palette_importer></gnrwdg>
+<tools><newregisterexplorer ext="py" path="webpages/tools/newregisterexplorer.py"><en_message base="Message" de="Nachricht" en="Message" fr="Message" it="Messaggio"></en_message>
+<en_the_system_is_going_to_be_restarted_finish_your_pending_tasks base="The system is going to be restarted. Finish your pending tasks" de="Das System wird neu gestartet werden. Beenden Sie Ihre anstehenden Aufgaben" en="The system is going to be restarted. Finish your pending tasks" fr="Le système va être redémarré. Terminez vos tâches en attente" it="Il sistema sta per essere riavviato. Finite le vostre attività in corso"></en_the_system_is_going_to_be_restarted_finish_your_pending_tasks>
+<en_you_are_going_to_stop_every_user_activity base="You are going to stop every user activity" de="Sie werden alle Benutzeraktivitäten zu stoppen" en="You are going to stop every user activity" fr="Vous allez arrêter toutes les activités de l'utilisateur" it="Avete intenzione di fermare ogni attività degli utenti"></en_you_are_going_to_stop_every_user_activity>
+<en_exclude_guest base="Exclude guest" de="Ausschließen Gast" en="Exclude guest" fr="Exclure invité" it="Escludi ospite"></en_exclude_guest>
+<en_rpc_details base="Rpc details" de="RPC-Details" en="Rpc details" fr="Détails Rpc" it="Dettagli Rpc"></en_rpc_details>
+<en_maintenance base="Maintenance" de="Wartung" en="Maintenance" fr="Entretien" it="Manutenzione"></en_maintenance></newregisterexplorer>
+<serverpath ext="py" path="webpages/tools/serverpath.py"><en_specialit_ base="Specialità" de="Spezialität" en="Specialità" fr="Spécialité" it="Specialità"></en_specialit_></serverpath></tools>
+<ws><debugger ext="py" path="webpages/ws/debugger.py"><en_command base="Command" de="Befehl" en="Command" fr="Commandement" it="Comando"></en_command></debugger></ws></webpages></GenRoBag>
