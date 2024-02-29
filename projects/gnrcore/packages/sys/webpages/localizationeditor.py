@@ -138,7 +138,8 @@ class GnrCustomWebPage(object):
                                                      label='!![en]Autotranslate')]),
                                 action='FIRE #FORM.rebuildLocalization = do_autotranslate')
         bar.dataRpc(self.rebuildLocalizationFiles,do_autotranslate='^#FORM.rebuildLocalization',
-                        enabledLanguages='=#FORM.enabledLanguages', _lockScreen=True,
+                        enabledLanguages='=#FORM.enabledLanguages', 
+                        _lockScreen=True, timeout=50000,
                         _onResult='this.form.reload()',localizationBlock='=.currentLocalizationBlock')
         form.dataController("""var attr = blocks.getAttr(currentLocalizationBlock);
                                 this.form.goToRecord(attr.folderPath);""",

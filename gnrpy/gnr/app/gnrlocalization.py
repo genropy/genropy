@@ -65,8 +65,7 @@ class AppLocalizer(object):
     def translator(self):
         if not self._translator:
             if self.application.site:
-                dflt_translation_service = self.application.getPreference('services.translation_service', pkg='sys')
-                self._translator = self.application.site.getService('translation', dflt_translation_service)
+                self._translator = self.application.site.getService('translation')
             else:
                 self._translator = False
         return self._translator

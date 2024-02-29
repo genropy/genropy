@@ -39,7 +39,6 @@ class AppPref(object):
         self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
         self.tablesConfiguration(tc.contentPane(title='!![en]Tables Configuration'))
         self.notificationPreferences(tc.contentPane(title='!![en]Notification'))
-        self.servicesPreferences(tc.contentPane(title='!![en]Services', datapath='.services'))
         
     def stylingPreferences(self, pane):
         fb = pane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
@@ -97,12 +96,6 @@ class AppPref(object):
         fb.numberTextBox(value='^.cleanup?interval',lbl='!![en]Cleanup interval',placeholder=self.site.config['cleanup?interval'])
         fb.numberTextBox(value='^.cleanup?page_max_age',lbl='!![en]Page max age',placeholder=self.site.config['cleanup?page_max_age'])
         fb.numberTextBox(value='^.cleanup?connection_max_age',lbl='!![en]Connection max age',placeholder=self.site.config['cleanup?connection_max_age'])
-
-    def servicesPreferences(self, pane):
-        fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.dbSelect('^.translation_service', table='sys.service', lbl='!![en]Translation dflt service', 
-                            condition='$service_type=:tr', condition_tr='translation', 
-                            alternatePkey='service_name', hasDownArrow=True)
 
     @public_method
     def _resetMemcached(self):
