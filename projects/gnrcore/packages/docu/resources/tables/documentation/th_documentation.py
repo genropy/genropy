@@ -58,13 +58,13 @@ class Form(BaseComponent):
         sc = frame.center.stackContainer(region='center',margin='2px')
         docpage = sc.borderContainer(title='!!Documentation')
         rsttc = docpage.tabContainer(margin='2px',region='center',selectedPage='^gnr.language')
-        for lang in self.db.table('docu.language').query().fetch():
+        for lang in self.db.table('adm.language').query().fetch():
             rsttc.fullEditorPane(title=lang['name'],lang=lang['code'],pageName=lang['code'])
         if self.isDeveloper():
             source_footer = docpage.contentPane(region='bottom',height='50%',splitter=True,closable='close')
             self.sourceEditor(source_footer.framePane(datapath='#FORM.versionsFrame'))
 
-        sc.contentPane(title='!!Parameters',datapath='#FORM').fieldsGrid() #ok
+        sc.contentPane(title='!![en]Parameters',datapath='#FORM').fieldsGrid()
 
     
     def browserSource(self,struct):

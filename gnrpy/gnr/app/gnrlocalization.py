@@ -29,12 +29,8 @@ from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
-
 LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\6\)""")
-
-
 TRANSLATION = re.compile(r"^\!\!(?:\[(?P<lang>.{2})\])?(?:{(\w*)})?(?P<value>.*)$|(?:\[\!\!(?:\[(?P<lang_emb>.{2})\])?)(?:{(\w*)})?(?P<value_emb>.*?)\]")
-
 PACKAGERELPATH = re.compile(r".*/packages/(.*)")
 
 class GnrLocString(str):
@@ -69,7 +65,8 @@ class AppLocalizer(object):
     def translator(self):
         if not self._translator:
             if self.application.site:
-                self._translator = self.application.site.getService('translation')
+                dflt_translation_service = self.application.getPreference('services.translation_service', pkg='sys')
+                self._translator = self.application.site.getService('translation', dflt_translation_service)
             else:
                 self._translator = False
         return self._translator
@@ -77,10 +74,7 @@ class AppLocalizer(object):
     @property
     def languages(self):
         if not self._languages:
-            if self.translator:
-                self._languages = self.translator.languages
-            else:
-                self._languages = dict(en='English',it='Italian',fr='French')
+            return {x['code']:x['name'] for x in self.application.db.table('adm.language').query(columns='$code,$name').fetch()}
         return self._languages
 
     def buildLocalizationDict(self):
@@ -137,16 +131,14 @@ class AppLocalizer(object):
             result['translation'] = TRANSLATION.sub(translatecb,txt) if txt else ''
             return result
 
-    
-
     def autoTranslate(self,languages):
         languages = languages.split(',')
+        safedict = dict()
         def cb(m):
             safekey = '[%i]' %len(safedict)
             safedict[safekey] = m.group(1)
             return safekey
         for lockey,locdict in list(self.localizationDict.items()):
-            safedict = dict()
             base_to_translate = SAFEAUTOTRANSLATE.sub(cb,locdict['base'])
             baselang = lockey.split('_',1)[0]
             for lang in languages:
@@ -154,7 +146,7 @@ class AppLocalizer(object):
                     locdict[lang] = base_to_translate
                     continue
                 if not locdict.get(lang):
-                    translated = self.translator.translate(base_to_translate,'%s-%s' %(baselang,lang))
+                    translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
                     for k,v in list(safedict.items()):
                         translated = translated.replace(k,v)
                     locdict[lang] = translated

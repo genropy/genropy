@@ -32,20 +32,29 @@ Fira Sans condensed"""
 class AppPref(object):
     def prefpane_sys(self, tc, **kwargs):
         tc = tc.tabContainer(margin='2px',**kwargs)
-        stylepane = tc.contentPane(title='Styling')
-        fb = stylepane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
+        self.stylingPreferences(tc.contentPane(title='!![en]Styling'))
+        self.printPreferences(tc.borderContainer(title='!![en]Print'))
+        self.xlsxPrintPreferences(tc.contentPane(title='!![en]XLSX Print', datapath='.xlsx_print'))
+        self.developerPreferences(tc.contentPane(title='!![en]Developer'))
+        self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
+        self.tablesConfiguration(tc.contentPane(title='!![en]Tables Configuration'))
+        self.notificationPreferences(tc.contentPane(title='!![en]Notification'))
+        self.servicesPreferences(tc.contentPane(title='!![en]Services', datapath='.services'))
+        
+    def stylingPreferences(self, pane):
+        fb = pane.formbuilder(cols=1, border_spacing='4px',datapath='.theme')
         fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='!![en]Theme variant')       
         fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
 
-
-        pdfpane = tc.borderContainer(title='Print')
-        fb = pdfpane.roundedGroup(title='Print Modes',
+    def printPreferences(self, pane):
+        fb = pane.roundedGroup(title='Print Modes',
                                     region='top',height='100px').formbuilder(cols=1, border_spacing='4px')
         fb.checkbox(value='^.print.ask_options_enabled',label='!![en]Print Options Enabled')
         fb.checkBoxText(value='^.print.modes',values='pdf:PDF,server_print:Server Print,mail_pdf:PDF Mail,mail_deliver:Mail Deliver',lbl='Print modes')
         fb.checkbox(value='^.print.enable_pdfform',label='!![en]Enable pdf forms (Requires pdftk)')
-        fb = pdfpane.roundedGroup(title='!![en]PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
+        
+        fb = pane.roundedGroup(title='!![en]PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
         fb.checkbox(value='^.wk_legacy',label='!![en]Legacy mode (use wkhtmltopdf)')
 
         fb.textbox(value='^.margin_top',lbl='!![en]Margin top')
@@ -55,20 +64,17 @@ class AppPref(object):
         fb.textbox(value='^.zoom',lbl='!![en]Pdf zoom',width='5em')
         fb.checkbox(value='^.keep_html',label='!![en]Keep HTML (for debug)')
         
-        dev = tc.contentPane(title='!![en]Developer')
-        fb = dev.formbuilder()
-
+    def developerPreferences(self, pane):
+        fb = pane.formbuilder()
         fb.checkbox(value='^.jsPdfViewer',label='!![en]Extended pdf viewer')
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
-        self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
-
-        pane = tc.contentPane(title='!![en]Tables Configuration')
+        
+    def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
         fb.textbox(value='^.archivable_tag',lbl='!![en]Archivable tag')
         
-        xlspane = tc.contentPane(title='!![en]XLSX Print', datapath='.xlsx_print')
-        xfb = xlspane.formbuilder(cols=1, border_spacing='4px')
-        
+    def xlsxPrintPreferences(self, pane):
+        xfb = pane.formbuilder(cols=1, border_spacing='4px')
         xfb.numbertextbox(value='^.top',lbl='!![en]Print Margin top')
         xfb.numbertextbox(value='^.bottom',lbl='!![en]Print Margin bottom')
         xfb.numbertextbox(value='^.left',lbl='!![en]Print Margin left')
@@ -80,8 +86,9 @@ class AppPref(object):
         xfb.numbertextbox(value='^.fitToHeight',lbl='!![en]Fit To Height')
         xfb.filteringSelect(value='^.orientation',lbl='!![en]Print orientation', values='portrait,landscape')
         xfb.filteringSelect(value='^.show_title',lbl='!![en]Print title', values='footer,header')
-        ntf = tc.contentPane(title='!![en]Notification')
-        nfb = ntf.formbuilder(cols=1, border_spacing='4px')
+    
+    def notificationPreferences(self, pane):
+        nfb = pane.formbuilder(cols=1, border_spacing='4px')
         nfb.checkbox(value='^.notifications_enabled',label='!![en]Notification enabled')
         nfb.textbox(value='^.notification_claim_email',lbl='!![en]Claim email')
         
@@ -91,6 +98,11 @@ class AppPref(object):
         fb.numberTextBox(value='^.cleanup?page_max_age',lbl='!![en]Page max age',placeholder=self.site.config['cleanup?page_max_age'])
         fb.numberTextBox(value='^.cleanup?connection_max_age',lbl='!![en]Connection max age',placeholder=self.site.config['cleanup?connection_max_age'])
 
+    def servicesPreferences(self, pane):
+        fb = pane.formbuilder(cols=1,border_spacing='3px')
+        fb.dbSelect('^.translation_service', table='sys.service', lbl='!![en]Translation dflt service', 
+                            condition='$service_type=:tr', condition_tr='translation', 
+                            alternatePkey='service_name', hasDownArrow=True)
 
     @public_method
     def _resetMemcached(self):

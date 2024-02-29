@@ -5,23 +5,26 @@ from werkzeug.wrappers import Request, Response
 from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+
 import os
 import re
 import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
+import pickle
+import datetime
 from gnr.core import gnrstring
 from time import time
 from collections import defaultdict
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
+from gnr.core.gnrcrypto import AuthTokenGenerator
+from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
 from gnr.core.gnrdecorator import public_method, callers
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 from threading import RLock
 import _thread
 import mimetypes
 from gnr.core.gnrsys import expandpath
-import pickle
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
@@ -30,6 +33,7 @@ from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
+
 
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -256,7 +260,7 @@ class GnrWsgiSite(object):
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
-
+        self.auth_token_generator = AuthTokenGenerator(self.external_secret)
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
@@ -844,10 +848,15 @@ class GnrWsgiSite(object):
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
         return (external_host or '').rstrip('/')
+    
+    @property
+    def external_secret(self):
+        return getEnvironmentItem('external_secret',default=getUuid(),update=True)
         
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
         if mandatory and result is None:
+            
             print('Missing mandatory configuration item: %s' %path)
         return result
     
@@ -1642,18 +1651,20 @@ class GnrWsgiSite(object):
         dirres().walk(cb,_mode='')
 
         
-    def externalUrl(self, path, _link=False,**kwargs):
+    def externalUrl(self, url, _link=False,_signed=None,_expire_ts=None,_expire_minutes=None,**kwargs):
         """TODO
 
-        :param path: TODO"""
+        :param url: TODO"""
         params = urllib.parse.urlencode(kwargs)
-        #path = os.path.join(self.homeUrl(), path)
-        if path == '':
-            path = self.home_uri
-        f =  '{}{}' if path.startswith('/') else '{}/{}'
-        path = f.format(self.external_host,path)
+        #url = os.url.join(self.homeUrl(), url)
+        if url == '':
+            url = self.home_uri
+        f =  '{}{}' if url.startswith('/') else '{}/{}'
+        url = f.format(self.external_host,url)
         if params:
-            path = '%s?%s' % (path, params)
+            url = f'{url}?{params}'
+        if _signed:
+            url = self.auth_token_generator.generate_url(url,expire_ts=_expire_ts,expire_minutes=_expire_minutes)
         if _link:
-            return '<a href="%s" target="_blank">%s</a>' %(path,_link if _link is not True else '')
-        return path
+            return '<a href="%s" target="_blank">%s</a>' %(url,_link if _link is not True else '')
+        return url

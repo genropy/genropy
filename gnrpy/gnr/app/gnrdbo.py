@@ -1425,14 +1425,19 @@ class AttachmentTable(GnrDboTable):
              ELSE '/_vol/' || $filepath
             END""",group='_')
                     
-        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl')
+        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
             tbl.column('atc_download',dtype='B',name_long='DL')
+
         self.onTableConfig(tbl)
         tbl.pyColumn('missing_file',name_long='Missing file',dtype='B')
-        
+        tbl.pyColumn('full_external_url',name_long='Full external url')
+
+    def pyColumn_full_external_url(self,record,field):
+        return self.db.application.site.externalUrl(record['fileurl'])
+    
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
         return not sn.exists

@@ -1,118 +1,118 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<GenRoBag><menu path="menu.py" ext="py"><en_email_config base="Email Config" it="Config email"></en_email_config>
-<en_accounts base="Accounts"></en_accounts>
-<en_messages base="Messages" it="Messaggi"></en_messages>
+<GenRoBag><menu path="menu.py" ext="py"><en_email_config base="Email Config" it="Config email" en="Email Config"></en_email_config>
+<en_accounts base="Accounts" en="Accounts" it="Account"></en_accounts>
+<en_messages base="Messages" it="Messaggi" en="Messages"></en_messages>
 <en_utility_tables fr="tables utilitaires" de="Utility-Tabellen" en="Utility tables" it="Tabelle utilità" base="Utility tables"></en_utility_tables></menu>
-<model><account path="model/account.py" ext="py"><en_account base="Account"></en_account>
-<en_account_name base="Account Name"></en_account_name>
-<en_address base="Address" it="Indirizzo"></en_address>
-<en_full_name base="Full Name" it="Nome completo"></en_full_name>
+<model><account path="model/account.py" ext="py"><en_account base="Account" en="Account" it="Account"></en_account>
+<en_account_name base="Account Name" en="Account Name" it="Nome dell'account"></en_account_name>
+<en_address base="Address" it="Indirizzo" en="Address"></en_address>
+<en_full_name base="Full Name" it="Nome completo" en="Full Name"></en_full_name>
 <en_host fr="Hôte" de="Gastgeber" en="Host" it="Ospite" base="Host"></en_host>
-<en_port base="Port" it="Porta"></en_port>
-<en_tls base="TLS"></en_tls>
-<en_ssl base="SSL"></en_ssl>
+<en_port base="Port" it="Porta" en="Port"></en_port>
+<en_tls base="TLS" en="TLS" it="TLS"></en_tls>
+<en_ssl base="SSL" en="SSL" it="SSL"></en_ssl>
 <en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"></en_username>
 <en_password fr="Mot de passe" de="Passwort" en="Password" it="Password" base="Password"></en_password>
-<en_last_uid base="Last UID" it="Ultimo UID"></en_last_uid>
-<en_smtp_host base="SMTP host" it="Host SMTP"></en_smtp_host>
-<en_from_address base="From address" it="Mittente"></en_from_address>
-<en_smtp_username base="Smtp username" it="Username smtp"></en_smtp_username>
-<en_smtp_password base="Smtp password" it="Password smtp"></en_smtp_password>
-<en_smtp_port base="Smtp port" it="Porta smtp"></en_smtp_port>
-<en_smtp_timeout base="Smtp timeout" it="Timeout smtp"></en_smtp_timeout>
-<en_smtp_tls base="Smtp tls" it="TLS smtp"></en_smtp_tls>
-<en_smtp_ssl base="Smtp ssl" it="SSL smtp"></en_smtp_ssl>
-<en_sending_limit base="Sending limit" it="Limite invio"></en_sending_limit>
-<en_system_bcc base="System bcc" it="BCC di sistema"></en_system_bcc>
-<en_schedulable base="Schedulable" it="Programmabile"></en_schedulable>
-<en_save_output_message base="Save output message" it="Salva messaggio in uscita"></en_save_output_message>
-<en_debug_address base="Debug address" it="Indirizzo debug"></en_debug_address></account>
+<en_last_uid base="Last UID" it="Ultimo UID" en="Last UID"></en_last_uid>
+<en_smtp_host base="SMTP host" it="Host SMTP" en="SMTP host"></en_smtp_host>
+<en_from_address base="From address" it="Mittente" en="From address"></en_from_address>
+<en_smtp_username base="Smtp username" it="Username smtp" en="Smtp username"></en_smtp_username>
+<en_smtp_password base="Smtp password" it="Password smtp" en="Smtp password"></en_smtp_password>
+<en_smtp_port base="Smtp port" it="Porta smtp" en="Smtp port"></en_smtp_port>
+<en_smtp_timeout base="Smtp timeout" it="Timeout smtp" en="Smtp timeout"></en_smtp_timeout>
+<en_smtp_tls base="Smtp tls" it="TLS smtp" en="Smtp tls"></en_smtp_tls>
+<en_smtp_ssl base="Smtp ssl" it="SSL smtp" en="Smtp ssl"></en_smtp_ssl>
+<en_sending_limit base="Sending limit" it="Limite invio" en="Sending limit"></en_sending_limit>
+<en_system_bcc base="System bcc" it="BCC di sistema" en="System bcc"></en_system_bcc>
+<en_schedulable base="Schedulable" it="Programmabile" en="Schedulable"></en_schedulable>
+<en_save_output_message base="Save output message" it="Salva messaggio in uscita" en="Save output message"></en_save_output_message>
+<en_debug_address base="Debug address" it="Indirizzo debug" en="Debug address"></en_debug_address></account>
 <attachment path="model/attachment.py" ext="py"><en_attachment base="Attachment" de="Befestigung" en="Attachment" fr="Attachement" it="Allegato"></en_attachment>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
-<en_filename base="Filename" it="Nome file"></en_filename>
-<en_mime_type base="Mime Type"></en_mime_type>
+<en_filename base="Filename" it="Nome file" en="Filename"></en_filename>
+<en_mime_type base="Mime Type" en="Mime Type" it="Tipo MIME"></en_mime_type>
 <en_size base="Size" de="Größe" en="Size" fr="Taille" it="Taglia"></en_size>
 <en_path base="path" en="Path" it="Il percorso"></en_path>
-<en_message_id base="Message id" it="Id messaggio"></en_message_id></attachment>
-<mailbox path="model/mailbox.py" ext="py"><en_mailbox base="Mailbox"></en_mailbox>
-<en_mailboxes base="Mailboxes"></en_mailboxes>
+<en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id></attachment>
+<mailbox path="model/mailbox.py" ext="py"><en_mailbox base="Mailbox" en="Mailbox" it="Cassetta postale"></en_mailbox>
+<en_mailboxes base="Mailboxes" en="Mailboxes" it="Cassette postali"></en_mailboxes>
 <en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
-<en_system_code base="System code"></en_system_code></mailbox>
+<en_system_code base="System code" en="System code" it="Codice di sistema"></en_system_code></mailbox>
 <message path="model/message.py" ext="py"><en_message fr="Message" de="Nachricht" en="Message" it="Messaggio" base="Message"></en_message>
-<en_messages base="Messages" it="Messaggi"></en_messages>
-<en_i_o base="I/O"></en_i_o>
+<en_messages base="Messages" it="Messaggi" en="Messages"></en_messages>
+<en_i_o base="I/O" en="I/O" it="INGRESSO/USCITA"></en_i_o>
 <en_to base="To" de="Bis" en="To" fr="À" it="A"></en_to>
 <en_from base="From" de="Von" en="From" fr="À partir de" it="Da"></en_from>
-<en_cc base="Cc" de="CC" en="CC" fr="CC" it="CC"></en_cc>
-<en_bcc base="Bcc" de="BCC" en="BCC" fr="BCC" it="BCC"></en_bcc>
-<en_uid base="UID"></en_uid>
+<en_cc base="Cc" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
+<en_bcc base="Bcc" de="BCC" en="Bcc" fr="BCC" it="BCC"></en_bcc>
+<en_uid base="UID" en="UID" it="UID"></en_uid>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
-<en_plain_body base="Plain Body" it="Corpo piatto"></en_plain_body>
-<en_html base="Html"></en_html>
+<en_plain_body base="Plain Body" it="Corpo piatto" en="Plain Body"></en_plain_body>
+<en_html base="Html" en="Html" it="Html"></en_html>
 <en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
-<en_send_date base="Send date" it="Data invio"></en_send_date>
-<en_sent base="Sent" it="Inviato"></en_sent>
-<en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User ID" it="ID utente" base="User id"></en_user_id>
-<en_account_id base="Account id"></en_account_id>
-<en_mailbox_id base="Mailbox id"></en_mailbox_id>
+<en_send_date base="Send date" it="Data invio" en="Send date"></en_send_date>
+<en_sent base="Sent" it="Inviato" en="Sent"></en_sent>
+<en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User id" it="ID utente" base="User id"></en_user_id>
+<en_account_id base="Account id" en="Account id" it="ID account"></en_account_id>
+<en_mailbox_id base="Mailbox id" en="Mailbox id" it="ID della casella di posta"></en_mailbox_id>
 <en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
 <en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
-<en_sending_attempt base="Sending attempt" it="Tentativo di invio"></en_sending_attempt>
-<en_email_bag base="Email bag"></en_email_bag>
-<en_extra_headers base="Extra headers"></en_extra_headers>
-<en_weak_attachments base="Weak attachments"></en_weak_attachments>
-<en_reply_message_id base="Reply message id" it="Indirizzo risposta"></en_reply_message_id></message>
-<message_address path="model/message_address.py" ext="py"><en_message_address base="Message address" it="Indirizzo messaggio"></en_message_address>
-<en_message_addresses base="Message addresses" it="Indirizzi"></en_message_addresses>
-<en_message_id base="Message id" it="Id messaggio"></en_message_id>
-<en_address base="Address" it="Indirizzo"></en_address>
-<en_reason base="Reason"></en_reason></message_address>
-<message_alias path="model/message_alias.py" ext="py"><en_messagemailbox base="MessageMailbox"></en_messagemailbox>
-<en_message_id base="Message id" it="Id messaggio"></en_message_id>
-<en_mailbox_id base="Mailbox id"></en_mailbox_id></message_alias>
-<message_type path="model/message_type.py" ext="py"><en_message_type base="Message type" it="Tipo messaggio"></en_message_type>
-<en_message_types base="Message types" it="Tipi messaggio"></en_message_types>
+<en_sending_attempt base="Sending attempt" it="Tentativo di invio" en="Sending attempt"></en_sending_attempt>
+<en_email_bag base="Email bag" en="Email bag" it="Borsa e-mail"></en_email_bag>
+<en_extra_headers base="Extra headers" en="Extra headers" it="Intestazioni aggiuntive"></en_extra_headers>
+<en_weak_attachments base="Weak attachments" en="Weak attachments" it="Allegati deboli"></en_weak_attachments>
+<en_reply_message_id base="Reply message id" it="Indirizzo risposta" en="Reply message id"></en_reply_message_id></message>
+<message_address path="model/message_address.py" ext="py"><en_message_address base="Message address" it="Indirizzo messaggio" en="Message address"></en_message_address>
+<en_message_addresses base="Message addresses" it="Indirizzi" en="Message addresses"></en_message_addresses>
+<en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id>
+<en_address base="Address" it="Indirizzo" en="Address"></en_address>
+<en_reason base="Reason" en="Reason" it="Motivo"></en_reason></message_address>
+<message_alias path="model/message_alias.py" ext="py"><en_messagemailbox base="MessageMailbox" en="MessageMailbox" it="Casella di posta elettronica dei messaggi"></en_messagemailbox>
+<en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id>
+<en_mailbox_id base="Mailbox id" en="Mailbox id" it="ID della casella di posta"></en_mailbox_id></message_alias>
+<message_type path="model/message_type.py" ext="py"><en_message_type base="Message type" it="Tipo messaggio" en="Message type"></en_message_type>
+<en_message_types base="Message types" it="Tipi messaggio" en="Message types"></en_message_types>
 <en_code base="Code" en="Code" it="Codice"></en_code>
 <en_description base="Description" en="Description" it="Descrizione"></en_description></message_type>
-<protocol path="model/protocol.py" ext="py"><en_protocol base="Protocol" it="Protocollo"></en_protocol>
-<en_protocols base="Protocols" it="Protocolli"></en_protocols>
-<en_protocol_code base="Protocol Code"></en_protocol_code>
+<protocol path="model/protocol.py" ext="py"><en_protocol base="Protocol" it="Protocollo" en="Protocol"></en_protocol>
+<en_protocols base="Protocols" it="Protocolli" en="Protocols"></en_protocols>
+<en_protocol_code base="Protocol Code" en="Protocol Code" it="Codice del protocollo"></en_protocol_code>
 <en_description base="Description" en="Description" it="Descrizione"></en_description>
-<en_direction base="Direction" it="Direzione"></en_direction></protocol>
-<user_account path="model/user_account.py" ext="py"><en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User ID" it="ID utente" base="User id"></en_user_id>
-<en_account_id base="Account id"></en_account_id>
-<en_can_send base="Can Send" it="Può inviare"></en_can_send></user_account></model>
-<resources><tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email"></en_receive_email></receive_mail>
-<send_mail path="resources/tables/account/action/send_mail.py" ext="py"><en_send_emails base="Send emails" it="Invia email"></en_send_emails></send_mail></action>
-<th_account path="resources/tables/account/th_account.py" ext="py"><en_check_e_mail base="Check e-mail"></en_check_e_mail>
-<en_send_test base="Send test" it="Invia test"></en_send_test>
-<en_send_test_e_mail base="Send test e-mail" it="Invia test"></en_send_test_e_mail>
+<en_direction base="Direction" it="Direzione" en="Direction"></en_direction></protocol>
+<user_account path="model/user_account.py" ext="py"><en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User id" it="ID utente" base="User id"></en_user_id>
+<en_account_id base="Account id" en="Account id" it="ID account"></en_account_id>
+<en_can_send base="Can Send" it="Può inviare" en="Can Send"></en_can_send></user_account></model>
+<resources><tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email" en="Receive email"></en_receive_email></receive_mail>
+<send_mail path="resources/tables/account/action/send_mail.py" ext="py"><en_send_emails base="Send emails" it="Invia email" en="Send emails"></en_send_emails></send_mail></action>
+<th_account path="resources/tables/account/th_account.py" ext="py"><en_check_e_mail base="Check e-mail" en="Check e-mail" it="Controlla la posta elettronica"></en_check_e_mail>
+<en_send_test base="Send test" it="Invia test" en="Send test"></en_send_test>
+<en_send_test_e_mail base="Send test e-mail" it="Invia test" en="Send test e-mail"></en_send_test_e_mail>
 <en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"></en_users></th_account></account>
-<message><action><send_messages path="resources/tables/message/action/send_messages.py" ext="py"><en_send_messages base="Send messages" it="Invia messaggi"></en_send_messages>
-<en_send_send_messages base="Send send messages" en="Send messages" it="Invia messaggi"></en_send_send_messages></send_messages></action>
-<th_message path="resources/tables/message/th_message.py" ext="py"><en_send_date base="Send date" it="Data invio"></en_send_date>
+<message><action><send_messages path="resources/tables/message/action/send_messages.py" ext="py"><en_send_messages base="Send messages" it="Invia messaggi" en="Send messages"></en_send_messages>
+<en_send_send_messages base="Send send messages" en="Send send messages" it="Invia messaggi"></en_send_send_messages></send_messages></action>
+<th_message path="resources/tables/message/th_message.py" ext="py"><en_send_date base="Send date" it="Data invio" en="Send date"></en_send_date>
 <en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
 <en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"></en_content>
-<en_to_address base="To address" it="Destinatario"></en_to_address>
-<en_from_address base="From address" it="Mittente"></en_from_address>
-<en_drafts base="Drafts" it="Bozze"></en_drafts>
-<en_ready_to_send base="Ready to send" it="Pronti per l'invio"></en_ready_to_send>
-<en_sending_error base="Sending error" it="Errore invio"></en_sending_error>
-<en_sent base="Sent" it="Inviato"></en_sent>
+<en_to_address base="To address" it="Destinatario" en="To address"></en_to_address>
+<en_from_address base="From address" it="Mittente" en="From address"></en_from_address>
+<en_drafts base="Drafts" it="Bozze" en="Drafts"></en_drafts>
+<en_ready_to_send base="Ready to send" it="Pronti per l'invio" en="Ready to send"></en_ready_to_send>
+<en_sending_error base="Sending error" it="Errore invio" en="Sending error"></en_sending_error>
+<en_sent base="Sent" it="Inviato" en="Sent"></en_sent>
 <en_all fr="Tous" de="Alle" en="All" it="Tutti" base="All"></en_all>
-<en_draft base="Draft" it="Bozza"></en_draft>
+<en_draft base="Draft" it="Bozza" en="Draft"></en_draft>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
-<en_body_plain base="Body plain" it="Corpo piatto"></en_body_plain>
+<en_body_plain base="Body plain" it="Corpo piatto" en="Body plain"></en_body_plain>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors></th_message></message>
 <user_account><th_user_account path="resources/tables/user_account/th_user_account.py" ext="py"><en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user></th_user_account></user_account></tables></resources>
-<webpages><account_page path="webpages/account_page.py" ext="py"><en_account base="Account"></en_account></account_page>
-<mail_dashboard path="webpages/mail_dashboard.py" ext="py"><en_add_mailbox base="Add mailbox" it="Aggiungi casella"></en_add_mailbox>
-<en_mailboxes base="Mailboxes"></en_mailboxes>
+<webpages><account_page path="webpages/account_page.py" ext="py"><en_account base="Account" en="Account" it="Account"></en_account></account_page>
+<mail_dashboard path="webpages/mail_dashboard.py" ext="py"><en_add_mailbox base="Add mailbox" it="Aggiungi casella" en="Add mailbox"></en_add_mailbox>
+<en_mailboxes base="Mailboxes" en="Mailboxes" it="Cassette postali"></en_mailboxes>
 <en_common base="Common" de="Gemeinsam" en="Common" fr="Commun" it="Comune"></en_common>
 <en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user></mail_dashboard>
-<protocol_page path="webpages/protocol_page.py" ext="py"><en_protocols base="Protocols" it="Protocolli"></en_protocols>
-<en_i_in_o_out_b_both base="I:In,O:Out,B:Both" it="I:Ingresso,O:Uscita,B:Entrambi"></en_i_in_o_out_b_both>
-<en_direction base="Direction" it="Direzione"></en_direction></protocol_page></webpages></GenRoBag>
+<protocol_page path="webpages/protocol_page.py" ext="py"><en_protocols base="Protocols" it="Protocolli" en="Protocols"></en_protocols>
+<en_i_in_o_out_b_both base="I:In,O:Out,B:Both" it="I:Ingresso,O:Uscita,B:Entrambi" en="I:In,O:Out,B:Both"></en_i_in_o_out_b_both>
+<en_direction base="Direction" it="Direzione" en="Direction"></en_direction></protocol_page></webpages></GenRoBag>
