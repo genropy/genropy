@@ -143,7 +143,7 @@ class FlibUploaderMain(BaseComponent):
         pane.dropFileFrame(uploaderId='flib_uploader', datapath='.drop_filegrid',
                           label='!!Upload files', uploader_path=self.db.table('flib.item').getUploadPath(),
                           metacol_title=dict(name='!!Title', width='10em'),
-                          metacol_description=dict(name='!!Descripton', width='15em'),
+                          metacol_description=dict(name='!!Description', width='15em'),
                           process_thumb32=True,
                           external_categories='=selected_categories', preview=True,
                           footer=footer,margin='2px',pbl_classes=True)

@@ -14,7 +14,7 @@ class Table(object):
                                                                                 relation_name='handbooks',
                                                                                 mode='foreignkey')
         tbl.column('toc_roots', name_long='Toc roots')
-        tbl.column('language',size=':2',name_long='Base language').relation('docu.language.code',mode='foreignkey')
+        tbl.column('language',size=':2',name_long='Base language').relation('adm.language.code')
         tbl.column('sphinx_path', name_long='Sphinx path')
         tbl.column('is_local_handbook', dtype='B', name_long='Is local handbook')
         tbl.column('local_handbook_zip', name_long='Local handbook zip')
