@@ -39,8 +39,8 @@
 		<handbook path="model/handbook.py" ext="py">
 			<en_handbook base="Handbook" en="Handbook" it="Manuale"/>
 			<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"/>
-			<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
+			<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
+			<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
 			<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
 			<en_handbook_preview_image base="Handbook preview image" it="Immagine anteprima manuale" en="Handbook preview image"/>
 		</handbook>
@@ -66,8 +66,8 @@
 		<rst_documentation_handler path="resources/rst_documentation_handler.py" ext="py">
 			<en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"/>
 			<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"/>
-			<en_save base="Save" de="Speichern" en="Save" fr="Sauvegarder" it="Salva"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
+			<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"/>
+			<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
 			<en_line_wrapping base="Line wrapping" en="Line wrapping" it="Avvolgimento della linea"/>
 			<en_quote base="Quote" en="Quote" it="Citazione"/>
 			<en_parent base="Parent" de="Elternteil" en="Parent" fr="Mère" it="Genitore"/>
@@ -95,7 +95,7 @@
 			<documentation_user>
 				<th_documentation_user path="resources/tables/documentation_user/th_documentation_user.py" ext="py">
 					<en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"/>
-					<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"/>
+					<en_user fr="Utilisateur" de="Benutzer" en="User" it="Utente" base="User"/>
 				</th_documentation_user>
 			</documentation_user>
 			<handbook>
@@ -112,8 +112,8 @@
 					</export_to_sphinx>
 				</action>
 				<th_handbook path="resources/tables/handbook/th_handbook.py" ext="py">
-					<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
-					<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
+					<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"/>
+					<en_title fr="Titre" de="Titel" en="Title" it="Titolo" base="Title"/>
 					<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
 					<en_language base="Language" en="Language" it="Lingua"/>
 					<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>

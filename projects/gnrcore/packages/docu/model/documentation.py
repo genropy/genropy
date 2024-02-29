@@ -3,6 +3,7 @@
 from builtins import object
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method, metadata
+from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
 
 class Table(object):
@@ -147,11 +148,16 @@ class Table(object):
         ltemplate = '|%s|%s|%s|' 
         l1 = '+%s+%s+%s+' %(24*'=',6*'=',50*'=')
         result = [l0]
-        result.append(ltemplate %(f'!![en]Parameter name'.center(24),f'!![en]Type'.center(6),f'!![en]Description'.center(50)))
+        translator = AppLocalizer(self.db.application)
+        param_name = translator.getTranslation('!!Parameter name', language=language).get('translation') or 'Parameter name'
+        param_type =  translator.getTranslation('!!Type', language=language).get('translation') or 'Type'
+        param_desc = translator.getTranslation('!!Description', language=language).get('translation') or 'Description'
+        result.append(ltemplate %(param_name.center(24),param_type.center(6),param_desc.center(50)))
         result.append(l1)
         for k,p in enumerate(pages):
             if k>0:
-                result.append('|%s|' %('!![en]*Parameters*' %p).center(82) )
+                params = translator.getTranslation('!!*Parameters*', language=language).get('translation') or '*Parameters*'
+                result.append('|%s|' %(params %p).center(82) )
                 result.append(l0)
             rows = fdict[p]
             for r in rows:
