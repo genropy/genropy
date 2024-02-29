@@ -16,8 +16,8 @@ class Table(object):
         
     @metadata(mandatory=True)
     def sysRecord_it(self):
-        return self.newrecord(code='it',name='!![it]Italiano')
+        return self.newrecord(code='it',name='Italiano')
 
     @metadata(mandatory=True)
     def sysRecord_en(self):
-        return self.newrecord(code='en',name='!![en]English')
+        return self.newrecord(code='en',name='English')

@@ -131,16 +131,13 @@ class AppLocalizer(object):
             result['translation'] = TRANSLATION.sub(translatecb,txt) if txt else ''
             return result
 
-    
-
-    def autoTranslate(self,languages, localizationBlock=None):
+    def autoTranslate(self,languages):
         languages = languages.split(',')
         safedict = dict()
         def cb(m):
             safekey = '[%i]' %len(safedict)
             safedict[safekey] = m.group(1)
             return safekey
-        print(x)
         for lockey,locdict in list(self.localizationDict.items()):
             base_to_translate = SAFEAUTOTRANSLATE.sub(cb,locdict['base'])
             baselang = lockey.split('_',1)[0]
@@ -149,7 +146,7 @@ class AppLocalizer(object):
                     locdict[lang] = base_to_translate
                     continue
                 if not locdict.get(lang):
-                    translated = self.translator.translate(base_to_translate,'%s-%s' %(baselang,lang))
+                    translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
                     for k,v in list(safedict.items()):
                         translated = translated.replace(k,v)
                     locdict[lang] = translated

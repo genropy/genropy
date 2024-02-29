@@ -41,8 +41,8 @@ class Main(TranslationService):
             safedict[safekey] = m.group(1)
             return safekey
         base_to_translate = SAFETRANSLATE.sub(cb,what)
-        print('safedict',safedict)
-        print('base_to_translate',base_to_translate)
+        #print('safedict',safedict)
+        #print('base_to_translate',base_to_translate)
         response = self.client.translate_text(Text=base_to_translate,
               SourceLanguageCode=from_language, TargetLanguageCode=to_language, **kwargs)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:

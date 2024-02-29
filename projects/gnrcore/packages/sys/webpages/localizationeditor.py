@@ -119,7 +119,7 @@ class GnrCustomWebPage(object):
     def rebuildLocalizationFiles(self,enabledLanguages=None,localizationBlock=None,do_autotranslate=None):
         localizer = self.db.application.localizer
         if localizer.translator and enabledLanguages and do_autotranslate:
-            localizer.autoTranslate(enabledLanguages, localizationBlock)
+            localizer.autoTranslate(enabledLanguages)
         self.db.application.localizer.updateLocalizationFiles(localizationBlock=localizationBlock)
 
     def localizerToolbar(self,form):
