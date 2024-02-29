@@ -25,7 +25,7 @@ class Package(GnrDboPackage):
             if identifier in cache:
                 return cache[identifier],True
             with self.db.tempEnv(current_group_code=group_code):
-                result = tblobj.query(columns="""*,$all_tags,$all_groups""",
+                result = tblobj.query(columns="""*,$fullname,$all_tags,$all_groups""",
                                   where='$username = :user',
                                   user=username, limit=1).fetch()
             kwargs = dict()
@@ -61,7 +61,7 @@ class Package(GnrDboPackage):
                 kwargs['main_group_code'] = user_record['group_code']
                 kwargs['avatar_rootpage'] = user_record['avatar_rootpage'] or group_record.get('rootpage')
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')
-                kwargs['user_name'] = '%s %s' % (user_record['firstname'], user_record['lastname'])
+                kwargs['user_name'] = user_record['fullname']
                 kwargs['user_record'] = user_record
                 kwargs['menubag'] = Bag(group_record['custom_menu']).toXml() if group_record else None
                 kwargs.update(dictExtract(user_record, 'avatar_'))

@@ -51,7 +51,11 @@ class Table(object):
                                                                       where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
                                                 table='adm.group'))
 
-        tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
+        tbl.formulaColumn('fullname', """CASE 
+                                                WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
+                                                WHEN $lastname IS NOT NULL THEN $lastname
+                                        ELSE $username END
+                                        """, name_long=u'!!Name',static=True)
 
 
     def pyColumn_all_tags(self,record,**kwargs):
