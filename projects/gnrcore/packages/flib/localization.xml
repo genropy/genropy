@@ -39,7 +39,7 @@
 			<en_categories base="Categories" en="Categories" it="Categorie"/>
 			<en_upload_files base="Upload files" en="Upload files" it="Caricare files"/>
 			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-			<en_descripton base="Descripton" en="Descripton" it="Descripton"/>
+			<en_description base="Description" en="Description" it="Descrizione"/>
 		</flib>
 		<item_picker path="resources/item_picker.py" ext="py">
 			<en_file_picker base="File picker" en="File picker" it="selettore file"/>
