@@ -81,8 +81,7 @@ class AuthTokenGenerator:
         log.info(f"Verifying url {url}")
         if not (_vld and (self.payload_sep in _vld)):
             return 'not_valid'
-        val, signature = url.rsplit(self.payload_sep, 1)
-        print('val',val,'signature',signature)
+        val, signature = _vld.rsplit(self.payload_sep, 1)
         if self._sign(val) != signature:
             return 'not_valid'
         expire_ts = _vld.split(self.payload_sep)[0]
