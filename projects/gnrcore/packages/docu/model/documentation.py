@@ -156,8 +156,8 @@ class Table(object):
         result.append(l1)
         for k,p in enumerate(pages):
             if k>0:
-                params = translator.getTranslation('!!*Parameters*', language=language).get('translation') or '*Parameters*'
-                result.append('|%s|' %(params %p).center(82) )
+                params = translator.getTranslation('!!Parameters', language=language).get('translation') or 'Parameters'
+                result.append('|{parameters}|'.format(parameters = '*{p} {params}*)'.center(82)))
                 result.append(l0)
             rows = fdict[p]
             for r in rows:
