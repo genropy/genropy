@@ -1201,6 +1201,9 @@ var gnrformatter = {
         if(format=='semaphore'){
             format = '<div class="greenLight">&nbsp;</div>,<div class="redLight">&nbsp;</div>,<div class="grayLight">&nbsp;</div>'
         }
+        if(format=='tick'){
+            format = '<div class="tickOn">&nbsp;</div>,<div>&nbsp;</div>'
+        }
         format = format.split(',');
         return (value === null && format.length==3)?format[2]:(value?format[0]:format[1]);
     },
