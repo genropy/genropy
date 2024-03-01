@@ -307,6 +307,14 @@ class BagToHtmlWeb(BagToHtml):
     @property
     def print_handler(self):
         return self.site.getService('htmltopdf',self.pdf_service)
+    
+    @property
+    def translationService(self):
+        return self.site.getService('translation')
+    
+    @property
+    def localizer(self):
+        return self.page.localizer
 
     @extract_kwargs(extra=True)
     def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None, **kwargs):
