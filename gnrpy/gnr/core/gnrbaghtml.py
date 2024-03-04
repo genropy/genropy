@@ -170,7 +170,8 @@ class BagToHtml(object):
             return 'Portrait'
 
     def __call__(self, record=None, filepath=None, folder=None, filename=None, hideTemplate=False, rebuild=True,
-                 htmlContent=None,page_debug=None,page_styles=None,mail_letterbox=None, is_draft=None,orientation=None, **kwargs):
+                 htmlContent=None,page_debug=None,page_styles=None,mail_letterbox=None, is_draft=None,orientation=None,
+                 from_language=None,to_language=None, localize_to=None,**kwargs):
         """Return the html corresponding to a given record. The html can be loaded from
         a cached document or created as new if still doesn't exist"""
 
@@ -215,9 +216,21 @@ class BagToHtml(object):
             self.splittedPages_data = []
         self.showTemplate(hideTemplate is not True)
         self.page_debug = page_debug or self.page_debug
+        self.from_language = from_language
+        self.to_language = to_language
+        self.localize_to = localize_to
         self.newBuilder()
         result = self.createHtml(filepath=self.filepath,body_attributes=self.body_attributes)
         return result
+    
+    @property
+    def translationService(self):
+        return 
+
+
+    @property
+    def localizer(self):
+        return 
 
     def newBuilder(self):
         self.prepareTemplates()
@@ -228,7 +241,12 @@ class BagToHtml(object):
                                     htmlTemplate=self.htmlTemplate, css_requires=self.get_css_requires(),
                                     showTemplateContent=self.showTemplateContent,
                                     default_kwargs=self.defaultKwargs(),parent=self,
-                                    srcfactory=self.srcfactory)
+                                    srcfactory=self.srcfactory,
+                                    from_language=self.from_language,
+                                    to_language=self.to_language,
+                                    translationService=self.translationService,
+                                    localizer = self.localizer,localize_to=self.localize_to
+                                    )
         self.builder.initializeSrc(body_attributes=self.body_attributes)
         self.builder.styleForLayout()
         self.defineStandardStyles()
@@ -808,7 +826,8 @@ class BagToHtml(object):
                                    mask = cell_kwargs.pop('mask',None),
                                    encoding = self.encoding,
                                    currency=cell_kwargs.pop('currency',None))
-        return parentRow.cell(value, overflow='hidden', **cell_kwargs)
+        blacklist = ['field','field_getter','sqlcolumn']
+        return parentRow.cell(value, overflow='hidden', **{k:v for k,v in cell_kwargs.items() if v and k not in blacklist})
 
 
 
