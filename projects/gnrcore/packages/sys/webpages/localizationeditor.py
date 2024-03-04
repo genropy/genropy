@@ -15,9 +15,10 @@ class GnrCustomWebPage(object):
     py_requires='public:Public,gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
         
     def main(self,root,**kwargs):
-        frame = root.rootContentPane(datapath='main',design='sidebar',title='!!Localization Manager')        
-        frame.data('#FORM.enabledLanguages','en,it') 
-        frame.data('#FORM.languages',Bag(self.db.application.localizer.languages))
+        frame = root.rootContentPane(datapath='main',design='sidebar',title='!!Localization Manager')
+        languages = Bag(self.db.application.localizer.languages) 
+        frame.data('#FORM.enabledLanguages',','.join(languages.keys())) 
+        frame.data('#FORM.languages',languages)
         form = frame.center.frameForm(frameCode='localization',datapath='main',store='document')
         handler = form.store.handler('load',rpcmethod=self.loadLocalizationFile,
                                       currentLocalizationBlock='=#FORM.currentLocalizationBlock',
@@ -25,7 +26,7 @@ class GnrCustomWebPage(object):
         form.dataController("""if(_triggerpars.kw.updvalue){
                 this.form.reload();
             }
-            """,enabledLanguages='^#FORM.enabledLanguages',_delay=4000)
+            """,enabledLanguages='^#FORM.enabledLanguages',_delay=2000)
         handler.addCallback("""SET #FORM.moduletree = result.popNode('treedata'); 
                                 var struct = new gnr.GnrBag();
                                 var r = new gnr.GnrBag();
@@ -122,13 +123,18 @@ class GnrCustomWebPage(object):
             localizer.autoTranslate(enabledLanguages)
         self.db.application.localizer.updateLocalizationFiles(localizationBlock=localizationBlock)
 
+    @public_method
+    def translateBlockToLanguage(self,language=None,localizationBlock=None, override=None):
+        localizer = self.db.application.localizer
+        localizer.translateBlock(language=language, localizationBlock=localizationBlock, override=override)
+         
     def localizerToolbar(self,form):
         items = Bag()
         for s in self.db.application.localizer.slots:
             items.setItem(s['code'],None,folderPath=s['destFolder'],code=s['code'])
         form.data('.blocks',items)
 
-        bar = form.top.slotToolbar('2,mb,10,fblang,*,20,updateLoc,20,form_revert,form_save,form_semaphore,2')
+        bar = form.top.slotToolbar('2,mb,10,fblang,*,20,updateLoc,5,autoTranslate,20,form_revert,form_save,form_semaphore,2')
         bar.mb.multiButton(value='^.currentLocalizationBlock',items='^.blocks',caption='code')
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')
@@ -137,9 +143,23 @@ class GnrCustomWebPage(object):
                                         fields=[dict(name='do_autotranslate',tag='checkbox',
                                                      label='!![en]Autotranslate')]),
                                 action='FIRE #FORM.rebuildLocalization = do_autotranslate')
+        bar.autoTranslate.slotButton('!![en]Translate package',hidden='^.currentLocalizationBlock?=!#v').dataRpc(self.translateBlockToLanguage,
+                        _lockScreen=True,                                       
+                    localizationBlock='=.currentLocalizationBlock',
+                    _ask=dict(title='!![en]Choose language',
+                              fields=[dict(name='language', 
+                                          lbl='!![en]Language', 
+                                          tag='dbselect',
+                                          table='adm.language',
+                                          validate_notnull=True,
+                                          width='20em',
+                                          hasDownArrow=True),
+                                      dict(name='override',tag='checkbox',lbl='',label='!![en]Override current values')]),
+                     _onResult='this.form.reload()')
+        
         bar.dataRpc(self.rebuildLocalizationFiles,do_autotranslate='^#FORM.rebuildLocalization',
                         enabledLanguages='=#FORM.enabledLanguages', 
-                        _lockScreen=True, timeout=50000,
+                        _lockScreen=dict(thermo=True), timeout=50000,
                         _onResult='this.form.reload()',localizationBlock='=.currentLocalizationBlock')
         form.dataController("""var attr = blocks.getAttr(currentLocalizationBlock);
                                 this.form.goToRecord(attr.folderPath);""",

@@ -146,9 +146,30 @@ class AppLocalizer(object):
                     continue
                 if not locdict.get(lang):
                     translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
-                    for k,v in list(safedict.items()):
+                    #items = list(safedict.items())
+                    # self.utils.quickThermo(items, maxidx=len(items), labelcb=lambda t: t[0], title=f'!![en]Autotranslate terms in {lang}')
+                    for k,v in safedict.items():
                         translated = translated.replace(k,v)
                     locdict[lang] = translated
+                    
+    def translateBlock(self, language=None, localizationBlock=None, override=None):
+        blockdict = {s['code']:s['destFolder'] for s in self.slots}
+        destFolder = blockdict[localizationBlock]
+        locbag = self.getLocalizationBag(blockdict[localizationBlock])
+        
+        def cb(n):
+            if not n.value and 'base' in n.attr:
+                curr_translation = n.attr.get(language) or ''
+                curr_translation = curr_translation.strip()
+                if not curr_translation or override:
+                    base_term = n.attr.get('base')
+                    translated = self.translator.translate(base_term, from_language=n.label[:2], to_language=language)
+                    if translated and translated.lower()!=base_term.lower():
+                        n.attr[language] = translated
+                    else:
+                        n.attr[language] = None
+        locbag.walk(cb)
+        locbag.toXml(os.path.join(destFolder,'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
 
     def getLocalizationBag(self,locfolder):
         destpath = os.path.join(locfolder,'localization.xml')
@@ -191,6 +212,7 @@ class AppLocalizer(object):
             if scan_all or s['destFolder'] != self.genroroot:
                 locbag = Bag()
                 for root in s['roots']:
+                    print (root)
                     d = DirectoryResolver(root,include='*.py,*.js')()
                     d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',destFolder=s['destFolder'] )
                 locbag.toXml(os.path.join(s['destFolder'],'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
