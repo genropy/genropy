@@ -165,7 +165,6 @@
 
 .tundra._common_d11 .ct_chatgrid .user_disconnected .cellContent{
     color:silver;
-    opacity:.5;
     background: url(../../icons/grayLight.gif) no-repeat left center;
 
 }
