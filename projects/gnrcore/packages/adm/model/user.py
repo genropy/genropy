@@ -28,6 +28,7 @@ class Table(object):
                     values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
         tbl.column('locale', name_long='!!Default Language', size=':12')
+        tbl.column('language').relation('adm.language.code')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
         tbl.column('menu_root_id' ,size='22')
         tbl.column('avatar_rootpage', name_long='!!Root Page')

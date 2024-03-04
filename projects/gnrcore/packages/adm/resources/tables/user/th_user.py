@@ -77,7 +77,7 @@ class Form(BaseComponent):
         fb.field('status', tag='filteringSelect', # values='!!conf:Confirmed,wait:Waiting', 
                  validate_notnull=True, validate_notnull_error='!!Required')
         fb.field('locale', lbl='!!Locale')
-
+        fb.field('language', lbl='!![en]Language')
         fb.field('group_code',lbl='!![en]Main group',hasDownArrow=True)
         fb.checkBoxText('^._other_groups',lbl='!![en]Other groups',
                         table='adm.group',condition="$code!=COALESCE(:maingroup,'_')",
