@@ -519,7 +519,7 @@ class GnrHtmlBuilder(object):
                                     omitRoot=True,
                                     autocreate=True,
                                     forcedTagAttr='tag',
-                                    translate_cb=self.translate_cb,
+                                    translate_cb=self.localize_cb,
                                     addBagTypeAttr=False, typeattrs=False, self_closed_tags=['meta', 'br', 'img'],
                                     docHeader='<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
         if self.to_language:
@@ -529,9 +529,10 @@ class GnrHtmlBuilder(object):
         self.html = html
         return self.html
     
-    def translate_cb(self,txt,language=None):
+    def localize_cb(self,txt,language=None):
         if self.localizer:
             return self.localizer.translate(txt=txt,language=self.localize_to or language)
+        return txt
 
     def toPdf(self,filename,**kwargs):
         from weasyprint import HTML
