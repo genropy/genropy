@@ -27,8 +27,8 @@ class Table(object):
         tbl.column('status', name_long='!!Status', size=':4',
                     values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
-        tbl.column('locale', name_long='!!Default Language', size=':12')
-        tbl.column('language').relation('adm.language.code')
+        tbl.column('locale', name_long='!![it]Default locale', size=':12')
+        tbl.column('language', size=':2', name_long='!![it]Language').relation('adm.language.code')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
         tbl.column('menu_root_id' ,size='22')
         tbl.column('avatar_rootpage', name_long='!!Root Page')
