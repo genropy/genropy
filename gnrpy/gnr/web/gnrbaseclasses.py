@@ -314,6 +314,9 @@ class BagToHtmlWeb(BagToHtml):
     
     @property
     def localizer(self):
+        page = self.page or self.db.currentPage
+        if not page:
+            return 
         return self.page.localizer
 
     @extract_kwargs(extra=True)
