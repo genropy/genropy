@@ -394,16 +394,16 @@ class TableHandlerGroupBy(BaseComponent):
         count_distinct_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
-                having_chunk = []
-                if v.get('min_value') is not None:
-                    parname = f'_grp_count_sum_min_value'
-                    kwargs[parname] = v['min_value']
-                    having_chunk.append(f'count(*)>=:{parname}')
-                if v.get('max_value') is not None:
-                    parname = f'_grp_count_sum_max_value'
-                    kwargs[parname] = v['max_value']
-                    having_chunk.append(f'count(*)>=:{parname}')
-                having_list.append(' AND '.join(having_chunk))
+               #having_chunk = []
+               #if v.get('min_value') is not None:
+               #    parname = f'_grp_count_sum_min_value'
+               #    kwargs[parname] = v['min_value']
+               #    having_chunk.append(f'count(*)>=:{parname}')
+               #if v.get('max_value') is not None:
+               #    parname = f'_grp_count_sum_max_value'
+               #    kwargs[parname] = v['max_value']
+               #    having_chunk.append(f'count(*)>=:{parname}')
+               #having_list.append(' AND '.join(having_chunk))
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):
