@@ -1,20 +1,22 @@
 import sys, logging
+import platform
+ESC = '\033['
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))
 
 #The background is set with 40 plus the number of the color, and the foreground with 30
 
 #Here follow the sequences to get a colored output
-RESET_SEQ = "\033[0m"
-COLOR_SEQ = "\033[1;%dm"
-BOLD_SEQ = "\033[1m"
+RESET_SEQ = f"{ESC}0m"
+COLOR_SEQ = f"{ESC}1;%dm"
+BOLD_SEQ = f"{ESC}1m"
 
 def formatter_message(message, use_color=True):
     """Change the format message. Return the message with the new format
     
     :param message: the message to be changed
     :param use_color: boolean. If ``True``, add color to the message"""
-    if use_color:
+    if use_color and platform.system() in ['Linux', 'Darwin']:
         message = message.replace("$RESET", RESET_SEQ).replace("$BOLD", BOLD_SEQ)
     else:
         message = message.replace("$RESET", "").replace("$BOLD", "")
@@ -71,8 +73,8 @@ def enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
 
 def log_styles():
     return dict(
-        color_blue = '\033[94m',
-        color_yellow = '\33[33m',
-        style_underlined = '\33[4m',
-        nostyle = '\033[0m'
+        color_blue = f"{ESC}94m" if platform.system() in ['Linux', 'Darwin'] else '',
+        color_yellow = f"{ESC}33m" if platform.system() in ['Linux', 'Darwin'] else '',
+        style_underlined = f"{ESC}4m" if platform.system() in ['Linux', 'Darwin'] else '',
+        nostyle = f"{ESC}0m" if platform.system() in ['Linux', 'Darwin'] else '',
         )
