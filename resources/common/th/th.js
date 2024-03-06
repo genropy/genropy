@@ -382,6 +382,9 @@ dojo.declare("gnr.LinkerManager", null, {
         this.linkerform.load({destPkey:pkey,default_kw:default_kw});
         var that = this;
         this.linkerform.subscribe('onSaved',function(kw){
+            if(!kw.pkey){
+                throw new Error('Missing primary key after record save');
+            }
             that.setCurrentPkey(kw.pkey);
         });
         this.linkerform.subscribe('onDismissed',function(kw){
