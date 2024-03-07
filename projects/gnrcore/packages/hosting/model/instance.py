@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from builtins import str
-from builtins import object
+
+
 from gnr.app.gnrdeploy import InstanceMaker, SiteMaker
 from gnr.core.gnrbag import Bag
 import os

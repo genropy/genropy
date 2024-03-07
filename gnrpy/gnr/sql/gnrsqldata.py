@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqldata : Genro SQL query and data
@@ -43,7 +43,6 @@ from gnr.core.gnranalyzingbag import AnalyzingBag
 from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, RecordDuplicateError,\
     RecordNotExistingError, RecordSelectionError,\
     GnrSqlMissingField, GnrSqlMissingColumn
-import six
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")

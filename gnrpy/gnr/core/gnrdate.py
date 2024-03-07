@@ -20,6 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import functools
 import re
 import logging
 import datetime
@@ -95,12 +96,11 @@ def nextMonth(date):
         y += 1
     return datetime.date(y,m+1,1)
 
-
 def prevMonth(date):
     m = date.month 
     y = date.year
     if m==1:
-        m = 12
+        m = 13
         y -= 1
     return datetime.date(y,m-1,1)
 
@@ -224,14 +224,7 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
         elif anyWordIn(list(quarters.keys()), datestr): # quarter
             qt, year = splitAndStrip(datestr, sep=' ', n=1, fixed=2)
             year = yearDecode(year)
-            qt = quarters[qt]
-            dateStart = (year, qt * 3 - 2)
-            if isEndPeriod:
-                dateEnd = (year, qt * 3)
-        elif anyWordIn(list(def_quarters.keys()), datestr): # quarter
-            qt, year = splitAndStrip(datestr, sep=' ', n=1, fixed=2)
-            year = yearDecode(year)
-            qt = def_quarters[datestr]
+            qt = quarters[datestr]
             dateStart = (year, qt * 3 - 2)
             if isEndPeriod:
                 dateEnd = (year, qt * 3)
@@ -678,7 +671,7 @@ class TimeInterval(object):
         >>> TimeInterval.sorted(lst)
         [TimeInterval('8:00-9:00'), TimeInterval('9:00-10:00'), TimeInterval('10:00-12:00')]
         """
-        return sorted(iterable, cmp=TimeInterval.cmp)
+        return sorted(iterable, key=functools.cmp_to_key(TimeInterval.cmp))
 
 
     def __contains__(self, other):

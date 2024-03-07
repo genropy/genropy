@@ -3,7 +3,7 @@
 
 # --------------------------- GnrWebPage Standard header ---------------------------
 from __future__ import print_function
-from builtins import object
+
 class GnrCustomWebPage(object):
     skip_connection = True
     def rootPage(self, *args, **kwargs):

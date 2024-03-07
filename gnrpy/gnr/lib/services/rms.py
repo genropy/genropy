@@ -22,13 +22,9 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
-
-from future import standard_library
-standard_library.install_aliases()
-
 import urllib.parse
-from gnr.app.gnrconfig import gnrConfigPath
 
+from gnr.app.gnrconfig import gnrConfigPath
 from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver

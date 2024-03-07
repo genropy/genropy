@@ -20,22 +20,20 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
 from collections import defaultdict
 
+import time
+import io
 import re, os
 import datetime
+from decimal import Decimal
 
 from xml import sax
 from xml.sax import saxutils
 
 from gnr.core.gnrbag import Bag, BagNode, BagAsXml
-from decimal import Decimal
-
 from gnr.core import gnrstring
 from gnr.core import gnrclasses
-import time
-import io
 
 
 class Default(dict):

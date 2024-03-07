@@ -535,7 +535,7 @@ def asDict(myString, itemSep=',', argSep='=', symbols=None):
         item = item.strip().strip(itemSep)
         key, value = split(item, argSep)
 
-        key = key.strip().encode()
+        key = key.strip()
         value = value.strip()
         if value.startswith("'"): result[key] = value.strip("'")
         elif value.startswith('"'): result[key] = value.strip('"')

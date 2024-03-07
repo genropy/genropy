@@ -1,5 +1,5 @@
 # encoding: utf-8
-from builtins import object
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import MandatoryException
 from gnr.sql.gnrsql_exceptions import RecordNotExistingError

@@ -6,11 +6,11 @@
 
 
 import os
-from gnr.core.gnrbag import Bag
-from datetime import datetime
-from gnr.core.gnrstring import toText
-#from gnr.core.gnrdecorator import timer_call
 from collections import defaultdict,OrderedDict
+from datetime import datetime
+
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import toText
 from gnr.core.gnrstring import splitAndStrip
 
 REPORT_INDEX_HTML = """

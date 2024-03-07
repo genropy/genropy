@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-  
+#-*- coding: utf-8 -*-  
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -20,21 +20,17 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-
 import os
 import http.client
 import socket
 import urllib.request, urllib.parse, urllib.error
+from time import sleep
+
 from gnr.core.gnrbag import Bag
 
-from time import sleep
 CONNECTION_REFUSED = 61
 MAX_CONNECTION_ATTEMPT = 20 
 CONNECTION_ATTEMPT_DELAY = 1
-
 
 class WebSocketHandler(object):
     def sendCommandToPage(self,page_id,command,data):

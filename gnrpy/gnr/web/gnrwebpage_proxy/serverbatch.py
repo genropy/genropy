@@ -6,13 +6,12 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from builtins import str
+
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbag import Bag
 from datetime import datetime
 import os
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrlang import timer_call, debug_call
 
 class GnrBatchStoppedException(Exception):
     pass
@@ -93,7 +92,6 @@ class GnrWebBatch(GnrBaseProxy):
         self.batch_complete(result=result, result_attr=result_attr)
 
 
-    #@debug_call
     def batch_create(self, batch_id=None, title=None, thermo_lines=None, note=None, cancellable=True, delay=1, userBatch=True):
         self.batch_id = batch_id or self.page.getUuid()
         self.title = title
@@ -125,8 +123,7 @@ class GnrWebBatch(GnrBaseProxy):
     @property
     def is_headless(self):
         return  not self.page.page_id or getattr(self.page,'is_heartbeat',False)
-    
-    #@debug_call
+
     def batch_complete(self, result=None, result_attr=None):
         if self.is_headless:
             return
@@ -212,8 +209,6 @@ class GnrWebBatch(GnrBaseProxy):
             for line in thermo_lines.split(','):
                 store.set_datachange('%s.thermo.%s' % (self.batch_path, line), Bag(), reason='th_cleanup')
 
-
-    #@debug_call
     def thermo_line_add(self, code, maximum=None, message=None, thermo_class=None):
         self.line_codes.append(code)
         thermo_class = thermo_class or 'bm_line_%s' % len(self.line_codes)
@@ -228,8 +223,6 @@ class GnrWebBatch(GnrBaseProxy):
             store.set_datachange('%s.thermo.%s' % (self.batch_path, code), None,
                                  attributes=dict(batch_id=self.batch_id), reason='tl_del')
 
-
-    # #@debug_call
     def thermo_line_update(self, code, progress=None, message=None, maximum=None):
         if not code in self.line_codes:
             return

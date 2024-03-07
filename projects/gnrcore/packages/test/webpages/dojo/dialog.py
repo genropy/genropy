@@ -2,7 +2,7 @@
 
 """Dialogs"""
 
-from builtins import range
+
 
 class GnrCustomWebPage(object):
     dojo_version = '11'

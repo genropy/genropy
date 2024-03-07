@@ -25,14 +25,13 @@
 """
 this test module focus on SqlSelection's methods
 """
-from __future__ import print_function
 
 from past.builtins import basestring
-#from builtins import object
-import os
+
+import os, os.path
 import datetime
 
-import py.test
+import pytest
 
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery
@@ -42,24 +41,23 @@ from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
-def setup_module(module):
-    module.CONFIG = Bag('data/configTest.xml')
-    module.SAMPLE_XMLSTRUCT = 'data/dbstructure_base.xml'
-    module.SAMPLE_XMLDATA = 'data/dbdata_base.xml'
+from .common import BaseGnrSqlTest
 
 # this module test all the post-process methods on selection resolver
 
-class BaseDb(object):
+class BaseDb(BaseGnrSqlTest):
+    @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.init()
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
         # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(SAMPLE_XMLSTRUCT)
+        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
         # build the python db structure from the recipe
         cls.db.startup()
         cls.db.checkDb(applyChanges=True)
-        cls.db.importXmlData(SAMPLE_XMLDATA)
+        cls.db.importXmlData(cls.SAMPLE_XMLDATA)
         cls.db.commit()
 
         cls.myquery = cls.db.query('video.cast', columns="""$id,@person_id.name AS person,
@@ -98,8 +96,9 @@ class BaseDb(object):
         self.mysel.filter()
 
     def test_freeze(self):
-        self.mysel.freeze('data/myselection')
-        sel = self.db.table('video.cast').frozenSelection('data/myselection')
+        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
+        self.mysel.freeze(freeze_fname)
+        sel = self.db.table('video.cast').frozenSelection(freeze_fname)
         assert self.mysel.data == sel.data
 
     def xtest_formatSelection(self):
@@ -120,7 +119,7 @@ class BaseDb(object):
 class TestGnrSqlDb_sqlite(BaseDb):
     def init(cls):
         cls.name = 'sqlite'
-        cls.dbname = CONFIG['db.sqlite?filename']
+        cls.dbname = cls.CONFIG['db.sqlite?filename']
         cls.db = GnrSqlDb(dbname=cls.dbname)
 
     init = classmethod(init)
@@ -128,13 +127,13 @@ class TestGnrSqlDb_sqlite(BaseDb):
 class TestGnrSqlDb_postgres(BaseDb):
     def init(cls):
         cls.name = 'postgres'
-        cls.dbname = CONFIG['db.postgres?dbname']
+        cls.dbname = 'test2'
         cls.db = GnrSqlDb(implementation='postgres',
-                          host=CONFIG['db.postgres?host'],
-                          port=CONFIG['db.postgres?port'],
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=CONFIG['db.postgres?user'],
-                          password=CONFIG['db.postgres?password']
+                          user=cls.pg_conf.get("user"),
+                          password=''
                           )
 
     init = classmethod(init)

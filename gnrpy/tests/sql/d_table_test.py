@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 # -*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
@@ -25,13 +25,11 @@
 """
 this test module focus on SqlTable's methods
 """
-from __future__ import print_function
-
-#from builtins import object
 import os
 import datetime
+import tempfile
 
-import py.test
+import pytest
 import logging
 
 gnrlogger = logging.getLogger('gnr')
@@ -41,28 +39,26 @@ gnrlogger.addHandler(hdlr)
 from gnr.sql.gnrsql import GnrSqlDb
 
 from gnr.core.gnrbag import Bag
-from a_structure_load_test import configurePackage
 
 
-def setup_module(module):
-    logging.getLogger('gnr.sql.gnrsql').setLevel(logging.INFO)
-    module.CONFIG = Bag('data/configTest.xml')
-    module.SAMPLE_XMLSTRUCT = 'data/dbstructure_base.xml'
-    module.SAMPLE_XMLDATA = 'data/dbdata_base.xml'
+from .common import BaseGnrSqlTest, configurePackage
 
-class BaseSql(object):
+class BaseSql(BaseGnrSqlTest):
+    @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.init()
+        print("CLS DBNAME", cls.dbname)
         # create database (actually create the DB file or structure)
-
         cls.db.createDb(cls.dbname)
+        
         # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(SAMPLE_XMLSTRUCT)
+        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
 
         # build the python db structure from the recipe
         cls.db.startup()
         cls.db.checkDb(applyChanges=True)
-        cls.db.importXmlData(SAMPLE_XMLDATA)
+        cls.db.importXmlData(cls.SAMPLE_XMLDATA)
         cls.db.commit()
 
     #------------setup test-----------------------------------------
@@ -103,7 +99,7 @@ class BaseSql(object):
         self.db.commit()
 
     def test_insertExisting(self):
-        py.test.raises(self.db.connection.IntegrityError,
+        pytest.raises(self.db.connection.IntegrityError,
                        self.db.table('video.movie').insert,
                        {'id': 10, 'title': 'The Departed'})
         self.db.connection.rollback()
@@ -136,7 +132,8 @@ class BaseSql(object):
 
     def test_createStructureFromCode(self):
         configurePackage(self.db.packageSrc('video'))
-        self.db.saveModel('dbstructure.xml')
+        with tempfile.NamedTemporaryFile(delete=True) as tmpdbfile:
+            self.db.saveModel(tmpdbfile.name)
         assert self.db.model.src['packages.video.tables.people?pkey'] == 'id'
 
     def teardown_class(cls):
@@ -147,7 +144,7 @@ class BaseSql(object):
 class TestGnrSqlDb_sqlite(BaseSql):
     def init(cls):
         cls.name = 'sqlite'
-        cls.dbname = CONFIG['db.sqlite?filename']
+        cls.dbname = cls.CONFIG['db.sqlite?filename']
         cls.db = GnrSqlDb(dbname=cls.dbname)
 
     init = classmethod(init)
@@ -156,17 +153,14 @@ class TestGnrSqlDb_sqlite(BaseSql):
 class TestGnrSqlDb_postgres(BaseSql):
     def init(cls):
         cls.name = 'postgres'
-        cls.dbname = CONFIG['db.postgres?dbname']
+        cls.dbname = 'test2'
         cls.db = GnrSqlDb(implementation='postgres',
-                          host=CONFIG['db.postgres?host'],
-                          port=CONFIG['db.postgres?port'],
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=CONFIG['db.postgres?user'],
-                          password=CONFIG['db.postgres?password']
+                          user=cls.pg_conf.get("user"),
+                          password=''
                           )
 
     init = classmethod(init)
 
-def teardown_module(module):
-    print('teardown sql_test')
-    

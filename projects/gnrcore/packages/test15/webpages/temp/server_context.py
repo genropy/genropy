@@ -2,7 +2,7 @@
 
 """Context tester"""
 
-from builtins import object
+
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):

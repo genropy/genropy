@@ -1,6 +1,9 @@
-from gnr.core.gnrbag import Bag, BagNode, BagResolver
+import pytest
+
 import datetime
 import socket, os
+import gnr.core.gnrbag as bm
+from gnr.core.gnrbag import Bag, BagNode, BagResolver
 
 
 def setup_module(module):
@@ -25,7 +28,7 @@ class TestBasicBag(object):
         assert b == self.mybag
 
     def test_fillFromUrl(self):
-        b = Bag('http://genropy.wordpress.com/feed/')
+        b = Bag('https://www.genropy.org/feed/')
         assert b['rss.channel.title'] == 'Genropy'
 
     def test_fillFromXml(self):
@@ -61,11 +64,14 @@ class TestBasicBag(object):
         assert self.mybag['phone.#sim=tom'] == 444230450
 
     def test_setItemPos(self):
-        b = Bag({'a': 1, 'b': 2, 'c': 3, 'd': 4})
+        b = Bag({'a': 1})
+        b.setItem('b', 2)
+        b.setItem('c', 3)
+        b.setItem('d', 4)
         b.setItem('e', 5, _position='<')
         assert b['#0'] == 5
         b.setItem('f', 6, _position='<c')
-        assert b['#2'] == 6
+        assert b['#3'] == 6
         b.setItem('g', 7, _position='<#3')
         assert b['#3'] == 7
 
@@ -127,6 +133,82 @@ class TestBasicBag(object):
         # you can sum only int
         assert c == 14
 
+    def test_normalizeItemPath(self):
+        res = bm.normalizeItemPath(("a", ".b", ".c"))
+        assert res == "('a', '_b', '_c')"
+        res = bm.normalizeItemPath("babbala")
+        assert res == 'babbala'
+        res = bm.normalizeItemPath("babbala.ragazzo")
+        assert res == 'babbala.ragazzo'
+
+        class PathStrangeClass(object):
+            def __init__(self, string):
+                self.string = string
+
+            def __str__(self):
+                return self.string
+
+        test_path = PathStrangeClass("babbala.ragazzo")
+
+        res = bm.normalizeItemPath(test_path)
+        assert res == 'babbala_ragazzo'
+
+    def test_BagNodeInternals(self):
+        b = Bag()
+        bn = BagNode(b, "testnode", 10, _attributes=dict(test1=2, test2=1))
+        assert "test1" in bn.attr
+        assert bn.attr.get('test2') == 1
+
+        assert str(bn) == "BagNode : testnode"
+        assert repr(bn) == "BagNode : testnode at {}".format(id(bn))
+        assert bn.tag == "testnode"
+        assert bn.label == "testnode"
+        bn.setLabel("testnodelabel")
+        assert bn.getLabel() == "testnodelabel"
+
+        res = bn._get_fullpath()
+        assert res == None
+
+        bn.parentbag = b
+        assert bn.parentbag == b
+
+        bn2 = BagNode(b, "testnode2", "hellohellohello", validators=dict(length="10,20",
+                                                                        inList="hellohellohello,bubu"))
+
+        assert len(bn2._validators) == 2
+        b2 = Bag()
+        b2.parent = b
+        bn2.parentbag = b2
+
+        # FIXME: this raises an exception, is it correct?
+        #res = bn2.fullpath
+        
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode3", "hello", validators=dict(length="10,20"))
+        assert "Value hello too short" in str(excinfo.value)
+
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode4", "hello", validators=dict(length="1,3"))
+        assert "Value hello too long" in str(excinfo.value)
+
+        with pytest.raises(bm.BagValidationError) as excinfo:
+            bn = BagNode(b, "testnode5", 1, validators=dict(case="lower"))
+        assert "not a string value 1" in str(excinfo.value)
+
+
+        
+    def test_BagAsXml(self):
+        bax = bm.BagAsXml("babbala")
+        assert bax.value == "babbala"
+
+    def test_BagDeprecatedCall(self):
+        e = bm.BagDeprecatedCall("ab", "cb")
+        try:
+            raise e
+        except Exception as e:
+            assert e.errcode == "ab"
+            assert e.message == "cb"
+        
     def test_digest(self):
         result = self.mybag.digest()
         assert result[0][0] == 'name'

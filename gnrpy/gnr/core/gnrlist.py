@@ -25,14 +25,14 @@
 Some useful operations on lists.
 """
 from functools import cmp_to_key
+import datetime
+import csv
 
 
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrexporter import BaseWriter
-import datetime
-import csv
 
 class FakeList(list):
     pass
@@ -134,7 +134,9 @@ def sortByAttr(l, *args):
     return l
 
 def merge(*args):
-    """TODO"""
+    """TODO
+    FIXME: args elements must be iterable, but they're not checked
+    """
     result = list(args[0])
     for l in args[1:]:
         for el in l:
@@ -496,7 +498,11 @@ class CsvReader(object):
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
+
+        # FIXME: why an explit "encoding" parameter for the constructor but
+        # ignoring its value?
         encoding = None
+        
         if detect_encoding and not encoding:
             encoding = self.detect_encoding()
         if encoding:
@@ -559,7 +565,13 @@ class XmlReader(object):
         
             
 class GnrNamedList(list):
-    """Row object. Allow access to data by column name. Allow also to add columns and alter data."""
+    """Row object. Allow access to data by column name. Allow also to add columns and alter data.
+    
+    :param index: a dict object with the column name as key, and the integer index of the value
+    :param values: a list of values ordered as 'index' key/values definition
+
+    FIXME: costructor's parameters types/interfaces are not checked.
+    """
     def __init__(self, index, values=None):
         self._index = index
         if values is None:
@@ -717,7 +729,7 @@ def getReader(file_path,filetype=None,**kwargs):
             try:
                 import openpyxl
                 reader = XlsxReader(file_path,**kwargs)
-            except ImportError:
+            except ImportError: # pragma: no cover
                 import sys
                 print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
                 reader = XlsReader(file_path,**kwargs)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from builtins import object
+
 from datetime import datetime
 from gnr.core.gnrdecorator import metadata,public_method
 from gnr.core.gnrbag import Bag

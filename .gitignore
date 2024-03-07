@@ -2,10 +2,15 @@
 tutorial/projects/devlang/sites/devlang/data/
 docs/genro/genrotit.sql
 projects/showcase/sites/showcase/data/
+build
 gnrpy/build/
+dist
+.eggs
+*.egg-info
 _static
 *.pyc
 *.pyo
+*~
 gnrpy/.cache
 .vscode
 gnrpy/gnr/lib/.DS_Store
@@ -14,4 +19,5 @@ gnrpy/gnr/lib/services/.DS_Store
 docker/*
 .python-version
 .spyproject/
+.coverage
 

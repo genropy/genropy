@@ -7,7 +7,7 @@
 """Form Handler test"""
 from __future__ import print_function
 
-from builtins import object
+
 from gnr.web.gnrwebstruct import struct_method
 
 class GnrCustomWebPage(object):

@@ -4,8 +4,8 @@
 # Created by Francesco Porcari on 2017-01-01.
 # Copyright (c) 2017 Softwell. All rights reserved.
 from __future__ import print_function
-from builtins import str
-from builtins import object
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,websocket_method,metadata
 from gnr.xtnd.gnrpandas import GnrPandas

@@ -5,10 +5,6 @@ This code is intended to be read, not executed. However, it does work
 
 (The name is a pun on the klunkier predecessor of this module, "ni".)
 """
-from __future__ import print_function
-
-from future import standard_library
-standard_library.install_aliases()
 import sys, imp, builtins
 
 # Replacement for __import__()

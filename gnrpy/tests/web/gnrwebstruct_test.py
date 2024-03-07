@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import py.test
+import pytest
 
 from gnr.web.gnrwebstruct import GnrDomSrc, struct_method, StructMethodError
 
@@ -38,7 +38,7 @@ def test_valid_override_methods():
         pass
 
 def test_invalid_override_methods():
-    with py.test.raises(StructMethodError):
+    with pytest.raises(StructMethodError):
         @struct_method
         def foo1():
             pass

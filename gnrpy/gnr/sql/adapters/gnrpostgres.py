@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -21,8 +21,10 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import sys
 import re
 import select
+
 try:
     import psycopg2
 except ImportError:

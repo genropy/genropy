@@ -1,5 +1,5 @@
 # encoding: utf-8
-from builtins import object
+
 
 import pytz
 from datetime import datetime as dt

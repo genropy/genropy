@@ -7,7 +7,7 @@
 """Test drop uploader"""
 from __future__ import print_function
 
-from builtins import object
+
 from gnr.core.gnrlist import XlsReader
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrdecorator import public_method

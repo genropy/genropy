@@ -51,8 +51,8 @@ def calculateMultiPerc(multiperc):
 def partitionTotals(totals,quotes,places=2,rounding=None):
     if not isinstance(totals,list):
         totals = [totals]
-    totals = map(Decimal,totals)
-    quotes = map(Decimal,quotes)
+    totals = list(map(Decimal,totals))
+    quotes = list(map(Decimal,quotes))
     residues = list(totals)
     tot_quotes = sum(quotes)
     n_quotes = len(quotes)

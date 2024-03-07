@@ -1,22 +1,22 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<GenRoBag><packages tag="package_list"><video name_short="video" comment="video package" name_full="video" tag="package" name_long="video"><tables tag="table_list"><people pkey="id" name_short="people" tag="table" pkg="video" rowcaption="name,year:%s (%s)" fullname="video.people" name_long="People"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
-<name _T="BAG" name_short="N." tag="column" name_long="Name"></name>
-<year _T="BAG" name_short="Yr" dtype="L" tag="column" name_long="Birth Year"></year>
-<nationality _T="BAG" name_short="Ntl" tag="column" name_long="Nationality"></nationality>
+<GenRoBag><packages tag="package_list"><video tag="package" comment="video package" name_short="video" name_long="video" name_full="video"><tables tag="table_list"><people name_short="people" name_long="People" pkey="id" rowcaption="name,year:%s (%s)" pkg="video" fullname="video.people" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
+<name _T="BAG" name_short="N." name_long="Name" tag="column"></name>
+<year _T="BAG" dtype="L" name_short="Yr" name_long="Birth Year" tag="column"></year>
+<nationality _T="BAG" name_short="Ntl" name_long="Nationality" tag="column"></nationality>
 <foo _T="BAG" tag="column"></foo></columns></people>
-<cast pkey="id" name_short="cast" tag="table" pkg="video" rowcaption="" fullname="video.cast" name_long="Cast"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
-<movie_id name_short="Mid" dtype="L" tag="column" name_long="Movie id"><relation _T="BAG" related_column="movie.id" mode="relation"></relation></movie_id>
-<person_id name_short="Prs" dtype="L" tag="column" name_long="Person id"><relation _T="BAG" related_column="people.id" mode="relation"></relation></person_id>
-<role _T="BAG" name_short="Rl." tag="column" name_long="Role"></role>
-<prizes _T="BAG" name_short="Priz." tag="column" size="40" name_long="Prizes"></prizes></columns></cast>
-<movie pkey="id" name_short="Mv" tag="table" pkg="video" rowcaption="title" fullname="video.movie" name_long="Movie"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
-<title _T="BAG" name_short="Ttl." validate_case="capitalize" validate_len="3,40" tag="column" name_long="Title"></title>
-<genre _T="BAG" validate_case="upper" validate_len="3,10" name_short="Gnr" tag="column" indexed="y" name_long="Genre"></genre>
-<year _T="BAG" name_short="Yr" dtype="L" tag="column" indexed="y" name_long="Year"></year>
-<nationality _T="BAG" name_short="Ntl" tag="column" name_long="Nationality"></nationality>
-<description _T="BAG" name_short="Dsc" tag="column" name_long="Movie description"></description></columns></movie>
-<dvd pkey="code" name_short="Dvd" tag="table" pkg="video" fullname="video.dvd" name_long="Dvd"><columns tag="column_list"><code _T="BAG" dtype="L" tag="column"></code>
-<movie_id name_short="Mid" dtype="L" tag="column" name_long="Movie id"><relation _T="BAG" related_column="movie.id" mode="relation"></relation></movie_id>
-<purchasedate _T="BAG" name_short="Pdt" dtype="D" tag="column" name_long="Purchase date"></purchasedate>
-<available _T="BAG" name_short="Avl" tag="column" name_long="Available"></available></columns></dvd>
-<actor pkey="id" name_short="act" tag="table" pkg="video" fullname="video.actor" name_long="actor"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id></columns></actor></tables></video></packages></GenRoBag>
+<cast name_short="cast" name_long="Cast" pkey="id" rowcaption="" pkg="video" fullname="video.cast" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
+<movie_id dtype="L" name_short="Mid" name_long="Movie id" tag="column"><relation _T="BAG" related_column="video.movie.id" mode="relation" onUpdate_sql="cascade"></relation></movie_id>
+<person_id dtype="L" name_short="Prs" name_long="Person id" tag="column"><relation _T="BAG" related_column="video.people.id" mode="relation" onUpdate_sql="cascade"></relation></person_id>
+<role _T="BAG" name_short="Rl." name_long="Role" tag="column"></role>
+<prizes _T="BAG" size="40" name_short="Priz." name_long="Prizes" tag="column"></prizes></columns></cast>
+<movie name_short="Mv" name_long="Movie" pkey="id" rowcaption="title" pkg="video" fullname="video.movie" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
+<title _T="BAG" name_short="Ttl." name_long="Title" validate_case="capitalize" validate_len="3:40" tag="column"></title>
+<genre _T="BAG" name_short="Gnr" name_long="Genre" indexed="y" validate_case="upper" validate_len="3:10" tag="column"></genre>
+<year _T="BAG" dtype="L" name_short="Yr" name_long="Year" indexed="y" tag="column"></year>
+<nationality _T="BAG" name_short="Ntl" name_long="Nationality" tag="column"></nationality>
+<description _T="BAG" name_short="Dsc" name_long="Movie description" tag="column"></description></columns></movie>
+<dvd name_short="Dvd" name_long="Dvd" pkey="code" pkg="video" fullname="video.dvd" tag="table"><columns tag="column_list"><code _T="BAG" dtype="L" tag="column"></code>
+<movie_id dtype="L" name_short="Mid" name_long="Movie id" tag="column"><relation _T="BAG" related_column="video.movie.id" mode="relation" onUpdate_sql="cascade"></relation></movie_id>
+<purchasedate _T="BAG" dtype="D" name_short="Pdt" name_long="Purchase date" tag="column"></purchasedate>
+<available _T="BAG" name_short="Avl" name_long="Available" tag="column"></available></columns></dvd>
+<actor name_short="act" name_long="actor" pkey="id" pkg="video" fullname="video.actor" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id></columns></actor></tables></video></packages></GenRoBag>

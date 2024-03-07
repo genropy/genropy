@@ -23,19 +23,21 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-#from builtins import object
 import os
 import sys
 import shutil
 import urllib.request, urllib.parse, urllib.error
 import _thread
 import copy
-
 from time import time
 from datetime import timedelta
+from mako.lookup import TemplateLookup
+from base64 import b64decode
+import re
+import datetime
+
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
-from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
@@ -52,14 +54,10 @@ from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
 from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated,callers
+from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
-from base64 import b64decode
-import re
-import datetime
-from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -1027,8 +1025,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         if callable(method):
@@ -1082,8 +1080,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         handler = None
@@ -2006,7 +2004,7 @@ class GnrWebPage(GnrBaseWebPage):
     def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
-        :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
+        :param _auth: the page authorizations. For more information, check the :ref:`auth` page
         :param debugger: TODO"""
         page = self.domSrcFactory.makeRoot(self)
         self._root = page

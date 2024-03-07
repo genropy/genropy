@@ -7,7 +7,7 @@
 """Tree with drag & drop"""
 from __future__ import print_function
 
-from builtins import object
+
 from gnr.core.gnrbag import Bag, DirectoryResolver
 
 print('Tree with drag & drop')

@@ -1,29 +1,30 @@
 import json
-
-from gnr.core.gnrbag import Bag
-from werkzeug.wrappers import Request, Response
-from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
-from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
-
 import os
 import re
 import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
-import pickle
-import datetime
-from gnr.core import gnrstring
-from time import time
-from collections import defaultdict
-from gnr.core.gnrcrypto import AuthTokenGenerator
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
-from gnr.core.gnrdecorator import public_method, callers
-from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
-from threading import RLock
 import _thread
 import mimetypes
+import pickle
+from time import time
+from collections import defaultdict
+from threading import RLock
+import pdb
+import warnings
+
+from werkzeug.wrappers import Request, Response
+from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
+
+from gnr.core.gnrbag import Bag
+from gnr.web.gnrwebapp import GnrWsgiWebApp
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+from gnr.core import gnrstring
+from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
+from gnr.core.gnrdecorator import public_method
+from gnr.app.gnrconfig import getGnrConfig
+
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
@@ -40,14 +41,12 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-import pdb
+
 try:
     from werkzeug import EnvironBuilder
 except ImportError:
     from werkzeug.test import EnvironBuilder
 from gnr.web.gnrheadlesspage import GnrHeadlessPage
-
-import warnings
 
 mimetypes.init()
 
@@ -498,7 +497,6 @@ class GnrWsgiSite(object):
             return self.not_found_exception(environ, start_response)
         return storageNode.serve(environ, start_response,**kwargs)
 
-    #@callers()
     def getStaticPath(self, static, *args, **kwargs):
         """TODO
 

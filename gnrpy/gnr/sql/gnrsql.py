@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsql : Genro sql db connection.
@@ -341,7 +341,7 @@ class GnrSqlDb(GnrObject):
         
     def _get_locale(self):
         """property currentEnv - Return the workdate currently used in this thread"""
-        return self.currentEnv.get('locale') or locale.getdefaultlocale()[0]
+        return self.currentEnv.get('locale') or locale.getlocale()[0]
         
     def _set_locale(self, locale):
         self.currentEnv['locale'] = locale

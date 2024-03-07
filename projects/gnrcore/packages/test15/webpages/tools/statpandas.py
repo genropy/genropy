@@ -6,7 +6,7 @@
 
 
 from __future__ import print_function
-from builtins import object
+
 from gnr.core.gnrdecorator import websocket_method, public_method
 
 
