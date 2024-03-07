@@ -21,7 +21,7 @@ from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
+from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
 from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 
