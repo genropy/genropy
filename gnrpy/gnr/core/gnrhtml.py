@@ -272,7 +272,9 @@ class GnrHtmlBuilder(object):
                  page_margin_left=None, page_margin_right=None, page_margin_bottom=None,
                  showTemplateContent=None,
                  htmlTemplate=None, page_debug=False,page_styles=None, srcfactory=None, css_requires=None,
-                 print_button=None, bodyAttributes=None,parent=None,default_kwargs=None,**kwargs):
+                 print_button=None, bodyAttributes=None,parent=None,default_kwargs=None,translationService=None,
+                 localizer=None,localize_to=None,
+                    from_language=None,to_language=None,**kwargs):
         self.srcfactory = srcfactory or GnrHtmlSrc
         self.htmlTemplate = htmlTemplate or Bag()
         top_layer = Bag()
@@ -294,6 +296,11 @@ class GnrHtmlBuilder(object):
         self.showTemplateContent = showTemplateContent
         self.parent = parent
         self.default_kwargs = default_kwargs
+        self.from_language = from_language
+        self.to_language = to_language
+        self.localize_to = localize_to
+        self.translationService = translationService
+        self.localizer = localizer
 
     def initializeSrc(self, body_attributes=None,**kwargs):
         """TODO"""
@@ -508,13 +515,24 @@ class GnrHtmlBuilder(object):
         if isinstance(filepath,str):
             filepath = expandpath(filepath)
         self.finalize(self.body)
-        self.html = self.root.toXml(filename=filepath,
+        html = self.root.toXml(filename=filepath,
                                     omitRoot=True,
                                     autocreate=True,
                                     forcedTagAttr='tag',
+                                    translate_cb=self.localize_cb,
                                     addBagTypeAttr=False, typeattrs=False, self_closed_tags=['meta', 'br', 'img'],
                                     docHeader='<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
+        if self.to_language:
+            if self.translationService is not None:
+                html = self.translationService.translate(html,to_language=self.to_language,
+                                                    from_language=self.from_language)
+        self.html = html
         return self.html
+    
+    def localize_cb(self,txt,language=None):
+        if self.localizer:
+            return self.localizer.translate(txt=txt,language=self.localize_to or language)
+        return txt
 
     def toPdf(self,filename,**kwargs):
         from weasyprint import HTML

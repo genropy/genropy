@@ -184,7 +184,8 @@ class GnrWebConnection(GnrBaseProxy):
             if exclude_guest and user.startswith('guest_') or user == self.page.user:
                 continue
             _customClasses = []
-            row['_pkey'] = user
+            userkey = user.replace('.','_').replace('@','_')
+            row['_pkey'] = userkey
             row['iconClass'] = 'greenLight'
             last_refresh_ts = arguments.get('last_refresh_ts') or arguments['start_ts']
             last_user_ts = arguments.get('last_user_ts') or arguments['start_ts']
@@ -203,7 +204,7 @@ class GnrWebConnection(GnrBaseProxy):
             row['caption'] = arguments['user_name'] or user
             row.update(arguments)
             row.pop('datachanges', None)
-            result.setItem(user, None, **row)
+            result.addItem(userkey, None, **row)
         return result
 
 

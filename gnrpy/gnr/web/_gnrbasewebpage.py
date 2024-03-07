@@ -281,6 +281,7 @@ class GnrBaseWebPage(GnrObject):
             where = '%s AND %s' % (where, condition)
         selection = table.query(columns=columns, where=where,
                                 pkeys=pkeys, addPkeyColumn=False,
+                                ignorePartition=True,subtable='*',
                                 excludeDraft=False,limit=limit,
                                 **condition_args).selection(_aggregateRows=True)
         if sortBy:

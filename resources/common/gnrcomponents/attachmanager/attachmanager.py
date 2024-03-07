@@ -269,16 +269,18 @@ class AttachManager(BaseComponent):
         sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
         """,src=src,_if='src',sc=sc.js_widget)
 
-    @extract_kwargs(default=True)
+    @extract_kwargs(default=True,vpane=True,fpane=True)
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,
-                            design=None,maintable_id=None,uploaderButton=False,ask=None,default_kwargs=None,**kwargs):
+                            design=None,maintable_id=None,uploaderButton=False,ask=None,default_kwargs=None,vpane_kwargs=None,
+                            fpane_kwargs=None,**kwargs):
         design = design or 'sidebar'
         bc = pane.borderContainer(design=design)
         d = dict(sidebar=dict(region='left',width='400px'),headline=dict(region='top',height='300px'))
         kwargs.setdefault('grid_selfDragRows',True)
         kwargs.setdefault('autoSave',True)
+        d[design].update(vpane_kwargs)
         th = bc.contentPane(splitter=True,**d[design]).inlineTableHandler(relation='@atc_attachments',
                                         viewResource=viewResource or 'gnrcomponents/attachmanager/attachmanager:AttachManagerView',
                                         hider=True,statusColumn=True,
@@ -296,8 +298,9 @@ class AttachManager(BaseComponent):
                             _class='importerPaletteDropUploaderBox',
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
                             **{f'rpc_{k}':v for k,v in default_kwargs.items()})
-
-        readerpane = bc.contentPane(region='center',datapath=datapath,margin='2px',border='1px solid silver',overflow='hidden')
+        fpane_kw = dict(margin='2px',border='1px solid silver')
+        fpane_kw.update(fpane_kwargs)
+        readerpane = bc.contentPane(region='center',datapath=datapath,overflow='hidden',**fpane_kw)
         readerpane.dataController('SET .reader_url=fileurl',fileurl='^.view.grid.selectedId?fileurl')
         readerpane.iframe(src='^.reader_url',height='100%',width='100%',avoidCache=True,
                             border=0,documentClasses=True)

@@ -272,13 +272,12 @@ class BaseResourceBatch(object):
         elif self.selectedPkeys:
             pkeys = self.selectedPkeys if not ignoreGridSelectedRow else extra_parameters['allPkeys']
             selection = self.tblobj.query(where='$%s IN :selectedPkeys' %self.tblobj.pkey,selectedPkeys=pkeys,
-                                            excludeDraft=False,excludeLogicalDeleted=False,
+                                            excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
                                             ignorePartition=True,
                                             **selection_kwargs).selection()
         return selection
 
     def _selection_from_savedQuery(self,selection_kwargs):
-        
         userobject_tbl = self.db.table('adm.userobject')
         where = userobject_tbl.loadUserObject(userObjectIdOrCode=self.batch_selection_savedQuery, 
                         objtype='query', tbl=self.tblobj.fullname)[0]
