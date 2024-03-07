@@ -7,7 +7,7 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 from __future__ import print_function
-from builtins import str
+
 from gnr.core.gnrbag import Bag,BagNode
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract

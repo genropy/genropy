@@ -32,6 +32,8 @@ class GnrTimeStamp(object):
         self.lastCount = 0
 
     def get(self, station=1, base=1):
+        # FIXME handle invalid 'base' values to avoid
+        # ZeroDivisionError, for example
         maxcount = int((800000//base) + 0.999)
         while True:
             delta = datetime.datetime.now() - self.startdate
@@ -64,18 +66,3 @@ class GnrTimeStamp(object):
     def getDate(self,gnrts):
         return self.startdate+datetime.timedelta(days=BASE36.index(gnrts[0])*36**2+BASE36.index(gnrts[1])*36+BASE36.index(gnrts[2]))
 
-if __name__ == '__main__':
-    s = GnrTimeStamp()
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=2, base=100))
-    print(s.get(station=3, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=2, base=100))
-    print(s.get(station=3, base=100))
-    print(s.get())
-    print(s.getDate(s.get()))
-
-	

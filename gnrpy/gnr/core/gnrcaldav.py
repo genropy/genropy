@@ -1,10 +1,10 @@
-from __future__ import print_function
-
 from datetime import datetime
 import caldav
 from caldav.elements import dav, cdav
+
 from gnr.core.gnrbag import Bag,VObjectBag
 from gnr.core.gnrlang import getUuid
+
 def test():
     return CalDavConnection(user='giovanni.porcari@softwell.it',password='toporaton',host='p04-caldav.icloud.com',root='/9403090/calendars/')
 def test1():

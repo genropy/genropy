@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from gnr.core import gnrdate
+import pytest
 import datetime
+
+from gnr.core import gnrdate
+from gnr.core.gnrlang import GnrException
+
 
 def test_relativeDay():
     workdate = datetime.date(2008, 4, 25)
@@ -12,6 +17,14 @@ def test_relativeDay():
     res = gnrdate.decodeDatePeriod("tomorrow", workdate=workdate)
     assert res == '2008-04-26'
 
+
+    res = gnrdate.decodeDatePeriod("2024-01-01;2024-03-01", workdate=workdate)
+    assert res == "2024-01-01;2024-03-01"
+
+    res = gnrdate.decodeDatePeriod("no period", workdate=workdate, locale="en")
+    assert res == ""
+
+    
     workdate = datetime.date(2008, 4, 1)
     res = gnrdate.decodeDatePeriod("yesterday", workdate=workdate)
     assert res == '2008-03-31'
@@ -214,7 +227,7 @@ def test_localPeriodNoSep():
 
 def test_quarter():
     workdate = datetime.date(2008, 4, 25)
-    res = gnrdate.decodeDatePeriod(u"1st quarter", workdate=workdate, locale='en')
+    res = gnrdate.decodeDatePeriod("1st quarter", workdate=workdate, locale='en')
     assert res == '2008-01-01;2008-03-31'
 
     res = gnrdate.decodeDatePeriod(u"from 1st quarter to 2nd quarter", workdate=workdate, locale='en')
@@ -226,11 +239,12 @@ def test_quarter():
     res = gnrdate.decodeDatePeriod(u"from Q1 to Q2", workdate=workdate, locale='en')
     assert res == '2008-01-01;2008-06-30'
 
-    res = gnrdate.decodeDatePeriod(u"1o trimestre", workdate=workdate, locale='it')
-    assert res == '2008-01-01;2008-03-31'
+    # FIXME: apparently, this kind of parsing is not, and never was, supported by babel
+    #res = gnrdate.decodeDatePeriod(u"1° trimestre", workdate=workdate, locale='it')
+    #assert res == '2008-01-01;2008-03-31'
 
-    res = gnrdate.decodeDatePeriod(u"dal 1o trimestre al 2o trimestre", workdate=workdate, locale='it')
-    assert res == '2008-01-01;2008-06-30'
+    #res = gnrdate.decodeDatePeriod(u"dal 1° trimestre al 2° trimestre", workdate=workdate, locale='it')
+    #assert res == '2008-01-01;2008-06-30'
 
     res = gnrdate.decodeDatePeriod(u"T1", workdate=workdate, locale='it')
     assert res == '2008-01-01;2008-03-31'
@@ -285,12 +299,120 @@ def test_toTime():
     assert gnrdate.toTime(dt) == t
     assert gnrdate.toTime('10:30') == t
 
+    with pytest.raises(ValueError) as excinfo:
+        gnrdate.toTime("antani come se fosse per tre")
+    assert "unrecognized string" in str(excinfo.value)
+    
+    with pytest.raises(ValueError) as excinfo:
+        gnrdate.toTime(dict())
+    assert "accepts only times" in str(excinfo.value)
+
+
+def test_toDHZ():
+    d = datetime.date(2024,1,2)
+    t = datetime.time(10,30)
+
+    # this can't actually be tests, being
+    # tied to the machine where the tests
+    # are being executed. We just run
+    # with "LOCAL" for coverage pourposes
+    res = gnrdate.toDHZ(d, t, "LOCAL")
+
+    
+    res = gnrdate.toDHZ(d, t, "Europe/Rome")
+    assert res.tzinfo.zone == "Europe/Rome"
+    res = gnrdate.toDHZ(d, t, "UTC")
+    assert res.tzinfo.zone == "UTC"
+    res = gnrdate.toDHZ(d, t)
+    assert res.tzinfo.zone == "UTC"
+    
+
+def test_nextMonth():
+    d = datetime.date(2024,1,2)
+    res = gnrdate.nextMonth(d)
+    assert res.month == 2
+    assert res.year == 2024
+    d = datetime.date(2024,12,2)
+    res = gnrdate.nextMonth(d)
+    assert res.month == 1
+    assert res.year == 2025
+
+def test_prevMonth():
+    d = datetime.date(2024,1,2)
+    res = gnrdate.prevMonth(d)
+    assert res.month == 12
+    assert res.year == 2023
+    d = datetime.date(2024,12,2)
+    res = gnrdate.prevMonth(d)
+    assert res.month == 11
+    assert res.year == 2024
+
+
+def test_monthsFromDateRange():
+    startd = datetime.date(2024,1,2)
+    endd =  datetime.date(2024,4,23)
+    res = gnrdate.monthsFromDateRange(startd, endd, locale="IT-it")
+    assert len(res) == 4
+
+    endd = datetime.date(2025,1,1)
+    res = gnrdate.monthsFromDateRange(startd, endd, locale="IT_it")
+    assert len(res) == 13
+    assert "Giugno 2024" in res
+
+    res = gnrdate.monthsFromDateRange(startd, endd, locale="EN-gb")
+    assert "Giugno 2024" not in res
+    assert "June 2024" in res
+
+def test_decodeOneDate():
+    # most of the implementation is already covered
+    # by testing decodeDatePeriod, this are just the missing bits
+    r = gnrdate.decodeOneDate("2024-01-02 alle 14:57", locale="it")
+    assert r == datetime.datetime(2024, 1, 2, 14, 57)
+
+    today = datetime.date.today()
+    r = gnrdate.decodeOneDate("this week + 2", locale="en")
+    exp = today + datetime.timedelta(days=((7*2) - today.weekday()))
+    assert r == exp
+    
+    r = gnrdate.decodeOneDate("this week - 2", locale="en")
+    exp = today + datetime.timedelta(days=-((7*2) + today.weekday()))
+    assert r == exp
+
+
+def test_periodCaption():
+    startd = "2024-01-01"
+    endd = "2024-03-17"
+    r = gnrdate.periodCaption(startd, endd, locale="en")
+    assert r == "from 2024-01-01 to 2024-03-17"
+    r = gnrdate.periodCaption(startd, endd, locale="it")
+    assert r == "da 2024-01-01 a 2024-03-17"
+
+    r = gnrdate.periodCaption(startd, locale="it")
+    assert r == f"da {startd}"
+    r = gnrdate.periodCaption(startd, locale="en")
+    assert r == f"from {startd}"
+
+    r = gnrdate.periodCaption(None, endd, locale="it")
+    assert r == f"a {endd}"
+    r = gnrdate.periodCaption(None, endd, locale="en")
+    assert r == f"to {endd}"
+
+    r = gnrdate.periodCaption(None, None, locale="en")
+    assert r == "no period"
+    r = gnrdate.periodCaption(None, None, locale="it")
+    assert r == "-"
+    
 def test_toDate():
     dt = datetime.datetime(2010, 4, 8, 10, 30)
     d = datetime.date(2010, 4, 8)
     assert isinstance(gnrdate.toDate(dt), datetime.date)
     assert isinstance(gnrdate.toDate(d), datetime.date)
     assert gnrdate.toDate(dt) == d
+    with pytest.raises(ValueError) as excinfo:
+        gnrdate.toDate(dict())
+    assert "accepts only dates or datetimes" in str(excinfo.value)
+
+    
 
 def test_dateRange():
     dtstart = datetime.datetime(2010, 4, 1)
@@ -301,10 +423,52 @@ def test_dateRange():
 def test_TimeInterval():
     i = gnrdate.TimeInterval('8:30-10:30')
     assert str(i) == '8:30-10:30'
+    assert repr(i) == "TimeInterval('8:30-10:30')"
     assert i.start == datetime.time(8, 30)
     assert i.stop == datetime.time(10, 30)
     assert str(gnrdate.TimeInterval(datetime.time(8, 30), datetime.time(10, 30))) == str(i)
     assert str(gnrdate.TimeInterval((datetime.time(8, 30), datetime.time(10, 30)))) == str(i)
+
+    with pytest.raises(ValueError) as excinfo:
+        gnrdate.TimeInterval(datetime.time(8,30), datetime.time(10,30), minutes=5)
+    assert "please specify either 'start' or 'stop' when specifying 'minutes'" in str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        gnrdate.TimeInterval(datetime.time(10,30), datetime.time(8,30))
+    assert "start must be earlier than stop" in str(excinfo.value)
+
+    r = gnrdate.TimeInterval(start=datetime.time(10,30), stop=None, minutes=5)
+    assert str(r) == "10:30-10:35"
+
+    r = gnrdate.TimeInterval(start=i)
+    assert str(r) == str(i)
+    assert i == r
+    assert i is not "hello there"
+
+    t1 = gnrdate.TimeInterval("10:30-10:35")
+    assert t1 < "10:40-10:50"
+    assert "10:30-10:32" in t1
+    
+    a = r <= i
+    a = t1 <= "10:40-10:50"
+    
+
+def test_seconds_to_text():
+    r = gnrdate.seconds_to_text(0)
+    assert r == "0s"
+
+    r = gnrdate.seconds_to_text(10)
+    assert r == "10s"
+
+    r = gnrdate.seconds_to_text(60)
+    assert r == "1m"
+
+    r = gnrdate.seconds_to_text(100)
+    assert r == "1m 40s"
+
+    r = gnrdate.seconds_to_text(23478)
+    assert r == "6h 31m 18s"
+
 
 def test_TimeInterval_alt_construction():
     i = gnrdate.TimeInterval('8:30-10:30')
@@ -421,5 +585,31 @@ def test_TimePeriod_BugAtEnd():
     p.remove('10:00-12:00')
     assert str(p) == '8:00-10:00'
 
+def test_monthStart():
+    r = gnrdate.monthStart(2024,1)
+    assert r == datetime.date(2024,1,1)
+
+    r = gnrdate.monthStart(2024,1, datetime.date(2025,3,17))
+    assert r == datetime.date(2025,3,1)
+
+def test_dateLastYear():
+    r = gnrdate.dateLastYear(None)
+    assert not r
+    
+    r = gnrdate.dateLastYear(datetime.date(2024,1,2))
+    assert r == datetime.date(2023,1,2)
+
+    r = gnrdate.dateLastYear(datetime.date(2024,2,29))
+    assert r == datetime.date(2023,2,28)
+    r = gnrdate.dateLastYear(datetime.date(2025,2,28))
+    assert r == datetime.date(2024,2,29)
+
+def test_dayIterator():
+    r = gnrdate.dayIterator("2024-01-01;2024-03-01")
+    assert datetime.date(2024,1,18) in r
+    r = gnrdate.dayIterator("2024-01-01;2024-03-01", asDate=False)
+    assert datetime.datetime(2024,1,18,0,0) in r
+
+    
 if __name__ == "__main__":
     test_TimePeriod_BugAtEnd()

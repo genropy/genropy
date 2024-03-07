@@ -3,8 +3,8 @@
 # Copyright (c) 2004 Softwell sas - Milano see LICENSE for details
 # Author Giovanni Porcari, Francesco Cavazzana, Saverio Porcari, Francesco Porcari
 from __future__ import print_function
-from builtins import str
-#from builtins import object
+
+
 import os
 import time, datetime
 from logging.handlers import TimedRotatingFileHandler

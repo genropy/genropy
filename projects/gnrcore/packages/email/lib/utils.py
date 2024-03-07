@@ -2,11 +2,9 @@
 # encoding: utf-8
 
 from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
+
 from past.builtins import basestring
-from builtins import object
+
 import email, imaplib,datetime
 from email.generator import Generator as EmailGenerator
 from gnr.core.gnrlang import getUuid

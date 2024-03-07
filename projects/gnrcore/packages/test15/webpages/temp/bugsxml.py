@@ -6,7 +6,7 @@
 
 "Test page description"
 from __future__ import print_function
-from builtins import object
+
 from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):

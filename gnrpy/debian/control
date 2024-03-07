@@ -1,0 +1,11 @@
+Source: genropy
+Maintainer: Christopher R. Gabriel <christopher.gabriel@gmail.com>
+Section: python
+Priority: optional
+Build-Depends: dh-python, python3-all, debhelper (>= 9), python3-setuptools (>= 0.6b3)
+Homepage: https://www.genropy.org/
+
+Package: genropy
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Genropy Web Framework

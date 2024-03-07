@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
 # module gnrstandardpages : Genro Web standard pages methods
@@ -26,10 +26,9 @@
 import zipfile
 import io
 import datetime
+from decimal import Decimal
 
 from gnr.core import gnrstring
-
-from decimal import Decimal
 
 class TableBuilder(object):
     def __init__(self, page, source=None, title='', tableclass='', thead='', row_template='', row_cb=None,

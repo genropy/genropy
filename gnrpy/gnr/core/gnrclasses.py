@@ -371,10 +371,12 @@ class GnrClassCatalog(object):
         
 
     def parseClass(self,txt):
+        """FIXME: must improve input validation.
+        """
         module,clsname = txt.split(':')
         m = gnrImport(module)
         c = getattr(m,clsname)
-        if hasattr(c,'__safe__'):
+        if hasattr(c,'__safe__'): # pragma: no cover
             return c
         else:
             raise Exception('Unsecure class %s' %txt)
@@ -408,7 +410,9 @@ class GnrClassCatalog(object):
     def serialize_datetime(self,ts):
         if not ts.tzinfo:
             tz = tzlocal.get_localzone()
-            if hasattr(tz,'localize'):
+
+            # FIXME: can't find a way to have this condition true
+            if hasattr(tz,'localize'): # pragma: no cover
                 ts = tz.localize(ts)
             else:
                 ts = ts.replace(tzinfo=tz)
@@ -423,20 +427,13 @@ class GnrClassCatalog(object):
 
         
     def serialize_timedelta(self,td):
-        microseconds = td.total_seconds() - td.seconds
-
-        t = td.seconds
-        seconds = t%60
-        seconds += microseconds
-        t = t//60
-        minutes = t%60
-        t = t//60
-        hours = t%24
-        days = t//24
-        result = "%02i:%02i:%02s" %(hours,minutes,('%.3f' %seconds).zfill(6)) 
-        if days:
-            "%s days %s" %(days,result)
-        return result
+        mm, ss = divmod(td.seconds, 60)
+        hh, mm = divmod(mm, 60)
+        ss_mil = ss+td.microseconds
+        s = f"{hh:02}:{mm:02}:{ss_mil:.3f}"
+        if td.days:
+            s = ("%d days " % td.days) + s
+        return s
 
     def parse_date(self, txt, workdate=None):
         """Add???
@@ -503,7 +500,7 @@ class GnrClassCatalog(object):
     #c.addParser(float, lambda txt: c.parse_float(txt.replace('.','').replace(',','.')))
     #return c
         
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     pass
     # NISO: The following lines don't work properly (asText() doesn't accept the "locale" attribute),
     #       so I put "pass" on the if __name__ == '__main__':

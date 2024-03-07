@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from gnr.core.gnrlang import GnrException
-
+import re
 import getpass
 import select
 import socketserver
@@ -15,7 +11,9 @@ except ImportError:
     paramiko = False
 import atexit
 import _thread
-import re
+
+from gnr.core.gnrlang import GnrException
+
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)"
 CONN_STRING = re.compile(CONN_STRING_RE)
 

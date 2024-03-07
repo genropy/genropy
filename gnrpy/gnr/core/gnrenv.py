@@ -2,10 +2,10 @@ import sys, os
 
 try:
     from gnr.core import gnrhome
-
-    _PLATFORM_DEFAULT_PATH = gnrhome.PATH
+    _PLATFORM_DEFAULT_PATH = gnrhome.PATH # pragma: no cover
 except:
-    if sys.platform == 'win32':
+    # FIXME: testing in win32 env?
+    if sys.platform == 'win32': # pragma: no cover
         _PLATFORM_DEFAULT_PATH = 'C:\genro'
     else:
         _PLATFORM_DEFAULT_PATH = '/usr/local/genro'

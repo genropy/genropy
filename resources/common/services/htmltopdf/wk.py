@@ -1,7 +1,7 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from builtins import str
+
 import os
 
 from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError

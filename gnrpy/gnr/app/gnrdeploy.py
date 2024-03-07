@@ -6,6 +6,7 @@ import glob
 import shutil
 import random
 import string
+import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
@@ -93,15 +94,33 @@ def get_gnrdaemon_port(set_last=False):
     return str(gnrdaemon_port)
 
 def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, gnrdaemon_port=None):
-    genropy_home = os.path.dirname(gnrpy_path)
-    genropy_projects = os.path.join(genropy_home,'projects')
+    genropy_home = gnrpy_path
+    print(genropy_home)
+
+    # hack to understand if we're running genropy from a checkout
+    # or from an installation
+    if "gnrpy" in genropy_home:
+        genropy_home = os.path.realpath(os.path.join(genropy_home, "..", ".."))
+        print("HACK", genropy_home)
+        genropy_projects = os.path.join(genropy_home,'projects')
+        genropy_packages = os.path.join(genropy_home,'packages')
+        genropy_resources = os.path.join(genropy_home,'resources')
+        genropy_webtools = os.path.join(genropy_home,'webtools')
+        dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+    else:
+        genropy_projects = os.path.join(genropy_home,'projects')
+        genropy_packages = os.path.join(genropy_home,'packages')
+        genropy_resources = os.path.join(genropy_home,'resources')
+        genropy_webtools = os.path.join(genropy_home,'webtools')
+        dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+
+    # FIXME: this needs to be handled differently when we're installing the package
+    # otherwise genropy_project will be helded inside {dist,site}-packages dir
     custom_projects = os.path.normpath(os.path.join(genropy_home,'..','genropy_projects'))
     create_folder(custom_projects)
-    genropy_packages = os.path.join(genropy_home,'packages')
-    genropy_resources = os.path.join(genropy_home,'resources')
-    genropy_webtools = os.path.join(genropy_home,'webtools')
-    dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
-    gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+    
     environment_bag = Bag()
     environment_bag.setItem('environment.gnrhome', None, dict(value=genropy_home))
     environment_bag.setItem('projects.genropy', None, dict(path=genropy_projects))
@@ -145,9 +164,8 @@ def check_file(xml_path=None):
     if os.path.exists(xml_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
-def initgenropy(gnrpy_path=None,gnrdaemon_password=None,avoid_baseuser=False):
-    if not gnrpy_path or not os.path.basename(gnrpy_path)=='gnrpy':
-        raise GnrConfigException("You are not running this script inside a valid gnrpy folder")
+def initgenropy(gnrdaemon_password=None,avoid_baseuser=False):
+    gnrpy_path = os.path.dirname(gnrbase.__file__)
     config_path  = gnrConfigPath(force_return=True)
     instanceconfig_path = os.path.join(config_path,'instanceconfig')
     siteconfig_path = os.path.join(config_path,'siteconfig')

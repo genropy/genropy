@@ -5,7 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
-from builtins import str
+
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method

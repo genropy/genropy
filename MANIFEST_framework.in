@@ -1,3 +1,0 @@
-recursive-include gnrjs *.css *.js *.gif *.jpg *.png
-recursive-include gnrpy/packages *.py *.xml *.txt
-recursive-include bin *

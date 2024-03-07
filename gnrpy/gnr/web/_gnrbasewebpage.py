@@ -30,7 +30,6 @@ import sys
 import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
-
 import logging
 
 gnrlogger = logging.getLogger(__name__)
@@ -281,6 +280,7 @@ class GnrBaseWebPage(GnrObject):
             where = '%s AND %s' % (where, condition)
         selection = table.query(columns=columns, where=where,
                                 pkeys=pkeys, addPkeyColumn=False,
+                                excludeLogicalDeleted=False,
                                 ignorePartition=True,subtable='*',
                                 excludeDraft=False,limit=limit,
                                 **condition_args).selection(_aggregateRows=True)

@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 #from gnr.core.gnrbag import Bag
-from builtins import object
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import stringDict,asDict,slugify

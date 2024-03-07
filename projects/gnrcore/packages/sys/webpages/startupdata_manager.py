@@ -6,9 +6,7 @@
 #  Created by Francesco Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
+
 import os
 import gzip
 from io import StringIO

@@ -1,6 +1,6 @@
 # encoding: utf-8
 from __future__ import division
-from builtins import object
+
 from past.utils import old_div
 import datetime
 from gnr.core.gnrdict import dictExtract

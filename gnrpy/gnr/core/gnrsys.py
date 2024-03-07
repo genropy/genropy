@@ -20,19 +20,18 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
 import os
 import sys
 
-def progress(count, total, status=''):
+def progress(count, total, status='', fd=sys.stdout):
     bar_len = 60
     filled_len = int(round(bar_len * count / float(total)))
 
     percents = round(100.0 * count / float(total), 1)
     bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
-    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
-    sys.stdout.flush() 
+    fd.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
+    fd.flush() 
 
 
 def mkdir(path, privileges=0o777):
@@ -43,8 +42,14 @@ def mkdir(path, privileges=0o777):
                        Default value is ``0777`` (octal)"""
     if path and not os.path.isdir(path):
         head, tail = os.path.split(path)
+
         mkdir(head, privileges)
+        # on some systems, privileges are ignored, needs explicit call
+        os.chmod(head, privileges)
+        
         os.mkdir(path, privileges)
+        # on some systems, privileges are ignored, needs explicit call
+        os.chmod(path, privileges)
         
 def expandpath(path, full=False):
     """Expand user home directory (~) and environment variables. Return the
@@ -105,9 +110,4 @@ def resolvegenropypath(path):
             path = expandpath(path)
             if os.path.exists(path):
                 return path
-                
-if __name__ == '__main__':
-    # test for resolvegenropypath
-    print(resolvegenropypath('~/genropy/genro/projects/devlang/packages/devlang/lib/developers.txt'))
-    print(resolvegenropypath('/genropy/genro/projects/devlang/packages/devlang/lib/developers.txt'))
-    print(resolvegenropypath('genropy/genro/projects/devlang/packages/devlang/lib/developers.txt'))
+
