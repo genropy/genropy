@@ -34,7 +34,7 @@ from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
-
+from gnr.core.gnrcrypto import AuthTokenGenerator
 
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -259,7 +259,7 @@ class GnrWsgiSite(object):
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
-        self.auth_token_generator = AuthTokenGenerator(self.external_secret)
+        self.auth_token_generator = (self.external_secret)
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
