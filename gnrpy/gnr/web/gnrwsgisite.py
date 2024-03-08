@@ -21,7 +21,7 @@ from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
+from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
 from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 
@@ -259,7 +259,7 @@ class GnrWsgiSite(object):
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
-        self.auth_token_generator = (self.external_secret)
+        self.auth_token_generator = AuthTokenGenerator(self.external_secret)
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
