@@ -200,11 +200,11 @@ class Main(BaseResourceBatch):
             df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
             translator = AppLocalizer(self.db.application) 
             if df_rst:
-                params = translator.getTranslation('!!Parameter name', language=self.handbook_record['language']).get('translation') or 'Parameters'
+                params = translator.getTranslation('!!Parameters', language=self.handbook_record['language']).get('translation') or 'Parameters'
                 rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params}:**\n\n{df_rst}'
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                atcs = translator.getTranslation('!!Parameter name', language=self.handbook_record['language']).get('translation') or 'Attachments'
+                atcs = translator.getTranslation('!!Attachments', language=self.handbook_record['language']).get('translation') or 'Attachments'
                 rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{atcs}:**\n\n{atc_rst}'
             
             if self.examples_root and self.curr_sourcebag:
