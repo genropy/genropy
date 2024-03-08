@@ -50,7 +50,7 @@ dependencies = [
 	     "psutil",
 	     "simpleeval",
 	     "webob",
-	     "werkzeug<3.0",
+	     "werkzeug==2.3.8",
 	     "six", # evaluate if needed
 	     "tzlocal",
 	     "pyyaml",
