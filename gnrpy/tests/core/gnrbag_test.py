@@ -342,7 +342,7 @@ class MyResolver(BagResolver):
 
         result['pid'] = os.getpid()
         result['user'] = os.getenv('USER')
-        result['ID'] = result['ip'] + '-' + str(result['pid']) + '-' + result['user']
+        result['ID'] = f"{result['ip']}-{result['pid']}-{result['user']}"
         return result
 
 def testToTree():
