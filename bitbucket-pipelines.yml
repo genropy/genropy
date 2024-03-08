@@ -7,7 +7,57 @@ pipelines:
         script:
           - apk add --update --no-cache openssh git
           - git push git@github.com:genropy/genropy.git
+  branches:
+    develop:
+      - parallel:
+          steps:
+            - step:
+                name: Tests against python 3.8
+                image: python:3.8-bookworm
+                caches:
+                  - pip
+                script:
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - pytest tests/core
 
+            - step:
+                name: Tests against python 3.9
+                image: python:3.9-bookworm
+                caches:
+                  - pip
+                script:
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - pytest tests/core
+            - step:
+                name: Tests against python 3.10
+                image: python:3.10-bookworm
+                caches:
+                  - pip
+                script:
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - pytest tests/core
+            - step:
+                name: Tests against python 3.11
+                image: python:3.11-bookworm
+                caches:
+                  - pip
+                script:
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - pytest tests/core
+            - step:
+                name: Tests against python 3.12
+                image: python:3.12.1-bookworm
+                caches:
+                  - pip
+                script:
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - pytest tests/core
+                  
   tags:
     ecr-release-*:
       - step:
