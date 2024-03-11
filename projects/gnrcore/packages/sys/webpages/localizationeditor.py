@@ -134,7 +134,7 @@ class GnrCustomWebPage(object):
             items.setItem(s['code'],s['code'],folderPath=s['destFolder'],code=s['code'])
         form.data('.blocks',items)
         bar = form.top.slotToolbar('2,mb,10,fblang,*,20,updateLoc,5,autoTranslate,20,form_revert,form_save,form_semaphore,2')
-        if len(items)<10:
+        if len(items)<20:
             bar.mb.multiButton(value='^.currentLocalizationBlock',items='^.blocks',caption='code')
         else:
             bar.mb.formbuilder(cols=1,border_spacing='3px').filteringSelect(
