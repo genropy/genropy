@@ -131,11 +131,17 @@ class GnrCustomWebPage(object):
     def localizerToolbar(self,form):
         items = Bag()
         for s in self.db.application.localizer.slots:
-            items.setItem(s['code'],None,folderPath=s['destFolder'],code=s['code'])
+            items.setItem(s['code'],s['code'],folderPath=s['destFolder'],code=s['code'])
         form.data('.blocks',items)
-
         bar = form.top.slotToolbar('2,mb,10,fblang,*,20,updateLoc,5,autoTranslate,20,form_revert,form_save,form_semaphore,2')
-        bar.mb.multiButton(value='^.currentLocalizationBlock',items='^.blocks',caption='code')
+        if len(items)<20:
+            bar.mb.multiButton(value='^.currentLocalizationBlock',items='^.blocks',caption='code')
+        else:
+            bar.mb.formbuilder(cols=1,border_spacing='3px').filteringSelect(
+                                    value='^.currentLocalizationBlock', lbl='!![en]Package', 
+                                    storepath='.blocks', storeid='code', storecaption='code')
+            bar.dataController("SET .currentLocalizationBlock=blocks._nodes[0].attr.code;", 
+                                    blocks='^.blocks', _onStart=True)
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')
         bar.updateLoc.slotButton('!![en]Rebuild', do_autotranslate=False,
