@@ -80,8 +80,7 @@ class Form(BaseComponent):
         fb.field('language', lbl='!![en]Language')
         fb.field('group_code',lbl='!![en]Main group',hasDownArrow=True)
         fb.checkBoxText('^._other_groups',lbl='!![en]Other groups',
-                        table='adm.group',condition="$code!=COALESCE(:maingroup,'_')",
-                        condition_maingroup='^.group_code',
+                        table='adm.group',
                         _virtual_column='other_groups',popup=True)
         fb.field('avatar_rootpage',lbl='!!Startpage',tip='!!User start page',colspan=2,width='100%')
         fb.field('email', lbl='!!Email',colspan=2,width='100%')

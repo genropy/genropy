@@ -41,7 +41,8 @@ class OrganizerComponent(BaseComponent):
         if formResource is False:
             th = pane.plainTableHandler(**pars)
         else:
-            th = pane.dialogTableHandler(formResource=formResource or 'FormMixedComponent',addrow=[('Annotation',dict(rec_type='AN')),('Action',dict(rec_type='AC'))],**pars)
+            pars.setdefault('addrow',[('Annotation',dict(rec_type='AN')),('Action',dict(rec_type='AC'))])
+            th = pane.dialogTableHandler(formResource=formResource or 'FormMixedComponent',**pars)
         return th
 
     def actionOutcomeDialog(self,pane,formId=None):
