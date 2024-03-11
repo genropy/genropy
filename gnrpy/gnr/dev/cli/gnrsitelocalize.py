@@ -7,7 +7,7 @@ import os
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 
-description = ""
+description = "Missing localization items"
 
 class SiteLocalizer(object):
     def __init__(self):
@@ -28,6 +28,7 @@ class SiteLocalizer(object):
     def do(self):
         missingBag = Bag(os.path.join(self.sitepath, 'data', '_missingloc'))['_missingloc']
         for pkg, mbag in list(missingBag.items()):
+            # FIXME - looks pretty much like an hardcoded path
             pkglocpath = os.path.join('/usr', 'local', 'genro', 'packages', pkg, 'localization.xml')
             if os.path.exists(pkglocpath):
                 pkgloc = Bag(pkglocpath)
