@@ -115,7 +115,12 @@ class Table(object):
            
     @public_method
     def receive_imap(self, page=None, account=None, remote_mailbox='Inbox', local_mailbox='Inbox'):
-        from gnrpkg.email.imap import ImapReceiver
+        from gnr.core.gnrlang import gnrImport
+        import os
+        imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap.py'),
+            silent=False,avoid_module_cache=True)
+        imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap'))
+        ImapReceiver = imap_module.ImapReceiver
         if isinstance(account, basestring):
             account = self.db.table('email.account').record(pkey=account).output('bag')
         print('INIT IMAP RECEIVER', account['account_name'])
