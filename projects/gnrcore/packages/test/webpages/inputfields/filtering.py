@@ -56,3 +56,12 @@ class GnrCustomWebPage(object):
         fb.div('^.filtering')
         fb.div('^.combobox')
 
+    def test_5_localizer(self, pane):
+        "filteringSelect with package selector built by localization manager"
+        items = Bag()
+        for s in self.db.application.localizer.slots:
+            items.setItem(s['code'],s['code'],folderPath=s['destFolder'],code=s['code'])
+        pane.data('.blocks',items)
+        pane.formbuilder(cols=1,border_spacing='3px').filteringSelect(
+                                    value='^.currentLocalizationBlock', lbl='!![en]Package', 
+                                    storepath='.blocks', storeid='code', storecaption='code')
