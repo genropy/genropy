@@ -217,31 +217,31 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
-        
+
         parser.add_argument('--reload-interval',
                             dest='reload_interval',
                             default=1,
                             help="Seconds between checking files (low number can cause significant CPU usage)")
-        
+
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
-        
+
         parser.add_argument('-p', '--port',
                             dest='port',
                             help="Sets server listening port (Default: 8080)")
-        
+
         parser.add_argument('-H', '--host',
                             dest='host',
                             help="Sets server listening address (Default: 0.0.0.0)")
-        
+
         parser.add_argument('--restore',
                             dest='restore',
                             help="Restore from path")
         parser.add_argument('--source_instance',
                             dest='source_instance',
                             help="Import from instance")
-        
+
         parser.add_argument('--remote_edit',
                             dest='remote_edit',
                             action='store_true',
@@ -250,34 +250,34 @@ class Server(object):
                             dest='gzip',
                             action='store_true',
                             help="Enable gzip compressions")
-        
+
         parser.add_argument('--verbose',
                             dest='verbose',
                             action='store_true',
                             help='Verbose')
-        
+
         parser.add_argument('site_name', nargs='?')
         parser.add_argument('-s', '--site',
                             dest='site_name_opt',
                             help="Use command on site identified by supplied name")
-        
+
         parser.add_argument('-n', '--noclean',
                             dest='noclean',
                             help="Don't perform a clean (full reset) restart",
                             action='store_true')
-        
+
         parser.add_argument('--counter',
                             dest='counter',
                             help="Startup counter")
-        
+
         parser.add_argument('--ssl_cert',
                             dest='ssl_cert',
                             help="SSL cert")
-        
+
         parser.add_argument('--ssl_key',
                             dest='ssl_key',
                             help="SSL key")
-        
+
         parser.add_argument('--ssl',
                             dest='ssl',
                             action='store_true',
@@ -331,12 +331,13 @@ class Server(object):
         options = self.options.__dict__
         envopt = dictExtract(os.environ,'GNR_WSGI_OPT_')
         for option in list(options.keys()):
-            if options.get(option, None) is None: # not specified on the command-line
+            if not options.get(option, None): # not specified on the command-line
                 site_option = self.siteconfig['wsgi?%s' % option]
                 self.options.__dict__[option] = site_option or wsgi_options.get(option) or envopt.get(option)
 
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
+
 
     @property
     def site_config(self):
@@ -429,6 +430,7 @@ class Server(object):
                                     _gnrconfig=self.gnr_config,
                                     counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
                                     options=self.options)
+                gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
                 if self.debug:
@@ -452,7 +454,7 @@ class Server(object):
                 fd = None
             else:
                 fd = int(os.environ["WERKZEUG_SERVER_FD"])
-                
+
             srv = make_server(
                 host,
                 port,
