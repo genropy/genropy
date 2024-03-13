@@ -7,8 +7,8 @@
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrlang import GnrException
 import os
-
 
 
 class GnrCustomWebPage(object):
@@ -117,15 +117,15 @@ class GnrCustomWebPage(object):
                 locbag.toXml(locbagpath)
 
     @public_method
-    def rebuildLocalizationFiles(self,enabledLanguages=None,localizationBlock=None,do_autotranslate=None):
+    def rebuildLocalizationFiles(self, localizationBlock=None):
         localizer = self.db.application.localizer
-        if localizer.translator and enabledLanguages and do_autotranslate:
-            localizer.autoTranslate(enabledLanguages)
-        self.db.application.localizer.updateLocalizationFiles(localizationBlock=localizationBlock)
+        localizer.updateLocalizationFiles(localizationBlock=localizationBlock)
 
     @public_method
     def translateBlockToLanguage(self,language=None,localizationBlock=None, override=None):
         localizer = self.db.application.localizer
+        if not localizer.translator:
+            raise GnrException('Missing translation service. Please config a service named "translation"')
         localizer.translateBlock(language=language, localizationBlock=localizationBlock, override=override)
          
     def localizerToolbar(self,form):
@@ -144,14 +144,14 @@ class GnrCustomWebPage(object):
                                     blocks='^.blocks', _onStart=True)
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')
-        bar.updateLoc.slotButton('!![en]Rebuild', do_autotranslate=False,
-                                ask=dict(title='!![en]Options',
-                                        fields=[dict(name='do_autotranslate',tag='checkbox',
-                                                     label='!![en]Autotranslate')]),
-                                action='FIRE #FORM.rebuildLocalization = do_autotranslate')
-        bar.autoTranslate.slotButton('!![en]Translate package',hidden='^.currentLocalizationBlock?=!#v').dataRpc(self.translateBlockToLanguage,
-                        _lockScreen=True,                                       
+        bar.updateLoc.slotButton('!![en]Rebuild').dataRpc(self.rebuildLocalizationFiles,
+                        localizationBlock='=.currentLocalizationBlock',
+                        _lockScreen=dict(thermo=True), timeout=50000,
+                        _onResult='this.form.reload()')
+        bar.autoTranslate.slotButton('!![en]Translate package',hidden='^.currentLocalizationBlock?=!#v').dataRpc(
+                    self.translateBlockToLanguage,                                  
                     localizationBlock='=.currentLocalizationBlock',
+                    _lockScreen=True,     
                     _ask=dict(title='!![en]Choose language',
                               fields=[dict(name='language', 
                                           lbl='!![en]Language', 
@@ -163,10 +163,6 @@ class GnrCustomWebPage(object):
                                       dict(name='override',tag='checkbox',lbl='',label='!![en]Override current values')]),
                      _onResult='this.form.reload()')
         
-        bar.dataRpc(self.rebuildLocalizationFiles,do_autotranslate='^#FORM.rebuildLocalization',
-                        enabledLanguages='=#FORM.enabledLanguages', 
-                        _lockScreen=dict(thermo=True), timeout=50000,
-                        _onResult='this.form.reload()',localizationBlock='=.currentLocalizationBlock')
         form.dataController("""var attr = blocks.getAttr(currentLocalizationBlock);
                                 this.form.goToRecord(attr.folderPath);""",
                                 currentLocalizationBlock='^.currentLocalizationBlock',blocks='=.blocks',
