@@ -116,8 +116,10 @@ class FormHandler(BaseComponent):
         if link_kwargs.get('event'):
             if self.isMobile:
                 gridattr['selfsubscribe_tap'] = """
-                            console.log('selfsubscribe_tap')
                             var rowIndex= $1.event.rowIndex;
+                            if(isNullOrBlank(rowIndex) || rowIndex==-1){
+                                return;
+                            }
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];
                                 if(rowIndex>-1){

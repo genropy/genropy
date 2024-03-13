@@ -1785,8 +1785,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
     },
     setRootStyle:function(rs){
         if(rs instanceof gnr.GnrBag){
-            var mw = dojo.byId('mainWindow');
-            mw.style.cssText = objectAsStyle(genro.dom.getStyleDict(rs.asDict(), {}));
+            let customStyleDict = objectUpdate(objectFromStyle(document.body.style.cssText),genro.dom.getStyleDict(rs.asDict(), {}))
+            document.body.style.cssText = objectAsStyle(customStyleDict);
         }        
     },
     printElementContent:function(where,title,doprint){

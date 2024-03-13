@@ -243,6 +243,7 @@ class MenuResolver(BagResolver):
 
     @property
     def indexMenu(self):
+        
         if self._page.userMenu:
             return self._page.userMenu
         instanceMenu = self.getInstanceMenu()
@@ -251,7 +252,10 @@ class MenuResolver(BagResolver):
         pkgMenus = self.app.config['menu?package']
         if pkgMenus:
             return self.legacyMenuFromPkgList(pkgMenus)
-        result = self.pkgMenu(self._page.package.name,className=getattr(self._page,'menuClass',None))
+        return self.mainPackageMenu(self._page.package.name)
+    
+    def mainPackageMenu(self,pkg):
+        result = self.pkgMenu(pkg,className=getattr(self._page,'menuClass',None))
         if len(result) == 1:
             baseNode = result.getNode('#0')
             if not self.allowedNode(baseNode):
@@ -264,7 +268,7 @@ class MenuResolver(BagResolver):
     def legacyMenuFromPkgList(self,pkgMenus):
         pkgMenus = pkgMenus.split(',') if pkgMenus!='*' else list(self.app.packages.keys())
         if len(pkgMenus)==1:
-            return self.pkgMenu(pkgMenus[0])
+            return self.mainPackageMenu(pkgMenus[0])
         else:
             result = MenuStruct(page=self._page)
             pkgMenuBag = None

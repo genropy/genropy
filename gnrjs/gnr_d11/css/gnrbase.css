@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
+
 *:focus, *:active {outline:none;}
 input:focus { outline: none; }
 
@@ -4489,6 +4492,59 @@ p {
     background: url(icons/base10/smalldel.png) no-repeat center center;
     opacity: .5;
     width: 10px;
+}
+
+
+
+.mobile_bar .multibutton_container{
+    color:var(--root-dark);
+}
+
+.mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
+    background: none;
+    border-bottom:2px solid var(--root-dark);
+}
+.mobile_bar .multibutton {
+    position: relative;
+    display: inline-block;
+    font-variant: normal;
+    font-size: 1em;
+    padding-left: 12px;
+    padding-right: 12px;
+    cursor: pointer;
+    color: var(--root-dark);
+    background-image: none;
+    border: 0;
+    border-right: 0px;
+    background-color: transparent;
+}
+
+
+.mobile_bar .multibutton:first-child{
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0px;
+}
+
+.mobile_bar .multibutton:last-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: 0px;
+    border-right: 0px;
+}
+
+.mobile_bar .multibutton_container.singleChildMultibutton{
+    display: none;
+}
+
+@media screen and (orientation:portrait) and (max-width:600px){
+    .mobile_bar .multibutton_container{
+        font-size: 1.2em;
+    }
+    .mobile_bar .multibutton {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
 }
 /* @end */
 

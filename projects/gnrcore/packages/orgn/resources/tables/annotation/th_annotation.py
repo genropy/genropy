@@ -100,7 +100,34 @@ class ViewMixedComponent(View):
     def th_bottom_custom(self,bottom):
         pass
 
-class ViewZoomAnnotationAndAction(object):
+class ViewFromMobile(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.cell('priority',width='2em',
+            name='P.',rowTemplate="""
+            <div class="priority_annotation_cell priority_$priority">&nbsp;</div>
+            """,hidden=True)
+        r.fieldcell('sort_ts',name='!!Datetime',width='6em',hidden=True,sort='a')
+        r.fieldcell('author_user_id',name='!!Autor',width='9em',hidden=True)
+        r.fieldcell('__mod_ts',name='!!Last upd.',width='6em',hidden=True)
+        r.fieldcell('__mod_user',name='!!Upd.User',width='9em',hidden=True)
+        r.fieldcell('annotation_caption',hidden=True)
+        r.fieldcell('calc_description',width='25em',name='Description',hidden=True)
+        r.cell('annotation_template',name='!!Type',width='100%',
+                rowTemplate="""<div style='background:$annotation_background;color:$annotation_color;padding:5px;'>$annotation_caption</div>
+                                """)
+       
+       #r.cell('action_do',name=" ",calculated=True,width='3em',
+       #            cellClasses='cellbutton',
+       #            format_buttonclass='icnBaseLens auction',
+       #            format_isbutton=True,format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
+       #                                                   this.publish('do_action',{pkey:row['_pkey']});""",
+       #            cellClassCB="""var row = cell.grid.rowByIndex(inRowIndex);
+       #                            if(row.rec_type=='AN'){
+       #                                return 'hidden';
+       #                            }""")    
+
+class ViewZoomAnnotationAndAction(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.cell('priority',width='2em',
@@ -360,7 +387,10 @@ class Form(BaseComponent):
                                             condition_system_annotations=self.db.table('orgn.annotation_type').systemAnnotations())
             
         top = bc.contentPane(region='top',datapath='.record',padding='10px')
-        fb = top.div(margin_right='20px').formbuilder(cols=2, border_spacing='4px',
+        if self.isMobile:
+            fb = top.div(margin_right='20px').mobileFormBuilder(cols=2)
+        else:
+            fb = top.div(margin_right='20px').formbuilder(cols=2, border_spacing='4px',
                                                         fld_width='100%',
                                                         colswidth='auto',width='100%')
         fb.field('annotation_type_id',condition=annotation_type_condition,
@@ -421,7 +451,10 @@ class Form(BaseComponent):
         if linked_entity:
             action_type_condition = "(CASE WHEN $restrictions IS NOT NULL THEN :restriction = ANY(string_to_array($restrictions,',')) ELSE TRUE END)"
             action_type_kwargs = dict(condition_restriction=linked_entity)
-        fb = bc.contentPane(region='center',datapath='.record').div(margin_right='20px',margin='10px').formbuilder(cols=2, border_spacing='4px',
+        if self.isMobile:
+            fb = bc.contentPane(region='center',datapath='.record').mobileFormBuilder(cols=2)
+        else:
+            fb = bc.contentPane(region='center',datapath='.record').div(margin_right='20px',margin='10px').formbuilder(cols=2, border_spacing='4px',
                                                                                             fld_width='100%',
                                                                                             colswidth='auto',width='100%')
         fb.field('action_type_id',condition=action_type_condition,
@@ -483,7 +516,7 @@ class Form(BaseComponent):
 
 class FormMixedComponent(Form):
     def th_options(self):
-        return dict(dialog_windowRatio=.8,modal=True)
+        return dict(dialog_windowRatio=.8,modal='navigation' if self.isMobile else True)
 
     def th_form(self, form):
         linked_entity = form._current_options['linked_entity']
