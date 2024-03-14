@@ -57,6 +57,7 @@ class Table(object):
                                         ELSE $username END
                                         """, name_long=u'!!Name',static=True)
 
+        tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Name',static=True) #can be overridden
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
