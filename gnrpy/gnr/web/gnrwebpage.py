@@ -141,6 +141,8 @@ class GnrWebPage(GnrBaseWebPage):
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
         self.base_dbstore = request_kwargs.pop('base_dbstore',None)
         self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        if self.temp_dbstore is False:
+            self.temp_dbstore = self.application.db.rootstore
         dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
         self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
