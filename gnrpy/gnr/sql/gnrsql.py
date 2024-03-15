@@ -529,9 +529,8 @@ class GnrSqlDb(GnrObject):
             tblobj.updateTotalizers(record,old_record=old_record,evt=evt,**kwargs)
         logchanges = tblobj.attributes.get('logChanges')
         if logchanges:
-            
             if isinstance(logchanges,str):
-                loggable_events = logchanges.split()
+                loggable_events = logchanges.split(',')
             else:
                 loggable_events = ['I','U','D']
             if evt in loggable_events:
