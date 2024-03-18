@@ -361,11 +361,15 @@ class TableTemplateToHtml(BagToHtmlWeb):
             htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
         if pdf :
-            filepath = filepath or self.filepath or self.getHtmlPath('temp.html')
+            filepath = filepath or self.getHtmlPath(f'{self.getDocName()}.html')
         result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
         if pdf is True:
             return self.writePdf()
         return result
+    
+    def getDocName(self):
+        return self.record[self.tblobj.pkey]
+
 
 class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
