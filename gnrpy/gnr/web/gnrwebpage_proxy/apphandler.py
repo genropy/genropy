@@ -1726,7 +1726,7 @@ class GnrWebAppHandler(GnrBaseProxy):
                 where = '$%s = :id' % identifier
 
             
-            fullwhere =  '( %s ) AND ( %s ) ' % (where, condition) if condition else where
+            fullwhere =  '( %s ) AND ( %s ) ' % (where, condition) if (condition and weakCondition is not True) else where
             whereargs = {}
             whereargs.update(kwargs)
             selection = tblobj.query(columns=','.join(resultcolumns),
