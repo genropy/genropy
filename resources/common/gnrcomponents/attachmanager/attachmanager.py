@@ -229,11 +229,11 @@ class AttachManager(BaseComponent):
     def at_attachmentViewer(self,pane,title=None,
                             datapath='.attachments',maintable_id=None,
                             relation=None,table=None,preview=True,delrow=False,searchOn=False,
-                            uploaderButton=None,ask=None,default_kwargs=None,
+                            viewResource=None,uploaderButton=None,ask=None,default_kwargs=None,
                             **kwargs):
         if not table:
             relation=relation or '@atc_attachments'
-        viewResource = 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview'
+        viewResource = viewResource or ('gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview')
         th = pane.dialogTableHandler(relation=relation,table=table,
                                         title=title or '!![en]Attachments',
                                         viewResource=viewResource,
