@@ -59,7 +59,7 @@ wsgi_options = dict(
         remote_edit=None,
         remotesshdb=None,
         gzip=None,
-        websocket=True,
+        websockets=True,
         tornado=None
         )
 
@@ -209,10 +209,10 @@ class Server(object):
                             dest='profile',
                             action='store_true',
                             help="Use profiler at /__profile__ url")
-        parser.add_argument('--websocket',
-                            dest='websocket',
+        parser.add_argument('--websockets',
+                            dest='websockets',
                             action='store_true',
-                            help="Use websocket")
+                            help="Use websockets")
         parser.add_argument('-t','--tornado',
                             dest='tornado',
                             action='store_true',

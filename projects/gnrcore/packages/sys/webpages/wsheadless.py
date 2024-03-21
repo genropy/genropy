@@ -5,6 +5,6 @@
 from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory
 
 class GnrCustomWebPage(object):
-    #skip_connection=True
+    skip_connection=False
     pass
     
