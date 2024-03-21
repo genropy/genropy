@@ -888,9 +888,8 @@ class GnrBaseAsyncServer(object):
         sockets_dir = os.path.join(self.gnrsite.site_path, 'sockets')
         if len(sockets_dir)>90:
             sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.instance_path), 'gnr_sock')
-        print('sockets_dir',sockets_dir)
         if not os.path.exists(sockets_dir):
-            os.mkdir(sockets_dir)
+            os.makedirs(sockets_dir)
         socket_path = os.path.join(sockets_dir, 'async.tornado')
         main_socket = bind_unix_socket(socket_path)
         os.chmod(socket_path, 0o666)

@@ -606,7 +606,7 @@ class ProjectMaker(object):
         self.instances_path = os.path.join(self.project_path, 'instances')
         for path in (self.project_path, self.packages_path, self.instances_path):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
                 
 
 
@@ -640,9 +640,9 @@ class SiteMaker(object):
         root_py_path = os.path.join(self.site_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.site_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.mkdir(self.site_path)
+            os.makedirs(self.site_path)
         if not os.path.isdir(pages_path):
-            os.mkdir(pages_path)
+            os.makedirs(pages_path)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""#!/usr/bin/env python2.6
@@ -736,7 +736,7 @@ class InstanceMaker(object):
             folders_to_make.append(dbstores_path)
         for path in folders_to_make:
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         if not os.path.isfile(instanceconfig_xml_path):
             if not self.config:
                 instanceconfig = Bag()
@@ -767,7 +767,7 @@ class InstanceMaker(object):
         root_py_path = os.path.join(self.instance_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.config_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.mkdir(self.site_path)
+            os.makedirs(self.site_path)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""
@@ -833,7 +833,7 @@ class PackageMaker(object):
         """Creates the files of the ``packages`` folder"""
         for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         sqlprefixstring = ''
         if not os.path.exists(self.main_py_path):
             if self.sqlprefix is not None:
@@ -887,7 +887,7 @@ class ResourceMaker(object):
         self.resource_path = os.path.join(self.base_path, self.resource_name)
         for path in (self.resource_path, ):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         
 class ThPackageResourceMaker(object):
     def __init__(self,application,package=None,tables=None,force=False,menu=False,columns=2,guess_size=False,indent=4, bag_columns=None):
