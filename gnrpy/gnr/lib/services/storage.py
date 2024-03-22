@@ -771,7 +771,7 @@ class BaseLocalService(StorageService):
                 headers = []
                 ETAG.update(headers, my_none_match)
                 start_response('304 Not Modified', headers)
-                return [''] # empty body
+                return [b''] # empty body
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)
