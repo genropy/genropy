@@ -1,4 +1,4 @@
-
+import sys
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -30,9 +30,9 @@ from werkzeug.wrappers import Response, Request
 import glob
 from datetime import datetime
 import os
-import optparse
 import atexit
 import logging
+from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging, log_styles
 from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
@@ -59,7 +59,7 @@ wsgi_options = dict(
         remote_edit=None,
         remotesshdb=None,
         gzip=None,
-        websocket=True,
+        websockets=True,
         tornado=None
         )
 
@@ -168,12 +168,7 @@ class DaemonizeException(Exception):
 
 class Server(object):
     min_args = 0
-    usage = '[start|stop|restart|status] [var=value]'
-    summary = "Start this genropy application"
-    description = """\
-    This command serves a genropy web application.
-
-    """
+    description = "This command serves a genropy web application."
 
     LOGGING_LEVELS = {'notset': logging.NOTSET,
                     'debug': logging.DEBUG,
@@ -182,115 +177,117 @@ class Server(object):
                     'error': logging.ERROR,
                     'critical': logging.CRITICAL}
 
-    parser = optparse.OptionParser(usage)
-    parser.add_option('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
-                    help="Logging level",
-                    choices=list(LOGGING_LEVELS.keys()),
-                    default="warning")
-    parser.add_option('--log-file',
-                    dest='log_file',
-                    metavar='LOG_FILE',
-                    help="Save output to the given log file (redirects stdout)")
-    parser.add_option('--reload',
-                    dest='reload',
-                    action='store_true',
-                    help="Use auto-restart file monitor")
-    parser.add_option('--noreload',
-                    dest='reload',
-                    action='store_false',
-                    help="Do not use auto-restart file monitor")
-    parser.add_option('--debug',
-                    dest='debug',
-                    action='store_true',
-                    help="Use weberror debugger")
-    parser.add_option('--nodebug',
-                    dest='debug',
-                    action='store_false',
-                    help="Don't use weberror debugger")
-    parser.add_option('--profile',
-                    dest='profile',
-                    action='store_true',
-                    help="Use profiler at /__profile__ url")
-    parser.add_option('--websocket',
-                    dest='websocket',
-                    action='store_true',
-                    help="Use websocket")
-    parser.add_option('-t','--tornado',
-                    dest='tornado',
-                    action='store_true',
-                    help="Serve using tornado")
-
-    parser.add_option('--reload-interval',
-                    dest='reload_interval',
-                    default=1,
-                    help="Seconds between checking files (low number can cause significant CPU usage)")
-
-    parser.add_option('-c', '--config',
-                    dest='config_path',
-                    help="gnrserve directory path")
-
-    parser.add_option('-p', '--port',
-                    dest='port',
-                    help="Sets server listening port (Default: 8080)")
-
-    parser.add_option('-H', '--host',
-                    dest='host',
-                    help="Sets server listening address (Default: 0.0.0.0)")
-
-    parser.add_option('--restore',
-                    dest='restore',
-                    help="Restore from path")
-    parser.add_option('--source_instance',
-                    dest='source_instance',
-                    help="Import from instance")
-
-    parser.add_option('--remote_edit',
-                    dest='remote_edit',
-                    action='store_true',
-                    help="Enable remote edit")
-    parser.add_option('-g','--gzip',
-                    dest='gzip',
-                    action='store_true',
-                    help="Enable gzip compressions")
-
-    parser.add_option('--verbose',
-                    dest='verbose',
-                    action='store_true',
-                    help='Verbose')
-
-    parser.add_option('-s', '--site',
-                    dest='site_name',
-                    help="Use command on site identified by supplied name")
-
-    parser.add_option('-n', '--noclean',
-                    dest='noclean',
-                    help="Don't perform a clean (full reset) restart",
-                    action='store_true')
-
-    parser.add_option('--counter',
-                    dest='counter',
-                    help="Startup counter")
-
-    parser.add_option('--ssl_cert',
-                    dest='ssl_cert',
-                    help="SSL cert")
-
-    parser.add_option('--ssl_key',
-                    dest='ssl_key',
-                    help="SSL key")
-
-    parser.add_option('--ssl',
-                    dest='ssl',
-                    action='store_true',
-                    help="SSL")
 
 
     def __init__(self, site_script=None, server_name='Genro Server', server_description='Development'):
+        parser = GnrCliArgParse(description=self.description)
+        parser.add_argument('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
+                            help="Logging level",
+                            choices=list(self.LOGGING_LEVELS.keys()),
+                            default="warning")
+        parser.add_argument('--log-file',
+                            dest='log_file',
+                            metavar='LOG_FILE',
+                            help="Save output to the given log file (redirects stdout)")
+        parser.add_argument('--reload',
+                            dest='reload',
+                            action='store_true',
+                            help="Use auto-restart file monitor")
+        parser.add_argument('--noreload',
+                            dest='reload',
+                            action='store_false',
+                            help="Do not use auto-restart file monitor")
+        parser.add_argument('--debug',
+                            dest='debug',
+                            action='store_true',
+                            help="Use weberror debugger")
+        parser.add_argument('--nodebug',
+                            dest='debug',
+                            action='store_false',
+                            help="Don't use weberror debugger")
+        parser.add_argument('--profile',
+                            dest='profile',
+                            action='store_true',
+                            help="Use profiler at /__profile__ url")
+        parser.add_argument('--websockets',
+                            dest='websockets',
+                            action='store_true',
+                            help="Use websockets")
+        parser.add_argument('-t','--tornado',
+                            dest='tornado',
+                            action='store_true',
+                            help="Serve using tornado")
+
+        parser.add_argument('--reload-interval',
+                            dest='reload_interval',
+                            default=1,
+                            help="Seconds between checking files (low number can cause significant CPU usage)")
+
+        parser.add_argument('-c', '--config',
+                            dest='config_path',
+                            help="gnrserve directory path")
+
+        parser.add_argument('-p', '--port',
+                            dest='port',
+                            help="Sets server listening port (Default: 8080)")
+
+        parser.add_argument('-H', '--host',
+                            dest='host',
+                            help="Sets server listening address (Default: 0.0.0.0)")
+
+        parser.add_argument('--restore',
+                            dest='restore',
+                            help="Restore from path")
+        parser.add_argument('--source_instance',
+                            dest='source_instance',
+                            help="Import from instance")
+
+        parser.add_argument('--remote_edit',
+                            dest='remote_edit',
+                            action='store_true',
+                            help="Enable remote edit")
+        parser.add_argument('-g','--gzip',
+                            dest='gzip',
+                            action='store_true',
+                            help="Enable gzip compressions")
+
+        parser.add_argument('--verbose',
+                            dest='verbose',
+                            action='store_true',
+                            help='Verbose')
+
+        parser.add_argument('site_name', nargs='?')
+        parser.add_argument('-s', '--site',
+                            dest='site_name_opt',
+                            help="Use command on site identified by supplied name")
+
+        parser.add_argument('-n', '--noclean',
+                            dest='noclean',
+                            help="Don't perform a clean (full reset) restart",
+                            action='store_true')
+
+        parser.add_argument('--counter',
+                            dest='counter',
+                            help="Startup counter")
+
+        parser.add_argument('--ssl_cert',
+                            dest='ssl_cert',
+                            help="SSL cert")
+
+        parser.add_argument('--ssl_key',
+                            dest='ssl_key',
+                            help="SSL key")
+
+        parser.add_argument('--ssl',
+                            dest='ssl',
+                            action='store_true',
+                            help="SSL")
+
         self.site_script = site_script
         self.server_description = server_description
         self.server_name = server_name
         #self.remotesshdb = None
-        (self.options, self.args) = self.parser.parse_args()
+        self.options = parser.parse_args()
         enable_colored_logging(level=self.LOGGING_LEVELS[self.options.log_level])
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
@@ -298,7 +295,10 @@ class Server(object):
             self.config_path = gnrConfigPath()
         self.gnr_config = getGnrConfig(config_path=self.config_path, set_environment=True)
 
-        self.site_name = self.options.site_name or (self.args and self.args[0]) or os.getenv('GNR_CURRENT_SITE')
+        self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
+        if not self.site_name and not self.site_script:
+            print("site name is required")
+            sys.exit(1)
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
         self.remote_db = ''
@@ -331,12 +331,13 @@ class Server(object):
         options = self.options.__dict__
         envopt = dictExtract(os.environ,'GNR_WSGI_OPT_')
         for option in list(options.keys()):
-            if options.get(option, None) is None: # not specified on the command-line
+            if not options.get(option, None): # not specified on the command-line
                 site_option = self.siteconfig['wsgi?%s' % option]
                 self.options.__dict__[option] = site_option or wsgi_options.get(option) or envopt.get(option)
 
     def get_config(self):
         return PathResolver().get_siteconfig(self.site_name)
+
 
     @property
     def site_config(self):
@@ -429,6 +430,7 @@ class Server(object):
                                     _gnrconfig=self.gnr_config,
                                     counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
                                     options=self.options)
+                gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
                 if self.debug:
@@ -452,7 +454,7 @@ class Server(object):
                 fd = None
             else:
                 fd = int(os.environ["WERKZEUG_SERVER_FD"])
-                
+
             srv = make_server(
                 host,
                 port,

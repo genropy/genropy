@@ -1,5 +1,5 @@
 # encoding: utf-8
-from builtins import object
+
 from gnr.core.gnrbag import Bag
 class Table(object):        
     def config_db(self, pkg):

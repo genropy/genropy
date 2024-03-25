@@ -1,8 +1,8 @@
 # encoding: utf-8
 from __future__ import print_function
-from builtins import str
+
 from past.builtins import basestring
-from builtins import object
+
 from smtplib import SMTPException,SMTPConnectError
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
@@ -34,7 +34,6 @@ class Table(object):
         tbl.column('html','B',name_long='!!Html')
         tbl.column('subject',name_long='!!Subject')
         tbl.column('send_date','DH',name_long='!!Send date')
-        tbl.column('sent','B',name_long='!!Sent')
         tbl.column('user_id',size='22',name_long='!!User id').relation('adm.user.id', mode='foreignkey', relation_name='messages')
         tbl.column('account_id',size='22',name_long='!!Account id').relation('email.account.id', mode='foreignkey', relation_name='messages')
         tbl.column('mailbox_id',size='22',name_long='!!Mailbox id').relation('email.mailbox.id', mode='foreignkey', relation_name='messages')
@@ -52,6 +51,11 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+
+        tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
+        tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
+        tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
+        tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
 
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
@@ -111,7 +115,12 @@ class Table(object):
            
     @public_method
     def receive_imap(self, page=None, account=None, remote_mailbox='Inbox', local_mailbox='Inbox'):
-        from gnrpkg.email.imap import ImapReceiver
+        from gnr.core.gnrlang import gnrImport
+        import os
+        imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap.py'),
+            silent=False,avoid_module_cache=True)
+        imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap'))
+        ImapReceiver = imap_module.ImapReceiver
         if isinstance(account, basestring):
             account = self.db.table('email.account').record(pkey=account).output('bag')
         print('INIT IMAP RECEIVER', account['account_name'])
@@ -294,7 +303,7 @@ class Table(object):
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
                 if message['connection_retry'] > 10:
-                    message['error_msg'] = 'Connection failed more than 10 times'
+                    message['error_msg'] = f'Connection failed more than 10 times {str(e)}'
             
             except Exception as e:
                 error_msg = str(e)
@@ -304,7 +313,8 @@ class Table(object):
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()
                 message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
         self.db.commit()
-        
+        return message
+    
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:

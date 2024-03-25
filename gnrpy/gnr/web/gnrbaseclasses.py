@@ -23,7 +23,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from past.builtins import basestring
 import os,math,re
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbaghtml import BagToHtml
@@ -115,7 +114,7 @@ def zzzcomponent_hook(func_or_name):
                     "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
         GnrDomSrc._external_methods[name] = func_name
         
-    if isinstance(func_or_name, basestring):
+    if isinstance(func_or_name, str):
         name = func_or_name
         
         def decorate(func):
@@ -308,6 +307,17 @@ class BagToHtmlWeb(BagToHtml):
     @property
     def print_handler(self):
         return self.site.getService('htmltopdf',self.pdf_service)
+    
+    @property
+    def translationService(self):
+        return self.site.getService('translation')
+    
+    @property
+    def localizer(self):
+        page = self.page or self.db.currentPage
+        if page:
+            return page.localizer
+        
 
     @extract_kwargs(extra=True)
     def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None, **kwargs):
@@ -351,11 +361,15 @@ class TableTemplateToHtml(BagToHtmlWeb):
             htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
             record = self.record
         if pdf :
-            filepath = filepath or self.filepath or self.getHtmlPath('temp.html')
+            filepath = filepath or self.getHtmlPath(f'{self.getDocName()}.html')
         result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
         if pdf is True:
             return self.writePdf()
         return result
+    
+    def getDocName(self):
+        return self.record[self.tblobj.pkey]
+
 
 class TableScriptToHtml(BagToHtmlWeb):
     """TODO"""
@@ -562,7 +576,7 @@ class TableScriptToHtml(BagToHtmlWeb):
             attr = n.attr
             field =  attr.get('caption_field') or attr.get('field')
             field_getter = attr.get('field_getter') or field
-            if isinstance(field_getter,basestring):
+            if isinstance(field_getter, str):
                 field_getter = self._flattenField(field_getter)
             group_aggr = attr.get('group_aggr')
             if group_aggr:

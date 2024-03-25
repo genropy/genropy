@@ -115,9 +115,11 @@ class FormHandler(BaseComponent):
         gridsubscribers = dict()
         if link_kwargs.get('event'):
             if self.isMobile:
-                gridattr['selfsubscribe_press'] = """
-                            console.log('selfsubscribe_press')
+                gridattr['selfsubscribe_tap'] = """
                             var rowIndex= $1.event.rowIndex;
+                            if(isNullOrBlank(rowIndex) || rowIndex==-1){
+                                return;
+                            }
                             genro.callAfter(function(){
                                 var selectedRows = this.widget.getSelectedRowidx() || [];
                                 if(rowIndex>-1){
@@ -295,6 +297,8 @@ class FormHandler(BaseComponent):
         pane.slotbar_form_next()
         pane.slotbar_form_last()
         
+
+    
     @struct_method               
     def fh_slotbar_form_semaphore(self,pane,**kwargs):
         s = pane.div(_class='fh_semaphore',connect_onclick="""
@@ -463,6 +467,30 @@ class FormHandler(BaseComponent):
                     topic='navigationEvent',command='next',
                     _shortcut='@next_record:alt+right',_shortcut_activeForm=True,
                     formsubscribe_navigationStatus="this.setDisabled($1.last || false);")
+
+
+
+    @struct_method          
+    def fh_slotbar_form_dismissTitle(self,pane,height=None,color=None,back_title=None,**kwargs):
+        color = color or pane.getInheritedAttributes().get('color')
+        btn = pane.lightButton(action='this.form.abort();',style='display:flex;align-items:center;',cursor='pointer')
+        btn.div(_class="iconbox leftOut",height=height or '25px',background_color=color)
+        btn.div(back_title or '^.#parent.view.title')
+
+    @struct_method          
+    def fh_slotbar_form_prevUp(self,pane,color=None,height=None,**kwargs):
+        color = color or pane.getInheritedAttributes().get('color')
+        pane.lightButton('!!Prev',_class="iconbox prevUp",height=height or '25px',background_color=color,
+                    action='this.form.publish("navigationEvent",{command:"prev"});',
+                    formsubscribe_navigationStatus="this.setDisabled($1.first || false);",**kwargs)
+    
+    @struct_method          
+    def fh_slotbar_form_nextDown(self,pane,color=None,height=None,**kwargs):
+        color = color or pane.getInheritedAttributes().get('color')
+        pane.lightButton('!!Next',_class="iconbox nextDown",height=height or '25px',background_color=color,
+                    action='this.form.publish("navigationEvent",{command:"next"});',
+                    formsubscribe_navigationStatus="this.setDisabled($1.last || false);",**kwargs)
+
 
     @struct_method          
     def fh_slotbar_form_logicalDeleter(self,pane,**kwargs):

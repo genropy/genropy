@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import print_function
-from builtins import str
-from past.builtins import basestring
 import datetime
 import warnings as warnings_module
 import os
@@ -343,7 +340,8 @@ class TableBase(object):
                                                                                         one_name='!![en]Parent',many_name='!![en]Children',
                                                                                         deferred=True,
                                                                                         one_group=group,many_group=group)
-            tbl.formulaColumn('child_count','(SELECT count(*) FROM %s.%s_%s AS children WHERE children.parent_id=#THIS.id)' %(pkg,pkg,tblname),group='*', dtype='L')
+            tbl.formulaColumn('child_count', select=dict(table=f'{pkg}.{tblname}', 
+                                                         where='@_children.parent_id=#THIS.id', columns='COUNT(*)'),group='*', dtype='L')
             tbl.formulaColumn('hlevel',"""length($hierarchical_pkey)-length(replace($hierarchical_pkey,'/',''))+1""",group='*')
             if hierarchical_root_id:
                 tbl.column('root_id',sql_value="substring(:hierarchical_pkey from 1 for 22)",
@@ -353,7 +351,7 @@ class TableBase(object):
                                                     deferred=True,
                                                     onDelete='ignore')
             if hierarchical_virtual_roots:
-                tbl.column('_virtual_node',dtype='B',name_lomg="!![en]H.Virtual node",copyFromParent=True)
+                tbl.column('_virtual_node',dtype='B',name_long="!![en]H.Virtual node",copyFromParent=True)
 
             hfields = []
             for fld in hierarchical.split(','):
@@ -1127,6 +1125,9 @@ class TableBase(object):
                 if col.startswith('@'):
                     tpl['main'] = tpl['main'].replace(col, col.replace('@','_').replace('.','_'))
             r = Bag(dict(record))
+        for k,dtype in kwargs.get('dtypes',{}).items():
+            if record.get(k) is not None and dtype == 'X':
+                r[k] = Bag(r[k])
         return templateReplace(tpl,r,**kwargs)
 
 
@@ -1424,12 +1425,26 @@ class AttachmentTable(GnrDboTable):
              ELSE '/_vol/' || $filepath
             END""",group='_')
                     
-        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl')
+        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
-            tbl.column('atc_download',dtype='B',name_lomg='DL')
+            tbl.column('atc_download',dtype='B',name_long='DL')
+
         self.onTableConfig(tbl)
+        tbl.pyColumn('missing_file',name_long='Missing file',dtype='B')
+        tbl.pyColumn('full_external_url',name_long='Full external url')
+
+    def pyColumn_full_external_url(self,record,field):
+        if not record['fileurl']:
+            return
+        return self.db.application.site.externalUrl(record['fileurl'])
+    
+    def pyColumn_missing_file(self,record,**kwargs):
+        sn = self.db.application.site.storageNode(record['filepath'])
+        return not sn.exists
+    
+    
 
     def onArchiveExport(self,records,files=None):
         site = self.db.application.site
@@ -1464,7 +1479,7 @@ class AttachmentTable(GnrDboTable):
             Returns the new pdf attachment record
         :param attachment: source attachment record or pket"""
 
-        if isinstance(attachment, basestring):
+        if isinstance(attachment, str):
             attachment = self.recordAs(attachment, mode='dict')
         site = self.db.application.site
         docConverter = site.getService('doctopdf')
@@ -1582,6 +1597,24 @@ class AttachmentTable(GnrDboTable):
     def onUploadedAttachment(self, attachment_id=None, **kwargs):
         pass
     
+    def getAttachmentsPdf(self, maintable_id, output_path=None):
+        imgConverter = self.db.application.site.getService('imgtopdf')
+        pdfJoiner = self.db.application.site.getService('pdf')
+        attachments = self.query(where='$maintable_id=:m_id', m_id = maintable_id).fetch()
+        resultNode = sn = self.db.application.site.storageNode(output_path)
+        joinable_pdf = []
+        for a in attachments:
+            path = a['filepath']
+            sn = self.db.application.site.storageNode(path)
+            if not sn.ext.lower() in ['pdf','jpg','jpeg','png','gif','tiff']:
+                continue
+            if sn.ext.lower() == 'pdf':
+                joinable_pdf.append(sn)
+                continue
+            outPdfSn = self.db.application.site.storageNode(f'temp:{sn.cleanbasename}.pdf')
+            joinable_pdf.append(imgConverter.imgToPdf(sn, outPdfSn))
+        pdfJoiner.joinPdf(joinable_pdf,resultNode)
+        return resultNode
 
 class TotalizeTable(GnrDboTable):
     def totalize_exclude(self,record=None,old_record=None):
@@ -1604,7 +1637,7 @@ class TotalizeTable(GnrDboTable):
                     result['cb'] = getattr(self,'%s_%s' %(attr_key,colname))
                 elif attr_val is True:
                     result['field'] = colname
-                elif isinstance(attr_val,basestring):
+                elif isinstance(attr_val, str):
                     result['field'] = attr_val
                 else:
                     result['const'] = attr_val

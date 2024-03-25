@@ -6,8 +6,8 @@
 
 "Test page description"
 from __future__ import division
-from builtins import range
-from builtins import object
+
+
 from past.utils import old_div
 class GnrCustomWebPage(object):
     css_requires='csstest'

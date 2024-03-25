@@ -51,13 +51,12 @@ UID         Unique Identifier   Specifies a value that represents a persistent, 
 VERSION     Version Version of the vCard Specification
 KEY         Public Key  The public encryption key associated with the vCard object
 """
-from __future__ import print_function
 
-#from builtins import object
-from gnr.core.gnrbag import Bag
 import os.path
 import sys
 import vobject
+
+from gnr.core.gnrbag import Bag
 
 VALID_VCARD_TAGS = ['n','fn','nickname','photo','bday','adr','label','tel','email',
               'mailer','tz','geo','title','role','logo','agent','org','note',
@@ -137,29 +136,3 @@ class VCard(object):
             else:
                 self.setTag(tag,v)
 
-
-if __name__ == '__main__':
-
-    x = Bag()
-    x['n.family']='Smith'
-    x['n.given']='Jeff'
-    x['n.additional']='G.'
-    x['fn.fn']='Jeff Smith'
-    x['nickname.nickname']='Eddie'
-    x['bday.bday']='1961-10-21'
-    x['org.org']='Goodsoftware Pty Ltd'
-    x.setItem('email.email','jeffsmith@me.com', param_list=['Home','type=INTERNET','type=pref'])
-    x.addItem('email.email','jeffsmith@mac.com', param_list=['Work','type=INTERNET'])
-    x['adr.street']='32 Smith Waters Rd'
-    x['adr.city']='Kincumber'
-    x['adr.code']='2251'
-    x['adr.country']='Australia'
-    x.setItem('tel.tel','02 4332 0368', param_list=['Home','type=pref'])
-    x.addItem('tel.tel','0421 232 249', param_list=['CELL'])
-    x.setItem('url.url','02 4332 0368', param_list=['Work'])
-    
-
-    c = VCard(x)
-    print(dir(c))
-    print(c.doserialize())
-    #c.doprettyprint()

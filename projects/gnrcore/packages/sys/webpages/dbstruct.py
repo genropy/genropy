@@ -1,4 +1,4 @@
-from builtins import object
+
 class GnrCustomWebPage(object):
     css_theme = 'textmate'
     

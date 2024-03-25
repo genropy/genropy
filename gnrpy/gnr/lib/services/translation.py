@@ -14,7 +14,3 @@ class TranslationService(GnrBaseService):
     @property
     def languages(self):
         pass
-
-    @property
-    def translator(self):
-        pass

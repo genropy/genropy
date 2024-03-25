@@ -15,7 +15,6 @@ class View(BaseComponent):
         r.fieldcell('bcc_address',width='18em')
         r.fieldcell('uid',width='7em')
         r.fieldcell('__ins_ts',width='7em')
-        #r.fieldcell('sent',width='7em') #use send_date instead
         #r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='12em')
 
@@ -23,11 +22,11 @@ class View(BaseComponent):
         return dict(fields=[dict(field='send_date',lbl='!!Send date',width='7em'),
                             dict(field='subject', lbl='!!Subject'),
                             dict(field='body_plain',lbl='!!Content'),
-                            dict(field='to_address', lbl='To address'),
-                            dict(field='from_address', lbl='From address')],cols=5,isDefault=True)
+                            dict(field='to_address', lbl='!!To address'),
+                            dict(field='from_address', lbl='!!From address')],cols=5,isDefault=True)
 
     def th_order(self):
-        return '__ins_ts'
+        return '__ins_ts:d'
 
     def th_query(self):
         return dict(column='subject',op='contains', val='',runOnStart=False)
@@ -66,7 +65,7 @@ class View(BaseComponent):
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
-                dict(code='all',caption='All',includeDraft=True)]
+                dict(code='all',caption='!!All',includeDraft=True)]
 
 
 class ViewOutOnly(View):
@@ -81,7 +80,7 @@ class ViewOutOnly(View):
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
                 dict(code='sending_error',caption='!!Sending error',condition='$error_msg IS NOT NULL', struct='sending_error'),
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL'),
-                dict(code='all',caption='All',includeDraft=True)]
+                dict(code='all',caption='!!All',includeDraft=True)]
 
 
     @metadata(isMain=True)
@@ -123,7 +122,6 @@ class ViewFromMailbox(View):
         r.fieldcell('html',width='7em')
         r.fieldcell('subject',width='7em')
         r.fieldcell('send_date',width='7em')
-        r.fieldcell('sent',width='7em')
         r.fieldcell('user_id',width='35em')
         r.fieldcell('account_id',width='35em')
 
@@ -169,13 +167,13 @@ class Form(BaseComponent):
         fb.field('__is_draft', lbl='!![en]Draft')
 
         tc = bc.tabContainer(region='center', margin_top='15px')
-        tc.contentPane(title='Body').simpleTextArea(value='^.record.body',editor=True)
-        sc = tc.stackContainer(title='Attachments')
+        tc.contentPane(title='!![en]Body').simpleTextArea(value='^.record.body',editor=True)
+        sc = tc.stackContainer(title='!![en]Attachments')
         sc.plainTableHandler(relation='@attachments',pbl_classes=True)
         sc.attachmentGrid(pbl_classes=True)
         tc.dataController("sc.switchPage(in_out=='O'?1:0)",sc=sc.js_widget,in_out='^#FORM.record.in_out')
-        tc.contentPane(title='Body plain', hidden='^.record.body_plain?=!#v').simpleTextArea(value='^.record.body_plain',height='100%')
-        errors_pane = tc.contentPane(title='Errors', region='center', datapath='.record')
+        tc.contentPane(title='!![en]Body plain', hidden='^.record.body_plain?=!#v').simpleTextArea(value='^.record.body_plain',height='100%')
+        errors_pane = tc.contentPane(title='!![en]Errors', region='center', datapath='.record')
         errors_bg = errors_pane.bagGrid(frameCode='sending_attempts',title='Attempts',datapath='#FORM.errors',
                                                             struct=self.attemptStruct,
                                                             storepath='#FORM.record.sending_attempt',

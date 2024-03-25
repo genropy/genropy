@@ -6,17 +6,16 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
+
 from past.utils import old_div
-from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+
 import os
 import urllib.request, urllib.parse, urllib.error
 import io
 import datetime
 import zipfile
+
+from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlist import getReader
@@ -76,11 +75,12 @@ class GnrWebUtils(GnrBaseProxy):
             maxidx = len(iterator)
         interval = 1
         if maxidx and maxidx >1000:
-            interval = maxidx/100
+            interval = 100
         title = title or self.page.localize('!![en]Executing')
         thermo = """<div class="quickthermo_box"> <div class="form_waiting"></div> </div>""" 
         title = """<div class="quickthermo_title">%s</div>""" %title
         for idx,v in enumerate(iterator):
+            idx = idx+1
             if isinstance(v,str):
                 if labelfield:
                     lbl = labelfield
@@ -93,17 +93,22 @@ class GnrWebUtils(GnrBaseProxy):
                     lbl = '%s %s' %(labelfield,idx)
             elif labelcb:
                 lbl = labelcb(v)
-            if idx % interval == 0:
-                themropars = dict(maxidx=maxidx,idx=idx,lbl=lbl or 'item %s' %idx,thermo_width=thermo_width or '12em',
-                                title=title)
-                if maxidx:
-                    thermo = r"""<div class="quickthermo_box"> %(title)s <progress style="width:%(thermo_width)s;margin-left:10px;margin-right:10px;" max="%(maxidx)s" value="%(idx)s"></progress> <div class="quickthermo_caption">%(idx)s/%(maxidx)s - %(lbl)s</div></div>""" %themropars
-                else:
-                    thermo = """<div class="quickthermo_box"> %(title)s <div class="form_waiting"></div> <div class="quickthermo_caption">%(idx)s - %(lbl)s</div> </div>"""  %themropars
+            
+            if (idx % interval == 0 or idx==maxidx):
+                thermo_pars = dict(maxidx=maxidx,idx=idx,lbl=lbl or 'item %s' %idx,thermo_width=thermo_width or '12em',
+                            title=title)
+                thermo = self._updateThermo(maxidx, thermo_pars)
                 self.page.setInClientData(path,thermo,idx=idx,maxidx=maxidx,lbl=lbl)
             yield v
+        thermo = self._updateThermo(maxidx, thermo_pars)
         self.page.setInClientData(path,thermo,idx=maxidx,maxidx=maxidx,lbl=lbl)
     
+    
+    def _updateThermo(self, maxidx, thermo_pars):
+        if maxidx:
+            return r"""<div class="quickthermo_box"> %(title)s <progress style="width:%(thermo_width)s;margin-left:10px;margin-right:10px;" max="%(maxidx)s" value="%(idx)s"></progress> <div class="quickthermo_caption">%(idx)s/%(maxidx)s - %(lbl)s</div></div>""" % thermo_pars
+        return """<div class="quickthermo_box"> %(title)s <div class="form_waiting"></div> <div class="quickthermo_caption">%(idx)s - %(lbl)s</div> </div>"""  % thermo_pars
+                    
     def thermoMessage(self,title=None,message=None):
         thermo = """<div class="quickthermo_box thermo_message"> 
                         <div class="quickthermo_title">%(title)s </div> 

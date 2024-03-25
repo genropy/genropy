@@ -6,20 +6,18 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
 import os
 import sys
 import pdb
 import socket
 import base64
 import reprlib
+from bdb import Breakpoint
+
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrconfig import gnrConfigPath
-from bdb import Breakpoint
 
 class GnrPdbClient(GnrBaseProxy):
     @public_method

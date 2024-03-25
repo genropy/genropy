@@ -3,7 +3,7 @@
 # th_view.py
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
-from builtins import str
+
 from xml.sax import handler
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -28,10 +28,12 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_tableViewer(self,pane,frameCode=None,table=None,th_pkey=None,viewResource=None,
                        virtualStore=None,condition=None,condition_kwargs=None,
-                       structure_field=None,structure_field_kwargs=None,sections_kwargs=None,store_kwargs=None,**kwargs):
+                       structure_field=None,structure_field_kwargs=None,sections_kwargs=None,
+                       store_kwargs=None,extendedQuery=None,**kwargs):
         self._th_mixinResource(frameCode,table=table,resourceName=viewResource,defaultClass='View')
-    
-        options = self._th_hook('options',mangler=frameCode)() or dict()
+        options = self._th_getOptions(frameCode)
+        if extendedQuery is None:
+            extendedQuery = options.get('extendedQuery')
         structure_field = structure_field or options.get('structure_field')
         store_kwargs.setdefault('subtable',options.get('subtable'))
         kwargs.update(dictExtract(options,'grid_'),slice_prefix=False)
@@ -58,7 +60,7 @@ class TableHandlerView(BaseComponent):
                                  condition=condition,condition_kwargs=condition_kwargs,
                                  _sections_dict=sections_kwargs,
                                  selectedPage='^.viewPage',resourceOptions=options,
-                                 store_kwargs=store_kwargs,**kwargs)
+                                 store_kwargs=store_kwargs,extendedQuery=extendedQuery,**kwargs)
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
@@ -72,6 +74,7 @@ class TableHandlerView(BaseComponent):
             viewhook(view)
         self._th_view_printEditorDialog(view)
         self._th_userObjectEditorDialog(view)
+        self._th_dependingRelationExplorer(view)
 
         if structure_field:
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
@@ -101,7 +104,77 @@ class TableHandlerView(BaseComponent):
 
 
 
+    def _th_dependingRelationExplorer(self,view):
+        th_root = view.attributes['th_root']
+        paletteCode = f'{th_root}_depending_relation_explorer'
+        gridattr = view.grid.attributes
+        gridattr['selfsubscribe_open_depending_relation_explorer'] = f'PUBLISH {paletteCode}_show;'
+        pane = view.palettePane(paletteCode=paletteCode,
+                                title='Depending relation explorer',palette_width='400px',
+                                dockTo='dummyDock',datapath='.depending_relation_explorer')
+        pane.remote(self._th_dependingRelationExplorerContent,th_root=th_root,table=gridattr['table'])
+    
+    @public_method
+    def _th_dependingRelationExplorerContent(self,pane,th_root=None,table=None):
+        bc = pane.borderContainer(nodeId=f'{th_root}_dep_tables_root')
+        self.mixinComponent('th/th_dynamic:DynamicTableHandler')
+        def struct(struct):
+            r=struct.view().rows()
+            #r.cell('table_name',name='Table')
+            r.cell('dbtable',name='fullname')
+            r.cell('fkey',name='On Key')
+            r.cell('count',dtype='L',name='Cnt.',width='5em')
+            r.cell('condition',hidden=True)
+        frame = bc.contentPane(region='top',height='50%').bagGrid(frameCode=f'{th_root}_dep_tables',datapath='.depending_tables',storepath='.store',
+                                                          struct=struct,datamode='attr',
+                                                          grid_selected_dbtable=f'#{th_root}_dep_tables_root.selectedDbTable',
+                                                          grid_selected_condition=f'#{th_root}_dep_tables_root.selectedCondition',
+                                                          addrow=False,delrow=False)
+        frame.dataRpc('.store',self.th_dependingRelationExplorerStore,
+                      sourcePkey=f'^#{th_root}_grid.selectedId',table=table,_delay=100)
+        bc.dataController(f""" PUT #{th_root}_dep_tables_root.selectedDetailTable = null
+                               SET #{th_root}_dep_tables_root.selectedDetailTable = table;
+                          """,
+            table=f'^#{th_root}_dep_tables_root.selectedDbTable',
+            th_condition=f'^#{th_root}_dep_tables_root.selectedCondition',
+            _delay=100
+        )
+        bc.contentPane(region='center').dynamicTableHandler(th_wdg='plain',th_viewResource='ViewFromDepRelation',
+                                                            datapath=f'#{th_root}_dep_tables_root.depending_table_detailth',
+                                                            table=f'^#{th_root}_dep_tables_root.selectedDetailTable',
+                                                            th_condition=f'=#{th_root}_dep_tables_root.selectedCondition',
+                                                            th_condition_pk=f'^#{th_root}_grid.selectedId',
+                                                            th_delrow=True)
 
+
+    @public_method
+    def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
+        tblobj = self.db.table(table)
+        sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
+        result = Bag()
+        if not sourcePkey:
+            return result
+        i = 0
+        for n in tblobj.model.relations:
+            joiner =  n.attr.get('joiner')
+            if joiner and joiner['mode'] == 'M':
+                if joiner.get('external_relation'):
+                    continue
+                fldlist = joiner['many_relation'].split('.')
+                tblname = fldlist[0:2]
+                dbtable = '.'.join(tblname)
+                linktblobj = self.db.table('.'.join(tblname))
+                fkey = fldlist[-1]
+                joinkey = joiner['one_relation'].split('.')[-1]
+                count_source = linktblobj.query(where='$%s=:spkey' %fkey,spkey=sourceRecord[joinkey]).count()
+                linktblobj_name = linktblobj.attributes.get('name_plural',linktblobj.name_long).replace('!!','')
+                if count_source:
+                    result.addItem(f'r_{i:02}',None,table_name=linktblobj_name,
+                                      dbtable=dbtable,fkey=fkey,
+                                      count=count_source,condition=f'${fkey}=:pk')
+                i+=1
+        return result
+    
     def _th_userObjectEditorDialog(self,view):
         th_root = view.attributes['th_root']
         dlgId = '{th_root}_userobject_editor_dlg'.format(th_root=th_root)
@@ -254,7 +327,7 @@ class TableHandlerView(BaseComponent):
                        top_kwargs=None,condition=None,condition_kwargs=None,grid_kwargs=None,configurable=True,groupable=None,
                        unlinkdict=None,searchOn=True,count=None,title=None,root_tablehandler=None,structCb=None,preview_kwargs=None,loadingHider=True,
                        store_kwargs=None,parentForm=None,liveUpdate=None,bySample=None,resourceOptions=None,
-                       excludeDraft=None,excludeLogicalDeleted=None,**kwargs):
+                       excludeDraft=None,excludeLogicalDeleted=None,roundedEnvelope=None,**kwargs):
         page_hooks = self._th_hook('page',mangler=frameCode,asDict=True)
         if condition:
             condition_kwargs['condition'] = condition
@@ -281,6 +354,10 @@ class TableHandlerView(BaseComponent):
                 base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5',statsSlot,'advancedTools','10',pageHooksSelector,'*','count','5']
             else:
                 base_slots = extendedQuery.split(',')
+        elif roundedEnvelope:
+            top_kwargs['toolbar'] = False
+            base_slots = ['*','vtitle','*'] if not searchOn else ['10','vtitle','*','searchOn','10']
+            top_kwargs['_class']='mobileTemplateGridTop'
         elif not virtualStore:
             if root_tablehandler:
                 base_slots = ['5','searchOn','5','count','viewsMenu','5','menuUserSets','*','export','5',statsSlot,'advancedTools','10',pageHooksSelector,'5','resourcePrints','resourceMails','resourceActions',batchAssign,'10']
@@ -298,7 +375,7 @@ class TableHandlerView(BaseComponent):
             top_kwargs['slots'] = top_kwargs['slots'].replace('#',base_slots)
         else:
             top_kwargs['slots']= base_slots
-        top_kwargs['_class'] = 'th_view_toolbar'
+        top_kwargs.setdefault('_class', 'th_view_toolbar')
         grid_kwargs.setdefault('gridplugins', 'configurator,chartjs,print' if extendedQuery else 'configurator,chartjs,export_xls,print')
         grid_kwargs['item_name_singular'] = self.db.table(table).name_long
         grid_kwargs['item_name_plural'] = self.db.table(table).name_plural or grid_kwargs.get('item_name')
@@ -313,7 +390,7 @@ class TableHandlerView(BaseComponent):
         frame = pane.frameGrid(frameCode=frameCode,childname='view',table=table,
                                struct = structcb,grid_baseViewName=baseViewName,
                                datapath = '.view',top_kwargs = top_kwargs,_class = 'frameGrid',
-                               grid_kwargs = grid_kwargs,iconSize=16,_newGrid=True,advancedTools=True,
+                               grid_kwargs = grid_kwargs,iconSize=16,_newGrid=True,advancedTools=True,roundedEnvelope=roundedEnvelope,
                                configurable=configurable,groupable=groupable,**kwargs)  
         if statsEnabled:
             self._th_handle_stats_pages(frame)
@@ -411,6 +488,10 @@ class TableHandlerView(BaseComponent):
 
         b.rowchild(label='!![en]External query editor',
                     action="genro.nodeById('{rootNodeId}').publish('open_userobject_editor',{{objtype:'rpcquery'}})".format(rootNodeId=rootNodeId))
+        
+        b.rowchild(label='!![en]Depending relation explorer',tags='_DEV_',
+                    action="genro.nodeById('{rootNodeId}').publish('open_depending_relation_explorer')".format(rootNodeId=rootNodeId))
+        
         if statsEnabled:
             b.rowchild(label='-')
             b.rowchild(label='!!Group by',action='SET .statsTools.selectedPage = "groupby"; SET .viewPage= "statsTools";')
@@ -484,7 +565,7 @@ class TableHandlerView(BaseComponent):
 
     @struct_method
     def th_slotbar_importer(self,pane,frameCode=None,importer=None,**kwargs):
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         tags = options.get('uploadTags') or '_DEV_,superadmin'
         inattr = pane.getInheritedAttributes()
         table = inattr['table']
@@ -608,7 +689,7 @@ class TableHandlerView(BaseComponent):
         m = self._th_hook('sections_%s' %sections,mangler=th_root,defaultCb=False)
         sectionslist = None
         meta = self._th_sectionsMetadata(m,original_kwargs=kwargs)
-        remote = meta.get('remote')
+        remote = meta.pop('remote',None)
         if remote:
             parent.dataRpc(None,self._th_remoteSectionsDispatcher,
             _onResult="""
@@ -626,10 +707,11 @@ class TableHandlerView(BaseComponent):
                 """ %sections,
                 th_root=th_root,datapath='.sections',_sectionname=sections,
                 _onBuilt=True,remotehandler=remote,**meta.get('remotepars'))
-        elif m:
+        elif m is not None:
             sectionslist = m()
-        elif sections in  tblobj.model.columns and (tblobj.column(sections).relatedTable() is not None or 
-                                                tblobj.column(sections).attributes.get('values')):
+        elif tblobj.model.column(sections) is not None \
+                   and ((hasattr(tblobj.column(sections),'relatedTable')  and tblobj.column(sections).relatedTable() is not None)\
+                         or tblobj.column(sections).attributes.get('values')):
             sectionslist = self._th_section_from_type(tblobj,sections,condition=condition,condition_kwargs=condition_kwargs,
                                                     all_begin=all_begin,all_end=all_end,include_inherited=include_inherited)
         sectionsBag = self._th_buildSectionsBag(sectionslist,meta=meta)
@@ -777,8 +859,7 @@ class TableHandlerView(BaseComponent):
                                 dtstart=dtstart, 
                                 count=count)):
             currdate = dt.date()
-            condition = "to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"\
-                        .format(column=column)
+            condition = f"to_char({column},'YYYY-MM')=to_char(:currdate,'YYYY-MM')"
             sections.append(dict(code='s{idx}'.format(idx=idx),
                             condition=condition,
                             condition_currdate=currdate,
@@ -788,11 +869,11 @@ class TableHandlerView(BaseComponent):
         if all_following:
             sections.append(dict(code='all_following',condition='{column}>=:endlast'.format(column=column),
                                 condition_endlast=endlast,
-                                caption='!![en]Following months'))
+                                caption='!![en]Following months' if all_following is True else all_following))
         if all_previous:
             all_prev_section = dict(code='all_previous',condition='{column}<:dtstart'.format(column=column),
                                 condition_dtstart=dtstart,
-                                caption='!![en]Previous months')
+                                caption='!![en]Previous months' if all_previous is True else all_previous)
             sections.insert(0,all_prev_section)
         if allPosition:
             all_section = dict(code='all',caption='!![en]All')
@@ -919,7 +1000,7 @@ class TableHandlerView(BaseComponent):
         pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
                         table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
 
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         #SOURCE MENUPRINT
         pane.dataRemote('.resources.print.menu',self.th_printMenu,table=table,
                         flags=options.get('print_flags'),
@@ -1065,7 +1146,7 @@ class TableHandlerView(BaseComponent):
             querybase = self._th_hook('query',mangler=th_root)() or dict(column=(tblobj.attributes.get('caption_field') or tblobj.pkey),op='contains',val='')
         queryBag = self.th_prepareQueryBag(querybase,table=table)
         frame.data('.baseQuery', queryBag)
-        options = self._th_hook('options',mangler=th_root)() or dict()
+        options = self._th_getOptions(th_root)
         pageOptions = self.pageOptions or dict()
         #liveUpdate: 'NO','LOCAL','PAGE'
         liveUpdate = liveUpdate or options.get('liveUpdate') or pageOptions.get('liveUpdate') or self.site.config['options?liveUpdate'] or 'LOCAL'
@@ -1381,7 +1462,7 @@ class TableHandlerView(BaseComponent):
                   th.querymanager = th.querymanager || new gnr.QueryManager(th,this,table);""" 
                , _init=True, _onBuilt=True, table=table,th_root = th_root)
         fmenupath = 'gnr.qb.%s.fieldsmenu' %tablecode
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options =  self._th_getOptions(pane)
         pane.dataRemote(fmenupath,self.relationExplorer,item_type='QTREE',
                         branch=options.get('branch'),
                         table=table,omit='_*')
@@ -1464,7 +1545,7 @@ class TableHandlerView(BaseComponent):
         tblattr = dict(self.db.table(table).attributes)
         tblattr.pop('tag',None)
         pane.data('.table',table,**tblattr)
-        options = self._th_hook('options',mangler=pane)() or dict()
+        options = self._th_getOptions(pane)
         excludeLogicalDeleted = options.get('excludeLogicalDeleted',excludeLogicalDeleted)
         if excludeLogicalDeleted is None:
             excludeLogicalDeleted = True

@@ -54,7 +54,7 @@ class TableHandler(BaseComponent):
                             liveUpdate=None,
                             picker_kwargs=True,subtable=None,
                             dbstore=None,hider_kwargs=None,view_kwargs=None,preview_kwargs=None,parentForm=None,
-                            form_kwargs=None,relation_kwargs=None,**kwargs):
+                            form_kwargs=None,relation_kwargs=None,roundedEnvelope=False,**kwargs):
         fkeyfield=None
         if relation:
             table,condition,fkeyfield = self._th_relationExpand(pane,relation=relation,condition=condition,
@@ -130,7 +130,7 @@ class TableHandler(BaseComponent):
             if addrow is not True:
                 addrow_defaults = addrow
 
-        if picker:
+        if picker or picker_kwargs:
             top_slots.append('thpicker')
             if picker is True:
                 picker = tblobj.pkey
@@ -194,6 +194,7 @@ class TableHandler(BaseComponent):
                                 parentForm=parentForm,liveUpdate=liveUpdate,
                                 excludeDraft = store_excludeDraft,
                                 excludeLogicalDeleted = store_excludeLogicalDeleted,
+                                roundedEnvelope=roundedEnvelope,
                                 **view_kwargs) 
         hiderRoot = wdg if kwargs.get('tag') == 'BorderContainer' else wdg.view
         if hider:
@@ -258,21 +259,28 @@ class TableHandler(BaseComponent):
     @extract_kwargs(dialog=True,default=True,form=True)
     @struct_method
     def th_dialogTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,dialog_kwargs=None,default_kwargs=None,readOnly=False,
+                            form_kwargs=None,loadEvent='onRowDblClick',mobileTemplateGrid=None,**kwargs):
+        if mobileTemplateGrid:
+            dialog_kwargs.setdefault('fullScreen',True)
+            kwargs.setdefault('configurable',False)
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
+                                        grid_mobileTemplateGrid=mobileTemplateGrid,
                                         tag='ContentPane',default_kwargs=default_kwargs,readOnly=readOnly,
                                         form_kwargs=form_kwargs,**kwargs)
         form_kwargs.setdefault('form_locked',True)
-        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent='onRowDblClick',
+        pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,loadEvent=loadEvent,
                         dialog_kwargs=dialog_kwargs,attachTo=pane,formInIframe=formInIframe,
                         formResource=formResource,default_kwargs=default_kwargs,**form_kwargs)     
+        if mobileTemplateGrid:
+            pane.view.attributes['_class'] = f"{pane.view.attributes['_class']} templateGrid"
         return pane
     
     @extract_kwargs(palette=True,default=True,form=True)
     @struct_method
     def th_paletteTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,formResource=None,viewResource=None,
-                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,**kwargs):
+                            formInIframe=False,palette_kwargs=None,default_kwargs=None,readOnly=False,form_kwargs=None,loadEvent='onRowDblClick',**kwargs):
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,
                                         formInIframe=formInIframe,
@@ -283,7 +291,7 @@ class TableHandler(BaseComponent):
         form_kwargs.setdefault('form_locked',True)
         pane.tableEditor(frameCode=pane.attributes['thform_root'],table=table,
                                 formResource=formResource,
-                                loadEvent='onRowDblClick',
+                                loadEvent=loadEvent,
                                 palette_kwargs=palette_kwargs,attachTo=pane,default_kwargs=default_kwargs,
                                 **form_kwargs)     
         return pane
@@ -462,7 +470,7 @@ class TableHandler(BaseComponent):
                                         default_kwargs=default_kwargs,configurable=configurable,
                                         _foreignKeyFormPath='=#FORM',**kwargs)
         remoteRowController = self._th_hook('remoteRowController',dflt=None,mangler=wdg.view) or None
-        options = self._th_hook('options',mangler=wdg.view)() or dict()
+        options = self._th_getOptions(wdg.view)
         wdg.view.store.attributes.update(recordResolver=False)
         wdg.view.grid.attributes.update(remoteRowController=remoteRowController,
                                         defaultPrompt = defaultPrompt or options.get('defaultPrompt'),
@@ -743,6 +751,16 @@ class MultiButtonForm(BaseComponent):
             form.dataController("""
                 mb.setRelativeData('.value',pkey=='*newrecord*'?'_newrecord_':pkey);
                 """,formsubscribe_onCancel=True,mb=mb,pkey='=.pkey')
+            resetpkey = """SET .lastkey = GET .value;
+                           PUT .value = '*norecord*';"""
+            restorepkey = """let lastkey = GET .lastkey;
+                            if(result && result.getValue().getNodeByAttr('_pkey',lastkey)){
+                                SET .value = lastkey;
+                            }
+            """
+
+            store_kwargs['_onCalling'] = f'{resetpkey};{store_kwargs["_onCalling"]}' if store_kwargs.get("_onCalling") else resetpkey
+            store_kwargs['_onResult'] = f'{restorepkey};{store_kwargs["_onResult"]}' if store_kwargs.get("_onResult") else restorepkey
         store_kwargs['_if'] = store_kwargs.pop('if',None) or store_kwargs.pop('_if',None)
         store_kwargs['_else'] = "this.store.clear(); SET .value = '*norecord*'"
         tblobj = self.db.table(table)
@@ -756,9 +774,11 @@ class MultiButtonForm(BaseComponent):
         if store_kwargs['order_by']:
             columnslist.append([c.strip() for c in store_kwargs['order_by'].split(' ')][0])
         store_kwargs['columns'] = ','.join(columnslist)
+        
         rpc = mb.store(table=table,condition=condition,**store_kwargs)
         frame.multiButtonView = mb
         return frame
+    
 
 
     def _th_appendExternalForm(self,sc,formId=None,pars=None,columnslist=None,switchdict=None,storetable=None,

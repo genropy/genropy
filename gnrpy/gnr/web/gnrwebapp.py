@@ -1,12 +1,8 @@
-from __future__ import print_function
-from past.builtins import basestring
 
 import os
 from datetime import datetime
 
-from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.app.gnrapp import GnrApp
-#from gnr.core.gnrlang import gnrImport
 from gnr.core.gnrlang import getUuid
 
 class WebApplicationCache(object):
@@ -61,8 +57,8 @@ class GnrWsgiWebApp(GnrApp):
             broadcast = tblobj.attributes.get('broadcast')
             if broadcast is False:
                 return
-            if isinstance(recordOrPkey,basestring):
-                if isinstance(broadcast,basestring):
+            if isinstance(recordOrPkey, str):
+                if isinstance(broadcast, str):
                     records = [tblobj.record(pkey=recordOrPkey).output('dict')]
                 else:
                     records = [{tblobj.pkey:recordOrPkey}]
@@ -206,7 +202,7 @@ class GnrWsgiWebApp(GnrApp):
         :param page: TODO"""
         if user:
             page = page or self.site.currentPage
-            if page and page.connectionStore().getItem('external_verifed_user') == user:
+            if page and page.connectionStore().getItem('external_verified_user') == user:
                 authenticate = False
             authmethods = self.config['authentication']
             if user=='gnrtoken':

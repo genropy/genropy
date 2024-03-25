@@ -23,7 +23,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from builtins import str
 import os
 import sys
 import glob
@@ -177,6 +176,7 @@ def setEnvironment(gnr_config):
             if not os.getenv(var):
                 os.environ[str(var)] = str(value)
 
+
 def getGnrConfig(config_path=None, set_environment=False):
     config_path = config_path or gnrConfigPath()
     if not config_path or not os.path.isdir(config_path):
@@ -213,6 +213,22 @@ def updateGnrEnvironment(updater):
     environment_bag.update(updater)
     environment_bag.toXml(environment_path,pretty=True)
 
+def getEnvironmentPath():
+    return os.path.join( gnrConfigPath(),'environment.xml')
+
+def getEnvironmentItem(path,default=None,update=False):
+    environment_path = getEnvironmentPath()
+    environment_bag = Bag(environment_path) 
+    result = environment_bag.getItem(path)
+    if result is not None:
+        return result
+    result = default
+    if update and result is not None:
+        environment_bag[path] = result
+    environment_bag.toXml(environment_path,pretty=True)
+    return result
+
+
 def getRmsOptions():
     config_path = gnrConfigPath()
     environment_path = os.path.join(config_path,'environment.xml')
@@ -225,6 +241,8 @@ def setRmsOptions(rebuild=False,**options):
     environment_bag = Bag(environment_path) 
     environment_bag.setAttr('rms',_updattr=not rebuild,**options)
     environment_bag.toXml(environment_path,pretty=True)
+
+
 
 def getGenroRoot():
     return os.path.abspath(os.path.join(gnr.__file__,'..','..','..'))

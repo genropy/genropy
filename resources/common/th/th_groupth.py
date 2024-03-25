@@ -18,7 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from builtins import str
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
@@ -62,7 +62,7 @@ class TableHandlerGroupBy(BaseComponent):
             store_kwargs['applymethod'] = store_kwargs.get('applymethod') or self._th_hook('groupedApplymethod',mangler=frameCode)
         bc = pane.borderContainer(datapath=datapath,_class='group_by_th',_anchor=True,**kwargs)
         stack_kwargs = {}
-        if not grouper: #not called as grouper
+        if not (grouper or static): #not called as grouper
             grid_kwargs.setdefault('selected__pkeylist','#ANCHOR.details_pkeylist')
             tree_kwargs.setdefault('tree_selected__pkeylist','#ANCHOR.details_pkeylist')
             stack_kwargs.setdefault('grid_selected__pkeylist','#ANCHOR.details_pkeylist')
@@ -357,7 +357,7 @@ class TableHandlerGroupBy(BaseComponent):
 
         pane.dataController("""
                             if(pkeylist){
-                                var queryvars = {};
+                                var queryvars = {subtable:'*',ignorePartition:true,excludeDraft:false,excludeLogicalDeleted:false};
                                 queryvars.condition = '$pkey IN :currpkeylist';
                                 queryvars.currpkeylist = pkeylist.split(',');
                                 grid.collectionStore().loadData(queryvars);
@@ -394,6 +394,16 @@ class TableHandlerGroupBy(BaseComponent):
         count_distinct_keys = []
         for v in struct['#0.#0'].digest('#a'):
             if v['field'] =='_grp_count' or v.get('calculated'):
+               #having_chunk = []
+               #if v.get('min_value') is not None:
+               #    parname = f'_grp_count_sum_min_value'
+               #    kwargs[parname] = v['min_value']
+               #    having_chunk.append(f'count(*)>=:{parname}')
+               #if v.get('max_value') is not None:
+               #    parname = f'_grp_count_sum_max_value'
+               #    kwargs[parname] = v['max_value']
+               #    having_chunk.append(f'count(*)>=:{parname}')
+               #having_list.append(' AND '.join(having_chunk))
                 continue
             col = v.get('queryfield') or v['field']
             if not col.startswith('@'):

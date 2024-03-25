@@ -22,14 +22,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-#import weakref
 
-from __future__ import division
-from __future__ import print_function
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
 
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
@@ -227,7 +220,7 @@ def struct_method(func_or_name):
                     "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
         GnrDomSrc._external_methods[name] = func_name
         
-    if isinstance(func_or_name, basestring):
+    if isinstance(func_or_name, str):
         name = func_or_name
         
         def decorate(func):
@@ -791,7 +784,7 @@ class GnrDomSrc(GnrStructData):
         :param event: TODO
         :param func: TODO"""
         objPath = None
-        if not isinstance(what, basestring):
+        if not isinstance(what, str):
             objPath = what.fullpath
             what = None
         return self.child('subscribe', obj=what, objPath=objPath, event=event, childcontent=func, **kwargs)
@@ -845,7 +838,7 @@ class GnrDomSrc(GnrStructData):
         if result:
             return result.value.getItem('#0')
         
-    def mobileFormBuilder(self,margin_right=None,**kwargs):
+    def mobileFormBuilder(self,margin_right=None,_class=None,**kwargs):
         margin_right = margin_right or '10px'
         box = self.div(margin_right=margin_right)
         fld_width='100%'
@@ -857,7 +850,7 @@ class GnrDomSrc(GnrStructData):
                         lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class='mobilefields')
+                        _class=_class or 'mobilefields')
         pars.update(kwargs)
         return box.formbuilder(**pars)
         
@@ -1048,7 +1041,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
              'tinyMCE', 'protovis','codemirror','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
-             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
+             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
              'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
@@ -1294,13 +1287,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
         
-    def partitionController(self,partition_key=None,value=None):
+    def partitionController(self,partition_key=None,value=None,**kwargs):
         self.dataController(f"""
             let kw = {{}};
             kw.topic  = 'changed_partition_{partition_key}';
             kw.iframe = '*';
             genro.publish(kw,{{partition_value:value}});
-        """,value=value)
+        """,value=value,**kwargs)
         self.partitionSubscriber(partition_key)
     
     def partitionSubscriber(self,partition_key):
@@ -1655,7 +1648,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         .. note:: a slotToolbar is a :ref:`slotBar <slotbar>` with some css preset
         """
-        kwargs['toolbar'] = True
+        kwargs.setdefault('toolbar', True)
         return self.slotBar(*args,**kwargs)
         
     def slotFooter(self,*args,**kwargs):
@@ -1869,7 +1862,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
     def radiogroup(self, labels, group, cols=1, datapath=None, **kwargs):
         """.. warning:: deprecated since version 0.7"""
-        if isinstance(labels, basestring):
+        if isinstance(labels, str):
             labels = labels.split(',')
         pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
         for label in labels:
@@ -2538,18 +2531,22 @@ class GnrGridStruct(GnrStructData):
                 columns.append(dict(field=f'{code}_{i+1:02}',name=name,value=self.page.catalog.fromText(val,dtype)))
         return columns 
         
-    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,**kwargs):
+    def radioButtonSet(self,code=None,name=None,values=None,dtype=None,columns=None,**kwargs):
         return self.columnset(code=code,name=name ,
                         cells_radioButton = code,
                         cells_tag='checkboxcolumn',
-                        columns=self._collist(code,values,dtype=dtype),**kwargs)
+                        columns=columns or self._collist(code,values,dtype=dtype),**kwargs)
     
-    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,**kwargs):
+    def checkBoxSet(self,code=None,name=None,values=None,dtype=None,aggr=None,columns=None,**kwargs):
         return self.columnset(code=code,name=name ,
                         cells_checkBoxAggr = aggr,
                         cells_checkBox = code,
                         cells_tag='checkboxcolumn',
-                        columns=self._collist(code,values,dtype=dtype),**kwargs)
+                        cells__customGetter="""function(rowdata,rowidx){
+                            let result = rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
+                            return result;
+                        }""",
+                        columns=columns or self._collist(code,values,dtype=dtype),**kwargs)
 
 
 
@@ -2726,7 +2723,7 @@ class GnrGridStruct(GnrStructData):
         
         r.fields('name/Name:20,address/My Addr:130px....')"""
         tableobj = self.tblobj
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = columns.replace('\n', '').replace('\t', '')
             col_list = gnrstring.splitAndStrip(columns, ',')
             if '[' in columns:
@@ -2767,7 +2764,7 @@ class GnrGridStruct(GnrStructData):
             
         if totalWidth:
             for j, w in enumerate(widths):
-                widths[j] = int(old_div(w * totalWidth, wtot))
+                widths[j] = int(w * totalWidth/wtot)
         for j, field in enumerate(fields):
             #self.child('cell', field=field, childname=names[j], width='%i%s'%(widths[j],unit), dtype=dtypes[j])
             self.cell(field=field, name=names[j], width='%i%s' % (widths[j], unit), dtype=dtypes[j], **fld_kwargs[j])

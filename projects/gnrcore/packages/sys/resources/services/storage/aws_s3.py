@@ -3,7 +3,7 @@
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from builtins import object
+
 from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
@@ -16,9 +16,7 @@ import tempfile
 import mimetypes
 from datetime import datetime
 import warnings
-import six
-if six.PY3:
-    warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
 
 class S3LocalFile(object):
@@ -164,6 +162,21 @@ class Service(StorageService):
     def mkdir(self, *args, **kwargs):
         with self.open(*args+('.gnrdir',),mode='w') as dotfile:
             dotfile.write('.gnrdircontent')
+
+    def ext_attributes(self, *args):
+        s3 = self._client
+        internalpath = self.internal_path(*args)
+        try:
+            response = s3.head_object(
+                    Bucket=self.bucket,
+                    Key=internalpath)
+            lastModified = response['LastModified']
+            lastModified = lastModified.timestamp()
+            contentLength = response['ContentLength']
+        except botocore.exceptions.ClientError:
+            lastModified = None
+            contentLength = None
+        return (lastModified,contentLength,self.isdir(*args))
 
     def mtime(self, *args):
         s3 = self._client

@@ -21,7 +21,7 @@
 """
 Component for thermo:
 """
-from builtins import str
+
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrstring import splitAndStrip
@@ -100,6 +100,7 @@ class PeriodCombo(BaseComponent):
         today = datetime.date.today()
         dates = []
         dates.append(str(today.year))
+        dates.append(str(today.year + 1))
         dates.append(str(today.year - 1))
         for k, v in list(DATEKEYWORDS[self.locale[:2].lower()].items()):
             if k != 'to':

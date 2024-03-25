@@ -422,6 +422,19 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
     },
 
+    resizeFirstContainerResizable:function(sourceNode){
+        let node = sourceNode;
+        let widget = sourceNode.getWidget();
+        while (!(widget && widget.resize && widget.isContainer)){
+            node = node.getParentNode();
+            if(!node){
+                return;
+            }
+            widget = node.getWidget();
+        }
+        widget.resize();
+    },
+
     getStyleDict: function(attributes/*{}*/, noConvertStyle) {
         if (attributes.gnrIcon) {
             attributes.iconClass = 'gnrIcon gnrIcon' + objectPop(attributes, 'gnrIcon');
@@ -1417,6 +1430,39 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
         return result;
     },
+
+    jsonTable:function(data, kw) {
+        var max_height = kw.max_height || '180px';
+        var cols = kw.cols;
+        var tblclass = kw.tblclass || '';
+        var result = [];
+        result.push(`<div class="dynamicTable fixTableHead ${tblclass}" style="height:100%;">`);
+            result.push('<table tabindex="0">');
+                result.push('<thead>');
+                    result.push('<tr>');
+                    for(let cell of cols){
+                        let style = cell.style || '';
+                        if(cell.width){
+                            style = "width:"+cell.width || '100%';
+                        }
+                        result.push(`<th scope="col" style="${style}">${cell.name}</th>`);
+                    }
+                    result.push('</tr>')
+                result.push('</thead>');
+                result.push('<tbody>');
+                    for(let row of data){
+                        result.push('<tr>');
+                        for(let cell of cols){
+                            result.push(`<td class="cell_${cell.dtype}">${_F(row[cell.field],cell.format,cell.dtype)}</td>`)
+                        }
+                        result.push('</tr>');
+                    }
+                result.push('</tbody>');
+            result.push('</table>')
+        result.push('</div>')
+        return result.join('');
+    },
+
     scrollableTable:function(where, gridbag, kw) {
         var domnode = this.getDomNode(where);
         var max_height = kw.max_height || '180px';
@@ -1431,7 +1477,9 @@ dojo.declare("gnr.GnrDomHandler", null, {
             });
         }
         var tblclass = kw.tblclass;
-        var thead = '<thead onmouseup="dojo.stopEvent(event)"><tr>';
+        let noHeader = headers.length==1 && headers[0]=='*'
+        let thead_style = noHeader? 'style="display:none;"':'';
+        var thead = `<thead ${thead_style} onmouseup="dojo.stopEvent(event)"><tr>`;
         var autoWidth = true;
         cols.forEach(function(cell){
             let style = cell.style || '';
@@ -1737,8 +1785,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
     },
     setRootStyle:function(rs){
         if(rs instanceof gnr.GnrBag){
-            var mw = dojo.byId('mainWindow');
-            mw.style.cssText = objectAsStyle(genro.dom.getStyleDict(rs.asDict(), {}));
+            let customStyleDict = objectUpdate(objectFromStyle(document.body.style.cssText),genro.dom.getStyleDict(rs.asDict(), {}))
+            document.body.style.cssText = objectAsStyle(customStyleDict);
         }        
     },
     printElementContent:function(where,title,doprint){
@@ -1922,7 +1970,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? genro.getData('gnr.app_preference.sys.jsPdfViewer'):jsPdfViewer;
-        if(parsedSrc.file && stringEndsWith(parsedSrc.file,'.pdf') && (genro.isMobile || jsPdfViewer || window.electron) ){
+        if(parsedSrc.file && stringEndsWith(parsedSrc.file,'.pdf') && jsPdfViewer  ){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }

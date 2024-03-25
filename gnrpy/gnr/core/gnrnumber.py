@@ -21,7 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-from builtins import str
 from decimal import Decimal,ROUND_HALF_UP
 
 def decimalRound(value=None,places=2,rounding=None):
@@ -52,8 +51,8 @@ def calculateMultiPerc(multiperc):
 def partitionTotals(totals,quotes,places=2,rounding=None):
     if not isinstance(totals,list):
         totals = [totals]
-    totals = map(Decimal,totals)
-    quotes = map(Decimal,quotes)
+    totals = list(map(Decimal,totals))
+    quotes = list(map(Decimal,quotes))
     residues = list(totals)
     tot_quotes = sum(quotes)
     n_quotes = len(quotes)

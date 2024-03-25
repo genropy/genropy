@@ -6,9 +6,7 @@
 
 from __future__ import division
 from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
+
 from past.utils import old_div
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
@@ -171,6 +169,10 @@ class MaintenancePlugin(BaseComponent):
         bar.exclude_guest.checkbox(value='^.exclude_guest',label='!!Exclude guest')
         frame.dataRpc('dummy',self.maintenance_update_data,_tab='^left.selected',exclude_guest='=.connectedUsers.exclude_guest',
             _if='_tab=="maintenance"',
+            _userframe=userframe,
+            _onCalling="""if(!genro.dom.isVisible(kwargs._userframe)){
+                return false;
+            }""",
             _onResult="""SET gnr.maintenance.data.loaded_users = result.popNode("users");
                          SET gnr.maintenance.data.loaded_connections = result.popNode("connections");
                          SET gnr.maintenance.data.loaded_pages = result.popNode("pages");""",_timing=5,

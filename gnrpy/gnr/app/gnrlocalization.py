@@ -29,12 +29,8 @@ from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
-
 LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\6\)""")
-
-
 TRANSLATION = re.compile(r"^\!\!(?:\[(?P<lang>.{2})\])?(?:{(\w*)})?(?P<value>.*)$|(?:\[\!\!(?:\[(?P<lang_emb>.{2})\])?)(?:{(\w*)})?(?P<value_emb>.*?)\]")
-
 PACKAGERELPATH = re.compile(r".*/packages/(.*)")
 
 class GnrLocString(str):
@@ -77,10 +73,7 @@ class AppLocalizer(object):
     @property
     def languages(self):
         if not self._languages:
-            if self.translator:
-                self._languages = self.translator.languages
-            else:
-                self._languages = dict(en='English',it='Italian',fr='French')
+            return {x['code']:x['name'] for x in self.application.db.table('adm.language').query(columns='$code,$name').fetch()}
         return self._languages
 
     def buildLocalizationDict(self):
@@ -137,16 +130,14 @@ class AppLocalizer(object):
             result['translation'] = TRANSLATION.sub(translatecb,txt) if txt else ''
             return result
 
-    
-
     def autoTranslate(self,languages):
         languages = languages.split(',')
+        safedict = dict()
         def cb(m):
             safekey = '[%i]' %len(safedict)
             safedict[safekey] = m.group(1)
             return safekey
         for lockey,locdict in list(self.localizationDict.items()):
-            safedict = dict()
             base_to_translate = SAFEAUTOTRANSLATE.sub(cb,locdict['base'])
             baselang = lockey.split('_',1)[0]
             for lang in languages:
@@ -154,10 +145,31 @@ class AppLocalizer(object):
                     locdict[lang] = base_to_translate
                     continue
                 if not locdict.get(lang):
-                    translated = self.translator.translate(base_to_translate,'%s-%s' %(baselang,lang))
-                    for k,v in list(safedict.items()):
+                    translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
+                    #items = list(safedict.items())
+                    # self.utils.quickThermo(items, maxidx=len(items), labelcb=lambda t: t[0], title=f'!![en]Autotranslate terms in {lang}')
+                    for k,v in safedict.items():
                         translated = translated.replace(k,v)
                     locdict[lang] = translated
+                    
+    def translateBlock(self, language=None, localizationBlock=None, override=None):
+        blockdict = {s['code']:s['destFolder'] for s in self.slots}
+        destFolder = blockdict[localizationBlock]
+        locbag = self.getLocalizationBag(blockdict[localizationBlock])
+        
+        def cb(n):
+            if not n.value and 'base' in n.attr:
+                curr_translation = n.attr.get(language) or ''
+                curr_translation = curr_translation.strip()
+                if not curr_translation or override:
+                    base_term = n.attr.get('base')
+                    translated = self.translator.translate(base_term, from_language=n.label[:2], to_language=language)
+                    if translated and translated.lower()!=base_term.lower():
+                        n.attr[language] = translated
+                    else:
+                        n.attr[language] = None
+        locbag.walk(cb)
+        locbag.toXml(os.path.join(destFolder,'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
 
     def getLocalizationBag(self,locfolder):
         destpath = os.path.join(locfolder,'localization.xml')
@@ -200,6 +212,7 @@ class AppLocalizer(object):
             if scan_all or s['destFolder'] != self.genroroot:
                 locbag = Bag()
                 for root in s['roots']:
+                    print (root)
                     d = DirectoryResolver(root,include='*.py,*.js')()
                     d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',destFolder=s['destFolder'] )
                 locbag.toXml(os.path.join(s['destFolder'],'localization.xml'),pretty=True,typeattrs=False, typevalue=False)

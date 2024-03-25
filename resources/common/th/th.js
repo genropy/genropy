@@ -209,7 +209,10 @@ var th_sections_manager = {
             var orlist = [];
             var titles = sectionsbag.getItem('data');
             currents.forEach(function(current){
-                orlist.push(titles.getNode(current).attr.caption || '');
+                let subtitle = titles.getNode(current).attr.subtitle;
+                if(subtitle){
+                    orlist.push(subtitle || '');
+                }
             });
             if(orlist.length>0){
                 captions.push(orlist.join(' | '))
@@ -379,6 +382,9 @@ dojo.declare("gnr.LinkerManager", null, {
         this.linkerform.load({destPkey:pkey,default_kw:default_kw});
         var that = this;
         this.linkerform.subscribe('onSaved',function(kw){
+            if(!kw.pkey){
+                throw new Error('Missing primary key after record save');
+            }
             that.setCurrentPkey(kw.pkey);
         });
         this.linkerform.subscribe('onDismissed',function(kw){

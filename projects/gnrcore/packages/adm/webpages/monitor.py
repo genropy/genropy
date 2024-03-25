@@ -7,7 +7,7 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-from builtins import object
+
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import GnrMixinError
 from gnr.core.gnrbag import Bag
 

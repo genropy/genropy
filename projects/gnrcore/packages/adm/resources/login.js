@@ -11,6 +11,11 @@ const LoginComponent = {
             sourceNode.setRelativeData('gnr.avatar', null);
             return;
         }
+        if(avatar.getItem('status')=='bann'){
+            genro.publish('failed_login_msg',{'message':_T('User is banned')});
+            sourceNode.setRelativeData('gnr.avatar.error' ,_T('User is banned'));
+            return;
+        }
         if(avatar.getItem('status')!='conf'){
             sourceNode.setRelativeData('gnr.avatar', avatar);
             genro.publish('confirmUserDialog');
@@ -22,7 +27,7 @@ const LoginComponent = {
         currenv.update(newenv);
         sourceNode.setRelativeData('gnr.rootenv', currenv);
         sourceNode.setRelativeData('gnr.avatar',avatar);
-        if(avatar.getItem('group_code')){
+        if(avatar.getItem('group_code') && !avatar.getItem('multi_group')){
             sourceNode.setRelativeData('_login.group_code',avatar.getItem('group_code'))
         }
         sourceNode.getValue().walk(n=>{    

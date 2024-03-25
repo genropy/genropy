@@ -737,15 +737,18 @@ body.tundra.mimi {
 
 }
 
+.mode_mobile .menutree{
+    margin:10px;
+}
 .mode_mobile .menutree .menu_shape{
     border-radius:4px;
     margin-left:0px;
-    font-size:13px;
+    font-size:16px;
     padding-left: 0px;
     background:none;
     padding-top: 0;
     padding-bottom: 0;
-    line-height: 24px;
+    line-height: 30px;
     color:white;
     padding-left: 12px;
 
@@ -761,8 +764,7 @@ body.tundra.mimi {
 
 .mode_mobile .menutree .menu_shape.menu_level_1{
     font-size:18px;
-    line-height: 28px;
-    font-variant-caps: all-small-caps;
+    line-height: 35px;
 }
 
 .mode_mobile .menutree .opendir{
@@ -775,10 +777,10 @@ body.tundra.mimi {
     opacity: .5;
 }
 
-.mode_mobile .menutree .label_opendir{
+._common_d11.mimi.mode_mobile .menutree .label_opendir{
     background: url(/_gnr/11/css/icons/base10/tinyOpenBranch_white.png) no-repeat 4px center;
 }
-.mode_mobile .menutree .label_closedir{
+._common_d11.mimi.mode_mobile .menutree .label_closedir{
     background: url(/_gnr/11/css/icons/base10/tinyCloseBranch_white.png) no-repeat 4px center;
 }
 
@@ -893,6 +895,9 @@ body.tundra.mimi {
     color:var(--mainWindow-color);
 }
 
+.mainWindowBG{
+    background:var(--mainWindow-background);    
+}
 /* @end */
 
 /* @group Colors */
@@ -1012,7 +1017,7 @@ body.tundra.mimi {
     border-bottom: 1px solid #DDDDDD;
 }
 
-.tundra._common_d11 .templateGrid .dojoxGrid-content>div{
+.tundra._common_d11 .templateGrid .dojoxGrid-content>div,.tundra._common_d11 .mobileTemplateGrid .dojoxGrid-content>div{
     border-bottom: 1px solid transparent;
 }
 
@@ -1190,7 +1195,7 @@ body.tundra.mimi {
 
 .framedindex_tablist{
     background-image: none;
-    background-image:var(--frameindex-tablist-background);
+    background:var(--frameindex-tablist-background);
     color:var(--frameindex-tablist-color);
     min-height: 34px;
 }
@@ -1530,6 +1535,10 @@ body.tundra.mimi {
     background: url(/_rsrc/common/css_icons/svg/16/open_floating_window.svg) no-repeat center center;
 }
 
+.mimi .messages{
+    background: url(/_rsrc/common/css_icons/svg/16/messages.svg) no-repeat center center;
+}
+
 .mimi .form_status_green{
     background: url(/_rsrc/common/css_icons/svg/16/form_status_green.svg) no-repeat center center;
 }
@@ -1657,6 +1666,7 @@ body.tundra.mimi {
 .mimi .reset_record, .mimi .revert{
     background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
 }
+
 
 .mimi .search{
     background: url(/_rsrc/common/css_icons/svg/16/search.svg) no-repeat center center;

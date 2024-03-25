@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from builtins import object
+
 class GnrCustomWebPage(object):
     def source_viewer_open(self):
         return 'close'

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -20,14 +20,11 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-import sys
 
+import sys
 import re
 import select
+
 try:
     import psycopg2
 except ImportError:
@@ -71,9 +68,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'timestamp without time zone': 'DH',
                  'timestamp with time zone': 'DHZ',
                   'numeric': 'N', 'money': 'M',
-                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 
-                 'double precision': 'R', 'real': 'R', 'bytea': 'O',
-                 'jsonb':'jsonb'}
+                 'integer': 'I', 'bigint': 'L', 
+                 'smallint': 'I', 
+                 'double precision': 'R', 
+                 'real': 'R',
+                'bytea': 'O',
+                'jsonb':'jsonb'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
@@ -83,8 +83,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'DH': 'timestamp without time zone',
                     'DHZ': 'timestamp with time zone',
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
-                    'serial': 'serial8', 'O': 'bytea',
-                    'jsonb': 'jsonb'}
+                    'serial': 'serial8', 'O': 'bytea','jsonb':'jsonb'}
 
     _lock = threading.Lock()
     paramstyle = 'pyformat'
@@ -216,7 +215,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         command = 'DROP TABLE IF EXISTS %s;'
         if cascade:
             command = 'DROP TABLE %s CASCADE;'
-        tablename = dbtable if isinstance(dbtable,basestring) else dbtable.model.sqlfullname
+        tablename = dbtable if isinstance(dbtable, str) else dbtable.model.sqlfullname
         self.dbroot.execute(command % tablename)
 
     def dump(self, filename,dbname=None,excluded_schemas=None, options=None,**kwargs):

@@ -1,52 +1,52 @@
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-
-from gnr.core.gnrbag import Bag
-from werkzeug.wrappers import Request, Response
-from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
-from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+import json
 import os
 import re
 import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
-from gnr.core import gnrstring
-from time import time
-from collections import defaultdict
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag
-from gnr.core.gnrdecorator import public_method, callers
-from gnr.app.gnrconfig import getGnrConfig
-from threading import RLock
 import _thread
 import mimetypes
-from gnr.core.gnrsys import expandpath
 import pickle
+from time import time
+from collections import defaultdict
+from threading import RLock
+import pdb
+import warnings
+
+from werkzeug.wrappers import Request, Response
+from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
+
+from gnr.core.gnrbag import Bag
+from gnr.web.gnrwebapp import GnrWsgiWebApp
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+from gnr.core import gnrstring
+from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
+from gnr.core.gnrdecorator import public_method
+from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
+
+from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
+from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
+from gnr.core.gnrcrypto import AuthTokenGenerator
 
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
-
+from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import SiteRegisterClient
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
-import pdb
+
 try:
     from werkzeug import EnvironBuilder
 except ImportError:
     from werkzeug.test import EnvironBuilder
 from gnr.web.gnrheadlesspage import GnrHeadlessPage
-
-import warnings
 
 mimetypes.init()
 
@@ -187,7 +187,7 @@ class GnrWsgiSite(object):
         return self.wsgiapp(environ, start_response)
 
     def __init__(self, script_path, site_name=None, _config=None, _gnrconfig=None, counter=None, noclean=None,
-                 options=None, tornado=None):
+                 options=None, tornado=None, websockets=None):
         global GNRSITE
         GNRSITE = self
         counter = int(counter or '0')
@@ -231,7 +231,7 @@ class GnrWsgiSite(object):
 
         self.default_page = self.config['wsgi?default_page'] or 'sys/default'
         self.root_static = self.config['wsgi?root_static']
-        self.websockets= boolean(self.config['wsgi?websockets'])
+        self.websockets= boolean(self.config['wsgi?websockets']) or websockets
         self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
         self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
 
@@ -258,6 +258,8 @@ class GnrWsgiSite(object):
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
+        self.pwa_handler = PWAHandler(self)
+        self.auth_token_generator = AuthTokenGenerator(self.external_secret)
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
         self.register
@@ -495,7 +497,6 @@ class GnrWsgiSite(object):
             return self.not_found_exception(environ, start_response)
         return storageNode.serve(environ, start_response,**kwargs)
 
-    #@callers()
     def getStaticPath(self, static, *args, **kwargs):
         """TODO
 
@@ -845,12 +846,26 @@ class GnrWsgiSite(object):
         else:
             external_host = self.configurationItem('wsgi?external_host',mandatory=True)
         return (external_host or '').rstrip('/')
+    
+    @property
+    def external_secret(self):
+        return getEnvironmentItem('external_secret',default=getUuid(),update=True)
         
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
         if mandatory and result is None:
+            
             print('Missing mandatory configuration item: %s' %path)
         return result
+    
+    def pwa_config(self):
+        pwa = self.config['pwa']
+        if pwa:
+            result = {}
+            for k,v in pwa.items():
+                result[k] = v.replace('\t','').replace('\n','').replace('\r','').strip()
+            return result
+        return self.config.getAttr('pwa')
 
     def _dispatcher(self, environ, start_response):
         """Main :ref:`wsgi` dispatcher, calls serve_staticfile for static files and
@@ -884,7 +899,10 @@ class GnrWsgiSite(object):
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
         #print 'site dispatcher: ',path_list
-        self.checkForDbStore(path_list,request_kwargs)
+        if path_list:
+            self._checkFirstSegment(path_list,request_kwargs)
+
+        self.checkForDbStore(request_kwargs)
        #if path_list and (path_list[0] in self.dbstores):
        #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
         path_list = path_list or ['index']
@@ -894,9 +912,21 @@ class GnrWsgiSite(object):
             try:
                 self.log_print('kwargs: %s' % str(request_kwargs), code='PING')
                 result = self.serve_ping(response, environ, start_response, **request_kwargs)
-                if not isinstance(result, basestring):
+                if not isinstance(result, (bytes,str)):
                     return result
                 response = self.setResultInResponse(result, response, info_GnrTime=time() - t,info_GnrSiteMaintenance=self.currentMaintenance)
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
+        if first_segment == '_pwa_manifest.json':
+            try:
+                result = self.serve_manifest(response, environ, start_response, **request_kwargs)
+                if not isinstance(result, (bytes,str)):
+                    return result
+                response = self.setResultInResponse(result, response)
                 self.cleanup()
             except Exception as exc:
                 raise
@@ -979,44 +1009,48 @@ class GnrWsgiSite(object):
         if uri:
             path_list = uri[1:].split('/')
             return self.statics.static_dispatcher(path_list, environ, start_response,nocache=True)
-    
-    def handleSubdomain(self,path_list,request_kwargs=None):
-        self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
 
-    def checkForDbStore(self,path_list,request_kwargs):
-        if not path_list and not (request_kwargs.get('temp_dbstore') or '').startswith('@'):
-            return
+    def checkForDbStore(self,request_kwargs):
+        for k in ('temp_dbstore','base_dbstore'):
+            storename = request_kwargs.get(k)        
+            if storename and storename.startswith('instance_'):
+                self._registerAuxInstanceDbStore(storename)
+
+    def _checkFirstSegment(self,path_list,request_kwargs):
         first = path_list[0]
-        instanceNode = None
-        dbstore = None
         if first.startswith('@'):
-            instanceNode = self.gnrapp.config.getNode('aux_instances.%s' %first[1:])
-            if not instanceNode:
-                self.handleSubdomain(path_list,request_kwargs=request_kwargs)
-                return
+            first = first[1:]
+            path_list.pop(0)
+            if self.gnrapp.config.getNode(f'aux_instances.{first}'):
+                request_kwargs['base_dbstore'] = f'instance_{first}'
+            else:
+                request_kwargs['_subdomain'] = request_kwargs.get('_subdomain') or first
         else:
-            dbstore = self.db.stores_handler.get_dbstore(first)
-        if dbstore or instanceNode:
-            request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
-        temp_dbstore = request_kwargs.get('temp_dbstore')
+            if self.db.stores_handler.get_dbstore(first):
+                request_kwargs['base_dbstore'] = path_list.pop(0)
+        if request_kwargs.get('_subdomain'):
+            self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
+        temp_dbstore = request_kwargs.get('temp_dbstore','')
         if temp_dbstore and temp_dbstore.startswith('@'):
-            instance_name = temp_dbstore[1:]
-            storename = 'instance_%s' %instance_name
-            request_kwargs['temp_dbstore'] = storename
-            if not storename in self.dbstores:
-                auxapp = self.gnrapp.getAuxInstance(instance_name)
-                if not auxapp:
-                    raise Exception('not existing aux instance %s' %instance_name)
-                dbattr = auxapp.config.getAttr('db')
-                if auxapp.remote_db:
-                    remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
-                    if remote_db_attr:
-                        if 'ssh_host' in remote_db_attr:
-                            host = remote_db_attr['ssh_host'].split('@')[1] if '@' in remote_db_attr['ssh_host'] else remote_db_attr['ssh_host']
-                            port = remote_db_attr.get('port')
-                            dbattr['remote_host'] = host
-                            dbattr['remote_port'] = port
-                self.db.stores_handler.add_store(storename,dbattr=dbattr)
+            request_kwargs['temp_dbstore'] = f'instance_{request_kwargs["temp_dbstore"][1:]}'
+
+    def _registerAuxInstanceDbStore(self,storename):
+        instance_name = storename.replace('instance_','')
+        auxapp = self.gnrapp.getAuxInstance(instance_name)
+        if not auxapp:
+            raise Exception('not existing aux instance %s' %instance_name)
+        if self.db.stores_handler.get_dbstore(storename):
+            return
+        dbattr = auxapp.config.getAttr('db')
+        if auxapp.remote_db:
+            remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
+            if remote_db_attr:
+                if 'ssh_host' in remote_db_attr:
+                    host = remote_db_attr['ssh_host'].split('@')[1] if '@' in remote_db_attr['ssh_host'] else remote_db_attr['ssh_host']
+                    port = remote_db_attr.get('port')
+                    dbattr['remote_host'] = host
+                    dbattr['remote_port'] = port
+        self.db.stores_handler.add_store(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
@@ -1039,7 +1073,7 @@ class GnrWsgiSite(object):
             response.mimetype = kwargs.get('mimetype') or response.mimetype or 'text/plain'
             response.data=result # PendingDeprecationWarning: .unicode_body is deprecated in favour of Response.text
         
-        elif isinstance(result, basestring):
+        elif isinstance(result, (bytes,str)):
             response.data=result
         elif isinstance(result, Response):
             response = result
@@ -1495,6 +1529,10 @@ class GnrWsgiSite(object):
         else:
             return result.toXml(unresolved=True, omitUnknownTypes=True)
 
+    def serve_manifest(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
+        response.content_type = "application/json"
+        return self.pwa_handler.manifest()
+
     def parse_kwargs(self, kwargs):
         """TODO
         :param kwargs: the kw arguments
@@ -1503,7 +1541,7 @@ class GnrWsgiSite(object):
         result = dict()
         for k, v in list(kwargs.items()):
             k = k.strip()
-            if isinstance(v, basestring):
+            if isinstance(v, (bytes,str)):
                 try:
                     v = catalog.fromTypedText(v)
                     result[k] = v
@@ -1582,7 +1620,7 @@ class GnrWsgiSite(object):
         :param zipPath: the result path of the zipped file"""
         import zipfile
         zipresult = self.storageNode(zipPath)
-        if isinstance(file_list,basestring):
+        if isinstance(file_list, str):
             file_list = file_list.split(',')
         with zipresult.open(mode='wb') as zipresult:
             zip_archive = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED,allowZip64=True)
@@ -1612,18 +1650,20 @@ class GnrWsgiSite(object):
         dirres().walk(cb,_mode='')
 
         
-    def externalUrl(self, path, _link=False,**kwargs):
+    def externalUrl(self, url, _link=False,_signed=None,_expire_ts=None,_expire_minutes=None,**kwargs):
         """TODO
 
-        :param path: TODO"""
+        :param url: TODO"""
         params = urllib.parse.urlencode(kwargs)
-        #path = os.path.join(self.homeUrl(), path)
-        if path == '':
-            path = self.home_uri
-        f =  '{}{}' if path.startswith('/') else '{}/{}'
-        path = f.format(self.external_host,path)
+        #url = os.url.join(self.homeUrl(), url)
+        if url == '':
+            url = self.home_uri
+        f =  '{}{}' if url.startswith('/') else '{}/{}'
+        url = f.format(self.external_host,url)
         if params:
-            path = '%s?%s' % (path, params)
+            url = f'{url}?{params}'
+        if _signed:
+            url = self.auth_token_generator.generate_url(url,expire_ts=_expire_ts,expire_minutes=_expire_minutes)
         if _link:
-            return '<a href="%s" target="_blank">%s</a>' %(path,_link if _link is not True else '')
-        return path
+            return '<a href="%s" target="_blank">%s</a>' %(url,_link if _link is not True else '')
+        return url

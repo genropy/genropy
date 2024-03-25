@@ -23,9 +23,7 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from builtins import map
-from builtins import str
-#from builtins import object
+
 import os
 
 import sys
@@ -101,6 +99,7 @@ class BaseServiceType(object):
         service_conf = service_conf or {}
         service = service_factory(self.site,**service_conf)
         service.service_name = service_name
+        service.service_type = self.service_type
         service.service_implementation = implementation
         service._service_creation_ts = datetime.now()
         self.service_instances[service_name] = service
@@ -235,5 +234,20 @@ class BaseServiceType(object):
 
 
 class GnrBaseService(object):
-    def __init__(self, parent):
+    def __init__(self, parent,**kwargs):
         self.parent = parent
+
+    @property
+    def currentPage(self):
+        return self.parent.currentPage
+    
+    def updateServiceParameters(self,service_parameters=None,**kwargs):
+        tblservice = self.parent.db.table('sys.service')
+        db = self.parent.db
+        with db.tempEnv(connectionName='system'):
+            with tblservice.recordToUpdate(service_type=self.service_type,
+                                            service_name=self.service_name) as service_record:
+                current_parameters = Bag(service_record.get('parameters'))
+                current_parameters.update(kwargs)
+                service_record['parameters'] = service_parameters or current_parameters
+            self.parent.db.commit()

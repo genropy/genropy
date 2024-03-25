@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-  
+#-*- coding: utf-8 -*-  
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -20,29 +20,32 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-
 import os
 import http.client
 import socket
 import urllib.request, urllib.parse, urllib.error
+from time import sleep
+
 from gnr.core.gnrbag import Bag
 
-from time import sleep
 CONNECTION_REFUSED = 61
 MAX_CONNECTION_ATTEMPT = 20 
 CONNECTION_ATTEMPT_DELAY = 1
-
 
 class WebSocketHandler(object):
     def sendCommandToPage(self,page_id,command,data):
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         envelope=Bag(dict(command=command,data=data))
-        body=urllib.parse.urlencode(dict(page_id=page_id,envelope=envelope.toXml(unresolved=True)))
+        body=urllib.parse.urlencode(dict(page_id=page_id,remote_service=None,envelope=envelope.toXml(unresolved=True)))
         self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
-        
+
+    def sendCommandToRemoteService(self,remote_service=None,command=None,data=None):
+        headers = {'Content-type': 'application/x-www-form-urlencoded'}
+        envelope=Bag(dict(command=command,data=data))
+        body=urllib.parse.urlencode(dict(page_id=None,remote_service=remote_service,envelope=envelope.toXml(unresolved=True)))
+        self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
+
+
     def setInClientData(self,page_id,path=None,value=None,nodeId=None,
                     attributes=None,fired=None,reason=None,noTrigger=None):
         if not isinstance(page_id,list):
@@ -79,9 +82,9 @@ class WsgiWebSocketHandler(WebSocketHandler):
         self.site = site
         sockets_dir = os.path.join(site.site_path, 'sockets')
         if len(sockets_dir)>90:
-            sockets_dir = os.path.join('/tmp', os.path.basename(site.site_path), 'gnr_sock')
+            sockets_dir = os.path.join('/tmp', os.path.basename(site.instance_path), 'gnr_sock')
         if not os.path.exists(sockets_dir):
-            os.mkdir(sockets_dir)
+            os.makedirs(sockets_dir)
         self.socket_path= os.path.join(sockets_dir, 'async.tornado')
         self.proxyurl='/wsproxy'
     

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from builtins import object
+
 import os
 import re
 from gnr.core.gnrdecorator import metadata, public_method
@@ -14,8 +14,7 @@ class Table(object):
         self.sysFields(tbl, ins=True, upd=True, md5=True)
         tbl.column('id', size='22', group='_', readOnly='y', name_long='Id')
         tbl.column('username', size=':32', name_long='!!Username', unique='y', _sendback=True,
-                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field',
-                    unmodifiable=True)
+                    indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field')
         tbl.column('email', name_long='Email', validate_notnull=True,
                     validate_notnull_error='!!Mandatory field')
         tbl.column('mobile', name_long='Mobile')
@@ -28,7 +27,8 @@ class Table(object):
         tbl.column('status', name_long='!!Status', size=':4',
                     values='invt:Invited,new:New,wait:Waiting,conf:Confirmed,bann:Banned',_sendback=True)
         tbl.column('md5pwd', name_long='!!PasswordMD5', size=':65')
-        tbl.column('locale', name_long='!!Default Language', size=':12')
+        tbl.column('locale', name_long='!![it]Default locale', size=':12')
+        tbl.column('language', size=':2', name_long='!![it]Language').relation('adm.language.code')
         tbl.column('preferences', dtype='X', name_long='!!Preferences')
         tbl.column('menu_root_id' ,size='22')
         tbl.column('avatar_rootpage', name_long='!!Root Page')
@@ -44,16 +44,20 @@ class Table(object):
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
-        tbl.formulaColumn('other_groups',"array_to_string(ARRAY(#ogr),',')",
-                                                select_ogr=dict(columns='$group_code',where='$user_id=#THIS.id',
+        tbl.formulaColumn('other_groups',select=dict(columns="STRING_AGG($group_code,',')",where='$user_id=#THIS.id',
                                                 table='adm.user_group'))
         tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
                                                 select_allgroups=dict(columns='$code',
                                                                       where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
                                                 table='adm.group'))
 
-        tbl.formulaColumn('fullname', "$firstname||' '||$lastname", name_long=u'!!Name')
+        tbl.formulaColumn('fullname', """CASE 
+                                                WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
+                                                WHEN $lastname IS NOT NULL THEN $lastname
+                                        ELSE $username END
+                                        """, name_long=u'!!Name',static=True)
 
+        tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
@@ -66,12 +70,16 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
+        group_code = self.db.currentEnv.get('current_group_code') or record['group_code']
         alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
                                                             uid=record['id'],
                                                             secret_2fa=record['avatar_secret_2fa'],
-                                                            gc=self.db.currentEnv.get('current_group_code') or record['group_code'],
+                                                            gc=group_code,
                                                             columns='$tag_code',distinct=True).fetch()
-        return ','.join([r['tag_code'] for r in alltags])
+        tag_list = [r['tag_code'] for r in alltags]
+        if group_code:
+            tag_list.append(f'grp_{group_code}')
+        return ','.join(tag_list)
     
     
     def partitionioning_pkeys(self):
@@ -83,8 +91,9 @@ class Table(object):
 
     def trigger_onUpdating(self, record, old_record=None):
         if old_record['username'] and record['username']!=old_record['username']:
-            raise self.exception('protect_update',record=record,
-                                message='!!Username is not modifiable %(username)s')
+            if not record['username']:
+                raise self.exception('protect_update',record=record,
+                                message='!!Username cannot be set to null %(username)s')
         if record['md5pwd'] and self.fieldsChanged('md5pwd',record,old_record):
             record['md5pwd'] = self.db.application.changePassword(None, None, record['md5pwd'], userid=record['username'])
         if old_record.get('md5pwd') and not record['md5pwd']:
@@ -247,7 +256,9 @@ class Table(object):
         tpl_userconfirm_id = loginPreference['tpl_userconfirm_id']
         site = self.db.application.site
         mailservice = site.getService('mail')
-        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, userid=user_record['id'],max_usages=1)
+        data['link'] = self.db.currentPage.externalUrlToken(origin or site.homepage, 
+                                                            assigned_user_id=user_record['id'],
+                                                            userid=user_record['id'],max_usages=1)
         data['greetings'] = data['firstname'] or data['lastname']
         email = data['email']
         if template or tpl_userconfirm_id:

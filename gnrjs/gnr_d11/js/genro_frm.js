@@ -266,6 +266,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
 
     message:function(kw){
+        if(this.avoidFloatingMessage){
+            return
+        }
+
         if (!(kw instanceof Array)){
             kw = [kw]
         }
@@ -631,7 +635,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
-                        that.insertAndLoad(kw.default_kw);
+                        that.insertAndLoad(kw.default_kw,defaultPrompt.doSave===true?null:defaultPrompt.doSave);
                     }else{
                         that.doload_store(kw);
                     }
@@ -654,11 +658,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.load({destPkey:'*newrecord*', default_kw:default_kw});
     },
 
-    insertAndLoad:function(default_kw){
+    insertAndLoad:function(default_kw,insertMethod){
         var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
         genro.lockScreen(true,this.formId,{thermo:true});
-        genro.serverCall('app.insertRecord',
+        genro.serverCall(insertMethod || 'app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
                                 that.doload_store({destPkey:resultPkey});
@@ -818,7 +822,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     
     openPendingChangesDlg:function(kw,saveSlot){
-        if(this.avoidPendingChangesDialog){
+        if(this.avoidPendingChangesDialog || kw.afterItemDeleted){
             kw.command='discard';
             this.publish('pendingChangesAnswer',kw);
             return;
@@ -917,7 +921,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     deleted:function(result,kw){
         var destPkey = kw.destPkey || this.deleted_destPkey || '*dismiss*';
-        this.load({destPkey:destPkey});
+        this.load({destPkey:destPkey,afterItemDeleted:true});
         this.publish('message',{message:this.msg_deleted,sound:'$ondeleted'});
         this.publish('onDeleted');
     },
@@ -929,7 +933,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var that = this;
         controllerData.setItem('temp',null);
         if(data){
-            this.setFormData(data);
+            try {
+                this.setFormData(data);
+            } catch (error) {
+                console.error('error in loading',this.getControllerData('table'),this.formId,error)
+            }
+            
         }
         this.publish('onLoaded',{pkey:this.getCurrentPkey(),data:data});
         this.setHider(false);

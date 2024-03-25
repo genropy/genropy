@@ -1,7 +1,3 @@
-from __future__ import print_function
-from past.builtins import execfile
-from builtins import str
-from past.builtins import basestring
 import os
 import sys
 import site
@@ -10,6 +6,7 @@ import glob
 import shutil
 import random
 import string
+import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
@@ -97,15 +94,33 @@ def get_gnrdaemon_port(set_last=False):
     return str(gnrdaemon_port)
 
 def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, gnrdaemon_port=None):
-    genropy_home = os.path.dirname(gnrpy_path)
-    genropy_projects = os.path.join(genropy_home,'projects')
+    genropy_home = gnrpy_path
+    print(genropy_home)
+
+    # hack to understand if we're running genropy from a checkout
+    # or from an installation
+    if "gnrpy" in genropy_home:
+        genropy_home = os.path.realpath(os.path.join(genropy_home, "..", ".."))
+        print("HACK", genropy_home)
+        genropy_projects = os.path.join(genropy_home,'projects')
+        genropy_packages = os.path.join(genropy_home,'packages')
+        genropy_resources = os.path.join(genropy_home,'resources')
+        genropy_webtools = os.path.join(genropy_home,'webtools')
+        dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+    else:
+        genropy_projects = os.path.join(genropy_home,'projects')
+        genropy_packages = os.path.join(genropy_home,'packages')
+        genropy_resources = os.path.join(genropy_home,'resources')
+        genropy_webtools = os.path.join(genropy_home,'webtools')
+        dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
+        gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+
+    # FIXME: this needs to be handled differently when we're installing the package
+    # otherwise genropy_project will be helded inside {dist,site}-packages dir
     custom_projects = os.path.normpath(os.path.join(genropy_home,'..','genropy_projects'))
     create_folder(custom_projects)
-    genropy_packages = os.path.join(genropy_home,'packages')
-    genropy_resources = os.path.join(genropy_home,'resources')
-    genropy_webtools = os.path.join(genropy_home,'webtools')
-    dojo_11_path = os.path.join(genropy_home, 'dojo_libs', 'dojo_11')
-    gnr_d11_path = os.path.join(genropy_home,'gnrjs', 'gnr_d11')
+    
     environment_bag = Bag()
     environment_bag.setItem('environment.gnrhome', None, dict(value=genropy_home))
     environment_bag.setItem('projects.genropy', None, dict(path=genropy_projects))
@@ -149,9 +164,8 @@ def check_file(xml_path=None):
     if os.path.exists(xml_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
-def initgenropy(gnrpy_path=None,gnrdaemon_password=None,avoid_baseuser=False):
-    if not gnrpy_path or not os.path.basename(gnrpy_path)=='gnrpy':
-        raise GnrConfigException("You are not running this script inside a valid gnrpy folder")
+def initgenropy(gnrdaemon_password=None,avoid_baseuser=False):
+    gnrpy_path = os.path.dirname(gnrbase.__file__)
     config_path  = gnrConfigPath(force_return=True)
     instanceconfig_path = os.path.join(config_path,'instanceconfig')
     siteconfig_path = os.path.join(config_path,'siteconfig')
@@ -361,8 +375,8 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
 def projectBag(project_name,packages=None,branches=None,exclude_branches=None):
     p=PathResolver()
     result = Bag()
-    branches = branches.split(',') if isinstance(branches,basestring) else (branches or [])
-    packages = packages.split(',') if isinstance(packages,basestring) else (packages or [])
+    branches = branches.split(',') if isinstance(branches, str) else (branches or [])
+    packages = packages.split(',') if isinstance(packages, str) else (packages or [])
 
     dr = DirectoryResolver(p.project_name_to_path(project_name),include='*.py',dropext=True)
     for pkg,pkgval in list(dr['packages'].items()):
@@ -592,7 +606,7 @@ class ProjectMaker(object):
         self.instances_path = os.path.join(self.project_path, 'instances')
         for path in (self.project_path, self.packages_path, self.instances_path):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
                 
 
 
@@ -626,9 +640,9 @@ class SiteMaker(object):
         root_py_path = os.path.join(self.site_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.site_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.mkdir(self.site_path)
+            os.makedirs(self.site_path)
         if not os.path.isdir(pages_path):
-            os.mkdir(pages_path)
+            os.makedirs(pages_path)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""#!/usr/bin/env python2.6
@@ -722,7 +736,7 @@ class InstanceMaker(object):
             folders_to_make.append(dbstores_path)
         for path in folders_to_make:
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         if not os.path.isfile(instanceconfig_xml_path):
             if not self.config:
                 instanceconfig = Bag()
@@ -753,7 +767,7 @@ class InstanceMaker(object):
         root_py_path = os.path.join(self.instance_path, 'root.py')
         siteconfig_xml_path = os.path.join(self.config_path, 'siteconfig.xml')
         if not os.path.isdir(self.site_path):
-            os.mkdir(self.site_path)
+            os.makedirs(self.site_path)
         if not os.path.isfile(root_py_path):
             root_py = open(root_py_path, 'w')
             root_py.write("""
@@ -819,7 +833,7 @@ class PackageMaker(object):
         """Creates the files of the ``packages`` folder"""
         for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         sqlprefixstring = ''
         if not os.path.exists(self.main_py_path):
             if self.sqlprefix is not None:
@@ -873,7 +887,7 @@ class ResourceMaker(object):
         self.resource_path = os.path.join(self.base_path, self.resource_name)
         for path in (self.resource_path, ):
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
         
 class ThPackageResourceMaker(object):
     def __init__(self,application,package=None,tables=None,force=False,menu=False,columns=2,guess_size=False,indent=4, bag_columns=None):
@@ -995,7 +1009,7 @@ class ThPackageResourceMaker(object):
             for column, size, dtype in columns:
                 tag=''
                 if dtype=='X':
-                    if isinstance( self.bag_columns['form'], basestring):
+                    if isinstance( self.bag_columns['form'], str):
                         tag = ", tag='%s'" %  self.bag_columns['form'] 
                 self.write("fb.field('%s' %s)"% (column, tag), indent=2)
                 

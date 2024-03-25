@@ -4,12 +4,13 @@
 # Created by Francesco Porcari on 2012-04-03.
 # Copyright (c) 2012 Softwell. All rights reserved.
 
-from builtins import str
+
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrdict import dictExtract
+from gnr.web.gnrwebpage import GnrMissingResourceException
 
 class THPicker(BaseComponent):
     js_requires='th/th_picker'
@@ -28,9 +29,10 @@ class THPicker(BaseComponent):
         condition= condition or picker_kwargs.pop('condition',None)
         many = relation_field or picker_kwargs.get('relation_field',None)
         table = table or picker_kwargs.get('table',None)
-        height = height or picker_kwargs.get('height','600px')
-        width = width or picker_kwargs.get('width','400px')
+        height = height or picker_kwargs.get('height')
+        width = width or picker_kwargs.get('width')
         defaults = defaults or picker_kwargs.get('defaults',False)
+        dropDefaults = dictExtract(picker_kwargs,'default_',pop=True,slice_prefix=False)
         if autoInsert is None:
             autoInsert = picker_kwargs.get('autoInsert',True)
         title = title or picker_kwargs.get('title')
@@ -57,7 +59,7 @@ class THPicker(BaseComponent):
         condition_kwargs = dictExtract(picker_kwargs,'condition_',pop=True,slice_prefix=not treepicker)
         if treepicker:
             palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,title=title,
-                            width=width,height=height)
+                            width=width or '400px',height=height or '600px')
             frame = palette.framePane(frameCode=paletteCode)
             frame.top.slotToolbar('*,searchOn,5')
             tree_kwargs = dictExtract(picker_kwargs,'tree_',pop=True)
@@ -81,7 +83,7 @@ class THPicker(BaseComponent):
                                             width=width,condition=condition,condition_kwargs=condition_kwargs,
                                             checkbox=checkbox,structure_field = structure_field or picker_kwargs.get('structure_field'),
                                             uniqueRow=picker_kwargs.get('uniqueRow',True),
-                                            top_height=picker_kwargs.get('top_height'),structure_kwargs = dictExtract(picker_kwargs,'structure_'))
+                                            top_height=picker_kwargs.get('top_height'),structure_kwargs = dictExtract(picker_kwargs,'structure_'),**kwargs)
 
         if grid is not None:
             grid.attributes.update(dropTargetCb_picker='return this.form?!this.form.isDisabled():true')
@@ -93,23 +95,24 @@ class THPicker(BaseComponent):
                     formtblobj = self.db.table(formNode.attr.get('table'))
                     oneJoiner = formtblobj.model.getJoiner(maintable)
                     one = oneJoiner.get('many_relation').split('.')[-1]
-                controller = "THPicker.onDropElement(this,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup)" if autoInsert is True else autoInsert
+                controller = "THPicker.onDropElement(this,data,mainpkey,rpcmethod,treepicker,tbl,one,many,grid,defaults,nodup,objectExtract(_kwargs,'default_*',true,true))" if autoInsert is True else autoInsert
                 grid.dataController(controller,data='^.dropped_%s' %paletteCode,
                     droppedInfo='=.droppedInfo_%s' %paletteCode,
                     mainpkey='=#FORM.pkey' if formNode else None,nodup=nodup,
                         rpcmethod=method,treepicker=treepicker,tbl=maintable,
-                        one=one,many=many,grid=grid.js_widget,defaults=defaults)  
+                        one=one,many=many,grid=grid.js_widget,defaults=defaults,
+                        **dropDefaults)  
         return palette
 
 
     @struct_method
     def pk_paletteGridPicker(self,pane,grid=None,table=None,relation_field=None,paletteCode=None,
-                         viewResource=None,searchOn=True,multiSelect=True,
-                         title=None,dockButton=True,
-                         height=None,width=None,condition=None,condition_kwargs=None,
-                         structure_field=None,uniqueRow=True,top_height=None,
-                         checkbox=None,structure_kwargs=None,
-                        **kwargs):
+                                viewResource=None,searchOn=True,multiSelect=True,
+                                title=None,dockButton=True,
+                                height=None,width=None,condition=None,condition_kwargs=None,
+                                structure_field=None,uniqueRow=True,top_height=None,
+                                checkbox=None,structure_kwargs=None,
+                                **kwargs):
         many = relation_field 
         if viewResource is True:
             viewResource = 'ViewPicker'
@@ -125,67 +128,47 @@ class THPicker(BaseComponent):
             tblobj = self.db.table(table)
         paletteCode = paletteCode or '%s_picker' %table.replace('.','_')
         title = title or tblobj.name_long
+        default_width = '400px'
+        default_height = '600px'
+        viewResource = viewResource or 'PickerView'
+        groupable= False
+        try:
+            resource = self._th_getResClass(table=table,resourceName=viewResource)
+            if resource and hasattr(resource,'th_groupedStruct'):
+                groupable = dict(width='350px', closable='open')
+            default_width = '800px'
+            default_height = '500px'
+        except GnrMissingResourceException:
+            pass
 
         palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,
-                                        title=title,width=width,height=height)
+                                        title=title,width=width or default_width,height=height or default_height)
 
         def struct(struct):
             r = struct.view().rows()
             r.fieldcell(tblobj.attributes['caption_field'], name=tblobj.name_long, width='100%')
 
-        viewResource = viewResource or 'PickerView'
+
         bc = palette.borderContainer(_anchor=True)
         center = bc.contentPane(region='center')
         paletteth = center.plainTableHandler(table=table,viewResource=viewResource,
                                                 grid_onDrag='dragValues["%s"]=dragValues.gridrow.rowset;' %paletteCode,
                                                 grid_multiSelect=multiSelect,
                                                 view_structCb=struct,
+                                                groupable=groupable,
                                                 title=title,searchOn=searchOn,configurable=False,
-                                              childname='picker_tablehandler',nodeId='%s_th' %paletteCode)
+                                                childname='picker_tablehandler',nodeId='%s_th' %paletteCode)
         if structure_field:
-            structure_tblobj = tblobj.column(structure_field).relatedTable().dbtable
-            defaultPickerStructure = False
-            if maintable:
-                defaultPickerStructure =  structure_field if structure_field in self.db.table(maintable).columns else False
-            pickerStructure = structure_kwargs.pop('pickerStructure',defaultPickerStructure)
             top = bc.contentPane(region='top',height=top_height or '50%',splitter=True,datapath='.structuretree')
-            structureTreeKwargs = dict(draggable=False,moveTreeNode=False)
-            if pickerStructure:
-                structureTreeKwargs['draggable'] = True 
-                structureTreeKwargs['draggableFolders'] = structure_kwargs.pop('draggableFolders',True)
-                structureTreeKwargs['onDrag']="""function(dragValues, dragInfo, treeItem) {
-                                                if (treeItem.attr.child_count && treeItem.attr.child_count > 0 && !dragInfo.sourceNode.attr.draggableFolders) {
-                                                    return false;
-                                                }
-                                                dragValues['text/plain'] = treeItem.attr.caption;
-                                                var kw_drag = objectUpdate({},treeItem.attr);
-                                                kw_drag.structure_many = '%s';
-                                                dragValues['%s'] = kw_drag;
-                                            }""" %(pickerStructure,paletteCode)
-                structureTreeKwargs['checkbox'] = checkbox
-            structureTree = top.tree(storepath='.store',_class='fieldsTree', hideValues=True,
-                            selectedLabelClass='selectedTreeNode',
-                            labelAttribute='caption',
-                            selected_pkey='.tree.pkey',
-                            selected_hierarchical_pkey='.tree.hierarchical_pkey',                          
-                            selectedPath='.tree.path',  
-                            identifier='treeIdentifier',margin='6px',
-                            **structureTreeKwargs
-                        ).htableViewStore(table=structure_tblobj.fullname,**structure_kwargs)
-
-            if structure_field.startswith('@'):
-                sf = structure_field.split('.')
-                hpkey_ref = '%s.@%s.hierarchical_pkey' %(sf[0],sf[-1]) 
-                fkey_ref = structure_field
+            structure_tblobj = tblobj.column(structure_field).relatedTable().dbtable
+            structure_tbl = tblobj.column(structure_field).relatedTable().fullname
+            if not structure_tblobj.attributes.get('hierarchical'):
+                self.plainPickerStructure(top, paletteth=paletteth, structure_field=structure_field, structure_tbl=structure_tbl,
+                                                structure_kwargs=structure_kwargs, **kwargs)
             else:
-                hpkey_ref = '@%s.hierarchical_pkey' %structure_field 
-                fkey_ref = '$%s' %structure_field
-            paletteth.view.store.attributes.update(where = """
-                                                        ( (:selected_pkey IS NOT NULL) AND (%s ILIKE (:hierarchical_pkey || '%s') OR :hierarchical_pkey IS NULL)  
-                                                            OR ( (%s IS NULL) AND (:selected_pkey IS NULL) ) )
-                                                    """ %(hpkey_ref,'%%',fkey_ref),
-                                  hierarchical_pkey='^#ANCHOR.structuretree.tree.hierarchical_pkey',
-                                  selected_pkey='^#ANCHOR.structuretree.tree.pkey',_delay=500)
+                self.hierarchicalPickerStructure(top, paletteth=paletteth, structure_field=structure_field, 
+                                                maintable=maintable, structure_tbl=structure_tbl, paletteCode=paletteCode, 
+                                                checkbox=checkbox, structure_kwargs=structure_kwargs, **kwargs)
         if checkbox or self.isMobile:
             paletteth.view.grid.attributes.update(onCreating="""function(attributes,handler){
                     handler.addNewSetColumn(this,{field:'pickerset'});
@@ -216,11 +199,65 @@ class THPicker(BaseComponent):
             paletteth.view.grid.attributes.update(filteringGrid=grid.js_sourceNode(),filteringColumn='_pkey:%s' %many)
         return palette
         
+        
+    def plainPickerStructure(self, top, paletteth=None, structure_field=None, structure_tbl=None, 
+                                            structure_kwargs=None, **kwargs):
+        th = top.plainTableHandler(table=structure_tbl, configurable=False, view_store__onStart=True,
+                                            **structure_kwargs, **kwargs)
+        th.view.dataController("""SET #ANCHOR.structuretree.selectedStructureField = selectedId;""", 
+                                            selectedId='^.grid.selectedId', _delay=1)
+        paletteth.view.store.attributes.update(where=f"${structure_field}=:sel", 
+                                                sel='^#ANCHOR.structuretree.selectedStructureField')
+        
+    def hierarchicalPickerStructure(self, top, paletteth=None, structure_field=None, maintable=None, structure_tbl=None, 
+                                            paletteCode=None, checkbox=None, structure_kwargs=None, **kwargs):
+        defaultPickerStructure = False
+        if maintable:
+            defaultPickerStructure =  structure_field if structure_field in self.db.table(maintable).columns else False
+        pickerStructure = structure_kwargs.pop('pickerStructure',defaultPickerStructure)
+        structureTreeKwargs = dict(draggable=False,moveTreeNode=False)
+        if pickerStructure:
+            structureTreeKwargs['draggable'] = True 
+            structureTreeKwargs['draggableFolders'] = structure_kwargs.pop('draggableFolders',True)
+            structureTreeKwargs['onDrag']="""function(dragValues, dragInfo, treeItem) {
+                                            if (treeItem.attr.child_count && treeItem.attr.child_count > 0 && !dragInfo.sourceNode.attr.draggableFolders) {
+                                                return false;
+                                            }
+                                            dragValues['text/plain'] = treeItem.attr.caption;
+                                            var kw_drag = objectUpdate({},treeItem.attr);
+                                            kw_drag.structure_many = '%s';
+                                            dragValues['%s'] = kw_drag;
+                                        }""" %(pickerStructure,paletteCode)
+            structureTreeKwargs['checkbox'] = checkbox
+        structureTree = top.tree(storepath='.store',_class='fieldsTree', hideValues=True,
+                        selectedLabelClass='selectedTreeNode',
+                        labelAttribute='caption',
+                        selected_pkey='.tree.pkey',
+                        selected_hierarchical_pkey='.tree.hierarchical_pkey',                          
+                        selectedPath='.tree.path',  
+                        identifier='treeIdentifier',margin='6px',
+                        **structureTreeKwargs,
+                        **kwargs
+                    ).htableViewStore(table=structure_tbl,**structure_kwargs)
+        if structure_field.startswith('@'):
+            sf = structure_field.split('.')
+            hpkey_ref = '%s.@%s.hierarchical_pkey' %(sf[0],sf[-1]) 
+            fkey_ref = structure_field
+        else:
+            hpkey_ref = '@%s.hierarchical_pkey' %structure_field 
+            fkey_ref = '$%s' %structure_field
+        paletteth.view.store.attributes.update(where = """
+                                                        ( (:selected_pkey IS NOT NULL) AND (%s ILIKE (:hierarchical_pkey || '%s') OR :hierarchical_pkey IS NULL)  
+                                                            OR ( (%s IS NULL) AND (:selected_pkey IS NULL) ) )
+                                                    """ %(hpkey_ref,'%%',fkey_ref),
+                                  hierarchical_pkey='^#ANCHOR.structuretree.tree.hierarchical_pkey',
+                                  selected_pkey='^#ANCHOR.structuretree.tree.pkey',_delay=500)
+
     @struct_method
     def th_slotbar_thpicker(self,pane,relation_field=None,picker_kwargs=None,title=None,**kwargs):
         view = pane.parent.parent.parent    
         relation_field = relation_field or picker_kwargs.pop('relation_field',None)
-        if ',' in relation_field:
+        if relation_field and ',' in relation_field:
             pg = pane.paletteGroup(groupCode='pickers_%s' %view.getInheritedAttributes().get('nodeId'),title=title or '!!Picker',
                             dockButton=dict(parentForm=True,iconClass='iconbox app picker'))
             for rf in relation_field.split(','):
@@ -233,18 +270,27 @@ class THPicker(BaseComponent):
     def _th_insertPicker(self,dragPkeys=None,dropPkey=None,tbl=None,one=None,many=None,dragDefaults=None,**kwargs):
         tblobj = self.db.table(tbl)
         pkeyfield = tblobj.pkey
+        dropDefaults = dictExtract(kwargs,'default_')
         commit = False
         for fkey in dragPkeys:
             commit = True
-            d = {one:dropPkey,many:fkey}
+            if not many:
+                many = '_dup_'
+            d = {one:dropPkey,many:fkey,**dropDefaults}
             if many==pkeyfield:
                 with tblobj.recordToUpdate(fkey) as rec:
                     rec[one] = dropPkey
             else:
-                r = tblobj.newrecord(**d)
-                if dragDefaults:
-                    r.update(dragDefaults[fkey])
-                tblobj.insert(r)
+                if many=='_dup_':
+                    pkeyToDup = d.pop(many)
+                    if dragDefaults:
+                        d.update(dragDefaults[fkey])
+                    tblobj.duplicateRecord(pkeyToDup,**d)
+                else:
+                    r = tblobj.newrecord(**d)
+                    if dragDefaults:
+                        r.update(dragDefaults[fkey])
+                    tblobj.insert(r)
         if commit:
             self.db.commit()
 

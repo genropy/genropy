@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -20,12 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-#
 import time
 import _thread
 import Pyro4
@@ -34,11 +28,11 @@ import re
 import sys
 from datetime import datetime
 from collections import defaultdict
+import logging
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.app.gnrconfig import gnrConfigPath
-
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
@@ -83,11 +77,11 @@ def remotebag_wrapper(func):
 
 class BaseRemoteObject(object):
     def onSizeExceeded(self, msg_size, method, vargs, kwargs):
-        print('[%i-%i-%i %i:%i:%i]-----%s-----'%((time.localtime()[:6])+(self.__class__.__name__.upper(),)))
-        print('Message size:', msg_size)
-        print('Method :', method)
-        print('vargs, kwargs', vargs, kwargs)
-        print('**********')
+        logging.info('[%i-%i-%i %i:%i:%i]-----%s-----'%((time.localtime()[:6])+(self.__class__.__name__.upper(),)))
+        logging.info('Message size:', msg_size)
+        logging.info('Method :', method)
+        logging.info('vargs, kwargs', vargs, kwargs)
+        logging.info('**********')
 
 #------------------------------- REMOTEBAG server SIDE ---------------------------
 class RemoteStoreBagHandler(BaseRemoteObject):
@@ -194,17 +188,14 @@ class BaseRegister(BaseRemoteObject):
 
 
     def lock_item(self,register_item_id,reason=None):
-        #print 'locking ',self.registerName,register_item_id,reason
         locker = self.locked_items.get(register_item_id)
         if not locker:
             self.locked_items[register_item_id] = dict(reason=reason,count=1,last_lock_ts=datetime.now())
-            #print 'ok'
             return True
         elif locker['reason']==reason:
             locker['count'] += 1
             locker['last_lock_ts'] = datetime.now()
             return True
-        #print 'failed'
         if (datetime.now()-locker['last_lock_ts']).total_seconds() > LOCK_EXPIRY_SECONDS:
             self.locked_items.pop(register_item_id,None)
         return False
@@ -292,7 +283,6 @@ class BaseRegister(BaseRemoteObject):
     def refresh(self,register_item_id,last_user_ts=None,last_rpc_ts=None,refresh_ts=None):
         item = self.registerItems.get(register_item_id)
         if not item:
-            #print 'missing register item ',register_item_id,self.registerName
             return
 
         item['last_user_ts'] = max(item['last_user_ts'],last_user_ts) if item.get('last_user_ts') else last_user_ts
@@ -541,7 +531,7 @@ class PageRegister(BaseRegister):
             value = page[fltname]
             if not value:
                 return
-            if not isinstance(value, basestring):
+            if not isinstance(value, (bytes,str)):
                 return fltval == value
             try:
                 return re.match(fltval, value)
@@ -728,7 +718,7 @@ class SiteRegister(BaseRemoteObject):
 
     def pages(self, connection_id=None,user=None,index_name=None, filters=None,include_data=None):
         if index_name:
-            print('call subscribed_table_pages instead of pages')
+            logging.info('call subscribed_table_pages instead of pages')
             return self.subscribed_table_pages(index_name)
         return self.page_register.pages(connection_id=connection_id,user=user,filters=filters,include_data=include_data)
 
@@ -901,10 +891,10 @@ class SiteRegister(BaseRemoteObject):
 
 
     def _parse_change_value(self, change_value):
-        if isinstance(change_value, basestring):
+        if isinstance(change_value, (bytes,str)):
             try:
                 v = self.catalog.fromTypedText(change_value)
-                if isinstance(v, basestring) and hasattr(v, 'decode'):
+                if isinstance(v, (bytes,str)) and hasattr(v, 'decode'):
                     v = v.decode('utf-8')
                 return v
             except Exception as e:
@@ -1015,18 +1005,16 @@ class SiteRegisterClient(object):
             sitedaemon_bag = Bag(sitedaemon_xml_path)
             params = sitedaemon_bag.getAttr('params')
             sitedaemon_pid = params.get('pid')
-            print('uso sitedaemon')
-            print(params)
             if sitedaemon_pid and pid_exists(sitedaemon_pid):
                 self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
                 self.siteregisterserver_uri = params.get('main_uri')
                 self.siteregister_uri = params.get('register_uri')
-                print(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
+                logging.info(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
                 sitedaemon_bag=None
                 self.initSiteRegister()
                 return
             else:
-                print('no sitedaemon process')
+                logging.info('no sitedaemon process')
         if 'sockets' in daemonconfig:
             if daemonconfig['sockets'].lower() in ('t','true','y') :
                 daemonconfig['sockets'] = os.path.join(gnrConfigPath(),'sockets')
@@ -1052,7 +1040,7 @@ class SiteRegisterClient(object):
             while not self.checkSiteRegisterServerUri(daemonProxy):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
                     raise Exception('GnrDaemon timout')
-        print('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
+        logging.info('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
         self.initSiteRegister()
     
     def initSiteRegister(self):

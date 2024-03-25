@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from builtins import object
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,metadata
 from datetime import datetime,timedelta
@@ -100,7 +100,34 @@ class ViewMixedComponent(View):
     def th_bottom_custom(self,bottom):
         pass
 
-class ViewZoomAnnotationAndAction(object):
+class ViewFromMobile(BaseComponent):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.cell('priority',width='2em',
+            name='P.',rowTemplate="""
+            <div class="priority_annotation_cell priority_$priority">&nbsp;</div>
+            """,hidden=True)
+        r.fieldcell('sort_ts',name='!!Datetime',width='6em',hidden=True,sort='a')
+        r.fieldcell('author_user_id',name='!!Autor',width='9em',hidden=True)
+        r.fieldcell('__mod_ts',name='!!Last upd.',width='6em',hidden=True)
+        r.fieldcell('__mod_user',name='!!Upd.User',width='9em',hidden=True)
+        r.fieldcell('annotation_caption',hidden=True)
+        r.fieldcell('calc_description',width='25em',name='Description',hidden=True)
+        r.cell('annotation_template',name='!!Type',width='100%',
+                rowTemplate="""<div style='background:$annotation_background;color:$annotation_color;padding:5px;'>$annotation_caption</div>
+                                """)
+       
+       #r.cell('action_do',name=" ",calculated=True,width='3em',
+       #            cellClasses='cellbutton',
+       #            format_buttonclass='icnBaseLens auction',
+       #            format_isbutton=True,format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
+       #                                                   this.publish('do_action',{pkey:row['_pkey']});""",
+       #            cellClassCB="""var row = cell.grid.rowByIndex(inRowIndex);
+       #                            if(row.rec_type=='AN'){
+       #                                return 'hidden';
+       #                            }""")    
+
+class ViewZoomAnnotationAndAction(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.cell('priority',width='2em',
@@ -352,19 +379,20 @@ class Form(BaseComponent):
     def orgn_annotationForm(self,bc,linked_entity=None,sub_action_default_kwargs=None):
         annotation_type_condition=None
         annotation_type_kwargs = dict()
-        action_type_condition = None
-        action_type_kwargs = dict()
+        
         if linked_entity:
             annotation_type_condition = """(CASE WHEN :is_newrecord THEN  ($__syscode IS NULL OR $__syscode NOT IN :system_annotations) ELSE TRUE END) AND
                                         (CASE WHEN $restrictions IS NOT NULL THEN :restriction = ANY(string_to_array($restrictions,',')) ELSE TRUE END)"""
             annotation_type_kwargs = dict(condition_restriction=linked_entity,condition_is_newrecord='=#FORM.controller.is_newrecord',
                                             condition_system_annotations=self.db.table('orgn.annotation_type').systemAnnotations())
-            action_type_condition = "(CASE WHEN $restrictions IS NOT NULL THEN :restriction = ANY(string_to_array($restrictions,',')) ELSE TRUE END)"
-            action_type_kwargs = dict(condition_restriction=linked_entity)
-        topbc = bc.borderContainer(region='top',datapath='.record',height='55%')
-        fb = topbc.contentPane(region='center').div(margin_right='20px',margin='10px').formbuilder(cols=2, border_spacing='4px',
-                                                                                            fld_width='100%',
-                                                                                            colswidth='auto',width='100%')
+            
+        top = bc.contentPane(region='top',datapath='.record',padding='10px')
+        if self.isMobile:
+            fb = top.div(margin_right='20px').mobileFormBuilder(cols=2)
+        else:
+            fb = top.div(margin_right='20px').formbuilder(cols=2, border_spacing='4px',
+                                                        fld_width='100%',
+                                                        colswidth='auto',width='100%')
         fb.field('annotation_type_id',condition=annotation_type_condition,
                     hasDownArrow=True,width='15em',validate_notnull='^.rec_type?=#v=="AN"',
                     colspan=2,**annotation_type_kwargs)
@@ -373,7 +401,17 @@ class Form(BaseComponent):
         fb.field('annotation_date',width='7em')
         fb.field('annotation_time',width='7em')
         fb.appendDynamicFields('annotation_fields')
-        #topbc.contentPane(region='center').dynamicFieldsPane('annotation_fields',margin='2px')
+        self.annotationForm_center(bc,region='center',linked_entity=linked_entity,sub_action_default_kwargs=sub_action_default_kwargs)
+    
+    def annotationForm_center(self,parent,region=None,**kwargs):
+        pane = parent.contentPane(region=region)
+        self.annotationForm_actionGrid(pane,**kwargs)
+    
+    def annotationForm_actionGrid(self,pane,linked_entity,**sub_action_default_kwargs):
+        action_type_condition = None
+        action_type_kwargs = dict()
+        action_type_condition = "(CASE WHEN $restrictions IS NOT NULL THEN :restriction = ANY(string_to_array($restrictions,',')) ELSE TRUE END)"
+        action_type_kwargs = dict(condition_restriction=linked_entity)
         def following_actions_struct(struct):
             r = struct.view().rows()
             r.cell('_date_due_from_pivot',calculated=True,hidden=True)
@@ -396,12 +434,12 @@ class Form(BaseComponent):
                                          }""")
             r.fieldcell('time_due',edit=True,width='7em')
             r.fieldcell('notice_days',edit=True,width='4em')
-        th = bc.contentPane(region='center').inlineTableHandler(title='!!Actions',relation='@orgn_related_actions',
-                        viewResource='orgn_components:ViewActionComponent',
+        th = pane.inlineTableHandler(title='!!Actions',relation='@orgn_related_actions',
+                        viewResource='orgn_components:ViewActionComponent',pbl_classes=True,margin='2px',
                         view_structCb=following_actions_struct,searchOn=False,
                         nodeId='orgn_action_#',default_rec_type='AC',default_priority='L',
                         **dict([('default_%s' %k,v) for k,v in list(sub_action_default_kwargs.items())]))
-        rpc = bc.dataRpc('dummy',self.orgn_getDefaultActionsRows,annotation_type_id='^#FORM.record.annotation_type_id',
+        rpc = pane.dataRpc('dummy',self.orgn_getDefaultActionsRows,annotation_type_id='^#FORM.record.annotation_type_id',
                         _if='annotation_type_id&&_is_newrecord',_is_newrecord='=#FORM.controller.is_newrecord',**sub_action_default_kwargs)
         rpc.addCallback("""if(result){
                                 grid.gridEditor.addNewRows(result)
@@ -413,7 +451,10 @@ class Form(BaseComponent):
         if linked_entity:
             action_type_condition = "(CASE WHEN $restrictions IS NOT NULL THEN :restriction = ANY(string_to_array($restrictions,',')) ELSE TRUE END)"
             action_type_kwargs = dict(condition_restriction=linked_entity)
-        fb = bc.contentPane(region='center',datapath='.record').div(margin_right='20px',margin='10px').formbuilder(cols=2, border_spacing='4px',
+        if self.isMobile:
+            fb = bc.contentPane(region='center',datapath='.record').mobileFormBuilder(cols=2)
+        else:
+            fb = bc.contentPane(region='center',datapath='.record').div(margin_right='20px',margin='10px').formbuilder(cols=2, border_spacing='4px',
                                                                                             fld_width='100%',
                                                                                             colswidth='auto',width='100%')
         fb.field('action_type_id',condition=action_type_condition,
@@ -475,7 +516,7 @@ class Form(BaseComponent):
 
 class FormMixedComponent(Form):
     def th_options(self):
-        return dict(dialog_windowRatio=.8,modal=True)
+        return dict(dialog_windowRatio=.8,modal='navigation' if self.isMobile else True)
 
     def th_form(self, form):
         linked_entity = form._current_options['linked_entity']

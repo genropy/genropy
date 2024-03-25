@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 from __future__ import print_function
-from builtins import range
-from builtins import object
+
+
 from datetime import datetime
 from dateutil import rrule
 from gnr.core.gnrbag import Bag

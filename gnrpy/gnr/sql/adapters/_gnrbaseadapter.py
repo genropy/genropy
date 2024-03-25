@@ -20,12 +20,10 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import division
-from builtins import str
-from past.builtins import basestring
-
+from datetime import datetime
 from past.utils import old_div
 import re
+import datetime
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -649,7 +647,7 @@ class SqlDbAdapter(object):
         command = 'DROP TABLE %s;'
         if cascade:
             command = 'DROP TABLE %s CASCADE;'
-        tablename = dbtable if isinstance(dbtable,basestring) else dbtable.model.sqlfullname
+        tablename = dbtable if isinstance(dbtable, str) else dbtable.model.sqlfullname
         self.dbroot.execute(command % tablename)
 
     def dropIndex(self, index_name, sqlschema=None):
@@ -812,7 +810,7 @@ class GnrWhereTranslator(object):
         for node in wherebag:
             attr = node.getAttr()
             value = node.getValue()
-            if isinstance(value, basestring) and value.startswith('?'):
+            if isinstance(value, str) and value.startswith('?'):
                 value = sqlArgs.get(value[1:])
             jc = attr.get('jc', '').upper()
             if not result:
@@ -852,7 +850,7 @@ class GnrWhereTranslator(object):
         return result
 
     def checkValueIsField(self,value):
-        return value and isinstance(value,basestring) and value[0] in '$@'
+        return value and isinstance(value, str) and value[0] in '$@'
 
     def prepareCondition(self, column, op, value, dtype, sqlArgs,tblobj=None,parname=None):
         if not dtype:
@@ -881,6 +879,8 @@ class GnrWhereTranslator(object):
         return result
 
     def decodeDates(self, value, op, dtype):
+        if isinstance(value, datetime.date):
+            return value, op
         if op == 'isnull':
             return value, op
         if op == 'in' and ',' in value: # is a in search with multiple (single date) arguments: don't use periods!!!
@@ -888,7 +888,6 @@ class GnrWhereTranslator(object):
                     [decodeDatePeriod(v, workdate=self.db.workdate, locale=self.db.locale, dtype=dtype) for v in
                      value.split(',')])
             return value, op
-
         value = decodeDatePeriod(value, workdate=self.db.workdate, locale=self.db.locale, dtype=dtype)
         mode = None
         if value.startswith(';'):
@@ -925,7 +924,7 @@ class GnrWhereTranslator(object):
         if not dtype in ('A', 'T') and not self.checkValueIsField(value):
             if isinstance(value, list):
                 value = [self.catalog.fromText(v, dtype) for v in value]
-            elif isinstance(value, basestring):
+            elif isinstance(value, (bytes,str)):
                 value = self.catalog.fromText(value, dtype)
         argLbl = parname or 'v_%i' % len(sqlArgs)
         sqlArgs[argLbl] = value
@@ -996,7 +995,7 @@ class GnrWhereTranslator(object):
 
     def op_in(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!In"
-        if isinstance(value,basestring):
+        if isinstance(value, str):
             value = value.split(',')
         values_string = self.storeArgs(value, dtype, sqlArgs, parname=parname)
         return '%s IN :%s' % (column, values_string)
@@ -1042,7 +1041,7 @@ class GnrWhereTranslator(object):
                 custom = customColumns[column]
                 if callable(custom):
                     condition = custom(column, sqlArgs)
-                if isinstance(custom, basestring):
+                if isinstance(custom, str):
                     dtype = tblobj.column(custom).dtype
                     column = custom
                 elif isinstance(custom, tuple):

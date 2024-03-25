@@ -4,6 +4,7 @@
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2011 Softwell. All rights reserved.
 from gnr.web.batch.btcbase import BaseResourceBatch
+from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrbag import Bag
 from json import dumps
 from datetime import datetime
@@ -195,17 +196,16 @@ class Main(BaseResourceBatch):
             toc_elements=[name]
             self.hierarchical_name = record['hierarchical_name']
             lbag=docbag[self.handbook_record['language']] or Bag()
-            params_lbl, attachments_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
-                                            lang=self.handbook_record['language'], columns='$params_lbl,$attachments_lbl')
-            params_lbl = params_lbl or 'Parameters'
-            attachments_lbl = attachments_lbl or 'Attachments'
             rst = lbag['rst'] or ''
             df_rst = self.doctable.dfAsRstTable(record['id'], language=self.handbook_record['language'])
+            translator = AppLocalizer(self.db.application) 
             if df_rst:
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params_lbl}:**\n\n{df_rst}' 
+                params = translator.getTranslation('!!Parameters', language=self.handbook_record['language']).get('translation') or 'Parameters'
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{params}:**\n\n{df_rst}'
             atc_rst = self.doctable.atcAsRstTable(record['id'], host=self.page.external_host)
             if atc_rst:
-                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{attachments_lbl}:**\n\n{atc_rst}'
+                atcs = translator.getTranslation('!!Attachments', language=self.handbook_record['language']).get('translation') or 'Attachments'
+                rst = f'{rst}\n\n' + '.. raw:: html\n\n <hr>' + f'\n\n**{atcs}:**\n\n{atc_rst}'
             
             if self.examples_root and self.curr_sourcebag:
                         rst = EXAMPLE_FINDER.sub(self.fixExamples, rst)

@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
+
 *:focus, *:active {outline:none;}
 input:focus { outline: none; }
 
@@ -1150,6 +1153,20 @@ table.formbuilder {
     background-color: #f3f3f3; /*width: 100%;*/
 }
 
+.multiColumnSelect.templateAuxColumns{
+}
+
+.multiColumnSelect.templateAuxColumns table{
+    background-color: white;
+    width:30em;
+}
+.multiColumnSelect.templateAuxColumns td{
+    white-space: normal;
+    padding: 4px;
+    border: 1px solid #efefef;
+
+}
+
 .multiColumnSelect {
     background-color: #f3f3f3;
     overflow:hidden;
@@ -1211,6 +1228,23 @@ table.formbuilder {
     background-color: #60a1ea;
     background: #60a1ea;
     color:#fff;
+}
+
+.tundra.touchDevice .multiColumnSelect table {
+    border-collapse: collapse;
+    font-size: 10px;
+    background-color: #f3f3f3; /*width: 100%;*/
+}
+
+.tundra.touchDevice .multiColumnSelect.templateAuxColumns table{
+    background-color: white;
+    width:30em;
+}
+.tundra.touchDevice .multiColumnSelect.templateAuxColumns td{
+    white-space: normal;
+    padding: 4px;
+    border: 1px solid #efefef;
+
 }
 
 
@@ -1933,9 +1967,23 @@ div.dojoxDock {
     line-height: normal;
 }
 
+._common_d11.tundra .templateGrid .dojoxGrid-row .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row-odd .dojoxGrid-cell, 
+._common_d11.tundra .templateGrid .dojoxGrid-row.dojoxGrid-row-selected .dojoxGrid-cell{
+    border-right: 0;
+}
+
 .plainTextChunk{
     white-space: pre;
-    font-family: 'Courier New', Courier, monospace;
+}
+
+.formbuilder .plainTextChunk{
+    padding:2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 4px;
+    border:1px solid silver;
+    margin-bottom: 10px;
 }
 /* @end */
 
@@ -1969,7 +2017,7 @@ div.dojoxDock {
     width:16px;
 }
 .box24{
-     height:24px;
+    height:24px;
     width:24px;
 }
 .box32{
@@ -2500,7 +2548,6 @@ div.dojoxDock {
 }
 
 .index_loginbox .index_loginsubtitle{
-    font-variant:small-caps;
     font-size: .9em;
     font-style: italic;
     text-align: center;
@@ -2523,6 +2570,19 @@ div.dojoxDock {
     /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
 }
+.tundra._common_d11 .fullscreenDialog.dijitDialog{
+    border-radius: 0;
+    border-width: 0;
+    box-shadow:none;
+}
+
+._common_d11 .fullscreenDialog.dijitDialog .dijitDialogPaneContent {
+    background: transparent;
+    border: 0px;
+    padding:0;
+    /*background-image: -moz-linear-gradient(-90deg, rgba(170, 190, 201, 0.2), #FFFFFF);
+    background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, rgba(170, 190, 201, 0.2), to(#FFFFFF));*/
+}
 
 .tundra._common_d11 .dijitDialogPaneContent{
     overflow: hidden !important;
@@ -2532,7 +2592,7 @@ div.dojoxDock {
     overflow: hidden;
 }
 
-._common_d11 .lightboxDialog .dijitDialogTitleBar{
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar{
     display:none;
 }
 
@@ -2546,6 +2606,9 @@ div.dojoxDock {
 
 .tundra .dijitDialogUnderlayWrapper {
     z-index: 498;
+}
+.tundra .dijitDialogUnderlay.fullscreenDialog_underlay{
+    display: none;
 }
 
 
@@ -2912,6 +2975,10 @@ border='1px solid gray',margin='2px', rounded=10,
 */
 
 /* @group DojoxGrid*/
+.fillernode{
+    overflow: hidden;
+}
+
 .tundra .filteredGrid .dojoxGrid-cell{
 }
 
@@ -3919,10 +3986,10 @@ table.draggedItem {
     font-weight: bold;
 }
 
-.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent,
-.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent,
-.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent,
-.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent{
+.dojoxGrid td.cell_R .cellContent, .treecell.cell_R .treeCellContent, .dynamicTable td.cell_R,
+.dojoxGrid td.cell_I .cellContent, .treecell.cell_I .treeCellContent, .dynamicTable td.cell_I,
+.dojoxGrid td.cell_N .cellContent, .treecell.cell_N .treeCellContent, .dynamicTable td.cell_N,
+.dojoxGrid td.cell_L .cellContent, .treecell.cell_L .treeCellContent, .dynamicTable td.cell_L{
     text-align: right;
 }
 
@@ -4229,7 +4296,7 @@ p {
 
 
 .pbl_roundedGroupLabel.slotbar_horizontal .multibutton_container{
-    height: 18px;
+    min-height: 18px;
     font-variant:normal;
     line-height:15px;
     font-size: .9em;
@@ -4324,7 +4391,7 @@ p {
     line-height:3ex;
     font-size: .9em;
     font-variant:small-caps;
-    height: 19px;
+    min-height: 19px;
 }
 .multibutton_container .hidden.multibutton{
     display: none;
@@ -4425,6 +4492,59 @@ p {
     background: url(icons/base10/smalldel.png) no-repeat center center;
     opacity: .5;
     width: 10px;
+}
+
+
+
+.mobile_bar .multibutton_container{
+    color:var(--root-dark);
+}
+
+.mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
+    background: none;
+    border-bottom:2px solid var(--root-dark);
+}
+.mobile_bar .multibutton {
+    position: relative;
+    display: inline-block;
+    font-variant: normal;
+    font-size: 1em;
+    padding-left: 12px;
+    padding-right: 12px;
+    cursor: pointer;
+    color: var(--root-dark);
+    background-image: none;
+    border: 0;
+    border-right: 0px;
+    background-color: transparent;
+}
+
+
+.mobile_bar .multibutton:first-child{
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0px;
+}
+
+.mobile_bar .multibutton:last-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: 0px;
+    border-right: 0px;
+}
+
+.mobile_bar .multibutton_container.singleChildMultibutton{
+    display: none;
+}
+
+@media screen and (orientation:portrait) and (max-width:600px){
+    .mobile_bar .multibutton_container{
+        font-size: 1.2em;
+    }
+    .mobile_bar .multibutton {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
 }
 /* @end */
 
@@ -5160,8 +5280,15 @@ div[disabled='true'], div[disabled='disabled']{
 ._common_d11 .dojoxGrid {
     background-color: white;
     margin-left: -1px;
+    font-family: inherit;
+    font-size: inherit;
 }
-
+/*.bodySize_phone._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}
+._common_d11.tundra .dojoxGrid {
+	font-size: inherit;
+}*/
 
 ._common_d11 .dojoxGrid.pasteOnGrid.focusedGrid{
     background: rgba(58, 84, 186, 0.05);
@@ -5444,7 +5571,6 @@ div[disabled='true'], div[disabled='disabled']{
 .bodySize_phone .dojoxGrid{
     font-family: 'PT Sans Narrow'
 }
-
 
 .bodySize_phone .templateGrid .dojoxGrid{
     font-family: inherit;
@@ -5985,4 +6111,272 @@ div[disabled='true'], div[disabled='disabled']{
 
 .mc_negative.mc_ovf{
     background: darkred;
+}
+
+
+.flex_centered_wrapper{
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top:0;
+    left:0;
+    bottom:0;
+    right:0;
+    justify-content: center;
+    align-items: center;
+}
+
+.visibility_lock{
+    background: url(/_rsrc/common/css_icons/svg/16/visibility_lock.svg) no-repeat center center;
+    background-size: contain;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.white_refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
+}
+
+.refresh{
+    background: url(/_rsrc/common/css_icons/svg/16/reset_record.svg) no-repeat center center;
+}
+
+
+
+.tundra._common_d11 .dojoxGrid-cell.right_in_cell {
+    vertical-align: middle;
+    border-left: 0;
+}
+
+.right_in_cell .cellContent{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_right_in_small.svg) no-repeat center center;
+    background-color: #888;
+}
+
+.mobileTemplateGridTop{
+    font-weight: bold;
+    font-size: 1.2em;
+    line-height: 35px;
+    
+}
+.mobileTemplateGridTop .searchInputBox{
+    line-height: normal;
+}
+.mobileTemplateGridTop .searchboxLabel{
+    display: none;
+}
+
+
+._common_d11 .mobileTemplateGrid .dojoxGrid-row{
+    border-bottom: 1px solid #ddd;
+}
+
+._common_d11.tundra .mobileTemplateGrid .dojoxGrid-header {
+    display:none;
+}
+.mobile_left_out{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    background-color: #888;
+}
+
+.leftOut{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/mobile_left_out_small.svg) no-repeat center center;
+}
+
+.prevUp{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/prevUp.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/prevUp.svg) no-repeat center center;
+}
+
+.nextDown{
+    -webkit-mask: url(/_rsrc/common/css_icons/svg/16/nextDown.svg) no-repeat center center;
+    mask: url(/_rsrc/common/css_icons/svg/16/nextDown.svg) no-repeat center center;
+}
+
+.formCaption{
+    font-weight: bold;
+    text-align: center;
+    color:#888;
+    font-size:1.2em;
+    padding-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.mobileTemplateGrid .cellContent>div>div:last-child{
+    width: 100%;
+    padding:5px;
+}
+
+.mobileTemplateGrid .cellContent>div{
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+.fixTableHead{
+    overflow-y: auto;
+}
+
+.fixTableHead thead th {
+    position: sticky;
+    top: 0;
+ }
+
+ .dynamicTable table{
+    border-collapse: collapse;
+    width: 100%;
+ }
+ .dynamicTable thead th{
+    background: #444;
+    color:white;
+    font-weight: bold;
+    border: 1px solid silver;
+ }
+
+ .dynamicTable tbody td{
+    color:#444;
+    border: 1px solid silver;
+ }
+
+ /*GOOGLE ICONS*/
+
+ /*Checkbox toggle icon*/
+.toggle .dijitCheckBox, .toggle .dijitCheckBoxIcon{
+    width: 35px;
+    height: 25px;
+    background-image: none;
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #666;
+}
+.toggle .dijitCheckBoxChecked{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: #0F75E0;
+}
+.toggle .dijitCheckBoxInput{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.google_icon{
+    width: 35px;
+    height: 25px;
+    cursor: pointer;
+    mask-size: 100%;
+    -webkit-mask-size: 100%;
+}
+.add_circle{
+    mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
+}
+.counter_1{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_1.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_1.svg') center center no-repeat;
+}
+.counter_2{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_2.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_2.svg') center center no-repeat;
+}
+.counter_3{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_3.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_3.svg') center center no-repeat;
+}
+.counter_4{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_4.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_4.svg') center center no-repeat;
+}
+.counter_5{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_5.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_5.svg') center center no-repeat;
+}
+.counter_6{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_6.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_6.svg') center center no-repeat;
+}
+.counter_7{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_7.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_7.svg') center center no-repeat;
+}
+.counter_8{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_8.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_8.svg') center center no-repeat;
+}
+.counter_9{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_9.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_9.svg') center center no-repeat;
+}
+.counter_0{
+    mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/counter_0.svg') center center no-repeat;
+}
+.google_cancel{
+    mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/cancel.svg') center center no-repeat;
+}
+.check{
+    mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/check.svg') center center no-repeat;
+}
+.download{
+    mask: url('/_rsrc/common/css_icons/google_icons/download.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/download.svg') center center no-repeat;
+}
+.radio_button_checked{
+    mask: url('/_rsrc/common/css_icons/google_icons/radio_button_checked.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/radio_button_checked.svg') center center no-repeat;
+}
+.radio_button_unchecked{
+    mask: url('/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg') center center no-repeat;
+}
+.toggle_on{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_on.svg') center center no-repeat;
+}
+.toggle_off{
+    mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/toggle_off.svg') center center no-repeat;
+}
+.search{
+    mask: url('/_rsrc/common/css_icons/google_icons/search.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/search.svg') center center no-repeat;
+}
+.close{
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+}
+.filters{
+    mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filters.svg') center center no-repeat;
+    height: 35px;
+}
+.filter_list{
+    mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    height: 35px;
+}
+
+
+.largeCell{
+    padding:5px;
+    font-size:1.2em;
+}
+
+.gridRoundedEnvelope{
+    border:1px solid #ddd;
+    border-radius: 10px;
+    margin:10px;
+    margin-top:0;
+    margin-bottom: 20px;
 }

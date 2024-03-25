@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from past.builtins import basestring
 import smtplib
 
 from email.MIMEText import MIMEText
@@ -38,7 +37,7 @@ def sendmail(host, from_address, to_address, subject, body, user='', password=''
     :param password: the username's password"""
     msg = MIMEText(body)
     
-    if isinstance(to_address, basestring):
+    if isinstance(to_address, str):
         to_address = [k.strip() for k in to_address.split(',')]
     msg['Subject'] = subject
     msg['From'] = from_address

@@ -23,24 +23,21 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
 import os
 import sys
 import shutil
 import urllib.request, urllib.parse, urllib.error
 import _thread
 import copy
-
 from time import time
 from datetime import timedelta
+from mako.lookup import TemplateLookup
+from base64 import b64decode
+import re
+import datetime
+
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
-from mako.lookup import TemplateLookup
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
@@ -57,14 +54,10 @@ from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
 from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated,callers
+from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
 from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.app.gnrlocalization import GnrLocString
-from base64 import b64decode
-import re
-import datetime
-from gnr.core.gnrdecorator import callers
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -94,7 +87,8 @@ class GnrUnsupportedBrowserException(GnrException):
 
 class GnrMaintenanceException(GnrException):
     pass
-
+class GnrSignedTokenException(GnrException):
+    pass
 
 
 class GnrMissingResourceException(GnrException):
@@ -145,9 +139,13 @@ class GnrWebPage(GnrBaseWebPage):
             self.application.db.clearCurrentEnv() #new a brand new page
         self.extraFeatures = copy.deepcopy(self.site.extraFeatures)
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
-        dbstore = request_kwargs.pop('temp_dbstore',None) or None
-        self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
+        self.base_dbstore = request_kwargs.pop('base_dbstore',None)
+        self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        if self.temp_dbstore is False:
+            self.temp_dbstore = self.application.db.rootstore
+        dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
+        self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
         self.user_agent = request.user_agent.string or []
         self._environ = environ
         self._event_subscribers = {}
@@ -204,6 +202,7 @@ class GnrWebPage(GnrBaseWebPage):
                                            connection_id=request_kwargs.pop('_connection_id', None),
                                            user=request_kwargs.pop('_user', None))
         page_id = request_kwargs.pop('page_id', None)
+        self.subdomain = request_kwargs.pop('_subdomain',None) if page_id else request_kwargs.get('_subdomain')        
         self.root_page_id = None
         self.parent_page_id = None
         self.sourcepage_id = request_kwargs.pop('sourcepage_id', None)
@@ -905,7 +904,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.charset = 'utf-8'
         arg_dict = self.build_arg_dict(**kwargs)
         tpl = self.pagetemplate
-        if not isinstance(tpl, basestring):
+        if not isinstance(tpl, str):
             tpl = '%s.%s' % (self.pagename, 'tpl')
         lookup = TemplateLookup(directories=self.tpldirectories, output_encoding=self.charset,
                                 encoding_errors='replace')
@@ -1002,6 +1001,14 @@ class GnrWebPage(GnrBaseWebPage):
         elif proxy_name == '_resourcescript':
             pkg_name,respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadResourceScript(respath,class_name=class_name,pkg=pkg_name)
+        elif proxy_name == '_service':
+            l = submethod.split('.')
+            if len(l)==2:
+                service_type,submethod = l
+                proxy_object = self.getService(service_type)
+            else:
+                service_type,service_name,submethod = l
+                proxy_object = self.getService(service_type,service_name)
         else:
             proxy_object = getattr(self, proxy_name, None)
         if not proxy_object:
@@ -1020,8 +1027,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         if callable(method):
@@ -1043,6 +1050,12 @@ class GnrWebPage(GnrBaseWebPage):
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
         
+        if handler and getattr(handler,'signed',None):
+            original_url = self.request._request.url
+            _vld = self._call_kwargs.pop('_vld',None)
+            error = self.site.auth_token_generator.verify_url(original_url,_vld)
+            if error:
+                raise GnrSignedTokenException(error)
         if handler and getattr(handler, 'tags',None):
             userTags = self.userTags or self.basicAuthenticationTags()
             if not self.application.checkResourcePermission(handler.tags, userTags):
@@ -1069,8 +1082,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param prefix: The method prefix. It can be:
                        
-                       * 'remote': this prefix is used for the :ref:`dataremote`\s
-                       * 'rpc': this prefix is used for the :ref:`datarpc`\s
+                       * 'remote': this prefix is used for the :ref:`dataremote`
+                       * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
         handler = None
@@ -1098,7 +1111,7 @@ class GnrWebPage(GnrBaseWebPage):
          :param exception: the exception raised.
          :param record: TODO.
          :param msg: TODO."""
-         if isinstance(exception,basestring):
+         if isinstance(exception, str):
              exception = EXCEPTIONS.get(exception)
              if not exception:
                  raise exception
@@ -1181,9 +1194,9 @@ class GnrWebPage(GnrBaseWebPage):
         return arg_dict
     
     def getPwaIntegration(self, arg_dict):
-        pwaEnabled = self.site.config['pwa?enabled']
-        if pwaEnabled:
-            arg_dict['pwa'] = True
+        pwa_config = self.site.pwa_handler.configuration()
+        if pwa_config is not None:
+            arg_dict['pwa'] = not pwa_config.get('disabled')
 
     def getSquareLogoUrl(self, arg_dict):
         site_favicon = self.site.config['favicon?name']
@@ -1239,7 +1252,7 @@ class GnrWebPage(GnrBaseWebPage):
     def checkTablePermission(self,table=None,permissions=None):
         if not permissions:
             return True
-        permissions = set(permissions.split(',') if isinstance(permissions,basestring) else permissions)
+        permissions = set(permissions.split(',') if isinstance(permissions, str) else permissions)
         availablePermissions = set(self.db.table(table).availablePermissions.split(',')).union(set(['hidden','readonly']))
         if not permissions.issubset(availablePermissions):
             raise self.exception('generic',description='Permissions %s are not defined in table %s' %(','.join(permissions.difference(availablePermissions)),table))
@@ -1276,14 +1289,14 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO"""
         return self.site.externalUrl(path, **kwargs)
 
-    def externalUrlToken(self, path, _expiry=None, _host=None, method='root',max_usages=None,allowed_user=None,**kwargs):
+    def externalUrlToken(self, path, _expiry=None, _host=None,method='root',max_usages=None,allowed_user=None,assigned_user_id=None,**kwargs):
         """TODO
         
         :param path: TODO
         :param method: TODO
         """
         assert 'sys' in self.site.gnrapp.packages
-        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,
+        external_token = self.db.table('sys.external_token').create_token(path, expiry=_expiry, allowed_host=_host,assigned_user_id=assigned_user_id,
                                                                           method=method, parameters=kwargs,max_usages=max_usages,
                                                                           allowed_user=allowed_user,exec_user=self.user)
         return self.externalUrl(path, gnrtoken=external_token)
@@ -1333,7 +1346,8 @@ class GnrWebPage(GnrBaseWebPage):
         return {'pages': self.site.pages_dir,
                 'site': self.site.site_path,
                 'current': os.path.dirname(self.filepath)}
-              
+
+
     def subscribeTable(self, table, subscribe=True,subscribeMode=None):
         """TODO
         :param table: the :ref:`database table <table>` name on which the query will be executed,
@@ -1438,7 +1452,24 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def userTags(self):
         """TODO"""
-        return self.avatar.user_tags if self.avatar else ''
+        if not self.avatar:
+            return ''
+        
+        tags = self.avatar.user_tags
+        user_local_tags = self.userLocalTags
+        if user_local_tags:
+            tags = tags.split(',')
+            for t in user_local_tags.split(','):
+                if not t in tags:
+                    tags.append(t)
+            tags = ','.join(tags)
+        return tags
+    
+    @property
+    def userLocalTags(self):
+        if not hasattr(self,'_rootenv'):
+             return
+        return self.rootenv['user_local_tags']
     
     @property
     def userMenu(self):
@@ -1840,7 +1871,11 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param path: TODO"""
         path = kwargs.get('path') or kwargs.get('prefpath') or '*'
-        return self.getPreference(path,pkg=pkg)
+        app_preference = self.getPreference(path,pkg=pkg)
+        owner_name = app_preference['adm.instance_data.owner_name']
+        if not owner_name:
+            app_preference['adm.instance_data.owner_name'] = app_preference['adm.gui_customization.owner.owner_name']
+        return app_preference
 
     @public_method
     def setUserPreference(self, path, data, pkg='', username=''):
@@ -1971,7 +2006,7 @@ class GnrWebPage(GnrBaseWebPage):
     def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
-        :param \_auth: the page authorizations. For more information, check the :ref:`auth` page
+        :param _auth: the page authorizations. For more information, check the :ref:`auth` page
         :param debugger: TODO"""
         page = self.domSrcFactory.makeRoot(self)
         self._root = page
@@ -2066,9 +2101,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController('genro.dlg.serverMessage("gnr.servermsg");', _fired='^gnr.servermsg')
         #page.dataController("genro.dom.setClass(dojo.body(),'bordered_icons',bordered);",
         #            bordered="^gnr.user_preference.sys.theme.bordered_icons",_onStart=True)
-        
-        #page.dataController("""genro.dom.setRootStyle(rs)""",rs="^gnr.user_preference.sys.theme.rootstyle",_if='rs')
-        #da sistemare
+        rspath = '^gnr.user_preference.sys.theme.mobile' if self.isMobile else '^gnr.user_preference.sys.theme.desktop'
+        page.dataController("""genro.dom.setRootStyle(rs);""", rs=rspath, _if='rs', _onStart=True)   
         page.dataController("genro.getDataNode(nodePath).refresh(true);",
                             nodePath="^gnr.serverEvent.refreshNode")
                             
@@ -2144,7 +2178,6 @@ class GnrWebPage(GnrBaseWebPage):
                 if params:
                     redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
-            root.clear()
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
             self.site.pageLog('open')
@@ -2199,15 +2232,12 @@ class GnrWebPage(GnrBaseWebPage):
         """
         :param root: the root of the page. For more information, check the
                      :ref:`webpages_main` section"""
-        dlg = root.dialog(toggle="fade", toggleDuration=250, onCreated='widget.show();')
-        #f = dlg.form()
-        #f.div(content='Forbidden Page', text_align="center", font_size='24pt')
-        tbl = dlg.contentPane(_class='dojoDialogInner').table()
-        row = tbl.tr()
-        row.td(content=msg or 'Sorry. You are not allowed to use this page.', align="center", font_size='16pt',
-               color='#c90031')
-        cell = tbl.tr().td()
-        cell.div(float='right', padding='2px').button('Back', action='genro.pageBack()')
+        root.clear()
+        box = root.div(position='absolute',top=0,left=0,right=0,bottom='20px')
+        box.iframe(height='100%', width='100%', src=self.getResourceUri('html_pages/forbidden.html'), border='0px') 
+        root.lightbutton('Logout',action='genro.logout()',position='absolute',bottom='10px',right='10px',cursor='pointer',
+                         font_weight='bold')
+        
 
     def getStartRootenv(self):
         #cookie = self.get_cookie('%s_dying_%s_%s' %(self.siteName,self.packageId,self.pagename), 'simple')

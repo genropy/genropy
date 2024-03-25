@@ -1,0 +1,217 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genropy"
+dynamic = ["version", "readme"]
+
+authors = [
+    {name = "Softwell Srl", email = "info@genropy.org"},
+]
+
+maintainers = [
+  {name = "Francesco Porcari", email = "francesco.porcari@softwell.it" },
+  {name = "Michele Bertoldi", email = "michele.bertoldi@softwell.it" }
+]
+description = "GenroPy Web Framework"
+requires-python = ">=3.8"
+keywords = ["web", "framework", "SPA applications"]
+license = {file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+]
+dependencies = [
+	     "tornado", # used for async
+	     "python-dateutil",
+	     "paste",
+	     "mako",
+	     "vobject",
+	     "pytz",
+	     "babel",
+	     "httplib2",
+#	     "selectors34", #apparently abandoned
+#	     "serpent<1.30", #it's a pyro dependencies, so it seem
+                             #not necessary to list it here
+	     "pyro4",
+	     #"argparse",# it's parte of the stdlib
+	     "xlrd",
+	     "xlwt",
+	     "docutils",
+	     "redbaron",
+	     "future", # evaluate if needed
+	     "boto3",
+	     "smart_open",
+	     "gunicorn",
+	     "supervisor",
+	     "lxml",
+	     "openpyxl",
+	     "psutil",
+	     "simpleeval",
+	     "webob",
+	     "werkzeug==2.3.8",
+	     "six", # evaluate if needed
+	     "tzlocal",
+	     "pyyaml",
+	     "chardet",
+	     "jsmin",
+	     "paramiko", # gnr.core.gnrssh
+	     "dulwich", # needed by gnrgit
+	     "reportlab",
+	     "caldav", 
+	     ]
+
+[project.optional-dependencies]
+pgsql = ["psycopg2-binary"]
+mysql = ["mysqlclient"]
+developer = [
+	  "pytest", "pytest-cov", "graphviz",
+	  "build", "twine",
+	  "psycopg2-binary","testing.postgresql" # needed for tests, assuming developers runs tests
+	    ]
+
+[project.scripts]
+# gnr.core
+gnr = 'gnr.core.cli.gnr:main'
+# gnr.xtnd
+gnrsync4d = 'gnr.xtnd.cli.gnrsync4d:main'
+gnrsync4dpyro = 'gnr.xtnd.cli.gnrsync4dpyro:main'
+# gnr.web
+gnrsyncstorage = 'gnr.web.cli.gnrsyncstorage:main'
+gnrtaskscheduler = 'gnr.web.cli.gnrtaskscheduler:main'
+gnrtaskworker = 'gnr.web.cli.gnrtaskworker:main'
+gnrwsgiserve = 'gnr.web.cli.gnrwsgiserve:main'
+gnrdaemon = 'gnr.web.cli.gnrdaemon:main'
+# gnr.app
+gnrasync = 'gnr.app.cli.gnrasync:main'
+gnrdbsetup = 'gnr.app.cli.gnrdbsetup:main'
+gnrdbsetupparallel = 'gnr.app.cli.gnrdbsetupparallel:main'
+gnrdbshell = 'gnr.app.cli.gnrdbshell:main'
+gnrheartbeat = 'gnr.app.cli.gnrheartbeat:main'
+gnrmkapachesite = 'gnr.app.cli.gnrmkapachesite:main'
+gnrremotebagserve = 'gnr.app.cli.gnrremotebagserve:main'
+gnrrms = 'gnr.app.cli.gnrrms:main'
+gnrsendmail = 'gnr.app.cli.gnrsendmail:main'
+gnrserviceworker = 'gnr.app.cli.gnrserviceworker:main'
+gnrtrdaemon = 'gnr.app.cli.gnrtrdaemon:main'
+gnrupdate = 'gnr.app.cli.gnrupdate:main'
+initgenropy = 'gnr.app.cli.initgenropy:main'
+# gnr.dev
+gnrnotes = 'gnr.dev.cli.gnrnotes:main'
+gnraddprojectrepo = 'gnr.dev.cli.gnraddprojectrepo:main'
+gnrdbgraph = 'gnr.dev.cli.gnrdbgraph:main'
+gnrdbstruct = 'gnr.dev.cli.gnrdbstruct:main'
+gnrdeploybuilder = 'gnr.app.cli.gnrdeploybuilder:main'	
+gnrlocalizer = 'gnr.dev.cli.gnrlocalizer:main'	
+gnrmkinstance = 'gnr.dev.cli.gnrmkinstance:main'
+gnrmkpackage = 'gnr.dev.cli.gnrmkpackage:main'
+gnrmkproject = 'gnr.dev.cli.gnrmkproject:main'
+gnrmksite = 'gnr.dev.cli.gnrmksite:main'
+gnrmkthresource = 'gnr.dev.cli.gnrmkthresource:main'
+gnrsitelocalize = 'gnr.dev.cli.gnrsitelocalize:main'	
+gnrsql2py = 'gnr.dev.cli.gnrsql2py:main'
+gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
+
+
+[project.urls]  
+"Homepage" = "https://www.genropy.org/"
+"Bug Reports" = "https://bitbucket.org/genropy/"
+"Source" = "https://bitbucket.org/genropy/"
+
+[tool.setuptools.dynamic]
+version = {attr = "gnr.VERSION"}
+readme = {file = ["README.md"]}
+
+
+[tool.setuptools]
+include-package-data = true
+
+packages = [
+	    'gnr',
+	    'gnr.app',
+	    'gnr.app.cli',
+	    'gnr.core',
+	    'gnr.core.cli',
+	    'gnr.dev',
+	    'gnr.dev.cli',
+	    'gnr.prj',
+	    'gnr.utils',
+	    'gnr.web.batch',
+	    'gnr.web.cli',
+	    'gnr.web.components',
+	    'gnr.web.gnrwebpage_plugin',
+	    'gnr.web.gnrwebpage_proxy',
+    	    'gnr.web.gnrwebpage_proxy.frontend',	
+	    'gnr.web.gnrwsgisite_proxy',
+	    'gnr.xtnd',
+	    'gnr.xtnd.cli',
+   	    'gnr.lib',
+   	    'gnr.sql.adapters',
+    	    'gnr.sql',
+    	    'gnr.sql.gnrsqltable_proxy',
+      	    'gnr.lib.services',	
+      	    'gnr.web',
+	    'gnr.gnrjs',
+	    'gnr.projects',
+	    'gnr.dojo_libs',
+	    'gnr.resources',
+	    'gnr.webtools',
+	    ]
+
+
+[tool.setuptools.package-dir]
+"gnr" = "gnr"
+"gnr.gnrjs" = "../gnrjs"
+"gnr.projects" = "../projects"
+"gnr.dojo_libs" = "../dojo_libs"
+"gnr.resources" = "../resources"
+"gnr.webtools" = "../webtools"
+
+
+# COVERAGE
+[tool.coverage.run]
+omit = [
+     "*/cli/*",
+]
+
+# LINTERS
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".nox",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+line-length = 88
+indent-width = 4
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["F401"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

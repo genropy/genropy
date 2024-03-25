@@ -6,7 +6,6 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from past.builtins import basestring
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -176,7 +175,7 @@ class GnrWebConnection(GnrBaseProxy):
         result = Bag()
         exclude = exclude or []
         now = datetime.now()
-        if isinstance(exclude, basestring):
+        if isinstance(exclude, str):
             exclude = exclude.split(',')
         for user, arguments in list(users.items()):
             if user in exclude:
@@ -185,7 +184,8 @@ class GnrWebConnection(GnrBaseProxy):
             if exclude_guest and user.startswith('guest_') or user == self.page.user:
                 continue
             _customClasses = []
-            row['_pkey'] = user
+            userkey = user.replace('.','_').replace('@','_')
+            row['_pkey'] = userkey
             row['iconClass'] = 'greenLight'
             last_refresh_ts = arguments.get('last_refresh_ts') or arguments['start_ts']
             last_user_ts = arguments.get('last_user_ts') or arguments['start_ts']
@@ -204,7 +204,7 @@ class GnrWebConnection(GnrBaseProxy):
             row['caption'] = arguments['user_name'] or user
             row.update(arguments)
             row.pop('datachanges', None)
-            result.setItem(user, None, **row)
+            result.addItem(userkey, None, **row)
         return result
 
 

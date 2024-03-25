@@ -22,13 +22,9 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
-
-from future import standard_library
-standard_library.install_aliases()
-
 import urllib.parse
-from gnr.app.gnrconfig import gnrConfigPath
 
+from gnr.app.gnrconfig import gnrConfigPath
 from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
@@ -70,7 +66,7 @@ class RMS(object):
     def buildRmsService(self,instancename,domain=None,customer_code=None):
         rmsfolder = os.path.join(gnrConfigPath(),'rms')
         if not os.path.isdir(rmsfolder):
-            os.mkdir(rmsfolder)
+            os.makedirs(rmsfolder)
         rmspath = os.path.join(rmsfolder,'{name}.xml'.format(name=instancename))
         app = GnrApp(instancename,enabled_packages=['gnrcore:sys','gnrcore:adm'])
         db = app.db

@@ -1,15 +1,15 @@
 # encoding: utf-8
 
-from builtins import object
+
 class Table(object):
     def config_db(self, pkg):
         tbl =  pkg.table('user_tag',pkey='id',name_long='!!User tag',
                       name_plural='!!User tags')
         self.sysFields(tbl)
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='tags',mode='foreignkey',onDelete='cascade')
-        tbl.column('user_id',size='22',group='_',name_long='User',_sendback=True).relation('user.id', mode='foreignkey', 
+        tbl.column('user_id',size='22',group='_',name_long='!!User',_sendback=True).relation('user.id', mode='foreignkey', 
                                                                             onDelete='cascade',relation_name='tags')
-        tbl.column('tag_id',size='22',group='_',name_long='Tag id').relation('htag.id', mode='foreignkey', onDelete='cascade',
+        tbl.column('tag_id',size='22',group='_',name_long='!!Tag').relation('htag.id', mode='foreignkey', onDelete='cascade',
                                                                           relation_name='users')
         tbl.aliasColumn('user',relation_path='@user_id.username')
         tbl.aliasColumn('fullname',relation_path='@user_id.fullname')
@@ -18,7 +18,7 @@ class Table(object):
         tbl.aliasColumn('tag_note',relation_path='@tag_id.note')
         tbl.aliasColumn('linked_table',relation_path='@tag_id.linked_table', static=True)
         tbl.aliasColumn('require_2fa','@tag_id.require_2fa')
-        tbl.formulaColumn('tag_code','COALESCE(@tag_id.__syscode,@tag_id.hierarchical_code)')
+        tbl.aliasColumn('tag_code','@tag_id.authorization_tag')
         tbl.formulaColumn('user_or_group',"COALESCE($user,$group_code)")
 
         #tbl.aliases(relation='@user_id',user='username')

@@ -4,5 +4,5 @@ class Menu(object):
         email_config = root.branch(u"!!Email Config", tags="admin")
         email_config.thpage(u"!!Accounts", table="email.account", tags="")
         email_config.thpage(u"!!Messages", table="email.message", tags="")
-        email_config.lookups(u"!!Utility tables", lookup_manager="email")
+        email_config.lookupBranch(u"!!Utility tables", pkg="email")
 

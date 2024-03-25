@@ -19,11 +19,7 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-from __future__ import print_function
-from __future__ import absolute_import
-from builtins import str
-from past.builtins import basestring
-#from builtins import object
+
 import time
 import os
 import base64
@@ -49,6 +45,21 @@ from tornado import version_info
 
 from tornado import queues
 
+class ObjectDict(dict):
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+        else:
+            raise AttributeError(f'No attribute or item: {name}')
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def __delattr__(self, name):
+        if name in self:
+            del self[name]
+        else:
+            raise AttributeError(f'No attribute or item: {name}')
 
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 3
     
@@ -83,6 +94,10 @@ class GnrBaseHandler(object):
     @property
     def channels(self):
         return self.application.server.channels
+
+    @property
+    def remote_services(self):
+        return self.application.server.remote_services
 
     @property
     def pages(self):
@@ -204,6 +219,12 @@ class GnrWsProxyHandler(tornado.web.RequestHandler,GnrBaseHandler):
     def post(self, *args, **kwargs):
         page_id = self.get_argument('page_id')
         envelope = self.get_argument('envelope')
+        remote_service = self.get_argument('remote_service')
+        if remote_service:
+            page_id = self.remote_services.get(remote_service)
+            if not page_id:
+                return
+
         if not page_id:
             envelope = Bag(envelope)
             command = envelope['command']
@@ -299,28 +320,33 @@ class GnrWebSocketHandler(websocket.WebSocketHandler,GnrBaseHandler):
         websocket=self.channels.get(target_page_id)
         if websocket:
             websocket.write_message(envelope)
+    
+    def do_register_service(self,page_id=None, gateway_service=None, **kwargs):
+        if gateway_service:
+            self.remote_services[gateway_service] = page_id
+        self.do_connected(page_id=page_id, **kwargs)
+
+    @threadpool
+    def do_service(self, gateway_service=None, **kwargs):
+        service = self.gnrsite.getService(service_type='remotewsservice',service_name=gateway_service)
+        if service and hasattr(service, 'on_message'):
+            service.on_message(**kwargs)
 
     def do_connected(self,page_id=None,**kwargs):
         self._page_id=page_id
         if page_id not in self.channels:
-            #print 'setting in channels',self.page_id
             self.channels[page_id]=self
         else:
             pass
-             #print 'already in channels',self.page_id
         if page_id not in self.pages:
-            #print 'do_connected: missing page %s register it again' % page_id
             self.server.registerPage(page_id=page_id)
         else:
             pass
-            #print 'already in pages',self.page_id
 
     #def do_som_command(self,cmd=None,_time_start=None,**kwargs):
     #    return self.server.som(cmd,page_id=self._page_id,**kwargs)
     #
     def do_pdb_command(self, cmd=None, pdb_id=None,**kwargs):
-        #self.debugger.put_data(data)
-        print('CMD',cmd)
         debugkey = '%s,%s' %(self.page_id,pdb_id)
         if debugkey not in self.debug_queues:
             self.debug_queues[debugkey] = queues.Queue(maxsize=40)
@@ -364,7 +390,7 @@ class GnrWebSocketHandler(websocket.WebSocketHandler,GnrBaseHandler):
         result = dict()
         for k, v in list(kwargs.items()):
             k = k.strip()
-            if isinstance(v, basestring):
+            if isinstance(v, (bytes,str)):
                 try:
                     v = catalog.fromTypedText(v)
                     result[k] = v
@@ -793,6 +819,7 @@ class GnrBaseAsyncServer(object):
         self.handlers=[]
         self.executors=dict()
         self.channels = dict()
+        self.remote_services = dict()
         self.pages = dict()
         self.debug_queues=dict()
         self.gnrsite=GnrWsgiSite(instance)
@@ -891,10 +918,9 @@ class GnrBaseAsyncServer(object):
             server.listen(int(self.port))
         sockets_dir = os.path.join(self.gnrsite.site_path, 'sockets')
         if len(sockets_dir)>90:
-            sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.site_path), 'gnr_sock')
-        print('sockets_dir',sockets_dir)
+            sockets_dir = os.path.join('/tmp', os.path.basename(self.gnrsite.instance_path), 'gnr_sock')
         if not os.path.exists(sockets_dir):
-            os.mkdir(sockets_dir)
+            os.makedirs(sockets_dir)
         socket_path = os.path.join(sockets_dir, 'async.tornado')
         main_socket = bind_unix_socket(socket_path)
         os.chmod(socket_path, 0o666)
@@ -938,7 +964,8 @@ class GnrAsyncServer(GnrBaseAsyncServer):
         if self.web:
             import tornado.wsgi
             from .tornado_wsgi import WSGIHandler
-            wsgi_gnrsite=GnrWsgiSite(self.instance_name, tornado=True, **self.site_options)
+            wsgi_gnrsite=GnrWsgiSite(self.instance_name, tornado=True, websockets=True, **self.site_options)
+            wsgi_gnrsite._local_mode=True
             with wsgi_gnrsite.register.globalStore() as gs:
                 gs.setItem('RESTART_TS',datetime.now())
                 

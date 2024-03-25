@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from builtins import object
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method, metadata
+from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
 
 class Table(object):
@@ -11,14 +12,14 @@ class Table(object):
                         name_plural='!!Documentation',caption_field='name',audit='lazy')
         self.sysFields(tbl,hierarchical='name',df=True,
                         counter=True,user_ins=True,user_upd=True)
-        tbl.column('name',name_long='!!Name', validate_notnull=True)
+        tbl.column('name',name_long='!!Code', validate_notnull=True)
         tbl.column('topics',name_long='!!Topics')
         tbl.column('publish_date',dtype='D',name_long='!!Publish date')
         tbl.column('sourcebag',dtype='X',name_long='Python Source',_sendback=True)
         tbl.column('docbag',dtype='X',name_long='Rst data',_sendback=True)
         tbl.column('revision',size=':3', name_long='!!Revision',values='001:Draft,050:Work in progress,080:Pre-release,100:Final')
         tbl.column('author', name_long='Author')
-        tbl.column('base_language',size=':2',name_long='Base language').relation('docu.language.code',mode='foreignkey')
+        tbl.column('base_language',size=':2',name_long='Base language').relation('adm.language.code')
         tbl.column('old_html')
         tbl.column('sphinx_toc', dtype='B', name_long='Sphinx toc')
 
@@ -36,12 +37,14 @@ class Table(object):
 
     def formulaColumn_doc_sources(self):
         result = []
-        for lang in self.db.table('docu.language').query().fetch():
+        for lang in self.db.table('adm.language').query().fetch():
             l = lang['code']
-            sql_formula = self.model.bagItemFormula('$docbag','%s.rst' %l)
-            result.append(dict(name='rst_%s' %l,sql_formula=sql_formula, name_long='!!Rst %s' %l))
-            sql_formula = self.model.bagItemFormula('$docbag','%s.title' %l)
-            result.append(dict(name='title_%s' %l,sql_formula=sql_formula, name_long='!!Title %s' %l))
+            col = dict(name='rst_%s' %l, name_long='!!Rst %s' %l)
+            col['sql_formula'] = self.model.bagItemFormula('$docbag','%s.rst' %l,kwargs=col)
+            result.append(col)
+            col = dict(name='title_%s' %l, name_long='!!Title %s' %l)
+            col['sql_formula'] = self.model.bagItemFormula('$docbag','%s.title' %l,kwargs=col)
+            result.append(col)
         return result
 
     def atc_getAttachmentPath(self,pkey):
@@ -130,11 +133,6 @@ class Table(object):
         rows = self.df_getFieldsRows(pkey=pkey)
         if not rows:
             return
-        params_name_lbl, params_type_lbl, params_desc_lbl = self.db.table('docu.language').readColumns(where='$code=:lang', 
-                            lang=language, columns='$params_name_lbl,$params_type_lbl,$params_desc_lbl')
-        params_name_lbl = params_name_lbl or 'Parameter name'
-        params_type_lbl = params_type_lbl or 'Type'
-        params_desc_lbl = params_desc_lbl or 'Description'
         fdict = dict()
         for r in rows:
             page = r.pop('page',None) or 'Main'
@@ -150,11 +148,17 @@ class Table(object):
         ltemplate = '|%s|%s|%s|' 
         l1 = '+%s+%s+%s+' %(24*'=',6*'=',50*'=')
         result = [l0]
-        result.append(ltemplate %(f'{params_name_lbl}'.center(24),f'{params_type_lbl}'.center(6),f'{params_desc_lbl}'.center(50)))
+        translator = AppLocalizer(self.db.application)
+        param_name = translator.getTranslation('!!Parameter name', language=language).get('translation') or 'Parameter name'
+        param_type =  translator.getTranslation('!!Type', language=language).get('translation') or 'Type'
+        param_desc = translator.getTranslation('!!Description', language=language).get('translation') or 'Description'
+        result.append(ltemplate %(param_name.center(24),param_type.center(6),param_desc.center(50)))
         result.append(l1)
         for k,p in enumerate(pages):
             if k>0:
-                result.append('|%s|' %('*%s Parameters*' %p).center(82) )
+                params = translator.getTranslation('!!Parameters', language=language).get('translation') or 'Parameters'
+                parameters_blocks = f'*{p} {params}*'.center(82)
+                result.append(f'|{parameters_blocks}|')
                 result.append(l0)
             rows = fdict[p]
             for r in rows:

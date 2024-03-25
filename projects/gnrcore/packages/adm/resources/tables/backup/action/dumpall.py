@@ -5,14 +5,13 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import templateReplace
-import datetime
+from datetime import datetime
 import os
 import shutil
 
 caption = 'Dump all'
 description = 'Dump all'
-tags = 'nobody'
+
 class Main(BaseResourceBatch):
     dialog_height = '450px'
     dialog_width = '650px'
@@ -23,21 +22,18 @@ class Main(BaseResourceBatch):
     batch_steps = 'dumpmain,dumpaux,end'
 
     def pre_process(self):
-        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'site:maintenance'
-        dumpfolderpath = self.page.site.getStaticPath(self.dumpfolder,'backups',autocreate=-1)
-        
-        self.max_copies = self.page.getPreference(path='backups.max_copies',pkg='adm') or 10
-        self.ts_start = datetime.datetime.now()
+        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance/backups'        
+        self.ts_start = datetime.now()
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
-        self.folderpath = os.path.join(dumpfolderpath,self.dump_name)
+        self.backupSn = self.db.application.site.storageNode(self.dumpfolder)
+        self.tempSn = self.db.application.site.storageNode('site:maintenance', 'backups', self.dump_name)
         
-        if os.path.exists(self.folderpath):
-            shutil.rmtree(self.folderpath)
-        #self.folderurl = self.page.site.getStaticUrl(self.dumpfolder,'backups',self.dump_name)
-        os.makedirs(self.folderpath)
+        if self.tempSn.exists:
+            self.tempSn.delete()
+        os.makedirs(self.tempSn.internal_path)  #DP is it possible to use storageNode instead of os?
         self.filelist = []
-        self.dump_rec = dict(name=self.dump_name,start_ts=self.ts_start)
+        self.dump_rec = self.tblobj.newrecord(name=self.dump_name,start_ts=self.ts_start)
         self.tblobj.insert(self.dump_rec)
 
 
@@ -45,16 +41,17 @@ class Main(BaseResourceBatch):
         """Dump main db"""
         options = self.batch_parameters['options']
         if not options.get('storeonly'):
-            self.filelist.append(self.db.dump(os.path.join(self.folderpath,'mainstore'),
-                        excluded_schemas=self.getExcluded(), options=options))
+            destname = self.tempSn.child('mainstore').internal_path 
+            self.filelist.append(self.db.dump(destname, excluded_schemas=self.getExcluded(), options=options))
 
     def step_dumpaux(self):
         """Dump aux db"""
         checkedDbstores = self.batch_parameters.get('checkedDbstores')
-        checkedDbstores = checkedDbstores.split(',') if checkedDbstores else list(self.db.stores_handler.dbstores.keys())
+        checkedDbstores = checkedDbstores.split(',') if checkedDbstores else [s for s in self.db.stores_handler.dbstores.keys() if not s.startswith('instance_')]
         dbstoreconf = Bag()
         dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
         options = self.batch_parameters['options']
+
         for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: 'Dumping %s' %item):
             with self.db.tempEnv(storename=s):
                 self.filelist.append(self.db.dump(os.path.join(self.folderpath,s),
@@ -62,9 +59,10 @@ class Main(BaseResourceBatch):
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
                 dbstoreconf[s] = Bag(os.path.join(dbstorefolder,'%s.xml' %s))
-        confpath = os.path.join(self.folderpath,'_dbstores.xml')
-        dbstoreconf.toXml(confpath)
-        self.filelist.append(confpath)
+        dbStoreSn = self.tempSn.child('_dbstores.xml')
+        with dbStoreSn.open('wb') as confpath:
+            dbstoreconf.toXml(confpath)
+        self.filelist.append(dbStoreSn.internal_path) #fullpath? 
 
     def getExcluded(self):
         checked = self.batch_parameters['dumppackages'].split(',')
@@ -76,22 +74,26 @@ class Main(BaseResourceBatch):
 
 
     def step_end(self):
-        oldrec = dict(self.dump_rec)
-        self.dump_rec.update(end_ts=datetime.datetime.now())
-        self.tblobj.update(self.dump_rec,old_record=oldrec)
-        self.db.commit()
         if len(self.filelist)==1 and self.db.implementation=='postgres':
             filepath = self.filelist[0] #/.../pippo/mainstore.pgd --> /.../pippo.pgd
+            fileSn = self.db.application.site.storageNode(filepath)
             destname = '%s.pdg' %self.dump_name
-            destpath = self.page.site.getStaticPath(self.dumpfolder,'backups',destname)
-            shutil.move(filepath, destpath)
-            shutil.rmtree(self.folderpath)
-            self.result_url = self.page.site.getStaticUrl(self.dumpfolder,'backups',destname)
+            destSn = self.backupSn.child(destname)
+            fileSn.move(destSn)
+            self.tempSn.delete()
+            self.result_url = destSn.internal_url()
             return
-        self.zipPath='%s.zip' %self.folderpath
-        self.page.site.zipFiles(file_list=self.filelist, zipPath=self.zipPath)
-        shutil.rmtree(self.folderpath)
-        self.result_url = self.page.site.getStaticUrl(self.dumpfolder,'backups','%s.zip' %self.dump_name)
+
+        destSn = self.backupSn.child(f'{self.dump_name}.zip')
+        self.page.site.zipFiles(file_list=self.filelist, zipPath=destSn.fullpath)
+        self.tempSn.delete()
+        self.result_url = destSn.url()
+
+        backup_rec = dict(self.dump_rec)
+        self.dump_rec['end_ts'] = datetime.now()
+        self.dump_rec['file_url'] = destSn.internal_url()
+        self.tblobj.update(self.dump_rec, backup_rec)
+        self.db.commit()
 
     def result_handler(self):
         resultAttr = dict(url=self.result_url)

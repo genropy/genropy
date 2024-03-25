@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
 # module gnrstandardpages : Genro Web standard pages methods
@@ -23,16 +23,12 @@
 #Created by Giovanni Porcari and Francesco Cavazzana on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from future import standard_library
-standard_library.install_aliases()
-#from builtins import object
 import zipfile
 import io
 import datetime
+from decimal import Decimal
 
 from gnr.core import gnrstring
-
-from decimal import Decimal
 
 class TableBuilder(object):
     def __init__(self, page, source=None, title='', tableclass='', thead='', row_template='', row_cb=None,

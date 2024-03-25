@@ -3,7 +3,7 @@
 
 
 from __future__ import print_function
-from builtins import object
+
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
 

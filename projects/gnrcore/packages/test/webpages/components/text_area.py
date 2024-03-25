@@ -2,7 +2,7 @@
 
 """Html elements tester"""
 
-from builtins import object
+
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase,msgarea_component:MsgArea"

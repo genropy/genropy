@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from builtins import str
-from builtins import range
-from past.builtins import basestring
+
 import datetime
 import os
 import locale
@@ -32,7 +30,7 @@ def localize(obj, format=None, currency=None, locale=None):
         return str(obj)
 
 def formatHandler(obj):
-    if isinstance(obj,basestring) and '::' in obj:
+    if isinstance(obj, str) and '::' in obj:
         obj,dtype = obj.rsplit('::',1)
     else:
         dtype = type(obj)
@@ -108,14 +106,14 @@ def localize_img(value, locale, format=None, **kwargs):
     if format == 'img':
         return """<img src="%s"/>""" %value
     cropper_zoom = None
-    if isinstance(format,basestring) and format.startswith('auto'):
+    if isinstance(format, str) and format.startswith('auto'):
         cropper_zoom = float(format.split(':')[1]) if ':' in format else None
         if '?' in value:
             value,format = value.split('?')
             format = format.replace('=',':').replace('&',',').replace('v_','')
         else:
             format = dict()
-    if isinstance(format,basestring):
+    if isinstance(format, str):
         format = dict([p.split(':') for p in format.split(',')])
     format.update(kwargs)
     cropper = '%s'
@@ -165,6 +163,8 @@ def parselocal_float(txt, locale):
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
     loc = Locale.parse(locale).number_symbols
+    if 'latn' in loc:
+        loc=loc['latn']
     txt = txt.replace(loc['group'], '')
     txt = txt.replace(loc['decimal'], '.')
     return float(txt)
@@ -175,6 +175,8 @@ def parselocal_decimal(txt, locale):
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
     loc = Locale.parse(locale).number_symbols
+    if 'latn' in loc:
+        loc=loc['latn']
     txt = txt.replace(loc['group'], '')
     txt = txt.replace(loc['decimal'], '.')
     return Decimal(txt)
@@ -214,8 +216,8 @@ def parselocal_date(txt, locale):
     else:
         try:
             date = dates.parse_date(txt, locale)
-        except:
-            raise GnrException('Invalid date')
+        except Exception as e:
+            raise GnrException(f'Invalid date - {e}')
         return date
         
 def parselocal_datetime(txt, locale):
@@ -283,7 +285,7 @@ def getQuarterNames(locale=None):
     return d
 
 def defaultLocale():
-    return os.environ.get('GNR_LOCALE',locale.getdefaultlocale()[0])
+    return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
 
 def currentLocale(locale=None):
     return (locale or defaultLocale()).replace('-', '_')
@@ -311,12 +313,12 @@ def getKeywords(sourcedict,keyword, locale=None):
     if not keydict and len(locale) > 2: # like en_us
         keydict = sourcedict.get(locale[:2], {})
         
-    if isinstance(keyword, basestring):
+    if isinstance(keyword, str):
         keyword = [keyword]
     result = []
     for k in keyword:
         kloc = keydict.get(k, k)
-        if isinstance(kloc, basestring):
+        if isinstance(kloc, str):
             result.append(kloc)
         else:
             result.extend(kloc)

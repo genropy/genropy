@@ -20,13 +20,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import division
-from __future__ import print_function
-from builtins import range
-#from builtins import object
-from past.utils import old_div
 import datetime
-from gnr.core import gnrstring
+
 
 BASE36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -37,7 +32,9 @@ class GnrTimeStamp(object):
         self.lastCount = 0
 
     def get(self, station=1, base=1):
-        maxcount = int(old_div(800000, base) + 0.999)
+        # FIXME handle invalid 'base' values to avoid
+        # ZeroDivisionError, for example
+        maxcount = int((800000//base) + 0.999)
         while True:
             delta = datetime.datetime.now() - self.startdate
             if(delta.seconds != self.lastSec):
@@ -50,7 +47,7 @@ class GnrTimeStamp(object):
             if self.lastCount < maxcount: break
 
         return ''.join(
-                self.encode(delta.days - 1, 3) + self.encode(delta.seconds * 18 + old_div(counter, 46000), 4) + self.encode(
+                self.encode(delta.days - 1, 3) + self.encode(delta.seconds * 18 + (counter//46000), 4) + self.encode(
                         counter % 46000, 3))
 
     def encode(self, number, nChars):
@@ -58,7 +55,7 @@ class GnrTimeStamp(object):
         result = []
         while (number >= 1):
             result.insert(0, BASE36[(number % b)])
-            number = old_div(number, b)
+            number = (number// b)
 
         if (len(result) > nChars): result = []
         elif (len(result) < nChars):
@@ -69,18 +66,3 @@ class GnrTimeStamp(object):
     def getDate(self,gnrts):
         return self.startdate+datetime.timedelta(days=BASE36.index(gnrts[0])*36**2+BASE36.index(gnrts[1])*36+BASE36.index(gnrts[2]))
 
-if __name__ == '__main__':
-    s = GnrTimeStamp()
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=2, base=100))
-    print(s.get(station=3, base=100))
-    print(s.get(station=1, base=100))
-    print(s.get(station=2, base=100))
-    print(s.get(station=3, base=100))
-    print(s.get())
-    print(s.getDate(s.get()))
-
-	

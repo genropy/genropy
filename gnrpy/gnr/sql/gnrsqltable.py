@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqltable : Genro sql table object.
@@ -20,15 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-#import weakref
-from __future__ import division
-from __future__ import print_function
-from past.builtins import cmp
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
 
 import os
 import re
@@ -59,8 +50,8 @@ class RecordUpdater(object):
         with self.recordToUpdate(pkey) as record:
             # do something
             pass"""
-
-    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,**kwargs):
+    
+    def __init__(self, tblobj,pkey=None,mode=None,raw=False,insertMissing=False,ignoreMissing=None,for_update=None,assignId=None,**kwargs):
         self.tblobj = tblobj
         self.pkey = pkey
         self.mode = mode or 'record'
@@ -68,6 +59,7 @@ class RecordUpdater(object):
         self.raw = raw
         self.insertMissing = insertMissing
         self.ignoreMissing = ignoreMissing
+        self.assignId = assignId
         self.for_update = for_update or True
         self.insertMode = False
 
@@ -77,7 +69,8 @@ class RecordUpdater(object):
         if self.record.get(self.tblobj.pkey) is None:
             oldrecord = None
             if self.insertMissing:
-                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False)
+                self.record = self.tblobj.newrecord(resolver_one=False, resolver_many=False,
+                                                    assignId=self.assignId)
                 for k,v in self.kwargs.items():
                     if k in self.tblobj.columns and v is not None:
                         self.record[k] = v
@@ -243,7 +236,7 @@ class SqlTable(GnrObject):
         :param exception: the exception raised.
         :param record: TODO.
         :param msg: TODO."""
-        if isinstance(exception,basestring):
+        if isinstance(exception, str):
             exception = EXCEPTIONS.get(exception)
             if not exception:
                 raise exception
@@ -369,7 +362,7 @@ class SqlTable(GnrObject):
                     result = 20
                 else:
                     result = 12
-            elif isinstance(size, basestring):
+            elif isinstance(size, str):
                 if ':' in size:
                     size = size.split(':')[1]
                 size = float(size)
@@ -497,6 +490,23 @@ class SqlTable(GnrObject):
                                             **kwargs)
 
 
+
+    def variantColumn_captions(self, field, related_table=None,caption_field=None,
+                               sep=None,order_by=None,**kwargs):
+        reltableobj = self.db.table(related_table)
+        caption_field = caption_field or reltableobj.attributes.get('caption_field')
+        sep = sep or ','
+        order_by = order_by or reltableobj.attributes.get('order_by') or f'${reltableobj.pkey}'
+        where = f"${reltableobj.pkey} = ANY(string_to_array(#THIS.{field},'{sep}'))"
+        return dict(name=f'{field}_captions',sql_formula= f"array_to_string(ARRAY(#captions),'{sep}')",
+                        select_captions=dict(
+                        table=related_table,
+                        columns=f'${caption_field}',
+                        where=where,
+                        order_by=order_by
+                    ),**kwargs)
+
+
     #def variantColumn_repaccent(self, field, **kwargs):
     #    sql_formula= u"""unaccent(REGEXP_REPLACE(
     #                                REGEXP_REPLACE(
@@ -578,14 +588,16 @@ class SqlTable(GnrObject):
                 v = record[k]
                 if (v is None) or (v == null) or v=='':
                     record[k] = None
-                elif dtype in ['T', 'A', 'C'] and not isinstance(v, basestring):
+                elif dtype in ['T', 'A', 'C'] and not isinstance(v, str):
+                    if isinstance(v, bytes):
+                        v = v.decode()
                     record[k] = str(v if not isinstance(v,float) else int(v))
-                elif dtype == 'B' and not isinstance(v, basestring):
+                elif dtype == 'B' and not isinstance(v, str):
                     record[k] = bool(v)
                 elif dtype == 'O' and isinstance(v, bytes):
                     record[k] = v
                 else:
-                    if dtype and isinstance(v, basestring):
+                    if dtype and isinstance(v, str):
                         if dtype not in ['T', 'A', 'C', 'X']:
                             v = converter.fromText(record[k], dtype)
                             if isinstance(v,tuple):
@@ -886,7 +898,7 @@ class SqlTable(GnrObject):
                     upd_destRec = True
                 updater[fkey] = destRecord[joinkey]
                 updatedpkeys = tblobj.batchUpdate(updater,where='$%s=:spkey' %fkey,spkey=sourceRecord[joinkey],_raw_update=True)
-                moved_relations.setItem('relations.%s' %tblname.replace('.','_'), ','.join(updatedpkeys),tblname=tblname,fkey=fkey)
+                moved_relations.setItem('relations.%s' %tblname.replace('.','_'), ','.join([str(pk) for pk in updatedpkeys]),tblname=tblname,fkey=fkey)
         if upd_destRec:
             self.raw_update(destRecord,old_destRecord)
         return moved_relations
@@ -920,7 +932,7 @@ class SqlTable(GnrObject):
     def currentRelations(self,recordOrPkey,checkOnly=False):
         result = Bag()
         i = 0
-        if isinstance(recordOrPkey,basestring):
+        if isinstance(recordOrPkey, str):
             record = self.record(pkey=recordOrPkey).output('dict')
         else:
             record = recordOrPkey
@@ -1060,15 +1072,26 @@ class SqlTable(GnrObject):
         fkeysColsToRead = defaultdict(dict)
         for colname,colobj in self.columns.items():
             defaultFrom = colobj.attributes.get('defaultFrom')
-            if newrecord.get(colname) is not None or not defaultFrom:
+            dtype = colobj.attributes.get('dtype')
+            if not defaultFrom:
                 continue
-            pathlist = defaultFrom.split('.') #eg @foo_id.bar, fromFkey = foo_id
+            newrec_value = newrecord.get(colname)
+            
+            if newrec_value is not None:
+                if isinstance(newrec_value,Bag):
+                    if len(newrec_value)>0:
+                        continue
+                else:
+                    continue
+            
+            pathlist = defaultFrom.split('.') #eg @foo_id.bar, fromFkey = foo_id 
             if pathlist[-1].startswith('@'):
                 pathlist.append(colname)
             fromFkey = pathlist[0][1:]
             colToRead = '.'.join(pathlist[1:])
             fromKeyValue = newrecord.get(fromFkey)
             if fromKeyValue is None:
+                print(colname,'c')
                 continue
             colToRead = colToRead if colToRead.startswith('@') else f'${colToRead}'
             fkeysColsToRead[(fromFkey,fromKeyValue)][colname] = colToRead
@@ -1081,6 +1104,7 @@ class SqlTable(GnrObject):
             if not cachedDefaults:
                 fkey,fkeyValue = identifier
                 columns = ','.join([f"{colToRead} AS {colname}" for colname,colToRead in coldict.items()])
+
                 relatedTblobj = self.column(fkey).relatedTable().dbtable
                 f = relatedTblobj.query(where=f'${relatedTblobj.pkey}=:fkeyValue',
                                         fkeyValue=fkeyValue,columns=columns,
@@ -1089,7 +1113,11 @@ class SqlTable(GnrObject):
                                         ignorePartition=True,
                                         excludeLogicalDeleted=False,subtable='*'
                                         ).fetch()
-                cachedDefaults = dict(f[0]) if f else {}
+                cachedDefaults = dict()
+                for k,v in f[0].items():
+                    if self.column(k).getAttr('dtype')=='X':
+                        v = Bag(v) 
+                    cachedDefaults[k]=v
                 currEnv[cacheIdentifier] = cachedDefaults
             newrecord.update(cachedDefaults)
 
@@ -1195,7 +1223,7 @@ class SqlTable(GnrObject):
             if not _pkeys:
                 return
             kwargs['where'] = '$%s IN :_pkeys' %self.pkey
-            if isinstance(_pkeys,basestring):
+            if isinstance(_pkeys, str):
                 _pkeys = _pkeys.strip(',').split(',')
             kwargs['_pkeys'] = _pkeys
             kwargs.setdefault('excludeDraft',False)
@@ -1290,7 +1318,7 @@ class SqlTable(GnrObject):
         return result
 
     def fieldsChanged(self,fieldNames,record,old_record=None):
-        if isinstance(fieldNames,basestring):
+        if isinstance(fieldNames, str):
             fieldNames = fieldNames.split(',')
         for field in fieldNames:
             if record.get(field) != old_record.get(field):
@@ -1321,7 +1349,7 @@ class SqlTable(GnrObject):
             elif aggregator=='MIN':
                 data = min(dd)
             elif aggregator=='AVG':
-                data = old_div(sum(dd),len(dd)) if len(dd) else 0
+                data = (sum(dd)/len(dd)) if len(dd) else 0
             elif aggregator=='CNT':
                 data = len(data) if data else 0
         else:
@@ -1476,15 +1504,16 @@ class SqlTable(GnrObject):
             if not _pkeys:
                 return
             kwargs['where'] = '$%s IN :_pkeys' %self.pkey
-            if isinstance(_pkeys,basestring):
+            if isinstance(_pkeys, str):
                 _pkeys = _pkeys.strip(',').split(',')
             kwargs['_pkeys'] = _pkeys
+            kwargs.setdefault('subtable','*')
             kwargs.setdefault('excludeDraft',False)
             kwargs.setdefault('ignorePartition',True)
             kwargs.setdefault('excludeLogicalDeleted',False)
         method = method or 'update'
         for_update = method=='update'
-        handler = getattr(self,method) if isinstance(method,basestring) else method
+        handler = getattr(self,method) if isinstance(method, str) else method
         onUpdating = None
         if method != 'update':
             columns = columns or getattr(handler,'columns',None)
@@ -1519,7 +1548,7 @@ class SqlTable(GnrObject):
     def expandBagFields(self,record,columns=None):
         if not columns:
             columns = [k for k,v in list(self.model.columns.items()) if v.dtype=='X']
-        if isinstance(columns,basestring):
+        if isinstance(columns, str):
             columns = columns.split(',')
         for c in columns:
             record[c] = Bag(record.get(c))
@@ -1567,14 +1596,16 @@ class SqlTable(GnrObject):
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.insert(self, record, **kwargs)
-
+        return record
+        
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_insert(self, record, **kwargs)
+        return record
 
-
+        
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
 
@@ -1594,7 +1625,7 @@ class SqlTable(GnrObject):
         """Delete a single record from this table.
 
         :param record: a dictionary, bag or pkey (string)"""
-        if isinstance(record, basestring):
+        if isinstance(record, str):
             record = self.record(pkey=record,for_update=True,ignoreMissing=True).output('dict')
             if not record:
                 return
@@ -1672,7 +1703,8 @@ class SqlTable(GnrObject):
         if record.get(self.pkey) == pkey:
             pkey = None
         self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
-
+        return record
+        
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):
         """Receive a changeSet and execute insert, delete or update
 
@@ -2062,7 +2094,7 @@ class SqlTable(GnrObject):
         result = []
         if not columns:
             return result
-        if isinstance(columns, basestring):
+        if isinstance(columns, str):
             columns = gnrstring.splitAndStrip(columns)
         for col in columns:
             if not col[0] in ('@','$','('):
@@ -2286,7 +2318,7 @@ class SqlTable(GnrObject):
                                       "logical deleted"
         :param excludeDraft: TODO
         :param source_records: TODO"""
-        if isinstance(instance,basestring):
+        if isinstance(instance, str):
             instance = self.db.application.getAuxInstance(instance)
         dest_db = instance.db
         self.copyToDb(self.db,dest_db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
@@ -2302,7 +2334,7 @@ class SqlTable(GnrObject):
                                       "logical deleted"
         :param excludeDraft: TODO
         :param source_records: TODO"""
-        if isinstance(instance,basestring):
+        if isinstance(instance, str):
             instance = self.db.application.getAuxInstance(instance)
 
         source_db = instance.db

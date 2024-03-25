@@ -40,7 +40,6 @@ class AdmMailService(MailService):
                             template=None,
                             attachments=None,to_address=None, subject=None,
                             cc_address=None,bcc_address=None,from_address=None,**kwargs):
-
         return self.sendmail(**self.mailParsFromUserTemplate(record_id=record_id,letterhead_id=letterhead_id,
                             template_id=template_id,table=table,template_code=template_code,
                             template=template,

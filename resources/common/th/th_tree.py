@@ -4,8 +4,8 @@
 # Created by Francesco Porcari on 2012-04-09.
 # Copyright (c) 2012 Softwell. All rights reserved.
 
-from builtins import str
-from builtins import range
+
+
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract

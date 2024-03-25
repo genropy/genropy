@@ -4,7 +4,7 @@
 # Created by Francesco Porcari on 2011-04-16.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from builtins import str
+
 from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -307,6 +307,10 @@ class FrameGridTools(BaseComponent):
                                 return;
                             }}
                             var queryvars = {{}};
+                            queryvars.subtable='*';
+                            queryvars.excludeDraft=false;
+                            queryvars.ignorePartition=true;
+                            queryvars.excludeLogicalDeleted=false;
                             queryvars.condition = '$pkey IN :currpkeylist';
                             queryvars.currpkeylist = grouperPkeyList.split(',');
                             queryvars.query_reason = 'grouper';
@@ -398,7 +402,7 @@ class FrameGrid(BaseComponent):
                     datamode=None,table=None,viewResource=None,grid_kwargs=True,top_kwargs=None,iconSize=16,
                     footer_kwargs=None,columnset_kwargs=None,footer=None,columnset=None,fillDown=None,
                     _newGrid=None,selectedPage=None,configurable=None,printRows=None,
-                    groupable=False,extendedLayout=True,
+                    groupable=False,extendedLayout=True,roundedEnvelope=None,
                     editor_kwargs=None,**kwargs):
         pane.attributes.update(overflow='hidden')
         frame = pane.framePane(frameCode=frameCode,center_overflow='hidden',**kwargs)
@@ -421,7 +425,7 @@ class FrameGrid(BaseComponent):
         grid_kwargs.setdefault('selectedId','.selectedId')
         grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
-                                            title=grid_kwargs.pop('title','!!Grid'))
+                                            title=grid_kwargs.pop('title','!!Grid'),_class='gridRoundedEnvelope' if roundedEnvelope else None)
         grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,
                           storepath=storepath,datamode=datamode,
                           dynamicStorepath=dynamicStorepath,

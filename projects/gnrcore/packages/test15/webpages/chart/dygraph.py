@@ -7,8 +7,8 @@
 """Test Protovis"""
 
    
-from builtins import range
-from builtins import object
+
+
 from gnr.core.gnrbag import Bag
 from random import randint
 from gnr.core.gnrdecorator import public_method

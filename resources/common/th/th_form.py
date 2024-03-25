@@ -22,7 +22,7 @@ class TableHandlerForm(BaseComponent):
         table = table or pane.attributes.get('table')
         self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
         options = dfltoption_kwargs
-        options.update(self._th_hook('options',mangler=frameCode,dflt=dict())())
+        options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
         options['store_startKey'] = options.get('store_startKey') or options.get('startKey')
         linkTo = pane        
@@ -122,7 +122,7 @@ class TableHandlerForm(BaseComponent):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
         self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
-        resource_options = self._th_hook('options',mangler=formId,dflt=dict())()
+        resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)
         if not handlerType:
@@ -155,7 +155,7 @@ class TableHandlerForm(BaseComponent):
                 th_class = th_attributes.get('_class') or ''
                 th_attributes['_class'] = '%s th_form_not_allowed' %th_class
         table = form.getInheritedAttributes()['table']
-        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): caption ): (titleTemplate? dataTemplate(titleTemplate,record) : tablename+': '+(caption||''));
+        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): caption ): (titleTemplate? dataTemplate(titleTemplate,record) : (caption||''));
                             
                             SET #FORM.controller.title = title;
                             this.form.publish('onChangedTitle',{title:title});
@@ -184,13 +184,26 @@ class TableHandlerForm(BaseComponent):
         form_handlerType = form.attributes.get('form_handlerType')
         hierarchical = options.pop('hierarchical',use_hierarchical_stack and form_handlerType in ('stack',None))   
         tree_kwargs = dictExtract(options,'tree_',pop=True) 
+
         readOnly = options.pop('readOnly',False)
-        modal = options.pop('modal',False)
+        modal = options.pop('modal',None) or dict()
+        modal_modes = ('ask','confirm','navigation')
+        if boolean(modal) and modal not in modal_modes:
+            modal = dict(mode='ask' if not readOnly else 'confirm')
+        elif isinstance(modal,str):
+            modal = dict(mode=modal)
+        
+        modal.update(dictExtract(options,'modal_'))
         autoSave = options.pop('autoSave',False)
         firstAutoSave = options.pop('firstAutoSave',None)
+        attachmentDrawer = options.pop('attachmentDrawer',None)
 
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
+        avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
+        formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
+        formCaption = options.pop('formCaption',formCaption_kwargs)
+
         form_add = options.pop('form_add',True)
         form_save = options.pop('form_save',True)
         form_delete = options.pop('form_delete',True)
@@ -199,7 +212,7 @@ class TableHandlerForm(BaseComponent):
         annotations = options.pop('annotations',False)
         single_record = options.get('single_record') or options.pop('linker',False)
 
-        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid)
+        form.attributes.update(form_draftIfInvalid=draftIfInvalid,form_allowSaveInvalid=allowSaveInvalid,form_avoidFloatingMessage=avoidFloatingMessage)
         if autoSave:
             form.store.attributes.update(autoSave=autoSave,firstAutoSave=firstAutoSave)
 
@@ -232,11 +245,7 @@ class TableHandlerForm(BaseComponent):
         if 'parentLock' in options:
             form.attributes.update(form_parentLock=options.pop('parentLock'))
         if modal:
-            slots='revertbtn,*,cancel,savebtn'
-            bar = form.bottom.slotBar(slots,margin_bottom='2px',_class='slotbar_dialog_footer')
-            bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v',hidden=readOnly)
-            bar.cancel.button('!!Cancel',action='this.form.abort();')
-            bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})',hidden=readOnly)
+            self._th_handleModalBar(form,**modal)
         elif showtoolbar:
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
@@ -285,7 +294,10 @@ class TableHandlerForm(BaseComponent):
             slots = options.pop('slots',default_slots)
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
-        
+        if attachmentDrawer:
+            self.mixinComponent("""gnrcomponents/attachmanager/attachmanager:AttachManager""")
+            attachmentDrawer = dict() if attachmentDrawer is True else attachmentDrawer
+            form.bottom.attachmentBottomDrawer(**attachmentDrawer)
         if hierarchical:
             form_attributes = form.attributes
             fkeyfield = form_attributes.get('fkeyfield')
@@ -323,6 +335,12 @@ class TableHandlerForm(BaseComponent):
             hooks = self._th_hook(side,mangler=mangler,asDict=True)
             for hook in list(hooks.values()):
                 hook(getattr(form,side))   
+        if formCaption:
+            formCaption = dict() if formCaption is True else formCaption
+            kw = dict(height='25px',_class='formCaption',innerHTML='^.controller.title')
+            kw.update(formCaption)
+            form.top.div(**kw)
+
         defaultPrompt = options.get('defaultPrompt')
         if defaultPrompt:
             form.attributes['form_defaultPrompt']  = defaultPrompt
@@ -332,6 +350,25 @@ class TableHandlerForm(BaseComponent):
         form.store.handler('save',onSavingHandler=self._th_hook('onSaving',mangler=mangler),
                                  onSavedHandler=self._th_hook('onSaved',mangler=mangler))
         form._current_options = options
+
+    def _th_handleModalBar(self,form,mode=None,**kwargs):
+        if mode=='navigation':
+            if form.store.attributes.get('storeType') == 'Collection':
+                slots = 'dismissTitle,*,prevUp,nextDown'
+            else:
+                slots = 'dismissTitle'
+                kwargs['dismissTitle_back_title'] = '!![en]Back'
+            form.top.slotBar(slots,height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
+                             color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid silver'),
+                            **kwargs)
+        else:
+            slots= '*,cancel' if mode=='confirm' else 'revertbtn,*,cancel,savebtn'
+            bar = form.bottom.slotBar(slots,margin_bottom='2px',_class='slotbar_dialog_footer')
+            bar.cancel.button('!!Cancel' if not mode=='confirm' else '!![en]Close',action='this.form.abort();')
+            if mode=='ask':
+                bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')
+                bar.savebtn.button('!!Save',iconClass='fh_semaphore',action='this.form.publish("save",{destPkey:"*dismiss*"})')
+            
 
 
     @struct_method

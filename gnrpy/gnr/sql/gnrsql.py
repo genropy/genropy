@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsql : Genro sql db connection.
@@ -19,15 +19,6 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import filter
-from builtins import str
-from past.builtins import basestring
-
-
 
 import logging
 import pickle
@@ -359,7 +350,7 @@ class GnrSqlDb(GnrObject):
         
     def _get_locale(self):
         """property currentEnv - Return the workdate currently used in this thread"""
-        return self.currentEnv.get('locale') or locale.getdefaultlocale()[0]
+        return self.currentEnv.get('locale') or locale.getlocale()[0]
         
     def _set_locale(self, locale):
         self.currentEnv['locale'] = locale
@@ -481,7 +472,7 @@ class GnrSqlDb(GnrObject):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
                 sqlargs[k] = v
-            if isinstance(v,basestring):
+            if isinstance(v, str):
                 if (v.startswith(r'\$') or v.startswith(r'\@')):
                     sqlargs[k] = v[1:]
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False:
@@ -547,9 +538,15 @@ class GnrSqlDb(GnrObject):
     def _onDbChange(self,tblobj,evt,record,old_record=None,**kwargs):
         if tblobj.totalizers:
             tblobj.updateTotalizers(record,old_record=old_record,evt=evt,**kwargs)
-        if tblobj.attributes.get('logChanges'):
-            tblobj.onLogChange(evt,record,old_record=old_record)
-            self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
+        logchanges = tblobj.attributes.get('logChanges')
+        if logchanges:
+            if isinstance(logchanges,str):
+                loggable_events = logchanges.split(',')
+            else:
+                loggable_events = ['I','U','D']
+            if evt in loggable_events:
+                tblobj.onLogChange(evt,record,old_record=old_record)
+                self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
         
 
     @in_triggerstack
@@ -624,7 +621,7 @@ class GnrSqlDb(GnrObject):
         :param tblobj: the table object
         :param record: an object implementing dict interface as colname, colvalue"""
         deletable = tblobj.attributes.get('deletable',True)
-        if isinstance(deletable,basestring):
+        if isinstance(deletable, str):
             deletable = self.application.checkResourcePermission(deletable, self.currentEnv['userTags'])
         if not deletable:
             raise GnrSqlException('The records of table %s cannot be deleted' %tblobj.name_long)

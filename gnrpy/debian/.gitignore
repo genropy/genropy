@@ -1,0 +1,7 @@
+.debhelper
+debhelper-build-stamp
+files
+genropy.postinst.debhelper
+genropy.prerm.debhelper
+genropy.substvars
+genropy/

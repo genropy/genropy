@@ -2,7 +2,7 @@
 <script type="text/javascript" src="${dojolib}" djConfig="${djConfig}"> </script>
 <script type="text/javascript">dojo.registerModulePath('gnr','${gnrModulePath}');</script>
 % if pwa:
-    <link rel="manifest" crossorigin="use-credentials" href="/_rsrc/common/pwa/manifest.json">
+    <link rel="manifest" crossorigin="use-credentials" href="/_pwa_manifest.json">
     <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
 

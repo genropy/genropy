@@ -2,8 +2,6 @@
 # encoding: utf-8
 #
 
-from builtins import range
-
 from datetime import datetime
 from multiprocessing import Process, get_logger, cpu_count
 import threading

@@ -6,21 +6,14 @@
 # Created by Francesco Porcari on 2010-10-16.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
-from builtins import range
-#from builtins import object
-from past.utils import old_div
-from past.builtins import basestring
 import os
 from gnr.core.gnrstring import toText,templateReplace
 
 from gnr.core.gnrhtml import GnrHtmlBuilder
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.core.gnrdecorator import extract_kwargs, deprecated
+from gnr.core.gnrdecorator import  deprecated
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrnumber import decimalRound
 from collections import defaultdict
 import tempfile
 
@@ -177,7 +170,8 @@ class BagToHtml(object):
             return 'Portrait'
 
     def __call__(self, record=None, filepath=None, folder=None, filename=None, hideTemplate=False, rebuild=True,
-                 htmlContent=None,page_debug=None,page_styles=None,mail_letterbox=None, is_draft=None,orientation=None, **kwargs):
+                 htmlContent=None,page_debug=None,page_styles=None,mail_letterbox=None, is_draft=None,orientation=None,
+                 from_language=None,to_language=None, localize_to=None,**kwargs):
         """Return the html corresponding to a given record. The html can be loaded from
         a cached document or created as new if still doesn't exist"""
 
@@ -222,9 +216,21 @@ class BagToHtml(object):
             self.splittedPages_data = []
         self.showTemplate(hideTemplate is not True)
         self.page_debug = page_debug or self.page_debug
+        self.from_language = from_language
+        self.to_language = to_language
+        self.localize_to = localize_to
         self.newBuilder()
         result = self.createHtml(filepath=self.filepath,body_attributes=self.body_attributes)
         return result
+    
+    @property
+    def translationService(self):
+        return 
+
+
+    @property
+    def localizer(self):
+        return 
 
     def newBuilder(self):
         self.prepareTemplates()
@@ -235,7 +241,12 @@ class BagToHtml(object):
                                     htmlTemplate=self.htmlTemplate, css_requires=self.get_css_requires(),
                                     showTemplateContent=self.showTemplateContent,
                                     default_kwargs=self.defaultKwargs(),parent=self,
-                                    srcfactory=self.srcfactory)
+                                    srcfactory=self.srcfactory,
+                                    from_language=self.from_language,
+                                    to_language=self.to_language,
+                                    translationService=self.translationService,
+                                    localizer = self.localizer,localize_to=self.localize_to
+                                    )
         self.builder.initializeSrc(body_attributes=self.body_attributes)
         self.builder.styleForLayout()
         self.defineStandardStyles()
@@ -523,9 +534,9 @@ class BagToHtml(object):
 
     def copyHeight(self):
         """TODO"""
-        return old_div((self.page_height - self.page_margin_top - self.page_margin_bottom -\
+        return (self.page_height - self.page_margin_top - self.page_margin_bottom -\
                 self.page_header_height - self.page_footer_height -\
-                self.copy_extra_height * (self.copies_per_page - 1)), self.copies_per_page)
+                self.copy_extra_height * (self.copies_per_page - 1))//self.copies_per_page
 
     def copyWidth(self):
         """TODO"""
@@ -660,7 +671,7 @@ class BagToHtml(object):
         captions_kw = getattr(self,'totalize_%s' %self.renderMode,None) if self.renderMode else {}
         if captions_kw is True:
             captions_kw = dict()
-        elif isinstance(captions_kw,basestring):
+        elif isinstance(captions_kw,str):
             captions_kw = dict(caption=captions_kw,content_class='totalize_caption')
         elif isinstance(captions_kw,dict):
             captions_kw = dict(captions_kw)
@@ -815,7 +826,8 @@ class BagToHtml(object):
                                    mask = cell_kwargs.pop('mask',None),
                                    encoding = self.encoding,
                                    currency=cell_kwargs.pop('currency',None))
-        return parentRow.cell(value, overflow='hidden', **cell_kwargs)
+        blacklist = ['field','field_getter','sqlcolumn']
+        return parentRow.cell(value, overflow='hidden', **{k:v for k,v in cell_kwargs.items() if v and k not in blacklist})
 
 
 

@@ -92,7 +92,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
         var cb = function(){
             setTimeout(function(){
                 that.initialize(widget,savedAttrs.calAttrs);
-            },000);
+            });
         }
         if(!window.FullCalendar){
             this.loadFullCalendar(cb);
@@ -825,7 +825,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     creating: function(attributes, sourceNode) {
 
         attributes.id = attributes.id || 'ckedit_' + sourceNode.getStringId();
-        var toolbar = objectPop(attributes, 'toolbar');
+        var toolbar = objectPop(attributes, 'toolbar', 'standard');
         var config = objectExtract(attributes, 'config_*');
         var stylesheet = objectPop(attributes,'stylesheet');
         var customStyles = objectPop(attributes,'customStyles');

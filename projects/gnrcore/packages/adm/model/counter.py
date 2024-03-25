@@ -1,9 +1,9 @@
 # encoding: utf-8
 from __future__ import division
 from __future__ import print_function
-from builtins import str
+
 from past.builtins import basestring
-from builtins import object
+
 from past.utils import old_div
 import re
 from gnr.core.gnrbag import Bag

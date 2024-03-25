@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 # # -*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
@@ -24,8 +23,7 @@ from __future__ import print_function
 
 
 
-from builtins import str
-#from builtins import object
+
 import Pyro4
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False

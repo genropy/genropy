@@ -7,6 +7,8 @@
 
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -25,13 +27,17 @@ class FrameIndex(BaseComponent):
     index_page = False
     index_url = 'html_pages/splashscreen.html'
     indexTab = False
-    index_title = 'Index'
     hideLeftPlugins = False
     auth_preference = 'admin'
     auth_page = 'user'
     auth_main = 'user'
     menuClass = 'ApplicationMenu'
+    check_tester = False
 
+    @property
+    def index_title(self):
+        return 'Index'
+    
     @property
     def plugin_list(self):
         if self.device_mode!='std':
@@ -61,6 +67,12 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        testing_preference = self.getPreference('testing',pkg='adm') or Bag()
+        if self.check_tester and testing_preference['beta_tester_tag'] \
+            and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
+                                                            self.userTags):
+            self.forbiddenPage(root, **kwargs)
+            return
         if self.root_page_id and (custom_index or hasattr(self,'index_dashboard')):
             if custom_index:
                 getattr(self,f'index_{custom_index}')(root)
@@ -80,7 +92,10 @@ class FrameIndex(BaseComponent):
                 else:
                     root.frameIndexRoot(new_window=new_window,**kwargs)
             else:
-                root.div('Not allowed')
+
+                box = root.div(_class='flex_centered_wrapper')
+                box.div('!![en]Not allowed to use this page',font_size='1.5em',color='red')
+                box.button('!![en]Logout',font_size='1.5em',action='genro.logout();')
 
     @struct_method
     def frm_frameIndexRoot(self,pane,new_window=None,onCreatingTablist=None,**kwargs):
@@ -138,49 +153,28 @@ class FrameIndex(BaseComponent):
     
     def prepareTop_mobile(self,bc,onCreatingTablist=None,**kwargs):
         top = bc.contentPane(region='top',overflow='hidden')
-        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',_class='framedindex_tablist showcase_dark',height='30px')
-        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='25px',width='30px',
+        bar = top.slotBar('5,pluginSwitch,*,pageTitle,*,35',
+                          _class='framedindex_tablist showcase_dark',height='34px',childname='upperbar')
+        bar.pluginSwitch.lightButton(_class='showcase_toggle',tip='!!Show/Hide the left pane',height='30px',width='30px',
                                                       action="""genro.nodeById('standard_index').publish('toggleLeft');""")
-
         self.pageTitle_mobile(bar.pageTitle)
-        bar.pageTitle.dataController("""
-                                        let selectedPageTitle = basetitle;
-                                        if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
-                                            let selectedNode = iframes.getNode(selectedPage);
-                                            selectedPageTitle = selectedNode.attr.fullname;
-                                        }
-                                        SET selectedPageTitle = selectedPageTitle;
-                                        """,selectedPage='^selectedFrame', 
-                                iframes='^iframes',basetitle=self.index_title,_delay=1)
-
+        
     def pageTitle_mobile(self,pane):
-        pane.menudiv(value='^selectedFrame',storepath='gnr.currentPages',color='white',font_size='15px',
-                        caption_path='selectedPageTitle', _class='smallmenu',colorWhite=True)
-
-        pane.dataController("""
-        var currentpages = new gnr.GnrBag();
-        iframes = iframes || new gnr.GnrBag();
-        for(let n of iframes.getNodes()){
-            let kw = {caption:n.attr.fullname};
-            currentpages.addItem(n.label,null,kw);
-        }
-        currentpages.addItem('-')
-        currentpages.addItem('_reloadcurrent_',null,{caption:reload_caption,action:"genro.publish('reloadFrame')"});
-        currentpages.addItem('_closecurrent_',null,{caption:closepage_caption,action:"genro.publish('closeFrame')"});
-        SET gnr.currentPages = currentpages;
-        """,iframes='^iframes',reload_caption='!!Reload current page',
-                closepage_caption="!!Close current page")
+        pane.div('^gnr.windowTitle',color='white',font_size='15px',font_weight='bold',caption_path='selectedPageTitle')
 
     
     def prepareTop_std(self,bc,onCreatingTablist=None):
         bc = bc.borderContainer(region='top',height='30px',overflow='hidden',_class='framedindex_tablist')
         leftbar = bc.contentPane(region='left',overflow='hidden').div(display='inline-block', margin_left='10px',margin_top='4px')  
-        for btn in ['menuToggle']+self.plugin_list.split(','):
-            getattr(self,'btn_%s' %btn)(leftbar)
-            
-        if self.custom_plugin_list:
-            for btn in self.custom_plugin_list.split(','):
+        if self.plugin_list or self.custom_plugin_list:
+            plugins_standard = ['menuToggle']+self.plugin_list.split(',') if self.plugin_list else ['menuToggle']
+            for btn in plugins_standard:
                 getattr(self,'btn_%s' %btn)(leftbar)
+                
+            if self.custom_plugin_list:
+                for btn in self.custom_plugin_list.split(','):
+                    getattr(self,'btn_%s' %btn)(leftbar)
+        
         self.prepareTablist(bc.contentPane(region='center',margin_top='4px'),onCreatingTablist=onCreatingTablist)
         
     def prepareTablist(self,pane,onCreatingTablist=False):
@@ -215,9 +209,7 @@ class FrameIndex(BaseComponent):
         pane.dataController("""if(!data && !externalWindows){
                                     if(indexTab){
                                         genro.callAfter(function(){
-                                            var data = new gnr.GnrBag();
-                                            data.setItem('indexpage',null,{'fullname':indexTab,pageName:'indexpage',fullpath:'indexpage'});
-                                            this.setRelativeData("iframes",data);
+                                            genro.framedIndexManager.selectIframePage({file:indexTab,url: indexTab});
                                         },1,this);
                                     }
                                 }else{
@@ -254,79 +246,132 @@ class FrameIndex(BaseComponent):
                                     
         """,subscribe_iframe_stack_selected=True,tabroot=tabroot,_if='page')
 
+    @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('3,applogo,genrologo,5,devlink,5,helpdesk,5,openGnrIDE,5,appdownload,count_errors,5,appInfo,*,debugping,5,preferences,logout,3',_class='slotbar_toolbar framefooter',height='22px',
-                        background='#EEEEEE',border_top='1px solid silver')
-        sb.appInfo.div('^gnr.appInfo')
-        applogo = sb.applogo.div()
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,20,count_errors,devlink,openGnrIDE,left_placeholder,*,
+                                    right_placeholder,owner_name,user_name,logout,debugping,5""",
+                                    _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
+        return sb
+    
+    recuperare = 'applogo,userpref,appdownload,appInfo,preferences' #DP togliere
+
+    @customizable
+    def prepareBottom_mobile(self,bc):
+        pane = bc.contentPane(region='bottom',overflow='hidden')
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,left_placeholder,*,
+                                right_placeholder,user_name,logout,debugping,5""",
+                                _class='slotbar_toolbar framefooter',height='25px', background='#EEEEEE',border_top='1px solid silver')
+        pane.div(height='10px',background='black')
+        return sb
+    
+    @struct_method
+    def fi_slotbar_applogo(self,slot,**kwargs):
+        applogo = slot.div()
         if hasattr(self,'application_logo'):
             applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
-        sb.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
-            msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
-                        tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
-        box = sb.preferences.div(_class='iframeroot_pref')
-        if not self.dbstore:
-            box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
-                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
-                                    _class='iframeroot_appname',
-                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv')
-            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
-            _tags=self.pageAuthTags(method='preference'))
-            box.div(self.user if not self.isGuest else 'guest', _class='iframeroot_username',tip='!!%s preference' % (self.user if not self.isGuest else 'guest'),
-                                connect_onclick='genro.framedIndexManager.openUserPreferences()')
-        
-        sb.logout.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
-
-        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
-        
-        sb.count_errors.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
-                            _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
-        sb.devlink.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(_class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
-
-        #SP: electronAppDownload is still not tested and working fine.
-        #if not self.isMobile :
-        #    self.electronAppDownload(sb)
-
-        sb.openGnrIDE.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
-                            action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
-        sb.debugping.div(_class='ping_semaphore')
 
     @struct_method
-    def fi_slotbar_helpdesk(self,pane,**kwargs):
+    def fi_slotbar_genrologo(self,slot,**kwargs):
+        slot.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
+
+    @struct_method
+    def fi_slotbar_devlink(self,slot,**kwargs):
+        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
+        slot.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(
+                                    _class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
+        
+    @struct_method
+    def fi_slotbar_userpref(self,slot,**kwargs):
+        slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
+            self.user if not self.isGuest else 'guest')).dataController(
+                        'genro.framedIndexManager.openUserPreferences()')
+
+    @struct_method
+    def fi_slotbar_helpdesk(self,slot,**kwargs):
         documentationcb = self.helpdesk_documentation()
         helpcb = self.helpdesk_help()
-        if not (documentationcb or helpcb):
+        usergroup_documentation = self.helpdesk_userGroupDocumentation()
+        if not (usergroup_documentation or documentationcb or helpcb):
             return
-        
-        menu = pane.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
-
-        if documentationcb:
-            menu.menuline('!![en]Open documentation',code='documentation',
-                          action=documentationcb)
+        menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
+        if documentationcb or usergroup_documentation:
+            m = menu.menuline('!![en]Open documentation',code='documentation',
+                              documentationcb=documentationcb)
+            if usergroup_documentation:
+                m = m.menu(action="genro.openBrowserTab($1.url);")
+                for r in usergroup_documentation:
+                    m.menuline(r['title'],url=r['url'])
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+
+    def helpdesk_userGroupDocumentation(self):
+        if not self.avatar.group_code:
+            return
+        return self.db.table('adm.group_helpdoc').query(
+            where='$group_code=:gc',
+            gc = self.avatar.group_code,
+        ).fetch()
+
 
     def helpdesk_documentation(self):
         return
 
     def helpdesk_help(self):
         return 
+    
+    @struct_method
+    def fi_slotbar_openGnrIDE(self,slot,**kwargs):
+        slot.div().slotButton("!!Open Genro IDE",iconClass='iconbox laptop',
+                            action='genro.framedIndexManager.openGnrIDE();',_tags='_DEV_')
 
-    def prepareBottom_mobile(self,bc):
-        pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar('20,genrologo,helpdesk,5,applogo,*,debugping,logout,20',
-                              _class='slotbar_toolbar framefooter',height='25px',
-                        background='#EEEEEE',border_top='1px solid silver')
-        pane.div(height='10px',background='black')
+    @struct_method
+    def fi_slotbar_appdownload(self,slot,**kwargs):
+        pass
+
+    @struct_method
+    def fi_slotbar_count_errors(self,slot,**kwargs):
+        slot.div('^gnr.errors?counter',hidden='==!_error_count',_error_count='^gnr.errors?counter',
+                            _msg='!!Errors:',_class='countBoxErrors',connect_onclick='genro.dev.errorPalette();')
+
+    @struct_method
+    def fi_slotbar_appInfo(self,slot,**kwargs):
+        slot.div('^gnr.appInfo')
+        slot.dataController("""SET gnr.appInfo = dataTemplate(tpl,{msg:msg,dbremote:dbremote}); """,
+                    msg="!!Connected to:",dbremote=(self.site.remote_db or False),_if='dbremote',
+                        tpl="<div class='remote_db_msg'>$msg $dbremote</div>",_onStart=True)
+    
+    @struct_method
+    def fi_slotbar_settings(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+
+    @struct_method
+    def fi_slotbar_refresh(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox refresh').dataController('PUBLISH reloadFrame;')
+
+    @struct_method
+    def fi_slotbar_debugping(self,slot,**kwargs):
+        slot.div(_class='ping_semaphore')
+
+    @struct_method
+    def fi_slotbar_user_name(self,slot,**kwargs):
+        slot.div(innerHTML='==user_name', user_name='^gnr.avatar.user_name', 
+                 _class='iframeroot_pref')
+
+    @struct_method
+    def fi_slotbar_owner_name(self,slot,**kwargs):
+        box = slot.div(_class='iframeroot_pref')
+        if not self.dbstore:
+            box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
+                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                    action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
+            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
+                                    _tags=self.pageAuthTags(method='preference'))
         
-        sb.genrologo.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
-        sb.debugping.div(_class='ping_semaphore')
-        applogo = sb.applogo.div()
-        if hasattr(self,'application_logo'):
-            applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
-        sb.logout.lightbutton(action="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+    @struct_method
+    def fi_slotbar_logout(self,slot,**kwargs):
+        slot.div(connect_onclick="genro.logout()",_class='iconbox icnBaseUserLogout switch_off',tip='!!Logout')
+
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
@@ -359,6 +404,7 @@ class FrameIndex(BaseComponent):
             self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
             indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
+            
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         
@@ -367,10 +413,30 @@ class FrameIndex(BaseComponent):
         page.dataController("""genro.framedIndexManager.newBrowserWindowPage(newBrowserWindowPage[0]);""",
                                subscribe_newBrowserWindowPage=True)
 
-    prepareCenter_mobile = prepareCenter_std
+
+    def prepareCenter_mobile(self,bc):
+        wrapper = bc.borderContainer(region='center')
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,selpagetitle,*',childname='underbar',
+                                                                            height='30px',color='white')
+        underbar.selpagetitle.div('^selectedPageTitle',padding='2px',font_weight='bold',font_size='13px')
+
+
+        underbar.dataController("""
+                                    let selectedPageTitle = basetitle;
+                                    if(iframes && iframes.len()>0 && iframes.index(selectedPage)>=0){
+                                        let selectedNode = iframes.getNode(selectedPage);
+                                        selectedPageTitle = selectedNode.attr.fullname;
+                                    }
+                                    SET selectedPageTitle = selectedPageTitle;
+                                    """,selectedPage='^selectedFrame', 
+                            iframes='^iframes',basetitle=self.index_title,_delay=1)
+    
+        self.prepareCenter_std(wrapper)
+
         
     def prepareLeft_std(self,bc):
-
+        if not (self.plugin_list or self.custom_plugin_list):
+            return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
                                    overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
@@ -402,8 +468,11 @@ class FrameIndex(BaseComponent):
 
 
     def prepareLeft_mobile(self,bc):
-        frame = bc.framePane(region='left',width='40%',datapath='left',
-                                overflow='hidden',hidden=self.hideLeftPlugins,splitter=True)
+        frame = bc.framePane(region='left',width='100%',datapath='left',
+                                overflow='hidden',hidden=self.hideLeftPlugins)
+        frame.top.slotBar('*,close_icon,5',height='22px'
+                          ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
+                                                   ).dataController("genro.nodeById('standard_index').publish('hideLeft');")
         sc = frame.center.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
@@ -447,7 +516,7 @@ class FrameIndex(BaseComponent):
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
         pane.div(_class='windowaddIcon iconbox',tip='!!New Window',connect_onclick='genro.openBrowserTab(genro.addParamsToUrl(window.location.href,{new_window:true}));')
-
+        
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):
         pane.div(_class='button_block iframetab').lightButton(_class=iconClass,tip=caption,

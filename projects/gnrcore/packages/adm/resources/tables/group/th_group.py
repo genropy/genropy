@@ -42,7 +42,12 @@ class Form(BaseComponent):
                             pbl_classes=True,margin='2px',addrow=False,picker='tag_id',
                             picker_condition='$child_count=0',
                             picker_viewResource=True)
-
+        tc.contentPane(title='!!Help documents').plainTableHandler(
+            relation='@helpdocs',picker='helpdoc_id',
+            pbl_classes=True,margin='2px',
+            viewResource='ViewFromGroup',
+            view_grid_selfDragRows=True
+        )
         tc.contentPane(title='!!Config').dialogTableHandler(table='adm.user_config',
                                 margin='2px',
                                 viewResource='ViewFromGroup',

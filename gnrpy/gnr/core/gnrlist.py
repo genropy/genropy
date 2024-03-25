@@ -24,17 +24,15 @@
 """
 Some useful operations on lists.
 """
-from __future__ import print_function
-from past.builtins import cmp,basestring
 from functools import cmp_to_key
-from builtins import range
-#from builtins import object
+import datetime
+import csv
+
+
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrexporter import BaseWriter
-import datetime
-import csv
 
 class FakeList(list):
     pass
@@ -66,7 +64,7 @@ def sortByItem(l, *args, **kwargs):
         elif b is None:
             return 1
         else:
-            return cmp(a, b)
+            return ((a > b) - (a < b))
             
     def hGetItem(obj, attr):
         if obj is None: return None
@@ -136,7 +134,9 @@ def sortByAttr(l, *args):
     return l
 
 def merge(*args):
-    """TODO"""
+    """TODO
+    FIXME: args elements must be iterable, but they're not checked
+    """
     result = list(args[0])
     for l in args[1:]:
         for el in l:
@@ -151,7 +151,7 @@ def readTab(doc):
     
     :param doc: the file to read
     """
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -172,14 +172,14 @@ def readTab(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readCSV_new(doc):
     """This reads a CSV file - done by Jeff
     
     :param doc: the file to read"""
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -203,14 +203,14 @@ def readCSV_new(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readCSV(doc):
     """read a CSV file
     
     :param doc: the file to read"""
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f = open(doc)
     else:
         f = doc
@@ -229,7 +229,7 @@ def readCSV(doc):
         if len(row) == ncols: # it works only for rows with the same length of header
             yield GnrNamedList(index, row)
             
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         f.close()
         
 def readXLS(doc):
@@ -238,7 +238,7 @@ def readXLS(doc):
     :param doc: the file to read"""
     import xlrd
     
-    if isinstance(doc, basestring):
+    if isinstance(doc, str):
         filename = doc
         file_contents = None
     else:
@@ -498,7 +498,11 @@ class CsvReader(object):
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
         self.ext = self.ext.replace('.', '')
+
+        # FIXME: why an explit "encoding" parameter for the constructor but
+        # ignoring its value?
         encoding = None
+        
         if detect_encoding and not encoding:
             encoding = self.detect_encoding()
         if encoding:
@@ -561,7 +565,13 @@ class XmlReader(object):
         
             
 class GnrNamedList(list):
-    """Row object. Allow access to data by column name. Allow also to add columns and alter data."""
+    """Row object. Allow access to data by column name. Allow also to add columns and alter data.
+    
+    :param index: a dict object with the column name as key, and the integer index of the value
+    :param values: a list of values ordered as 'index' key/values definition
+
+    FIXME: costructor's parameters types/interfaces are not checked.
+    """
     def __init__(self, index, values=None):
         self._index = index
         if values is None:
@@ -719,7 +729,7 @@ def getReader(file_path,filetype=None,**kwargs):
             try:
                 import openpyxl
                 reader = XlsxReader(file_path,**kwargs)
-            except ImportError:
+            except ImportError: # pragma: no cover
                 import sys
                 print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
                 reader = XlsReader(file_path,**kwargs)
