@@ -47,8 +47,12 @@ dojo.declare("gnr.GnrMobileHandler", null, {
             }
             genro.mobile.lastTouchEnd = now;
         }, false);
-
-        
+        if(window.cordova){
+            document.addEventListener("deviceready", onDeviceReady, false);
+            function onDeviceReady() {
+                window.open = cordova.InAppBrowser.open;
+            } 
+        }
         this.startHammer(document.body);
         document.body.onorientationchange = function(e) {
             genro.setData('touch.orientation', window.orientation);

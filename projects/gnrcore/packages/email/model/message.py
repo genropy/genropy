@@ -313,7 +313,8 @@ class Table(object):
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()
                 message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
         self.db.commit()
-        
+        return message
+    
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:

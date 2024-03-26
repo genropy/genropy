@@ -1436,6 +1436,8 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
     def pyColumn_full_external_url(self,record,field):
+        if not record['fileurl']:
+            return
         return self.db.application.site.externalUrl(record['fileurl'])
     
     def pyColumn_missing_file(self,record,**kwargs):

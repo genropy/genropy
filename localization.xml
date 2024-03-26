@@ -533,7 +533,7 @@
 <en_save_template base="Save template" de="Vorlage speichern" en="Save template" fr="Enregistrer le modèle" it="Salva modello"></en_save_template>
 <en_new_template base="New template" de="Neue Vorlage" en="New template" fr="Nouveau modèle" it="Nuovo modello"></en_new_template>
 <en_copy_from base="Copy From" de="Kopieren Sie aus" en="Copy From" fr="Copiez De" it="Copia da"></en_copy_from>
-<en_custom base="Custom" de="Brauch" en="Custom" fr="Coutume" it="Abitudine"></en_custom>
+<en_custom base="Custom" de="Brauch" en="Custom" fr="Coutume" it="Personalizzato"></en_custom>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save></tpleditor>
 <userobject><userobject_editor path="resources/common/gnrcomponents/userobject/userobject_editor.py" ext="py"><en_order_by_and_limit base="Order by and limit"></en_order_by_and_limit>
 <en_column base="Column"></en_column>
