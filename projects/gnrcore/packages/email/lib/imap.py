@@ -3,7 +3,6 @@
 
 from __future__ import print_function
 
-from past.builtins import basestring
 
 import email, imaplib,datetime
 from email.generator import Generator as EmailGenerator

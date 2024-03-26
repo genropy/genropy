@@ -1,5 +1,4 @@
 # encoding: utf-8
-from past.builtins import basestring
 
 from datetime import datetime
 
@@ -57,7 +56,7 @@ class Table(object):
     def closeConnection(self, connection_id=None, end_ts=None, end_reason=None):
         page = self.db.application.site.currentPage
         connection_id = connection_id or page.connection_id
-        if isinstance(connection_id,basestring):
+        if isinstance(connection_id,str):
             connection_id = connection_id.split(',')
         with self.db.tempEnv(connectionName='system'):
             self.batchUpdate(dict(end_ts=end_ts or datetime.now(), end_reason=end_reason),

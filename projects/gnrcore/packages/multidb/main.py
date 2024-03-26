@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from __future__ import print_function
-from past.builtins import basestring
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 from gnr.core.gnrdecorator import metadata
@@ -112,7 +111,7 @@ class Package(GnrDboPackage):
                             dbstores=None,store_block=5,packages=None,tbllist=None):
         if dbstores is None:
             dbstores = list(self.db.dbstores.keys())
-        elif isinstance(dbstores,basestring):
+        elif isinstance(dbstores,str):
             dbstores = dbstores.split(',')
         while dbstores:
             block = dbstores[0:store_block]

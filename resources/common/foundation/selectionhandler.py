@@ -20,7 +20,6 @@
 
 """""" # don't delete this line! MANDATORY for Sphinx autodoc
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 import warnings
 
@@ -78,14 +77,14 @@ class SelectionHandler(BaseComponent):
 
         if selectionPars:
             for k, p in list(selectionPars.items()):
-                if isinstance(p, basestring):
+                if isinstance(p, str):
                     if p.startswith('^'):
                         warnings.warn("[selectionhandler] use '=' and not '^' in selectionPars: %s=%s" % (k, repr(p)),
                                       stacklevel=2)
 
         if dialogPars:
             for k, p in list(dialogPars.items()):
-                if isinstance(p, basestring):
+                if isinstance(p, str):
                     if p.startswith('^'):
                         warnings.warn("[selectionhandler] use '=' and not '^' in dialogPars: %s=%s" % (k, repr(p)),
                                       stacklevel=2)
@@ -106,7 +105,7 @@ class SelectionHandler(BaseComponent):
             dialogPars['toolbarPars'] = defaultDialogPars
             self.recordDialog(**dialogPars)
 
-        if reloader and isinstance(reloader, basestring) and not reloader.startswith('^'):
+        if reloader and isinstance(reloader, str) and not reloader.startswith('^'):
             warnings.warn("[selectionhandler] reloader should start with '^': %s" % repr(reloader), stacklevel=2)
             
         # --------------------------------------------------------------------------------------------- Implementation

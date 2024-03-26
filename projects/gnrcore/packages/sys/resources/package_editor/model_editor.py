@@ -3,8 +3,6 @@
 # untitled.py
 # Created by Francesco Porcari on 2012-04-05.
 # Copyright (c) 2012 Softwell. All rights reserved.
-
-from past.builtins import basestring
 from gnr.web.gnrwebpage import BaseComponent
 from redbaron import RedBaron
 from gnr.core.gnrdecorator import public_method
@@ -34,7 +32,7 @@ class TableModuleWriter(BaseComponent):
         for k,v in list(arguments.items()):
             if v in ('',None):
                 continue
-            if isinstance(v,basestring):
+            if isinstance(v,str):
                 v = ("'%s'" if not "'" in v else 'u"%s"') %v
             elif isinstance(v, Bag):
                 v = "dict(%s)" %self.bagToArgString(v,prefix='')
@@ -130,7 +128,7 @@ class Table(object):
         if counter:
             if counter == 'True':
                 counter = True
-            if isinstance(counter,basestring) and ',' in counter:
+            if isinstance(counter,str) and ',' in counter:
                 for c in counter.split(','):
                     arguments['counter_%s' %c] = c   
             else:
@@ -187,7 +185,7 @@ class Table(object):
         for k,v in list(attributes.items()):
             if v == 'True':
                 v = True
-            if isinstance(v,basestring):
+            if isinstance(v,str):
                 if "'" in v:
                     v = '"%s"' %v
                 else:
