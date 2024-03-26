@@ -19,7 +19,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs
@@ -408,7 +407,7 @@ class FormHandler(BaseComponent):
             menupath = '.addrow_menu_store'
             if isinstance(defaults,Bag):
                 menubag = defaults
-            elif isinstance(defaults,basestring):
+            elif isinstance(defaults,str):
                 menupath = defaults
             else:
                 menubag = Bag()

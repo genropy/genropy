@@ -47,7 +47,8 @@ def send_pending(page=None, account=None):
     if not account:
         accounts=account_table.query(where='$protocol_code = :smtp', smtp='SMTP').fetchAsDict(key='id')
     else:
-        accounts=dict(account['id']=account)
+        accounts=dict()
+        accounts[account['id']]=account
     messages=messages_table.query(where="$sent IS NOT TRUE AND $account_id in :account and date <=:now",now=datetime.now(),
                                             account=list(accounts.keys()),for_update=True).fetch()
     message_pkeys = [m['id'] for m in messages]

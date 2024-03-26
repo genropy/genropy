@@ -5,7 +5,6 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 from __future__ import print_function
-from past.builtins import basestring
 import os
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -55,7 +54,7 @@ class Service(SftpService):
 
     def downloadFilesIntoFolder(self,sourcefiles=None,destfolder=None,
                                 callback=None,preserve_mtime=None,thermo_wrapper=None,**kwargs):
-        if isinstance(sourcefiles,basestring):
+        if isinstance(sourcefiles,str):
             sourcefiles = sourcefiles.split(',')
         if thermo_wrapper:
             sourcefiles = thermo_wrapper(thermo_wrapper)
@@ -76,7 +75,7 @@ class Service(SftpService):
     def uploadFilesIntoFolder(self,sourcefiles=None,destfolder=None,
                                 callback=None,preserve_mtime=None,
                                 thermo_wrapper=None,confirm=None,**kwargs):
-        if isinstance(sourcefiles,basestring):
+        if isinstance(sourcefiles,str):
             sourcefiles = sourcefiles.split(',')
         if thermo_wrapper:
             sourcefiles = thermo_wrapper(thermo_wrapper)

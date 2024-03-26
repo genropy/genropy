@@ -26,8 +26,6 @@
 this test module focus on SqlSelection's methods
 """
 
-from past.builtins import basestring
-
 import os, os.path
 import datetime
 
@@ -83,7 +81,7 @@ class BaseDb(BaseGnrSqlTest):
         assert isinstance(self.mysel.output('dictlist'), list) and\
                isinstance(self.mysel.output('dictlist')[0], dict)
         fromjson = gnrstring.fromJson(self.mysel.output('json'))
-        assert isinstance(self.mysel.output('json'), basestring) and\
+        assert isinstance(self.mysel.output('json'), (str,bytes)) and\
                isinstance(fromjson, list) and isinstance(fromjson[0], dict)
         assert isinstance(self.mysel.output('pkeylist'), list) and\
                self.mysel.output('pkeylist')[0] == 0

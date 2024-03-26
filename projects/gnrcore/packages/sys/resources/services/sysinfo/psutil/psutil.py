@@ -5,7 +5,6 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 
-from past.builtins import basestring
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip
@@ -34,7 +33,7 @@ class Main(GnrBaseService):
         
     def getProcessesBag(self,items=None,name=None,user=None):
         
-        if isinstance(items,basestring):
+        if isinstance(items,str):
             items=splitAndStrip(items)
     
         def filteredProcess(p):

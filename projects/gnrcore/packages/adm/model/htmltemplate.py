@@ -17,7 +17,6 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-from past.builtins import basestring
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrhtml import GnrHtmlBuilder
@@ -76,7 +75,7 @@ class Table(object):
         
         :param tpl: the template"""
         
-        letterhead_pkeys = letterhead_pkeys.split(',') if isinstance(letterhead_pkeys,basestring) else letterhead_pkeys
+        letterhead_pkeys = letterhead_pkeys.split(',') if isinstance(letterhead_pkeys,str) else letterhead_pkeys
         first_letterhead = letterhead_pkeys[0]
         f = self.query(where='$id IN :pk',pk=letterhead_pkeys,bagFields=True).fetchAsDict('id')
         first_letterhead_record = f[first_letterhead]

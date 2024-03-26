@@ -4,7 +4,6 @@
 
 # FIXME: avoid using sys.argv but use argparse instead
 
-from past.builtins import basestring
 import sys
 import smtplib
 
@@ -15,7 +14,7 @@ from email.mime.text import MIMEText
 def sendmail(host, from_address, to_address, subject, body, user='', password='', ssl=None):
     msg = MIMEText(body)
 
-    if isinstance(to_address, basestring):
+    if isinstance(to_address, str):
         to_address = [k.strip() for k in to_address.split(',')]
     msg['Subject'] = subject
     msg['From'] = from_address
