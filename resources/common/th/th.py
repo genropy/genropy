@@ -18,7 +18,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -76,11 +75,11 @@ class TableHandler(BaseComponent):
         if not self.checkTablePermission(table,'readonly'):
             readOnly = True
         delrow = tblattr.get('deletable',delrow)
-        if isinstance(delrow,basestring):
+        if isinstance(delrow,str):
             delrow = self.application.checkResourcePermission(delrow, self.userTags)
-        if isinstance(addrow,basestring):
+        if isinstance(addrow,str):
             addrow = self.application.checkResourcePermission(addrow, self.userTags)
-        if isinstance(archive,basestring):
+        if isinstance(archive,str):
             archive = self.application.checkResourcePermission(archive, self.userTags)
         tableCode = table.replace('.','_')
         th_root = self._th_mangler(pane,table,nodeId=nodeId)
@@ -169,7 +168,7 @@ class TableHandler(BaseComponent):
 
         if parentFormSave:
             grid_kwargs['_saveNewRecordOnAdd'] = True
-            if isinstance(parentFormSave,basestring):
+            if isinstance(parentFormSave,str):
                 hider_kwargs.setdefault('message',parentFormSave)
         preview_kwargs.setdefault('tpl',True)
         hasProtectionColumns = self.db.table(table).hasProtectionColumns()

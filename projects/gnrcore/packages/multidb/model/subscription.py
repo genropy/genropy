@@ -1,5 +1,4 @@
 # encoding: utf-8
-from past.builtins import basestring
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -132,7 +131,7 @@ class Table(object):
         return dict(lbl_color='red')
         
     def tableFkey(self,table):
-        if isinstance(table,basestring):
+        if isinstance(table,str):
             table = self.db.table(table)
         return '%s_%s' %(table.fullname.replace('.','_'),table.pkey)
 

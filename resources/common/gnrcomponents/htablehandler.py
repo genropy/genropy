@@ -20,7 +20,6 @@
 
 
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdict import dictExtract
@@ -1046,7 +1045,7 @@ class HTablePicker(HTableHandlerBase):
                 input_codes = [r['hcode'] for r in input_codes]
                 
         if input_codes:
-            if isinstance(input_codes, basestring):
+            if isinstance(input_codes, str):
                 input_codes = input_codes.split(',')
             for code in input_codes:
                 node = result.getNode('#0.%s' % code)

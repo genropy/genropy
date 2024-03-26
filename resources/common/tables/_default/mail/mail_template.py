@@ -3,8 +3,6 @@
 # test_special_action.py
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2010 Softwell. All rights reserved.
-
-from past.builtins import basestring
 from gnr.web.batch.btcmail import BaseResourceMail
 from gnr.web.gnrbaseclasses import TableScriptToHtml
 from gnr.core.gnrstring import templateReplace
@@ -28,9 +26,9 @@ class Main(BaseResourceMail):
         thermo_s.update(thermo_selection or {})
         thermo_r = dict(line_code='record', message='get_record_caption')
         thermo_r.update(thermo_record or {})
-        if isinstance(thermo_s['message'], basestring) and hasattr(self, thermo_s['message']):
+        if isinstance(thermo_s['message'], str) and hasattr(self, thermo_s['message']):
             thermo_s['message'] = getattr(self, thermo_s['message'])
-        if isinstance(thermo_r['message'], basestring) and hasattr(self.htmlMaker, thermo_r['message']):
+        if isinstance(thermo_r['message'], str) and hasattr(self.htmlMaker, thermo_r['message']):
             thermo_r['message'] = getattr(self.htmlMaker, thermo_r['message'])
         if not 'templates' in self.batch_parameters:
             self.batch_parameters['templates'] = self.templates  #CONTROLLARE
