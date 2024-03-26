@@ -338,8 +338,8 @@ class SqlQueryCompiler(object):
         if joiner.get('cnd'):
             cnd = joiner.get('cnd')
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
-        elif joiner.get('range'):
-            value_field,low_field,high_field = joiner.get('range').split(';')
+        elif joiner.get('between'):
+            value_field,low_field,high_field = joiner.get('between').split(';')
             cnd = f"""
                 ({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
                 ({low_field} IS NOT NULL AND {high_field} IS NULL AND {value_field}>={low_field}) OR
