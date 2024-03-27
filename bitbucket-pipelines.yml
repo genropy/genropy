@@ -56,7 +56,7 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - GNR_LOCALE="en_US" pytest tests/core
                   
   tags:
     ecr-release-*:
