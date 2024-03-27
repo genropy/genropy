@@ -4,6 +4,8 @@ docs/genro/genrotit.sql
 projects/showcase/sites/showcase/data/
 build
 gnrpy/build/
+logs.log
+pyro5.log
 dist
 .eggs
 *.egg-info

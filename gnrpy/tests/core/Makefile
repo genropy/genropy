@@ -1,7 +1,7 @@
 COVER_OPTS=--cov-report=html --cov=gnr.core
 
 tests:
-	py.test *.py $(COVER_OPTS) --cov=gnr.core
+	GNR_LOCALE='en_US' py.test *.py $(COVER_OPTS) --cov=gnr.core
 
 bag:
 	py.test gnrbag_test.py $(COVER_OPTS) --cov=gnr.core.gnrbag --cov=gnr.core.gnrbagxml

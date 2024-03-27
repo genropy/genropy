@@ -278,13 +278,15 @@ class TableHandlerForm(BaseComponent):
                 #default_slots = default_slots.replace('form_delete','form_print,100,form_delete')
                 extra_slots.append('form_print')
             actionMenu = options.pop('actionMenu',False)
+            copypaste = options.pop('copypaste',False)
             if actionMenu:
                 #default_slots = default_slots.replace('form_delete','form_print,100,form_delete')
                 extra_slots.append('form_action')
                 options['form_action'] = actionMenu
             if options.pop('audit',False):
                 extra_slots.append('form_audit')
-            if options.pop('copypaste',False):
+            if copypaste:
+                form.attributes['form_copypaste_isRemote'] = copypaste=='*'
                 extra_slots.append('form_copypaste')
             if single_record:
                 default_slots = default_slots.replace('form_delete','')
@@ -400,7 +402,8 @@ class TableHandlerForm(BaseComponent):
 
     @struct_method          
     def th_slotbar_form_copypaste(self,pane,**kwargs):
-        pane.dataController("""var form = this.form;
+        pane.dataController("""
+                                var form = this.form;
                                 var cb = function(){return form.copyPasteMenu()};
                                 SET .controller.copypaste.menu = new gnr.GnrBagCbResolver({method:cb});""",
                         _onStart=True)

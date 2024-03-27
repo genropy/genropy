@@ -759,6 +759,8 @@ class SqlQueryCompiler(object):
 
 
     def _handle_virtual_columns(self, virtual_columns):
+        if virtual_columns is False:
+            return
         if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         virtual_columns = (virtual_columns or []) + list(self.tblobj.static_virtual_columns.keys())
@@ -2432,6 +2434,7 @@ class SqlRecord(object):
 
         info['_from_fld'] = joiner['one_relation']
         info['_target_fld'] = joiner['many_relation']
+        info['_onDelete'] = joiner.get('onDelete')
         info['_relation_value'] = sqlresult['%s0_%s' %(self.aliasPrefix,ofld)]
         target_fld = info['_target_fld']
         mpkg, mtbl, mrelated_field = target_fld.split('.')
@@ -2448,9 +2451,7 @@ class SqlRecord(object):
                 mode='grid', joinConditions=self.joinConditions,
                 sqlContextName=self.sqlContextName,
                 virtual_columns=virtual_columns,
-                sqlparams = sqlparams,
-
-                )
+                sqlparams = sqlparams)
         #else:
         info['_many_order_by'] = order_by
         info['_sqlContextName'] = self.sqlContextName
@@ -2463,6 +2464,7 @@ class SqlRecord(object):
         info['_from_fld'] = joiner['one_relation']
         info['_target_fld'] = joiner['many_relation']
         info['one_one'] = joiner['one_one']
+        info['_onDelete'] = joiner.get('onDelete')
         if joiner.get('virtual'):
             relation_value = sqlresult['%s0_%s' %(self.aliasPrefix,ofld)]
         else:
