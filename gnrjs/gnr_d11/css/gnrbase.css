@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira Sans Condensed&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto Condensed&display=swap');
+
 *:focus, *:active {outline:none;}
 input:focus { outline: none; }
 

@@ -4,8 +4,6 @@
 # Created by Francesco Porcari on 2011-09-12.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import print_function
-from past.builtins import basestring
 from gnr.web.gnrwebpage import BaseComponent
 
 from gnr.core.gnrbag import Bag
@@ -187,15 +185,15 @@ class THStatsHandler(BaseComponent):
         distinct_cols = distinct_cols or self.stats_distinct_cols(tot_mode)
         key_col = key_col or self.stats_key_col(tot_mode)
         captionCb = captionCb or self.stats_captionCb(tot_mode)
-        if isinstance(group_by, basestring):
+        if isinstance(group_by, str):
             group_by = group_by.split(',')
-        if isinstance(sum_cols, basestring):
+        if isinstance(sum_cols, str):
             sum_cols = sum_cols.split(',')
-        if isinstance(keep_cols, basestring):
+        if isinstance(keep_cols, str):
             keep_cols = keep_cols.split(',')
-        if isinstance(collect_cols, basestring):
+        if isinstance(collect_cols, str):
             collect_cols = collect_cols.split(',')
-        if isinstance(distinct_cols, basestring):
+        if isinstance(distinct_cols, str):
             distinct_cols = distinct_cols.split(',')
 
         def date_converter(mode):
@@ -203,7 +201,7 @@ class THStatsHandler(BaseComponent):
             return lambda r: toText(r[datefield], format=formatmode, locale=self.locale)
             
         for k, x in enumerate(group_by):
-            if isinstance(x, basestring):
+            if isinstance(x, str):
                 if x.startswith('#DATE='):
                     group_by[k] = date_converter(x[6:])
                 else:

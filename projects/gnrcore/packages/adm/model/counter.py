@@ -1,8 +1,4 @@
 # encoding: utf-8
-from __future__ import division
-from __future__ import print_function
-
-from past.builtins import basestring
 
 from past.utils import old_div
 import re
@@ -57,7 +53,7 @@ class Table(object):
             self.alignSequences(tblobj,field=field,to_align=sequences,thermo_wrapper=thermo_wrapper)
 
     def alignSequences(self,tblobj,field=None,to_align=None,fix_duplicate=None,thermo_wrapper=None):
-        if isinstance(to_align,basestring):
+        if isinstance(to_align,str):
             to_align = to_align.split(',')
         pars = getattr(tblobj,'counter_%s' %field)()
         boundaries = self._getBoundaries(**pars)

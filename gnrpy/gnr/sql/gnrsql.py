@@ -154,7 +154,7 @@ class GnrSqlDb(GnrObject):
     @property
     def debug(self):
         """TODO"""
-        return self.application.debug
+        return self.application and self.application.debug
         
     @property
     def dbstores(self):
@@ -527,9 +527,15 @@ class GnrSqlDb(GnrObject):
     def _onDbChange(self,tblobj,evt,record,old_record=None,**kwargs):
         if tblobj.totalizers:
             tblobj.updateTotalizers(record,old_record=old_record,evt=evt,**kwargs)
-        if tblobj.attributes.get('logChanges'):
-            tblobj.onLogChange(evt,record,old_record=old_record)
-            self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
+        logchanges = tblobj.attributes.get('logChanges')
+        if logchanges:
+            if isinstance(logchanges,str):
+                loggable_events = logchanges.split(',')
+            else:
+                loggable_events = ['I','U','D']
+            if evt in loggable_events:
+                tblobj.onLogChange(evt,record,old_record=old_record)
+                self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
         
 
     @in_triggerstack

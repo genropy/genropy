@@ -36,9 +36,16 @@ class WebSocketHandler(object):
     def sendCommandToPage(self,page_id,command,data):
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         envelope=Bag(dict(command=command,data=data))
-        body=urllib.parse.urlencode(dict(page_id=page_id,envelope=envelope.toXml(unresolved=True)))
+        body=urllib.parse.urlencode(dict(page_id=page_id,remote_service=None,envelope=envelope.toXml(unresolved=True)))
         self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
-        
+
+    def sendCommandToRemoteService(self,remote_service=None,command=None,data=None):
+        headers = {'Content-type': 'application/x-www-form-urlencoded'}
+        envelope=Bag(dict(command=command,data=data))
+        body=urllib.parse.urlencode(dict(page_id=None,remote_service=remote_service,envelope=envelope.toXml(unresolved=True)))
+        self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
+
+
     def setInClientData(self,page_id,path=None,value=None,nodeId=None,
                     attributes=None,fired=None,reason=None,noTrigger=None):
         if not isinstance(page_id,list):
@@ -77,7 +84,7 @@ class WsgiWebSocketHandler(WebSocketHandler):
         if len(sockets_dir)>90:
             sockets_dir = os.path.join('/tmp', os.path.basename(site.instance_path), 'gnr_sock')
         if not os.path.exists(sockets_dir):
-            os.mkdir(sockets_dir)
+            os.makedirs(sockets_dir)
         self.socket_path= os.path.join(sockets_dir, 'async.tornado')
         self.proxyurl='/wsproxy'
     

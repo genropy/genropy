@@ -1,7 +1,4 @@
 # encoding: utf-8
-from __future__ import print_function
-
-from past.builtins import basestring
 
 from smtplib import SMTPException,SMTPConnectError
 from gnr.core.gnrdecorator import public_method
@@ -121,7 +118,7 @@ class Table(object):
             silent=False,avoid_module_cache=True)
         imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap'))
         ImapReceiver = imap_module.ImapReceiver
-        if isinstance(account, basestring):
+        if isinstance(account, str):
             account = self.db.table('email.account').record(pkey=account).output('bag')
         print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
@@ -313,7 +310,8 @@ class Table(object):
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()
                 message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
         self.db.commit()
-        
+        return message
+    
     @public_method
     def clearErrors(self, pkey):
         with self.recordToUpdate(pkey) as message:

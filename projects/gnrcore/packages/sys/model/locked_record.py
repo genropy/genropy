@@ -1,6 +1,4 @@
 
-from past.builtins import basestring
-
 from datetime import datetime
 
 class Table(object):
@@ -17,7 +15,7 @@ class Table(object):
         tbl.index('lock_table,lock_pkey', unique=True)
 
     def lockRecord(self, page, table, pkey):
-        if not isinstance(pkey, basestring):
+        if not isinstance(pkey, str):
             pkey = str(pkey)
         record = dict(lock_ts=datetime.now(),
                       lock_table=table,

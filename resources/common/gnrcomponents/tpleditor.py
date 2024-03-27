@@ -6,7 +6,6 @@
 
 import os
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent,TableScriptToHtml
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
@@ -687,7 +686,7 @@ class ChunkEditor(PaletteTemplateEditor):
         if showLetterhead:
             bar = frameEdit.top.bar.replaceSlots('parentStackButtons','parentStackButtons,letterhead_selector')
             fb = bar.letterhead_selector.formbuilder(cols=1,border_spacing='1px')
-            if isinstance(showLetterhead,basestring):
+            if isinstance(showLetterhead,str):
                 fb.data('.preview.letterhead_id',showLetterhead)
             fb.dbSelect(dbtable='adm.htmltemplate', value='^.preview.letterhead_id',
                         lbl='!!Letterhead',width='15em', hasDownArrow=True)

@@ -116,7 +116,7 @@ class GnrCustomWebPage(object):
         pagesframe.grid.bagStore(storepath='current_site.data.filtered_pages',storeType='AttributesBagRows',
                                 sortedBy='=.grid.sorted',
                                 data='^current_site.data.loaded_filtered_pages',selfUpdate=True)
-        pagesframe.top.slotBar('2,vtitle,*,searchOn,2',vtitle='Connected user',_class='pbl_roundedGroupLabel')
+        pagesframe.top.slotBar('2,vtitle,*,searchOn,2',vtitle='Connection pages',_class='pbl_roundedGroupLabel')
 
 
     def connectionFrame(self,pane):

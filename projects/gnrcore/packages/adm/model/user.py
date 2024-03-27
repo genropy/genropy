@@ -44,8 +44,7 @@ class Table(object):
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
-        tbl.formulaColumn('other_groups',"array_to_string(ARRAY(#ogr),',')",
-                                                select_ogr=dict(columns='$group_code',where='$user_id=#THIS.id',
+        tbl.formulaColumn('other_groups',select=dict(columns="STRING_AGG($group_code,',')",where='$user_id=#THIS.id',
                                                 table='adm.user_group'))
         tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
                                                 select_allgroups=dict(columns='$code',
@@ -58,6 +57,7 @@ class Table(object):
                                         ELSE $username END
                                         """, name_long=u'!!Name',static=True)
 
+        tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)

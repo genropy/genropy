@@ -101,7 +101,7 @@ class LoginComponent(BaseComponent):
                                     AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
                         condition_secret_2fa='=gnr.avatar.secret_2fa',
                     condition_all_groups='^.all_groups?=#v || []',
-                    validate_notnull='^.group_selector',
+                    validate_notnull='^.group_selector_mandatory',
                     disabled='^.group_selector?=!#v',
                     row_hidden='^.group_selector?=!#v',
                     lbl='!![en]Group',hasDownArrow=True,
@@ -270,13 +270,15 @@ class LoginComponent(BaseComponent):
         data = Bag()
         data['serverTimeDelta'] = serverTimeDelta
         data['group_selector'] = False
+        data['group_selector_mandatory'] = False
         if avatar.extra_kwargs.get('multi_group'):
             other_groups = self.db.table('adm.user').readColumns(columns='$other_groups',pkey=avatar.user_id)
             other_groups = [r for r in other_groups.split(',') if r]
-            data['all_groups'] = [avatar.main_group_code]
+            data['all_groups'] = [avatar.main_group_code] if avatar.main_group_code else []
             if other_groups:
                 data['all_groups'] = [avatar.main_group_code] + other_groups
                 data['group_selector'] = True
+                data['group_selector_mandatory'] = avatar.main_group_code is not None
         elif avatar.extra_kwargs.get('main_group_code'):
             data['all_groups'] = [avatar.main_group_code]
         self.callPackageHooks('onUserSelected',avatar,data)
@@ -546,7 +548,7 @@ class LoginComponent(BaseComponent):
         if username:
             users = usertbl.query(columns='$id', where='$username = :u', u=username).fetch()
         else:
-            users = usertbl.query(columns='$id', where='$email = :e', e=email).fetch()
+            users = usertbl.query(columns='$id', where='$recover_pwd_email = :e', e=email).fetch()
         if not users:
             return 'err'
         mailservice = self.getService('mail')

@@ -33,8 +33,6 @@ class Service(AdmMailService):
                 if not kwargs.get(k,None):
                     kwargs[k]=v
         if scheduler:
-            if doCommit is None:
-                doCommit = True
             new_message = db.table('email.message').newMessage(attachments=attachments,
                                                     headers_kwargs=headers_kwargs,doCommit=doCommit,**kwargs)
             return new_message

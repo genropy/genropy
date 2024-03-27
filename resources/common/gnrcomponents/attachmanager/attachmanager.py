@@ -228,18 +228,18 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentViewer(self,pane,title=None,
                             datapath='.attachments',maintable_id=None,
-                            relation=None,table=None,preview=True,delrow=False,
-                            uploaderButton=None,ask=None,default_kwargs=None,
+                            relation=None,table=None,preview=True,delrow=False,searchOn=False,
+                            viewResource=None,uploaderButton=None,ask=None,default_kwargs=None,
                             **kwargs):
         if not table:
             relation=relation or '@atc_attachments'
-        viewResource = 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview'
+        viewResource = viewResource or ('gnrcomponents/attachmanager/attachmanager:ViewAtcMobile' if preview else 'gnrcomponents/attachmanager/attachmanager:ViewAtcMobileNoPreview')
         th = pane.dialogTableHandler(relation=relation,table=table,
-                                    title=title or '!![en]Attachments',
+                                        title=title or '!![en]Attachments',
                                         viewResource=viewResource,
                                         formResource='gnrcomponents/attachmanager/attachmanager:FormAtcMobile',
                                         mobileTemplateGrid=True,
-                                        searchOn=False,datapath=datapath,configurable=False,delrow=delrow,
+                                        searchOn=searchOn,datapath=datapath,configurable=False,delrow=delrow,addrow=False,
                                      **kwargs)
         if uploaderButton:
             th.view.bottom.dropUploader(
@@ -253,8 +253,8 @@ class AttachManager(BaseComponent):
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
                             **{f'rpc_{k}':v for k,v in default_kwargs.items()})
 
-        view = th.view
-        view.top.pop('bar')
+        if not searchOn:
+            th.view.top.pop('bar')
         return th 
 
     @struct_method
@@ -273,7 +273,7 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentGrid(self,pane,title=None,searchOn=False,pbl_classes=True,datapath='.attachments',
                             screenshot=False,viewResource=None,
-                            design=None,maintable_id=None,uploaderButton=False,ask=None,default_kwargs=None,vpane_kwargs=None,
+                            design=None,maintable_id=None,uploaderButton=True,ask=None,default_kwargs=None,vpane_kwargs=None,
                             fpane_kwargs=None,**kwargs):
         design = design or 'sidebar'
         bc = pane.borderContainer(design=design)
@@ -283,12 +283,13 @@ class AttachManager(BaseComponent):
         d[design].update(vpane_kwargs)
         th = bc.contentPane(splitter=True,**d[design]).inlineTableHandler(relation='@atc_attachments',
                                         viewResource=viewResource or 'gnrcomponents/attachmanager/attachmanager:AttachManagerView',
-                                        hider=True,statusColumn=True,
+                                        hider=True,statusColumn=True,title=title,
                                         addrow=False,pbl_classes=pbl_classes,
-                                     semaphore=False, searchOn=searchOn,datapath=datapath,**kwargs)
+                                        semaphore=False, searchOn=searchOn,datapath=datapath,**kwargs)
         if screenshot:
             th.view.top.bar.replaceSlots('delrow','delrow,screenshot,5')
-        th.view.bottom.dropUploader(
+        if uploaderButton:
+            th.view.bottom.dropUploader(
                             label='<div class="atc_galleryDropArea"><div>Drop document here</div><div>or double click</div></div>',
                             height='40px',
                             ask=ask,

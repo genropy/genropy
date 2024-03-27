@@ -18,7 +18,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
@@ -223,7 +222,7 @@ class TableHandlerStats(BaseComponent):
             label = n.label
             title = n.attr.get('title') or tblobj.column(label).attributes.get('name_long') or label
             titlepane = pane.titlePane(title=title,margin='2px')
-            if isinstance(v,basestring):
+            if isinstance(v,str):
                 titlepane.checkBoxText(value='^.%s' %label,
                                         values='^#ANCHOR.stats.source_filters.%s' %label,
                                         datapath='.stats.filters',

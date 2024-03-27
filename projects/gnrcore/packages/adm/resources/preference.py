@@ -36,6 +36,7 @@ class AppPref(object):
         self._adm_backups(tc.contentPane(title='!!Backups', datapath='.backups'))
         self._adm_dev(tc.contentPane(title='!!Developers', datapath='.dev'))
         self._adm_helpdesk(tc.contentPane(title='!!Helpdesk', datapath='.helpdesk',_tags='_DEV_'))
+        self._adm_privacy(tc.borderContainer(title='!!Privacy', datapath='.privacy'))
         self._adm_testing(tc.contentPane(title='!!Testing', datapath='.testing',_tags='superadmin'))
 
     def _adm_testing(self,pane):
@@ -53,6 +54,9 @@ class AppPref(object):
         fb.textbox(value='^.client_reference',lbl='!![en]Client reference')
         fb.textbox(value='^.documentation_url',lbl='!![en]Documentation url',width='40em')
         
+    def _adm_privacy(self, bc):
+        self.mixinComponent('privacy:PrivacyPreferencePane')
+        self.privacyPreferencePane(bc)
 
     def _adm_dev(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
