@@ -702,7 +702,7 @@ class SqlTable(GnrObject):
             if fieldMode not in (None,'D'):
                 continue
             #should continue or set None??
-            if obj.attributes.get('ignoreOnCopy'):
+            if obj.attributes.get('ignoreOnCopy') or obj.attributes.get('onCopy')=='ignore':
                 continue
             if obj.attributes.get('unique'):
                 continue
@@ -1011,18 +1011,9 @@ class SqlTable(GnrObject):
    
 
     @public_method
-    def onPasteRecord(self,pkey=None,sourceCluster=None,doCommit=True,**kwargs):
-        #overridable
-        pkey = pkey or '*newrecord*'
-        if pkey == '*newrecord*':
-            destrecord = self.newrecord(_fromRecord=sourceCluster,**kwargs)
-            self.insert(destrecord)
-        else:
-            with self.recordToUpdate(pkey) as destrecord:
-                for k,v in destrecord.items():
-                    if v is None:
-                        destrecord[k] = sourceCluster[k]
-
+    def onPasteRecord(self,sourceCluster=None,doCommit=True,**kwargs):
+        destrecord = self.newrecord(_fromRecord=sourceCluster,**kwargs)
+        self.insert(destrecord)
         for node in sourceCluster:
             if node.attr.get('mode') != 'M':
                 continue
@@ -1033,6 +1024,8 @@ class SqlTable(GnrObject):
         if doCommit:
             self.db.commit()
         return destrecord[self.pkey]
+    
+    
 
         
     @public_method

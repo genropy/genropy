@@ -218,6 +218,33 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                         'B':'CheckBox'};
         return typeMap[dtype] || 'TextBox';
     },
+
+    widgetFromField:function(fieldattr){
+        let result = {...objectExtract(fieldattr,'wdg_*',true),...objectExtract(fieldattr,'validate_*',false,true)};
+        let dt = fieldattr.dtype;
+        result.lbl =fieldattr.lbl || _F(fieldattr.name_long)
+        result.tag = result.tag || this.wdgByDtype(dt);
+        if('related_table' in result){
+            result.tag = 'dbselect';
+            result.dbtable = fieldattr.related_table;
+            if(result.related_table_lookup){
+                result.hasDownArrow = true;
+            }
+        }
+        if('values' in fieldattr){
+            result.values = fieldattr.values;
+            result.tag = fieldattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+        }
+        if('size' in fieldattr && result.tag=='Textbox'){
+            result.validate_len = fieldattr.size;
+        }
+        if(dt == 'L' || dt == 'I'){
+            result.places = 0;
+            result.format = result.format || '#,###';
+        }
+        return result;
+    },
+
     updateWidgetCatalog:function(){
         var tag;
         for (tag in this.widgetcatalog) {

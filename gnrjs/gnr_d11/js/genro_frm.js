@@ -642,6 +642,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }
             },this.sourceNode);
             return;
+        }else if(kw.destPkey=='*pasterecord*'){
+            this.remotePasteRecord(kw)
+            return;
         }
         this.doload_store(kw);
     },
@@ -1135,8 +1138,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 this.publish('message',{message:_T('You must save the record before copy'),sound:'$error',messageType:'warning'})
                 return
             }
+            genro.lockScreen(true,'getRemoteClipboard');
             genro.serverCall(`_table.${this.getControllerData("table")}.onCopyRecord`,
                 {pkey:this.getCurrentPkey()},(result)=>{
+                    genro.lockScreen(false,'getRemoteClipboard');
                     that.addCopyToClipboard(result);
             });
             return;
@@ -1165,55 +1170,53 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     pasteRecord:function(path){
+        if(this.copypaste_isRemote){
+            this.load({destPkey:'*pasterecord*',clipboard_path:path});
+            return;
+        }
         var copybag;
         var controllerdata = this.getControllerData();
         var clipboard = controllerdata.getItem('clipboard')
         var copy = clipboard.getNode(path);
         copybag = copy.getValue().deepCopy();
-        if(this.copypaste_isRemote){
-            if(this.isNewRecord()){
-                let uniqueNodupFields = copybag.getNodes().filter(n=>n.attr.unique && n.attr.validate_notnull);
-                if(uniqueNodupFields){
-                    var that = this;
-                    var d = {};
-                    uniqueNodupFields = uniqueNodupFields.map(n=>{
-                        let attr = n.attr;
-                        d[n.label] = n.getValue();
-                        return {
-                            name:n.label,
-                            lbl:_T(attr.name_long),
-                            dbfield:that.getControllerData("table")+'.'+n.label,
-                            validate_nodup:true,
-                            validate_notnull:true
-                        }
-                    })
-                    genro.dlg.askParameters(function(_askResult){
-                        that.pastRecord_remote(copybag,_askResult);
-                    },{title:_T('Complete data'),fields:uniqueNodupFields},d,this.sourceNode);
+        this.updateFormData(copybag);
+    },
 
-                }else{
-                    this.pastRecord_remote(copybag)
-                }
-            }
-            else if(this.changed){
-                this.publish('message',{message:_T('You must save the record before paste'),sound:'$error',messageType:'warning'})
-            }else{
-                this.pastRecord_remote(copybag)
-            }
+    remotePasteRecord:function(kw){
+        var copybag;
+        var controllerdata = this.getControllerData();
+        var clipboard = controllerdata.getItem('clipboard')
+        var copy = clipboard.getNode(kw.clipboard_path);
+        copybag = copy.getValue().deepCopy();
+        let fieldsToAsk = copybag.getNodes().filter(n=>(n.attr.unique && n.attr.validate_notnull) || n.attr.onCopy=="ask" );
+        if(fieldsToAsk.length){
+            var that = this;
+            var d = {};
+            fieldsToAsk = fieldsToAsk.map(n=>{
+                let attr = n.attr;
+                d[n.label] = n.getValue();
+                return {name:n.label,
+                    dbfield:that.getControllerData("table")+'.'+n.label,
+                    ...genro.wdg.widgetFromField(attr)};
+                
+            })
+            genro.dlg.askParameters(function(_askResult){
+                that.insertRemotePaste(copybag,_askResult);
+            },{title:_T('Complete data'),fields:fieldsToAsk},d,this.sourceNode);
         }else{
-            this.updateFormData(copybag);
+            this.insertRemotePaste(copybag);
         }
     },
 
-    pastRecord_remote:function(copybag,runKwargs){
-        let kw = {pkey:this.getCurrentPkey(),sourceCluster:copybag};
+    insertRemotePaste:function(copybag,runKwargs){
+        let kw = {sourceCluster:copybag};
         if(runKwargs){
             objectUpdate(kw,runKwargs);
         }
         var that = this;
         genro.serverCall(`_table.${this.getControllerData("table")}.onPasteRecord`,
                 kw,(destPkey)=>{
-                    that.load({destPkey:destPkey || that.getCurrentPkey()});
+                    that.load({destPkey:destPkey});
                 });
     },
 
