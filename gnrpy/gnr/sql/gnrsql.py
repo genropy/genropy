@@ -154,7 +154,7 @@ class GnrSqlDb(GnrObject):
     @property
     def debug(self):
         """TODO"""
-        return self.application.debug
+        return self.application and self.application.debug
         
     @property
     def dbstores(self):
