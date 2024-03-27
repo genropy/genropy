@@ -80,10 +80,10 @@ class GnrCustomWebPage(object):
     @public_method
     def send_email(self, smtp_host=None, port=None, ssl=None, tls=None, user=None, password=None,
                             message=None,from_address=None,to_address=None):
-        msg = "From: {from_address}\r\nTo: {to_address}\r\n{message}".format(from_address=from_address, 
-                            to_address=to_address, message=message)
+        msg = f"From: {from_address}\r\nTo: {to_address}\r\n{message}"
+        subject = "This is a test email"
         account_params = dict(smtp_host=smtp_host, port=port, user=user, password=password, ssl=ssl, tls=tls)
         mh = MailService()
         with mh.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, to_address, msg)
+            smtp_connection.sendmail(from_address=from_address, to_address=to_address, body=msg, subject=subject)
             print("Successfully sent email")
