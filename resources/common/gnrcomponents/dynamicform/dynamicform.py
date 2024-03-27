@@ -22,7 +22,6 @@
 Component for dynamicform:
 """
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import asDict
@@ -490,7 +489,7 @@ class DynamicForm(BaseComponent):
         wdg_attr['colspan'] = 1
         wdg_kwargs = wdg_attr.pop('wdg_kwargs',None)
         if wdg_kwargs:
-            if isinstance(wdg_kwargs,basestring):
+            if isinstance(wdg_kwargs,str):
                 wdg_kwargs = Bag(wdg_kwargs)
             wdg_kwargs = wdg_kwargs.asDict(ascii=True)
             wdg_attr.update(wdg_kwargs)
@@ -518,7 +517,7 @@ class DynamicForm(BaseComponent):
         wdg = self.df_child(fb,**wdg_attr)
         if not getter:
             return wdg     
-        if isinstance(getter,basestring):
+        if isinstance(getter,str):
             getter = Bag(getter)
         if getter['table']:
             self._df_handleGetter(fb,code=code,getter=getter)

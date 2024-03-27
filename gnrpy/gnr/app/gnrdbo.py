@@ -277,7 +277,7 @@ class TableBase(object):
     def sysFields(self, tbl, id=True, ins=True, upd=True, full_upd=False, ldel=True, user_ins=None, user_upd=None, 
                   draftField=False, invalidFields=None,invalidRelations=None,md5=False,
                   counter=None,relidx=None,hierarchical=None,hierarchical_virtual_roots=False,
-                    hierarchical_root_id=False,hdepth=None,useProtectionTag=None,
+                    hierarchical_root_id=False,hierarchical_linked_to=None,hdepth=None,useProtectionTag=None,
                   group='zzz', group_name='!![en]System',
                   df=None,counter_kwargs=None,**kwargs):
         """Add some useful columns for tables management (first of all, the ``id`` column)
@@ -352,6 +352,10 @@ class TableBase(object):
                                                     onDelete='ignore')
             if hierarchical_virtual_roots:
                 tbl.column('_virtual_node',dtype='B',name_long="!![en]H.Virtual node",copyFromParent=True)
+            if hierarchical_linked_to:
+                self.db.model.deferOnBuilding(self.linkHierarchicalToMaster,
+                        hierarchical_tbl='{}.{}'.format(tbl.parentNode.parentNode.parentNode.label,
+                                                tbl.parentNode.label),related_tbl=hierarchical_linked_to)
 
             hfields = []
             for fld in hierarchical.split(','):
@@ -501,6 +505,60 @@ class TableBase(object):
         tbl.column(fldname, dtype='L', name_long=name_long, onInserting='setRelidx',relidx=True,
                         _relidx_fkey=relidx,group=group,_sysfield=True,
                         format='0000')
+        
+    def linkHierarchicalToMaster(self,hierarchical_tbl=None,related_tbl=None):
+        model = self.db.model
+        pkg,tblname = hierarchical_tbl.split('.')
+        rel_pkg,rel_tbl_name = related_tbl.split('.')
+        hierarchical_tbl_src = model.src['packages.{}.tables.{}'.format(pkg,tblname)]
+        related_tbl_src = model.src['packages.{}.tables.{}'.format(rel_pkg,rel_tbl_name)]
+        rel_pkey = related_tbl_src.attributes.get('pkey')
+        rel_pkey_col = related_tbl_src[f'columns.{rel_pkey}'].attributes
+        hierarchical_tbl_src.column(f'{rel_tbl_name}_{rel_pkey}',dtype=rel_pkey_col.get('dtype'),size=rel_pkey_col.get('size'),
+                                    group='_',copyFromParent=True,
+                                    name_long=related_tbl_src.attributes.get('name_long')
+                                    ).relation(f'{rel_pkg}.{rel_tbl_name}.{rel_pkey}',deferred=True,
+                                               relation_name=f'{tblname}s',
+                                               onDuplicate=False,mode='foreignkey', onDelete='cascade')
+        related_tbl_src.column(f'root_{tblname}_id',size='22',
+                                    #group='_',
+                                    name_long=f"{hierarchical_tbl_src.attributes.get('name_long')} root",
+                                    onInserting='insertLinkedHierarchicalRoot',
+                                    onUpdating='updateLinkedHierarchicalRoot'
+                                    ).relation(f'{pkg}.{tblname}.id',
+                                               one_one='*',
+                                               onDuplicate=False,
+                                               mode='foreignkey', onDelete='ignore')
+        #
+    
+    def trigger_insertLinkedHierarchicalRoot(self,record,fldname,**kwargs):
+        pkey = record[self.pkey]
+        if not pkey:
+            pkey = self.newPkeyValue()
+            record[self.pkey] = pkey
+        htbl = self.column(fldname).relatedTable().dbtable
+        hierarchical = htbl.attributes.get('hierarchical')
+        defaults = {f'{self.name}_{self.pkey}':pkey}
+        if hierarchical is not True:
+            for k in hierarchical.split(','):
+                if record.get(k) is not None:
+                    defaults[k] = record.get(k)
+        root_record = htbl.insert(htbl.newrecord(id=pkey.ljust(22,'_'),**defaults))
+        record[fldname] = root_record['id']
+
+    def trigger_updateLinkedHierarchicalRoot(self,record,fldname,old_record=None,**kwargs):
+        htbl = self.column(fldname).relatedTable()
+        hierarchical = htbl.attributes.get('hierarchical')
+        updater = {}
+        if hierarchical is not True:
+            for k in hierarchical.split(','):
+                if record.get(k) is not None:
+                    updater[k] = record.get(k)
+        if self.fieldsChanged(','.join(updater.keys()),record,old_record):
+            with self.db.table('srvy.question'
+                ).recordToUpdate(record[fldname]) as rec:
+                rec.update(updater)
+        
 
     def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
         model = self.db.model

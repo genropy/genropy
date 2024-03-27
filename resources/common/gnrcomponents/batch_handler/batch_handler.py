@@ -4,7 +4,6 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,customizable
 from gnr.core.gnrlang import gnrImport, objectExtract
@@ -71,7 +70,7 @@ class TableScriptHandler(BaseComponent):
         self._table_script_imports(pane,res_obj)
         count = 0
         if selectedPkeys:
-            if isinstance(selectedPkeys,basestring):
+            if isinstance(selectedPkeys,str):
                 selectedPkeys = selectedPkeys.strip(',').split(',')
             res_obj.selectedPkeys = selectedPkeys
             count = len(selectedPkeys or [])
@@ -142,7 +141,7 @@ class TableScriptHandler(BaseComponent):
         optionsEnabled = batch_dict.get('batch_ask_options')
         if optionsEnabled is None:
             optionsEnabled = True
-        elif isinstance(optionsEnabled,basestring):
+        elif isinstance(optionsEnabled,str):
             optionsEnabled = self.db.application.allowedByPreference(optionsEnabled)
         if hasOptions and optionsEnabled:
             self.table_script_option_pane(optionsform.div(datapath='#table_script_runner.data.batch_options',childname='contentNode'),**batch_dict)
@@ -201,7 +200,7 @@ class TableScriptHandler(BaseComponent):
                              parameters=None, printerOptions=None, extra_parameters=None,**kwargs):
         res_obj = self.site.loadTableScript(self, table, '%s/%s' % (res_type, resource), class_name='Main')
         if selectedPkeys:
-            if isinstance(selectedPkeys,basestring):
+            if isinstance(selectedPkeys,str):
                 selectedPkeys = selectedPkeys.strip(',').split(',')
             res_obj.selectedPkeys = selectedPkeys
         elif selectionName:

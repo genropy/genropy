@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsql : Genro sql db connection.
@@ -24,19 +24,22 @@ __version__ = '1.0b'
 
 from gnr.core.gnrlang import GnrException
 
-class GnrSqlException(GnrException): #CHECK THERE IS ANOTHER CLASS WITH THE SAME NAME INSIDE GNRSQL 
-    """Exceptions raised for sql errors
+# TO BE REMOVED: the next class uses the same name, so this
+# will never be used.
+#
+# class GnrSqlException(GnrException): 
+#     """Exceptions raised for sql errors
         
-    :param code: error code
-    :param message: explanation of the error
-    """
-    def __init__(self, code, message=None,):
-        if not message and ':' in code:
-            code, message = code.split(':', 1)
-        self.code = code
-        self.message = message
+#     :param code: error code
+#     :param message: explanation of the error
+#     """
+#     def __init__(self, code, message=None,):
+#         if not message and ':' in code:
+#             code, message = code.split(':', 1)
+#         self.code = code
+#         self.message = message
         
-class GnrSqlException(GnrException):
+class GnrSqlException(GnrException): 
     """Standard Gnr Sql Base Exception
     
     * **code**: GNRSQL-001
