@@ -27,7 +27,7 @@ def send_message(page=None,message=None, account=None, attachments=None):
     attachments=[a['path'] for a in attachments]
     smtp_host = account['host']
     port = account['port']
-    user = accounts['username']
+    user = account['username']
     password = account['password']
     ssl=account['ssl']
     tls=account['tls']

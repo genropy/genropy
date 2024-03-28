@@ -96,12 +96,11 @@ class Form(BaseComponent):
     @public_method
     def testSmtpSettings(self, host=None, from_address=None, to_address=None, 
                                 username=None, password=None, tls=None, ssl=None, port=None):
-        msg = "From: {from_address}\r\nTo: {to_address}\r\nTest Message".format(from_address=from_address, 
-                            to_address=to_address)
         account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls)
         mh = MailService()
+        msg = mh.build_base_message(subject='Test', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
         with mh.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, to_address, msg)
+            smtp_connection.sendmail(from_address, to_address, msg.as_string())
 
     def th_options(self):
         return dict(duplicate=True)

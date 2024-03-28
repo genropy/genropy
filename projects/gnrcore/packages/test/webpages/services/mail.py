@@ -71,19 +71,18 @@ class GnrCustomWebPage(object):
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', colspan=1)
 
         fb.simpleTextarea(value='^.message',lbl='Text')
-        fb.button('Run').dataRpc(self.send_email, smtp_host='=.smtp_host', 
+        fb.button('Run').dataRpc(self.send_testemail, smtp_host='=.smtp_host', 
                             port='=.port', message='=.message', 
                             tls='=.tls', ssl='=.ssl',
                             from_address='=.from_address', to_address='=.to_address', 
                             user='=.user', password='=.password')
 
     @public_method
-    def send_email(self, smtp_host=None, port=None, ssl=None, tls=None, user=None, password=None,
+    def send_testemail(self, smtp_host=None, port=None, ssl=None, tls=None, user=None, password=None,
                             message=None,from_address=None,to_address=None):
-        msg = "From: {from_address}\r\nTo: {to_address}\r\n{message}".format(from_address=from_address, 
-                            to_address=to_address, message=message)
         account_params = dict(smtp_host=smtp_host, port=port, user=user, password=password, ssl=ssl, tls=tls)
         mh = MailService()
+        msg = mh.build_base_message(subject='Test', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
         with mh.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, to_address, msg)
+            smtp_connection.sendmail(from_address, to_address, msg.as_string())
             print("Successfully sent email")
