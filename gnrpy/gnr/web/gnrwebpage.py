@@ -343,9 +343,10 @@ class GnrWebPage(GnrBaseWebPage):
             
     @property 
     def wsk(self):
-        if hasattr(self,'asyncServer'):
-            return self.asyncServer.wsk
-        return self.site.wsk
+        return False
+        #if hasattr(self,'asyncServer'):
+        #    return self.asyncServer.wsk
+        #return self.site.wsk
         
     @property 
     def dev(self):
@@ -1922,8 +1923,7 @@ class GnrWebPage(GnrBaseWebPage):
         
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
-        #handler = self.setInClientData_websocket if self.wsk or hasattr(self,'asyncServer') else self.setInClientData_legacy
-        handler = self.setInClientData_legacy
+        handler = self.setInClientData_websocket if self.wsk or hasattr(self,'asyncServer') else self.setInClientData_legacy
         handler(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
                         fired=fired, reason=reason, replace=replace,public=public,**kwargs)
 
