@@ -2,7 +2,7 @@ UPCOMING RELEASE
 ================
 
 * Availabily for signed and timestamp based signature in URLs
-
+* New 'gnr web inspect' cli tool to inspect site registers, filterable
 
 
 Version 24.3.8
