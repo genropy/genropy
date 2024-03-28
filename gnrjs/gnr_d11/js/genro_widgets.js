@@ -773,7 +773,9 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
+            if(sourceNode.attr.documentClasses){
+                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
+            }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
