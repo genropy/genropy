@@ -470,7 +470,7 @@ class MailService(GnrBaseService):
             msg['To'] = address
             msg['Cc'] = cc and ','.join(cc)
             msg['Bcc'] = bcc and ','.join(bcc)
-            with self.get_smtp_connection(**account_params) as smtp_connection:
-                smtp_connection.sendmail(account_params['from_address'], (address, cc, bcc), msg.as_string())
-                if progress_cb:
-                    progress_cb(i + 1, total_to)
+            smtp_connection.sendmail(account_params['from_address'], (address, cc, bcc), msg.as_string())
+            if progress_cb:
+                progress_cb(i + 1, total_to)
+        smtp_connection.close()
