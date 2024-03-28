@@ -13,17 +13,17 @@ except:
 
 
 class AutoTable(object):
-    def __init__(self, pkg_name):
+    def __init__(self, pkg_name, db):
         self._package_name = pkg_name
-
+        self._db = db
     def __getattr__(self, name):
         # cached in genropy?
         if name=='__wrapped__':  # jedi fix ?
             return self.__dir__()
-        return db.table('%s.%s' % (self._package_name, name))
+        return self._db.table('%s.%s' % (self._package_name, name))
 
     def __dir__(self):
-        pkg = db.package(self._package_name)
+        pkg = self._db.package(self._package_name)
         return list(pkg.tables)
 
     def __str__(self):
@@ -40,7 +40,7 @@ def main():
     db = gnrapp.db
     packages = list(db.packages)
     for pkg_name in packages:
-        locals()[pkg_name] = AutoTable(pkg_name)
+        locals()[pkg_name] = AutoTable(pkg_name, db)
     print ("\nPackages: %s"%' '.join(packages))
     try:
         from IPython import embed
