@@ -1,8 +1,11 @@
 UPCOMING RELEASE
 ================
 
-* Availabily for signed and timestamp based signature in URLs
-* New 'gnr web inspect' cli tool to inspect site registers, filterable
+* Availabily for signed URLs, including timestamped ones.
+* New 'gnr web inspect' cli tool to inspect site registers, filterable.
+* New 'gnr web serve' alias for 'gnr web wsgiserve'.
+* New 'db' namespace for gnr CLI tool, to provide alias like 'gnr db setup'
+  rather than 'gnr app dbsetup'.
 
 
 Version 24.3.8
