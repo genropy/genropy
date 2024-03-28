@@ -107,7 +107,7 @@ class WsgiWebSocketHandler(WebSocketHandler):
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         envelope=Bag(dict(command=command,data=data))
 
-        body = urllib.parse.urlencode(dict(page_id=page_id,envelope=envelope.toXml(unresolved=True)))
+        body = urllib.parse.urlencode(dict(page_id=page_id,remote_service=None,envelope=envelope.toXml(unresolved=True)))
         #self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
 
         n = MAX_CONNECTION_ATTEMPT
