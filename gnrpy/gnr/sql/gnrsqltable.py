@@ -995,12 +995,7 @@ class SqlTable(GnrObject):
                 node.attr.pop('_resolver_kwargs',None)
                 node.attr.pop('_resolver_name',None)
                 if node.attr.get('mode') == 'M' and node.attr.get('_onDelete')=='cascade':
-                    node.resolver.readOnly = False
-                    for n in node.getValue():
-                        n.resolver.readOnly =False
-                        n.value
-                        n.resolver = None
-                    node.resolver = None
+                    return self.db.table('.'.join(node.attr.get('_target_fld').split('.')[:2]))._onCopyExpandMany(node)
                 else:
                     nodes_to_del.append('.'.join(_pathlist+[node.label]))
         record.walk(_onCopyRecord_expandNode,_mode='static',_pathlist=_pathlist)
@@ -1008,10 +1003,27 @@ class SqlTable(GnrObject):
             record.popNode(p)
         return record
     
+    def _onCopyExpandMany(self,node):
+        if self.attributes.get('hierarchical_linked_to') and node.label == '@_children':
+            node.resolver = None
+            node._value = None
+            return False
+        node.resolver.readOnly = False
+        for n in node.getValue():
+            n.resolver.readOnly =False
+            n.value
+            n.resolver = None
+        node.resolver = None
+    
    
 
     @public_method
-    def onPasteRecord(self,sourceCluster=None,doCommit=True,**kwargs):
+    def onPasteRecord(self,sourceCluster=None,**kwargs):
+        result = self.insertPastedCluster(sourceCluster=sourceCluster,**kwargs)
+        self.db.commit()
+        return result[self.pkey]
+    
+    def insertPastedCluster(self,sourceCluster,**kwargs):
         destrecord = self.newrecord(_fromRecord=sourceCluster,**kwargs)
         self.insert(destrecord)
         for node in sourceCluster:
@@ -1019,14 +1031,36 @@ class SqlTable(GnrObject):
                 continue
             l = node.attr['_target_fld'].split('.')
             reltblobj = self.db.table('.'.join(l[:2]))
-            for r in node.value.values():
-                reltblobj.onPasteRecord(sourceCluster=r,doCommit=False,**{l[2]:destrecord[self.pkey]})
-        if doCommit:
-            self.db.commit()
-        return destrecord[self.pkey]
-    
-    
+            reltblobj._onPasteExpandeMany(node,**{l[2]:destrecord[self.pkey]})
+        return destrecord
 
+    def _onPasteExpandeMany(self,node,**kwargs):
+        if self.attributes.get('hierarchical_linked_to'):
+            fkeyCol = node.attr.get('_target_fld').split('.')[2]
+            if self.column(fkeyCol).attributes.get('fkeyToMaster'):
+                self._duplicateLinkedTree(node,**kwargs)
+                return
+        if node.value is None:
+            return
+        for r in node.value.values():
+            self.insertPastedCluster(sourceCluster=r,**kwargs)
+    
+    def _duplicateLinkedTree(self,node,**kwargs):
+        fkeyCol = node.attr.get('_target_fld').split('.')[2]
+        fkeyValue = kwargs[fkeyCol]
+        value = node.value
+        newroot = self.record(fkeyValue).output('dict')
+        values = list(value.values())
+        copydict = {values[0][self.pkey]:newroot[self.pkey]}
+        for rec in values[1:]:
+            dupkwargs = dict(kwargs)
+            for k,v in rec.items():
+                if not isinstance(v,str):
+                    continue
+                if v in copydict:
+                    dupkwargs[k] = copydict[v]
+            copied_record = self.insertPastedCluster(sourceCluster=rec,**dupkwargs)
+            copydict[rec[self.pkey]] = copied_record[self.pkey]
         
     @public_method
     def onCopySelection(self,pkeys=None):

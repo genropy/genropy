@@ -353,6 +353,7 @@ class TableBase(object):
             if hierarchical_virtual_roots:
                 tbl.column('_virtual_node',dtype='B',name_long="!![en]H.Virtual node",copyFromParent=True)
             if hierarchical_linked_to:
+                tbl.attributes['hierarchical_linked_to'] =hierarchical_linked_to
                 self.db.model.deferOnBuilding(self.linkHierarchicalToMaster,
                         hierarchical_tbl='{}.{}'.format(tbl.parentNode.parentNode.parentNode.label,
                                                 tbl.parentNode.label),related_tbl=hierarchical_linked_to)
@@ -515,7 +516,7 @@ class TableBase(object):
         rel_pkey = related_tbl_src.attributes.get('pkey')
         rel_pkey_col = related_tbl_src[f'columns.{rel_pkey}'].attributes
         hierarchical_tbl_src.column(f'{rel_tbl_name}_{rel_pkey}',dtype=rel_pkey_col.get('dtype'),size=rel_pkey_col.get('size'),
-                                    group='_',copyFromParent=True,
+                                    group='_',copyFromParent=True,fkeyToMaster=True,
                                     name_long=related_tbl_src.attributes.get('name_long')
                                     ).relation(f'{rel_pkg}.{rel_tbl_name}.{rel_pkey}',deferred=True,
                                                relation_name=f'{tblname}s',
