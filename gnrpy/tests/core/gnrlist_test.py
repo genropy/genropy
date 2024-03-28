@@ -167,7 +167,6 @@ def test_sortByItem():
     assert "Wayne" in res[-1]['company']['name']
     res = gl.sortByItem(test_l, "company.name:d*", hkeys=True)
     assert "Wayne" in res[0]['company']['name']
-    assert False
     
 def test_getReader():
     import tempfile
