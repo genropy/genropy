@@ -289,13 +289,13 @@ class Table(object):
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
                                 body=message['body'], subject=message['subject'],
+                                account_id=account_id,
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
-
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
