@@ -411,14 +411,15 @@ class MailService(GnrBaseService):
             cb(*cb_args, **cb_kwargs)
 
     def _sendmail(self, account_params, from_address, to_address, cc_address, bcc_address, msg_string):
+        smtp_connection = self.get_smtp_connection(**account_params)
         email_address = []
         for dest in (to_address, cc_address, bcc_address):
             dest = dest or []
             if isinstance(dest,str):
                 dest = dest.split(',')
             email_address.extend(dest)
-        with self.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, email_address, msg_string)
+        smtp_connection.sendmail(from_address, email_address, msg_string)
+        smtp_connection.close()
 
     def sendmail_many(self, to_address, subject, body, attachments=None, account=None,
                       from_address=None, smtp_host=None, port=None, user=None, password=None,
