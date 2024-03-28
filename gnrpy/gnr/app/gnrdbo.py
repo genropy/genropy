@@ -529,7 +529,7 @@ class TableBase(object):
                                     ).relation(f'{pkg}.{tblname}.id',
                                                one_one='*',
                                                onDuplicate=False,
-                                               mode='foreignkey', onDelete='ignore')
+                                               mode='foreignkey', onDelete_sql='setnull')
         #
     
     def trigger_insertLinkedHierarchicalRoot(self,record,fldname,**kwargs):
