@@ -1969,7 +1969,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
-        var jsPdfViewer = isNullOrBlank(jsPdfViewer)? genro.getData('gnr.app_preference.sys.jsPdfViewer'):jsPdfViewer;
+        let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
+        var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
         if(parsedSrc.file && stringEndsWith(parsedSrc.file,'.pdf') && jsPdfViewer  ){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;

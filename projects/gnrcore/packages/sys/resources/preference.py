@@ -122,6 +122,7 @@ class UserPref(object):
         fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
         fb.filteringSelect(value='^.mobile.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Mobile Font size')
         fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')
+        fb.checkbox(value='^.#parent.jsPdfViewer',label='!![en]Extended pdf viewer')
 
        #fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
        #                minimum=0,maximum=360,lbl='Color rotate',livePreference=True)
