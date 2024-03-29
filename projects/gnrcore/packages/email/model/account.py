@@ -20,10 +20,9 @@ class Table(object):
         input.column('password',size=':80',name_long='!!Password')
         input.column('last_uid',name_long='!!Last UID')
         output = tbl.colgroup('output', name_long='!!Output parameters')
-        fpars = dict(format_bag_cells='mv_main,mv_label,mv_value,mv_note',format_bag_mv_main='<div class="tick_icon10"></div>,')
         output.column('smtp_host',name_long='!!SMTP host')
         output.column('smtp_from_address', name_long='!!From address')
-        output.column('smtp_from_address_mv', dtype='X', name_long='!!From address',**fpars)
+        output.column('smtp_from_name', name_long='!!From name')
         output.column('smtp_reply_to',name_long='!!Reply to')
         output.column('smtp_username',name_long='!!Smtp username')
         output.column('smtp_password',name_long='!!Smtp password')
@@ -46,8 +45,9 @@ class Table(object):
         mp = dict()
         mp['smtp_host'] = account['smtp_host']
         mp['from_address'] = account['smtp_from_address']  
-        mp['reply_to'] = account['smtp_reply_to'] 
         mp['user'] = account['smtp_username']
+        mp['reply_to'] = account['smtp_reply_to'] 
+        mp['dflt_noreply'] = account['dflt_noreply'] or self.db.application.getPreference('dflt_noreply',pkg='email')
         mp['password'] = account['smtp_password']
         mp['port'] = account['smtp_port']
         mp['ssl'] = account['smtp_ssl']

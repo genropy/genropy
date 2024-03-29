@@ -13,4 +13,4 @@ class Table(object):
         tbl.column('reason',name_long='!!Reason')
 
     def trigger_onInserting(self, record):
-        pass #riempire clean address togliendo <>
+        pass        #riempire clean address togliendo <>

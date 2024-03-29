@@ -47,8 +47,7 @@ class Form(BaseComponent):
         tc = main_bc.tabContainer(margin='2px', region='center')
         bc = tc.borderContainer(title='Input')
         top = bc.contentPane(region='top', datapath='.record')
-        fb = top.div(padding='10px').formbuilder(cols=2,border_spacing='4px',
-                                            fld_html_label=True)
+        fb = top.div(padding='10px').formbuilder(cols=2,border_spacing='4px')
         fb.field('address')
         fb.field('full_name')
         fb.field('host')
@@ -63,10 +62,12 @@ class Form(BaseComponent):
         fb.button('!![en]Check e-mail', action='PUBLISH check_email')
         fb.dataRpc(self.db.table('email.message').receive_imap, subscribe_check_email=True, account='=.id')
         
-        out = tc.contentPane(title='Output',datapath='.record')
-        fb = out.div(padding='10px').formbuilder(cols=2,border_spacing='4px', fld_html_label=True)
+        out = tc.borderContainer(title='Output',datapath='.record')
+        fb = out.contentPane(region='center', padding='10px').formbuilder(cols=2,border_spacing='4px')
         fb.field('smtp_host')
         fb.field('smtp_from_address')
+        fb.field('smtp_reply_to')
+        fb.field('dflt_noreply')
         fb.field('smtp_username')
         fb.field('smtp_password',type='password')
         fb.field('smtp_port')
@@ -77,11 +78,12 @@ class Form(BaseComponent):
         fb.field('save_output_message',html_label=True)
         fb.field('send_limit')
         fb.field('debug_address')
-        fb.button('!![en]Send test').dataRpc(self.testSmtpSettings, host='=.smtp_host', from_address='=.smtp_from_address',
+        fb.field('smtp_from_name', width='100%', height='50px', tag='simpleTextArea')
+        fb.button('!![en]Send test').dataRpc(self.testSmtpSettings, host='=.smtp_host', from_address='=.smtp_from_address', #DP mettiamo in una toolbar a destra?
                                         username='=.smtp_username', password='=.smtp_password', port='=.smtp_port',
                                         tls='=.smtp_tls', ssl='=.smtp_ssl', _ask=dict(title="!![en]Send test e-mail",
                                         fields=[dict(name="to_address",lbl="To address")]))
-
+        
         main_bc.contentPane(region='bottom', height='50%').inlineTableHandler(relation='@account_users',
                                 viewResource=':ViewFromAccount',
                                 picker='user_id',title='!!Users',

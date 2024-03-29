@@ -35,14 +35,16 @@ class AdmMailService(MailService):
     
     def sendUserTemplateMail(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
-                            template=None,
+                            template=None, 
                             attachments=None,to_address=None, subject=None,
-                            cc_address=None,bcc_address=None,from_address=None,**kwargs):
+                            cc_address=None,bcc_address=None,from_address=None,
+                            noreply=None, nosend=None, **kwargs):
         return self.sendmail(**self.mailParsFromUserTemplate(record_id=record_id,letterhead_id=letterhead_id,
                             template_id=template_id,table=table,template_code=template_code,
-                            template=template,
+                            template=template, 
                             attachments=attachments,to_address=to_address,subject=subject,
-                            cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, **kwargs))
+                            cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, 
+                            noreply=noreply, nosend=nosend, **kwargs))
     
     @extract_kwargs(extra=True)
     def mailParsFromUserTemplate(self,record_id=None,letterhead_id=None,

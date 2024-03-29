@@ -25,6 +25,7 @@ class Table(object):
         tbl.column('from_address',name_long='!!From',_sendback=True)
         tbl.column('cc_address',name_long='!!Cc',_sendback=True)
         tbl.column('bcc_address',name_long='!!Bcc',_sendback=True)
+        tbl.column('reply_to',name_long='!!Reply to',_sendback=True)
         tbl.column('uid',name_long='!!UID')
         tbl.column('body',name_long='!!Body')
         tbl.column('body_plain',name_long='!!Plain Body')
@@ -49,6 +50,7 @@ class Table(object):
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
         tbl.column('noreply', dtype='B', name_long='!![en]No reply')
+        tbl.column('nosend', dtype='B', name_long='!![en]Do not send')  #DP Possibility to avoid sending message (to do)
         
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
@@ -206,10 +208,10 @@ class Table(object):
 
     @public_method
     def newMessage(self, account_id=None,to_address=None,from_address=None,
-                  subject=None, body=None, cc_address=None, 
-                  reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
-                 message_id=None,message_date=None,message_type=None,
-                 html=False,doCommit=False,headers_kwargs=None,**kwargs):
+                    subject=None, body=None, cc_address=None, 
+                    reply_to=None, bcc_address=None, attachments=None,weak_attachments=None,
+                    message_id=None,message_date=None,message_type=None,
+                    html=False,doCommit=False,headers_kwargs=None,**kwargs):
         
         message_date = message_date or self.db.workdate
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
@@ -234,7 +236,8 @@ class Table(object):
                             extra_headers=extra_headers,
                             message_type=message_type,
                             weak_attachments=weak_attachments,
-                            html=html,dbstore=dbstore,**kwargs)
+                            html=html,dbstore=dbstore,
+                            reply_to=reply_to,**kwargs)
         message_atc = self.db.table('email.message_atc')
         with self.db.tempEnv(autoCommit=True,**envkw):
             self.insert(message_to_dispatch)
@@ -294,7 +297,9 @@ class Table(object):
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
+                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], 
+                                reply_to=message['reply_to'],
+                                async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address
