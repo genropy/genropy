@@ -8,30 +8,35 @@ class Table(object):
                             pkey='id', name_long='!!Account', name_plural='!!Account')
         self.sysFields(tbl)
         tbl.column('account_name',name_long='!!Account Name',unique=True)
-        tbl.column('address',name_long='!!Address')
-        tbl.column('full_name',size=':80',name_long='!!Full Name')
-        tbl.column('host',size=':80',name_long='!!Host')
-        tbl.column('port','L',name_long='!!Port')
-        tbl.column('protocol_code',size=':10',name_long='!!TLS').relation('email.protocol.code', mode='foreignkey', relation_name='accounts')
-        tbl.column('tls','B',name_long='!!TLS')
-        tbl.column('ssl','B',name_long='!!SSL')
-        tbl.column('username',size=':80',name_long='!!Username')
-        tbl.column('password',size=':80',name_long='!!Password')
-        tbl.column('last_uid',name_long='!!Last UID')
-        tbl.column('smtp_host',name_long='!!SMTP host')
-        tbl.column('smtp_from_address',name_long='!!From address')
-        tbl.column('smtp_username',name_long='!!Smtp username')
-        tbl.column('smtp_password',name_long='!!Smtp password')
-        tbl.column('smtp_port',name_long='!!Smtp port',dtype='L')
-        tbl.column('smtp_timeout',name_long='!!Smtp timeout',dtype='L')
-        tbl.column('smtp_tls',name_long='!!Smtp tls',dtype='B')
-        tbl.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
-        tbl.column('send_limit', dtype='L', name_long='!!Sending limit')
-        tbl.column('system_bcc',name_long='!!System bcc')
-
-        tbl.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
-        tbl.column('save_output_message', dtype='B', name_long='!!Save output message')
-        tbl.column('debug_address', name_long='!!Debug address')
+        input = tbl.colgroup('input', name_long='!!Input parameters')
+        input.column('address',name_long='!!Address')
+        input.column('full_name',size=':80',name_long='!!Full Name')
+        input.column('host',size=':80',name_long='!!Host')
+        input.column('port','L',name_long='!!Port')
+        input.column('protocol_code',size=':10',name_long='!!TLS').relation('email.protocol.code', mode='foreignkey', relation_name='accounts')
+        input.column('tls','B',name_long='!!TLS')
+        input.column('ssl','B',name_long='!!SSL')
+        input.column('username',size=':80',name_long='!!Username')
+        input.column('password',size=':80',name_long='!!Password')
+        input.column('last_uid',name_long='!!Last UID')
+        output = tbl.colgroup('output', name_long='!!Output parameters')
+        fpars = dict(format_bag_cells='mv_main,mv_label,mv_value,mv_note',format_bag_mv_main='<div class="tick_icon10"></div>,')
+        output.column('smtp_host',name_long='!!SMTP host')
+        output.column('smtp_from_address', name_long='!!From address')
+        output.column('smtp_from_address_mv', dtype='X', name_long='!!From address',**fpars)
+        output.column('smtp_reply_to',name_long='!!Reply to')
+        output.column('smtp_username',name_long='!!Smtp username')
+        output.column('smtp_password',name_long='!!Smtp password')
+        output.column('smtp_port',name_long='!!Smtp port',dtype='L')
+        output.column('smtp_timeout',name_long='!!Smtp timeout',dtype='L')
+        output.column('smtp_tls',name_long='!!Smtp tls',dtype='B')
+        output.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
+        output.column('send_limit', dtype='L', name_long='!!Sending limit')
+        output.column('system_bcc',name_long='!!System bcc')
+        output.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
+        output.column('save_output_message', dtype='B', name_long='!!Save output message')
+        output.column('debug_address', name_long='!!Debug address')
+        output.column('dflt_noreply', name_long='!!Default no-reply')
     
     def getSmtpAccountPref(self,account=None,account_name=None):
         if account:
@@ -40,7 +45,8 @@ class Table(object):
             account = self.record(where='$account_name=:an',an=account_name).output('dict')
         mp = dict()
         mp['smtp_host'] = account['smtp_host']
-        mp['from_address'] = account['smtp_from_address']
+        mp['from_address'] = account['smtp_from_address']  
+        mp['reply_to'] = account['smtp_reply_to'] 
         mp['user'] = account['smtp_username']
         mp['password'] = account['smtp_password']
         mp['port'] = account['smtp_port']
@@ -48,6 +54,7 @@ class Table(object):
         mp['tls'] = account['smtp_tls']
         mp['system_bcc'] = account['system_bcc']
         mp['system_debug_address'] = account['debug_address']
+        mp['scheduler'] = account['save_output_message']
         return mp
         
     def standardMailboxes(self):

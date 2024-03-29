@@ -9,4 +9,8 @@ class Table(object):
         tbl.column('message_id',size='22',name_long='!!Message id').relation('email.message.id', mode='foreignkey', 
                                                                             relation_name='addresses',deferred=True)
         tbl.column('address',name_long='!!Address',indexed=True)
+        tbl.column('clean_address', name_long='!![en]Clean address', indexed=True)
         tbl.column('reason',name_long='!!Reason')
+
+    def trigger_onInserting(self, record):
+        pass #riempire clean address togliendo <>

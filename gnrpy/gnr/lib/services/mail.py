@@ -119,7 +119,6 @@ class MailService(GnrBaseService):
                                         password=password, port=port,
                                         system_bcc=system_bcc,ssl=ssl,tls=tls)
 
-
     def get_account_params(self,  **kwargs):
         """Set the account parameters and return them
 
@@ -141,7 +140,7 @@ class MailService(GnrBaseService):
         account_params = dict(self.smtp_account)
         for k,v in kwargs.items():
             if v is not None:
-                kwargs[k] = v
+                account_params[k] = v
         return account_params
 
     def getDefaultMailAccount(self):

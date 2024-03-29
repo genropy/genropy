@@ -33,7 +33,6 @@ from gnr.core.gnrdecorator import extract_kwargs
 
 class AdmMailService(MailService):
     
-    
     def sendUserTemplateMail(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
                             template=None,

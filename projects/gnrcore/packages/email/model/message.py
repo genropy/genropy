@@ -48,7 +48,8 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
-
+        tbl.column('noreply', dtype='B', name_long='!![en]No reply')
+        
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
