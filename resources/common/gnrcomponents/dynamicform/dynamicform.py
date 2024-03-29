@@ -361,6 +361,19 @@ class DynamicForm(BaseComponent):
                             this.form.checkInvalidFields();
                             """,**kwargs)
   
+    @struct_method
+    def df_appendDynamicFieldFromPkey(self,pane,df_table=None,df_pkey=None,datapath=None,**kwargs):
+        fbobj = pane.fbuilder
+        fbattrs = dict(fbobj.commonKwargs)
+        fbattrs.update(cols=fbobj.colmax, 
+                      lblclass=fbobj.lblclass, lblpos=fbobj.lblpos, lblalign=fbobj.lblalign, 
+                      fldalign=fbobj.fldalign,
+                      fieldclass=fbobj.fieldclass,
+                      lblvalign=fbobj.lblvalign, fldvalign=fbobj.fldvalign,
+                      byColumn=fbobj.byColumn,
+                      colswidth=fbobj.colswidth)
+        pane.remote(self.df_remoteDynamicGroup,df_table=df_table,_if='df_pkey',
+                            df_pkey=df_pkey,datapath=datapath,*kwargs)
 
 
     def df_prepareGlobalVars(self,global_fields=None,df_groups=None):
