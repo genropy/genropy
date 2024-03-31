@@ -153,6 +153,8 @@ class DynamicFormBagManager(BaseComponent):
         datagetter.simpletextarea(value='^.where',lbl='Where',lbl_vertical_align='top',height='60px',rowspan=3,width='100%')
         datagetter.textbox(value='^.column',lbl='Column')
         datagetter.textbox(value='^.innerpath',lbl='Column')
+        tc.contentPane(title='Extended Parameters').MultiValueEditor(value='^#FORM.record')
+
 
 class DynamicForm(BaseComponent):
     css_requires='gnrcomponents/dynamicform/dynamicform'
