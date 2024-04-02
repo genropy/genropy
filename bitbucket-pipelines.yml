@@ -30,7 +30,7 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - pytest tests/core tests/sql
                 services:
                   - postgres
                   

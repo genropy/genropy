@@ -26,10 +26,6 @@ class TestBasicBag(object):
         #b.toXml('data/testbag.xml')
 
         assert b == self.mybag
-
-
-        print(os.environ)
-        assert False
         
     def test_fillFromUrl(self):
         b = Bag('https://www.genropy.org/feed/')
