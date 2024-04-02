@@ -1,6 +1,16 @@
 image: python:3.7.4-alpine3.10
 clone:
   depth: full
+
+definitions:
+  services:
+    postgres:
+     image: postgres
+     environment:
+       POSTGRES_DB: postgres
+       POSTGRES_USER: postgres
+       DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+  
 pipelines:
   default:
     - step:
@@ -17,11 +27,12 @@ pipelines:
                 caches:
                   - pip
                 script:
-                  - apt install postgresql
                   - cd gnrpy
                   - pip install --editable .[developer]
                   - pytest tests/core
-
+                services:
+                  - postgres
+                  
             - step:
                 name: Tests against python 3.9
                 image: python:3.9-bookworm
