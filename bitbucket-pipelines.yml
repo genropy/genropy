@@ -17,7 +17,7 @@ pipelines:
                 caches:
                   - pip
                 script:
-                  - apt install postgresql-15
+                  - apt install postgresql
                   - cd gnrpy
                   - pip install --editable .[developer]
                   - pytest tests/core
