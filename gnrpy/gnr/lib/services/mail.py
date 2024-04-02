@@ -136,11 +136,12 @@ class MailService(GnrBaseService):
                     #. ssl -> all data is encrypted on a ssl layer
                     #. tls -> server and client begin communitation in a unsecure way and after a starttls
                        command they start to encrypt data (this is the way you use to connect to gmail smtp)"""
-        account_params = dict(self.smtp_account)
-        for k,v in kwargs.items():
-            if v is not None:
-                account_params[k] = v
-        return account_params
+        account_parameters = dict(self.smtp_account)
+        result = dict(kwargs)    
+        for k,v in account_parameters.items():
+            if result.get(k) is None:
+                result[k] = v        
+        return result
 
     def getDefaultMailAccount(self):
         return Bag(self.get_account_params())
@@ -316,7 +317,7 @@ class MailService(GnrBaseService):
                  account=None,timeout=None,
                  from_address=None, smtp_host=None, port=None, user=None, password=None,message_id=None,message_date=None,
                  ssl=False, tls=False, html=False, charset='utf-8', async_=False,
-                 cb=None, cb_args=None, cb_kwargs=None, headers_kwargs=None, **kwargs):
+                 cb=None, priority=None, cb_args=None, cb_kwargs=None, headers_kwargs=None, **kwargs):
         """Send mail is a function called from the postoffice object to send an email.
 
         :param to_address: the email receiver

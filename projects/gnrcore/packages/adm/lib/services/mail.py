@@ -38,20 +38,22 @@ class AdmMailService(MailService):
                             template=None, 
                             attachments=None,to_address=None, subject=None,
                             cc_address=None,bcc_address=None,from_address=None,
-                            noreply=None, nosend=None, **kwargs):
-        return self.sendmail(**self.mailParsFromUserTemplate(record_id=record_id,letterhead_id=letterhead_id,
+                            reply_to=None, priority=None, **kwargs):
+        
+        mailpars = self.mailParsFromUserTemplate(record_id=record_id,letterhead_id=letterhead_id,
                             template_id=template_id,table=table,template_code=template_code,
                             template=template, 
                             attachments=attachments,to_address=to_address,subject=subject,
                             cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, 
-                            noreply=noreply, nosend=nosend, **kwargs))
+                            reply_to=reply_to, priority=priority, **kwargs)
+        return self.sendmail(**mailpars)
     
     @extract_kwargs(extra=True)
     def mailParsFromUserTemplate(self,record_id=None,letterhead_id=None,
                             template_id=None,table=None,template_code=None,
                             template = None,attachments=None,to_address=None,subject=None,
                             cc_address=None,bcc_address=None,from_address=None,
-                            extra_kwargs=None, **kwargs):
+                            extra_kwargs=None, reply_to=None, priority=None, **kwargs):
         if template:
             if isinstance(template,Bag):
                 tpl = template
@@ -108,6 +110,7 @@ class AdmMailService(MailService):
         to_address = ','.join(filtered_to_address)
         kwargs.setdefault('html',True)
         kwargs.update(to_address=to_address,subject=subject,cc_address=cc_address, bcc_address=bcc_address,
-                      from_address=from_address, body=html_text,attachments=attachments)
+                      from_address=from_address, body=html_text, attachments=attachments,
+                      reply_to=reply_to, priority=priority)
         
         return kwargs

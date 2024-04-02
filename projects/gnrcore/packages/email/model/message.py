@@ -49,8 +49,8 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
-        tbl.column('noreply', dtype='B', name_long='!![en]No reply')
-        tbl.column('nosend', dtype='B', name_long='!![en]Do not send')  #DP Possibility to avoid sending message (to do)
+        tbl.column('priority', name_long='!![en]Priority', 
+                   values='9:[!![en]No send],3:[!![en]Low],2:[!![en]Standard],1:[!![en]High],-1:[!![en]Immediate]')
         
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
@@ -267,7 +267,7 @@ class Table(object):
                             attachments=attachments,to_address=to_address, subject=subject,
                             cc_address=cc_address,bcc_address=bcc_address,from_address=from_address, account_id=account_id, **kwargs))
     
-
+    
     @public_method
     def sendMessage(self,pkey=None):
         site = self.db.application.site
@@ -283,6 +283,7 @@ class Table(object):
             account_id = message['account_id']
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
             bcc_address = message['bcc_address'] 
+            to_address = mp['system_debug_address'] or message['to_address']
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
             attachments = [r['filepath'] for r in attachments]
             if message['weak_attachments']:
@@ -290,11 +291,13 @@ class Table(object):
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
-                mail_handler.sendmail(to_address = message['to_address'],
-                                body=message['body'], subject=message['subject'],
+                mail_handler.sendmail(to_address=to_address,
+                                body=message['body'], 
+                                subject=message['subject'],
                                 account_id=account_id,
-                                cc_address=message['cc_address'], bcc_address=bcc_address,
-                                from_address=message['from_address'] or mp['from_address'],
+                                cc_address=message['cc_address'], 
+                                bcc_address=bcc_address,
+                                from_address=message['from_address'] or mp['from_address'], 
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], 

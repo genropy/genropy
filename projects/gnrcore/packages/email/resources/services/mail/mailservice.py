@@ -17,7 +17,7 @@ class Service(AdmMailService):
         result = dict(kwargs)    
         for k,v in account_parameters.items():
             if result.get(k) is None:
-                result[k] = v                                         
+                result[k] = v      
         return result
 
     def set_smtp_account(self, email_account_id=None,**kwargs):
@@ -25,17 +25,17 @@ class Service(AdmMailService):
             
     @extract_kwargs(headers=True)
     def sendmail(self, scheduler=None, account_id=None, attachments=None,
-                        headers_kwargs=None, doCommit=None, noreply=None, nosend=None, **kwargs):   
+                        headers_kwargs=None, doCommit=None, **kwargs):   
         message_kwargs = self.get_account_params(account_id, **kwargs)    #DP message parameters and connection settings in kwargs
         default_scheduler = message_kwargs.pop('scheduler',None)
-        dflt_noreply = message_kwargs.pop('dflt_noreply',None)
-        if noreply:
-            message_kwargs['reply_to'] = dflt_noreply
 
         scheduler = default_scheduler if scheduler is None else scheduler
         if scheduler:
-            new_message = self.parent.db.table('email.message').newMessage(attachments=attachments,
+            message_tbl = self.parent.db.table('email.message')
+            new_message = message_tbl.newMessage(attachments=attachments,
                                                     headers_kwargs=headers_kwargs,doCommit=doCommit,**message_kwargs)
+            if new_message['priority'] == '-1':
+                new_message = message_tbl.sendMessage(new_message['id'])
             return new_message
         else:
             kwargs['headers_kwargs'] = headers_kwargs
