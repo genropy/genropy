@@ -30,7 +30,8 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core tests/sql
+                  - cd tests
+                  - pytest core sql web app xtnd
                 services:
                   - postgres
                   
@@ -42,7 +43,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+                  
             - step:
                 name: Tests against python 3.10
                 image: python:3.10-bookworm
@@ -51,7 +56,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+
             - step:
                 name: Tests against python 3.11
                 image: python:3.11-bookworm
@@ -60,7 +69,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+
             - step:
                 name: Tests against python 3.12
                 image: python:3.12.1-bookworm
@@ -69,7 +82,10 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - GNR_LOCALE="en_US" pytest tests/core
+                  - cd tests
+                  - GNR_LOCALE="en_US" pytest core sql web app xtnd
+                services:
+                  - postgres
                   
   tags:
     ecr-release-*:
