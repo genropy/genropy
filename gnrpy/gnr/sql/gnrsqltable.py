@@ -1183,7 +1183,6 @@ class SqlTable(GnrObject):
             colToRead = '.'.join(pathlist[1:])
             fromKeyValue = newrecord.get(fromFkey)
             if fromKeyValue is None:
-                print(colname,'c')
                 continue
             colToRead = colToRead if colToRead.startswith('@') else f'${colToRead}'
             fkeysColsToRead[(fromFkey,fromKeyValue)][colname] = colToRead
