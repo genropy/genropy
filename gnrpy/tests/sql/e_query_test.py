@@ -37,6 +37,7 @@ gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
+from gnr.sql import gnrsqldata as gsd
 from gnr.core.gnrbag import Bag
 
 from .common import BaseGnrSqlTest, configurePackage
@@ -64,13 +65,26 @@ class BaseSql(BaseGnrSqlTest):
         result = query.selection()
         assert isinstance(result, SqlSelection)
 
+    def test_sqlrecordbag(self):
+        rb = gsd.SqlRecordBag(self.db, "video.movie")
+        assert rb.isNew == True
+        rb.save(title="Babbala")
+        rb = gsd.SqlRecordBag(None, "video.movie")
+        rb.db = self.db
+        assert rb.db is not None
+        rb.isNew = False
+        rb.db = self.db
+        rb.save(title="Babbala 2", id=2000)
+        assert self.db.query('video.movie').count() == 12
+        
     def test_query(self):
         result = self.db.query('video.movie')
         assert isinstance(result, SqlQuery)
 
     def test_query_count(self):
-        assert self.db.query('video.movie').count() == 11
+        assert self.db.query('video.movie').count() == 12
         assert self.db.query('video.movie', where='$year=:y', sqlparams={'y': 2005}).count() == 2
+
 
     def test_query_fetch(self):
         fetch = self.db.query('video.movie',
@@ -189,7 +203,7 @@ class TestGnrSqlDb_sqlite(BaseSql):
         cls.name = 'sqlite'
         cls.dbname = cls.CONFIG['db.sqlite?filename']
         cls.db = GnrSqlDb(dbname=cls.dbname)
-
+        
     init = classmethod(init)
 
 class TestGnrSqlDb_postgres(BaseSql):
