@@ -2197,6 +2197,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
     openWindow:function(url, name, params) {
         params = params || {height:'600',width:'900'};
+        let _isPdf = objectPop(params,'_isPdf');
         if (params) {
             if (typeof(params) != 'string') {
                 let parlist = [];
@@ -2206,7 +2207,6 @@ dojo.declare('gnr.GenroClient', null, {
                 params = parlist.join(',');
             }
         }
-        let _isPdf = objectPop(params,'_isPdf');
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
