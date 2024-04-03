@@ -87,9 +87,9 @@ class GnrUnsupportedBrowserException(GnrException):
 
 class GnrMaintenanceException(GnrException):
     pass
+
 class GnrSignedTokenException(GnrException):
     pass
-
 
 class GnrMissingResourceException(GnrException):
     pass
@@ -1052,11 +1052,10 @@ class GnrWebPage(GnrBaseWebPage):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
         
         if handler and getattr(handler,'signed',None):
-            original_url = self.request._request.url
-            _vld = self._call_kwargs.pop('_vld',None)
-            error = self.site.auth_token_generator.verify_url(original_url,_vld)
+            error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
                 raise GnrSignedTokenException(error)
+            
         if handler and getattr(handler, 'tags',None):
             userTags = self.userTags or self.basicAuthenticationTags()
             if not self.application.checkResourcePermission(handler.tags, userTags):
