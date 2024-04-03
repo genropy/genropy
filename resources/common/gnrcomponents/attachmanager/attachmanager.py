@@ -45,8 +45,9 @@ class ViewAtcMobileNoPreview(BaseComponent):
 
 class FormAtcMobile(BaseComponent):
     def th_form(self, form):
-        bc = form.center.borderContainer()
-        bc.contentPane(region='center',datapath='.record').iframe(src='^.fileurl',_virtual_column='fileurl',height='100%',width='100%',border=0)
+        bc = form.center.borderContainer(datapath='.record')
+        bc.contentPane(region='center').iframe(src='^.viewurl',height='100%',width='100%',border=0)
+        bc.dataFormula(".viewurl", "genro.dom.detectPdfViewer(fileurl)", fileurl='^.fileurl', _virtual_column='fileurl')
 
     def th_options(self):
         return dict(formCaption=True,modal='navigation')
@@ -122,7 +123,6 @@ class AttachGalleryView(AttachManagerViewBase):
 
 class Form(BaseComponent):
 
- 
     def th_form(self, form):
         sc = form.center.stackContainer(datapath='.record')
         bc = sc.borderContainer()
