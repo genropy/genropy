@@ -1,10 +1,13 @@
 import argparse
 import platform
 ESC = '\033['
+from gnr import VERSION
 
 class GnrCliArgParse(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.add_argument("--version", action="version",
+                          version="%(prog)s "+VERSION)
         if not self.prog.startswith("gnr "):
             # FIXME: this is not efficient
             # since it needs to load the whole script tree
@@ -19,4 +22,5 @@ class GnrCliArgParse(argparse.ArgumentParser):
                 print(f"{ESC}91m {deprecation_warning_mesg} {ESC}00m\n")
             else:
                 print(deprecation_warning_mesg)
-            
+
+        
