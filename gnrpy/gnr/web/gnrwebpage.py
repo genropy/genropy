@@ -1139,7 +1139,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
-        kwargs['websockets_url'] = '/websocket' if self.wsk else None
+        kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
