@@ -68,6 +68,7 @@ class AppPref(object):
         fb.checkbox(value='^.jsPdfViewer',label='!![en]Extended pdf viewer')
         fb.checkbox(value='^.jsPdfViewerMin',label='!![en]Mini pdf viewer')
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
+        fb.checkbox(value='^.experimental.wsk_enabled',lbl='!![en]WSK Enabled')
         
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
