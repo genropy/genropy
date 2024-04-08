@@ -3985,7 +3985,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             genro.publish(gridId + '_row_checked', currNode.label, newval, currNode.attr);
         }
         if (action){
-            var changedRow = this.rowByIndex(rowIndex);
+            var changedRow = this.rowByIndex(idx);
             var changedKey = changedRow[checkedField];
             var changedValue = changedRow[fieldname];
             var actionKw = {_idx:rowIndex,_row:changedRow,_fields:changedFields};
