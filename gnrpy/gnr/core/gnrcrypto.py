@@ -6,6 +6,7 @@ import base64
 import hmac
 import logging
 import datetime
+from urllib.parse import parse_qs, urlparse
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -40,25 +41,11 @@ class AuthTokenGenerator:
 
     def generate(self, value, expire_ts=None):
         log.info(f"Generating payload {value}")
-        payload = f"{value}{self.payload_sep}"
+        payload = f"{value}"
         if expire_ts:
-            payload = f"{payload}{expire_ts}"
+            payload = f"{payload}{self.payload_sep}{expire_ts}"
         signed_payload = self._sign(payload)
         return f"{payload}{self.payload_sep}{signed_payload}"
-    
-    def generate_url(self, url, expire_ts=None,expire_minutes=None):
-        if isinstance(expire_ts,datetime.date):
-            expire_ts = datetime.datetime(expire_ts.year,expire_ts.month,expire_ts.day)
-        if expire_minutes and not expire_ts:
-            expire_ts = datetime.datetime.utcnow() + datetime.timedelta(minutes=expire_minutes)
-        if isinstance(expire_ts,datetime.datetime):
-            expire_ts = str(int(expire_ts.timestamp()))
-        ts = expire_ts or ''
-        first_separator = "&" if len(url.split('?',1))>1 else '?'
-        newurl = f'{url}{first_separator}_vld={ts}'
-        signature = self._sign(newurl)
-        return f"{newurl}{self.payload_sep}{signature}"
-    
     
     def verify(self, value):
         log.info(f"Verifying payload {value}")
@@ -72,66 +59,45 @@ class AuthTokenGenerator:
             # verify timestamp
             val, expire_ts = val.rsplit(self.payload_sep, 1)
             if expire_ts and expire_ts.isnumeric():
-                if int(expire_ts) < int(datetime.datetime.utcnow().timestamp()):
+                if int(expire_ts) < int(datetime.datetime.now(datetime.timezone.utc).timestamp()):
                     raise AuthTokenExpired("Token has expired!")                    
         return val
 
-    
-    def verify_url(self, url,_vld=''):
+    def generate_url(self, url,
+                     expire_ts=None,
+                     expire_minutes=None,
+                     qs_param="_vld"):
+        if isinstance(expire_ts,datetime.date):
+            expire_ts = datetime.datetime(expire_ts.year,expire_ts.month,expire_ts.day)
+        if expire_minutes and not expire_ts:
+            expire_ts = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=expire_minutes)
+        if isinstance(expire_ts,datetime.datetime):
+            expire_ts = str(int(expire_ts.timestamp()))
+
+        ts = expire_ts or ''
+        #first_separator = "&" if len(url.split('?',1))>1 else '?'
+        first_separator = "?" in url and "&" or "?"
+        newurl = f'{url}{first_separator}{qs_param}={ts}'
+        signature = self._sign(newurl)
+        return f"{newurl}{self.payload_sep}{signature}"
+
+    def verify_url(self, url, qs_param="_vld"):
         log.info(f"Verifying url {url}")
-        if not (_vld and (self.payload_sep in _vld)):
-            return 'not_valid'
-        val, signature = _vld.rsplit(self.payload_sep, 1)
+        signature_token = parse_qs(urlparse(url).query).get(qs_param, [''])[0]
+        if not signature_token:
+            return "not_valid"
+
+        if self.payload_sep not in signature_token:
+            return "not_valid"
+        
+        val, signature = url.rsplit(self.payload_sep, 1)
         if self._sign(val) != signature:
-            return 'not_valid'
-        expire_ts = _vld.split(self.payload_sep)[0]
-        ts_now = datetime.datetime.utcnow().timestamp()
-        print('expire_ts',expire_ts,'ts_now',int(ts_now))
-        if expire_ts and ts_now>int(expire_ts):
-            return 'expired'                 
-    
-if __name__ == "__main__":
-    SECRET_KEY = "mysecretkey"
-    SALT = "mysalt"
-    payload = "username"
-    
-    log.debug(f"New Token Generor with key {SECRET_KEY} and salt {SALT}")
-    ATG = AuthTokenGenerator(SECRET_KEY, SALT)
+            return "not_valid"
+        
+        expire_ts = signature_token.split(self.payload_sep)[0]
+        if expire_ts:
+            ts_now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+            if ts_now > int(expire_ts):
+                return "expired"
 
-    # base signature
-    log.debug(f"Signing payload {payload}")
-    r = ATG.generate(payload)
-    log.debug(f"Got signed payload '{r}'")
-    log.debug(f"Verifying payload '{r}'")
-    try:
-        r = ATG.verify(r)
-        log.debug(f"Payload is correctly signed and contains: {r}")
-    except Exception as e:
-        log.debug(f"Verification failed: {e}")
-
-    # timed operations
-    log.debug(f"Signing timestamped payload {payload}")
-    # expire in 10 seconds
-    r = ATG.generate("username", expire_ts=int(time.time())+2)
-    log.debug(f"Got timestamped signed payload '{r}'")
-    log.debug(f"Verifying timestamped payload '{r}'")
-    try:
-        r = ATG.verify(r)
-        log.debug(f"Payload is correctly signed and contains: {r}")
-    except Exception as e:
-        log.debug(f"Verification failed: {e}")
-
-    # testing errors
-    log.debug(f"Signing timestamped payload {payload}")
-    r = ATG.generate("username", expire_ts=int(time.time())+2)
-    log.debug(f"Got timestamped signed payload '{r}'")
-    pause = 2
-    log.debug(f"Pause for {pause} seconds")
-    time.sleep(pause)
-    log.debug(f"Verifying timestamped payload '{r}'")
-    try:
-        r = ATG.verify(r)
-        log.debug(f"Payload is correctly signed and contains: {r}")
-    except Exception as e:
-        log.debug(f"Verification failed: {e}")
     

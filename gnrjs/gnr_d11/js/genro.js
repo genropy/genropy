@@ -2228,7 +2228,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
-        url = genro.dom.detectPdfViewer(url);
+        //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     

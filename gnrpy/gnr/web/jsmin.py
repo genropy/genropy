@@ -71,6 +71,7 @@ class JavascriptMinify(object):
         """
         c = self.theLookahead
         self.theLookahead = None
+
         if c == None:
             c = self.instream.read(1)
         if c >= ' ' or c == '\n':
@@ -211,8 +212,3 @@ class JavascriptMinify(object):
         self._jsmin()
         self.instream.close()
 
-if __name__ == '__main__':
-    import sys
-
-    jsm = JavascriptMinify()
-    jsm.minify(sys.stdin, sys.stdout)

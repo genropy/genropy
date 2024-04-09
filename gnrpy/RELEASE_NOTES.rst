@@ -6,7 +6,10 @@ UPCOMING RELEASE
 * New 'gnr web serve' alias for 'gnr web wsgiserve'.
 * New 'db' namespace for gnr CLI tool, to provide alias like 'gnr db setup'
   rather than 'gnr app dbsetup'.
-
+* Added a '--version' option to all CLI command to retrive current framework
+  version, useful for bug reporting
+* New 'gnr app checkdep' cli tool, which will check and optionally install all
+  the dependencies required by all the packages configured in the instance
 
 Version 24.3.8
 ==============

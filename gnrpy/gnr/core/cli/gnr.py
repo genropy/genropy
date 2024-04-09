@@ -8,7 +8,6 @@ and shift argv to let each script handle arguments by itself.
 
 import os, os.path
 import sys
-import argparse
 from importlib import import_module
 import pkgutil
 from collections import defaultdict
@@ -47,14 +46,15 @@ class CommandManager():
     def print_main_help(self):
         print("Usage: gnr <section> <command> [options]\n")
         print("The 'gnr' command is a management command to access all the command line")
-        print("utilities provided by the framework\n")
+        print(f"utilities provided by the framework - Version {gnr.VERSION}\n")
 
         print("Available sections and commands:")
         for section in self.script_tree.keys():
             self.print_section_commands(section)
 
     def print_section_help(self, section):
-        print(f"Usage: gnr {section} <command> [options]\n")
+        print(f"Usage: gnr {section} <command> [options]")
+        print(f"Version: {gnr.VERSION}\n")
         print("Available commands:")
         self.print_section_commands(section)
         
@@ -94,7 +94,7 @@ class CommandManager():
                 print(" ".join(self.script_tree[self.argv[0]].keys()))
                 return
             
-            if self.argv[0] in ["-h", "--help"]:
+            if self.argv[0] in ["-h", "--help", "--version"]:
                 self.print_main_help()
                 return
             
@@ -108,8 +108,8 @@ class CommandManager():
                 print("Command section not found! please run with --help")
                 return
 
-            if self.argv[1] in ["--help", "-h"]:
-                self.print_section_commands(self.argv[0])
+            if self.argv[1] in ["--help", "-h", "--version"]:
+                self.print_section_help(self.argv[0])
                 return
             
             

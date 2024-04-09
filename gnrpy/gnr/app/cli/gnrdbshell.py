@@ -3,13 +3,6 @@ import sys
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
         
-try:
-    import jedi
-    print ("\n*** Note: jedi is installed, autocompletion may not work properly ***\n")
-    # pip uninstall jedi
-    # %config IPCompleter.use_jedi = False
-except:
-    pass
 
 
 class AutoTable(object):
@@ -31,7 +24,16 @@ class AutoTable(object):
     __repr__ = __str__
 
 description = "an interactive helper utility for handling tables"
+
 def main():
+    try:
+        import jedi
+        print ("\n*** Note: jedi is installed, autocompletion may not work properly ***\n")
+        # pip uninstall jedi
+        # %config IPCompleter.use_jedi = False
+    except:
+        pass
+
     parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name")
     options = parser.parse_args()
