@@ -217,7 +217,7 @@ class Table(object):
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
-        account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id']
+        account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id'] or self.parent.getPreference('email_account_id',pkg='email') 
         if weak_attachments and isinstance(weak_attachments,list):
             site = self.db.application.site
             weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])

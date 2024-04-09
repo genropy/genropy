@@ -45,4 +45,4 @@ class Service(AdmMailService):
 class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         fb = pane.formbuilder(datapath=datapath)
-        fb.dbSelect(value='^.email_account_id',lbl='Default smtp account',dbtable='email.account')
+        fb.dbSelect(value='^.email_account_id',lbl='!![en]Default smtp account',dbtable='email.account')

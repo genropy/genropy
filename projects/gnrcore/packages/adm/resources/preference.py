@@ -73,7 +73,7 @@ class AppPref(object):
         fb.textbox(value='^.general.password_regex',lbl='!![en]Password validate regex')
         if 'email' in self.db.packages:
             fb.dbSelect(value='^.mail.email_account_id',lbl='!![en]Default smtp account',dbtable='email.account')
-        #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
+        #DP Deprecated, soon to be removed
         bc.appGuiCustomization(region='center',margin='2px',datapath='.gui_customization')
 
     def _adm_backups(self, pane):

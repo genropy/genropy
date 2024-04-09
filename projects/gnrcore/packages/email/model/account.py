@@ -22,7 +22,6 @@ class Table(object):
         output = tbl.colgroup('output', name_long='!!Output parameters')
         output.column('smtp_host',name_long='!!SMTP host')
         output.column('smtp_from_address', name_long='!!From address')
-        output.column('smtp_from_name', name_long='!!From name')
         output.column('smtp_reply_to',name_long='!!Reply to')
         output.column('smtp_username',name_long='!!Smtp username')
         output.column('smtp_password',name_long='!!Smtp password')
