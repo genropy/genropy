@@ -280,7 +280,7 @@ class Table(object):
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
             bcc_address = message['bcc_address'] 
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
-            attachments = [r['filepath'] for r in attachments]
+            attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
