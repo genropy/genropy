@@ -54,7 +54,8 @@ class Main(BaseResourceBatch):
 
         for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: 'Dumping %s' %item):
             with self.db.tempEnv(storename=s):
-                self.filelist.append(self.db.dump(os.path.join(self.folderpath,s),
+                folder_path = self.backupSn.internal_path
+                self.filelist.append(self.db.dump(os.path.join(folder_path,s),
                                     dbname=self.db.stores_handler.dbstores[s]['database'],
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
