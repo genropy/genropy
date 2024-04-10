@@ -378,7 +378,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     this._firstField = sourceNode;
                 }
             }
-            this._register[sourceNode._id] = sourceNode;
+            this._register[sourceNode._id] = sourceNode;            
             return;
         }
     },
@@ -1986,6 +1986,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     checkInvalidFields: function() {
         var node, sourceNode,node_identifiers,idx, changekey;
+        for(let k in this._register){
+            this._register[k].updateValidationStatus();
+        }
         var invalidfields = this.getInvalidFields();
         var invalidnodes = invalidfields.getNodes();
         for (var i = 0; i < invalidnodes.length; i++) {

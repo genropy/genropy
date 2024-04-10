@@ -329,8 +329,13 @@ class DynamicForm(BaseComponent):
                             _fired='^#FORM.changed_df_type_%s' %field,
                             df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
                             df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,
-                            _onRemote="""this.form.checkInvalidFields();""",
-                                       **kwargs)
+                            _onRemote="""
+                            var frm = this.form;
+                            this.delayedCall(
+                                ()=>{
+                                    frm.checkInvalidFields()
+                                },1,'buildingDynamicForm'
+                            )""",**kwargs)
   
     @struct_method
     def df_appendDynamicFields(self,pane,field=None,**kwargs):
