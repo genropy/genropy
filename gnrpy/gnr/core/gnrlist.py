@@ -34,9 +34,9 @@ from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrexporter import BaseWriter
 
+# FIXME: what's this for?
 class FakeList(list):
     pass
-
 
 def findByAttr(l, **kwargs):
     """Find elements in the ``l`` list having attributes with names and values as
@@ -47,12 +47,20 @@ def findByAttr(l, **kwargs):
     for k, v in list(kwargs.items()):
         result = [x for x in result if getattr(x, k, None) == v]
     return result
-    
+
+def hGetAttr(obj, attr):
+    if obj is None: return None
+    if not '.' in attr:
+        return getattr(obj, attr, None)
+    else:
+        curr, next_item = attr.split('.', 1)
+        return hGetAttr(getattr(obj, curr, None), next_item)
+
 def sortByItem(l, *args, **kwargs):
     """Sort the list ``l``, filled of objects with dict interface by items with key in ``*args``.
     Return the list
     
-    :param l: the list
+    :param l: the list, where items values must be of consistent type
     :param args: a list of keys to sort for. Each key can be reverse sorted by adding ``:d`` to the key.
     :param hkeys: if ``True`` and a key contains ``.``, then it is interpreted as a hierarchical
                   path and sub dict are looked for"""
@@ -68,11 +76,8 @@ def sortByItem(l, *args, **kwargs):
             
     def hGetItem(obj, attr):
         if obj is None: return None
-        if not '.' in attr:
-            return obj.get(attr, None)
-        else:
-            curr, next = attr.split('.', 1)
-            return hGetAttr(obj.get(curr, None), next)
+        curr, next_item = attr.split('.', 1)
+        return hGetAttr(obj.get(curr, None), next_item)
             
     criteria = []
     rev = False
@@ -111,14 +116,7 @@ def sortByAttr(l, *args):
     """TODO
     
     :param l: the list"""
-    # da verificare
-    def hGetAttr(obj, attr):
-        if obj is None: return None
-        if not '.' in attr:
-            return getattr(obj, attr, None)
-        else:
-            curr, next = attr.split('.', 1)
-            return hGetAttr(getattr(obj, curr, None), next)
+
 
     criteria = list(args)
     criteria.reverse()

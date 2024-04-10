@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -60,7 +59,7 @@ class FrameGridTools(BaseComponent):
             menupath = '.addrow_menu_store'
             if isinstance(defaults,Bag):
                 menubag = defaults
-            elif isinstance(defaults,basestring):
+            elif isinstance(defaults,str):
                 menupath = defaults
             else:
                 menubag = Bag()

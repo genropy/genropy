@@ -1,6 +1,17 @@
 image: python:3.7.4-alpine3.10
 clone:
   depth: full
+
+definitions:
+  services:
+    postgres:
+     image: postgres
+     environment:
+       POSTGRES_PASSWORD: postgres
+       POSTGRES_DB: postgres
+       POSTGRES_USER: postgres
+       DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+  
 pipelines:
   default:
     - step:
@@ -19,8 +30,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
-
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+                  
             - step:
                 name: Tests against python 3.9
                 image: python:3.9-bookworm
@@ -29,7 +43,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+                  
             - step:
                 name: Tests against python 3.10
                 image: python:3.10-bookworm
@@ -38,7 +56,11 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+
             - step:
                 name: Tests against python 3.11
                 image: python:3.11-bookworm
@@ -47,16 +69,23 @@ pipelines:
                 script:
                   - cd gnrpy
                   - pip install --editable .[developer]
-                  - pytest tests/core
-            - step:
-                name: Tests against python 3.12
-                image: python:3.12.1-bookworm
-                caches:
-                  - pip
-                script:
-                  - cd gnrpy
-                  - pip install --editable .[developer]
-                  - pytest tests/core
+                  - cd tests
+                  - pytest core sql web app xtnd
+                services:
+                  - postgres
+
+            # - step:
+            #     name: Tests against python 3.12
+            #     image: python:3.12.1-bookworm
+            #     caches:
+            #       - pip
+            #     script:
+            #       - cd gnrpy
+            #       - pip install --editable .[developer]
+            #       - cd tests
+            #       - GNR_LOCALE="en_US" pytest core sql web app xtnd
+            #     services:
+            #       - postgres
                   
   tags:
     ecr-release-*:

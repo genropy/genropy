@@ -1,3 +1,4 @@
+import os
 import os.path
 from testing.postgresql import Postgresql
 
@@ -18,15 +19,23 @@ class BaseGnrSqlTest:
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
         cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
-        cls.pg_instance = Postgresql()
-        cls.pg_conf = cls.pg_instance.dsn()
+        if "CI" in os.environ:
+            # we are running inside the bitbucket CI
+            cls.pg_conf = dict(host="127.0.0.1",
+                               port="5432",
+                               user="postgres",
+                               password="postgres")
+        else:
+            cls.pg_instance = Postgresql()
+            cls.pg_conf = cls.pg_instance.dsn()
 
     @classmethod    
     def teardown_class(cls):
         """
         Teardown testing enviroment
         """
-        cls.pg_instance.stop()
+        if not "CI" in os.environ:
+            cls.pg_instance.stop()
 
 
 def configurePackage(pkg):

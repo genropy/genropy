@@ -68,7 +68,7 @@ Inside folder genropy_projects
 
 Run a db setup
 
-    gnr app dbsetup sandbox
+    gnr db setup sandbox
 
 Genropy webapplications needs a daemon
 

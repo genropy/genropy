@@ -70,17 +70,28 @@ class View_query(BaseComponent):
         return dict(virtualStore=False,addrow=False)
 
 class Form(BaseComponent):
+
     def th_form(self, form):
         pane = form.record
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.field('code')
         fb.field('description')
+        fb.field('objtype')
+        fb.field('pkg')
+        fb.field('tbl')
+        fb.field('userid')
+        fb.field('objtype')
         fb.field('notes')
         fb.field('authtags')
         fb.field('private')
         fb.field('quicklist')
         fb.field('flags')
+        fb.field('data')
+
+    def th_options(self):
+        return dict(copypaste='*')
         
+
 class Form_query(Form):
     def th_form(self, form):
         pane = form.record
@@ -176,7 +187,7 @@ class FormCustomColumn(BaseComponent):
         fb.field('description',validate_notnull=True)
         fb.field('notes',colspan=2)
         fb.field('private',html_label=True)
-        fb.filteringSelect(value='^.data.dtype',values='B:Boolean,T:Text,N:Numeric,L:Integer',lbl='!!Data type',validate_notnull=True)
+        fb.filteringSelect(value='^.data.dtype',values='B:[!![en]Boolean],T:[!![en]Text],N:[!![en]Numeric],L:[!![en]Integer]',lbl='!!Data type',validate_notnull=True)
         fb.textbox(value='^.data.fieldname',lbl='!!Field',validate_notnull=True)
         fb.textbox(value='^.data.group',lbl='!!Group')
         fb.simpleTextArea(value='^.data.sql_formula',lbl='Sql',colspan=2,width='100%',height='50px')

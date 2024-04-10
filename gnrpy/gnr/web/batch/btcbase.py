@@ -19,7 +19,7 @@ class BaseResourceBatch(object):
     batch_thermo_lines = 'batch_steps,batch_main,ts_loop'
     batch_title = 'My Batch Title'
     batch_cancellable = True
-    batch_delay = 0.5
+    batch_delay = 2
     batch_note = None
     batch_steps = None #'foo,bar'
     batch_dblog = False

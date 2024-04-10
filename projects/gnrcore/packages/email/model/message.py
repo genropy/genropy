@@ -1,7 +1,4 @@
 # encoding: utf-8
-from __future__ import print_function
-
-from past.builtins import basestring
 
 from smtplib import SMTPException,SMTPConnectError
 from gnr.core.gnrdecorator import public_method
@@ -121,7 +118,7 @@ class Table(object):
             silent=False,avoid_module_cache=True)
         imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap'))
         ImapReceiver = imap_module.ImapReceiver
-        if isinstance(account, basestring):
+        if isinstance(account, str):
             account = self.db.table('email.account').record(pkey=account).output('bag')
         print('INIT IMAP RECEIVER', account['account_name'])
         imap_checker = ImapReceiver(db=self.db, account=account)
@@ -283,7 +280,7 @@ class Table(object):
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
             bcc_address = message['bcc_address'] 
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
-            attachments = [r['filepath'] for r in attachments]
+            attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:

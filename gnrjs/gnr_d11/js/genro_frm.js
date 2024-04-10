@@ -378,7 +378,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     this._firstField = sourceNode;
                 }
             }
-            this._register[sourceNode._id] = sourceNode;
+            this._register[sourceNode._id] = sourceNode;            
             return;
         }
     },
@@ -641,6 +641,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     }
                 }
             },this.sourceNode);
+            return;
+        }else if(kw.destPkey=='*pasterecord*'){
+            this.remotePasteRecord(kw)
             return;
         }
         this.doload_store(kw);
@@ -1067,12 +1070,15 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var copyDisabled = currentPkey==null || currentPkey=='*newrecord*' || this.changed;
         result.addItem('r_0',null,{caption:_T('Copy current record'),
                                    disabled:copyDisabled,
-                                   action:function(){that.copyCurrentRecord();}}
+                                   action:function(){
+                                        that.copyCurrentRecord();
+                                    }}
                                    );
         if(local_clipboard){
             result.addItem('r_1',null,{caption:'-'});
             local_clipboard.forEach(function(n){
-                result.addItem(n.label,null,{caption:n.attr.caption,action:function(item){that.pasteRecord(item.fullpath)},disabled:disabled});
+                result.addItem(n.label,null,{caption:n.attr.caption,action:function(item){
+                    that.pasteRecord(item.fullpath)},disabled:disabled});
             });
         }
             
@@ -1125,9 +1131,21 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     copyCurrentRecord:function(){
-        var controller = this.getControllerData();
-        var clipboard = controller.getItem('clipboard') || new gnr.GnrBag();
+        var that = this;
         var copy = new gnr.GnrBag();
+        if(this.copypaste_isRemote){
+            if(this.changed){
+                this.publish('message',{message:_T('You must save the record before copy'),sound:'$error',messageType:'warning'})
+                return
+            }
+            genro.lockScreen(true,'getRemoteClipboard');
+            genro.serverCall(`_table.${this.getControllerData("table")}.onCopyRecord`,
+                {pkey:this.getCurrentPkey()},(result)=>{
+                    genro.lockScreen(false,'getRemoteClipboard');
+                    that.addCopyToClipboard(result);
+            });
+            return;
+        }
         var record = this.getFormData();
         record.forEach(function(n){
             if(n.label[0]!='@' && n.label[0]!='$' && !n.attr._sysfield){
@@ -1141,17 +1159,65 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 copy.setItem(n.label,value,n.attr);
             }
         },'static');
+        this.addCopyToClipboard(copy);
+    },
+
+    addCopyToClipboard:function(copy){
+        let controller = this.getControllerData();
+        let clipboard = controller.getItem('clipboard') || new gnr.GnrBag();
         clipboard.setItem(this.getCurrentPkey(),copy,{caption:this.getRecordCaption()})
         controller.setItem('clipboard',clipboard);
     },
 
     pasteRecord:function(path){
+        if(this.copypaste_isRemote){
+            this.load({destPkey:'*pasterecord*',clipboard_path:path});
+            return;
+        }
         var copybag;
         var controllerdata = this.getControllerData();
         var clipboard = controllerdata.getItem('clipboard')
         var copy = clipboard.getNode(path);
         copybag = copy.getValue().deepCopy();
         this.updateFormData(copybag);
+    },
+
+    remotePasteRecord:function(kw){
+        var copybag;
+        var controllerdata = this.getControllerData();
+        var clipboard = controllerdata.getItem('clipboard')
+        var copy = clipboard.getNode(kw.clipboard_path);
+        copybag = copy.getValue().deepCopy();
+        let fieldsToAsk = copybag.getNodes().filter(n=>(n.attr.unique && n.attr.validate_notnull) || n.attr.onCopy=="ask" );
+        if(fieldsToAsk.length){
+            var that = this;
+            var d = {};
+            fieldsToAsk = fieldsToAsk.map(n=>{
+                let attr = n.attr;
+                d[n.label] = n.getValue();
+                return {name:n.label,
+                    dbfield:that.getControllerData("table")+'.'+n.label,
+                    ...genro.wdg.widgetFromField(attr)};
+                
+            })
+            genro.dlg.askParameters(function(_askResult){
+                that.insertRemotePaste(copybag,_askResult);
+            },{title:_T('Complete data'),fields:fieldsToAsk},d,this.sourceNode);
+        }else{
+            this.insertRemotePaste(copybag);
+        }
+    },
+
+    insertRemotePaste:function(copybag,runKwargs){
+        let kw = {sourceCluster:copybag};
+        if(runKwargs){
+            objectUpdate(kw,runKwargs);
+        }
+        var that = this;
+        genro.serverCall(`_table.${this.getControllerData("table")}.onPasteRecord`,
+                kw,(destPkey)=>{
+                    that.load({destPkey:destPkey});
+                });
     },
 
     updateFormData:function(sourceBag){
@@ -1920,6 +1986,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     checkInvalidFields: function() {
         var node, sourceNode,node_identifiers,idx, changekey;
+        for(let k in this._register){
+            this._register[k].updateValidationStatus();
+        }
         var invalidfields = this.getInvalidFields();
         var invalidnodes = invalidfields.getNodes();
         for (var i = 0; i < invalidnodes.length; i++) {

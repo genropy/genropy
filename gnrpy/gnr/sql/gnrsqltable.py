@@ -26,7 +26,7 @@ import re
 
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
-from gnr.core.gnrdecorator import deprecated,extract_kwargs
+from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
 #from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
@@ -689,19 +689,21 @@ class SqlTable(GnrObject):
             newrecord.setItem(fld, v, info)
         return newrecord
         
-    def recordCopy(self,fromRecord):
+    def recordCopy(self,fromRecord,asBag=False):
         """"returns a copy of a record, exluding columns that are
             - unique
             - _sysfield (except draftfield or parent_id)
             - ignoreOnCopy
         """
-        result = dict()
+        result = Bag() if asBag else dict()
         
         for colname,obj in self.model.columns.items():
             fieldMode = obj.attributes.get('fieldMode')
             if fieldMode not in (None,'D'):
                 continue
             #should continue or set None??
+            if obj.attributes.get('ignoreOnCopy') or obj.attributes.get('onCopy')=='ignore':
+                continue
             if obj.attributes.get('unique'):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
@@ -982,14 +984,100 @@ class SqlTable(GnrObject):
                                             excludeDraft=False,
                                             excludeLogicalDeleted=False)
 
+    @public_method
+    def onCopyRecord(self,pkey=None):
+        record = self.record(pkey).output('bag',resolver_one=False)
+        _pathlist = []
+        nodes_to_del = []
+        def _onCopyRecord_expandNode(node,_pathlist=None,**kwargs):
+            if node.resolver is not None:
+                node.attr.pop('js_resolver',None)
+                node.attr.pop('_resolver_kwargs',None)
+                node.attr.pop('_resolver_name',None)
+                if node.attr.get('mode') == 'M' and node.attr.get('_onDelete')=='cascade':
+                    return self.db.table('.'.join(node.attr.get('_target_fld').split('.')[:2]))._onCopyExpandMany(node)
+                else:
+                    nodes_to_del.append('.'.join(_pathlist+[node.label]))
+        record.walk(_onCopyRecord_expandNode,_mode='static',_pathlist=_pathlist)
+        for p in nodes_to_del:
+            record.popNode(p)
+        return record
+    
+    def _onCopyExpandMany(self,node):
+        if self.attributes.get('hierarchical_linked_to') and node.label == '@_children':
+            node.resolver = None
+            node._value = None
+            return False
+        node.resolver.readOnly = False
+        for n in node.getValue():
+            n.resolver.readOnly =False
+            n.value
+            n.resolver = None
+        node.resolver = None
+    
+   
+
+    @public_method
+    def onPasteRecord(self,sourceCluster=None,**kwargs):
+        result = self.insertPastedCluster(sourceCluster=sourceCluster,**kwargs)
+        self.db.commit()
+        return result[self.pkey]
+    
+    def insertPastedCluster(self,sourceCluster,**kwargs):
+        destrecord = self.newrecord(_fromRecord=sourceCluster,**kwargs)
+        self.insert(destrecord)
+        for node in sourceCluster:
+            if node.attr.get('mode') != 'M':
+                continue
+            l = node.attr['_target_fld'].split('.')
+            reltblobj = self.db.table('.'.join(l[:2]))
+            reltblobj._onPasteExpandeMany(node,**{l[2]:destrecord[self.pkey]})
+        return destrecord
+
+    def _onPasteExpandeMany(self,node,**kwargs):
+        if self.attributes.get('hierarchical_linked_to'):
+            fkeyCol = node.attr.get('_target_fld').split('.')[2]
+            if self.column(fkeyCol).attributes.get('fkeyToMaster'):
+                self._duplicateLinkedTree(node,**kwargs)
+                return
+        if node.value is None:
+            return
+        for r in node.value.values():
+            self.insertPastedCluster(sourceCluster=r,**kwargs)
+    
+    def _duplicateLinkedTree(self,node,**kwargs):
+        fkeyCol = node.attr.get('_target_fld').split('.')[2]
+        fkeyValue = kwargs[fkeyCol]
+        value = node.value
+        newroot = self.record(fkeyValue).output('dict')
+        values = list(value.values())
+        copydict = {values[0][self.pkey]:newroot[self.pkey]}
+        for rec in values[1:]:
+            dupkwargs = dict(kwargs)
+            for k,v in rec.items():
+                if not isinstance(v,str):
+                    continue
+                if v in copydict:
+                    dupkwargs[k] = copydict[v]
+            copied_record = self.insertPastedCluster(sourceCluster=rec,**dupkwargs)
+            copydict[rec[self.pkey]] = copied_record[self.pkey]
+        
+    @public_method
+    def onCopySelection(self,pkeys=None):
+        pass
+
+    @public_method
+    def onPasteSelection(self,records=None):
+        pass
+
+
+
     def duplicateRecord(self,recordOrKey=None, howmany=None,destination_store=None,**kwargs):
         duplicatedRecords=[]
         howmany = howmany or 1
         howmany = str(howmany)
         original_record = self.recordAs(recordOrKey,mode='dict')
         original_pkey = original_record.get(self.pkey,None)
-
-        #---should use recordCopy START
         record = dict(original_record)
         record[self.pkey] = None
         for colname,obj in self.model.columns.items():
@@ -997,10 +1085,7 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('unique') or obj.attributes.get('_sysfield'):
                 record[colname] = None
-        #---should use recordCopy END
-
-        if hasattr(self,'onDuplicating'):
-            self.onDuplicating(record)
+        self.onDuplicating(record)
         if howmany.isdigit():
             labels = [str(k) for k in range(int(howmany))]
         else:
@@ -1008,8 +1093,7 @@ class SqlTable(GnrObject):
         for i,label in enumerate(labels):
             r=dict(record)
             r.update(kwargs)
-            if hasattr(self,'onDuplicating_many'):
-                self.onDuplicating_many(r, copy_number=i,copy_label=label)
+            self.onDuplicating_many(r, copy_number=i,copy_label=label)
             if destination_store:
                 with self.db.tempEnv(storename=destination_store):
                     self.insert(r)
@@ -1026,19 +1110,32 @@ class SqlTable(GnrObject):
                 fkey = rellist[-1]
                 subtable ='.'.join(rellist[:-1])
                 manytable = self.db.table(subtable)
-                if hasattr(manytable,'getRowsForDuplication'):
-                    rows = manytable.getRowsForDuplication(original_pkey)
-                else:
-                    rows = manytable.query(where="$%s=:p" %fkey,p=original_pkey,addPkeyColumn=False,bagFields=True).fetch()
+                rows = manytable.getRowsForDuplication(original_pkey,fkey=fkey)
                 for dupRec in duplicatedRecords:
                     for r in rows:
                         r = dict(r)
                         r[fkey] = dupRec[self.pkey]
                         manytable.duplicateRecord(r,destination_store=destination_store)
-        if hasattr(self,'onDuplicated'):
-            self.onDuplicated(duplicated_records=duplicatedRecords,original_record=original_record)
+        self.onDuplicated(duplicated_records=duplicatedRecords,original_record=original_record)
         return duplicatedRecords[0]
+    
+    def onDuplicating(self,record,**kwargs):
+        #on duplicating you can handle the original record to change fields
+        pass
             
+    def onDuplicating_many(self,r, copy_number=None,copy_label=None,**kwargs):
+        #on onDuplicating_many if duplicate many 
+        pass
+
+    def onDuplicated(self,duplicated_records=None,original_record=None,**kwargs):
+        #overridable
+        pass
+    
+    def getRowsForDuplication(self,master_original_pkey=None,fkey=None):
+        #overridable
+        return self.query(where=f"${fkey}=:p",p=master_original_pkey,
+                          addPkeyColumn=False,bagFields=True).fetch()
+
 
     def recordAs(self, record, mode='bag', virtual_columns=None,ignoreMissing=True):
         """Accept and return a record as a bag, dict or primary pkey (as a string)
@@ -1086,7 +1183,6 @@ class SqlTable(GnrObject):
             colToRead = '.'.join(pathlist[1:])
             fromKeyValue = newrecord.get(fromFkey)
             if fromKeyValue is None:
-                print(colname,'c')
                 continue
             colToRead = colToRead if colToRead.startswith('@') else f'${colToRead}'
             fkeysColsToRead[(fromFkey,fromKeyValue)][colname] = colToRead

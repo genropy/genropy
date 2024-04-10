@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class TestHandler(BaseComponent):
@@ -31,7 +30,7 @@ class TestHandler(BaseComponent):
         def skip_test(test_name):
             if not self.testOnly:
                 return False
-            if isinstance(self.testOnly, basestring):
+            if isinstance(self.testOnly, str):
                 self.testOnly = [self.testOnly]
             for testOne in self.testOnly:
                 if testOne in test_name:

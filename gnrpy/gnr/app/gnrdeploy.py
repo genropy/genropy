@@ -101,7 +101,6 @@ def build_environment_xml(path=None, gnrpy_path=None, gnrdaemon_password=None, g
     # or from an installation
     if "gnrpy" in genropy_home:
         genropy_home = os.path.realpath(os.path.join(genropy_home, "..", ".."))
-        print("HACK", genropy_home)
         genropy_projects = os.path.join(genropy_home,'projects')
         genropy_packages = os.path.join(genropy_home,'packages')
         genropy_resources = os.path.join(genropy_home,'resources')

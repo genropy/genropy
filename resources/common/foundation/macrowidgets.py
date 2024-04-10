@@ -22,7 +22,6 @@
 Component for thermo:
 """
 
-from past.builtins import basestring
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrbag import Bag
@@ -199,7 +198,7 @@ class RichTextEditor(BaseComponent):
         editorId = None
         if nodeId:
             editorId = "%s_editor" % nodeId
-        if isinstance(toolbar, basestring):
+        if isinstance(toolbar, str):
             tb = getattr(self, 'rte_toolbar_%s' % toolbar, None)
             toolbar = tb() if callable(tb) else tb
         return pane.ckeditor(value=value, nodeId=editorId, readOnly=disabled, toolbar=toolbar, **kwargs)

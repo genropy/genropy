@@ -23,7 +23,6 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
-from past.builtins import basestring
 from gnr.core.gnrlang import GnrException
 from gnr.lib.services.mail import MailService,MailError
 from gnr.core.gnrbag import Bag
@@ -86,7 +85,7 @@ class AdmMailService(MailService):
         if not from_address:
             from_address = self.get_account_params(**kwargs)['from_address']
         attachments = attachments or templateReplace(email_compiled.getItem('attachments',''),htmlbuilder.record)
-        if attachments and isinstance(attachments,basestring):
+        if attachments and isinstance(attachments,str):
             attachments = attachments.replace('\n',',').split(',')
             attachments = [a for a in attachments if a]
         if not to_address:

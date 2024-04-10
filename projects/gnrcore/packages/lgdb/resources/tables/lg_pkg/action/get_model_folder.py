@@ -4,7 +4,6 @@ from collections import OrderedDict
 from gnr.core.gnrstring import flatten
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
-from past.builtins import basestring
 
 START_SOURCE = """# encoding: utf-8
 
@@ -126,8 +125,8 @@ class Main(BaseResourceAction):
         for k,v in arguments.items():
             if v in ('',None):
                 continue
-            if isinstance(v,basestring):
-                v = ("'%s'" if not "'" in v else 'u"%s"') %v
+            if isinstance(v,str):
+                v = ("'%s'" if not "'" in v else '"%s"') %v
             elif isinstance(v, Bag):
                 v = "dict(%s)" %self.bagToArgString(v,prefix='')
             atlst.append("%s=%s" %(k,v))
@@ -154,7 +153,7 @@ class Main(BaseResourceAction):
         for k,v in attributes.items():
             if v == 'True':
                 v = True
-            if isinstance(v,basestring):
+            if isinstance(v,str):
                 if "'" in v:
                     v = '"%s"' %v
                 else:

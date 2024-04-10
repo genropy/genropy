@@ -2197,6 +2197,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
     openWindow:function(url, name, params) {
         params = params || {height:'600',width:'900'};
+        let _isPdf = objectPop(params,'_isPdf');
         if (params) {
             if (typeof(params) != 'string') {
                 let parlist = [];
@@ -2206,7 +2207,9 @@ dojo.declare('gnr.GenroClient', null, {
                 params = parlist.join(',');
             }
         }
-        url = genro.dom.detectPdfViewer(url);
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
         var newwindow = window.open(url, name, params);
         if (window.focus) {
             try {
@@ -2219,14 +2222,23 @@ dojo.declare('gnr.GenroClient', null, {
         return newwindow
 
     },
-    openBrowserTab:function(url){
-        url = genro.dom.detectPdfViewer(url);
+    openBrowserTab:function(url,params){
+        params = params || {};
+        let _isPdf = objectPop(params,'_isPdf');
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
+        //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
-    childBrowserTab:function(url,parent_page_id){
+    childBrowserTab:function(url,parent_page_id,params){
         url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
-        url = genro.dom.detectPdfViewer(url);
+        params = params || {};
+        let _isPdf = objectPop(params,'_isPdf');
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
         window.open(url);
     },
     
