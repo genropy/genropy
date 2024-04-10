@@ -18,6 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from re import M
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -122,33 +123,52 @@ class AttachGalleryView(AttachManagerViewBase):
         selection.apply(apply_gallerycell)
 
 class Form(BaseComponent):
-
+    
     def th_form(self, form):
-        sc = form.center.stackContainer(datapath='.record')
-        bc = sc.borderContainer()
-        if hasattr(self,'atc_metadata'):
-            self.atc_metadata(bc)
-        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',currentPreviewZoom='^#FORM.currentPreviewZoom')
-        da = sc.contentPane().div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
-            text_align='center',border='3px dotted #999',rounded=8)
-        upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
+        bc = form.center.borderContainer(datapath='.record')
+        metahandler = self.atc_metadata if hasattr(self,'atc_metadata') else self._th_hook('atc_metadata',mangler=form) 
+        if metahandler:
+            metahandler(bc)
+        fattr = form.attributes
+        askMetadata = self._askMetadata(form)
+        self._atc_viewerStack(bc,region='center',askMetadata=askMetadata,
+                               attachment_table=fattr['table'],
+                            frameCode = fattr['frameCode'])
         
 
-        center_cell = da.table(height='100%',width='100%').tr().td()
-        center_cell.div(upload_message,width='100%',font_size='30px',color='#999',hidden='^#FORM.controller.locked')
+    def _askMetadata(self,form):
         fattr = form.attributes
         askMetadata = fattr.pop('askMetadata',None)
+        if not askMetadata:
+            askMetadata = self._th_hook('atc_onDropAsk',mangler=form) 
+        return askMetadata
+    
+    def _atc_viewerStack(self,parent,askMetadata=None,attachment_table=None,frameCode=None,
+                     onUploadingMethod=None,onUploadedMethod=None,**kwargs):
+        sc = parent.stackContainer(**kwargs)
+        bc = sc.borderContainer(title='!![en]Viewer')
+        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',currentPreviewZoom='^#FORM.currentPreviewZoom')
+        da = sc.contentPane(title='!![en]Uploader').div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
+            text_align='center',border='3px dotted #999',rounded=8)
+        upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
+        center_cell = da.table(height='100%',width='100%').tr().td()
+        center_cell.div(upload_message,width='100%',font_size='30px',color='#999',hidden='^#FORM.controller.locked')
         da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
                         _class='attachmentDropUploader',
                         ask = askMetadata,
-                        selfsubscribe_inserted_attachment="""this.form.goToRecord($1.record_id);""",
-                        onUploadingMethod=self.onUploadingAttachment,
-                        onUploadedMethod=self.onUploadedAttachment,
+                        onUploadingMethod=onUploadingMethod or self.onUploadingAttachment,
+                        onUploadedMethod=onUploadedMethod or self.onUploadedAttachment,
                         rpc_maintable_id='=#FORM.record.maintable_id',
-                        rpc_attachment_table=fattr.get('table'),
-                        nodeId='%(frameCode)s_uploader' %fattr)
-        form.dataController("sc.switchPage(newrecord?1:0)",newrecord='^#FORM.controller.is_newrecord',sc=sc.js_widget)
-
+                        rpc_pkey='=#FORM.pkey',
+                        rpc_attachment_table=attachment_table,
+                        nodeId=f'{frameCode}_uploader')
+        self._atc_stackSwitcher(parent,sc)
+        
+    def _atc_stackSwitcher(self,parent,sc):
+        parent.dataController("sc.switchPage(newrecord?1:0)",
+                            newrecord='^#FORM.controller.is_newrecord',
+                            sc=sc.js_widget)
+        
     def th_options(self):
         return dict(showtoolbar=False,showfooter=False,autoSave=True)
 
@@ -158,30 +178,24 @@ class Form(BaseComponent):
             record['id'] = self.db.table(record.tablename).newPkeyValue()
 
 class FormPlaceholder(BaseComponent):
+    py_requires = 'gnrcomponents/attachmanager/attachmanager:Form'
 
     def th_form(self, form):
-        sc = form.center.stackContainer(datapath='.record')
-        bc = sc.borderContainer()
-        if hasattr(self,'atc_metadata'):
-            self.atc_metadata(bc)
-        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',currentPreviewZoom='^#FORM.currentPreviewZoom')
-        da = sc.contentPane().div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
-            text_align='center',border='3px dotted #999',rounded=8)
-        upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
-        center_cell = da.table(height='100%',width='100%').tr().td()
-        center_cell.div(upload_message,width='100%',font_size='30px',color='#999',hidden='^#FORM.controller.locked')
+        bc = form.center.borderContainer(datapath='.record')
+        metahandler = self.atc_metadata if hasattr(self,'atc_metadata') else self._th_hook('atc_metadata',mangler=form) 
+        if metahandler:
+            metahandler(bc)
         fattr = form.attributes
         askMetadata = fattr.pop('askMetadata',None)
-        da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
-                        _class='attachmentDropUploader',
-                        ask = askMetadata,
-                        onUploadingMethod=self.onUploadingAttachmentUpd,
-                        onUploadedMethod=self.onUploadedAttachment,
-                        rpc_maintable_id='=#FORM.record.maintable_id',
-                        rpc_pkey='=#FORM.pkey',
-                        rpc_attachment_table=fattr.get('table'),
-                        nodeId='%(frameCode)s_uploader' %fattr)
-        form.dataController("sc.switchPage(fileurl?0:1)",fileurl='^#FORM.record.fileurl',sc=sc.js_widget)
+        self._atc_viewerStack(bc,region='center',askMetadata=askMetadata,
+                               attachment_table=fattr['table'],
+                            frameCode = fattr['frameCode'],
+                            onUploadingMethod=self.onUploadingAttachmentUpd,
+                            onUploadedMethod=self.onUploadedAttachment)
+    
+    def _atc_stackSwitcher(self,parent,sc):
+        parent.dataController("sc.switchPage(fileurl?0:1)",fileurl='^#FORM.record.fileurl',sc=sc.js_widget)
+
 
     def th_options(self):
         return dict(showtoolbar=False,showfooter=False,autoSave=True)
