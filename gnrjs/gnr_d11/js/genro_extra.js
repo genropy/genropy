@@ -984,6 +984,17 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         //savedAttrs.config.enterMode = CKEDITOR.ENTER_BR;
         //savedAttrs.config.enterMode = CKEDITOR.ENTER_P;
 
+        savedAttrs.config.allowedContent = {
+            $1: {
+                // Use the ability to specify elements as an object. Required in order to customize style attributes
+                elements: CKEDITOR.dtd,
+                attributes: true,
+                styles: true,
+                classes: true
+            }
+        };
+        savedAttrs.config.disallowedContent = 'script; *[on*]';
+
         if(savedAttrs.contentsCss){
             var currlst = CKEDITOR.config.contentsCss;
             if(typeof(currlst)=='string'){

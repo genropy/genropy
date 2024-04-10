@@ -3293,8 +3293,9 @@ body *{
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(#F6F6F6), to(#E9E9E9));
     background-image: -moz-linear-gradient(-90deg, #F6F6F6, #E9E9E9);
 }
-
-
+._common_d11 .cke_bottom{
+	display: none;
+}
 
 .tundra .dijitTextBoxFocused .cls_DbSelect, .tundra .dijitComboBoxFocused .cls_DbSelect{
     background-image: -webkit-gradient(linear, 0% 0%, 0% 90%, from(white), to(#FFFFAD));

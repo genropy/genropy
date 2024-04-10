@@ -78,7 +78,7 @@ class FilePicker(BaseComponent):
                                         dropTypes='Files',_uploader_onUploadingMethod=self._fp_pimg_uploadImage)
 
         bar = view.top.slotToolbar('5,multiFolder,*,snapShot,5,delrow,5,searchOn,5')
-        bar.snapShot.slotButton('"Snapshot',iconClass='iconbox photo',
+        bar.snapShot.slotButton('!![en]Snapshot',iconClass='iconbox photo',
                                 action="""FIRE .takeSnapshot;""",uploadPath='=.currentFolder')
         view.dataController("""
                         var that = this;

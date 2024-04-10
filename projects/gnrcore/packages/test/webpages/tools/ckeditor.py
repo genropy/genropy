@@ -18,16 +18,21 @@ class GnrCustomWebPage(object):
         pane.ckEditor(value='^.testdata', toolbar='standard', 
                                             config_toolbarCanCollapse=True)    
                                                                                             
+    #DP Doesn't work requires to be updated
+    #def test_3_gallery_handler(self,pane):
+    #    "Image palette to drag and drop images into editor"
+    #    frame = pane.framePane(height='300px')
+    #    bar = frame.top.slotToolbar('*,imgpal,5')
+    #    bar.dataFormula('^testpath','p',_onStart=True,p='')
+    #    bar.imgpal.imgPickerPalette(folders='rsrc:common/html_pages/images:Image HTML',dockButton=True) 
+    #    frame.center.contentPane(overflow='hidden').ckEditor(value='^.testgallery')
 
-    def test_3_gallery_handler(self,pane):
-        "Image palette to drag and drop images into editor"
-        frame = pane.framePane(height='300px')
-        bar = frame.top.slotToolbar('*,xxx,5')
-        bar.dataFormula('^testpath','p',_onStart=True,p='')
-        bar.xxx.imgPickerPalette(folders='rsrc:common/html_pages/images:Image HTML,rsrc:common/icons:Icons',dockButton=True)
-        frame.center.contentPane(overflow='hidden').ckEditor(value='^.testgallery')
+    def test_3_simpleTextAreaEditor(self,pane):              
+        "Quick editor version in external palette"
+        fb = pane.formbuilder(cols=1,border_spacing='3px')
+        fb.simpleTextArea(value='^.test', height='100px', width='300px', lbl='test', editor=True)
 
-    def test_4_simpleTextAreaEditor(self,pane):              
+    def test_4_quickEditor(self,pane):              
         "Quick editor version in external palette"
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.quickEditor(value='^.test',nodeId='aaa',
@@ -35,8 +40,7 @@ class GnrCustomWebPage(object):
                         width='300px',
                         lbl='test')
         fb.button('focus',action='genro.nodeById("aaa").externalWidget.focus();')
-        fb.textbox(value='^.aaa',lbl='field 2')
-        fb.textbox(value='^.ooo',lbl='field 3')
+        fb.textbox(value='^.other_field',lbl='Other field')
 
     def test_5_inline_edit(self,pane):                 #DP Da sistemare, qui proviamo la floating toolbar
         "Inline edit can be used to show a minimal toolbar while writing instead"
