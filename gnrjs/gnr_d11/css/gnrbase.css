@@ -6208,9 +6208,7 @@ div[disabled='true'], div[disabled='disabled']{
     text-overflow: ellipsis;
 }
 
-
-.mobileTemplateGrid .cellContent>div>div:last-child{
-    width: 100%;
+.mobileTemplateGrid .cellContent {
     padding:5px;
 }
 
