@@ -190,6 +190,7 @@ class TableHandlerGroupBy(BaseComponent):
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
                                 groupByStore=True,liveUpdate='PAGE',
+                                sortedBy='=.grid.sorted',
                                 _linkedTo=linkedTo,
                                 _onCalling="""
                                 if(!_linkedTo){
