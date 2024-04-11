@@ -234,7 +234,7 @@ class FrameGridTools(BaseComponent):
         bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        splitter=splitter,
+                                        splitter=False if self.isMobile else splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **box_kwargs)
         if closable !='close':
@@ -328,7 +328,7 @@ class FrameGridTools(BaseComponent):
             tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
             #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
         else:
-            gth.top.bar.replaceSlots('#','2,viewsSelect,5,*,5')
+            gth.top.bar.replaceSlots('#','*,viewsSelect,*',height='22px',border_bottom='1px solid silver')
 
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',

@@ -113,7 +113,7 @@ class TableHandlerGroupBy(BaseComponent):
                                 _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
         if static == 'buttons':
-            frame.grid.attributes['_class'] = f"{frame.grid.attributes.get('_class','')} noheader buttons_grid no_over"
+            frame.grid.attributes['_class'] = f"{frame.grid.attributes.get('_class','')} noheader buttons_grid grouper_buttons no_over"
 
         
         frame.dataFormula('.changets.flatview','new Date();',store='^.store',struct='^.grid.struct',
@@ -126,7 +126,10 @@ class TableHandlerGroupBy(BaseComponent):
             slots = '5,vtitle,count,*,searchOn,export,5'
             if pbl_classes is None:
                 pbl_classes = True
-            if pbl_classes:
+            if static=='buttons':
+                bar = frame.top.slotBar(slots)
+                bar.vtitle.div(title,font_size='.9em',color='#666',font_weight='bold')
+            elif pbl_classes:
                 frame.top.slotBar(slots,_class='pbl_roundedGroupLabel',vtitle=title)
                 frame.attributes['_class'] = 'pbl_roundedGroup'
             else:
