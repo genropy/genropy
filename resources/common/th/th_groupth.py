@@ -112,6 +112,8 @@ class TableHandlerGroupBy(BaseComponent):
                                 grid_baseViewName = baseViewName,
                                 _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
+        if static == 'buttons':
+            frame.grid.attributes['_class'] = f"{frame.grid.attributes.get('_class','')} noheader buttons_grid no_over"
 
         
         frame.dataFormula('.changets.flatview','new Date();',store='^.store',struct='^.grid.struct',

@@ -277,7 +277,7 @@ class FrameGridTools(BaseComponent):
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )
-        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close')
+        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False)
         gth.dataController(f"""
             SET .selectedIndex = null;
             if(genro.nodeById(tree_nodeId)){{
