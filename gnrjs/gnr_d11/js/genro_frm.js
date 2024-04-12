@@ -645,6 +645,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         }else if(kw.destPkey=='*pasterecord*'){
             this.remotePasteRecord(kw)
             return;
+        }else if(kw.destPkey=='*insertAndLoad*'){
+            this.insertAndLoad(kw.default_kw);
+            return
         }
         this.doload_store(kw);
     },
