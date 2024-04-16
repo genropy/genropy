@@ -1086,16 +1086,12 @@ body.tundra.mimi {
 }
 
 ._common_d11 .dojoxGrid-scrollbox {
-    overflow: scroll;
+    overflow: auto;
     /*background-color: white ; */
 }
 
 ._common_d11 .buttons_grid  .dojoxGrid-scrollbox{
     overflow: auto;
-}
-
-.buttons_grid .dojoxGrid-scrollbox{
-    margin-left: 5px;
 }
 
 .buttons_grid th{
