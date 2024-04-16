@@ -257,11 +257,13 @@ class AttachManager(BaseComponent):
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
     @struct_method
-    def at_attachmentBottomDrawer(self,bottom,title=None,**kwargs):
+    def at_attachmentBottomDrawer(self,bottom,title=None,height=None,closable=None,**kwargs):
         title = title or '!![en]Attachments'
         bottom.attributes.update(
-            height='300px',
-            closable_label=title,closable='close', closable__class='drawer_allegati'
+            height=height or '300px',
+            closable_label=title,
+            closable=closable or 'close', 
+            closable__class='drawer_allegati'
         )
         th = bottom.attachmentViewer(preview=False,margin='5px',margin_top=0,title=title,**kwargs)
         th.view.grid_envelope.attributes['border'] = '1px solid silver'
