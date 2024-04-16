@@ -1479,7 +1479,7 @@ class AttachmentTable(GnrDboTable):
                     onDelete='cascade',
                     relation_name='atc_attachments',
                     onDuplicate=False,
-                    one_group='_',many_group='_',deferred=True)
+                    deferred=True)
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
