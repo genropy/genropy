@@ -1326,6 +1326,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         if(fullScreen){
             windowRatio = 1;
             w = {h:Math.floor(mainDiv.clientHeight),w:Math.floor(mainDiv.clientWidth)};
+            this.sourceNode.attr.centerOn=mainDiv
         }
        
         var c = dojo.coords(this.domNode);
