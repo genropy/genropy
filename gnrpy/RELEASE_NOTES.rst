@@ -1,6 +1,9 @@
 UPCOMING RELEASE
 ================
 
+New Features
+------------
+
 * Cordova framework detection, and payload loading into genro's js client
 * New 'gnr web inspect' cli tool to inspect site registers, filterable.
 * New 'gnr web serve' alias for 'gnr web wsgiserve'.
@@ -8,7 +11,19 @@ UPCOMING RELEASE
   rather than 'gnr app dbsetup'.
 * Added a '--version' option to all CLI command to retrive current framework
   version, useful for bug reporting
+* New 'gnr db restore' 
+* Added iPython dependency to developer installation profile
+  
+Fixes
+-----
 
+* Mobile Stylesheets fixes
+* PDFViewer opening fixes
+* Fixed 'jedi import error' on all CLI commands
+* Increased unit test coverage
+* Code cleanup to remove deprecated references
+  
+  
 Version 24.3.8
 ==============
 
