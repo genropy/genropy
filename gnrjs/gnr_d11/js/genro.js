@@ -82,6 +82,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.user_polling = -1;
         this.isDeveloper = objectPop(this.startArgs,'isDeveloper');
         this.isMobile = objectPop(this.startArgs,'isMobile');
+        this.isCordova = objectPop(this.startArgs,'isCordova');
         this.deviceScreenSize = objectPop(this.startArgs,'deviceScreenSize');
         this.extraFeatures = objectPop(this.startArgs,'extraFeatures');
         this.theme = {};
@@ -572,6 +573,19 @@ dojo.declare('gnr.GenroClient', null, {
         if (this.isMobile) {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
+
+	// if cordova is detected, load the js payload from localhost
+	// which will load all the configured plugins payload
+	if(this.isCordova) {
+	    document.addEventListener('deviceready', function() {
+		console.log("CORDOVA JS LOAD COMPLETED");
+		genro.cordova_ready = true;
+	    }, false);
+	    
+	    genro.dom.loadJs("https://localhost/cordova.js", () => {
+                console.log("CORDOVA JS LOADED");
+            });
+	}
         dojo.subscribe('debugstep',
                        function(data){genro.dev.onDebugstep(data)}
                      );

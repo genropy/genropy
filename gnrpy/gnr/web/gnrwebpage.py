@@ -1155,6 +1155,7 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['isMobile'] = True
         kwargs['deviceScreenSize'] = self.deviceScreenSize
         kwargs['extraFeatures'] = dict(self.extraFeatures)
+        kwargs['isCordova'] = self.connection.is_cordova
         localroot = None
         if self.connection.electron_static:
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
