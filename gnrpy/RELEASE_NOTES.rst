@@ -1,7 +1,7 @@
 UPCOMING RELEASE
 ================
 
-* Availabily for signed URLs, including timestamped ones.
+* Cordova framework detection, and payload loading into genro's js client
 * New 'gnr web inspect' cli tool to inspect site registers, filterable.
 * New 'gnr web serve' alias for 'gnr web wsgiserve'.
 * New 'db' namespace for gnr CLI tool, to provide alias like 'gnr db setup'
