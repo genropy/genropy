@@ -646,11 +646,13 @@ class DbModelSrc(GnrStructData):
             sql_formula = f"SELECT json_agg(row_to_json({tname}_json)) FROM #nestedselect {tname}_json"
             return self.virtual_column(name,sql_formula=sql_formula,select_nestedselect=query,subquery=True,
                                        format='json_table', **kwargs)
-        #if mode=='xml':    #DP Da finire
-        #    tname = f"{self.attributes.get('fullname').replace('.','_')}_{name}"
-        #    sql_formula = f"SELECT xmlagg(row_to_json({tname}_json)) FROM #nestedselect {tname}_json"
-        #    return self.virtual_column(name,sql_formula=sql_formula,select_nestedselect=query,subquery=True,
-        #                               format='json_table', **kwargs)
+        if mode=='xml':
+            tname = f"{self.attributes.get('fullname').replace('.','_')}_{name}"
+            columns = query['columns'].replace('$','')
+            sql_formula = f"""SELECT xmlagg(xmlelement(name {tname}_xml,xmlforest({columns}))) FROM #nestedselect {tname}_xml"""
+            return self.virtual_column(name,sql_formula=sql_formula,select_nestedselect=query,subquery=True,
+                                       #dtype='X', 
+                                       **kwargs)
         return self.virtual_column(name,select=query,subquery=True,subquery_aggr=mode, **kwargs)
 
     def formulaColumn(self, name, sql_formula=None,select=None, exists=None,dtype='A', **kwargs):
