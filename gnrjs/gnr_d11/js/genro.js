@@ -606,12 +606,33 @@ dojo.declare('gnr.GenroClient', null, {
 	// which will load all the configured plugins payload
 	if(this.isCordova) {
 	    if(!this.getParentGenro()) {
+		
 		document.addEventListener('deviceready', function() {
 		    console.log("CORDOVA JS LOAD COMPLETED");
+		    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
 		    genro.cordova_ready = true;
+		    genro.setData("gnr.cordova.platform", cordova.platformId)
+		    genro.setData("gnr.cordova.version", cordova.version)
 		    genro.setData("gnr.cordova.ready", true);
+		    
+		    if(device) {
+			genro.setData("gnr.cordova.device.uuid", device.uuid);
+			genro.setData("gnr.cordova.device.model", device.model);
+			genro.setData("gnr.cordova.device.manufacturer", device.manufacturer);
+		    }
+		    if(PushNotification) {
+			console.log("We have PushNotification");
+			genro.notification_obj = PushNotification.init({android: {}, ios: {}});
+			PushNotification.hasPermission(function(status) {
+			    console.log("Push Notification Permission", status)
+			});
+			genro.notification_obj.on("registration", (data) => {
+			    console.log("Push Notification registered: ", data);
+			    genro.setData("gnr.cordova.fcm_push_registration", data);
+			});
+		    }
 		}, false);
-		
+
 		genro.dom.loadJs("https://localhost/cordova.js", () => {
                     console.log("CORDOVA JS LOADED");
 		});
