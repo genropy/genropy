@@ -574,18 +574,6 @@ dojo.declare('gnr.GenroClient', null, {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
 
-	// if cordova is detected, load the js payload from localhost
-	// which will load all the configured plugins payload
-	if(this.isCordova) {
-	    document.addEventListener('deviceready', function() {
-		console.log("CORDOVA JS LOAD COMPLETED");
-		genro.cordova_ready = true;
-	    }, false);
-	    
-	    genro.dom.loadJs("https://localhost/cordova.js", () => {
-                console.log("CORDOVA JS LOADED");
-            });
-	}
         dojo.subscribe('debugstep',
                        function(data){genro.dev.onDebugstep(data)}
                      );
@@ -613,6 +601,24 @@ dojo.declare('gnr.GenroClient', null, {
                 parentGenro = false;
             }
         }
+
+	// if cordova is detected, load the js payload from localhost
+	// which will load all the configured plugins payload
+	if(this.isCordova) {
+	    if(!this.getParentGenro()) {
+		document.addEventListener('deviceready', function() {
+		    console.log("CORDOVA JS LOAD COMPLETED");
+		    genro.cordova_ready = true;
+		    genro.setData("gnr.cordova.ready", true);
+		}, false);
+		
+		genro.dom.loadJs("https://localhost/cordova.js", () => {
+                    console.log("CORDOVA JS LOADED");
+		});
+	    }
+	}
+
+	
         genro.src.getMainSource(function(mainBagPage){
             if (mainBagPage  &&  mainBagPage.attr && mainBagPage.attr.redirect) {
                 var pageUrl = genro.absoluteUrl();
