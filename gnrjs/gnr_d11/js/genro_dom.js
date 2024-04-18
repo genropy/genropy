@@ -1619,8 +1619,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var result = {};
         var style = whatDomNode.style;
         var whereposition = whereDomNode.style.position;
-        var deltax = viewport.l;
-        var deltay = viewport.t;
+        var deltax = viewport.l || viewport.x;
+        var deltay = viewport.t || viewport.y;
         var onlyX,onlyY;
         xRatio = xRatio || 0;
         yRatio = yRatio || 0;
