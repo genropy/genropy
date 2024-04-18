@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <GenRoBag><gnrpy><gnr><app><gnrapp path="gnrpy/gnr/app/gnrapp.py" ext="py"><en_user_not_allowed base="User not allowed" de="Benutzer nicht erlaubt" en="User not allowed" fr="Utilisateur non autorisé" it="Utente non autorizzato"></en_user_not_allowed></gnrapp>
 <gnrdbo path="gnrpy/gnr/app/gnrdbo.py" ext="py"><en_system fr="Système" de="System" en="System" it="Sistema" base="System"></en_system>
-<en_id fr="Ça" de="Identifikation" en="id" it="Id" base="Id"></en_id>
+<en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="Id"></en_id>
 <en_insert_date base="Insert date" de="Datum einfügen" en="Insert date" fr="Date d'insertion" it="Data di inserimento"></en_insert_date>
 <en_logical_delete_date base="Logical delete date" de="Logical Löschdatum" en="Logical delete date" fr="Date de suppression logique" it="Logical data di eliminazione"></en_logical_delete_date>
 <en_update_date base="Update date" de="Datum der Aktualisierung" en="Update date" fr="Mise à jour de la date" it="Data aggiornamento"></en_update_date>
@@ -15,7 +15,7 @@
 <en_hierarchical_pkey base="Hierarchical pkey"></en_hierarchical_pkey>
 <en_hierarchical_s base="Hierarchical %s" de="Hierarchischen  %s" en="Hierarchical [0]" fr="Hiérarchique%s" it="Gerarchica% s"></en_hierarchical_s>
 <en_parent_hierarchical_s base="Parent Hierarchical %s" de="Mutter Hierarchical  %s" en="Parent Hierarchical [0]" fr="Parent hiérarchique%s" it="Parent gerarchica% s"></en_parent_hierarchical_s>
-<en_counter fr="Compteur" en="Counters" de="Zähler" it="Contatori" base="Counter"></en_counter>
+<en_counter fr="Compteur" en="Counter" de="Zähler" it="Contatori" base="Counter"></en_counter>
 <en_rel_idx base="Rel.Idx"></en_rel_idx>
 <en_counter_s base="Counter %s" de="Gegen  %s" en="Counter [0]" fr="Contre%s" it="Contatore% s"></en_counter_s>
 <en_warnings base="Warnings" de="Warnungen" en="Warnings" fr="Avertissements" it="Avvertenze"></en_warnings>
@@ -45,7 +45,7 @@
 <en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"></en_content>
 <en_additional_info base="Additional info" de="Zusatzinfo" en="Additional info" fr="Information additionnelle" it="Informazioni addizionali"></en_additional_info>
 <en_is_foreign_document_ _tag="en__is_foreign_document_" base="[Is foreign document]"></en_is_foreign_document_>
-<en_ext base="Ext" it="Estensione"></en_ext>
+<en_ext base="Ext" it="Estensione" en="Ext"></en_ext>
 <en_ref_count base="Ref.Count"></en_ref_count>
 <en_sync_event base="Sync event" de="Sync Event" en="Sync event" fr="Événement Sync" it="Sync evento"></en_sync_event>
 <en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"></en_table>
@@ -60,12 +60,12 @@
 <en_codekey fr="Codekey" de="Codeschlüssel" en="Codekey" it="Codekey" base="Codekey"></en_codekey>
 <en_code base="Code" en="Code" it="Codice"></en_code>
 <en_package fr="Paquet" de="Paket" en="Package" it="Pacchetto" base="Package"></en_package>
-<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name>
+<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
 <en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"></en_holes></gnrdbo>
 <gnrdbo_legacy path="gnrpy/gnr/app/gnrdbo_legacy.py" ext="py"><en_code base="Code" en="Code" it="Codice"></en_code>
 <en_description base="Description" en="Description" it="Descrizione"></en_description>
 <en_child_code base="Child code" de="Child Code" en="Child code" fr="Code de l'enfant" it="Codice subordinato"></en_child_code>
-<en_required fr="Requis" de="Erforderlich" en="Required" it="Richiesto" base="Required"></en_required>
+<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required>
 <en_invalid_code_char_is_not_allowed base='Invalid code: "." char is not allowed' de='Invalid code: "." char ist nicht erlaubt' en='Invalid code: "." char is not allowed' fr='Code invalide: "." omble est pas autorisé' it='Codice non VALIDO: "." char non è consentito'></en_invalid_code_char_is_not_allowed>
 <en_parent_code base="Parent code" de="Geordneten Code" en="Parent code" fr="Code Parent" it="Codice Parent"></en_parent_code>
 <en_level base="Level" de="Höhe" en="Level" fr="Niveau" it="Livello"></en_level>
@@ -94,8 +94,9 @@
 <en_std_range base="Std range" de="Std.Range" en="Std.Range" fr="Std.Range" it="Std.Range"></en_std_range>
 <en_formula base="Formula" de="Formel" en="Formula" fr="Formule" it="Formula"></en_formula>
 <en_do_summary base="Do summary" en="Do summary" it="Fare sintesi"></en_do_summary>
-<en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"></en_mandatory></gnrdbo_legacy></app>
-<core><gnrbag path="gnrpy/gnr/core/gnrbag.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[0] [1]" it="%s %s"></en_s_s></gnrbag>
+<en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"></en_mandatory></gnrdbo_legacy>
+<gnrlocalization path="gnrpy/gnr/app/gnrlocalization.py" ext="py"><en_autotranslate_terms_in_lang_ base="Autotranslate terms in {lang}"></en_autotranslate_terms_in_lang_></gnrlocalization></app>
+<core><gnrbag path="gnrpy/gnr/core/gnrbag.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[4] [5]" it="%s %s"></en_s_s></gnrbag>
 <gnrbaghtml path="gnrpy/gnr/core/gnrbaghtml.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrbaghtml>
 <gnrlang path="gnrpy/gnr/core/gnrlang.py" ext="py"><en_genro_base_exception base="Genro base exception" de="Genro Basis Ausnahme" en="Genro base exception" fr="Genro exception de base" it="Genro eccezione di base"></en_genro_base_exception>
 <en_error_code_code_s_description_s_ base="Error code %(code)s : %(description)s." de="Fehlercode   %(code)s :  %(description)s." en="Error code [0] : [1]." fr="Code d'erreur  %(code)s :  %(description)s." it="Codice di errore  %(code)s :  %(description)s."></en_error_code_code_s_description_s_></gnrlang>
@@ -111,6 +112,10 @@
 <en_lower base="Lower" de="Niedriger" en="Lower" fr="Inférieur" it="Inferiore"></en_lower>
 <en_largecapacity base="LargeCapacity" de="Largecapacity" en="LargeCapacity" fr="LargeCapacity" it="LargeCapacity"></en_largecapacity></gnrprinthandler>
 <gnrrlab path="gnrpy/gnr/core/gnrrlab.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrrlab></core>
+<dev><cli><gnrmkthresource path="gnrpy/gnr/dev/cli/gnrmkthresource.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di ricerca" base="Lookup tables"></en_lookup_tables>
+<en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrmkthresource>
+<gnrsql2py path="gnrpy/gnr/dev/cli/gnrsql2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrsql2py>
+<gnrxml2py path="gnrpy/gnr/dev/cli/gnrxml2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrxml2py></cli></dev>
 <lib><services><networkprint path="gnrpy/gnr/lib/services/networkprint.py" ext="py"><en_a4 base="A4" de="A4" en="A4" fr="A4" it="A4"></en_a4>
 <en_legal base="Legal" de="Rechts-" en="Legal" fr="Juridique" it="Legale"></en_legal>
 <en_a4_with_margins base="A4 with margins" en="A4 with margins" it="A4 con margini"></en_a4_with_margins>
@@ -122,7 +127,7 @@
 <en_upper base="Upper" de="Obere" en="Upper" fr="Supérieur" it="Superiore"></en_upper>
 <en_lower base="Lower" de="Niedriger" en="Lower" fr="Inférieur" it="Inferiore"></en_lower>
 <en_largecapacity base="LargeCapacity" de="Largecapacity" en="LargeCapacity" fr="LargeCapacity" it="LargeCapacity"></en_largecapacity></networkprint>
-<storage path="gnrpy/gnr/lib/services/storage.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[0] [1]" it="%s %s"></en_s_s></storage></services></lib>
+<storage path="gnrpy/gnr/lib/services/storage.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[4] [5]" it="%s %s"></en_s_s></storage></services></lib>
 <sql><adapters><_gnrbaseadapter path="gnrpy/gnr/sql/adapters/_gnrbaseadapter.py" ext="py"><en_starts_with_chars base="Starts with Chars" de="Beginnt mit Chars" en="Starts with Chars" fr="Commençant par Chars" it="Inizia con Caratteri"></en_starts_with_chars>
 <en_equal_to base="Equal to" de="Gleich" en="Equal to" fr="Égal à" it="Uguale a"></en_equal_to>
 <en_starts_with base="Starts with" de="Beginnt mit" en="Starts with" fr="Commence avec" it="Inizia con"></en_starts_with>
@@ -168,17 +173,17 @@
 <en_genro_sql_not_existing_column_exception base="Genro SQL Not Existing Column Exception" de="Genro SQL nicht vorhandenen Spalte Exception" en="Genro SQL Not Existing Column Exception" fr="Genro SQL Non existant Colonne Exception" it="Genro SQL inesistente Colonna Eccezione"></en_genro_sql_not_existing_column_exception>
 <en_column_column_s_not_existing_in_table_tablename_s_ base="Column %(column)s not existing in table %(tablename)s " de="Spalte  %(column)s nicht in  %Tabelle vorhandenen %(tablename)s" en="Column [0] not existing in table [1] " fr="Colonne  %(column)s ne pas exister dans le tableau %(tablename)s" it="Colonna  %(colonna)s non esistente nella tabella%(tablename)s"></en_column_column_s_not_existing_in_table_tablename_s_>
 <en_record_referenced_in_table_reltable_s base="Record referenced in table %(reltable)s" de="In Tabelle  %(reltable) Nehmensie verwiesen s" en="Record referenced in table [0]" fr="Enregistrez référencé dans le tableau  %(reltable)s" it="Record riferimento nella tabella  %(reltable)s"></en_record_referenced_in_table_reltable_s></gnrsqltable>
-<gnrsqlxml2py path="gnrpy/gnr/sql/gnrsqlxml2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[0]" de="% S" it="% S" base="%s"></en_s></gnrsqlxml2py></sql>
+<gnrsqlxml2py path="gnrpy/gnr/sql/gnrsqlxml2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrsqlxml2py></sql>
 <web><_gnrbasewebpage path="gnrpy/gnr/web/_gnrbasewebpage.py" ext="py"><en_saving_error base="Saving error" de="Saving Fehler" en="Saving error" fr="Erreur de sauvegarde" it="Errore di Salvataggio"></en_saving_error>
 <en_fieldname_s_sequence_s_instead_of_promised_sequence_s _tag="en__fieldname_s_sequence_s_instead_of_promised_sequence_s" base="%(fieldname)s: %(sequence)s instead of %(promised_sequence)s" de="  %(Fieldname)s:  %(Sequenz)s statt  %(promised_sequence)s" en="[0]: [1] instead of [2]" fr="  %(Fieldname)s:  %(séquence)s au lieu de  %(promised_sequence)s" it="  %(Fieldname)s:  %(sequenza)s invece di  %(promised_sequence)s"></en_fieldname_s_sequence_s_instead_of_promised_sequence_s></_gnrbasewebpage>
 <batch><btcbase path="gnrpy/gnr/web/batch/btcbase.py" ext="py"><en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm></btcbase>
-<btcmail path="gnrpy/gnr/web/batch/btcmail.py" ext="py"><en_cc base="CC" de="CC" en="CC" fr="CC" it="CC"></en_cc>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm></btcbase>
+<btcmail path="gnrpy/gnr/web/batch/btcmail.py" ext="py"><en_cc base="CC" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
 <en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
-<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente"></en_previous>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next></btcmail>
+<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente" zh="以前"></en_previous>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next></btcmail>
 <btcprint path="gnrpy/gnr/web/batch/btcprint.py" ext="py"><en_print_options base="Print Options" de="Druckoptionen" en="Print options" fr="Les options d'impression" it="Opzioni di stampa"></en_print_options>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead>
 <en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
 <en_server_print base="Server Print" de="Print Server" en="Server Print" fr="Serveur d'impression" it="Server di stampa"></en_server_print>
 <en_pdf base="Pdf" de="Pdf" en="Pdf" fr="Pdf" it="Pdf"></en_pdf>
@@ -186,14 +191,14 @@
 <en_zip_folder base="Zip folder" de="Zip-Ordner" en="Zip folder" fr="dossier postal" it="Cartella Zip"></en_zip_folder>
 <en_pdf_by_email base="Pdf by email" de="Pdf per E-Mail" en="Pdf by email" fr="Pdf par email" it="Pdf via e-mail"></en_pdf_by_email>
 <en_to base="To" de="Bis" en="To" fr="À" it="A"></en_to>
-<en_cc base="CC" de="CC" en="CC" fr="CC" it="CC"></en_cc>
+<en_cc base="CC" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
 <en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
 <en_deliver_mail base="Deliver mail" de="Geben Sie mail" en="Deliver mail" fr="Distribuer le courrier" it="Consegna posta"></en_deliver_mail>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_download base="Download" de="Herunterladen" en="Download" fr="Télécharger" it="Scarica"></en_download>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_export_url base="Export url"></en_export_url>
 <en_link_in_clipboard base="Link in clipboard"></en_link_in_clipboard></btcprint></batch>
 <gnrbaseclasses path="gnrpy/gnr/web/gnrbaseclasses.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrbaseclasses>
@@ -207,16 +212,16 @@
 <utils path="gnrpy/gnr/web/gnrwebpage_proxy/utils.py" ext="py"><en_executing base="Executing" de="Ausführen" en="Executing" fr="Exécution" it="Esecuzione"></en_executing></utils></gnrwebpage_proxy>
 <gnrwsgisite path="gnrpy/gnr/web/gnrwsgisite.py" ext="py"><en_genro_site_exception base="Genro Site exception" de="Genro Website Ausnahme" en="Genro Site exception" fr="Exception Genro site" it="Eccezione Genro sito"></en_genro_site_exception>
 <en_site_error_message_s _tag="en__site_error_message_s" base=" Site Error : %(message)s" de="Website-Fehler:  %(Meldung)s" en=" Site Error : [0]" fr="Site erreur:  %(message)s" it="Errore del sito:  %(messaggio)s"></en_site_error_message_s></gnrwsgisite></web>
-<xtnd><gnrpandas path="gnrpy/gnr/xtnd/gnrpandas.py" ext="py"><en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi"></en_fields>
+<xtnd><gnrpandas path="gnrpy/gnr/xtnd/gnrpandas.py" ext="py"><en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi" zh="字段"></en_fields>
 <en_rows base="Rows"></en_rows>
 <en_columns base="Columns"></en_columns>
 <en_values base="Values" de="Werte" en="Values" fr="Valeurs" it="Valori"></en_values></gnrpandas></xtnd></gnr></gnrpy>
 <gnrjs><gnr_d11><js><genro_components path="gnrjs/gnr_d11/js/genro_components.js" ext="js"><en_drop_import_file_here base="Drop import file here"></en_drop_import_file_here>
 <en_toggle base="Toggle"></en_toggle>
 <en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"></en_prev>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
 <en_template_not_yet_created base="Template not yet created"></en_template_not_yet_created>
-<en_double_click_to_create_it base="Double-click to create it"></en_double_click_to_create_it>
+<en_double_click_to_create_it base="Double-click to create it" it="Doppio click per creare"></en_double_click_to_create_it>
 <en_you_are_about_to_delete_the_selected_record_br_you_can_t_undo_this base="You are about to delete the selected record.&lt;br/&gt;You can't undo this" en="You are about to delete the selected record.&lt;br/&gt;You can't undo this" it="Stai per cancellare il record selezionato. &lt;br/&gt; Non è possibile annullare questa operazione"></en_you_are_about_to_delete_the_selected_record_br_you_can_t_undo_this>
 <en_the_record_cannot_be_removed_br_it_will_be_hidden_instead_ base="The record cannot be removed.&lt;br/&gt;It will be hidden instead." en="The record cannot be removed.&lt;br/&gt;It will be hidden instead." it="Il record non può essere rimosso. &lt;br/&gt; Sarà nascosto, invece."></en_the_record_cannot_be_removed_br_it_will_be_hidden_instead_>
 <en_you_are_about_to_delete_count_records_br_you_can_t_undo_this base="You are about to delete $count records.&lt;br/&gt;You can't undo this" en="You are about to delete $count records.&lt;br/&gt;You can't undo this" it="Stai per eliminare $count record. &lt;br/&gt; Non è possibile annullare questa operazione"></en_you_are_about_to_delete_count_records_br_you_can_t_undo_this>
@@ -226,7 +231,7 @@
 <en_you_are_about_to_set_archiviation_date_in_the_selected_record base="You are about to set archiviation date in the selected record" it="Stai per archiviare il record selezionato"></en_you_are_about_to_set_archiviation_date_in_the_selected_record>
 <en_you_are_about_to_set_archiviation_date_in_the_selected_count_records base="You are about to set archiviation date in the selected $count records" it="Stai per archiviare, impostando la data di archiviazione a $count records"></en_you_are_about_to_set_archiviation_date_in_the_selected_count_records></genro_components>
 <genro_grid path="gnrjs/gnr_d11/js/genro_grid.js" ext="js"><en_fieldname base="Fieldname"></en_fieldname>
-<en_header base="Header" it="Header"></en_header></genro_grid></js></gnr_d11></gnrjs>
+<en_header base="Header" it="Header" en="Header" zh="标题"></en_header></genro_grid></js></gnr_d11></gnrjs>
 <resources><common><_unused><standardRecordViews path="resources/common/_unused/standardRecordViews.py" ext="py"><en_unlock base="Unlock" de="Öffnen" en="Unlock" fr="Ouvrir" it="Sbloccare"></en_unlock>
 <en_lock base="Lock" de="Sperren" en="Lock" fr="Bloquer" it="Serratura"></en_lock>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
@@ -237,7 +242,7 @@
 <en_save_changes base="Save changes" de="Änderungen speichern" en="Save changes" fr="Sauvegarder les changements" it="Salva i cambiamenti"></en_save_changes>
 <en_forget_changes base="Forget changes" de="Vergessen Änderungen" en="Forget changes" fr="Oubliez changements" it="Dimenticate modifiche"></en_forget_changes>
 <en_record_saved base="Record saved" de="Datensatz gespeichert" en="Record saved" fr="Notice sauvée" it="Record salvato"></en_record_saved></standardRecordViews></_unused>
-<foundation><dialogs path="resources/common/foundation/dialogs.py" ext="py"><en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm>
+<foundation><dialogs path="resources/common/foundation/dialogs.py" ext="py"><en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_are_you_sure_ base="Are you sure?" de="Sind Sie sicher?" en="Are you sure?" fr="Êtes-vous sûr?" it="Sei sicuro?"></en_are_you_sure_></dialogs>
 <htmltoframe path="resources/common/foundation/htmltoframe.py" ext="py"><en_pdf base="PDF" de="Pdf" en="Pdf" fr="Pdf" it="Pdf"></en_pdf>
@@ -246,16 +251,16 @@
 <en_delete base="Delete" de="Löschen" en="Delete" fr="Effacer" it="Cancellare"></en_delete>
 <en_add base="Add" de="Hinzufügen" en="Add" fr="Ajouter" it="Aggiungere"></en_add>
 <en_first base="First" de="Erste" en="First" fr="Premier" it="Primo"></en_first>
-<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente"></en_previous>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
+<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente" zh="以前"></en_previous>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
 <en_last base="Last" de="Letzte" en="Last" fr="Dernier" it="Ultimo"></en_last>
 <en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
 <en_add_and_close base="Add and Close" de="Hinzufügen und Schließen" en="Add and Close" fr="Ajouter et fermer" it="Aggiungi e chiudi"></en_add_and_close></includedview>
 <macrowidgets path="resources/common/foundation/macrowidgets.py" ext="py"><en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"></en_prev>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
 <en_period fr="Période" de="Zeit" en="Period" it="Periodo" base="Period"></en_period>
 <en_first base="First" de="Erste" en="First" fr="Premier" it="Primo"></en_first>
-<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente"></en_previous>
+<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente" zh="以前"></en_previous>
 <en_last base="Last" de="Letzte" en="Last" fr="Dernier" it="Ultimo"></en_last></macrowidgets>
 <menu path="resources/common/foundation/menu.py" ext="py"><en_menu fr="Menu" de="Menü" en="Menu" it="Menu" base="Menu"></en_menu></menu>
 <recorddialog path="resources/common/foundation/recorddialog.py" ext="py"><en_not_valid_data_please_check_the_form base="Not valid data. Please check the form" de="Keine gültigen Daten. Überprüfen Sie bitte das Formular" en="Not valid data. Please check the form" fr="Les données ne sont pas valables. S'il vous plaît vérifier la forme" it="Dati non validi. Si prega di verificare la forma"></en_not_valid_data_please_check_the_form>
@@ -275,8 +280,8 @@
 <en_do_not_save base="Do not save" en="Do not save" it="Non salvare"></en_do_not_save>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_first base="First" de="Erste" en="First" fr="Premier" it="Primo"></en_first>
-<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente"></en_previous>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
+<en_previous base="Previous" de="Früher" en="Previous" fr="Précédent" it="Precedente" zh="以前"></en_previous>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
 <en_last base="Last" de="Letzte" en="Last" fr="Dernier" it="Ultimo"></en_last>
 <en_save_changes base="Save changes" de="Änderungen speichern" en="Save changes" fr="Sauvegarder les changements" it="Salva i cambiamenti"></en_save_changes>
 <en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
@@ -285,8 +290,10 @@
 <thermo path="resources/common/foundation/thermo.py" ext="py"><en_stop_the_batch_execution_ base="Stop the batch execution?" de="Stoppen Sie die Batch-Ausführung?" en="Stop the batch execution?" fr="Arrêter l'exécution du lot?" it="Interrompere l'esecuzione del batch?"></en_stop_the_batch_execution_></thermo></foundation>
 <gnrcomponents><attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_imp_ base="Imp." de="Imp." en="Imp." fr="Imp." it="Imp."></en_imp_>
-<en_drag_here_or_double_click_to_upload base="Drag here or double click to upload"></en_drag_here_or_double_click_to_upload>
-<en_double_click_to_upload base="Double click to upload"></en_double_click_to_upload>
+<en_viewer base="Viewer"></en_viewer>
+<en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
+<en_drag_here_or_double_click_to_upload base="Drag here or double click to upload" it="Trascina qui o fai doppio click"></en_drag_here_or_double_click_to_upload>
+<en_double_click_to_upload base="Double click to upload" it="Doppio click per caricare"></en_double_click_to_upload>
 <en_attachment base="Attachment" de="Befestigung" en="Attachment" fr="Attachement" it="Allegato"></en_attachment>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_delete_attachment base="Delete attachment" de="Anhang löschen" en="Delete attachment" fr="Supprimer la pièce jointe" it="Elimina allegato"></en_delete_attachment>
@@ -305,7 +312,7 @@
 <en_start_chat base="Start chat" de="Chat starten" en="Start chat" fr="Démarrer un chat" it="Comincia chat"></en_start_chat>
 <en_users fr="Utilisateurs" de="Benutzer" en="Users" it="Utenti" base="Users"></en_users></chat_component></chat_component>
 <datamover path="resources/common/gnrcomponents/datamover.py" ext="py"><en_save_mover base="Save Mover" de="Speichern Mover" en="Save Mover" fr="Sauvegarder Mover" it="Salva Mover"></en_save_mover>
-<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name>
+<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
@@ -339,14 +346,14 @@
 <en_querable base="Querable" de="Querable" en="Querable" fr="Querable" it="Querable"></en_querable>
 <en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"></en_mandatory>
 <en_new_field base="New Field" de="Neues Feld" en="New Field" fr="New Field" it="Nuovo campo"></en_new_field>
-<en_required fr="Requis" de="Erforderlich" en="Required" it="Richiesto" base="Required"></en_required>
+<en_required base="Required" de="Erforderlich" en="Required" fr="Requis" it="Richiesto"></en_required>
 <en_invalid_code_char_is_not_allowed base='Invalid code: "." char is not allowed' de='Invalid code: "." char ist nicht erlaubt' en='Invalid code: "." char is not allowed' fr='Code invalide: "." omble est pas autorisé' it='Codice non VALIDO: "." char non è consentito'></en_invalid_code_char_is_not_allowed>
 <en_field_code base="Field code" de="Feldcode" en="Field code" fr="Code champs" it="Codice Campo"></en_field_code>
 <en_field_description base="Field description" de="Feldbeschreibung" en="Field description" fr="Description du champ" it="Descrizione del campo"></en_field_description>
 <en_calculated base="Calculated" de="Berechnet" en="Calculated" fr="Calculé" it="Calcolato"></en_calculated>
 <en_colspan base="Colspan" de="Colspan" en="Colspan" fr="Colspan" it="Colspan"></en_colspan>
-<en_width fr="Largeur" de="Breite" en="Width" it="Larghezza" base="Width"></en_width>
-<en_height fr="Hauteur" de="Höhe" en="Height" it="Altezza" base="Height"></en_height>
+<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"></en_width>
+<en_height base="Height" de="Höhe" en="Height" fr="Hauteur" it="Altezza"></en_height>
 <en_keepable_value base="Keepable value" de="Keepable Wert" en="Keepable value" fr="Valeur keepable" it="Valore keepable"></en_keepable_value>
 <en_vocal_input base="Vocal input" de="Vocal Eingang" en="Vocal input" fr="Entrée Vocal" it="Ingresso Vocal"></en_vocal_input>
 <en_full_text_search base="Full text search"></en_full_text_search>
@@ -375,7 +382,7 @@
 <en_data_getter base="Data getter" de="Daten Getter" en="Data getter" fr="Getter données" it="Getter dati"></en_data_getter>
 <en_add_custom_template base="Add custom template" de="Fügen Sie benutzerdefinierte Vorlage" en="Add custom template" fr="Ajouter template personnalisé" it="Aggiungi modello personalizzato"></en_add_custom_template>
 <en_delete_selected_template base="Delete selected template" de="Löschen ausgewählte Vorlage" en="Delete selected template" fr="Supprimer le modèle sélectionné" it="Cancella modello selezionato"></en_delete_selected_template>
-<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi"></en_fields>
+<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi" zh="字段"></en_fields>
 <en_dynamic_fields base="Dynamic fields" de="Dynamische Felder" en="Dynamic fields" fr="Les champs dynamiques" it="Campi dinamici"></en_dynamic_fields>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
 <en_summary_templates base="Summary Templates" de="Zusammenfassung Templates" en="Summary Templates" fr="Résumé Templates" it="Sommario Modelli"></en_summary_templates>
@@ -402,7 +409,7 @@
 <en_first base="First" de="Erste" en="First" fr="Premier" it="Primo"></en_first>
 <en_last base="Last" de="Letzte" en="Last" fr="Dernier" it="Ultimo"></en_last>
 <en_prev base="Prev" de="Zurück" en="Prev" fr="Précédent" it="Prev"></en_prev>
-<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo"></en_next>
+<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"></en_next>
 <en_hidden base="Hidden" de="Versteckt" en="Hidden" fr="Caché" it="Nascosto"></en_hidden>
 <en_locker base="Locker" de="Schließfach" en="Locker" fr="Casier" it="Blocca/Sblocca"></en_locker></formhandler>
 <framegrid path="resources/common/gnrcomponents/framegrid.py" ext="py"><en_export base="Export" de="Export" en="Export" fr="Exportation" it="Esportazione"></en_export>
@@ -427,11 +434,11 @@
 <en_limit base="Limit" de="Limit" en="Limit" fr="Limite" it="Limite"></en_limit>
 <en_grid base="Grid"></en_grid>
 <en_description base="Description" en="Description" it="Descrizione"></en_description>
-<en_value base="Value"></en_value></framegrid>
+<en_value base="Value" en="Value" it="Valore" zh="价值"></en_value></framegrid>
 <gnride><gnride path="resources/common/gnrcomponents/gnride/gnride.py" ext="py"><en_folders base="Folders"></en_folders></gnride></gnride>
 <gridcustomizer path="resources/common/gnrcomponents/gridcustomizer.py" ext="py"><en_field fr="Terrain" de="Bereich" en="Field" it="Campo" base="Field"></en_field>
-<en_header base="Header" it="Header"></en_header>
-<en_width fr="Largeur" de="Breite" en="Width" it="Larghezza" base="Width"></en_width>
+<en_header base="Header" it="Header" en="Header" zh="标题"></en_header>
+<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"></en_width>
 <en_format base="Format" de="Format" en="Format" fr="Format" it="Formato"></en_format>
 <en_caption_field base="Caption field"></en_caption_field>
 <en_style base="Style" de="Stil" en="Style" fr="Style" it="Stile"></en_style>
@@ -455,7 +462,7 @@
 <en_tree base="Tree" de="Baum" en="Tree" fr="Arbre" it="Albero"></en_tree>
 <en_picker base="Picker" de="Pflücker" en="Picker" fr="Cueilleur" it="Picker"></en_picker>
 <en_how_many_copies_do_you_want_to_insert_ base="How many copies do you want to insert?" de="Wie viele Exemplare möchten Sie ein?" en="How many copies do you want to insert?" fr="Combien de copies que vous souhaitez insérer?" it="Quante copie vuoi inserire?"></en_how_many_copies_do_you_want_to_insert_>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm></htablehandler>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm></htablehandler>
 <htmlchunkeditor path="resources/common/gnrcomponents/htmlchunkeditor.py" ext="py"><en_chunk_editor base="Chunk editor" de="Chunk Editor" en="Chunk editor" fr="éditeur de Chunk" it="Editor Chunk"></en_chunk_editor></htmlchunkeditor>
 <maintenance path="resources/common/gnrcomponents/maintenance.py" ext="py"><en_maintenance base="Maintenance" de="Wartung" en="Maintenance" fr="Entretien" it="Manutenzione"></en_maintenance>
 <en_users_connections base="Users &amp; Connections" de="Anwender &amp; Anschlüsse" en="Users &amp; Connections" fr="Utilisateurs &amp; Connexions" it="Utenti e Connessioni"></en_users_connections>
@@ -463,10 +470,10 @@
 <en_message fr="Message" de="Nachricht" en="Message" it="Messaggio" base="Message"></en_message>
 <en_the_system_is_going_to_be_restarted_finish_your_pending_tasks base="The system is going to be restarted. Finish your pending tasks" de="Das System wird neu gestartet werden. Beenden Sie Ihre anstehenden Aufgaben" en="The system is going to be restarted. Finish your pending tasks" fr="Le système va être redémarré. Terminez vos tâches en attente" it="Il sistema sta per essere riavviato. Finite le vostre attività in corso"></en_the_system_is_going_to_be_restarted_finish_your_pending_tasks>
 <en_exclude_guest base="Exclude guest" de="Ausschließen Gast" en="Exclude guest" fr="Exclure invité" it="Escludi ospite"></en_exclude_guest>
-<en_rpc_details fr="Détails Rpc" de="RPC-Details" en="Rpc details" it="Dettagli Rpc" base="Rpc details"></en_rpc_details></maintenance>
+<en_rpc_details base="Rpc details" de="RPC-Details" en="Rpc details" fr="Détails Rpc" it="Dettagli Rpc"></en_rpc_details></maintenance>
 <master_detail><master_detail path="resources/common/gnrcomponents/master_detail/master_detail.py" ext="py"><en_field fr="Terrain" de="Bereich" en="Field" it="Campo" base="Field"></en_field>
-<en_header base="Header" it="Header"></en_header>
-<en_width fr="Largeur" de="Breite" en="Width" it="Larghezza" base="Width"></en_width>
+<en_header base="Header" it="Header" en="Header" zh="标题"></en_header>
+<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"></en_width>
 <en_format base="Format" de="Format" en="Format" fr="Format" it="Formato"></en_format>
 <en_caption_field base="Caption field"></en_caption_field>
 <en_style base="Style" de="Stil" en="Style" fr="Style" it="Stile"></en_style>
@@ -484,11 +491,11 @@
 <en_group_by base="Group by"></en_group_by>
 <en_values base="Values" de="Werte" en="Values" fr="Valeurs" it="Valori"></en_values></reporthandler></reporthandler>
 <timesheet_viewer><timesheet_viewer path="resources/common/gnrcomponents/timesheet_viewer/timesheet_viewer.py" ext="py"><en_refesh base="Refesh"></en_refesh>
-<en_calendar base="Calendar" it="Calendario"></en_calendar>
+<en_calendar base="Calendar" it="Calendario" en="Calendar"></en_calendar>
 <en_selected_date base="Selected date"></en_selected_date>
 <en_select_a_doctor_from_the_top_right_menu base="Select a DOCTOR from the top right menu"></en_select_a_doctor_from_the_top_right_menu></timesheet_viewer></timesheet_viewer>
 <timetable path="resources/common/gnrcomponents/timetable.py" ext="py"><en_configuration base="Configuration" de="Konfiguration" en="Configuration" fr="Configuration" it="Configurazione"></en_configuration></timetable>
-<tpleditor path="resources/common/gnrcomponents/tpleditor.py" ext="py"><en_metadata fr="Métadonnées" de="Metadata" en="Metadata" it="Metadata" base="Metadata"></en_metadata>
+<tpleditor path="resources/common/gnrcomponents/tpleditor.py" ext="py"><en_metadata base="Metadata" de="Metadata" en="Metadata" fr="Métadonnées" it="Metadata"></en_metadata>
 <en_edit base="Edit" de="Bearbeiten" en="Edit" fr="Éditer" it="Modifica"></en_edit>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
 <en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"></en_help>
@@ -501,24 +508,24 @@
 <en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_mail base="Mail" de="Post" en="Email" fr="Courrier" it="Email"></en_mail>
 <en_row base="Row" de="Reihe" en="Row" fr="Rangée" it="Riga"></en_row>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead>
 <en_summary fr="Résumé" de="Zusammenfassung" en="Summary" it="Sommario" base="Summary"></en_summary>
 <en_flags fr="Drapeaux" de="Flags" en="Flags" it="Flags" base="Flags"></en_flags>
 <en_variables base="Variables" de="Variablen" en="Variables" fr="Variables" it="Variabili"></en_variables>
 <en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters>
-<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi"></en_fields>
+<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi" zh="字段"></en_fields>
 <en_files base="Files" de="Dateien" en="Files" fr="Fichiers" it="File"></en_files>
 <en_attached_reports base="Attached reports"></en_attached_reports>
 <en_relation base="Relation"></en_relation>
 <en_report base="Report"></en_report>
 <en_resource base="Resource"></en_resource>
 <en_condition base="Condition"></en_condition>
-<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
-<en_from base="From" de="Von" en="From" fr="À partir de" it="Da"></en_from>
 <en_email_metadata base="Email metadata" de="E-Mail-Metadaten" en="Email metadata" fr="Email métadonnées" it="Metadati Email"></en_email_metadata>
+<en_subject fr="Sujet" de="Gegenstand" en="Subject" it="Oggetto" base="Subject"></en_subject>
 <en_to base="To" de="Bis" en="To" fr="À" it="A"></en_to>
-<en_cc base="CC" de="CC" en="CC" fr="CC" it="CC"></en_cc>
-<en_bcc base="BCC" de="BCC" en="BCC" fr="BCC" it="BCC"></en_bcc>
+<en_from base="From" de="Von" en="From" fr="À partir de" it="Da"></en_from>
+<en_cc base="CC" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
+<en_bcc base="BCC" de="BCC" en="Bcc" fr="BCC" it="BCC"></en_bcc>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_record base="Record" de="Aufzeichnung" en="Record" fr="Record" it="Record"></en_record>
 <en_code base="Code" en="Code" it="Codice"></en_code>
@@ -545,7 +552,7 @@
 <en_edit_print_parameters base="Edit print parameters"></en_edit_print_parameters>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
 <en_orientation base="Orientation"></en_orientation>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead>
 <en_totalize base="Totalize"></en_totalize>
 <en_carry_caption base="Carry caption"></en_carry_caption>
 <en_totals_caption base="Totals caption"></en_totals_caption>
@@ -566,9 +573,9 @@
 <en_report_title base="Report Title"></en_report_title>
 <en_report_description base="Report Description"></en_report_description>
 <en_datasets base="Datasets"></en_datasets>
-<en_publish base="Publish"></en_publish>
+<en_publish base="Publish" en="PUBLISH" it="PUBBLICARE"></en_publish>
 <en_commands base="Commands"></en_commands>
-<en_name fr="Nom" de="Name" en="Name" it="Nome" base="Name"></en_name>
+<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_summary fr="Résumé" de="Zusammenfassung" en="Summary" it="Sommario" base="Summary"></en_summary>
@@ -587,7 +594,7 @@
 <en_set_filter base="Set Filter" de="Filter setzen" en="Set Filter" fr="Définir le filtre" it="Imposta filtro"></en_set_filter>
 <en_main_view base="Main View" de="Hauptansicht" en="Main view" fr="Vue principale" it="Vista principale"></en_main_view>
 <en_statistical_view base="Statistical View" de="Statistische anzeigen" en="Statistical View" fr="Voir statistique" it="Visualizza statistica"></en_statistical_view>
-<en_stats base="Stats"></en_stats></public>
+<en_stats base="Stats" en="Stats" it="Statistiche" zh="统计数据"></en_stats></public>
 <services><pdfform><pdftk><component path="resources/common/services/pdfform/pdftk/component.py" ext="py"><en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author>
 <en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
@@ -616,17 +623,17 @@
 <set_rows_values path="resources/common/tables/_default/action/_common/set_rows_values.py" ext="py"><en_set_rows_values base="Set rows values"></en_set_rows_values></set_rows_values>
 <touch_selection path="resources/common/tables/_default/action/_common/touch_selection.py" ext="py"><en_touch_selection base="Touch Selection" de="Touch-Auswahl" en="Touch Selection" fr="Sélection tactile" it="Selezione di tocco"></en_touch_selection></touch_selection></_common></action>
 <mail><mail_template path="resources/common/tables/_default/mail/mail_template.py" ext="py"><en_s_i_ _tag="en__s_i_" base="%s (%i)" en="[0] ([1])" it="%s (%i)"></en_s_i_>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead>
 <en_send_as_pdf base="Send as pdf" de="Als pdf" en="Send as pdf" fr="Envoyer comme pdf" it="Invia come pdf"></en_send_as_pdf>
-<en_account base="Account"></en_account></mail_template></mail>
+<en_account base="Account" en="Account" it="Account"></en_account></mail_template></mail>
 <print><_common><_doc path="resources/common/tables/_default/print/_common/_doc.py" ext="py"><en_common base="Common" de="Gemeinsam" en="Common" fr="Commun" it="Comune"></en_common>
 <en_common_prints base="Common Prints" de="Gemeinsame Drucke" en="Common Prints" fr="Affiches communes" it="Stampe comuni"></en_common_prints></_doc>
 <print_gridres path="resources/common/tables/_default/print/_common/print_gridres.py" ext="py"><en_print_grid base="Print grid" de="Print Gitter" en="Print grid" fr="Imprimer grille" it="Griglia Stampa"></en_print_grid>
-<en_query base="Query"></en_query>
+<en_query base="Query" en="Query" it="Query"></en_query>
 <en_print_parameters base="Print parameters"></en_print_parameters>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
 <en_orientation base="Orientation"></en_orientation>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead>
 <en_totalize base="Totalize"></en_totalize>
 <en_carry_caption base="Carry caption"></en_carry_caption>
 <en_totals_caption base="Totals caption"></en_totals_caption>
@@ -634,9 +641,9 @@
 <en_use_all_selection_rows base="Use all selection rows"></en_use_all_selection_rows></print_gridres>
 <print_rowtemplate path="resources/common/tables/_default/print/_common/print_rowtemplate.py" ext="py"><en_template_row base="Template row"></en_template_row>
 <en_row_template base="Row template" de="Row-Vorlage" en="Row template" fr="modèle de Row" it="Modello Row"></en_row_template>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead></print_rowtemplate></_common>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead></print_rowtemplate></_common>
 <print_template path="resources/common/tables/_default/print/print_template.py" ext="py"><en_s_i_ _tag="en__s_i_" base="%s (%i)" en="[0] ([1])" it="%s (%i)"></en_s_i_>
-<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead"></en_letterhead></print_template></print></_default></tables>
+<en_letterhead fr="Tête" de="Briefkopf" en="Letterhead" it="Carta intestata" base="Letterhead" zh="信头"></en_letterhead></print_template></print></_default></tables>
 <th><th path="resources/common/th/th.py" ext="py"><en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_f_height base="F. height" de="F. Höhe" en="F. height" fr="F. hauteur" it="Altezza F."></en_f_height>
 <en_f_width base="F. width" de="F. Breite" en="F. width" fr="F. largeur" it="F. larghezza"></en_f_width>
@@ -644,7 +651,7 @@
 <en_operation_forbidden base="Operation forbidden" de="Operation verboten" en="Operation forbidden" fr="Opération interdite" it="Operazione proibito"></en_operation_forbidden>
 <en_you_cannot_change_record_the_record_is_not_saved base="You cannot change record. The record is not saved" de="Sie können Datensatz nicht ändern. Der Datensatz wird nicht gespeichert" en="You cannot change record. The record is not saved" fr="Vous ne pouvez pas modifier l'enregistrement. Le dossier ne sont pas sauvegardées" it="Non è possibile modificare record. Il record non viene salvato"></en_you_cannot_change_record_the_record_is_not_saved>
 <en_select_s base="Select %s"></en_select_s></th>
-<th_dynamic path="resources/common/th/th_dynamic.py" ext="py"><en_select_a_table_from_the_popup_menu fr="Sélectionnez une table dans le menu contextuel" de="Wählen Sie eine Tabelle aus dem Kontextmenü" en="Select a table from the popup menu" it="Selezionare una tabella dal menu a comparsa" base="Select a table from the popup menu"></en_select_a_table_from_the_popup_menu></th_dynamic>
+<th_dynamic path="resources/common/th/th_dynamic.py" ext="py"><en_select_a_table base="Select a table"></en_select_a_table></th_dynamic>
 <th_extra path="resources/common/th/th_extra.py" ext="py"><en_statistical_view base="Statistical View" de="Statistische anzeigen" en="Statistical View" fr="Voir statistique" it="Visualizza statistica"></en_statistical_view>
 <en_main_view base="Main view" de="Hauptansicht" en="Main view" fr="Vue principale" it="Vista principale"></en_main_view>
 <en_mode base="Mode" de="Mode" en="Mode" fr="Mode" it="Modo"></en_mode>
@@ -657,8 +664,10 @@
 <en_you_cannot_save base="You cannot save" de="Sie können nicht speichern" en="You cannot save" fr="Vous ne pouvez pas enregistrer" it="Non è possibile salvare"></en_you_cannot_save>
 <en_invalid_record base="Invalid record" de="Ungültige Rekord" en="Invalid record" fr="Enregistrement invalide" it="Campo non valido"></en_invalid_record>
 <en_no_change_to_save base="No change to save" en="No change to save" it="Nessuna modifica per salvare"></en_no_change_to_save>
-<en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
+<en_back base="Back" de="Zurück" en="Back" fr="Dos" it="Indietro"></en_back>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
+<en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
+<en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_record_history base="Record History"></en_record_history>
 <en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste></th_form>
@@ -677,12 +686,12 @@
 <th_lib path="resources/common/th/th_lib.py" ext="py"><en_not base="not" de="nicht" en="not" fr="pas" it="non"></en_not>
 <en_db_stores base="Db Stores"></en_db_stores>
 <en_all_stores base="All stores"></en_all_stores>
-<en_store base="Store"></en_store></th_lib>
+<en_store base="Store" en="Store" it="Negozio"></en_store></th_lib>
 <th_picker path="resources/common/th/th_picker.py" ext="py"><en_pick_checked base="Pick checked"></en_pick_checked>
 <en_picker base="Picker" de="Pflücker" en="Picker" fr="Cueilleur" it="Picker"></en_picker>
 <en_add base="Add" de="Hinzufügen" en="Add" fr="Ajouter" it="Aggiungere"></en_add></th_picker>
 <th_stats path="resources/common/th/th_stats.py" ext="py"><en_pivot base="Pivot"></en_pivot>
-<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi"></en_fields>
+<en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi" zh="字段"></en_fields>
 <en_main base="Main"></en_main>
 <en_filters base="Filters"></en_filters>
 <en_report_parameters base="Report parameters"></en_report_parameters>
@@ -707,6 +716,7 @@
 <en_print_rows base="Print rows"></en_print_rows>
 <en_save_external_query base="Save external query"></en_save_external_query>
 <en_external_query_editor base="External query editor"></en_external_query_editor>
+<en_depending_relation_explorer base="Depending relation explorer"></en_depending_relation_explorer>
 <en_group_by base="Group by"></en_group_by>
 <en_pivot_table base="Pivot table"></en_pivot_table>
 <en_save_dashboard base="Save dashboard"></en_save_dashboard>
@@ -753,5 +763,5 @@
 <thermo_utils path="resources/common/thermo_utils.py" ext="py"><en_execution_completed base="Execution completed" de="Ausführung abgeschlossen" en="Execution completed" fr="Exécution terminée" it="Esecuzione completata"></en_execution_completed>
 <en_execution_stopped base="Execution stopped" de="Ausführung gestoppt" en="Execution stopped" fr="Exécution arrêté" it="Esecuzione arrestata"></en_execution_stopped>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_stop_the_batch_execution_ base="Stop the batch execution?" de="Stoppen Sie die Batch-Ausführung?" en="Stop the batch execution?" fr="Arrêter l'exécution du lot?" it="Interrompere l'esecuzione del batch?"></en_stop_the_batch_execution_></thermo_utils></common></resources></GenRoBag>
