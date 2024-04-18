@@ -116,7 +116,8 @@ class LoginComponent(BaseComponent):
                     )
             fb.dataController("""
                 SET _login.password = null;
-                SET _login.group_code = null;  
+                SET _login.group_code = null;
+                SET .group_selector = false;  
                 SET gnr.avatar = null;
             """,
                 _changed_user='^_login.user',_userChanges=True
