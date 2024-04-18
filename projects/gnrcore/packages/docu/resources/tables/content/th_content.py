@@ -18,6 +18,34 @@ class View(BaseComponent):
 
     def th_query(self):
         return dict(column='title', op='contains', val='')
+    
+
+class ViewInline(BaseComponent):
+
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('title', edit=True, width='20em')
+        r.fieldcell('headline', edit=True, width='30em')
+        r.fieldcell('abstract', edit=True, width='40em')
+        r.fieldcell('text', edit=True, width='100%')
+        r.cell('open_tab',name="!!Open",calculated=True,width='3em',
+                    cellClasses='cellbutton',
+                    format_buttonclass='icnBaseLens buttonIcon',
+                    format_isbutton=True,
+                    format_onclick="""var row = this.widget.rowByIndex($1.rowIndex);
+                                      let pars = {};
+                                      pars.file = '/sys/thpage/docu/content';
+                                      pars.title = row.title;
+                                      pars.url_pkey = row._pkey;
+                                      pars.multipage = true;
+                                      genro.mainGenroWindow.genro.publish('selectIframePage',pars);
+                                      """)
+
+    def th_order(self):
+        return 'title'
+
+    def th_query(self):
+        return dict(column='title', op='contains', val='')
 
 
 
