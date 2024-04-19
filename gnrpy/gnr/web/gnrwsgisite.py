@@ -933,6 +933,20 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_beacon':
+            try:
+                method = request_kwargs.pop('method',None)
+                if method:
+                    handler = getattr(self,method,None)
+                    if handler:
+                        result = handler(**request_kwargs)
+                        return []
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1092,6 +1106,10 @@ class GnrWsgiSite(object):
 
         :param page: TODO"""
         pass
+
+    def onClosedPage(self, page_id=None):
+        "Drops page when closing"
+        self.register.drop_page(page_id)
 
     def cleanup(self):
         """clean up"""

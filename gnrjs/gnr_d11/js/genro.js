@@ -355,7 +355,8 @@ dojo.declare('gnr.GenroClient', null, {
 
             }
         });
-        this.rpc.remoteCall('onClosePage', {sync:true});
+        var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
+        navigator.sendBeacon(url);
         genro.publish('onClosePage');
         if (genro._data) {
             genro.saveContextCookie();
