@@ -3522,7 +3522,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
                 doSetValue = canSetValue;
             }
-            if(constraints.selector=='datetime'){
+            var re = new RegExp("^" + info.regexp + "$");
+            match = re.exec(value);
+            if(!match && constraints.selector=='datetime'){
                 doSetValue = canSetValue;
                 var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
@@ -3537,10 +3539,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     tl.push(timematch[3] || '00');
                 }
                 datesplit[1] = tl.join(':');
+                value = datesplit.join(' ');
+                match = re.exec(value);
             }
-            value = datesplit.join(' ');
-            var re = new RegExp("^" + info.regexp + "$");
-            match = re.exec(value);
             if(match){
                 var d,m,hours,minutes,seconds;
                 if(tokens[0][0]=='d'){
@@ -3556,7 +3557,21 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 if(constraints.selector=='datetime'){
                     hours = parseInt(match[4] || '0');
                     minutes = parseInt(match[5] || '0');
-                    seconds = parseInt(match[6] || '0');
+                    if(match[6]=='AM' || match[6]=='PM'){
+                        seconds = 0;
+                        if(match[6]=='PM'){
+                            hours+=12;
+                        }else if(hours==12){
+                            hours=0;
+                        }
+                    }
+                    if(match[7]=='AM' || match[7]=='PM'){
+                        if(match[7]=='PM'){
+                            hours+=12;
+                        }else if(hours==12){
+                            hours=0;
+                        }
+                    }
                 }else{
                     hours = 0;
                     minutes = 0;
