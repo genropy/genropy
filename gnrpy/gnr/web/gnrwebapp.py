@@ -83,11 +83,7 @@ class GnrWsgiWebApp(GnrApp):
         broadcast = tblobj.attributes.get('broadcast')
         if broadcast is not False and broadcast != '*old*':
             dbevents=currentEnv.setdefault(dbeventKey,{})
-            if old_record:
-                old_pkey = old_record.get(tblobj.pkey)
-            else:
-                old_pkey = None
-            r=dict(dbevent=event,pkey=record.get(tblobj.pkey),old_pkey=old_pkey)
+            r=dict(dbevent=event,pkey=record.get(tblobj.pkey),old_pkey=old_record.get(tblobj.pkey) if old_record else None)
             if broadcast and broadcast is not True:
                 for field in broadcast.split(','):
                     newvalue = record.get(field)
