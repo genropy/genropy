@@ -622,7 +622,13 @@ dojo.declare('gnr.GenroClient', null, {
 		    }
 		    if(PushNotification) {
 			console.log("We have PushNotification");
-			genro.notification_obj = PushNotification.init({android: {}, ios: {}});
+			genro.notification_obj = PushNotification.init({android: {},
+									ios: {
+									    alert: 'true',
+									    badge: true,
+									    sound: 'false'
+									},
+								       });
 			PushNotification.hasPermission(function(status) {
 			    console.log("Push Notification Permission", status)
 			});
@@ -633,7 +639,13 @@ dojo.declare('gnr.GenroClient', null, {
 		    }
 		}, false);
 
-		genro.dom.loadJs("https://localhost/cordova.js", () => {
+		var CORDOVA_JS_URL = "https://localhost/cordova.js";
+		
+		// iOS wants a different scheme for local payloads.
+		if(navigator.userAgent.includes("GnriOS")) {
+		    CORDOVA_JS_URL = "app://localhost/cordova.js";
+		}
+		genro.dom.loadJs(CORDOVA_JS_URL, () => {
                     console.log("CORDOVA JS LOADED");
 		});
 	    }
