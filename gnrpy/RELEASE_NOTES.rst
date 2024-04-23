@@ -1,6 +1,9 @@
 UPCOMING RELEASE
 ================
 
+Version 24.4.23
+===============
+
 New Features
 ------------
 
@@ -13,15 +16,20 @@ New Features
   version, useful for bug reporting
 * New 'gnr db restore'
 * Added iPython dependency to developer installation profile
+* Workdate can be custom or current date  
+* Grouped view static (for mobile use)
+
   
 Fixes
 -----
 
-* Mobile Stylesheets fixes
+* Mobile Stylesheets fixes 
 * PDFViewer opening fixes
 * Fixed 'jedi import error' on all CLI commands
 * Increased unit test coverage
 * Code cleanup to remove deprecated references
+* Possibility to print clean html if no template is required 
+* Check invalid fields in dynamic form 
   
   
 Version 24.3.8
