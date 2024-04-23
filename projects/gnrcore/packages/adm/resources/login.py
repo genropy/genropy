@@ -230,6 +230,7 @@ class LoginComponent(BaseComponent):
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
         rootenv['workdate'] = rootenv['workdate'] or self.workdate
         rootenv['login_date'] = date.today()
+        rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
         rootenv['language'] = rootenv['language'] or self.language
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
