@@ -12,8 +12,6 @@ New Features
 * Added a '--version' option to all CLI command to retrive current framework
   version, useful for bug reporting
 * New 'gnr db restore'
-* Added support to load Cordova's framework assets if the webview is
-  executed in a mobile context with such framework.
 * Added iPython dependency to developer installation profile
   
 Fixes
