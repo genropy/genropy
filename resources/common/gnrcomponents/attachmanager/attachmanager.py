@@ -161,7 +161,8 @@ class Form(BaseComponent):
                         rpc_maintable_id='=#FORM.record.maintable_id',
                         rpc_pkey='=#FORM.pkey',
                         rpc_attachment_table=attachment_table,
-                        nodeId=f'{frameCode}_uploader')
+                        nodeId=f'{frameCode}_uploader',
+                        onResult='this.form.reload();')
         self._atc_stackSwitcher(parent,sc)
         
     def _atc_stackSwitcher(self,parent,sc):
