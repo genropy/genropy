@@ -1970,17 +1970,16 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
-        let prefJsPdfMin = genro.getData('gnr.user_preference.sys.jsPdfViewerMin') || genro.getData('gnr.app_preference.sys.jsPdfViewerMin');
+        if(prefJsPdf){
+            let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
+            let jsPdfViewerTools = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
+        }
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
-        var jsPdfViewerMin = isNullOrBlank(jsPdfViewerMin)? prefJsPdfMin:jsPdfViewerMin;
-        var viewer = null;
-        if(jsPdfViewer){viewer = 'viewer'};
-        if(jsPdfViewerMin){viewer = 'viewer_min'};
-        if(parsedSrc.file && viewer  ){
+        if(parsedSrc.file && jsPdfViewer  ){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }
-            src = `/_rsrc/js_libs/pdfjs/web/${viewer}.html?file=`+encodeURIComponent(src);
+            src = '/_rsrc/js_libs/pdfjs/web/viewer.html?file='+encodeURIComponent(src);
         }
         return src;
     },
