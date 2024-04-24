@@ -6366,6 +6366,24 @@ div[disabled='true'], div[disabled='disabled']{
     height: 35px;
 }
 
+.home{
+    mask: url('/_rsrc/common/css_icons/google_icons/home.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/home.svg') center center no-repeat;
+    height: 35px;
+}
+
+.document-file{
+    mask: url('/_rsrc/common/css_icons/google_icons/file.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/file.svg') center center no-repeat;
+    height: 35px;
+}
+
+.certificate{
+    mask: url('/_rsrc/common/css_icons/google_icons/certificate.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/certificate.svg') center center no-repeat;
+    height: 35px;
+}
+
 
 .largeCell{
     padding:5px;

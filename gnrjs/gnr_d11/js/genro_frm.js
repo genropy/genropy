@@ -635,7 +635,13 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
-                        that.insertAndLoad(kw.default_kw,defaultPrompt.doSave===true?null:defaultPrompt.doSave);
+                        let insertMethod = defaultPrompt.doSave===true?null:defaultPrompt.doSave;
+                        if(defaultPrompt.insertOnly){
+                            that.insertRecord(kw.default_kw,insertMethod);
+                        }else{
+                            that.insertAndLoad(kw.default_kw,insertMethod);
+                        }
+                        
                     }else{
                         that.doload_store(kw);
                     }
@@ -645,6 +651,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         }else if(kw.destPkey=='*pasterecord*'){
             this.remotePasteRecord(kw)
             return;
+        }else if(kw.destPkey=='*insertAndLoad*'){
+            this.insertAndLoad(kw.default_kw);
+            return
         }
         this.doload_store(kw);
     },
@@ -663,12 +672,20 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     insertAndLoad:function(default_kw,insertMethod){
         var that = this;
+        return this.insertRecord(default_kw,insertMethod).addCallback(
+            (resultPkey)=>{
+                that.doload_store({destPkey:resultPkey});
+            }
+        )
+    },
+
+    insertRecord:function(default_kw,insertMethod){
+        var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
         genro.lockScreen(true,this.formId,{thermo:true});
-        genro.serverCall(insertMethod || 'app.insertRecord',
+        return genro.serverCall(insertMethod || 'app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
-                                that.doload_store({destPkey:resultPkey});
                                 genro.lockScreen(false,that.formId);
                             });
     },

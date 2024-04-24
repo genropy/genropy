@@ -1303,6 +1303,12 @@ var gnrformatter = {
     },
     format_AR:function(value,format,formatKw){
         if(format=='json_table'){
+            if(!formatKw.cols){
+                formatKw.cols = []
+                for(c in value[0]){
+                    formatKw.cols.push({'field':c,'name':c})
+                }
+            }
             return genro.dom.jsonTable(
                 value,formatKw
             );

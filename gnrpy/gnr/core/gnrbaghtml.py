@@ -311,6 +311,10 @@ class BagToHtml(object):
     def createHtml(self, filepath=None, body_attributes=None):
         """TODO
         :param filepath: the path where html will be saved"""
+        if self.htmlContent and not self.htmlTemplate:
+            with open(filepath,'w') as f:
+                f.write(self.htmlContent)
+            return self.htmlContent
         self.main()
         if self.splittedPages:
             result = []

@@ -329,7 +329,9 @@ class FrameGridTools(BaseComponent):
             #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
         else:
             gth.top.bar.replaceSlots('#','*,viewsSelect,*',height='22px',border_bottom='1px solid silver')
-
+            gth.dataController("""gth.widget.setRegionVisible('top',(resource_structs && resource_structs.len()>1));""", gth=gth,
+                                    resource_structs='^.grid.resource_structs')
+            
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
                             values='grid:Flat,tree:Hierarchical,conf:Toggle configurator',

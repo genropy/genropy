@@ -440,10 +440,23 @@ class GnrWebPage(GnrBaseWebPage):
                 kwargs = dbenv() or {}
                 self._db.updateEnv(**kwargs)
         return self._db    
+    
+
         
     def _get_workdate(self):
+        today = datetime.date.today()
         if not getattr(self,'_workdate',None):
-            self._workdate = self.pageStore().getItem('rootenv.workdate') or datetime.date.today()
+            with self.pageStore() as store:
+                rootenv = store.getItem('rootenv')
+                if not rootenv:
+                    self._workdate =  today
+                    return self._workdate
+                workdate = rootenv['workdate']
+                custom_workdate = rootenv['custom_workdate']
+                if not custom_workdate:
+                    workdate = datetime.date.today()
+                    rootenv['workdate'] = workdate
+                self._workdate =  workdate
         return self._workdate
 
     def _set_workdate(self, workdate):
@@ -1155,6 +1168,7 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['isMobile'] = True
         kwargs['deviceScreenSize'] = self.deviceScreenSize
         kwargs['extraFeatures'] = dict(self.extraFeatures)
+        kwargs['isCordova'] = self.connection.is_cordova
         localroot = None
         if self.connection.electron_static:
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static

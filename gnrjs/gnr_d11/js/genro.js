@@ -82,6 +82,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.user_polling = -1;
         this.isDeveloper = objectPop(this.startArgs,'isDeveloper');
         this.isMobile = objectPop(this.startArgs,'isMobile');
+        this.isCordova = objectPop(this.startArgs,'isCordova');
         this.deviceScreenSize = objectPop(this.startArgs,'deviceScreenSize');
         this.extraFeatures = objectPop(this.startArgs,'extraFeatures');
         this.theme = {};
@@ -572,6 +573,7 @@ dojo.declare('gnr.GenroClient', null, {
         if (this.isMobile) {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
+
         dojo.subscribe('debugstep',
                        function(data){genro.dev.onDebugstep(data)}
                      );
@@ -599,6 +601,57 @@ dojo.declare('gnr.GenroClient', null, {
                 parentGenro = false;
             }
         }
+
+	// if cordova is detected, load the js payload from localhost
+	// which will load all the configured plugins payload
+	if(this.isCordova) {
+	    if(!this.getParentGenro()) {
+		
+		document.addEventListener('deviceready', function() {
+		    console.log("CORDOVA JS LOAD COMPLETED");
+		    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+		    genro.cordova_ready = true;
+		    genro.setData("gnr.cordova.platform", cordova.platformId)
+		    genro.setData("gnr.cordova.version", cordova.version)
+		    genro.setData("gnr.cordova.ready", true);
+		    
+		    if(device) {
+			genro.setData("gnr.cordova.device.uuid", device.uuid);
+			genro.setData("gnr.cordova.device.model", device.model);
+			genro.setData("gnr.cordova.device.manufacturer", device.manufacturer);
+		    }
+		    if(PushNotification) {
+			console.log("We have PushNotification");
+			genro.notification_obj = PushNotification.init({android: {},
+									ios: {
+									    alert: 'true',
+									    badge: true,
+									    sound: 'false'
+									},
+								       });
+			PushNotification.hasPermission(function(status) {
+			    console.log("Push Notification Permission", status)
+			});
+			genro.notification_obj.on("registration", (data) => {
+			    console.log("Push Notification registered: ", data);
+			    genro.setData("gnr.cordova.fcm_push_registration", data);
+			});
+		    }
+		}, false);
+
+		var CORDOVA_JS_URL = "https://localhost/cordova.js";
+		
+		// iOS wants a different scheme for local payloads.
+		if(navigator.userAgent.includes("GnriOS")) {
+		    CORDOVA_JS_URL = "app://localhost/cordova.js";
+		}
+		genro.dom.loadJs(CORDOVA_JS_URL, () => {
+                    console.log("CORDOVA JS LOADED");
+		});
+	    }
+	}
+
+	
         genro.src.getMainSource(function(mainBagPage){
             if (mainBagPage  &&  mainBagPage.attr && mainBagPage.attr.redirect) {
                 var pageUrl = genro.absoluteUrl();
