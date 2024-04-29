@@ -80,7 +80,7 @@ class Form(BaseComponent):
         return tc
     
     def contentText(self, pane):
-        pane.ckEditor('^.text')
+        pane.ckEditor(value='^.text')
     
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%',
