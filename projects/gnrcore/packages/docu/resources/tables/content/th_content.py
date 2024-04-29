@@ -83,7 +83,7 @@ class Form(BaseComponent):
         pane.ckEditor(value='^.text')
     
     def contentTemplate(self, pane):
-        pane.templateChunk(template='^.tplbag', editable=True, height='100%',
+        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
                                                 table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
 
     def contentAttachments(self, pane):
