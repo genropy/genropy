@@ -74,7 +74,7 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.contentPane(title='!!Text', datapath='.record'))
+        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
@@ -92,3 +92,10 @@ class Form(BaseComponent):
 
     def th_options(self):
         return dict(dialog_height='400px', dialog_width='600px')
+    
+
+class FormEmbed(Form):
+    "Customizable Form to be embedded"
+
+    def th_options(self):
+        return dict(autoSave=True, showtoolbar=False)
