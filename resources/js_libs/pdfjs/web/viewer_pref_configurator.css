@@ -1,0 +1,46 @@
+#editorFreeText,#editorInk,#editorStamp,#print,#download,#secondaryToolbarToggle{
+    display: none;
+}
+
+.editorFreeText_enabled #editorFreeText,
+.editorInk_enabled #editorInk,
+.editorStamp_enabled #editorStamp,
+.print_enabled #print,
+.download_enabled #download,
+.secondaryToolbarToggle_enabled #secondaryToolbarToggle{
+    display: block;
+}
+
+
+#secondaryOpenFile,
+#presentationMode,
+#viewBookmark,
+#firstPage,
+#lastPage,
+#pageRotateCw,
+#pageRotateCcw,
+#cursorToolButtons,
+#scrollPage,
+#scrollVertical,
+#scrollHorizontal,
+#spreadModeButtons,
+#documentProperties{
+    display: none;
+}
+
+
+.secondaryOpenFile_enabled #secondaryOpenFile,
+.presentationMode_enabled #presentationMode,
+.viewBookmark_enabled #viewBookmark,
+.firstPage_enabled #firstPage,
+.lastPage_enabled #lastPage,
+.pageRotateCw_enabled #pageRotateCw,
+.pageRotateCcw_enabled #pageRotateCcw,
+.cursorToolButtons_enabled #cursorToolButtons,
+.scrollPage_enabled #scrollPage,
+.scrollVertical_enabled #scrollVertical,
+.scrollHorizontal_enabled #scrollHorizontal,
+.spreadModeButtons_enabled #spreadModeButtons,
+.documentProperties_enabled #documentProperties{
+    display: block;
+}

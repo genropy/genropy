@@ -577,7 +577,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 if (colors.length>0){
                        dojo.forEach(colors,function(col){
                         var c=(colordict[col]+',0').split(',');
-                        result +=", "+c[0]+" "+c[01]+"%";
+                        result +=", "+c[0]+" "+c['01']+"%";
                     });
                 }else{
                     result += ','+color_from+','+color_to;
@@ -1970,17 +1970,24 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
-        let prefJsPdfMin = genro.getData('gnr.user_preference.sys.jsPdfViewerMin') || genro.getData('gnr.app_preference.sys.jsPdfViewerMin');
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
-        var jsPdfViewerMin = isNullOrBlank(jsPdfViewerMin)? prefJsPdfMin:jsPdfViewerMin;
         var viewer = null;
         if(jsPdfViewer){viewer = 'viewer'};
-        if(jsPdfViewerMin){viewer = 'viewer_min'};
         if(parsedSrc.file && viewer  ){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }
+            
             src = `/_rsrc/js_libs/pdfjs/web/${viewer}.html?file=`+encodeURIComponent(src);
+            let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
+            let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
+            console.log('jsPdfViewerOptions',jsPdfViewerOptions,'jsPdfViewerTools',jsPdfViewerTools)
+            if(jsPdfViewerOptions){
+                src+=('&_viewer_options='+jsPdfViewerOptions)
+            }
+            if(jsPdfViewerTools){
+                src+=('&_viewer_tools='+jsPdfViewerTools)
+            }
         }
         return src;
     },
