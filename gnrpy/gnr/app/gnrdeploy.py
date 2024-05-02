@@ -6,11 +6,13 @@ import glob
 import shutil
 import random
 import string
+import subprocess
+from collections import defaultdict
+
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
-from collections import defaultdict
 from gnr.web.gnrmenu import MenuStruct
 from gnr.app.gnrconfig import IniConfStruct
 from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
@@ -306,8 +308,8 @@ def activateVirtualEnv(path):
     new = list(sys.path)
     sys.path[:] = [i for i in new if i not in prev] + [i for i in new if i in prev]
 
-def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None, 
-    branch=None):
+def createVirtualEnv(name=None, copy_genropy=False,
+                     copy_projects=None, branch=None):
     venv_path = os.path.join(os.getcwd(), name)
     print('Creating virtual environment %s in %s'%(name, venv_path))
     try:
@@ -328,6 +330,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
     base_path_resolver = PathResolver()
     base_gnr_config = getGnrConfig()
     activateVirtualEnv(venv_path)
+    
     if copy_projects:
         projects_path = os.path.join(gitrepos_path, 'genropy_projects')
         if not os.path.exists(projects_path):
@@ -343,6 +346,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
                     shutil.copytree(prj_path, destpath)
                 except shutil.Error as e:
                     print(e)
+                    
     if copy_genropy:
         newgenropy_path = os.path.join(gitrepos_path, 'genropy')
         
@@ -350,7 +354,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
         if genropy_path:
             print('Copying genropy from %s to %s'%(genropy_path,newgenropy_path))
             shutil.copytree(genropy_path,newgenropy_path)
-            import subprocess
+
             curr_cwd = os.getcwd()
             if branch:
                 os.chdir(newgenropy_path)
@@ -361,11 +365,11 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
                 subprocess.check_call(['git', 'pull'])
                 os.chdir(curr_cwd)
             gnrpy_path = os.path.join(newgenropy_path,'gnrpy')
+
+            # FIXME: 'pip' can be named also 'pip3'
             pip_path = os.path.join(venv_path,'bin', 'pip')
-            subprocess.check_call([pip_path, 'install', 'paver'])
-            paver_path = os.path.join(venv_path,'bin', 'paver')
             os.chdir(gnrpy_path)
-            subprocess.check_call([paver_path, 'develop'])
+            subprocess.check_call([pip_path, 'install', '--develop', '.'])
             venv_exec_path = os.path.join(venv_path,'bin', 'python')
             initgenropy(gnrpy_path=gnrpy_path)
             os.chdir(curr_cwd)
