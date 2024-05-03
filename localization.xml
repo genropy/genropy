@@ -199,7 +199,7 @@
 <en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_download base="Download" de="Herunterladen" en="Download" fr="Télécharger" it="Scarica"></en_download>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
-<en_export_url base="Export url" it="URL di esportazione"></en_export_url>
+<en_export_url base="Export url" it="URL Esportazione"></en_export_url>
 <en_link_in_clipboard base="Link in clipboard" it="Link negli appunti"></en_link_in_clipboard></btcprint></batch>
 <gnrbaseclasses path="gnrpy/gnr/web/gnrbaseclasses.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrbaseclasses>
 <gnrwebpage path="gnrpy/gnr/web/gnrwebpage.py" ext="py"><en_genro_not_allowed_public_call base="Genro Not Allowed Public call" de="Genro erlaubt Öffentlicher Aufruf" en="Genro Not Allowed Public call" fr="Genro non autorisés Appel public" it="Genro non sono ammessi chiamata pubblica"></en_genro_not_allowed_public_call>
