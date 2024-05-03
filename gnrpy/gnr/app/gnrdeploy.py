@@ -371,7 +371,7 @@ def createVirtualEnv(name=None, copy_genropy=False,
             os.chdir(gnrpy_path)
             subprocess.check_call([pip_path, 'install', '--editable', '.'])
             venv_exec_path = os.path.join(venv_path,'bin', 'python')
-            initgenropy(gnrpy_path=gnrpy_path)
+            initgenropy()
             os.chdir(curr_cwd)
     
 
