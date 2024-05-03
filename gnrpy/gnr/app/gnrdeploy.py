@@ -165,8 +165,8 @@ def check_file(xml_path=None):
     if os.path.exists(xml_path):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
-def initgenropy(gnrdaemon_password=None,avoid_baseuser=False):
-    gnrpy_path = os.path.dirname(gnrbase.__file__)
+def initgenropy(gnrdaemon_password=None,avoid_baseuser=False,
+                os.path.dirname(gnrbase.__file__)):
     config_path  = gnrConfigPath(force_return=True)
     instanceconfig_path = os.path.join(config_path,'instanceconfig')
     siteconfig_path = os.path.join(config_path,'siteconfig')
@@ -371,7 +371,7 @@ def createVirtualEnv(name=None, copy_genropy=False,
             os.chdir(gnrpy_path)
             subprocess.check_call([pip_path, 'install', '--editable', '.'])
             venv_exec_path = os.path.join(venv_path,'bin', 'python')
-            initgenropy()
+            initgenropy(gnrpy_path=gnrpy_path)
             os.chdir(curr_cwd)
     
 
