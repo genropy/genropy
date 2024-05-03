@@ -287,6 +287,7 @@ class Table(object):
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
+                                account_id = account_id,
                                 body=message['body'], subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
