@@ -369,7 +369,7 @@ def createVirtualEnv(name=None, copy_genropy=False,
             # FIXME: 'pip' can be named also 'pip3'
             pip_path = os.path.join(venv_path,'bin', 'pip')
             os.chdir(gnrpy_path)
-            subprocess.check_call([pip_path, 'install', '--develop', '.'])
+            subprocess.check_call([pip_path, 'install', '--editable', '.'])
             venv_exec_path = os.path.join(venv_path,'bin', 'python')
             initgenropy(gnrpy_path=gnrpy_path)
             os.chdir(curr_cwd)
