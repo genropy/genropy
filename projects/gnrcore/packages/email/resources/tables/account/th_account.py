@@ -41,7 +41,7 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         main_bc = form.center.borderContainer()
-        top_fb = main_bc.contentPane(datapath='.record', region='top').formbuilder(cols=1, border_spacing='4px')
+        top_fb = main_bc.contentPane(datapath='.record', region='top').formbuilder(cols=3, border_spacing='4px')
         top_fb.field('account_name')
 
         tc = main_bc.tabContainer(margin='2px', region='center')
