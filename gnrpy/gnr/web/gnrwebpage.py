@@ -457,6 +457,7 @@ class GnrWebPage(GnrBaseWebPage):
                     workdate = datetime.date.today()
                     rootenv['workdate'] = workdate
                 self._workdate =  workdate
+                self._rootenv = rootenv
         return self._workdate
 
     def _set_workdate(self, workdate):
