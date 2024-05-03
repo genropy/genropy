@@ -74,14 +74,19 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
+        self.contentText(tc.borderContainer(title='!!Text', datapath='.record', overflow='hidden'))
+        
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
     
-    def contentText(self, pane):
-        pane.ckEditor(value='^.text')
-    
+    def contentText(self, bc):
+        
+        bc.contentPane(region='center',overflow='hidden').MDEditor(value='^.text',
+                        nodeId='xxx',
+                      height='100%',previewStyle='vertical',initialEditType='wysiwyg',viewer=True
+                      )
+
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
                                                 table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
