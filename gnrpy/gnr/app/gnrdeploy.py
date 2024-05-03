@@ -166,7 +166,7 @@ def check_file(xml_path=None):
         raise GnrConfigException("A file named %s already exists so i couldn't create a config file at same path" % xml_path)
 
 def initgenropy(gnrdaemon_password=None,avoid_baseuser=False,
-                os.path.dirname(gnrbase.__file__)):
+                gnrpy_path=os.path.dirname(gnrbase.__file__)):
     config_path  = gnrConfigPath(force_return=True)
     instanceconfig_path = os.path.join(config_path,'instanceconfig')
     siteconfig_path = os.path.join(config_path,'siteconfig')
