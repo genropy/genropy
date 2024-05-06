@@ -356,7 +356,7 @@ class TableHandlerForm(BaseComponent):
     def _th_handleModalBar(self,form,mode=None,**kwargs):
         if mode=='navigation':
             if form.store.attributes.get('storeType') == 'Collection':
-                slots = 'dismissTitle,*,prevUp,nextDown'
+                slots = 'dismissTitle,left_placeholder,*,right_placeholder,prevUp,nextDown'
             else:
                 slots = 'dismissTitle'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'

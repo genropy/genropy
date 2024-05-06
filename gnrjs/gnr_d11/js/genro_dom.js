@@ -1971,14 +1971,11 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var parsedSrc = parseURL(src);
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
-        var viewer = null;
-        if(jsPdfViewer){viewer = 'viewer'};
-        if(parsedSrc.file && viewer  ){
+        if(parsedSrc.file && jsPdfViewer){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }
-            
-            src = `/_rsrc/js_libs/pdfjs/web/${viewer}.html?file=`+encodeURIComponent(src);
+            src = `/_rsrc/js_libs/pdfjs/web/viewer.html?file=`+encodeURIComponent(src);
             let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
             let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
             console.log('jsPdfViewerOptions',jsPdfViewerOptions,'jsPdfViewerTools',jsPdfViewerTools)

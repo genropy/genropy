@@ -57,6 +57,7 @@ class Table(object):
                                         """, name_long=u'!!Name',static=True)
 
         tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
+        tbl.formulaColumn('watermark_notice',"'Copy for ' || $username")
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
