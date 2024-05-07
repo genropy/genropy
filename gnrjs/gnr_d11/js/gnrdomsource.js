@@ -1666,7 +1666,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
             this.updateValidationClasses();
             this.widget.state = this.hasValidationError() ? 'Error' : null;
-            this.widget._setStateClass();
+            if(this.widget._setStateClass){
+                this.widget._setStateClass();
+            }
             if(this.form){
                 this.form.updateInvalidField(this, this.attrDatapath('value'));
             }
