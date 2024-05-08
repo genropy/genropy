@@ -190,18 +190,14 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
         }
 
-         
-        savedAttrs['touchEvents'] = objectPop(attributes,'touchEvents');
-
         objectExtract(attributes, 'onDrop,onDrag,dragTag,dropTag,dragTypes,dropTypes');
         objectExtract(attributes, 'onDrop_*');
-        savedAttrs['dropTarget'] = objectPop(attributes, 'dropTarget');
-        savedAttrs['dropTargetCb'] = objectPop(attributes, 'dropTargetCb');
-        savedAttrs['dropTargetCb_extra'] = objectExtract(attributes,'dropTargetCb_*');
-        savedAttrs.connectedMenu = objectPop(attributes, 'connectedMenu');
-        savedAttrs.onEnter = objectPop(attributes, 'onEnter');
-        savedAttrs._watchOnVisible = objectPop(attributes,'_watchOnVisible');
-        savedAttrs.autocomplete = objectPop(attributes,'autocomplete');
+        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,_watchOnVisible,autocomplete'))
+        let extraDropTargets = objectExtract(attributes,'dropTargetCb_*');
+        if(objectNotEmpty(extraDropTargets)){
+            savedAttrs['dropTargetCb_extra'] = extraDropTargets;
+        }
+        
         objectUpdate(savedAttrs, this.creating(attributes, sourceNode));
         var formId = objectPop(attributes, 'formId');
         if (attributes._for) {
@@ -1051,6 +1047,18 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         }
     },
 
+});
+dojo.declare("gnr.widgets.baseExternalWidget", gnr.widgets.baseHtml, {
+    setExternalWidget:function(sourceNode,externalWidget){
+        sourceNode.externalWidget = externalWidget;
+        sourceNode.externalWidget.gnr = this;
+        for (let prop in this) {
+            if (prop.indexOf('mixin_') == 0) {
+                externalWidget[prop.replace('mixin_', '')] = this[prop];
+            }
+        }
+        externalWidget.sourceNode = sourceNode;
+    }
 });
 
 dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
