@@ -263,6 +263,7 @@ class TableHandler(BaseComponent):
         if mobileTemplateGrid:
             dialog_kwargs.setdefault('fullScreen',True)
             kwargs.setdefault('configurable',False)
+            kwargs.setdefault('grid_gridplugins',False)
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
                                         grid_mobileTemplateGrid=mobileTemplateGrid,
