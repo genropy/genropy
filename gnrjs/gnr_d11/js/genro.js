@@ -643,7 +643,7 @@ dojo.declare('gnr.GenroClient', null, {
 		
 		// iOS wants a different scheme for local payloads.
 		if(navigator.userAgent.includes("GnriOS")) {
-		    CORDOVA_JS_URL = "app://localhost/cordova.js";
+		    CORDOVA_JS_URL = "/_cordova_asset/ios/cordova.js";
 		}
 		genro.dom.loadJs(CORDOVA_JS_URL, () => {
                     console.log("CORDOVA JS LOADED");
