@@ -504,8 +504,10 @@ class AttachManager(BaseComponent):
                             store_order_by='$_row_count')
         frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
-                parentForm=parentForm,deleteAction=False,disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
-                _store='^.store',_flock='^#FORM.controller.locked')
+                parentForm=parentForm,deleteAction=False,
+                disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
+                _store='^.store',
+                _flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
         bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
@@ -521,7 +523,7 @@ class AttachManager(BaseComponent):
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.form.record.external_url',lbl='!!External url')
         frame.dataController("""
-            if(frm.getParentForm().isNewRecord()){
+            if(parentForm && frm.getParentForm().isNewRecord()){
                 frame.setHiderLayer(true,{message:newrecordmessage,background_color:'white'});
             }else{
                 frame.setHiderLayer(false);
@@ -530,6 +532,7 @@ class AttachManager(BaseComponent):
             """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
             _fired='^#FORM.controller.loaded',
             _if='!store || store.len()==0',
+            parentForm=parentForm,
             frm=frame.form.js_form,frame=frame)
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
