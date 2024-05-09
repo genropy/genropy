@@ -79,27 +79,29 @@ class Service(PdfService):
     def watermarkedPDF(self,input_pdf,watermark=None):
         with self.parent.storageNode(input_pdf).open('rb') as f:
             doc = fitz.open('pdf',f.read())
+        m = fitz.Matrix
         for page in doc:  
-            rect = page.rect  # Ottiene il rettangolo della pagina
-            x0 = rect.x0
-            x1 = rect.x1
-            y0 = rect.y0
-            y1 = rect.y1
-            print('x0',x0,'y0',y0)
-            print('x1',x1,'y1',y1)
+            page.clean_contents()
+            self._insertTextBox(page,watermark)
 
-            rc = fitz.Rect(x0+50, y1-50, x1-50, y1)  # Definisce il rettangolo per il testo
-            shape = page.new_shape()  # Crea una nuova "forma" per disegnare
-            shape.insert_text(rc.bottom_left,  # Posizione del testo
-                            watermark,  # Testo del watermark
-                            fontsize=11,  # Dimensione del font
-                            color=(0, 0, 1),  # Colore del testo (blu)
-                            rotate=0)  # Angolazione del testo
-            shape.finish(width=1, color=(0, 0, 1), fill=(0, 0, 1, 0.3))  # Colora e imposta la trasparenza
-            shape.commit()  # Applica la forma alla pagina
         output_pdf_bytes = BytesIO()
         doc.save(output_pdf_bytes)
-        output_pdf_bytes.seek(0)  # Riposiziona il cursore all'inizio del buffer
-        doc.close()  # Chiudi il documento
+        output_pdf_bytes.seek(0)  
+        doc.close() 
         result = output_pdf_bytes.read()
         return result
+    
+    def _insertText(self,page):
+        pass
+
+    def _insertTextBox(self,page,watermark):
+        rect = page.rect  
+        x_center = rect.width / 2
+        y_center = rect.height / 2
+        text_rect = fitz.Rect(x_center - 200, y_center - 100, x_center + 200, y_center + 100)
+        shape = page.new_shape()
+        shape.insert_textbox(text_rect, watermark, fontsize=24, fontname='helv', 
+                                fontfile=None, set_simple=False,color=(0, 0, 0), 
+                                fill=None, render_mode=0, border_width=1, 
+                                expandtabs=8, align=1, rotate=0, lineheight=None, morph=None, fill_opacity=.1)
+        shape.commit()  
