@@ -305,6 +305,23 @@ class AttachManager(BaseComponent):
             th.view.top.pop('bar')
         return th 
 
+    @extract_kwargs(default=True,vpane=True,fpane=True)
+    @struct_method
+    def at_attachmentUploader(self,parent,label=None,table=None,maintable_id=None,default_kwargs=None,**kwargs):
+        if not table:
+            table = f"{parent.getInheritedAttributes().get('table')}_atc"
+        for k,v in default_kwargs.items():
+            kwargs[f'rpc_{k}'] = v
+        parent.dropUploader(
+            label=label or ('!!File explorer' if self.isMobile else "!!Drop file or dbl click"),
+            rpc_attachment_table=table,
+            rpc_onUploadingMethod=self.onUploadingAttachment,
+            rpc_onUploadedMethod=self.onUploadedAttachment,
+            rpc_maintable_id=maintable_id or '=#FORM.pkey',
+            **kwargs
+        )
+
+
     @struct_method
     def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
