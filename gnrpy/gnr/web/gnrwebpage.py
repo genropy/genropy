@@ -2598,6 +2598,13 @@ class GnrWebPage(GnrBaseWebPage):
             return self.site.storage('user').kwargs_url(self.user, *args, **kwargs)
         else:
             return self.site.storage('user').url(self.user, *args)
+    
+    @public_method
+    def moveUploadedFileToDestination(self,filepath=None,destpath=None,**kwargs):
+        sn = self.site.storageNode(filepath)
+        print(filepath,sn.exists)
+        connection_id = self.connection_id
+        sn.move(destpath)
    
     @public_method
     def getSiteDocument(self,path,defaultContent=None,**kwargs):

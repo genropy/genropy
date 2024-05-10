@@ -3937,7 +3937,8 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var label = objectPop(kw,'label');
         var dropAreaKw = {nodeId:nodeId,dropTarget:objectPop(kw,'dropTarget',true),
                           dropTypes:objectPop(kw,'dropTypes','Files'),
-                         _class:'dropUploaderBoxInner'};
+                         _class:'dropUploaderBoxInner',...objectExtract(kw,'dropArea_*')};
+        
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
@@ -4086,6 +4087,31 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
     }
 });
 
+dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded');
+        let previewkwargs = objectExtract(kw,'height');
+        boxkwargs._workspace = true;
+        let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
+        let label = objectPop(kw,'label') || 'Document';
+        let mu_bar = wrapper._('div','mu_bar',{display:'flex',height:'20px',
+                            style:'justify-content:space-between;align-items:center;',
+                            width:'100%',border_bottom:'1px solid silver'});
+        mu_bar._('div','label',{innerHTML:label,font_weight:'bold',padding_left:'5px',padding_right:'5px',
+                        font_size:'.8em',color:'gray'});
+        let button = mu_bar._('lightButton','btn',{title:_T('Upload'),
+                    _class:'google_icon upload',background:'gray'});
+        let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+destpath,{_nocache:genro.time36Id()});"
+        let value = objectPop(kw,'value');
+        value = value.replace('^','=');
+        button._('dataController',{
+            script:"genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,destpath:value},this);",
+            value:value,
+            onConfirm:onConfirm,label:label});
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        return wrapper
+    }
+});
 
 dojo.declare("gnr.widgets.SlotButton", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {

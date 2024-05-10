@@ -766,7 +766,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             node = rootNode.getValue().getNode(quickRoot).clearValue();
         }
         node.freeze();
-        var kwdimension = objectExtract(kw,'height,width,background,padding');
+        let kwdimension = objectExtract(kw,'height,width,background,padding');
+        let bottom_position_kw = {}
         if(kw.closable){
             kw.connect_hide = function(){
                 var that = this;
@@ -776,13 +777,21 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             };
         }
         var dlg = node._('dialog', objectUpdate({title:title},kw));
-        var box = dlg._('div',kwdimension);
-        var center = box._('div', {_class:'pbl_dialog_center'});
-        if(kw.dialog_bottom!==false){
-            var bottom = box._('div', {_class:'dialog_bottom'});
-            dlg.bottom = bottom;
+        if(kw.windowRatio || kw.parentRatio){
+            let bc = dlg._('BorderContainer');
+            if(kw.dialog_bottom!==false){
+                dlg.bottom = bc._('contentPane', 'bottom',{_class:'dialog_bottom',region:'bottom'});
+            }
+            dlg.center = bc._('contentPane', 'center',{_class:'pbl_dialog_center',region:'center'});
+        }else{
+            let box = dlg._('div',kwdimension);
+            let center = box._('div', {_class:'pbl_dialog_center'});
+            if(kw.dialog_bottom!==false){
+                dlg.bottom = box._('div', {_class:'dialog_bottom'});
+            }
+            dlg.center = center;
         }
-        dlg.center = center;
+
         dlg.close_action = function() {
             dlg.getParentNode().widget.hide(); 
             setTimeout(function(){
@@ -1191,6 +1200,86 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             dlg.close_action();
         };
         dlg._('div',{padding:'10px'})._('dropUploader',(objectUpdate({progressBar:true,width:'300px'},kw)))
+        dlg.show_action();
+    },
+
+    _modalUploader_uploader:function(sc,kw){
+        let uploaderPane = sc._('contentPane','uploaderPane',{pageName:'uploaderPane'});
+        let defaultLabel = 'Drop the file to import here or dblclick to open the file explorer';
+        if(genro.isMobile){
+            defaultLabel = 'Press to open the file explorer';
+        }
+        kw.label = `<div style="font-size:1.1em;">${_T(kw.label || defaultLabel)}</div>`;
+        kw.position = 'absolute';
+        kw.top = 0;
+        kw.bottom = 0
+        kw.left = 0;
+        kw.right = 0;
+        kw._class='center_box'
+        kw.dropArea__class = 'center_box'
+        kw.dropArea_position = 'absolute';
+        kw.dropArea_top = '10px';
+        kw.dropArea_bottom = '10px';
+        kw.dropArea_left = '10px';
+        kw.dropArea_right = '10px';
+        kw.dropArea_border = '2px dotted silver';
+        kw.dropArea_border_radius = '10px';
+        kw.onResult = function(handler){
+            let scNode = sc.getParentNode()
+            scNode.widget.switchPage(1);
+            let preview_url =handler.currentTarget.responseText;
+            preview_url = genro.addParamsToUrl(preview_url,{_nocache:genro.time36Id()});
+            scNode.setRelativeData('.preview_url',preview_url);
+        };
+        uploaderPane._('dropUploader','uploader',{progressBar:true,...kw});
+
+    },
+
+    _modalUploader_preview:function(sc,dlg,sourceNode,kw){
+        let bc = sc._('borderContainer','previewPane',{pageName:'previewPane'});
+        let bottom = bc._('contentPane',{region:'bottom',_class:'dialog_bottom'});
+        let center = bc._('contentPane',{region:'center',overflow:'hidden'})
+        center._('iframe',{documentClasses:true,height:'100%',width:'100%',
+                border:0,src:'^.preview_url'}
+        );
+        bar = bottom._('slotBar','bar',{slots:'5,back,*,confirm,5'})
+        bar._('slotButton','back',{label:_T('Change file'),action:function(){
+            sc.getParentNode().widget.switchPage(0);
+        }});
+        bar._('slotButton','confirm',{label:_T('Confirm'),action:function(){
+            let preview_url = sc.getParentNode().getRelativeData('.preview_url');
+            let l =preview_url.split('?')[0].split('/');
+            let ext = l[l.length-1].split('.')[1];
+            var sn = sourceNode || sc.getParentNode();
+            var filepath = kw.uploadPath+'/'+kw.filename+'.'+ext;
+            genro.serverCall(kw.method || 'moveUploadedFileToDestination',
+                {_sourceNode:sn,filepath:filepath,destpath:kw.destpath},
+                function(){
+                    if(kw.onConfirm){
+                        funcApply(kw.onConfirm,{filepath:filepath,destpath:kw.destpath},sn);
+                    }
+                    dlg.close_action();
+                }
+            )
+        }})
+
+    },
+
+    modalUploaderDialog:function(title,kw,sourceNode){
+        kw = kw || {};
+        let prompt_datapath = objectPop(kw,'datapath') || 'gnr.promptDlg.prompt_'+genro.dlg.prompt_counter;
+        if(sourceNode){
+            prompt_datapath = sourceNode.absDatapath(prompt_datapath);
+        }
+        
+        kw.uploadPath = kw.uploadPath || 'page:modalUploader';
+        kw.filename = 'uploaded_element_'+genro.time36Id()
+        let dlg_kw = {closable:true,windowRatio:.9,dialog_bottom:false,datapath:prompt_datapath,
+                    _workspace:true,...objectExtract(kw,'dlg_*')};
+        let dlg = genro.dlg.quickDialog(title,dlg_kw);
+        var sc = dlg.center._('stackContainer',{});
+        this._modalUploader_uploader(sc,kw)
+        this._modalUploader_preview(sc,dlg,sourceNode,kw)
         dlg.show_action();
     },
 
