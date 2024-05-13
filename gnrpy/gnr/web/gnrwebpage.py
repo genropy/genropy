@@ -2598,6 +2598,26 @@ class GnrWebPage(GnrBaseWebPage):
             return self.site.storage('user').kwargs_url(self.user, *args, **kwargs)
         else:
             return self.site.storage('user').url(self.user, *args)
+    
+    @public_method
+    def moveUploadedFileToDestination(self,temp_path=None,
+                                      dest_fld=None,dest_record_pkey=None,**kwargs):
+        uploadedSn = self.site.storageNode(temp_path)
+        if dest_fld:
+            pkg,tbl,field = dest_fld.split('.')
+            tblobj = self.db.table(f'{pkg}.{tbl}')
+            column = tblobj.column(field)
+            dest_stn = column.attributes['dest_stn']
+            with tblobj.recordToUpdate(dest_record_pkey) as rec:
+                rec[field] = f'{dest_stn.format(**rec.asDict())}.{uploadedSn.ext}'
+            dest_stn = rec[field]
+            self.setInClientRecord(tblobj=tblobj,record=rec,fields=field,silent=True)
+
+        uploadedSn.move(dest_stn)
+        if dest_fld:
+            self.db.commit()
+        return dest_stn
+            
    
     @public_method
     def getSiteDocument(self,path,defaultContent=None,**kwargs):

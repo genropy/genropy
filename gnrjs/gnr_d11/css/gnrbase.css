@@ -6274,6 +6274,11 @@ div[disabled='true'], div[disabled='disabled']{
     mask-size: 100%;
     -webkit-mask-size: 100%;
 }
+.upload{
+    mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+}
+
 .add_circle{
     mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;

@@ -3937,7 +3937,8 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var label = objectPop(kw,'label');
         var dropAreaKw = {nodeId:nodeId,dropTarget:objectPop(kw,'dropTarget',true),
                           dropTypes:objectPop(kw,'dropTypes','Files'),
-                         _class:'dropUploaderBoxInner'};
+                         _class:'dropUploaderBoxInner',...objectExtract(kw,'dropArea_*')};
+        
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
@@ -3965,6 +3966,8 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         }
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
+        var allowedExtensions = objectPop(kw,'extensions');
+        console.log('allowedExtensions',allowedExtensions)
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         
@@ -4004,6 +4007,13 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         }
         var cbOnDropData = function(dropInfo,data,uploaderPars){
             var doUpload = onUploadingCb(dropInfo,data);
+            if(allowedExtensions){
+                let ext = data.name.split('.').pop()
+                if(!allowedExtensions.split(',').includes(ext)){
+                    genro.publish('floating_message',{message:data.name + ' '+_T("extension is not allowed") + ` (${allowedExtensions})`,messageType:'error'});
+                    return false;
+                }
+            }
             if(doUpload===false){
                 return false;
             }
@@ -4086,6 +4096,50 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
     }
 });
 
+dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded');
+        let previewkwargs = objectExtract(kw,'height');
+        boxkwargs._workspace = true;
+        let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
+        let label = objectPop(kw,'label') || 'Document';
+        let mu_bar = wrapper._('div','mu_bar',{display:'flex',height:'20px',
+                            style:'justify-content:space-between;align-items:center;',
+                            width:'100%',border_bottom:'1px solid silver'});
+        mu_bar._('div','label',{innerHTML:label,font_weight:'bold',padding_left:'5px',padding_right:'5px',
+                        font_size:'.8em',color:'gray'});
+        let button = mu_bar._('lightButton','btn',{title:_T('Upload'),
+                    _class:'google_icon upload',background:'gray',parentForm:true,
+                    visible:objectPop(kw,'enabled',true)
+                });
+        let value = objectPop(kw,'value');
+        button._('dataController',{
+            script:function(scriptKwargs){
+                let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});"
+                genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,
+                                                destpath:scriptKwargs.destpath,
+                                                ...kw},this);
+            },destpath:value.replace('^','=')
+        });
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        let iframeStarterKw = {script:function(scriptKwargs){
+            let destpath = scriptKwargs.destpath;
+            let prevurl = null;
+            if(destpath){
+                prevurl = genro.addParamsToUrl('/'+destpath,{_nocache:genro.time36Id()});
+            }
+            this.setRelativeData('#WORKSPACE.preview_url',prevurl);
+        },destpath:value};
+        let wn = wrapper.getParentNode();
+        let currentValue = wn.currentFromDatasource(value)
+        if(currentValue){
+            wn.setRelativeData('#WORKSPACE.preview_url',
+             genro.addParamsToUrl('/'+currentValue,{_nocache:genro.time36Id()}));
+        }
+        wrapper._('dataController','iframeStarter',iframeStarterKw);
+        return wrapper
+    }
+});
 
 dojo.declare("gnr.widgets.SlotButton", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {

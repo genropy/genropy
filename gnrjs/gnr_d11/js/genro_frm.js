@@ -1999,12 +1999,14 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }
             });
         }
+        this.setControllerData('status',this.status);
         this.applyDisabledStatus();
     },
 
     checkInvalidFields: function() {
         var node, sourceNode,node_identifiers,idx, changekey;
         for(let k in this._register){
+            if(this._register[k] && this._register[k])
             this._register[k].updateValidationStatus();
         }
         var invalidfields = this.getInvalidFields();

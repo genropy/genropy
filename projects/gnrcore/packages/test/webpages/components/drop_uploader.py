@@ -16,6 +16,41 @@ class GnrCustomWebPage(object):
         pane.dropUploader(nodeId="test_uploader", external_pippo='^.pippo',
                             height = '100px', width='400px',
                             label= 'Drop file here or double click')
+        
+    def test_9_modalUploader(self, pane):
+        fb = pane.formbuilder()
+        fb.textbox(value='^.testpath',lbl='Destpath')
+        fb.button('Test').dataController(
+            "genro.dlg.modalUploaderDialog('test',{destpath:destpath,_sourceNode:this})",
+            destpath='=.testpath'
+        )
+
+    def test_10_modalUploader_2(self, pane):
+        pane.iframe(src='^.curr_url',height='210px',width='190px',border='1px solid silver')
+        pane.button('Upload').dataController(
+            """genro.dlg.modalUploaderDialog('test',{destpath:destpath,
+                                            onConfirm:onConfirm},
+                                            this)""",
+            destpath='site:modalUploader_2.pdf',
+            onConfirm = """PUT .curr_url = null;
+                            SET .curr_url = genro.addParamsToUrl("/"+destpath,{_nocache:genro.time36Id()});"""
+        )
+
+    def test_11_modalUploader_3(self, pane):
+        box = pane.formbuilder(cols=2)
+        box.modalUploader(height='210px',width='190px',border='1px solid silver',
+                           margin='10px',rounded=8,
+                           value='^.destinazione',
+                           label='Carta di identità fronte')
+        box.data('.destinazione','site:ca_fronte.pdf')
+        box.textbox(value='^.destinazione')
+        
+       # box.modalUploader(height='210px',width='190px',border='1px solid silver',
+       #                    margin='10px',rounded=8,
+       #                    value='site:ca_retro.pdf',
+       #                    label='Carta di identità retro')
+        
+
 
     @public_method
     def onUploaded_test_uploader(self, file_url=None, file_path=None, file_ext=None, pippo=None,
@@ -70,3 +105,5 @@ class GnrCustomWebPage(object):
         for node in sn.children():
             node.move('site:files/{user}/'.format(user=user_id))
             print('FILE MOVED: ', node.internal_path)
+
+    
