@@ -2600,7 +2600,7 @@ class GnrWebPage(GnrBaseWebPage):
             return self.site.storage('user').url(self.user, *args)
     
     @public_method
-    def moveUploadedFileToDestination(self,temp_path=None,
+    def moveUploadedFileToDestination(self,temp_path=None,dest_stn=None,
                                       dest_fld=None,dest_record_pkey=None,**kwargs):
         uploadedSn = self.site.storageNode(temp_path)
         if dest_fld:

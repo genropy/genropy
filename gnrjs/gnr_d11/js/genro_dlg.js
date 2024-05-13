@@ -1249,13 +1249,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         bar._('slotButton','confirm',{label:_T('Confirm'),action:function(){
             let preview_url = sc.getParentNode().getRelativeData('.preview_url');
             let l =preview_url.split('?')[0].split('/');
-            let ext = l[l.length-1].split('.')[1];
+            let filename = l[l.length-1];
+            console.log('filename',filename)
             var sn = sourceNode || sc.getParentNode();
-            var uploadFullpath = kw.uploadPath+'/'+kw.filename+'.'+ext;
+            var uploadFullpath = kw.uploadPath+'/'+filename;
             genro.lockScreen(true,'moveUploadedFileToDestination');
             genro.serverCall(kw.method || 'moveUploadedFileToDestination',
                 {_sourceNode:sn,temp_path:uploadFullpath,
-                    destpath:kw.destpath,
+                    dest_stn:kw.dest_stn,
                     ...objectExtract(kw,'dest_fld,dest_record_pkey',true),
                     ...objectExtract(kw,'rpc_*',true)},
                 function(dest_stn){
@@ -1278,7 +1279,6 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         }
         
         kw.uploadPath = kw.uploadPath || 'page:modalUploader';
-        kw.filename = 'uploaded_element_'+genro.time36Id()
         let dlg_kw = {closable:true,windowRatio:.9,dialog_bottom:false,datapath:prompt_datapath,
                     _workspace:true,...objectExtract(kw,'dlg_*')};
         let dlg = genro.dlg.quickDialog(title,dlg_kw);

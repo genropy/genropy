@@ -4117,19 +4117,19 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
             script:function(scriptKwargs){
                 let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});"
                 genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,
-                                                destpath:scriptKwargs.destpath,
+                                                dest_stn:scriptKwargs.dest_stn,
                                                 ...kw},this);
-            },destpath:value.replace('^','=')
+            },dest_stn:value.replace('^','=')
         });
         wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
         let iframeStarterKw = {script:function(scriptKwargs){
-            let destpath = scriptKwargs.destpath;
+            let dest_stn = scriptKwargs.dest_stn;
             let prevurl = null;
-            if(destpath){
-                prevurl = genro.addParamsToUrl('/'+destpath,{_nocache:genro.time36Id()});
+            if(dest_stn){
+                prevurl = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});
             }
             this.setRelativeData('#WORKSPACE.preview_url',prevurl);
-        },destpath:value};
+        },dest_stn:value};
         let wn = wrapper.getParentNode();
         let currentValue = wn.currentFromDatasource(value)
         if(currentValue){
