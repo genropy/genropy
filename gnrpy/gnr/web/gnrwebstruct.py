@@ -2013,6 +2013,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             fldattr['values'] = values
             result['tag'] = 'filteringselect' if ':' in values else 'combobox'
             result['values'] = values
+        elif dtype in ('A','T') and fldattr.get('dest_stn'):
+            result['tag'] = 'modalUploader'
+            result['dest_fld'] = fieldobj.fullname
+            result.setdefault('enable','^#FORM.controller.is_newrecord?!=#v')
+            result.setdefault('height','210px')
+            result.setdefault('width','190px')
+            result.setdefault('border','1px solid silver')
+            result.setdefault('rounded',8)
+            result.setdefault('dest_record_pkey','=#FORM.pkey')
+            result.setdefault('label',result.pop('lbl',None))
+            result.setdefault('extensions',fldattr.get('extensions',None))
         elif dtype == 'A':
             result['maxLength'] = size
             result['tag'] = 'textBox'
