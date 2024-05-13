@@ -3966,6 +3966,8 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         }
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
+        var allowedExtensions = objectPop(kw,'extensions');
+        console.log('allowedExtensions',allowedExtensions)
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         
@@ -4005,6 +4007,13 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         }
         var cbOnDropData = function(dropInfo,data,uploaderPars){
             var doUpload = onUploadingCb(dropInfo,data);
+            if(allowedExtensions){
+                let ext = data.name.split('.').pop()
+                if(!allowedExtensions.split(',').includes(ext)){
+                    genro.publish('floating_message',{message:data.name + ' '+_T("extension is not allowed") + ` (${allowedExtensions})`,messageType:'error'});
+                    return false;
+                }
+            }
             if(doUpload===false){
                 return false;
             }
@@ -4100,15 +4109,34 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
         mu_bar._('div','label',{innerHTML:label,font_weight:'bold',padding_left:'5px',padding_right:'5px',
                         font_size:'.8em',color:'gray'});
         let button = mu_bar._('lightButton','btn',{title:_T('Upload'),
-                    _class:'google_icon upload',background:'gray'});
-        let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+destpath,{_nocache:genro.time36Id()});"
+                    _class:'google_icon upload',background:'gray',parentForm:true,
+                    visible:objectPop(kw,'enabled',true)
+                });
         let value = objectPop(kw,'value');
-        value = value.replace('^','=');
         button._('dataController',{
-            script:"genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,destpath:value},this);",
-            value:value,
-            onConfirm:onConfirm,label:label});
+            script:function(scriptKwargs){
+                let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});"
+                genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,
+                                                destpath:scriptKwargs.destpath,
+                                                ...kw},this);
+            },destpath:value.replace('^','=')
+        });
         wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        let iframeStarterKw = {script:function(scriptKwargs){
+            let destpath = scriptKwargs.destpath;
+            let prevurl = null;
+            if(destpath){
+                prevurl = genro.addParamsToUrl('/'+destpath,{_nocache:genro.time36Id()});
+            }
+            this.setRelativeData('#WORKSPACE.preview_url',prevurl);
+        },destpath:value};
+        let wn = wrapper.getParentNode();
+        let currentValue = wn.currentFromDatasource(value)
+        if(currentValue){
+            wn.setRelativeData('#WORKSPACE.preview_url',
+             genro.addParamsToUrl('/'+currentValue,{_nocache:genro.time36Id()}));
+        }
+        wrapper._('dataController','iframeStarter',iframeStarterKw);
         return wrapper
     }
 });

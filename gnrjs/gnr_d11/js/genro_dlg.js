@@ -1251,12 +1251,17 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             let l =preview_url.split('?')[0].split('/');
             let ext = l[l.length-1].split('.')[1];
             var sn = sourceNode || sc.getParentNode();
-            var filepath = kw.uploadPath+'/'+kw.filename+'.'+ext;
+            var uploadFullpath = kw.uploadPath+'/'+kw.filename+'.'+ext;
+            genro.lockScreen(true,'moveUploadedFileToDestination');
             genro.serverCall(kw.method || 'moveUploadedFileToDestination',
-                {_sourceNode:sn,filepath:filepath,destpath:kw.destpath},
-                function(){
+                {_sourceNode:sn,temp_path:uploadFullpath,
+                    destpath:kw.destpath,
+                    ...objectExtract(kw,'dest_fld,dest_record_pkey',true),
+                    ...objectExtract(kw,'rpc_*',true)},
+                function(dest_stn){
+                    genro.lockScreen(false,'moveUploadedFileToDestination');
                     if(kw.onConfirm){
-                        funcApply(kw.onConfirm,{filepath:filepath,destpath:kw.destpath},sn);
+                        funcApply(kw.onConfirm,{temp_path:uploadFullpath,dest_stn:dest_stn},sn);
                     }
                     dlg.close_action();
                 }

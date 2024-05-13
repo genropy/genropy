@@ -40,13 +40,15 @@ class GnrCustomWebPage(object):
         box = pane.formbuilder(cols=2)
         box.modalUploader(height='210px',width='190px',border='1px solid silver',
                            margin='10px',rounded=8,
-                           value='site:ca_fronte.pdf',
+                           value='^.destinazione',
                            label='Carta di identità fronte')
+        box.data('.destinazione','site:ca_fronte.pdf')
+        box.textbox(value='^.destinazione')
         
-        box.modalUploader(height='210px',width='190px',border='1px solid silver',
-                           margin='10px',rounded=8,
-                           value='site:ca_retro.pdf',
-                           label='Carta di identità retro')
+       # box.modalUploader(height='210px',width='190px',border='1px solid silver',
+       #                    margin='10px',rounded=8,
+       #                    value='site:ca_retro.pdf',
+       #                    label='Carta di identità retro')
         
 
 
