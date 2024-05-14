@@ -129,3 +129,12 @@ class GnrCustomWebPage(object):
                     res_key = res.split('.')[0]
                     result.setItem(res_key, None, pkg=p, tbl=t, caption=res, _pkey=res_key)
         return result,dict(columns='pkg,tbl,caption', headers='Package,Table,Print res')
+    
+    def test_6_getServices(self, pane):
+        "Get available services in instance"
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.remoteSelect(value='^.service_type',lbl='!!Service type', 
+                                                 hasDownArrow=True,
+                                                 method=self.db.table('sys.service').getAvailableServiceTree,
+                                                 auxColumns='service_type,implementation',
+                                                 selected_implementation='.implementation')

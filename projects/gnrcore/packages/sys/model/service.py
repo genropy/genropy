@@ -22,12 +22,11 @@ class Table(object):
 
 
     @public_method
-    def getAvailableServiceTree(self):
+    def getAvailableServiceTree(self, _querystring=None,**kwargs):
         result = Bag()
         page = self.db.currentPage
         site = self.db.application.site
         resdirs = site.resource_loader.getResourceList(page.resourceDirs,'services')
-        resdirs.reverse()
         for service_root in resdirs:
             service_types = os.listdir(service_root)
             for service_type in service_types:
@@ -44,9 +43,14 @@ class Table(object):
                         resource = os.path.join(resname,'service')
                     elif ext!='.py':
                         continue
-                    result.setItem([service_type,resname],None,implementation=resource,service_type=service_type,
-                                        default_kw=dict(implementation=resource,service_type=service_type))
-        return result
+                    if _querystring!='*':
+                        chunk = _querystring.replace('*','').lower()
+                        if not chunk in service_type and not chunk in resname:
+                            continue
+                    result.setItem(service_type,resource,implementation=resource,service_type=service_type,
+                                        default_kw=dict(implementation=resource,service_type=service_type),
+                                        _pkey=service_type, caption=f"{service_type} - {resname}")
+        return result.sort(),dict(columns='service_type,implementation', headers='Service type,Implementation')
 
     def addService(self,service_type=None,service_name=None,implementation=None,**kwargs):
         parameters = Bag(kwargs)

@@ -22,12 +22,6 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='service_identifier', op='contains', val='')
 
-    def th_options(self):
-        #addrow=[(service_type,dict(service_type=service_type)) for service_type in service_types]
-        return dict(addrow=self.db.table('sys.service').getAvailableServiceTree())
-
-
-
 class Form(BaseComponent):
 
     def th_form(self, form):
@@ -57,9 +51,15 @@ class Form(BaseComponent):
                                     service_type=service_type, implementation=implementation)
 
     def th_options(self):
-        return dict(form_add=self.db.table('sys.service').getAvailableServiceTree(),
-                    defaultPrompt=dict(title='!!New service',
-                                    fields=[dict(value='^.service_name',lbl='Service name')],doSave=True))
-
-    #def th_options(self):
-    #    return dict(dialog_height='400px', dialog_width='600px',addrow=[(service_type,dict(service_type=service_type)) for service_type in service_types])
+        return dict(defaultPrompt=dict(title='!!New service',
+                                    fields=[dict(value='^.service_type',lbl='!!Service type', 
+                                                 hasDownArrow=True,
+                                                 tag='remoteSelect', 
+                                                 method='_table.sys.service.getAvailableServiceTree',
+                                                 auxColumns='service_type,implementation', 
+                                                 validate_notnull=True,
+                                                 selected_implementation='.implementation'),
+                                            dict(value='^.service_name',lbl='!!Service name',
+                                                 validate_regex='![^A-Za-z0-9_]', 
+                                                 validate_notnull=True,
+                                                 validate_regex_error='!!Invalid code: Only letters and numbers are allowed')],doSave=True))
