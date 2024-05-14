@@ -1280,6 +1280,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         
         kw.uploadPath = kw.uploadPath || 'page:modalUploader';
         let dlg_kw = {closable:true,windowRatio:.9,dialog_bottom:false,datapath:prompt_datapath,
+                    _class:'dlg_uploader',
                     _workspace:true,...objectExtract(kw,'dlg_*')};
         let dlg = genro.dlg.quickDialog(title,dlg_kw);
         var sc = dlg.center._('stackContainer',{});

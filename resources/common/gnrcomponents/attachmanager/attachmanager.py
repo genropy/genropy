@@ -305,23 +305,6 @@ class AttachManager(BaseComponent):
             th.view.top.pop('bar')
         return th 
 
-    @extract_kwargs(default=True,vpane=True,fpane=True)
-    @struct_method
-    def at_attachmentUploader(self,parent,label=None,table=None,maintable_id=None,default_kwargs=None,**kwargs):
-        if not table:
-            table = f"{parent.getInheritedAttributes().get('table')}_atc"
-        for k,v in default_kwargs.items():
-            kwargs[f'rpc_{k}'] = v
-        parent.dropUploader(
-            label=label or ('!!File explorer' if self.isMobile else "!!Drop file or dbl click"),
-            rpc_attachment_table=table,
-            rpc_onUploadingMethod=self.onUploadingAttachment,
-            rpc_onUploadedMethod=self.onUploadedAttachment,
-            rpc_maintable_id=maintable_id or '=#FORM.pkey',
-            **kwargs
-        )
-
-
     @struct_method
     def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
@@ -574,7 +557,6 @@ class AttachManager(BaseComponent):
         self.db.commit()        
         self.clientPublish('inserted_attachment',nodeId=uploaderId,record_id=record['id'])
 
-
     @public_method
     def onUploadedAttachment(self,file_url=None, file_path=None, file_ext=None, action_results=None,
                                 attachment_id=None, **kwargs):
@@ -584,6 +566,7 @@ class AttachManager(BaseComponent):
         attachment_tblobj =  self.db.table(attachment_table)
         attachment_tblobj.onUploadedAttachment(attachment_id)
         
+        
     @public_method
     def onUploadingAttachmentUpd(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
@@ -591,7 +574,6 @@ class AttachManager(BaseComponent):
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
         attachment_tblobj =  self.db.table(attachment_table)
-        uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
         kwargs['filename'] = atcNode.basename

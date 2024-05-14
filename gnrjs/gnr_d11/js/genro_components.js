@@ -4098,7 +4098,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
-        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded');
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded,hidden');
         let previewkwargs = objectExtract(kw,'height');
         boxkwargs._workspace = true;
         let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
@@ -4115,8 +4115,14 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
         let value = objectPop(kw,'value');
         button._('dataController',{
             script:function(scriptKwargs){
-                let onConfirm = "PUT #WORKSPACE.preview_url = null; SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});"
-                genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm,
+                let onConfirm = [
+                    "PUT #WORKSPACE.preview_url = null;",
+                    "SET #WORKSPACE.preview_url = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});",
+                ];
+                if(value.startsWith('^')){
+                    onConfirm.push(`SET ${value.slice(1)} = dest_stn`);
+                }
+                genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm.join('\n'),
                                                 dest_stn:scriptKwargs.dest_stn,
                                                 ...kw},this);
             },dest_stn:value.replace('^','=')
