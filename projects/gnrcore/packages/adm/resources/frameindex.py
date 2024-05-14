@@ -365,8 +365,8 @@ class FrameIndex(BaseComponent):
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
                                     _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
-            box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True,
-                                    _tags=self.pageAuthTags(method='preference'))
+            if self.application.checkResourcePermission(self.pageAuthTags(method='preference'), self.userTags):
+                box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True)
         
     @struct_method
     def fi_slotbar_logout(self,slot,**kwargs):
