@@ -17,7 +17,7 @@ EMAIL_PATTERN = re.compile(r'([\w\-\.]+@(\w[\w\-]+\.)+[\w\-]+)')
 class Table(object):
 
     def config_db(self, pkg):
-        tbl =  pkg.table('message', rowcaption='subject', pkey='id',
+        tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages',partition_account_id='account_id')
         self.sysFields(tbl,draftField=True)
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
@@ -280,13 +280,14 @@ class Table(object):
             mp = self.db.table('email.account').getSmtpAccountPref(account_id)
             bcc_address = message['bcc_address'] 
             attachments = self.db.table('email.message_atc').query(where='$maintable_id=:mid',mid=message['id']).fetch()
-            attachments = [r['filepath'] for r in attachments]
+            attachments = [r['filepath'] or r['external_url'] for r in attachments]
             if message['weak_attachments']:
                 attachments.extend(message['weak_attachments'].split(','))
             if mp['system_bcc']:
                 bcc_address = '%s,%s' %(bcc_address,mp['system_bcc']) if bcc_address else mp['system_bcc']
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
+                                account_id = account_id,
                                 body=message['body'], subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],

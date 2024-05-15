@@ -67,10 +67,9 @@ class HtmlToPdfService(GnrBaseService):
         url = tmp.name
         tmp.close()
         return url
-    
 
     @extract_kwargs(pdf=True)
-    def htmlToPdf(self, srcPath, destPath, orientation=None, page_height=None, 
+    def htmlToPdf(self, srcPath, destPath=None, orientation=None, page_height=None, 
                 page_width=None, pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs): #srcPathList per ridurre i processi?
             
         """TODO
@@ -79,11 +78,14 @@ class HtmlToPdfService(GnrBaseService):
         :param destPath: TODO
         :param orientation: TODO"""
 
+        if not destPath:
+            destPath = 'temp:tempfile.pdf'
+
         if not isinstance(srcPath, StorageNode) and '<' in srcPath:
             srcPath = self.createTempHtmlFile(srcPath,htmlTemplate=htmlTemplate,bodyStyle=bodyStyle)
-            self.htmlToPdf(srcPath,destPath,orientation,pdf_kwargs=pdf_kwargs,**kwargs)
+            pdf_path = self.htmlToPdf(srcPath,destPath,orientation,pdf_kwargs=pdf_kwargs,**kwargs)
             os.remove(srcPath)
-            return
+            return pdf_path
         srcNode = self.parent.storageNode(srcPath)
         destNode = self.parent.storageNode(destPath)
         pdf_pref = self.parent.getPreference('.pdf_render',pkg='sys') if self.parent else None
@@ -106,11 +108,10 @@ class HtmlToPdfService(GnrBaseService):
             htmlfilenode = self.parent.storageNode('site:print_debug',
                 date.today().isoformat(), debugName ,autocreate=-1)
             srcNode.copy(htmlfilenode)
-
+        
         return self.writePdf(srcPath, destPath, orientation=orientation, page_height=page_height, 
                     page_width=page_width, pdf_kwargs=pdf_kwargs,
                     htmlTemplate=htmlTemplate,bodyStyle=bodyStyle,**kwargs)
-        
     
     def writePdf(self,srcPath, destPath, orientation=None, page_height=None, page_width=None, 
                         pdf_kwargs=None,htmlTemplate=None,bodyStyle=None,**kwargs):

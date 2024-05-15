@@ -86,6 +86,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'datetextbox':null,
             'geocoderfield':null,
             'ckeditor':null,
+            'mdeditor':null,
             'datetimetextbox':null
         };
         
@@ -378,7 +379,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     this._firstField = sourceNode;
                 }
             }
-            this._register[sourceNode._id] = sourceNode;
+            this._register[sourceNode._id] = sourceNode;            
             return;
         }
     },
@@ -635,13 +636,25 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 action:function(result){
                     objectUpdate(kw.default_kw,result.asDict());
                     if(defaultPrompt.doSave && that.store.table){
-                        that.insertAndLoad(kw.default_kw,defaultPrompt.doSave===true?null:defaultPrompt.doSave);
+                        let insertMethod = defaultPrompt.doSave===true?null:defaultPrompt.doSave;
+                        if(defaultPrompt.insertOnly){
+                            that.insertRecord(kw.default_kw,insertMethod);
+                        }else{
+                            that.insertAndLoad(kw.default_kw,insertMethod);
+                        }
+                        
                     }else{
                         that.doload_store(kw);
                     }
                 }
             },this.sourceNode);
             return;
+        }else if(kw.destPkey=='*pasterecord*'){
+            this.remotePasteRecord(kw)
+            return;
+        }else if(kw.destPkey=='*insertAndLoad*'){
+            this.insertAndLoad(kw.default_kw);
+            return
         }
         this.doload_store(kw);
     },
@@ -660,12 +673,20 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     insertAndLoad:function(default_kw,insertMethod){
         var that = this;
+        return this.insertRecord(default_kw,insertMethod).addCallback(
+            (resultPkey)=>{
+                that.doload_store({destPkey:resultPkey});
+            }
+        )
+    },
+
+    insertRecord:function(default_kw,insertMethod){
+        var that = this;
         var record = new gnr.GnrBag(objectExtract(this.store.prepareDefaults('*newrecord*',default_kw),'default_*'));
         genro.lockScreen(true,this.formId,{thermo:true});
-        genro.serverCall(insertMethod || 'app.insertRecord',
+        return genro.serverCall(insertMethod || 'app.insertRecord',
                             {table:this.store.table,record:record},
                             function(resultPkey){
-                                that.doload_store({destPkey:resultPkey});
                                 genro.lockScreen(false,that.formId);
                             });
     },
@@ -1135,8 +1156,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 this.publish('message',{message:_T('You must save the record before copy'),sound:'$error',messageType:'warning'})
                 return
             }
+            genro.lockScreen(true,'getRemoteClipboard');
             genro.serverCall(`_table.${this.getControllerData("table")}.onCopyRecord`,
                 {pkey:this.getCurrentPkey()},(result)=>{
+                    genro.lockScreen(false,'getRemoteClipboard');
                     that.addCopyToClipboard(result);
             });
             return;
@@ -1165,55 +1188,53 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     pasteRecord:function(path){
+        if(this.copypaste_isRemote){
+            this.load({destPkey:'*pasterecord*',clipboard_path:path});
+            return;
+        }
         var copybag;
         var controllerdata = this.getControllerData();
         var clipboard = controllerdata.getItem('clipboard')
         var copy = clipboard.getNode(path);
         copybag = copy.getValue().deepCopy();
-        if(this.copypaste_isRemote){
-            if(this.isNewRecord()){
-                let uniqueNodupFields = copybag.getNodes().filter(n=>n.attr.unique && n.attr.validate_notnull);
-                if(uniqueNodupFields){
-                    var that = this;
-                    var d = {};
-                    uniqueNodupFields = uniqueNodupFields.map(n=>{
-                        let attr = n.attr;
-                        d[n.label] = n.getValue();
-                        return {
-                            name:n.label,
-                            lbl:_T(attr.name_long),
-                            dbfield:that.getControllerData("table")+'.'+n.label,
-                            validate_nodup:true,
-                            validate_notnull:true
-                        }
-                    })
-                    genro.dlg.askParameters(function(_askResult){
-                        that.pastRecord_remote(copybag,_askResult);
-                    },{title:_T('Complete data'),fields:uniqueNodupFields},d,this.sourceNode);
+        this.updateFormData(copybag);
+    },
 
-                }else{
-                    this.pastRecord_remote(copybag)
-                }
-            }
-            else if(this.changed){
-                this.publish('message',{message:_T('You must save the record before paste'),sound:'$error',messageType:'warning'})
-            }else{
-                this.pastRecord_remote(copybag)
-            }
+    remotePasteRecord:function(kw){
+        var copybag;
+        var controllerdata = this.getControllerData();
+        var clipboard = controllerdata.getItem('clipboard')
+        var copy = clipboard.getNode(kw.clipboard_path);
+        copybag = copy.getValue().deepCopy();
+        let fieldsToAsk = copybag.getNodes().filter(n=>(n.attr.unique && n.attr.validate_notnull) || n.attr.onCopy=="ask" );
+        if(fieldsToAsk.length){
+            var that = this;
+            var d = {};
+            fieldsToAsk = fieldsToAsk.map(n=>{
+                let attr = n.attr;
+                d[n.label] = n.getValue();
+                return {name:n.label,
+                    dbfield:that.getControllerData("table")+'.'+n.label,
+                    ...genro.wdg.widgetFromField(attr)};
+                
+            })
+            genro.dlg.askParameters(function(_askResult){
+                that.insertRemotePaste(copybag,_askResult);
+            },{title:_T('Complete data'),fields:fieldsToAsk},d,this.sourceNode);
         }else{
-            this.updateFormData(copybag);
+            this.insertRemotePaste(copybag);
         }
     },
 
-    pastRecord_remote:function(copybag,runKwargs){
-        let kw = {pkey:this.getCurrentPkey(),sourceCluster:copybag};
+    insertRemotePaste:function(copybag,runKwargs){
+        let kw = {sourceCluster:copybag};
         if(runKwargs){
             objectUpdate(kw,runKwargs);
         }
         var that = this;
         genro.serverCall(`_table.${this.getControllerData("table")}.onPasteRecord`,
                 kw,(destPkey)=>{
-                    that.load({destPkey:destPkey || that.getCurrentPkey()});
+                    that.load({destPkey:destPkey});
                 });
     },
 
@@ -1978,11 +1999,16 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }
             });
         }
+        this.setControllerData('status',this.status);
         this.applyDisabledStatus();
     },
 
     checkInvalidFields: function() {
         var node, sourceNode,node_identifiers,idx, changekey;
+        for(let k in this._register){
+            if(this._register[k] && this._register[k])
+            this._register[k].updateValidationStatus();
+        }
         var invalidfields = this.getInvalidFields();
         var invalidnodes = invalidfields.getNodes();
         for (var i = 0; i < invalidnodes.length; i++) {

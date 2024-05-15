@@ -1,4 +1,6 @@
 import os.path
+import datetime
+
 import pytest
 from gnr.core import gnrlist as gl
 
@@ -98,14 +100,74 @@ def test_GnrNamedList():
 
 
 def test_sortByItem():
-    test_l = [dict(a=1), dict(b=None), dict(b=2, a=2), dict(c=3), dict(b=2, c=4)]
+    test_l = [
+        dict(name="name1",
+             surname="surname4",
+             age=100,
+             company=None,
+             birth=datetime.date(2023,3,28)
+             ),
+        dict(name="name3",
+             surname="surname3",
+             age=30,
+             company=dict(name="ACME, Inc.", address="Via Lemani Dalnaso"),
+             birth=datetime.date(2004,3,28)
+             ),
+        dict(name="name2",
+             surname="surname2",
+             age=None,
+             company={"name":"Wayne Enterprises",
+                      "address": {"city":"Gotham"} },
+             birth=datetime.date(2004,1,18)
+             ),
+        dict(name="name2",
+             surname="surname1",
+             age=20,
+             company=None,
+             birth=datetime.date(2024,3,28)
+             ),
+    ]
+
     res = gl.sortByItem(test_l)
+
     assert res == test_l
+        
+    res = gl.sortByItem(test_l, "name:*", hkeys=True)
+    assert res[-1]['name'] == "name3"
+    res = gl.sortByItem(test_l, "name:d", hkeys=True)
+    assert res[-1]['name'] == "name1"
+    res = gl.sortByItem(test_l, "name:a", hkeys=True)
+    assert res[0]['name'] == "name1"
+    res = gl.sortByItem(test_l, "name:a", "surname:d", hkeys=True)
+    
+    assert res[1]['name'] == res[2]['name'] == 'name2'
+    assert res[1]['surname'] == "surname2"
+    assert res[2]['surname'] == "surname1"
+    res = gl.sortByItem(test_l, "name:a", "surname:a", hkeys=True)
+    assert res[1]['name'] == res[2]['name'] == 'name2'
+    assert res[1]['surname'] == "surname1"
+    assert res[2]['surname'] == "surname2"
+    res = gl.sortByItem(test_l, "age")
+    assert res[-1]['age'] == 100
+    res = gl.sortByItem(test_l, "age:d")
+    assert res[0]['age'] == 100
 
-    # FIXME: this raises an exception, is it correct?
-    #res = gl.sortByItem(test_l, "a", "b:*", "c:d", hkeys=True)
+    with pytest.raises(Exception):
+        # we can't sort values as dict
+        res = gl.sortByItem(test_l, "company", hkeys=True)
 
+    res = gl.sortByItem(test_l, "birth", hkeys=True)
+    assert res[0]['name'] == 'name2'
+    assert res[0]['birth'] == datetime.date(2004,1,18)
+    
+    res = gl.sortByItem(test_l, "company.address.city", hkeys=True)
+    assert "Wayne" in res[0]['company']['name']
 
+    res = gl.sortByItem(test_l, "company.name:d", hkeys=True)
+    assert "Wayne" in res[-1]['company']['name']
+    res = gl.sortByItem(test_l, "company.name:d*", hkeys=True)
+    assert "Wayne" in res[0]['company']['name']
+    
 def test_getReader():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:

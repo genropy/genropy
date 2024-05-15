@@ -67,8 +67,9 @@ pgsql = ["psycopg2-binary"]
 mysql = ["mysqlclient"]
 developer = [
 	  "pytest", "pytest-cov", "graphviz",
-	  "build", "twine",
-	  "psycopg2-binary","testing.postgresql" # needed for tests, assuming developers runs tests
+	  "build", "twine","ipython",
+	  "psycopg2-binary",
+   	  "testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 
 [project.scripts]
@@ -133,6 +134,8 @@ packages = [
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
+	    'gnr.db',
+	    'gnr.db.cli',
 	    'gnr.dev',
 	    'gnr.dev.cli',
 	    'gnr.prj',

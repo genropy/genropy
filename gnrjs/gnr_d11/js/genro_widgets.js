@@ -190,18 +190,14 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
         }
 
-         
-        savedAttrs['touchEvents'] = objectPop(attributes,'touchEvents');
-
         objectExtract(attributes, 'onDrop,onDrag,dragTag,dropTag,dragTypes,dropTypes');
         objectExtract(attributes, 'onDrop_*');
-        savedAttrs['dropTarget'] = objectPop(attributes, 'dropTarget');
-        savedAttrs['dropTargetCb'] = objectPop(attributes, 'dropTargetCb');
-        savedAttrs['dropTargetCb_extra'] = objectExtract(attributes,'dropTargetCb_*');
-        savedAttrs.connectedMenu = objectPop(attributes, 'connectedMenu');
-        savedAttrs.onEnter = objectPop(attributes, 'onEnter');
-        savedAttrs._watchOnVisible = objectPop(attributes,'_watchOnVisible');
-        savedAttrs.autocomplete = objectPop(attributes,'autocomplete');
+        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,_watchOnVisible,autocomplete'))
+        let extraDropTargets = objectExtract(attributes,'dropTargetCb_*');
+        if(objectNotEmpty(extraDropTargets)){
+            savedAttrs['dropTargetCb_extra'] = extraDropTargets;
+        }
+        
         objectUpdate(savedAttrs, this.creating(attributes, sourceNode));
         var formId = objectPop(attributes, 'formId');
         if (attributes._for) {
@@ -773,7 +769,9 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
+            if(sourceNode.attr.documentClasses){
+                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
+            }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
@@ -1050,6 +1048,18 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     },
 
 });
+dojo.declare("gnr.widgets.baseExternalWidget", gnr.widgets.baseHtml, {
+    setExternalWidget:function(sourceNode,externalWidget){
+        sourceNode.externalWidget = externalWidget;
+        sourceNode.externalWidget.gnr = this;
+        for (let prop in this) {
+            if (prop.indexOf('mixin_') == 0) {
+                externalWidget[prop.replace('mixin_', '')] = this[prop];
+            }
+        }
+        externalWidget.sourceNode = sourceNode;
+    }
+});
 
 dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
     _defaultEvent:'onClick',
@@ -1324,6 +1334,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         if(fullScreen){
             windowRatio = 1;
             w = {h:Math.floor(mainDiv.clientHeight),w:Math.floor(mainDiv.clientWidth)};
+            this.sourceNode.attr.centerOn=mainDiv
         }
        
         var c = dojo.coords(this.domNode);
@@ -3521,7 +3532,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 datesplit[0] = match[1]+'/'+match[2]+'/'+match[3];
                 doSetValue = canSetValue;
             }
-            if(constraints.selector=='datetime'){
+            var re = new RegExp("^" + info.regexp + "$");
+            match = re.exec(value);
+            if(!match && constraints.selector=='datetime'){
                 doSetValue = canSetValue;
                 var timestr = datesplit[1] || '00:00';
                 var timematch =timestr.match(/^(\d{2})(\d{2})?(\d{2})?$/);
@@ -3536,10 +3549,9 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                     tl.push(timematch[3] || '00');
                 }
                 datesplit[1] = tl.join(':');
+                value = datesplit.join(' ');
+                match = re.exec(value);
             }
-            value = datesplit.join(' ');
-            var re = new RegExp("^" + info.regexp + "$");
-            match = re.exec(value);
             if(match){
                 var d,m,hours,minutes,seconds;
                 if(tokens[0][0]=='d'){
@@ -3555,7 +3567,21 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 if(constraints.selector=='datetime'){
                     hours = parseInt(match[4] || '0');
                     minutes = parseInt(match[5] || '0');
-                    seconds = parseInt(match[6] || '0');
+                    if(match[6]=='AM' || match[6]=='PM'){
+                        seconds = 0;
+                        if(match[6]=='PM'){
+                            hours+=12;
+                        }else if(hours==12){
+                            hours=0;
+                        }
+                    }
+                    if(match[7]=='AM' || match[7]=='PM'){
+                        if(match[7]=='PM'){
+                            hours+=12;
+                        }else if(hours==12){
+                            hours=0;
+                        }
+                    }
                 }else{
                     hours = 0;
                     minutes = 0;

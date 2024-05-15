@@ -5,6 +5,8 @@ import shutil
 import os
 from gnr.app.gnrdeploy import PackageMaker
 
+# FIXME: this code seems unused as of 2024-04-05 CRG
+
 def structToPyFull(sourcepath, destpath):
     if not os.path.isdir(destpath):
         os.mkdir(destpath)

@@ -732,7 +732,13 @@ class SiteRegister(BaseRemoteObject):
     def user(self,user):
         return self.user_register.get_item(user)
 
-
+    def counters(self):
+        return {
+            "users": len(self.users()),
+            "connections": len(self.connections()),
+            "pages": len(self.pages())
+            }
+    
     def users(self,include_data=None):
         return self.user_register.values(include_data)
 
@@ -904,7 +910,7 @@ class SiteRegister(BaseRemoteObject):
 
     def dump(self):
         """TODO"""
-        with open(self.storage_path, 'w') as storagefile:
+        with open(self.storage_path, 'wb') as storagefile:
             self.user_register.dump(storagefile)
             self.connection_register.dump(storagefile)
             self.page_register.dump(storagefile)
@@ -1112,6 +1118,13 @@ class SiteRegisterClient(object):
 
     def adaptListToDict(self,l,lazy_data=None):
         return dict([(c['register_item_id'],self.add_data_to_register_item(c) if lazy_data else c) for c in l])
+
+    def counters(self):
+        return {
+            "users": len(self.users()),
+            "connections": len(self.connections()),
+            "pages": len(self.pages())
+        }
 
     def users(self,include_data=None):
         lazy_data = include_data=='lazy'

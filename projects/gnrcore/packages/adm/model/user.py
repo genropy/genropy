@@ -51,13 +51,13 @@ class Table(object):
                                                                       where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
                                                 table='adm.group'))
 
-        tbl.formulaColumn('fullname', """CASE 
-                                                WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
-                                                WHEN $lastname IS NOT NULL THEN $lastname
-                                        ELSE $username END
+        tbl.formulaColumn('fullname', """CASE WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
+                                            WHEN $lastname IS NOT NULL THEN $lastname
+                                            ELSE $username END
                                         """, name_long=u'!!Name',static=True)
 
         tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
+        tbl.formulaColumn('watermark_notice',"'Copy for ' || $username")
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)

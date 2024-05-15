@@ -38,13 +38,14 @@ class WebSocketHandler(object):
         envelope=Bag(dict(command=command,data=data))
         body=urllib.parse.urlencode(dict(page_id=page_id,remote_service=None,envelope=envelope.toXml(unresolved=True)))
         self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
+        self.close()
 
     def sendCommandToRemoteService(self,remote_service=None,command=None,data=None):
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         envelope=Bag(dict(command=command,data=data))
         body=urllib.parse.urlencode(dict(page_id=None,remote_service=remote_service,envelope=envelope.toXml(unresolved=True)))
         self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
-
+        self.close()
 
     def setInClientData(self,page_id,path=None,value=None,nodeId=None,
                     attributes=None,fired=None,reason=None,noTrigger=None):
@@ -91,23 +92,29 @@ class WsgiWebSocketHandler(WebSocketHandler):
     def checkSocket(self):
         try:
             self.socketConnection
+            self.close()
             return True
         except socket.error as e:
             if e.errno == CONNECTION_REFUSED:
                 return False
         
-
+    def close(self):
+        if hasattr(self,'_socketConnection'):
+            self.socketConnection.close()
+            del self._socketConnection
     @property
     def socketConnection(self):
-        http_conn = HTTPSocketConnection(self.socket_path,timeout=1000)
-        http_conn.connect()
-        return http_conn
+        if not hasattr(self,'_socketConnection'):
+            _socketConnection = HTTPSocketConnection(self.socket_path,timeout=1000)
+            _socketConnection.connect()
+            self._socketConnection = _socketConnection
+        return self._socketConnection
         
     def sendCommandToPage(self,page_id,command,data):
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
         envelope=Bag(dict(command=command,data=data))
 
-        body = urllib.parse.urlencode(dict(page_id=page_id,envelope=envelope.toXml(unresolved=True)))
+        body = urllib.parse.urlencode(dict(page_id=page_id,remote_service=None,envelope=envelope.toXml(unresolved=True)))
         #self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
 
         n = MAX_CONNECTION_ATTEMPT
@@ -118,6 +125,7 @@ class WsgiWebSocketHandler(WebSocketHandler):
                 error = False
                 if n!=MAX_CONNECTION_ATTEMPT:
                     print('SUCCEED')
+                self.close()
             except socket.error as e:
                 error = e.errno
                 if error == CONNECTION_REFUSED:
@@ -140,9 +148,9 @@ def has_timeout(timeout): # python 2.6
 class HTTPSocketConnection(http.client.HTTPConnection):
  
     def __init__(self, socket_path, host='127.0.0.1', port=None,
-                 timeout=None):
+                timeout=None):
         self.socket_path=socket_path
-        http.client.HTTPConnection.__init__(self, host, port=port, timeout=timeout)
+        super().__init__(host=host, port=port, timeout=timeout)
 
     def connect(self):
         """Connect to the host and port specified in __init__."""
@@ -163,3 +171,6 @@ class HTTPSocketConnection(http.client.HTTPConnection):
             if not self.sock:
                 raise socket.error(msg)
 
+    def close(self):
+        if hasattr(self,'sock') and self.sock:
+            self.sock.close()

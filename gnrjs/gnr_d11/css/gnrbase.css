@@ -6207,9 +6207,7 @@ div[disabled='true'], div[disabled='disabled']{
     text-overflow: ellipsis;
 }
 
-
-.mobileTemplateGrid .cellContent>div>div:last-child{
-    width: 100%;
+.mobileTemplateGrid .cellContent {
     padding:5px;
 }
 
@@ -6276,6 +6274,11 @@ div[disabled='true'], div[disabled='disabled']{
     mask-size: 100%;
     -webkit-mask-size: 100%;
 }
+.upload{
+    mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+}
+
 .add_circle{
     mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
@@ -6364,6 +6367,24 @@ div[disabled='true'], div[disabled='disabled']{
 .filter_list{
     mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/filter_list.svg') center center no-repeat;
+    height: 35px;
+}
+
+.home{
+    mask: url('/_rsrc/common/css_icons/google_icons/home.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/home.svg') center center no-repeat;
+    height: 35px;
+}
+
+.document-file{
+    mask: url('/_rsrc/common/css_icons/google_icons/file.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/file.svg') center center no-repeat;
+    height: 35px;
+}
+
+.certificate{
+    mask: url('/_rsrc/common/css_icons/google_icons/certificate.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/certificate.svg') center center no-repeat;
     height: 35px;
 }
 

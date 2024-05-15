@@ -153,6 +153,8 @@ class DynamicFormBagManager(BaseComponent):
         datagetter.simpletextarea(value='^.where',lbl='Where',lbl_vertical_align='top',height='60px',rowspan=3,width='100%')
         datagetter.textbox(value='^.column',lbl='Column')
         datagetter.textbox(value='^.innerpath',lbl='Column')
+        tc.contentPane(title='Extended Parameters').MultiValueEditor(value='^#FORM.record')
+
 
 class DynamicForm(BaseComponent):
     css_requires='gnrcomponents/dynamicform/dynamicform'
@@ -327,8 +329,13 @@ class DynamicForm(BaseComponent):
                             _fired='^#FORM.changed_df_type_%s' %field,
                             df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
                             df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,
-                            _onRemote="""this.form.checkInvalidFields();""",
-                                       **kwargs)
+                            _onRemote="""
+                            var frm = this.form;
+                            this.delayedCall(
+                                ()=>{
+                                    frm.checkInvalidFields()
+                                },1,'buildingDynamicForm'
+                            )""",**kwargs)
   
     @struct_method
     def df_appendDynamicFields(self,pane,field=None,**kwargs):
@@ -361,6 +368,19 @@ class DynamicForm(BaseComponent):
                             this.form.checkInvalidFields();
                             """,**kwargs)
   
+    @struct_method
+    def df_appendDynamicFieldFromPkey(self,pane,df_table=None,df_pkey=None,datapath=None,**kwargs):
+        fbobj = pane.fbuilder
+        fbattrs = dict(fbobj.commonKwargs)
+        fbattrs.update(cols=fbobj.colmax, 
+                      lblclass=fbobj.lblclass, lblpos=fbobj.lblpos, lblalign=fbobj.lblalign, 
+                      fldalign=fbobj.fldalign,
+                      fieldclass=fbobj.fieldclass,
+                      lblvalign=fbobj.lblvalign, fldvalign=fbobj.fldvalign,
+                      byColumn=fbobj.byColumn,
+                      colswidth=fbobj.colswidth)
+        pane.remote(self.df_remoteDynamicGroup,df_table=df_table,_if='df_pkey',
+                            df_pkey=df_pkey,datapath=datapath,*kwargs)
 
 
     def df_prepareGlobalVars(self,global_fields=None,df_groups=None):

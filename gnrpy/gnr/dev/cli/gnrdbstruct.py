@@ -4,7 +4,7 @@ import sys
 import urllib.request, urllib.parse, urllib.error
 
 from gnr.core.cli import GnrCliArgParse
-
+description = "Download db struct from local daemon"
 def main():
     parser = GnrCliArgParse()
     parser.add_argument('port',nargs=1)

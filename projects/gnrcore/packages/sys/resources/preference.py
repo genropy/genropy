@@ -35,6 +35,7 @@ class AppPref(object):
         self.stylingPreferences(tc.contentPane(title='!![en]Styling'))
         self.printPreferences(tc.borderContainer(title='!![en]Print'))
         self.xlsxPrintPreferences(tc.contentPane(title='!![en]XLSX Print', datapath='.xlsx_print'))
+        self.pdfPreferences(tc.borderContainer(title='!![en]PDF Preferences'))
         self.developerPreferences(tc.contentPane(title='!![en]Developer'))
         self.site_config_override(tc.contentPane(title='!![en]Site config',datapath='.site_config'))
         self.tablesConfiguration(tc.contentPane(title='!![en]Tables Configuration'))
@@ -47,26 +48,43 @@ class AppPref(object):
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
 
     def printPreferences(self, pane):
-        fb = pane.roundedGroup(title='Print Modes',
-                                    region='top',height='100px').formbuilder(cols=1, border_spacing='4px')
+        fb = pane.roundedGroup(title='!![en]Print Modes',
+                                    region='top',height='80px').formbuilder(cols=1, border_spacing='4px')
         fb.checkbox(value='^.print.ask_options_enabled',label='!![en]Print Options Enabled')
         fb.checkBoxText(value='^.print.modes',values='pdf:PDF,server_print:Server Print,mail_pdf:PDF Mail,mail_deliver:Mail Deliver',lbl='Print modes')
-        fb.checkbox(value='^.print.enable_pdfform',label='!![en]Enable pdf forms (Requires pdftk)')
         
         fb = pane.roundedGroup(title='!![en]PDF Render',region='center').formbuilder(cols=1, border_spacing='4px',datapath='.pdf_render')
-        fb.checkbox(value='^.wk_legacy',label='!![en]Legacy mode (use wkhtmltopdf)')
-
-        fb.textbox(value='^.margin_top',lbl='!![en]Margin top')
-        fb.textbox(value='^.margin_bottom',lbl='!![en]Margin bottom')
-        fb.textbox(value='^.margin_left',lbl='!![en]Margin left')
-        fb.textbox(value='^.margin_right',lbl='!![en]Margin right')
-        fb.textbox(value='^.zoom',lbl='!![en]Pdf zoom',width='5em')
         fb.checkbox(value='^.keep_html',label='!![en]Keep HTML (for debug)')
+        fb.checkbox(value='^.wk_legacy',label='!![en]Legacy mode (use wkhtmltopdf)')
+        fb.textbox(value='^.margin_top',lbl='!![en]Margin top', hidden='^.wk_legacy?=!#v')
+        fb.textbox(value='^.margin_bottom',lbl='!![en]Margin bottom', hidden='^.wk_legacy?=!#v')
+        fb.textbox(value='^.margin_left',lbl='!![en]Margin left', hidden='^.wk_legacy?=!#v')
+        fb.textbox(value='^.margin_right',lbl='!![en]Margin right', hidden='^.wk_legacy?=!#v')
+        fb.textbox(value='^.zoom',lbl='!![en]Pdf zoom',width='5em', hidden='^.wk_legacy?=!#v')
+        
+    def pdfPreferences(self, pane):
+        fbf = pane.roundedGroup(title='!![en]PDF Form',
+                                    region='top',height='60px').formbuilder(cols=1, border_spacing='4px')
+        fbf.checkbox(value='^.print.enable_pdfform',label='!![en]Enable pdf forms (Requires pdftk)')
+
+        fbv = pane.roundedGroup(title='!![en]PDF Viewer', region='center').mobileFormBuilder(cols=1, border_spacing='4px')
+        fbv.checkbox(value='^.jsPdfViewer',label='!![en]Enable PDF viewer')
+        fbv.checkboxtext(value='^.jsPdfViewerOptions', lbl='!![en]PDF viewer options', 
+                         values="""editorFreeText:[!![en]Free text],editorInk:[!![en]Draw],editorStamp:[!![en]Image],\
+                                    print:[!![en]Print],download:[!![en]Download],secondaryToolbarToggle:[!![en]Tools]""",
+                         cols=3, hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
+        fbv.checkboxtext(value='^.jsPdfViewerTools', lbl='!![en]PDF viewer tools', 
+                         values="""secondaryOpenFile:[!![en]Open],presentationMode:[!![en]Presentation mode],viewBookmark:[!![en]View bookmark],\
+                                    firstPage:[!![en]First page],lastPage:[!![en]Last page],pageRotateCw:[!![en]Page rotate clockwise],\
+                                    pageRotateCcw:[!![en]Page rotate counterclockwise],cursorToolButtons:[!![en]Cursor tools],\
+                                    scrollPage:[!![en]Scroll page],scrollVertical:[!![en]Scroll vertical],scrollHorizontal:[!![en]Scroll Horizontal],\
+                                    spreadModeButtons:[!![en]Spread mode buttons],documentProperties:[!![en]Document properties]""",
+                         cols=3,hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
         
     def developerPreferences(self, pane):
         fb = pane.formbuilder()
-        fb.checkbox(value='^.jsPdfViewer',label='!![en]Extended pdf viewer')
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
+        fb.checkbox(value='^.experimental.wsk_enabled',lbl='!![en]WSK Enabled')
         
     def tablesConfiguration(self, pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px',datapath='.tblconf')
@@ -122,6 +140,7 @@ class UserPref(object):
         fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
         fb.filteringSelect(value='^.mobile.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Mobile Font size')
         fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')
+        fb.checkbox(value='^.#parent.jsPdfViewer',label='!![en]Extended pdf viewer')
 
        #fb.horizontalSlider(value='^.body.filter_rotate',intermediateChanges=True,width='150px',default_value=0,
        #                minimum=0,maximum=360,lbl='Color rotate',livePreference=True)

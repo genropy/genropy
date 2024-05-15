@@ -1,10 +1,37 @@
 UPCOMING RELEASE
 ================
 
-* Availabily for signed and timestamp based signature in URLs
+Version 24.4.23
+===============
 
+New Features
+------------
 
+* Cordova framework detection, and payload loading into genro's js client
+* New 'gnr web inspect' cli tool to inspect site registers, filterable.
+* New 'gnr web serve' alias for 'gnr web wsgiserve'.
+* New 'db' namespace for gnr CLI tool, to provide alias like 'gnr db setup'
+  rather than 'gnr app dbsetup'.
+* Added a '--version' option to all CLI command to retrive current framework
+  version, useful for bug reporting
+* New 'gnr db restore'
+* Added iPython dependency to developer installation profile
+* Workdate can be custom or current date  
+* Grouped view static (for mobile use)
 
+  
+Fixes
+-----
+
+* Mobile Stylesheets fixes 
+* PDFViewer opening fixes
+* Fixed 'jedi import error' on all CLI commands
+* Increased unit test coverage
+* Code cleanup to remove deprecated references
+* Possibility to print clean html if no template is required 
+* Check invalid fields in dynamic form 
+  
+  
 Version 24.3.8
 ==============
 

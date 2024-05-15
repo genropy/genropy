@@ -87,9 +87,9 @@ class GnrUnsupportedBrowserException(GnrException):
 
 class GnrMaintenanceException(GnrException):
     pass
+
 class GnrSignedTokenException(GnrException):
     pass
-
 
 class GnrMissingResourceException(GnrException):
     pass
@@ -300,7 +300,7 @@ class GnrWebPage(GnrBaseWebPage):
         data['init_info'] = init_info
         data['page_info'] = page_info
         page_item = self.site.register.new_page(self.page_id, self, data=data)
-        if self.wsk and not getattr(self,'system_page',False):
+        if self.wsk_enabled and not getattr(self,'system_page',False):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
         return page_item
@@ -346,7 +346,13 @@ class GnrWebPage(GnrBaseWebPage):
         if hasattr(self,'asyncServer'):
             return self.asyncServer.wsk
         return self.site.wsk
-        
+    
+    @property
+    def wsk_enabled(self):
+        if not hasattr(self, '_wsk_enabled'):
+            self._wsk_enabled = self.wsk and self.getPreference('experimental.wsk_enabled',pkg='sys')
+        return self._wsk_enabled
+    
     @property 
     def dev(self):
         if not hasattr(self, '_dev'):
@@ -434,10 +440,24 @@ class GnrWebPage(GnrBaseWebPage):
                 kwargs = dbenv() or {}
                 self._db.updateEnv(**kwargs)
         return self._db    
+    
+
         
     def _get_workdate(self):
+        today = datetime.date.today()
         if not getattr(self,'_workdate',None):
-            self._workdate = self.pageStore().getItem('rootenv.workdate') or datetime.date.today()
+            with self.pageStore() as store:
+                rootenv = store.getItem('rootenv')
+                if not rootenv:
+                    self._workdate =  today
+                    return self._workdate
+                workdate = rootenv['workdate']
+                custom_workdate = rootenv['custom_workdate']
+                if not custom_workdate:
+                    workdate = datetime.date.today()
+                    rootenv['workdate'] = workdate
+                self._workdate =  workdate
+                self._rootenv = rootenv
         return self._workdate
 
     def _set_workdate(self, workdate):
@@ -1051,11 +1071,10 @@ class GnrWebPage(GnrBaseWebPage):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
         
         if handler and getattr(handler,'signed',None):
-            original_url = self.request._request.url
-            _vld = self._call_kwargs.pop('_vld',None)
-            error = self.site.auth_token_generator.verify_url(original_url,_vld)
+            error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
                 raise GnrSignedTokenException(error)
+            
         if handler and getattr(handler, 'tags',None):
             userTags = self.userTags or self.basicAuthenticationTags()
             if not self.application.checkResourcePermission(handler.tags, userTags):
@@ -1134,7 +1153,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
         kwargs['servertime'] = datetime.datetime.now()
-        kwargs['websockets_url'] = '/websocket' if self.wsk else None
+        kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1150,6 +1169,7 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['isMobile'] = True
         kwargs['deviceScreenSize'] = self.deviceScreenSize
         kwargs['extraFeatures'] = dict(self.extraFeatures)
+        kwargs['isCordova'] = self.connection.is_cordova
         localroot = None
         if self.connection.electron_static:
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
@@ -1900,7 +1920,7 @@ class GnrWebPage(GnrBaseWebPage):
             if isinstance(v,Bag):
                 v = self.catalog.asTypedText(v)
                 kwargs[k] = v
-        if self.wsk:
+        if self.wsk_enabled:
             self.wsk.publishToClient(page_id or self.page_id,topic=topic,data=kwargs,nodeId=nodeId,iframe=iframe)
         else:
             value = dict(topic=topic,kw=kwargs)
@@ -1922,8 +1942,17 @@ class GnrWebPage(GnrBaseWebPage):
         
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
-        handler = self.setInClientData_websocket if self.wsk or hasattr(self,'asyncServer') else self.setInClientData_legacy
-        handler(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
+        
+        if self.wsk_enabled or hasattr(self,'asyncServer'):
+            try:
+                self.setInClientData_websocket(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
+                        fired=fired, reason=reason, replace=replace,public=public,**kwargs)
+                return
+            except Exception:
+                if False: # raise in certi casi
+                    raise
+                pass
+        self.setInClientData_legacy(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
                         fired=fired, reason=reason, replace=replace,public=public,**kwargs)
 
 
@@ -2569,6 +2598,26 @@ class GnrWebPage(GnrBaseWebPage):
             return self.site.storage('user').kwargs_url(self.user, *args, **kwargs)
         else:
             return self.site.storage('user').url(self.user, *args)
+    
+    @public_method
+    def moveUploadedFileToDestination(self,temp_path=None,dest_stn=None,
+                                      dest_fld=None,dest_record_pkey=None,**kwargs):
+        uploadedSn = self.site.storageNode(temp_path)
+        if dest_fld:
+            pkg,tbl,field = dest_fld.split('.')
+            tblobj = self.db.table(f'{pkg}.{tbl}')
+            column = tblobj.column(field)
+            dest_stn = column.attributes['dest_stn']
+            with tblobj.recordToUpdate(dest_record_pkey) as rec:
+                rec[field] = f'{dest_stn.format(**rec.asDict())}.{uploadedSn.ext}'
+            dest_stn = rec[field]
+            self.setInClientRecord(tblobj=tblobj,record=rec,fields=field,silent=True)
+
+        uploadedSn.move(dest_stn)
+        if dest_fld:
+            self.db.commit()
+        return dest_stn
+            
    
     @public_method
     def getSiteDocument(self,path,defaultContent=None,**kwargs):

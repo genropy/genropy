@@ -172,8 +172,8 @@ def test_gnrclasscatalog():
     # typegetter_datetime
     res = cc.typegetter_datetime(datetime.datetime.now())
     assert res == "DH"
-    res = cc.typegetter_datetime(datetime.datetime.utcnow())
-    assert res == "DH"
+    res = cc.typegetter_datetime(datetime.datetime.now(datetime.timezone.utc))
+    assert res == "DHZ"
     res = cc.typegetter_datetime(datetime.datetime.now(pytz.utc))
     assert res == "DHZ"
 

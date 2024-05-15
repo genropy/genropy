@@ -577,7 +577,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 if (colors.length>0){
                        dojo.forEach(colors,function(col){
                         var c=(colordict[col]+',0').split(',');
-                        result +=", "+c[0]+" "+c[01]+"%";
+                        result +=", "+c[0]+" "+c['01']+"%";
                     });
                 }else{
                     result += ','+color_from+','+color_to;
@@ -1619,8 +1619,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var result = {};
         var style = whatDomNode.style;
         var whereposition = whereDomNode.style.position;
-        var deltax = viewport.l;
-        var deltay = viewport.t;
+        var deltax = viewport.l || viewport.x;
+        var deltay = viewport.t || viewport.y;
         var onlyX,onlyY;
         xRatio = xRatio || 0;
         yRatio = yRatio || 0;
@@ -1969,12 +1969,22 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
-        var jsPdfViewer = isNullOrBlank(jsPdfViewer)? genro.getData('gnr.app_preference.sys.jsPdfViewer'):jsPdfViewer;
-        if(parsedSrc.file && stringEndsWith(parsedSrc.file,'.pdf') && jsPdfViewer  ){
+        let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
+        var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
+        if(parsedSrc.file && jsPdfViewer){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }
-            src = '/_rsrc/js_libs/pdfjs/web/viewer.html?file='+encodeURIComponent(src);
+            src = `/_rsrc/js_libs/pdfjs/web/viewer.html?file=`+encodeURIComponent(src);
+            let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
+            let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
+            console.log('jsPdfViewerOptions',jsPdfViewerOptions,'jsPdfViewerTools',jsPdfViewerTools)
+            if(jsPdfViewerOptions){
+                src+=('&_viewer_options='+jsPdfViewerOptions)
+            }
+            if(jsPdfViewerTools){
+                src+=('&_viewer_tools='+jsPdfViewerTools)
+            }
         }
         return src;
     },

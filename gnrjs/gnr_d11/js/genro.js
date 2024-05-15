@@ -82,6 +82,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.user_polling = -1;
         this.isDeveloper = objectPop(this.startArgs,'isDeveloper');
         this.isMobile = objectPop(this.startArgs,'isMobile');
+        this.isCordova = objectPop(this.startArgs,'isCordova');
         this.deviceScreenSize = objectPop(this.startArgs,'deviceScreenSize');
         this.extraFeatures = objectPop(this.startArgs,'extraFeatures');
         this.theme = {};
@@ -572,6 +573,7 @@ dojo.declare('gnr.GenroClient', null, {
         if (this.isMobile) {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
+
         dojo.subscribe('debugstep',
                        function(data){genro.dev.onDebugstep(data)}
                      );
@@ -599,6 +601,57 @@ dojo.declare('gnr.GenroClient', null, {
                 parentGenro = false;
             }
         }
+
+	// if cordova is detected, load the js payload from localhost
+	// which will load all the configured plugins payload
+	if(this.isCordova) {
+	    if(!this.getParentGenro()) {
+		
+		document.addEventListener('deviceready', function() {
+		    console.log("CORDOVA JS LOAD COMPLETED");
+		    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+		    genro.cordova_ready = true;
+		    genro.setData("gnr.cordova.platform", cordova.platformId)
+		    genro.setData("gnr.cordova.version", cordova.version)
+		    genro.setData("gnr.cordova.ready", true);
+		    
+		    if(device) {
+			genro.setData("gnr.cordova.device.uuid", device.uuid);
+			genro.setData("gnr.cordova.device.model", device.model);
+			genro.setData("gnr.cordova.device.manufacturer", device.manufacturer);
+		    }
+		    if(PushNotification) {
+			console.log("We have PushNotification");
+			genro.notification_obj = PushNotification.init({android: {},
+									ios: {
+									    alert: 'true',
+									    badge: true,
+									    sound: 'false'
+									},
+								       });
+			PushNotification.hasPermission(function(status) {
+			    console.log("Push Notification Permission", status)
+			});
+			genro.notification_obj.on("registration", (data) => {
+			    console.log("Push Notification registered: ", data);
+			    genro.setData("gnr.cordova.fcm_push_registration", data);
+			});
+		    }
+		}, false);
+
+		var CORDOVA_JS_URL = "https://localhost/cordova.js";
+		
+		// iOS wants a different scheme for local payloads.
+		if(navigator.userAgent.includes("GnriOS")) {
+		    CORDOVA_JS_URL = "/_cordova_asset/ios/cordova.js";
+		}
+		genro.dom.loadJs(CORDOVA_JS_URL, () => {
+                    console.log("CORDOVA JS LOADED");
+		});
+	    }
+	}
+
+	
         genro.src.getMainSource(function(mainBagPage){
             if (mainBagPage  &&  mainBagPage.attr && mainBagPage.attr.redirect) {
                 var pageUrl = genro.absoluteUrl();
@@ -633,11 +686,12 @@ dojo.declare('gnr.GenroClient', null, {
         genro.dom.removeClass('mainWindow', 'waiting');
         genro.dom.removeClass('_gnrRoot', 'notvisible');
         genro.dom.effect('_gnrRoot', 'fadein', {duration:400});
-        dojo.connect(dojo.doc, 'onkeydown', function(event) {
-              if ((event.keyCode == dojo.keys.BACKSPACE ) &&(event.target.size === undefined ) && (event.target.rows === undefined )){
-                 event.preventDefault();
-              }
-        })
+        //past workaround to avoid backspace history in browsers commmented 
+        //dojo.connect(dojo.doc, 'onkeydown', function(event) {
+        //      if ((event.keyCode == dojo.keys.BACKSPACE ) &&(event.target.size === undefined ) && (event.target.rows === undefined )){
+        //         event.preventDefault();
+        //      }
+        //})
         genro.dragDropConnect();
         genro.standardEventConnection();
         if(genro.isDeveloper){
@@ -2197,6 +2251,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
     openWindow:function(url, name, params) {
         params = params || {height:'600',width:'900'};
+        let _isPdf = objectPop(params,'_isPdf');
         if (params) {
             if (typeof(params) != 'string') {
                 let parlist = [];
@@ -2206,7 +2261,9 @@ dojo.declare('gnr.GenroClient', null, {
                 params = parlist.join(',');
             }
         }
-        url = genro.dom.detectPdfViewer(url);
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
         var newwindow = window.open(url, name, params);
         if (window.focus) {
             try {
@@ -2219,14 +2276,23 @@ dojo.declare('gnr.GenroClient', null, {
         return newwindow
 
     },
-    openBrowserTab:function(url){
-        url = genro.dom.detectPdfViewer(url);
+    openBrowserTab:function(url,params){
+        params = params || {};
+        let _isPdf = objectPop(params,'_isPdf');
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
+        //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
-    childBrowserTab:function(url,parent_page_id){
+    childBrowserTab:function(url,parent_page_id,params){
         url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
-        url = genro.dom.detectPdfViewer(url);
+        params = params || {};
+        let _isPdf = objectPop(params,'_isPdf');
+        if(_isPdf){
+            url = genro.dom.detectPdfViewer(url);
+        }
         window.open(url);
     },
     
