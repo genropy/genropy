@@ -5,6 +5,7 @@
 from gnr.lib.services.pdf import PdfService
 import os
 from io import BytesIO
+from gnr.core.gnrdecorator import extract_kwargs
 
 try:
     from PyPDF2 import PdfWriter, PdfReader
@@ -75,14 +76,21 @@ class Service(PdfService):
             doc.save(f.read())
         doc.save()
 
-
-    def watermarkedPDF(self,input_pdf,watermark=None):
+    @extract_kwargs(watermark=True)
+    def watermarkedPDF(self,input_pdf,watermark=None,mode='TextBox',watermark_kwargs=None):
         with self.parent.storageNode(input_pdf).open('rb') as f:
             doc = fitz.open('pdf',f.read())
         m = fitz.Matrix
+        color = watermark_kwargs.pop('color',None)
+
+        pars = dict(fontsize=24, fontname='helv', 
+                    color=fitz.utils.getColor(color) if color else (0, 0, 0),
+                    fill_opacity=.1)
+        pars.update(watermark_kwargs)
+        
         for page in doc:  
             page.clean_contents()
-            self._insertTextBox(page,watermark)
+            getattr(self,f'_insert{mode}')(page,watermark,**pars)
 
         output_pdf_bytes = BytesIO()
         doc.save(output_pdf_bytes)
@@ -91,17 +99,53 @@ class Service(PdfService):
         result = output_pdf_bytes.read()
         return result
     
-    def _insertText(self,page):
-        pass
+    def _finishWatermark(self,shape,**kwargs):
+        """
+        width=1, color=(0,), 
+        fill=None, lineCap=0, 
+        lineJoin=0, dashes=None, 
+        closePath=True, even_odd=False, 
+        morph=(fixpoint, matrix),
+          stroke_opacity=1, fill_opacity=1, oc=0
+        """
+        shape.finish(
 
-    def _insertTextBox(self,page,watermark):
+        )
+    
+    def _insertText(self,page,watermark,**kwargs):
+        """point, text, fontsize=11, fontname='helv', 
+        fontfile=None, set_simple=False, 
+        encoding=TEXT_ENCODING_LATIN, color=None,
+          lineheight=None, fill=None, render_mode=0,
+            border_width=1, rotate=0, morph=None, 
+            stroke_opacity=1, fill_opacity=1, oc=0"""
+        rect = page.rect  
+        x_center = rect.width / 2
+        y_center = rect.height / 2
+        shape = page.new_shape()
+        shape.insert_text((x_center,y_center), watermark,**kwargs)
+
+        shape.commit()  
+
+    
+
+    def _insertTextBox(self,page,watermark,**kwargs):
+        """
+        rect, buffer, fontsize=11, fontname='helv', 
+        fontfile=None, set_simple=False,
+          encoding=TEXT_ENCODING_LATIN, color=None, 
+          fill=None, render_mode=0, border_width=1, 
+          expandtabs=8, align=TEXT_ALIGN_LEFT, rotate=0, 
+          lineheight=None, morph=None, stroke_opacity=1, fill_opacity=1, oc=0
+        """
         rect = page.rect  
         x_center = rect.width / 2
         y_center = rect.height / 2
         text_rect = fitz.Rect(x_center - 200, y_center - 100, x_center + 200, y_center + 100)
         shape = page.new_shape()
-        shape.insert_textbox(text_rect, watermark, fontsize=24, fontname='helv', 
-                                fontfile=None, set_simple=False,color=(0, 0, 0), 
-                                fill=None, render_mode=0, border_width=1, 
-                                expandtabs=8, align=1, rotate=0, lineheight=None, morph=None, fill_opacity=.1)
+        rotate_matrix = fitz.Matrix(45)
+        shape.insert_textbox(text_rect, watermark,morph=(fitz.Point(x_center,y_center),rotate_matrix),**kwargs)
+        #rect = fitz.Rect(0, 0, len(watermark)*5, 50).transform(rotate_matrix)
+        #rect = rect + (x_center, y_center)
+        #shape.finish(morph=rotate_matrix)
         shape.commit()  
