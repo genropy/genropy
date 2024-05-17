@@ -82,8 +82,9 @@ class Service(PdfService):
             doc = fitz.open('pdf',f.read())
         m = fitz.Matrix
         color = watermark_kwargs.pop('color',None)
-
+        align = watermark_kwargs.pop('align','left')
         pars = dict(fontsize=24, fontname='helv', 
+                    align = getattr(fitz,f'TEXT_ALIGN_{align.upper()}'),
                     color=fitz.utils.getColor(color) if color else (0, 0, 0),
                     fill_opacity=.1)
         pars.update(watermark_kwargs)
