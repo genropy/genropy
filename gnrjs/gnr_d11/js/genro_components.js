@@ -4113,6 +4113,8 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                     visible:objectPop(kw,'enabled',true)
                 });
         let value = objectPop(kw,'value');
+        let dest_stn = objectPop(kw,'dest_stn') || value;
+
         button._('dataController',{
             script:function(scriptKwargs){
                 let onConfirm = [
@@ -4125,17 +4127,17 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                 genro.dlg.modalUploaderDialog(label,{onConfirm:onConfirm.join('\n'),
                                                 dest_stn:scriptKwargs.dest_stn,
                                                 ...kw},this);
-            },dest_stn:value.replace('^','=')
+            },dest_stn:dest_stn.replace('^','=')
         });
         wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
         let iframeStarterKw = {script:function(scriptKwargs){
-            let dest_stn = scriptKwargs.dest_stn;
+            let value = scriptKwargs.value;
             let prevurl = null;
-            if(dest_stn){
-                prevurl = genro.addParamsToUrl('/'+dest_stn,{_nocache:genro.time36Id()});
+            if(value){
+                prevurl = genro.addParamsToUrl('/'+value,{_nocache:genro.time36Id()});
             }
             this.setRelativeData('#WORKSPACE.preview_url',prevurl);
-        },dest_stn:value};
+        },value:value};
         let wn = wrapper.getParentNode();
         let currentValue = wn.currentFromDatasource(value)
         if(currentValue){

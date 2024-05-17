@@ -6,7 +6,6 @@
 
 from __future__ import division
 from __future__ import print_function
-from past.utils import old_div
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -212,13 +211,12 @@ class DropUploaderBase(BaseComponent):
                 original.resize(height, width)
             elif height or width:
                 if height:
-                    width = int(old_div(height * original.size[0] * 1.0, original.size[1]))
+                    width = int(height * original.size[0] * 1.0/original.size[1])
                     imagename = '%s_h%i' % (imagename, height)
                 elif width:
-                    height = int(old_div(width * original.size[1] * 1.0, original.size[0]))
+                    height = int(width * original.size[1] * 1.0/original.size[0])
                     imagename = '%s_w%i' % (imagename, width)
                 dest_size = width, height
-                print('dest_size ', dest_size)
                 original.thumbnail(dest_size)
             filetype = filetype or ext[1:]
             image_filename = '%s.%s' % (imagename, filetype.lower())
