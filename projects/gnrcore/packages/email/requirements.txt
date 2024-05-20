@@ -1,1 +1,2 @@
 chardet
+mail-parser

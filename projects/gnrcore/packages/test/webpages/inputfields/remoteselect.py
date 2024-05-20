@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from time import sleep
 
+from imdb import IMDb
+
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException
 from gnr.app.gnrdeploy import PathResolver
 
@@ -56,10 +58,6 @@ class GnrCustomWebPage(object):
 
     @public_method
     def getMovieId(self,_querystring=None,**kwargs):
-        try:
-            from imdb import IMDb
-        except:
-            raise GnrException('This test requires library imdb')
         ia = IMDb()
         result = Bag()
         movies = ia.search_movie(_querystring)
