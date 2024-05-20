@@ -2612,7 +2612,8 @@ class GnrWebPage(GnrBaseWebPage):
                 rec[field] = f'{dest_stn.format(**rec.asDict())}.{uploadedSn.ext}'
             dest_stn = rec[field]
             self.setInClientRecord(tblobj=tblobj,record=rec,fields=field,silent=True)
-
+        else:
+            dest_stn = f'{dest_stn}.{uploadedSn.ext}'
         uploadedSn.move(dest_stn)
         if dest_fld:
             self.db.commit()

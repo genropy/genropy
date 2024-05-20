@@ -41,8 +41,8 @@ class GnrCustomWebPage(object):
         box.modalUploader(height='210px',width='190px',border='1px solid silver',
                            margin='10px',rounded=8,
                            value='^.destinazione',
+                           dest_stn='site:ca_fronte.pdf',
                            label='Carta di identità fronte')
-        box.data('.destinazione','site:ca_fronte.pdf')
         box.textbox(value='^.destinazione')
         
        # box.modalUploader(height='210px',width='190px',border='1px solid silver',
