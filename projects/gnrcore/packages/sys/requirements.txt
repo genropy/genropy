@@ -1,0 +1,7 @@
+requests
+PyPDF2
+pdf2image
+watchdog
+redbaron
+WebOb
+
