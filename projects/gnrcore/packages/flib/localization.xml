@@ -1,95 +1,55 @@
-<?xml version="1.0" ?>
-<GenRoBag>
-	<menu path="menu.py" ext="py">
-		<en_flib base="Flib" en="Flib" it="Flib"/>
-		<en_categories base="Categories" en="Categories" it="Categorie"/>
-		<en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"/>
-		<en_items base="Items" en="Items" it="Elementi"/>
-	</menu>
-	<model>
-		<category path="model/category.py" ext="py">
-			<en_category base="Category" en="Category" it="Categoria"/>
-			<en_categories base="Categories" en="Categories" it="Categorie"/>
-			<en_code base="Code" en="Code" it="Codice"/>
-			<en_description base="Description" en="Description" it="Descrizione"/>
-			<en_no_category base="No category" en="No category" it="Nessuna categoria"/>
-		</category>
-		<item path="model/item.py" ext="py">
-			<en_item base="Item" en="Item" it="Articolo"/>
-			<en_items base="Items" en="Items" it="Elementi"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-			<en_description base="Description" en="Description" it="Descrizione"/>
-			<en_url base="Url" en="Url" it="url"/>
-			<en_path base="Path" en="Path" it="Il percorso"/>
-			<en_file_type base="File type" en="File type" it="Tipo di file"/>
-			<en_extension base="Extension" en="Extension" it="Estensione"/>
-			<en_metadata base="Metadata" de="Metadata" en="Metadata" fr="Métadonnées" it="Metadata"/>
-			<en_versions base="Versions" en="Versions" it="versioni"/>
-			<en_user_name base="User name" en="User name" it="Nome utente"/>
-		</item>
-		<item_category path="model/item_category.py" ext="py">
-			<en_item_category base="Item category" en="Item category" it="categoria dell'oggetto"/>
-		</item_category>
-	</model>
-	<resources>
-		<flib path="resources/flib.py" ext="py">
-			<en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"/>
-			<en_file_picker base="File picker" en="File picker" it="selettore file"/>
-			<en_upload_file base="Upload file" en="Upload file" it="Caricare un file"/>
-			<en_categories base="Categories" en="Categories" it="Categorie"/>
-			<en_upload_files base="Upload files" en="Upload files" it="Caricare files"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-			<en_description base="Description" en="Description" it="Descrizione"/>
-		</flib>
-		<item_picker path="resources/item_picker.py" ext="py">
-			<en_file_picker base="File picker" en="File picker" it="selettore file"/>
-			<en_categories base="Categories" en="Categories" it="Categorie"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-			<en_description base="Description" en="Description" it="Descrizione"/>
-			<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"/>
-			<en_items base="Items" en="Items" it="Elementi"/>
-		</item_picker>
-		<preference path="resources/preference.py" ext="py">
-			<en_base_url base="Base url" en="Base url" it="URL di base"/>
-		</preference>
-		<tables>
-			<category>
-				<th_category path="resources/tables/category/th_category.py" ext="py">
-					<en_code base="Code" en="Code" it="Codice"/>
-					<en_description base="Description" en="Description" it="Descrizione"/>
-				</th_category>
-			</category>
-			<item>
-				<action>
-					<download_selection path="resources/tables/item/action/download_selection.py" ext="py">
-						<en_download_selection base="Download Selection" en="Download Selection" it="Scarica Selezione"/>
-						<en_download_selected_files base="Download selected files" en="Download selected files" it="Scarica i file selezionati"/>
-						<en_zip_file base="Zip file" en="Zip file" it="File zip"/>
-					</download_selection>
-				</action>
-				<th_item path="resources/tables/item/th_item.py" ext="py">
-					<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-					<en_description base="Description" en="Description" it="Descrizione"/>
-					<en_url base="Url" en="Url" it="url"/>
-					<en_path base="Path" en="Path" it="Il percorso"/>
-					<en_extension base="Extension" en="Extension" it="Estensione"/>
-					<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"/>
-					<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"/>
-					<en_open base="Open" en="Open" it="Aprire"/>
-					<en_file_type base="File type" en="File type" it="Tipo di file"/>
-				</th_item>
-			</item>
-		</tables>
-	</resources>
-	<webpages>
-		<categories path="webpages/categories.py" ext="py">
-			<en_categories base="Categories" en="Categories" it="Categorie"/>
-		</categories>
-		<items path="webpages/items.py" ext="py">
-			<en_file_items base="File Items" en="File Items" it="Elementi di file"/>
-			<en_inserted_on base="Inserted on" en="Inserted on" it="inserito il"/>
-			<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-			<en_description base="Description" en="Description" it="Descrizione"/>
-		</items>
-	</webpages>
-</GenRoBag>
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><menu path="menu.py" ext="py"><en_flib base="Flib" en="Flib" it="Flib"></en_flib>
+<en_categories base="Categories" en="Categories" it="Categorie"></en_categories>
+<en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
+<en_items base="Items" en="Items" it="Elementi"></en_items></menu>
+<model><category path="model/category.py" ext="py"><en_category base="Category" en="Category" it="Categoria"></en_category>
+<en_categories base="Categories" en="Categories" it="Categorie"></en_categories>
+<en_code base="Code" en="Code" it="Codice"></en_code>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_no_category base="No category" en="No category" it="Nessuna categoria"></en_no_category></category>
+<item path="model/item.py" ext="py"><en_item base="Item" en="Item" it="Articolo"></en_item>
+<en_items base="Items" en="Items" it="Elementi"></en_items>
+<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_url base="Url" en="Url" it="url"></en_url>
+<en_path base="Path" en="Path" it="Il percorso"></en_path>
+<en_file_type base="File type" en="File type" it="Tipo di file"></en_file_type>
+<en_extension base="Extension" en="Extension" it="Estensione"></en_extension>
+<en_metadata base="Metadata" de="Metadata" en="Metadata" fr="Métadonnées" it="Metadata"></en_metadata>
+<en_versions base="Versions" en="Versions" it="Versioni"></en_versions>
+<en_user_name base="User name" en="User name" it="Nome utente"></en_user_name></item>
+<item_category path="model/item_category.py" ext="py"><en_item_category base="Item category" en="Item category" it="categoria dell'oggetto"></en_item_category></item_category></model>
+<resources><flib path="resources/flib.py" ext="py"><en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
+<en_file_picker base="File picker" en="File picker" it="selettore file"></en_file_picker>
+<en_upload_file base="Upload file" en="Upload file" it="Caricare un file"></en_upload_file>
+<en_categories base="Categories" en="Categories" it="Categorie"></en_categories>
+<en_upload_files base="Upload files" en="Upload files" it="Caricare files"></en_upload_files>
+<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
+<en_description base="Description" en="Description" it="Descrizione"></en_description></flib>
+<item_picker path="resources/item_picker.py" ext="py"><en_file_picker base="File picker" en="File picker" it="selettore file"></en_file_picker>
+<en_categories base="Categories" en="Categories" it="Categorie"></en_categories>
+<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"></en_thumb>
+<en_items base="Items" en="Items" it="Elementi"></en_items></item_picker>
+<preference path="resources/preference.py" ext="py"><en_base_url base="Base url" en="Base url" it="URL di base"></en_base_url></preference>
+<tables><category><th_category path="resources/tables/category/th_category.py" ext="py"><en_code base="Code" en="Code" it="Codice"></en_code>
+<en_description base="Description" en="Description" it="Descrizione"></en_description></th_category></category>
+<item><action><download_selection path="resources/tables/item/action/download_selection.py" ext="py"><en_download_selection base="Download Selection" en="Download Selection" it="Scarica Selezione"></en_download_selection>
+<en_download_selected_files base="Download selected files" en="Download selected files" it="Scarica i file selezionati"></en_download_selected_files>
+<en_zip_file base="Zip file" en="Zip file" it="File zip"></en_zip_file></download_selection></action>
+<th_item path="resources/tables/item/th_item.py" ext="py"><en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
+<en_description base="Description" en="Description" it="Descrizione"></en_description>
+<en_url base="Url" en="Url" it="url"></en_url>
+<en_path base="Path" en="Path" it="Il percorso"></en_path>
+<en_extension base="Extension" en="Extension" it="Estensione"></en_extension>
+<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user>
+<en_thumb base="Thumb" de="Daumen" en="Thumb" fr="Pouce" it="Miniatura"></en_thumb>
+<en_open base="Open" en="Open" it="Aprire"></en_open>
+<en_file_type base="File type" en="File type" it="Tipo di file"></en_file_type></th_item></item></tables></resources>
+<webpages><categories path="webpages/categories.py" ext="py"><en_categories base="Categories" en="Categories" it="Categorie"></en_categories></categories>
+<items path="webpages/items.py" ext="py"><en_file_items base="File Items" en="File Items" it="Elementi di file"></en_file_items>
+<en_inserted_on base="Inserted on" en="Inserted on" it="inserito il"></en_inserted_on>
+<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
+<en_description base="Description" en="Description" it="Descrizione"></en_description></items></webpages></GenRoBag>
