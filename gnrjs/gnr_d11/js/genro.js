@@ -2397,7 +2397,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         options = options || {};
         
-        var sourceNode = genro.nodeById(options.nodeId || '_gnrRoot');
+        var sourceNode = genro.nodeById(options.nodeId || '_gnrRoot') || genro.src.getNode();
         reason = reason || sourceNode.getStringId();
         sourceNode._lockingElements = sourceNode._lockingElements || {};
         sourceNode._lockingElements[reason] = reason;
