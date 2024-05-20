@@ -4,4 +4,3 @@ pdf2image
 watchdog
 redbaron
 WebOb
-
