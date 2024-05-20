@@ -21,6 +21,12 @@
 <en_content_authors base="Content authors" it="Autori di contenuti"></en_content_authors>
 <en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"></en_content>
 <en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author></content_author>
+<content_history path="model/content_history.py" ext="py"><en_content_history base="Content history"></en_content_history>
+<en_contents_history base="Contents history"></en_contents_history>
+<en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"></en_content>
+<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
+<en_vers_ base="Vers." en="Vers." it="Vers."></en_vers_>
+<en_text base="Text" it="Testo"></en_text></content_history>
 <content_topic path="model/content_topic.py" ext="py"><en_content_topic base="Content topic" it="Argomento del contenuto"></en_content_topic>
 <en_content_topics base="Content topics" it="Argomenti dei contenuti"></en_content_topics>
 <en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"></en_content>
@@ -92,7 +98,8 @@
 <en_content_attributes base="Content Attributes" it="Attributi del contenuto"></en_content_attributes>
 <en_text base="Text" it="Testo"></en_text>
 <en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"></en_template>
-<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments></th_content></content>
+<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
+<en_versions base="Versions" en="Versions" it="Versioni"></en_versions></th_content></content>
 <documentation><th_documentation path="resources/tables/documentation/th_documentation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
 <en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters>
 <en_change_version_name base="Change version name" en="Change version name" it="Cambia il nome della versione"></en_change_version_name>

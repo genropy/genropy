@@ -49,7 +49,8 @@ class ViewInline(BaseComponent):
 
 
 class Form(BaseComponent):
-    py_requires = 'gnrcomponents/attachmanager/attachmanager:AttachManager'
+    py_requires = """gnrcomponents/attachmanager/attachmanager:AttachManager,
+                        cnt_component:ContentsComponent"""
     
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -57,72 +58,39 @@ class Form(BaseComponent):
         self.contentData(top.roundedGroup(title='!!Content Data', region='center', datapath='.record'))
         self.contentAttributes(top.borderContainer(title='!!Content Attributes', region='right', width='500px'))
         self.contentMain(bc.tabContainer(region='center'))
-        
-    @customizable
-    def contentData(self, pane):
-        fb = pane.formbuilder(cols=1, width='600px', border_spacing='4px')
-        fb.field('title', width='30em')
-        fb.field('headline', width='100%')
-        fb.field('abstract', width='100%', height='100px', tag='simpleTextArea')
-        return fb
-
-    @customizable
-    def contentAttributes(self, bc):
-        bc.contentPane(region='center').plainTableHandler(
-                                                    overflow_y='auto', overflow_x='hidden',
-                                                    pbl_classes='*',
-                                                    margin='2px', relation='@topic_contents',
-                                                    searchOn=False, picker='topic',
-                                                    delrow=True,
-                                                    configurable=False)
-        bc.contentPane(region='right', width='50%').plainTableHandler(
-                                                    overflow_y='auto', overflow_x='hidden',
-                                                    pbl_classes='*',
-                                                    margin='2px', relation='@author_contents',
-                                                    searchOn=False, picker='author_id',
-                                                    delrow=True,
-                                                    configurable=False)
-        return bc
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.borderContainer(title='!!Text', overflow='hidden'))
+        self.contentText(tc.borderContainer(title='!!Text', datapath='.record', overflow='hidden'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
     
-    def contentText(self, bc):
-        bc.contentPane(region='center',overflow='hidden',datapath='.record').MDEditor(value='^.text',
-                        nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg',viewer=True)
-        bc.contentPane(region='bottom', closable='close', height='90%', closable_label='!!Versions', 
-                        closable__class='drawer_allegati').borderTableHandler(
-                                relation='@versions', formResource='FormDiff', 
-                                vpane_region='left', vpane_width='30%', addrow=False, configurable=False)
-
-    def contentTemplate(self, pane):
-        pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
-                                                table='docu.content', selfsubscribe_onChunkEdit='this.form.save();')
-
-    def contentAttachments(self, pane):
-        pane.attachmentMultiButtonFrame()
 
     def th_options(self):
         return dict(dialog_height='400px', dialog_width='600px')
     
 
 class FormEmbed(Form):
-    "Customizable Form to be embedded"
+    "Minimal Form to embed text content"
 
     def th_form(self, form):
-        bc = form.center.borderContainer()
-        bc.contentPane(region='center',overflow='hidden',datapath='.record').MDEditor(value='^.text',
-                        nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg',viewer=True)
-        bc.contentPane(region='bottom', closable='close', height='90%', closable_label='!!Versions', 
-                        closable__class='drawer_allegati').borderTableHandler(
-                                relation='@versions', formResource='FormDiff', 
-                                vpane_region='left', vpane_width='30%', addrow=False, configurable=False)
+        bc = form.record
+        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text')
+        
+    def th_options(self):
+        return dict(autoSave=True, showtoolbar=False)
+    
+
+class FormReview(Form):
+    "Form to review text showing text and versions in a tabContainer"
+
+    @customizable
+    def th_form(self, form):
+        tc = form.center.tabContainer(tabPosition='left-h')
+        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', datapath='.record'), value='^.text')
+        self.contentVersions(tc.contentPane(title='!!Versions', region='center'), value='^.text')
+        return tc
         
     def th_options(self):
         return dict(autoSave=True, showtoolbar=False)
