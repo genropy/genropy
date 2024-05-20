@@ -20,6 +20,19 @@ class View(BaseComponent):
         return dict(column='title', op='contains', val='')
     
 
+class ViewEmbed(BaseComponent):
+
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('__ins_ts', width='9em')
+        r.fieldcell('title', width='auto')
+        
+    def th_order(self):
+        return 'title'
+
+    def th_query(self):
+        return dict(column='title', op='contains', val='')
+    
 class ViewInline(BaseComponent):
 
     def th_struct(self,struct):
@@ -43,7 +56,6 @@ class Form(BaseComponent):
         top = bc.borderContainer(region='top', height='200px')
         self.contentData(top.roundedGroup(title='!!Content Data', region='center', datapath='.record'))
         self.contentAttributes(top.borderContainer(title='!!Content Attributes', region='right', width='500px'))
-        
         self.contentMain(bc.tabContainer(region='center'))
         
     @customizable
@@ -74,18 +86,19 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.borderContainer(title='!!Text', datapath='.record', overflow='hidden'))
-        
+        self.contentText(tc.borderContainer(title='!!Text', overflow='hidden'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc
     
     def contentText(self, bc):
-        
-        bc.contentPane(region='center',overflow='hidden').MDEditor(value='^.text',
-                        nodeId='xxx',
-                      height='100%',previewStyle='vertical',initialEditType='wysiwyg',viewer=True
-                      )
+        bc.contentPane(region='center',overflow='hidden',datapath='.record').MDEditor(value='^.text',
+                        nodeId='contentMd', height='100%', previewStyle='vertical',
+                        initialEditType='wysiwyg',viewer=True)
+        bc.contentPane(region='bottom', closable='close', height='90%', closable_label='!!Versions', 
+                        closable__class='drawer_allegati').borderTableHandler(
+                                relation='@versions', formResource='FormDiff', 
+                                vpane_region='left', vpane_width='30%', addrow=False, configurable=False)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
@@ -94,7 +107,6 @@ class Form(BaseComponent):
     def contentAttachments(self, pane):
         pane.attachmentMultiButtonFrame()
 
-
     def th_options(self):
         return dict(dialog_height='400px', dialog_width='600px')
     
@@ -102,5 +114,15 @@ class Form(BaseComponent):
 class FormEmbed(Form):
     "Customizable Form to be embedded"
 
+    def th_form(self, form):
+        bc = form.center.borderContainer()
+        bc.contentPane(region='center',overflow='hidden',datapath='.record').MDEditor(value='^.text',
+                        nodeId='contentMd', height='100%', previewStyle='vertical',
+                        initialEditType='wysiwyg',viewer=True)
+        bc.contentPane(region='bottom', closable='close', height='90%', closable_label='!!Versions', 
+                        closable__class='drawer_allegati').borderTableHandler(
+                                relation='@versions', formResource='FormDiff', 
+                                vpane_region='left', vpane_width='30%', addrow=False, configurable=False)
+        
     def th_options(self):
         return dict(autoSave=True, showtoolbar=False)

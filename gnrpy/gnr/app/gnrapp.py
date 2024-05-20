@@ -34,10 +34,13 @@ import re
 import smtplib
 import time
 import glob
+import subprocess
+from collections import defaultdict
+import pkg_resources
 from email.mime.text import MIMEText
+
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
-#from gnr.app.gnrconfig import MenuStruct
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
@@ -450,15 +453,6 @@ class GnrPackage(object):
     def language(self):
         return self.attributes.get('language') or self.projectInfo['project?language']
 
-   #def pkgMenu(self,branchMethod=None,**kwargs):
-   #    pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),
-   #                            config_method=branchMethod, 
-   #                            application=self.application,autoconvert=True,
-   #                            **kwargs)
-   #    for pluginname,plugin in list(self.plugins.items()):
-   #        pkgMenu.update(plugin.menuBag)
-   #    return pkgMenu
-
     @property
     def db(self):
         return self.application.db
@@ -699,10 +693,6 @@ class GnrApp(object):
         """TODO"""
         return GnrModuleFinder(path_entry,self)
         
-   #def load_instance_menu(self):
-   #    """TODO"""
-   #    return MenuStruct(os.path.join(self.instanceFolder, 'menu'),application=self,autoconvert=True)
-
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
@@ -771,11 +761,16 @@ class GnrApp(object):
                 shutil.rmtree(tempdir)
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-        
+
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
 
+        
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -816,7 +811,45 @@ class GnrApp(object):
             self.addPackage(reqpkgid)
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
-    
+
+    def check_package_dependencies(self):
+        print("Checking python dependencies", end="")
+        instance_deps = defaultdict(list)
+        for a, p in self.packages.items():
+            print(".", end="")
+            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+            if os.path.isfile(requirements_file):
+                with open(requirements_file) as fp:
+                    for line in fp:
+                        instance_deps[line.strip()].append(a)
+        print("")
+        self.instance_packages_dependencies = instance_deps
+
+        if not 'checkdepcli' in self.kwargs:
+            missing, wrong = self.check_package_missing_dependencies()
+            if missing:
+                print(f"ERROR: missing dependencies: {', '.join(missing)}")
+            if wrong:
+                print(f"ERROR: wrong dependecies:")
+                for requested, installed in wrong:
+                    print(f"{requested} is requested, but {installed} found")
+            
+    def check_package_missing_dependencies(self):
+        missing = []
+        wrong = []
+        for name in self.instance_packages_dependencies:
+            try:
+                pkg_resources.get_distribution(name)
+            except pkg_resources.DistributionNotFound:
+                missing.append(name)
+            except pkg_resources.VersionConflict as e:
+                wrong.append((e.req, e.dist))
+        return missing, wrong
+
+    def check_package_install_missing(self):
+        missing, wrong = self.check_package_missing_dependencies()
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:

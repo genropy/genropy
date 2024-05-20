@@ -1,6 +1,12 @@
 UPCOMING RELEASE
 ================
 
+New Features
+------------
+
+* New 'gnr app checkdep' cli tool to verify and install packages
+  python dependencies
+
 Version 24.4.23
 ===============
 
