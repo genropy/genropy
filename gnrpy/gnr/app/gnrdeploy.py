@@ -803,7 +803,7 @@ class PackageMaker(object):
     
     To autocreate the ``packages`` folder, please type in your console::
         
-        gnrmkpackage packagesname
+        gnr dev mkpackage packagesname
         
     where ``packagesname`` is the name of your ``packages`` folder.
     """
@@ -833,6 +833,12 @@ class PackageMaker(object):
         for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
                 os.makedirs(path)
+
+        # create an empty requirements.txt file, hopefully developers
+        # will be reminded by its presence that dependencies can be added
+        # in this file
+        open(os.path.join(self.package_path, 'requirements.txt'), "w").close()
+        
         sqlprefixstring = ''
         if not os.path.exists(self.main_py_path):
             if self.sqlprefix is not None:
