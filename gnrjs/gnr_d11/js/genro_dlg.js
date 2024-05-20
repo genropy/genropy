@@ -1203,8 +1203,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         dlg.show_action();
     },
 
-    _modalUploader_uploader:function(sc,kw){
-        let uploaderPane = sc._('contentPane','uploaderPane',{pageName:'uploaderPane'});
+    _modalUploader_uploader:function(sc,kw,dlg){
+        let uploaderBc = sc._('borderContainer','uploaderPane',{pageName:'uploaderPane'});
         let defaultLabel = 'Drop the file to import here or dblclick to open the file explorer';
         if(genro.isMobile){
             defaultLabel = 'Press to open the file explorer';
@@ -1231,7 +1231,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             preview_url = genro.addParamsToUrl(preview_url,{_nocache:genro.time36Id()});
             scNode.setRelativeData('.preview_url',preview_url);
         };
-        uploaderPane._('dropUploader','uploader',{progressBar:true,...kw});
+        bar = uploaderBc._('contentPane',{'region':'bottom',_class:'dialog_bottom'})._('slotBar','bar',{slots:'5,back,*'})
+        bar._('slotButton','back',{label:_T('Close'),action:function(){
+            dlg.close_action();
+        }});
+        uploaderBc._('contentPane',{region:'center'})._('dropUploader','uploader',{progressBar:true,...kw});
 
     },
 
@@ -1282,9 +1286,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         let dlg_kw = {closable:true,windowRatio:.9,dialog_bottom:false,datapath:prompt_datapath,
                     _class:'dlg_uploader',
                     _workspace:true,...objectExtract(kw,'dlg_*')};
+        let sizekw = objectExtract(dlg_kw,'height,width');
+        if(sizekw){
+            objectPop(dlg_kw,'windowRatio');
+        }
         let dlg = genro.dlg.quickDialog(title,dlg_kw);
-        var sc = dlg.center._('stackContainer',{});
-        this._modalUploader_uploader(sc,kw)
+        var sc = dlg.center._('stackContainer',{...sizekw});
+        this._modalUploader_uploader(sc,kw,dlg)
         this._modalUploader_preview(sc,dlg,sourceNode,kw)
         dlg.show_action();
     },
