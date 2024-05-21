@@ -112,15 +112,11 @@ class GnrModuleFinder:
     app_list=set()
     instance_lib = None
     def __init__(self, app):
-        #self.path_entry = path_entry
         self.app = app
         if app not in self.app_list:
             self.app_list.add(app)
         if self.instance_lib is None:
             self.instance_lib = os.path.join(app.instanceFolder, 'lib')
-        #if not path_entry==self.instance_lib and not path_entry in self.path_list:
-        #    raise ImportError
-        return
 
     def __str__(self):
         return '<%s for "%s">' % (self.__class__.__name__, self.path_entry)
@@ -649,7 +645,6 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
-        #sys.path.append(os.path.join(self.instanceFolder, 'lib'))
         sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
