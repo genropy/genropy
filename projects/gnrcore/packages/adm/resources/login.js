@@ -50,7 +50,6 @@ const LoginComponent = {
     confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
-        var rootpage = rootenv.getItem('rootpage');
         var login = sourceNode.getRelativeData('_login');
         var waiting2fa = genro.getData('waiting2fa')
         if(waiting2fa){
@@ -86,28 +85,30 @@ const LoginComponent = {
             }else{
                 genro.setData('gnr.avatar',new gnr.GnrBag(result))
                 var user_dbstore = genro.getData('gnr.avatar.user_record.dbstore')
-                rootpage = rootpage || result['rootpage'];
+                let startPage = result['rootpage'] || sourceNode.getRelativeData('gnr.rootenv.rootpage');
                 if(user_dbstore){
                     if(!window.location.pathname.slice(1).startsWith(user_dbstore)){
                         var redirect_url = window.location.protocol+'//'+window.location.host+'/'+user_dbstore;
                         if(rootpage){
-                            redirect_url+=rootpage;
+                            redirect_url+=startPage;
                         }
                         window.location.assign(redirect_url);
                         return;
                     }
                 }
-                if(rootpage){
-                    genro.gotoURL(rootpage);
+                if(startPage){
+                    genro.gotoURL(startPage);
+                    return
                 }
                 if(doLogin){
-                    var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                    if(rootpage && !standAlonePage){
-                        genro.gotoURL(rootpage);
+                    let avatar_rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
+                    if(avatar_rootpage && !standAlonePage){
+                        genro.gotoURL(avatar_rootpage);
                     }else{
                         genro.pageReload();
                     }
                 }else{
+                    //different context page
                     genro.pageReload({page_id:genro.page_id});
                 }
             }
