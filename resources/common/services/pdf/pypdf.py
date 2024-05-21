@@ -76,10 +76,17 @@ class Service(PdfService):
             doc.save(f.read())
         doc.save()
 
+    def multipartPDF(self, documents=None, output=None):
+        for doc in documents.split(','):
+            with self.parent.storageNode(doc).open('rb') as f:
+                doc = fitz.open('pdf',f.read())
+                for page in doc:
+                    yield page
+        doc.save(output)
+        #doc.close() 
+
     @extract_kwargs(watermark=True)
     def watermarkedPDF(self,input_pdf,watermark=None,mode='TextBox',watermark_kwargs=None):
-        with self.parent.storageNode(input_pdf).open('rb') as f:
-            doc = fitz.open('pdf',f.read())
         m = fitz.Matrix
         color = watermark_kwargs.pop('color',None)
         align = watermark_kwargs.pop('align','left')
@@ -89,14 +96,12 @@ class Service(PdfService):
                     fill_opacity=.1)
         pars.update(watermark_kwargs)
         
-        for page in doc:  
+        output_pdf_bytes = BytesIO()
+        for page in self.multipartPDF(input_pdf, output=output_pdf_bytes):  
             page.clean_contents()
             getattr(self,f'_insert{mode}')(page,watermark,**pars)
 
-        output_pdf_bytes = BytesIO()
-        doc.save(output_pdf_bytes)
         output_pdf_bytes.seek(0)  
-        doc.close() 
         result = output_pdf_bytes.read()
         return result
     
