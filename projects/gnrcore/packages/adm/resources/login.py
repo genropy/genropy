@@ -513,6 +513,7 @@ class LoginComponent(BaseComponent):
         err = [err for err in errdict.values() if err is not None]
         with self.pageStore() as ps:
             rootenv['new_window_context'] = True
+            rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
             ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
