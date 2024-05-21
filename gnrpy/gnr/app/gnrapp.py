@@ -105,27 +105,27 @@ class ApplicationCache(object):
         return key not in self.cache
 
 
-class GnrModuleFinder(object):
+class GnrModuleFinder:
     """TODO"""
     
     path_list=[]
     app_list=set()
     instance_lib = None
-    def __init__(self, path_entry, app):
-        self.path_entry = path_entry
+    def __init__(self, app):
+        #self.path_entry = path_entry
         self.app = app
         if app not in self.app_list:
             self.app_list.add(app)
         if self.instance_lib is None:
             self.instance_lib = os.path.join(app.instanceFolder, 'lib')
-        if not path_entry==self.instance_lib and not path_entry in self.path_list:
-            raise ImportError
+        #if not path_entry==self.instance_lib and not path_entry in self.path_list:
+        #    raise ImportError
         return
 
     def __str__(self):
         return '<%s for "%s">' % (self.__class__.__name__, self.path_entry)
 
-    def find_spec(self, fullname, target=None):
+    def find_spec(self, fullname, path, target=None):
         splitted=fullname.split('.')
         if splitted[0] != 'gnrpkg':
             return
@@ -649,8 +649,8 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
-        sys.path.append(os.path.join(self.instanceFolder, 'lib'))
-        sys.path_hooks.append(self.get_modulefinder)
+        #sys.path.append(os.path.join(self.instanceFolder, 'lib'))
+        sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
         self.packages = Bag()
@@ -689,9 +689,9 @@ class GnrApp(object):
         self.init(forTesting=forTesting,restorepath=restorepath)
         self.creationTime = time.time()
 
-    def get_modulefinder(self, path_entry):
+    def get_modulefinder(self):
         """TODO"""
-        return GnrModuleFinder(path_entry,self)
+        return GnrModuleFinder(self)
         
     def load_instance_config(self):
         """TODO"""
