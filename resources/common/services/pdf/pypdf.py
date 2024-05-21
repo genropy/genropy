@@ -82,7 +82,7 @@ class Service(PdfService):
                 doc = fitz.open('pdf',f.read())
                 for page in doc:
                     yield page
-        doc.save(output)
+                doc.save(output)
         #doc.close() 
 
     @extract_kwargs(watermark=True)
