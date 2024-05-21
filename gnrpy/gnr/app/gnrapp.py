@@ -119,7 +119,7 @@ class GnrModuleFinder:
             self.instance_lib = os.path.join(app.instanceFolder, 'lib')
 
     def __str__(self):
-        return '<%s for "%s">' % (self.__class__.__name__, self.path_entry)
+        return f"<{self.__class__.__name__}>"
 
     def find_spec(self, fullname, path, target=None):
         splitted=fullname.split('.')
