@@ -1287,7 +1287,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                     _class:'dlg_uploader',
                     _workspace:true,...objectExtract(kw,'dlg_*')};
         let sizekw = objectExtract(dlg_kw,'height,width');
-        if(sizekw){
+        if(objectNotEmpty(sizekw)){
             objectPop(dlg_kw,'windowRatio');
         }
         let dlg = genro.dlg.quickDialog(title,dlg_kw);
