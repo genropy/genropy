@@ -199,7 +199,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             var root = genro.src.getNode()._('div', '_dlg_iframe');
             var parentRatio = objectPop(kw,'parentRatio');
             var windowRatio = objectPop(kw,'windowRatio');
-            var dlg = root._('dialog',{title:kw.title,closable:kw.closable,nodeId:dialogId,parentRatio:parentRatio,windowRatio:windowRatio});
+            var fullScreen = objectPop(kw,'fullScreen');
+
+            var dlg = root._('dialog',{title:kw.title,closable:kw.closable,nodeId:dialogId,
+                parentRatio:parentRatio,windowRatio:windowRatio,fullScreen:fullScreen});
             var iframekw = {src:kw.src,border:0,height:'100%',width:'100%',nodeId:iframeId};
             objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
             iframekw.selfsubscribe_close = "this.dialog.hide();";
@@ -777,7 +780,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             };
         }
         var dlg = node._('dialog', objectUpdate({title:title},kw));
-        if(kw.windowRatio || kw.parentRatio){
+        if(kw.windowRatio || kw.parentRatio || kw.fullScreen){
             let bc = dlg._('BorderContainer');
             if(kw.dialog_bottom!==false){
                 dlg.bottom = bc._('contentPane', 'bottom',{_class:'dialog_bottom',region:'bottom'});

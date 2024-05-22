@@ -416,8 +416,13 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,selpagetitle,*',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('10,backbtn,*,selpagetitle,*,30',childname='underbar',
                                                                             height='30px',color='white')
+        backbtn = underbar.backbtn.lightbutton(_class="iconbox arrowBack",background_color='white',width='20px',height='20px',
+                                     visible='^pageHistory?=#v && #v.length')
+        
+        backbtn.dataController("""genro.framedIndexManager.historyBack();""")
+        
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px',font_weight='bold',font_size='13px')
 
 

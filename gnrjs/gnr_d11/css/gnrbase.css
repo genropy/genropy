@@ -6274,6 +6274,12 @@ div[disabled='true'], div[disabled='disabled']{
     mask-size: 100%;
     -webkit-mask-size: 100%;
 }
+
+.arrowBack{
+    mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
+}
+
 .upload{
     mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;

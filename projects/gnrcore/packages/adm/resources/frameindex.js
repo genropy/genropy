@@ -203,6 +203,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
         var cb = function(){
+            that.addToPageHistory();
             that.stackSourceNode.setRelativeData('selectedFrame',rootPageName);
             if(that.getCurrentIframe(rootPageName)){
                 that.checkStartsArgs(rootPageName);
@@ -304,6 +305,19 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(!genro._windowClosing){
             this.stackSourceNode.fireEvent('refreshTablist',true);
         }
+    },
+
+    addToPageHistory:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        pageHistory.push(this.selectedFrame());
+        genro.setData('pageHistory',pageHistory);
+    },
+
+    historyBack:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        let backToPage = pageHistory.pop();
+        genro.setData('pageHistory',pageHistory.length?pageHistory:null);
+        this.stackSourceNode.setRelativeData('selectedFrame',backToPage);
     },
 
     onExternalWindowClosed:function(windowKey){
@@ -446,10 +460,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
             curlen = this.externalWindowsBag().len()>0?curlen-1:curlen;
             selected = selected>=curlen? curlen-1:selected;
             var nextPageName = 'indexpage';
-            if(selected>=0){
+            let pageHistory = genro.getData('pageHistory') || [];
+            if(pageHistory){
+                pageHistory.pop()
+            }
+            if(pageHistory.length){
+                nextPageName = pageHistory.pop()
+            }
+            else if(selected>=0){
                 nextPageName = iframesbag.getNode('#'+selected)? iframesbag.getNode('#'+selected).attr.pageName:'indexpage';
             }
-            console.log('nextPageName',nextPageName)
             this.stackSourceNode.setRelativeData('selectedFrame',nextPageName); //PUT
         }
   
