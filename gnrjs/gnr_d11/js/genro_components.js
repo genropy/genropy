@@ -7106,7 +7106,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         });
 
         if (insOrUpdKeys.length>0) {
-            var original_condition =  this.storeNode.attr.condition;
+            var original_condition =  this.storeNode.getAttributeFromDatasource('condition');
             var newcondition = ' ( $pkey IN :store_chpkeys ) ';
             var chpkeys = insOrUpdKeys;
             var condition = original_condition?original_condition+' AND '+newcondition:newcondition;
