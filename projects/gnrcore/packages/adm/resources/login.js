@@ -103,13 +103,13 @@ const LoginComponent = {
                 if(doLogin){
                     let avatar_rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
                     if(avatar_rootpage && !standAlonePage){
-                        genro.gotoURL(avatar_rootpage);
+                        genro.gotoURL(genro.addParamsToUrl(avatar_rootpage,genro.startArgs));
                     }else{
                         genro.pageReload();
                     }
                 }else{
                     //different context page
-                    genro.pageReload({page_id:genro.page_id});
+                    genro.pageReload({page_id:genro.page_id,...genro.startArgs});
                 }
             }
         },null,'POST');
