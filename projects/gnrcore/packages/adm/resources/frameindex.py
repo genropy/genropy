@@ -5,6 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
@@ -58,7 +59,7 @@ class FrameIndex(BaseComponent):
             frameplugins.append('maintenance')
         return ','.join(frameplugins)
 
-    def main(self,root,new_window=None,gnrtoken=None,custom_index=None,**kwargs):
+    def main(self,root,new_window=None,gnrtoken=None,custom_index=None,menucode=None,**kwargs):
         if gnrtoken and not self.db.table('sys.external_token').check_token(gnrtoken):
             root.dataController("""genro.dlg.alert(msg,'Error',null,null,{confirmCb:function(){
                     var href = window.location.href;
@@ -67,6 +68,15 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        if menucode:
+            menucode_kwargs = dictExtract(kwargs,f'{menucode}_')
+            menucode_kwargs['menucode'] = menucode
+            root.dataController("genro.publish('selectPageMenuCode',menucode_kwargs)",
+                                menucode_kwargs=menucode_kwargs,_onStart=100)
+
+        elif not self.isMobile:
+            root.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
+                                _if='!genro.startArgs.new_window')
         testing_preference = self.getPreference('testing',pkg='adm') or Bag()
         if self.check_tester and testing_preference['beta_tester_tag'] \
             and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
@@ -220,10 +230,7 @@ class FrameIndex(BaseComponent):
                                 }
                                 """,
                             data="=iframes",externalWindows='=externalWindows',_refreshTablist='^refreshTablist',tabroot=tabroot,indexTab=self.indexTab,
-                            onCreatingTablist=onCreatingTablist or False,_onStart=True)
-        if not self.isMobile:
-            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
-                                _if='!genro.startArgs.new_window')
+                            onCreatingTablist=onCreatingTablist or False,_onStart=True)    
         pane.dataController(""" var cb = function(){
                                                 var iframetab = tabroot.getValue().getNode(page);
                                                 if(iframetab){
@@ -380,6 +387,11 @@ class FrameIndex(BaseComponent):
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
                             },1);""",subscribe_selectIframePage=True)
+        sc.dataController("""setTimeout(function(){
+                                let kw = {...selectPageMenuCode[0]};
+                                let menucode = objectPop(kw,'menucode');
+                                genro.framedIndexManager.handleExternalMenuCode(menucode,kw);
+                            },1);""",subscribe_selectPageMenuCode=True)
         sc.dataController("genro.framedIndexManager.onSelectedFrame(selectedPage);",selectedPage='^selectedFrame')
 
         scattr = sc.attributes

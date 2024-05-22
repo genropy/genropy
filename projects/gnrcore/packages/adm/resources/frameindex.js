@@ -602,10 +602,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         genro.setUserPreference('index.favorite_pages',favorite_pages,'adm')
     },
 
-    loadFavorites:function(){
+    loadFavorites:function(cb){
         var favorite_pages = genro.userPreference('adm.index.favorite_pages');
-        var external_menucode = genro.startArgs.menucode;
-        if(favorite_pages || external_menucode){
+        if(favorite_pages){
             var that = this;
             var v;
             var startPage;
@@ -636,23 +635,24 @@ dojo.declare("gnr.FramedIndexManager", null, {
                     }
                 },'static');
             }
-            if(external_menucode){
-                var menubag = genro.getData('gnr.appmenu.root');
-                let n = menubag.getNodeByAttr('menucode',external_menucode);
-                inattr = n.getInheritedAttributes()
-                kw = objectUpdate({name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
-                                      viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null},n.attr);
-                kw.openKw = kw.openKw || {};
-                objectUpdate(kw.openKw,{topic:'frameindex_external'});
-                objectUpdate(kw.openKw,objectExtract(genro.startArgs,'start_*',true,true));
-                genro.publish('selectIframePage',kw);
-            }else{
-                setTimeout(function(){
-                    that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
-                    that.stackSourceNode.fireEvent('refreshTablist',true);
-                },100);
-            }
+            setTimeout(function(){
+                that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
+                that.stackSourceNode.fireEvent('refreshTablist',true);
+            },100);
         }
+    },
+    handleExternalMenuCode:function(external_menucode,runKwargs){
+        runKwargs = runKwargs || {}
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('menucode',external_menucode);
+        inattr = n.getInheritedAttributes()
+        let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
+                                viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
+                    ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};
+        kw.openKw = kw.openKw || {};
+        objectUpdate(kw.openKw,runKwargs);
+        objectUpdate(kw.openKw,{topic:'frameindex_external'});
+        genro.publish('selectIframePage',kw);
     },
 
     detachPage:function(attr,title,evt){
