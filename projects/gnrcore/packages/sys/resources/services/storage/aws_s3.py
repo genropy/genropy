@@ -108,7 +108,7 @@ class Service(StorageService):
     def __init__(self, parent=None, bucket=None,
         base_path=None, aws_access_key_id=None,
         aws_secret_access_key=None, aws_session_token=None,
-        region_name=None, url_expiration=None, **kwargs):
+        region_name=None, url_expiration=None, write_in_local=None, **kwargs):
         self.parent = parent
         self.bucket = bucket
         self.base_path = (base_path or '').rstrip('/')
@@ -117,6 +117,10 @@ class Service(StorageService):
         self.aws_session_token=aws_session_token
         self.region_name=region_name
         self.url_expiration = url_expiration or 3600
+        self.local_mode = getattr(parent,'_local_mode', False) and not write_in_local
+        has_sys = 'gnrcore:sys' in self.parent.app.instance_config['packages']
+        secondary = has_sys and self.parent.app.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
+        self.local_mode = self.local_mode or secondary
     @property
     def location_identifier(self):
         return 's3/%s/%s' % (self.region_name, self.bucket)
@@ -160,6 +164,8 @@ class Service(StorageService):
         pass
 
     def mkdir(self, *args, **kwargs):
+        if self.local_mode:
+            return
         with self.open(*args+('.gnrdir',),mode='w') as dotfile:
             dotfile.write('.gnrdircontent')
 
@@ -205,6 +211,11 @@ class Service(StorageService):
         mode = kwargs.get('mode', 'r')
         keep = kwargs.get('keep', False)
         internalpath = self.internal_path(*args)
+        if self.local_mode:
+            if 'b' in mode:
+                mode='rb'
+            else:
+                mode='r'
         return S3TemporaryFilename(bucket=self.bucket, key=internalpath,
             s3_session=self._session, mode=mode, keep=keep)
 
@@ -250,9 +261,13 @@ class Service(StorageService):
         return self._boto_client
 
     def delete_file(self, *args):
+        if self.local_mode:
+            return
         self._client.delete_object(Bucket=self.bucket, Key=self.internal_path(*args))
 
     def delete_dir(self, *args):
+        if self.local_mode:
+            return
         prefix = self.internal_path(*args)
         client = self._client
         prefix = prefix.strip('/')+'/' if prefix else ''
@@ -302,17 +317,26 @@ class Service(StorageService):
 
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
+        if self.local_mode:
+            if 'b' in kwargs['mode']:
+                kwargs['mode'] = 'rb'
+            else:
+                kwargs['mode'] = 'r'
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
             transport_params={'session':self._session}, **kwargs)
 
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket
+        if self.local_mode:
+            return
         self._s3_copy(source_bucket=sourceNode.service.bucket,
             source_key=sourceNode.internal_path,
             dest_bucket=destNode.service.bucket, dest_key=destNode.internal_path)
 
     def renameNode(self, sourceNode=None, destNode=None):
+        if self.local_mode:
+            return
         self._s3_copy(source_bucket=sourceNode.service.bucket,
             source_key=sourceNode.internal_path,
             dest_bucket=destNode.service.bucket, dest_key=destNode.internal_path)
@@ -364,6 +388,7 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         bc = pane.borderContainer()
         fb = bc.contentPane(region='top').formbuilder(datapath=datapath)
+        fb.checkbox(value='^.write_in_local',lbl='Write enabled on local machine')
         fb.textbox(value='^.bucket',lbl='Bucket')
         fb.textbox(value='^.base_path',lbl='Base path')
         fb.textbox(value='^.aws_access_key_id',lbl='Aws Access Key Id')
