@@ -55,7 +55,12 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode.registerSubscription('closeExternalWindow',function(kw){
             that.onExternalWindowClosed(kw.windowKey);
         });
-        this.checkStartPage()
+        var that = this;
+        this.stackSourceNode.watch('menuReady',
+            function(){
+                return genro.getData('gnr.appmenu.root')
+            },function(){that.checkStartPage()});
+        
 
     },
 
