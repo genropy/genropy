@@ -74,7 +74,7 @@ class FrameIndex(BaseComponent):
             root.dataController("genro.publish('selectPageMenuCode',menucode_kwargs)",
                                 menucode_kwargs=menucode_kwargs,_onStart=100)
 
-        elif not self.isMobile:
+        elif self.device_mode=='std':
             root.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
                                 _if='!genro.startArgs.new_window')
         testing_preference = self.getPreference('testing',pkg='adm') or Bag()
