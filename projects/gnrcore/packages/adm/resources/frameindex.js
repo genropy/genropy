@@ -55,9 +55,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode.registerSubscription('closeExternalWindow',function(kw){
             that.onExternalWindowClosed(kw.windowKey);
         });
+        var that = this;
+        this.stackSourceNode.watch('menuReady',
+            function(){
+                return genro.getData('gnr.appmenu.root')
+            },function(){that.checkStartPage()});
         
 
     },
+
+
     
     createIframeRootPage:function(kw){
         this.finalizePageUrl(kw);
@@ -203,7 +210,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
         var cb = function(){
-            that.addToPageHistory();
+            if(kw.addToHistory!==false){
+                that.addToPageHistory();
+            }
             that.stackSourceNode.setRelativeData('selectedFrame',rootPageName);
             if(that.getCurrentIframe(rootPageName)){
                 that.checkStartsArgs(rootPageName);
@@ -640,6 +649,15 @@ dojo.declare("gnr.FramedIndexManager", null, {
                 that.stackSourceNode.fireEvent('refreshTablist',true);
             },100);
         }
+    },
+
+    checkStartPage:function(){
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('openOnStart');
+        if(!n){
+            return;
+        }
+        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
     },
     handleExternalMenuCode:function(external_menucode,runKwargs){
         runKwargs = runKwargs || {}
