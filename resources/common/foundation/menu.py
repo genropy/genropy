@@ -92,7 +92,6 @@ class MenuIframes(MenuBase):
                  
     def menu_iframemenuPane(self, pane, **kwargs):
         b = Bag()
-
         b['root'] = MenuResolver(path=getattr(self,'menu_path',None), pagepath=self.pagepath,_page=self)
         b.getIndex()
         pane.data('gnr.appmenu', b)

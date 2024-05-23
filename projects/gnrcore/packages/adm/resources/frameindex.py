@@ -261,8 +261,6 @@ class FrameIndex(BaseComponent):
                                     _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
     
-    recuperare = 'applogo,userpref,appdownload,appInfo,preferences' #DP togliere
-
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
@@ -279,9 +277,14 @@ class FrameIndex(BaseComponent):
             applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
 
     @struct_method
-    def fi_slotbar_genrologo(self,slot,**kwargs):
+    def fi_slotbar_madewithgenropy(self,slot,**kwargs):
         slot.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
 
+    @struct_method
+    def fi_slotbar_genrologo(self,slot,**kwargs):
+        slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('genrologo')")
+        slot.dataController('genro.openBrowserTab("https://www.genropy.org")', subscribe_genrologo=True)
+        
     @struct_method
     def fi_slotbar_devlink(self,slot,**kwargs):
         formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
@@ -319,7 +322,6 @@ class FrameIndex(BaseComponent):
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()
-
 
     def helpdesk_documentation(self):
         return
@@ -497,7 +499,7 @@ class FrameIndex(BaseComponent):
                                 overflow='hidden')
         custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
         plugins = self.plugin_list.split(',') + custom_plugins
-        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)
+        pluginbar = frame.bottom.slotBar('5,pluginButtons,*,madewithgenropy,5',_class='plugin_mobile_footer',hidden=len(plugins)<2)
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));
                              genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);

@@ -2183,7 +2183,6 @@ div.dojoxDock {
     height: 16px;
 }
 
-
 .icnBaseUserLogout {
     background: url(icons/base16/user_logout.png) no-repeat center center;
     width: 16px;
@@ -2199,6 +2198,12 @@ div.dojoxDock {
     background: url(icons/base16/ok.gif) no-repeat center center;
     width: 17px;
     height: 17px;
+}
+
+.icnBaseGenroLogo {
+    background: url(/_rsrc/common/images/genropy_logo_16.png) no-repeat center center;
+    width: 16px;
+    height: 16px;
 }
 
 .disabled_row {
