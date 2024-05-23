@@ -1000,7 +1000,7 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]
+        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
         if not found_locale:
             locale.setlocale(locale.LC_ALL, "")
             found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
