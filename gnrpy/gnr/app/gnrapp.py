@@ -816,7 +816,9 @@ class GnrApp(object):
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
-                        instance_deps[line.strip()].append(a)
+                        dep_name = line.strip()
+                        if dep_name:
+                            instance_deps[dep_name].append(a)
         print("")
         self.instance_packages_dependencies = instance_deps
 
@@ -833,12 +835,15 @@ class GnrApp(object):
         missing = []
         wrong = []
         for name in self.instance_packages_dependencies:
-            try:
-                pkg_resources.get_distribution(name)
-            except pkg_resources.DistributionNotFound:
-                missing.append(name)
-            except pkg_resources.VersionConflict as e:
-                wrong.append((e.req, e.dist))
+            if name:
+                try:
+                    pkg_resources.get_distribution(name)
+                except pkg_resources.DistributionNotFound:
+                    missing.append(name)
+                except pkg_resources.VersionConflict as e:
+                    wrong.append((e.req, e.dist))
+                except Exception as e:
+                    print(f"ERROR on {name}: {e}")
         return missing, wrong
 
     def check_package_install_missing(self):
