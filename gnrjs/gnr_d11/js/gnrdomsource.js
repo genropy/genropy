@@ -211,6 +211,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 var runKwargs = (nodeOrRunKwargs instanceof gnr.GnrBagNode)?{}:nodeOrRunKwargs;
                 var currAttr = this.currentAttributes();
                 objectUpdate(currAttr,runKwargs);
+                if(subscription_args && typeof(subscription_args[0])=='object'){
+                    objectUpdate(currAttr,subscription_args[0]);
+                }
                 genro.dlg.askParameters(function(_askResult){
                     objectUpdate(runKwargs,_askResult);
                     runKwargs._askResult = _askResult;        
