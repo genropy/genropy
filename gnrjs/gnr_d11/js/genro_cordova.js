@@ -67,6 +67,28 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                 console.log("Push Notification registered: ", data);
                 genro.setData("gnr.cordova.fcm_push_registration", data);
             });
+
+
+            genro.notification_ob.on('notification', (data) => {
+                // data.message,
+                // data.title,
+                // data.count,
+                // data.sound,
+                // data.image,
+
+                let url = data.additionalData.url;
+                if(url && genro.framedIndexManager){
+                    let parsedUrl = parseURL(url);
+                    let kw = {...parsedUrl.params};
+                    if(kw.menucode){
+                        genro.framedIndexManager.handleExternalMenuCode(objectPop(kw,'menucode'),kw);
+                        return;
+                    }
+                }
+                if(url){
+                    window.open(url);
+                }
+            });
         }
     }
 
