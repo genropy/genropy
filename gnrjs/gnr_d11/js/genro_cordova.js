@@ -93,6 +93,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                     let parsedUrl = parseURL(url);
                     let kw = {...parsedUrl.params};
                     if(kw.menucode){
+                        console.log('handleExternalMenuCode',kw);
                         genro.framedIndexManager.handleExternalMenuCode(objectPop(kw,'menucode'),kw);
                         return;
                     }
