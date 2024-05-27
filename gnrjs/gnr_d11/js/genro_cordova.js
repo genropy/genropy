@@ -45,7 +45,11 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
             universalLinks.subscribe(null, function(eventData) {
                 if(genro.framedIndexManager && eventData.params.menucode){
                     let kw = {...eventData.params};
-                    genro.framedIndexManager.handleExternalMenuCode(objectPop(kw,'menucode'),kw);
+                    if(kw.menucode){
+                        let menucode = objectPop(kw,'menucode')
+                        genro.framedIndexManager.handleExternalMenuCode(menucode,objectExtract(kw,`${menucode}_*`));
+                        return;
+                    }
                 }else{
                     window.open(eventData.url);
                 }
@@ -93,8 +97,8 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                     let parsedUrl = parseURL(url);
                     let kw = {...parsedUrl.params};
                     if(kw.menucode){
-                        console.log('handleExternalMenuCode',kw);
-                        genro.framedIndexManager.handleExternalMenuCode(objectPop(kw,'menucode'),kw);
+                        let menucode = objectPop(kw,'menucode')
+                        genro.framedIndexManager.handleExternalMenuCode(menucode,objectExtract(kw,`${menucode}_*`));
                         return;
                     }
                 }
