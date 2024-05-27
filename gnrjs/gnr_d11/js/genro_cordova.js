@@ -43,7 +43,12 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
         }
         if(universalLinks) {
             universalLinks.subscribe(null, function(eventData) {
-                window.open(eventData.url);
+                if(genro.framedIndexManager && eventData.params.menucode){
+                    let kw = {...eventData.params};
+                    genro.framedIndexManager.handleExternalMenuCode(objectPop(kw,'menucode'),kw);
+                }else{
+                    window.open(eventData.url);
+                }
             });
         }
         if(PushNotification) {
