@@ -10,7 +10,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
     },
 
     initialize:function() {
-        if(!this.getParentGenro()) {
+        if(!this.application.getParentGenro()) {
             
             document.addEventListener('deviceready', function() {
                 genro.cordova.onDeviceReady();
