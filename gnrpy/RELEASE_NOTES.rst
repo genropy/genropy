@@ -4,6 +4,8 @@ UPCOMING RELEASE
 New Features
 ------------
 
+* New deeplinking webtools to serve mandatory payload for
+  deeplinking/universal links authorization.  
 * New 'gnr app checkdep' cli tool to verify and install packages
   python dependencies
 
