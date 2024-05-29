@@ -1,4 +1,4 @@
-#!/usr/bin/env pythonw
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  webtools to handle deeplinks/universal links support
@@ -58,7 +58,6 @@ class DeepLinkAndroid(DeepLink):
     config_item = "android_apps"
 
     def get_content(self, apps_config):
-        print(apps_config)
         file_template = []
         for a in apps_config:
             app_template = {
