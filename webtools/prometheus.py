@@ -7,6 +7,7 @@
 #
 
 import json
+import datetime
 import time
 from gnr.web.gnrbaseclasses import BaseWebtool
 from gnr.web.cli.gnrinspect import DataCollector
@@ -24,9 +25,14 @@ class Prometheus(BaseWebtool):
         for counter in counters:
             val = len(getattr(collector, counter))
             payload.append(f'{METRIC_PREFIX}{{counter="{counter}"}} {val}')
-            
-        stale = list(collector.stale_connections(seconds=60*5))
-        payload.append(f'{METRIC_PREFIX}{{counter="stale_connections_5min"}} {len(stale)}')
+
+        now = datetime.datetime.now()
+        stale = 0
+        for c in collector.connections:
+            if c['last_refresh_ts']:
+                if(now - c['last_refresh_ts']).seconds > 60*5:
+                    stale +=1 
+        payload.append(f'{METRIC_PREFIX}{{counter="stale_connections_5min"}} {stale}')
         return "\n".join(payload)
     
     @metadata(alias_url="/metrics")
