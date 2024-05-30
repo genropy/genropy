@@ -1,5 +1,5 @@
 [build-system]
-11;rgb:0000/0000/0000requires = ["setuptools"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
