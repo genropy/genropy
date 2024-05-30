@@ -582,7 +582,19 @@ dojo.declare('gnr.GenroClient', null, {
         dojo.subscribe('closePage',function(){
             genro.closePage();
         });
-
+        window.addEventListener('focus', function() {
+            genro.publish('focusedWindow')
+            let mainGenro = genro.mainGenroWindow.genro
+            mainGenro._focusedWindow = window;
+            mainGenro.publish('focusedChildWindow')
+        });
+        window.addEventListener('blur', function() {
+            genro.publish('blurredWindow')
+            let mainGenro = genro.mainGenroWindow.genro
+            mainGenro.publish('blurredChildWindow')
+            mainGenro._lastFocusedWindow = mainGenro._focusedWindow;
+            mainGenro._focusedWindow = null;
+        });
         if(this.startArgs['_parent_page_id']){
             this.parent_page_id = this.startArgs['_parent_page_id'];
         }
@@ -601,6 +613,9 @@ dojo.declare('gnr.GenroClient', null, {
                 this.parentIframeSourceNode = window.frameElement.sourceNode;
             }catch(e){
                 parentGenro = false;
+                document.addEventListener('visibilitychange', function() {
+                    genro.setData('gnr.windowVisibility', document.visibilityState);
+                });
             }
         }
 
@@ -759,6 +774,7 @@ dojo.declare('gnr.GenroClient', null, {
             genro.publish('onPageStart');
             genro.dom.removeClass(dojo.body(),'startingPage');
             genro._pageStarted = true;
+            window.focus();
         }, 100);
     },
 

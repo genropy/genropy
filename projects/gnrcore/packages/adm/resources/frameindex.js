@@ -438,6 +438,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
         return genro.getData('selectedFrame');
     },
 
+    currentGenro:function(){
+        let iframe = this.getCurrentIframe();
+        return iframe.sourceNode._genro;
+    },
 
     changeFrameLabel:function(kw){
         if(kw.pageName && this.iframesbag.getNode(kw.pageName)){
@@ -552,6 +556,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     getCurrentIframe:function(rootPageName){
+        rootPageName = rootPageName || this.selectedFrame()
         var iframesbag= genro.getData('iframes');
         if(!iframesbag){
             return;

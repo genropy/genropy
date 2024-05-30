@@ -256,7 +256,7 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,20,count_errors,devlink,openGnrIDE,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,devlink,left_placeholder,*,
                                     right_placeholder,owner_name,user_name,logout,debugping,5""",
                                     _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
@@ -282,8 +282,17 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def fi_slotbar_genrologo(self,slot,**kwargs):
-        slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('genrologo')")
-        slot.dataController('genro.openBrowserTab("https://www.genropy.org")', subscribe_genrologo=True)
+        if self.isDeveloper():
+            logomenu = slot.menudiv(iconClass='iconbox icnBaseGenroLogo')#.dataController("genro.publish('genrologo')")
+            logomenu.menuline('!![en]Open inspector root',code='inspector').dataController('genro.dev.openInspector();') 
+            logomenu.menuline('!![en]Open inspector current',code='inspector').dataController(
+                                                            'genro._lastFocusedWindow.genro.dev.openInspector();')
+            #logomenu.menuline("!!Open the page outside frame").dataController('genro.openBrowserTab(genro.framedIndexManager.currentGenro());')
+            logomenu.menuline("!!Open Genro IDE").dataController('genro.framedIndexManager.openGnrIDE();')
+
+        else:
+            slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('genrologo')")
+            slot.dataController('genro.openBrowserTab("https://www.genropy.org")', subscribe_genrologo=True)
         
     @struct_method
     def fi_slotbar_devlink(self,slot,**kwargs):
