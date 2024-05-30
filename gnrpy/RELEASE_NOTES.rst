@@ -3,6 +3,15 @@ UPCOMING RELEASE
 
 TBD
 
+Version 24.5.30.2
+=================
+
+Fixes
+-----
+
+* Fix in prometheus webtools which introduce a depending to a newer python
+  version.
+  
 Version 24.5.30.1
 =================
 
