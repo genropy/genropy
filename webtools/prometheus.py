@@ -8,7 +8,6 @@
 
 import json
 import time
-import functools
 from gnr.web.gnrbaseclasses import BaseWebtool
 from gnr.web.cli.gnrinspect import DataCollector
 from gnr.core.gnrdecorator import metadata
@@ -18,7 +17,6 @@ METRIC_PREFIX = "genropy_site_counters"
 class Prometheus(BaseWebtool):
     content_type = "text/plain"
 
-    @functools.cache
     def get_metrics(self, ts):
         collector = DataCollector(self.site.register.siteregister)
         counters = ['users', 'pages', 'connections']
