@@ -89,8 +89,8 @@ class FormReview(Form):
     def th_form(self, form):
         tc = form.center.tabContainer(tabPosition='left-h')
         self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', datapath='.record'), value='^.text')
-        self.contentVersions(tc.contentPane(title='!!Versions', region='center'), value='^.text')
+        self.contentVersions(tc.borderContainer(title='!!Versions', region='center'), value='^.text')
         return tc
         
     def th_options(self):
-        return dict(autoSave=True, showtoolbar=False)
+        return dict(modal=True)
