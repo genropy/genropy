@@ -49,7 +49,7 @@ class DeepLinkIOS(DeepLink):
             file_template['webcredentials']['apps'].append("{apple_team_id}.{apple_bundle_id}".format(**a.attr))
         return json.dumps(file_template)
     
-    @metadata(alias_url="/.well-known/apple-app-site-application")
+    @metadata(alias_url="/.well-known/apple-app-site-association")
     def __call__(self, *args, **kwargs):
         return super().__call__(*args, **kwargs)
 
