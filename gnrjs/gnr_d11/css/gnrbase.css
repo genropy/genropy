@@ -2201,7 +2201,8 @@ div.dojoxDock {
 }
 
 .icnBaseGenroLogo {
-    background: url(/_rsrc/common/images/genropy_logo_16.png) no-repeat center center;
+    background: transparent url(/_rsrc/common/css_icons/svg/16/genrologo.svg) no-repeat center center;
+    background-size: contain;
     width: 16px;
     height: 16px;
 }
