@@ -283,22 +283,16 @@ class FrameIndex(BaseComponent):
 
     @struct_method
     def fi_slotbar_genrologo(self,slot,**kwargs):
-        if self.isDeveloper():
-            logomenu = slot.menudiv(iconClass='iconbox icnBaseGenroLogo')#.dataController("genro.publish('genrologo')")
-            logomenu.menuline('!![en]Open inspector root',code='inspector').dataController('genro.dev.openInspector();') 
-            logomenu.menuline('!![en]Open inspector current',code='inspector').dataController(
-                                                            'genro._lastFocusedWindow.genro.dev.openInspector();')
-            logomenu.menuline('!!Open the page outside frame').dataController(
-                """genro.openBrowserTab((_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"");
-                """,
-                _iframes='=iframes',_selectedFrame='=selectedFrame'
-            )
-            logomenu.menuline("!!Open Genro IDE").dataController('genro.framedIndexManager.openGnrIDE();')
-            logomenu.menuline("!!Application info").dataController("genro.publish('application_info')")
-
-        else:
-            slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('application_info')")
-        
+        logomenu = slot.menudiv(iconClass='iconbox icnBaseGenroLogo',singleOption='button')
+        logomenu.menuline('!![en]Open inspector root',_tags='_DEV_').dataController('genro.dev.openInspector();') 
+        logomenu.menuline('!![en]Open inspector current',_tags='_DEV_').dataController(
+                                                        'genro._lastFocusedWindow.genro.dev.openInspector();')
+        logomenu.menuline('!![en]Open the page outside frame',_tags='_DEV_').dataController(
+            """genro.openBrowserTab((_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"");
+            """,_iframes='=iframes',_selectedFrame='=selectedFrame'
+        )
+        logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
+        logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
         slot.dataController('dlg.show()', subscribe_application_info=True,
                             dlg =self.applicationInfoDialog(slot).js_widget)
         
