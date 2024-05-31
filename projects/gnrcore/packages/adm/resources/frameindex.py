@@ -10,6 +10,7 @@ from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable
+from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -256,7 +257,7 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,devlink,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,left_placeholder,*,
                                     right_placeholder,owner_name,user_name,logout,debugping,5""",
                                     _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
@@ -287,19 +288,42 @@ class FrameIndex(BaseComponent):
             logomenu.menuline('!![en]Open inspector root',code='inspector').dataController('genro.dev.openInspector();') 
             logomenu.menuline('!![en]Open inspector current',code='inspector').dataController(
                                                             'genro._lastFocusedWindow.genro.dev.openInspector();')
-            #logomenu.menuline("!!Open the page outside frame").dataController('genro.openBrowserTab(genro.framedIndexManager.currentGenro());')
+            logomenu.menuline('!!Open the page outside frame').dataController(
+                """genro.openBrowserTab((_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"");
+                """,
+                _iframes='=iframes',_selectedFrame='=selectedFrame'
+            )
             logomenu.menuline("!!Open Genro IDE").dataController('genro.framedIndexManager.openGnrIDE();')
+            logomenu.menuline("!!Application info").dataController("genro.publish('application_info')")
 
         else:
-            slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('genrologo')")
-            slot.dataController('genro.openBrowserTab("https://www.genropy.org")', subscribe_genrologo=True)
+            slot.lightButton(_class='iconbox icnBaseGenroLogo').dataController("genro.publish('application_info')")
         
-    @struct_method
-    def fi_slotbar_devlink(self,slot,**kwargs):
-        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
-        slot.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(
-                                    _class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
+        slot.dataController('dlg.show()', subscribe_application_info=True,
+                            dlg =self.applicationInfoDialog(slot).js_widget)
         
+    
+    def applicationInfoDialog(self,pane):
+        dlg = pane.dialog(_class='lightboxDialog')
+        dlg.lightbutton(_class='dlg_closebtn',top='1px',right='1px').dataController(
+            "dlg.hide()",
+            dlg=dlg.js_widget
+        )
+        rms = getRmsOptions()
+        customer_code = rms.get('customer_code') or 'UNLICENSED'
+        pod_number = rms.get('code') or '-'
+
+        box = dlg.div(padding='10px')
+        top = box.div(style='display: flex;align-items: center;justify-content: space-evenly;')
+        top.div("Created in Genropy",font_weight='bold')
+        top.lightbutton(_class='icnBaseGenroLogo',height='30px',width='30px',
+                        action='genro.openBrowserTab("https://www.genropy.org")')
+        content = box.div(style='display:flex;',margin_top='20px')
+        content.div(f'<b>LICENCE CODE</b>:{customer_code}')
+        content.div(width='30px')
+        content.div(f'<b>POD</b>:{pod_number}')
+        return dlg
+
     @struct_method
     def fi_slotbar_userpref(self,slot,**kwargs):
         slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
