@@ -1313,7 +1313,7 @@ body.tundra.mimi {
 
 .mimi._common_d11 .lightboxDialog.dijitDialog {
     padding: 2px;
-    background: linear-gradient(to top, #efefef,white);;
+    background:white;
     border: 1px solid #ddd;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
