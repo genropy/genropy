@@ -11,6 +11,8 @@ class Table(object):
         tbl.column('headline', name_long='!!Headline')
         tbl.column('abstract', name_long='!!Abstract')
         tbl.column('text', name_long='!!Text')
+        tbl.column('html', name_long='!!HTML')
+
         tbl.column('tplbag', dtype='X', name_long='!!Template')
 
     def trigger_onInserted(self, record):
