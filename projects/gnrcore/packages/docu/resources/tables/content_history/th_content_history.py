@@ -3,7 +3,6 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
-import diff_match_patch as dmp_module
 
 
 class View(BaseComponent):
@@ -21,28 +20,28 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='content_id', op='contains', val='')
 
-    def th_view(self, view):
-        view.dataRpc('#FORM.diff', self.calculateDiff, versions='^.grid.currentSelectedPkeys', _if='versions')
-
-    @public_method
-    def calculateDiff(self, versions=None):
-        dmp = dmp_module.diff_match_patch()
-        if len(versions)<2:
-            return 
-        content = self.db.table('docu.content_history').query(where='$id IN :vpkeys', vpkeys=versions,
-                                                    columns='$text', order_by='$__ins_ts DESC', limit=2).fetch()
-        diffs = dmp.diff_main(content[1]['text'], content[0]['text'])
-        dmp.diff_cleanupSemantic(diffs)
-        result = []
-        for diff in diffs:
-            operation, text = diff
-            if operation == 0:
-                result.append(text)
-            elif operation == -1:
-                result.append(f'<span style="color:red;">{text}</span>')
-            elif operation == 1:
-                result.append(f'<span style="color:darkgreen;">{text}</span>')
-        return ''.join(result)
+   # def th_view(self, view):
+   #     view.dataRpc('#FORM.diff', self.calculateDiff, versions='^.grid.currentSelectedPkeys', _if='versions')
+#
+   # @public_method
+   # def calculateDiff(self, versions=None):
+   #     dmp = dmp_module.diff_match_patch()
+   #     if len(versions)<2:
+   #         return 
+   #     content = self.db.table('docu.content_history').query(where='$id IN :vpkeys', vpkeys=versions,
+   #                                                 columns='$text', order_by='$__ins_ts DESC', limit=2).fetch()
+   #     diffs = dmp.diff_main(content[1]['text'], content[0]['text'])
+   #     dmp.diff_cleanupSemantic(diffs)
+   #     result = []
+   #     for diff in diffs:
+   #         operation, text = diff
+   #         if operation == 0:
+   #             result.append(text)
+   #         elif operation == -1:
+   #             result.append(f'<span style="color:red;">{text}</span>')
+   #         elif operation == 1:
+   #             result.append(f'<span style="color:darkgreen;">{text}</span>')
+   #     return ''.join(result)
 
 class Form(BaseComponent):
 
