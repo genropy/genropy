@@ -233,7 +233,7 @@ def getRmsOptions():
     config_path = gnrConfigPath()
     environment_path = os.path.join(config_path,'environment.xml')
     environment_bag = Bag(environment_path) 
-    return environment_bag.getAttr('rms')
+    return environment_bag.getAttr('rms') or dict()
 
 def setRmsOptions(rebuild=False,**options):
     config_path = gnrConfigPath()
