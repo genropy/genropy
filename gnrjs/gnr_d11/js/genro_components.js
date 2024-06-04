@@ -3698,8 +3698,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             showLetterhead = sourceNode.absDatapath(showLetterhead);
         }
         var record_id = objectPop(kw, 'record_id');
-        genro.assert((record_id || kw.datasource),'record_id or datasource are mandatory in templatechunk');
-
         if(record_id){
             sourceNode.attr.record_id = record_id;
         }

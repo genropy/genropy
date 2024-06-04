@@ -6,8 +6,8 @@ from gnr.core.gnrdecorator import public_method, customizable
 
 class ContentsComponent(BaseComponent):
 
-    def contentEditor(self, pane, value=None, **kwargs):
-        pane.MDEditor(value=value, nodeId='contentMd', height='100%', previewStyle='vertical',
+    def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
+        pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
                         initialEditType='wysiwyg',viewer=True, **kwargs)
         
     @customizable    
@@ -43,7 +43,7 @@ class ContentsComponent(BaseComponent):
                                                     **kwargs)
     
     def contentText(self, bc):
-        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text')
+        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text',htmlpath='.html')
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',
