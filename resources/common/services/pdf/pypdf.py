@@ -77,6 +77,12 @@ class Service(PdfService):
         doc.save()
 
     def multipartPDF(self, documents=None, output=None):
+        if not isinstance(documents,str):
+            doc = fitz.open('pdf',f.read())
+            for page in doc:
+                yield page
+            doc.save(output)
+            return
         for doc in documents.split(','):
             with self.parent.storageNode(doc).open('rb') as f:
                 doc = fitz.open('pdf',f.read())
@@ -85,8 +91,18 @@ class Service(PdfService):
                 doc.save(output)
         #doc.close() 
 
-    @extract_kwargs(watermark=True)
-    def watermarkedPDF(self,input_pdf,watermark=None,mode='TextBox',watermark_kwargs=None):
+    def _createPdf(self,html=None,margin_top=None,margin_right=None,margin_bottom=None,margin_left=None,pageSize='A4'):
+        service = self.parent.getService('htmltopdf')
+        pageMargin = [f'{margin or 0}mm' for margin in (margin_top,margin_right,margin_bottom,margin_left)]
+        return service.htmlToPdf(srcPath=html, destPath=None,pageSize=pageSize,pageMargin=' '.join(pageMargin))
+
+
+    @extract_kwargs(watermark=True,bg=True)
+    def watermarkedPDF(self,input_pdf=None,input_html=None,watermark=None,mode='TextBox',
+                       background_pdf=None,bg_kwargs=None,
+                       watermark_kwargs=None):
+        if input_html and not input_pdf:
+            input_pdf = self._createPdf(input_html,**bg_kwargs)
         m = fitz.Matrix
         color = watermark_kwargs.pop('color',None)
         align = watermark_kwargs.pop('align','left')
@@ -95,12 +111,17 @@ class Service(PdfService):
                     color=fitz.utils.getColor(color) if color else (0, 0, 0),
                     fill_opacity=.1)
         pars.update(watermark_kwargs)
-        
+        background_doc = None
+        if background_pdf:
+            with self.parent.storageNode(background_pdf).open('rb') as f:
+                background_doc = fitz.open('pdf',f.read())
         output_pdf_bytes = BytesIO()
         for page in self.multipartPDF(input_pdf, output=output_pdf_bytes):  
             page.clean_contents()
-            getattr(self,f'_insert{mode}')(page,watermark,**pars)
-
+            if watermark:
+                getattr(self,f'_insert{mode}')(page,watermark,**pars)
+            if background_doc:
+                page.show_pdf_page(page.rect, background_doc,0)
         output_pdf_bytes.seek(0)  
         result = output_pdf_bytes.read()
         return result
