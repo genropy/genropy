@@ -54,5 +54,5 @@ class ContentsComponent(BaseComponent):
 
     def contentVersions(self, bc, **kwargs):
         bc.contentPane(region='center').plainTableHandler(relation='@versions', formResource='FormDiff', configurable=False)
-        bc.contentPane(region='bottom', closable='closed', closable_label='!![en]Differences', height='50%'
-                                    ).simpleTextArea('^.diff', overflow='hidden', height='100%', width='100%', editor=True)
+        bc.contentPane(region='bottom', closable='close', closable_label='!![en]Differences', height='50%').simpleTextArea(
+                                                    '^.diff', overflow='hidden', height='100%', width='100%', editor=True)
