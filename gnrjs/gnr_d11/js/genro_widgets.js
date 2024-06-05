@@ -2753,9 +2753,9 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 item.setHidden(wdg.hiddenItemCb(item,e));
             }
         });
-        let children = sourceNode.getValue();
+        let staticChildren = sourceNode.getValue('static');
         let singleOption = wdg.sourceNode.attr.singleOption;
-        if(singleOption && children && children.len()==1){
+        if(singleOption && staticChildren && staticChildren.len()==1){
             let wdg = sourceNode.getValue().getNode('#0').widget;
             
             if(!wdg.disabled){
