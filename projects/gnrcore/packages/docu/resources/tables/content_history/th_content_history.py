@@ -6,6 +6,7 @@ from gnr.core.gnrdecorator import public_method
 
 
 class View(BaseComponent):
+    js_requires='docu_components'
 
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -13,6 +14,7 @@ class View(BaseComponent):
         r.fieldcell('version', width='3em')
         r.fieldcell('__ins_user', width='auto')
         r.fieldcell('__ins_ts', width='9em')
+        r.fieldcell('text', hidden=True)
 
     def th_order(self):
         return 'content_id'
@@ -21,26 +23,11 @@ class View(BaseComponent):
         return dict(column='content_id', op='contains', val='')
 
     def th_view(self, view):
-        view.dataController("""var versions = versions;
-                                if(versions.length<2){
-                                    return null; 
-                                }else{
-                                    var textToCheck = versions.split(',');
-                                };
-                                var diff = Diff.diffWords(textToCheck[0], textToCheck[1]);
-                                var outputDiv = document.getElementById('diff-output');
-
-                                diff.forEach((part) => {
-                                  var color = part.added ? 'darkgreen' :
-                                    part.removed ? 'red' : 'black';
-                                  var span = document.createElement('span');
-                                  span.style.color = color;
-                                  span.appendChild(document.createTextNode(part.value));
-                                  outputDiv.appendChild(span);
-                                });
-                                SET #FORM.diff=outputDiv;
+        view.dataController("""var diff = diffUtil.calculateDifference(new_version, old_version, 'html');
+                                SET #FORM.diff=diff;
                             """, 
-                            versions='^.grid.currentSelectedPkeys', _if='versions')
+                            old_version='^.grid.selectedId?text', 
+                            new_version='=#FORM.record.text', _if='old_version')
 
 class Form(BaseComponent):
 

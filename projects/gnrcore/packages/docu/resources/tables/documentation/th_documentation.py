@@ -37,7 +37,7 @@ class ViewFromHandbooks(BaseComponent):
         return dict(column='_row_count', op='contains', val='')
 
 class Form(BaseComponent):
-    py_requires='rst_documentation_handler:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
+    py_requires='docu_components:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
     css_requires = 'docu'
 
     def th_form(self, form):

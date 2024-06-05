@@ -51,7 +51,7 @@ class ViewInline(BaseComponent):
 
 class Form(BaseComponent):
     py_requires = """gnrcomponents/attachmanager/attachmanager:AttachManager,
-                        cnt_component:ContentsComponent"""
+                        docu_components:ContentsComponent"""
     
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -85,11 +85,13 @@ class FormEmbed(Form):
 
 class FormReview(Form):
     "Form to review text showing text and versions in a tabContainer"
-
+    js_requires='docu_components'
+    
     @customizable
     def th_form(self, form):
         tc = form.center.tabContainer(tabPosition='left-h')
-        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', datapath='.record'), value='^.text',htmlpath='.html')
+        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', 
+                                          datapath='.record'), value='^.text',htmlpath='.html')
         self.contentVersions(tc.borderContainer(title='!!Versions', region='center'), value='^.text')
         return tc
         
