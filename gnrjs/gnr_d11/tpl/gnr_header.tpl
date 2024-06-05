@@ -5,6 +5,14 @@
     <link rel="manifest" crossorigin="use-credentials" href="/_pwa_manifest.json">
     <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
+<!-- ================  SENTRY ================ -->
+% if sentryjs:
+    <script
+  src="${sentryjs}"
+  crossorigin="anonymous">
+  </script>
+
+% endif
 
 % if favicon:
      <link rel="icon" href="${favicon}" />

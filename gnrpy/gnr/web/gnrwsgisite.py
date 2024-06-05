@@ -1235,7 +1235,6 @@ class GnrWsgiSite(object):
         wsgiapp = self.dispatcher
         self.error_smtp_kwargs = None
         profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        gzip = boolean(options.gzip) if options else boolean(self.config['wsgi?gzip'])
         if profile:
             try:
                 from repoze.profile.profiler import AccumulatingProfileMiddleware
@@ -1250,27 +1249,15 @@ class GnrWsgiSite(object):
                    flush_at_shutdown=True,
                    path='/__profile__'
                   )
+        if 'sentry' in self.config:
+            import sentry_sdk
+            from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
+            wsgiapp = SentryWsgiMiddleware(wsgiapp)
+            sentry_sdk.init(
+            dsn=self.config['sentry?pydsn'],
+            traces_sample_rate=float(self.config['sentry?traces_sample_rate']) if self.config['sentry?traces_sample_rate'] else 1.0,
+            profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
 
-        if self.debug:
-            pass
-            #wsgiapp = SafeEvalException(wsgiapp, debug=True)
-        else:
-            err_kwargs = dict(debug=True)
-            if 'debug_email' in self.config:
-                error_smtp_kwargs = self.config.getAttr('debug_email')
-                if error_smtp_kwargs.get('smtp_password'):
-                    error_smtp_kwargs['smtp_password'] = error_smtp_kwargs['smtp_password'].encode('utf-8')
-                if error_smtp_kwargs.get('smtp_username'):
-                    error_smtp_kwargs['smtp_username'] = error_smtp_kwargs['smtp_username'].encode('utf-8')
-                if 'error_subject_prefix' not in error_smtp_kwargs:
-                    error_smtp_kwargs['error_subject_prefix'] = '[%s] ' % self.site_name
-                error_smtp_kwargs['error_email'] = error_smtp_kwargs['error_email'].replace(';', ',').split(',')
-                if 'smtp_use_tls' in error_smtp_kwargs:
-                    error_smtp_kwargs['smtp_use_tls'] = (error_smtp_kwargs['smtp_use_tls'] in (True, 'true', 't', 'True', '1', 'TRUE'))
-                self.error_smtp_kwargs = dict(error_smtp_kwargs)
-                self.error_smtp_kwargs['error_email_from'] = self.error_smtp_kwargs.pop('from_address')
-                err_kwargs.update(error_smtp_kwargs)
-                #wsgiapp = ErrorMiddleware(wsgiapp, **err_kwargs)
         return wsgiapp
 
     def build_gnrapp(self, options=None):
