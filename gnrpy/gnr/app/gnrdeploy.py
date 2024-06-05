@@ -1077,6 +1077,17 @@ class ThPackageResourceMaker(object):
             print('%s created' % name)
 
 ################################# DEPLOY CONF BUILDERS ################################
+LOGROTATE_DEFAULT_CONF_TEMPLATE = """
+%{logs_path)s/access.log
+%{logs_path)s/error.log
+%{logs_path)s/main.log
+{
+        daily
+        rotate 14
+        missingok
+        compress
+}
+"""
 
 GUNICORN_DEFAULT_CONF_TEMPLATE ="""
 
@@ -1145,8 +1156,6 @@ class GunicornDeployBuilder(object):
     default_threads = 8
     conf_template = GUNICORN_DEFAULT_CONF_TEMPLATE
     
-    
-
     def __init__(self, site_name, **kwargs):
         self.site_name = site_name
         self.path_resolver = PathResolver()
@@ -1173,7 +1182,7 @@ class GunicornDeployBuilder(object):
         self.gunicorn_conf_path = os.path.join(self.config_folder,'gunicorn.py')
         self.gnrasync_socket_path = os.path.join(self.socket_path, "async.tornado" )
         self.gunicorn_socket_path = os.path.join(self.socket_path,'gunicorn.sock')
-        
+        self.logrotate_conf_path = os.path.join("/etc/logrotate.d", f"genropy-{self.site_name}")
 
         self.create_dirs()
         import multiprocessing
@@ -1188,6 +1197,11 @@ class GunicornDeployBuilder(object):
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
+    def write_logrotate_conf(self):
+        conf_content = LOGROTATE_DEFAULT_CONF_TEMPLATE % {"logs_path": self.logs_path}
+        with open(self.logrotate_conf_path, "w") as conf_file:
+            conf_file.write(conf_content)
+        
     def write_gunicorn_conf(self):
         pars = dict()
         opt = self.options

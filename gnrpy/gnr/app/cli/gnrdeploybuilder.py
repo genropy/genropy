@@ -44,6 +44,7 @@ def main():
     if site:
         deployer = GunicornDeployBuilder(site)
         deployer.write_gunicorn_conf()
+        deployer.write_logrotate_conf()
         deployer.local_supervisor_conf()
         deployer.main_supervisor_conf()
         if options.domain:
