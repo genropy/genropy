@@ -270,7 +270,6 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         objectPop(editor_attrs,'htmlpath');
         let handler = window.toastui.Editor;
         if (editor_attrs.viewer){
-            console.log('as viewer')
             handler = window.toastui.Editor.factory;
         }
         let editor = new window.toastui.Editor({

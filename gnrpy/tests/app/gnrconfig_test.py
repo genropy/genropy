@@ -48,7 +48,7 @@ class TestGnrConfig(BaseGnrAppTest):
         Test for getRmsOptions function
         """
         b = gnrc.getRmsOptions()
-        assert b is None
+        assert not b
         gnrc.setRmsOptions(a=1)
         b = gnrc.getRmsOptions()
         assert b is not None

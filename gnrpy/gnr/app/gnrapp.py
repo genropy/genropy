@@ -808,37 +808,40 @@ class GnrApp(object):
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
-        print("Checking python dependencies", end="")
+        log.info("Checking python dependencies")
         instance_deps = defaultdict(list)
         for a, p in self.packages.items():
-            print(".", end="")
             requirements_file = os.path.join(p.packageFolder, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
-                        instance_deps[line.strip()].append(a)
-        print("")
+                        dep_name = line.strip()
+                        if dep_name:
+                            instance_deps[dep_name].append(a)
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
             missing, wrong = self.check_package_missing_dependencies()
             if missing:
-                print(f"ERROR: missing dependencies: {', '.join(missing)}")
+                log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                print(f"ERROR: wrong dependecies:")
+                log.error(f"ERROR: wrong dependecies:")
                 for requested, installed in wrong:
-                    print(f"{requested} is requested, but {installed} found")
+                    log.error(f"{requested} is requested, but {installed} found")
             
     def check_package_missing_dependencies(self):
         missing = []
         wrong = []
         for name in self.instance_packages_dependencies:
-            try:
-                pkg_resources.get_distribution(name)
-            except pkg_resources.DistributionNotFound:
-                missing.append(name)
-            except pkg_resources.VersionConflict as e:
-                wrong.append((e.req, e.dist))
+            if name:
+                try:
+                    pkg_resources.get_distribution(name)
+                except pkg_resources.DistributionNotFound:
+                    missing.append(name)
+                except pkg_resources.VersionConflict as e:
+                    wrong.append((e.req, e.dist))
+                except Exception as e:
+                    log.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
     def check_package_install_missing(self):
@@ -1395,7 +1398,7 @@ class GnrApp(object):
             externaldb.importModelFromDb()
             externaldb.model.build()
             setattr(self,'legacy_db_%s' %name,externaldb)
-            print('got externaldb',name)
+            log.info('got externaldb',name)
         return externaldb
 
     def importFromLegacyDb(self,packages=None,legacy_db=None,thermo_wrapper=None,thermo_wrapper_kwargs=None, intermediate_commits=False):
@@ -1424,7 +1427,7 @@ class GnrApp(object):
         if not legacy_db:
             return
         if destbl.query().count():
-            print('do not import again',tbl)
+            log.info('do not import again',tbl)
             return
         
    
@@ -1446,7 +1449,7 @@ class GnrApp(object):
         try:
             oldtbl = sourcedb.table(table_legacy_name)
         except Exception:
-            print('missing table in legacy',table_legacy_name)
+            log.error('missing table in legacy',table_legacy_name)
         if not oldtbl:
             return
         q = oldtbl.query(columns=columns,addPkeyColumn=False,bagFields=True)
@@ -1469,7 +1472,7 @@ class GnrApp(object):
             if rows:
                 destbl.insertMany(rows)
         sourcedb.closeConnection()
-        print('imported',tbl)
+        log.info('imported',tbl)
 
     def getAuxInstance(self, name=None,check=False):
         """TODO

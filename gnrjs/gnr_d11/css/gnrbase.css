@@ -2201,7 +2201,8 @@ div.dojoxDock {
 }
 
 .icnBaseGenroLogo {
-    background: url(/_rsrc/common/images/genropy_logo_16.png) no-repeat center center;
+    background: transparent url(/_rsrc/common/css_icons/svg/16/genrologo.svg) no-repeat center center;
+    background-size: contain;
     width: 16px;
     height: 16px;
 }
@@ -4858,11 +4859,16 @@ div[disabled='true'], div[disabled='disabled']{
     height: 18px;
     width: 18px;
     cursor: pointer;
-    background: url(icons/fm_close.gif) no-repeat center center;
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: var(--root-dark);
     position: absolute;
     right:2px;
     top:4px;
 }
+
 .genropylogo{
 	background: url(icons/genropy.png) no-repeat center center;
     height: 60px;

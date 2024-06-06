@@ -2753,6 +2753,24 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 item.setHidden(wdg.hiddenItemCb(item,e));
             }
         });
+        let staticChildren = sourceNode.getValue('static');
+        let singleOption = wdg.sourceNode.attr.singleOption;
+        if(singleOption && staticChildren && staticChildren.len()==1){
+            let wdg = sourceNode.getValue().getNode('#0').widget;
+            
+            if(!wdg.disabled){
+                if(singleOption=='button'){
+                    wdg.onClick();
+                }else if(singleOption=='ask'){
+                    genro.dlg.ask(_T('Single option'),wdg.label,null,{
+                        confirm:function(){
+                            wdg.onClick();
+                       }
+                    });
+                }
+            }
+            return;
+        }
 
         if(wdg.modifiers){
             wdg._contextMouse_replaced.call(wdg, e);
@@ -2761,6 +2779,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
         else if (contextclick) {
             wdg._contextMouse_replaced.call(wdg, e);
         }
+        
 
     },
     

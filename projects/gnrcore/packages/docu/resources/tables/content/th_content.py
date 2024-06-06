@@ -19,6 +19,7 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='title', op='contains', val='')
     
+    
 
 class ViewEmbed(BaseComponent):
 
@@ -50,7 +51,7 @@ class ViewInline(BaseComponent):
 
 class Form(BaseComponent):
     py_requires = """gnrcomponents/attachmanager/attachmanager:AttachManager,
-                        cnt_component:ContentsComponent"""
+                        docu_components:ContentsComponent"""
     
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -76,7 +77,7 @@ class FormEmbed(Form):
 
     def th_form(self, form):
         bc = form.record
-        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text')
+        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text',htmlpath='.html')
         
     def th_options(self):
         return dict(autoSave=True, showtoolbar=False)
@@ -84,13 +85,15 @@ class FormEmbed(Form):
 
 class FormReview(Form):
     "Form to review text showing text and versions in a tabContainer"
-
+    js_requires='docu_components'
+    
     @customizable
     def th_form(self, form):
         tc = form.center.tabContainer(tabPosition='left-h')
-        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', datapath='.record'), value='^.text')
-        self.contentVersions(tc.contentPane(title='!!Versions', region='center'), value='^.text')
+        self.contentEditor(tc.contentPane(title='!!Text', region='center',overflow='hidden', 
+                                          datapath='.record'), value='^.text',htmlpath='.html')
+        self.contentVersions(tc.borderContainer(title='!!Versions', region='center'), value='^.text')
         return tc
         
     def th_options(self):
-        return dict(autoSave=True, showtoolbar=False)
+        return dict(form_add=False,form_delete=False)
