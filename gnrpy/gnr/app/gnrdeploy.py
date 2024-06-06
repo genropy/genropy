@@ -1078,15 +1078,15 @@ class ThPackageResourceMaker(object):
 
 ################################# DEPLOY CONF BUILDERS ################################
 LOGROTATE_DEFAULT_CONF_TEMPLATE = """
-%{logs_path)s/access.log
-%{logs_path)s/error.log
-%{logs_path)s/main.log
-{
+{logs_path}/access.log
+{logs_path}/error.log
+{logs_path}/main.log
+{{
         daily
         rotate 14
         missingok
         compress
-}
+}}
 """
 
 GUNICORN_DEFAULT_CONF_TEMPLATE ="""
@@ -1198,10 +1198,18 @@ class GunicornDeployBuilder(object):
                 os.makedirs(dir_path)
 
     def write_logrotate_conf(self):
-        conf_content = LOGROTATE_DEFAULT_CONF_TEMPLATE % {"logs_path": self.logs_path}
-        with open(self.logrotate_conf_path, "w") as conf_file:
-            conf_file.write(conf_content)
-        
+        conf_content = LOGROTATE_DEFAULT_CONF_TEMPLATE.format(logs_path=self.logs_path)
+        try:
+            with open(self.logrotate_conf_path, "w") as conf_file:
+                conf_file.write(conf_content)
+        except PermissionError:
+            import tempfile
+            temp_logrotate_file = tempfile.mktemp(prefix="genropy_logrotate_")
+            with open(temp_logrotate_file, "w") as conf_file:
+                conf_file.write(conf_content)
+            print("Can't write logrotate configuration file")
+            print(f"Configuration as been written in {temp_logrotate_file}, please copy it appropriately")
+            
     def write_gunicorn_conf(self):
         pars = dict()
         opt = self.options
