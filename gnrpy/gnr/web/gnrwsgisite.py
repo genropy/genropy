@@ -1250,14 +1250,18 @@ class GnrWsgiSite(object):
                    path='/__profile__'
                   )
         if 'sentry' in self.config:
-            import sentry_sdk
-            from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
-            wsgiapp = SentryWsgiMiddleware(wsgiapp)
-            sentry_sdk.init(
-            dsn=self.config['sentry?pydsn'],
-            traces_sample_rate=float(self.config['sentry?traces_sample_rate']) if self.config['sentry?traces_sample_rate'] else 1.0,
-            profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
-
+            try:
+                import sentry_sdk
+                from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
+                from sentry_sdk import set_tags
+                set_tags({"genropy_instance": self.site_name})
+                sentry_sdk.init(
+                    dsn=self.config['sentry?pydsn'],
+                    traces_sample_rate=float(self.config['sentry?traces_sample_rate']) if self.config['sentry?traces_sample_rate'] else 1.0,
+                    profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
+                wsgiapp = SentryWsgiMiddleware(wsgiapp)
+            except Exception as e:
+                log.error(f"Sentry support has been disabled due to configuration errors: {e}")
         return wsgiapp
 
     def build_gnrapp(self, options=None):

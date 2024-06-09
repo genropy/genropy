@@ -5,12 +5,32 @@
     <link rel="manifest" crossorigin="use-credentials" href="/_pwa_manifest.json">
     <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
-<!-- ================  SENTRY ================ -->
+
 % if sentryjs:
-    <script
-  src="${sentryjs}"
-  crossorigin="anonymous">
-  </script>
+    <script type="text/javascript">
+    window.sentryOnLoad = function() {
+	console.log("GENROPY SENTRY SUPPORT INIT");
+	Sentry.init({
+	    traceSampleRate: 1.0,
+	    replaysSessionSampleRate: 0.1,
+	    replaysOnErrorSampleRate: 1.0
+	});
+	// using an event processo to retrieve and
+	// add extra data when sending, due to genro client
+	// not immediately available when the page is loading
+	Sentry.addEventProcessor(function (event, hint) {
+	    try {
+		Sentry.setTag("genropy_instance", genro.getData('gnr.siteName'));
+		Sentry.setUser({"username": genro.getData('gnr.avatar.user')});
+		Sentry.setTag("genro_loaded", true);
+	    } catch (error) {
+		Sentry.setTag("genro_loaded", false);
+	    }
+	    return event;
+	});
+    }
+    </script>
+    <script src="${sentryjs}" crossorigin="anonymous"></script>
 
 % endif
 
