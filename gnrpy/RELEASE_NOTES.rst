@@ -1,7 +1,7 @@
 UPCOMING RELEASE
 ================
 
-TBD
+* Introduced support for Sentry.io monitoring
 
 Version 24.5.30.2
 =================
