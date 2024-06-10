@@ -1158,6 +1158,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
+        self.getSentryJs(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
@@ -1245,6 +1246,12 @@ class GnrWebPage(GnrBaseWebPage):
         if google_fonts:
             arg_dict['google_fonts'] = google_fonts
         return arg_dict
+
+    def getSentryJs(self, arg_dict):
+        if self.site.config['sentry?js']:
+            arg_dict['sentryjs'] = self.site.config['sentry?js']
+        return arg_dict
+
 
     def mtimeurl(self, *args):
         """TODO"""
