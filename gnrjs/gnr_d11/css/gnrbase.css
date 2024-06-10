@@ -194,6 +194,28 @@ cursorZoom_plus{
     background: white;
 }
 
+
+.helperbutton{
+    position:absolute;
+    right:-25px;
+    bottom:0px;
+    height: 18px;
+    width: 18px;
+    background: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
+    background-size: contain;
+}
+
+.emptyhelper.helperbutton{
+    display: none;
+}
+
+
+.emptyhelper.helperEditor.helperbutton{
+    display: block;
+}
+
+
+
 .gnrcheckbox_wrapper{
     position: relative;
     padding-right: 2px;
@@ -6289,6 +6311,11 @@ div[disabled='true'], div[disabled='disabled']{
 .arrowBack{
     mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
+}
+
+.helper{
+    mask: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
 }
 
 .upload{

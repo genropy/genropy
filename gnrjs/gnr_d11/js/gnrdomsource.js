@@ -695,6 +695,29 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
     },
 
+
+    onHelperClick:function(){
+        if(genro.isDeveloper){
+            var dflt = this.getHelperValue()
+            genro.dlg.prompt(_T('Edit help'),{
+                widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
+                action:function(value){
+                    this.saveHelper();
+                },dflt:dflt,onEnter:null});
+        }
+    },
+    saveHelper:function(){
+
+    },
+
+    getHelperValue:function(){
+        return this.getRelativeData(this.getHelperPath())
+    },
+
+    getHelperPath:function(){
+        return this.form?'#FORM.helper.wdg_fields.'+this.attr.helpcode:'helper.wdg_fields.'+this.attr.helpcode;
+    },
+
     connect: function(target, eventname, handler) {
         var eventname = ((!eventname) || eventname == 'action') ? target.gnr._defaultEvent : eventname;
         var handler = dojo.hitch(this, funcCreate(handler));

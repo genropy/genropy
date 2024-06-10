@@ -293,6 +293,10 @@ class FrameIndex(BaseComponent):
         )
         logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
+        
+        logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
+        logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                        'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
         slot.dataController('dlg.show()', subscribe_application_info=True,
                             dlg =self.applicationInfoDialog(slot).js_widget)
         
@@ -341,6 +345,7 @@ class FrameIndex(BaseComponent):
                     m.menuline(r['title'],url=r['url'])
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+        
 
     def helpdesk_userGroupDocumentation(self):
         if not self.avatar.group_code:

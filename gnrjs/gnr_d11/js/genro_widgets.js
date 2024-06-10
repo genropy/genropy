@@ -185,6 +185,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 savedAttrs['speech'] = true;
             }
         }
+        savedAttrs.helpcode = objectPop(attributes,'helpcode');
         if (attributes.moveable){
             savedAttrs['moveable'] = objectPop(attributes,'moveable');
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
@@ -300,7 +301,21 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 };
             }
         }
+        
+
         var domNode = newobj.domNode || newobj;
+        if(savedAttrs.helpcode){
+            let helperValue = sourceNode.getHelperValue()
+            var helper = document.createElement('div');
+            helper.setAttribute('title',savedAttrs.helpcode);
+            let emptyHelper = helperValue?'':' emptyhelper';
+            let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            genro.dom.addClass(helper,'helperbutton'+emptyHelper+helperEditor);
+            domNode.appendChild(helper);
+            dojo.connect(helper,'onclick',function(){
+                sourceNode.onHelperClick();
+            });
+        }
         if('moveable' in savedAttrs){
             var moveable_kw = savedAttrs.moveable_kw;
             //var inhattr = sourceNode.getInheritedAttributes();

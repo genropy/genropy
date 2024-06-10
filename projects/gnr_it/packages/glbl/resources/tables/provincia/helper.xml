@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<GenRoBag>
+	<wdg_fields base_lang='it'>
+		<glbl_provincia_sigla>La sigla identificativa della provincia</glbl_provincia_sigla>
+		<glbl_provincia_nome>Il nome esteso della provincia</glbl_provincia_nome>
+	</wdg_fields>
+</GenRoBag>

@@ -2645,7 +2645,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def saveSiteDocument(self,path=None,data=None):
+    def saveSiteDocument(self,path=None,data=None,**kwargs):
         snode = self.site.storageNode(path)
         if snode.ext == 'xml':
             with snode.open('wb') as f:
@@ -2653,7 +2653,7 @@ class GnrWebPage(GnrBaseWebPage):
         else:
             with snode.open('wb') as f:
                 f.write(data['content'])
-        return dict(path=path)
+        return dict(savedPkey=path,path=path)
 
     @property
     def permissionPars(self):

@@ -3,13 +3,24 @@
 # th_localita.py
 # Created by Francesco Porcari on 2011-03-31.
 # Copyright (c) 2011 Softwell. All rights reserved.
+from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import customizable,metadata,public_method
 
 class Form(BaseComponent):
 
+    def hp_helperPath(self,table):
+        return self.packageResourcePath(table,'helper.xml')
+    
+    @struct_method
+    def hp_helperData(self,pane,table=None):
+        table = table or pane.getInheritedAttributes().get('table')
+        pane.data('#FORM.helper',Bag(self.hp_helperPath(table)))
+        
     def th_form(self,form,**kwargs):
         pane = form.record
+        form.helperData()
         fb = pane.formbuilder(cols=1, margin_left='2em',border_spacing='5px')
         fb.field('nome', width='20em')
         fb.field('sigla',width='3em')
