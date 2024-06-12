@@ -870,7 +870,7 @@ class GnrDomSrc(GnrStructData):
                     colswidth=None,
                     lblalign=None, lblvalign='top',
                     fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None, useMobileParameters=None,**kwargs):
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,**kwargs):
         """In :ref:`formbuilder` you can put dom and widget elements; its most classic usage is to create
         a :ref:`form` made by fields and layers, and that's because formbuilder can manage automatically
         fields and their positioning
@@ -925,6 +925,7 @@ class GnrDomSrc(GnrStructData):
                                       head_rows=head_rows, 
                                       excludeCols=excludeCols,
                                       byColumn=byColumn,colswidth=colswidth,
+                                      boxMode=boxMode,
                                       commonKwargs=commonKwargs)
         
         inattr = self.getInheritedAttributes()
@@ -2085,16 +2086,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
 class GnrFormBuilder(object):
     """The class that handles the creation of the :ref:`formbuilder` widget"""
     def __init__(self, tbl, cols=None, dbtable=None, fieldclass=None,
-                 lblclass='gnrfieldlabel', lblpos='L',byColumn=None, lblalign=None, fldalign=None,
+                 lblclass=None, lblpos='L',byColumn=None, lblalign=None, fldalign=None,
                  lblvalign='top', fldvalign='top', rowdatapath=None, head_rows=None,
-                 excludeCols=None, colswidth=None,commonKwargs=None):
+                 excludeCols=None, colswidth=None,boxMode=False,commonKwargs=None):
         self.commonKwargs = commonKwargs or {}
         self.lblalign = lblalign or {'L': 'right', 'T': 'left'}[lblpos] # jbe?  why is this right and not left?
         self.fldalign = fldalign or {'L': 'left', 'T': 'center'}[lblpos]
+        self.boxMode = boxMode
         self.lblvalign = lblvalign
         self.fldvalign = fldvalign
-        self.lblclass = lblclass
-        self.fieldclass = fieldclass
+        self.lblclass = lblclass or 'gnrfieldlabel' if not self.boxMode else None
+        self.fieldclass = fieldclass 
         self.colswidth = colswidth
         self.colmax = cols
         self.lblpos = lblpos
@@ -2400,9 +2402,15 @@ class GnrFormBuilder(object):
                     lbl_kwargs['tabindex'] = -1 # prevent tab navigation to the zoom link
                     cell.a(childcontent=lblvalue, href=lblhref, **lbl_kwargs)
             else:
-                cell = row.td(childname='c_%i_l' % c, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
-                if lbl:
-                    cell.div(childcontent=lbl, **lbl_kwargs)
+                if self.boxMode:
+                    kwargs['lbl'] = lbl
+                    for k,v in lbl_kwargs.items():
+                        kwargs[f'lbl_{k}'] = v
+                    row.td(childname='c_%i_l' % c, hidden=True)
+                else:
+                    cell = row.td(childname='c_%i_l' % c, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
+                    if lbl:
+                        cell.div(childcontent=lbl, **lbl_kwargs)
             for k, v in list(row_attributes.items()):
                 # TODO: warn if row_attributes already contains the attribute k (and it has a different value)
                 row.parentNode.attr[k] = v

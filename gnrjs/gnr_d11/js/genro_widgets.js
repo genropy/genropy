@@ -151,6 +151,8 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var attr = objectUpdate({},sourceNode.attr)
             var tag = objectPop(attr,'tag');
             var moveable = objectPop(attr,'moveable');
+            var helpcode = objectPop(attr,'helpcode');
+            wrp_attr.helpcode = helpcode
             if (moveable){
                 wrp_attr.moveable=moveable;
                 objectUpdate(wrp_attr, objectExtract(attr,'top,left,position'));
@@ -160,13 +162,27 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var children = sourceNode.getValue();
             sourceNode._value = null;
             var side = lbl_attr['side'] || 'top';
-            sourceNode.attr = objectUpdate({tag:'div',_class:'innerLblWrapper innerLbl_'+side+ ' innerLblWrapper_widget_'+tag.toLowerCase()},wrp_attr);
-            sourceNode._('div',objectUpdate({innerHTML:lbl,_class:'innerLbl'},lbl_attr),{'doTrigger':false});
+            sourceNode.attr = objectUpdate({tag:'div',_labelWrapper:true,_class:'innerLblWrapper innerLbl_'+side+ ' innerLblWrapper_widget_'+tag.toLowerCase()},wrp_attr);
+            let metabox = sourceNode._('div',{_class:'innerLblWrapperlabelContainer'},{'doTrigger':false});
+            metabox._('div',objectUpdate({innerHTML:lbl,_class:'innerLbl'},lbl_attr),{'doTrigger':false});
+            
+            if(helpcode){
+                let helperValue = sourceNode.getHelperValue()
+                let emptyHelper = helperValue?'':' emptyhelper';
+                let helperEditor = genro.isDeveloper? ' helperEditor':'';
+                metabox._('lightbutton','helper',{_class:'helperbutton'+emptyHelper+helperEditor,
+                    action:function(){
+                        sourceNode.onHelperClick();
+                    },
+                },{'doTrigger':false});
+            }
+            
             var c = sourceNode._(tag,attr,{'doTrigger':false});
             if(children && children.len()){
                 c.concat(children);
             }
-        }else{
+        }
+        else{
             this.onBuilding(sourceNode);
         }
     },
@@ -185,7 +201,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 savedAttrs['speech'] = true;
             }
         }
-        savedAttrs.helpcode = objectPop(attributes,'helpcode');
         if (attributes.moveable){
             savedAttrs['moveable'] = objectPop(attributes,'moveable');
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
@@ -301,21 +316,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 };
             }
         }
-        
-
         var domNode = newobj.domNode || newobj;
-        if(savedAttrs.helpcode){
-            let helperValue = sourceNode.getHelperValue()
-            var helper = document.createElement('div');
-            helper.setAttribute('title',savedAttrs.helpcode);
-            let emptyHelper = helperValue?'':' emptyhelper';
-            let helperEditor = genro.isDeveloper? ' helperEditor':'';
-            genro.dom.addClass(helper,'helperbutton'+emptyHelper+helperEditor);
-            domNode.appendChild(helper);
-            dojo.connect(helper,'onclick',function(){
-                sourceNode.onHelperClick();
-            });
-        }
         if('moveable' in savedAttrs){
             var moveable_kw = savedAttrs.moveable_kw;
             //var inhattr = sourceNode.getInheritedAttributes();

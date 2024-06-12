@@ -69,6 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
+        return this.getParentNode().getDomNode();
 
     },
     
@@ -1703,6 +1704,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
 
     updateValidationClasses: function() {
+        if(this.getParentNode().attr._labelWrapper){
+            genro.dom.setClass(this.getParentNode(),'innerLblWrapper_error',this.hasValidationError())
+        }
         if (this.widget.cellNode) {
             var domnode = this.widget.cellNode;
         } else {

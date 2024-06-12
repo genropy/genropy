@@ -196,13 +196,11 @@ cursorZoom_plus{
 
 
 .helperbutton{
-    position:absolute;
-    right:-25px;
-    bottom:0px;
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 16px;
     background: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
     background-size: contain;
+    cursor: pointer;
 }
 
 .emptyhelper.helperbutton{
@@ -212,6 +210,8 @@ cursorZoom_plus{
 
 .emptyhelper.helperEditor.helperbutton{
     display: block;
+    background: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
+    background-size: contain;
 }
 
 
@@ -3128,7 +3128,7 @@ body *{
 
 }
 .tundra .dijitTextBoxFocused, .tundra .dijitTextAreaFocused,.tundra .dijitComboBoxFocused {
-    box-shadow: 0px 0px 5px #488fd7;
+    box-shadow: 0px 0px 3px #488fd7;
 }
 
 .tundra .formattedTextBox input{
@@ -5632,7 +5632,7 @@ div[disabled='true'], div[disabled='disabled']{
 .dropUploaderBox{
     width:150px;
     border: 1px solid silver;
-    border-radius: 4px;
+    border-radius: 2px;
     font-size: 20px;
     color: #666;
     text-align: center;
@@ -5657,60 +5657,103 @@ div[disabled='true'], div[disabled='disabled']{
 .showInnerLabel .slotbar_cell .innerLbl{
     display: block;
 }
+
+
+.innerLblWrapperlabelContainer{
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
 .innerLbl{
-    background: #B3B3B3;
-    color: white;
-    text-align: left;
-    margin-left: 1px;
-    margin-right: 1px;;
-    font-size: 0.9em;
+    color:var(--root-dark);
+    font-weight: bold;
+    font-size: .9em;
+    /*line-height: 24px;*/
+}
+.innerLblWrapper_error .innerLbl{
+}
+
+.tundra .innerLblWrapper .dijitError{
+    background: white;
+}
+
+.innerLbl_top .innerLbl,.innerLbl_bottom .innerLbl{
+    padding-left: 2px;
+}
+
+.innerLbl_left .innerLbl{
+
+}
+
+
+
+.innerLbl_bottom .innerLbl{
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
     padding-left: 5px;
     padding-right: 5px;
-    padding-top: 1px;
-    padding-bottom: 1px;
-    border:1px solid #B3B3B3;
+
 }
 
 .innerLbl_top .innerLbl{
     border-top-left-radius: 3px;
     border-top-right-radius: 3px;
-    border-bottom:0;
-}
-
-.innerLbl_bottom .innerLbl{
-    border-bottom-left-radius: 3px;
-    border-bottom-right-radius: 3px;
-    border-top:0;
+    padding-left: 5px;
+    padding-right: 5px;
 }
 
 .innerLblWrapper{
-    display: inline-block;
+    display: inline-flex;
+    /*border:1px solid silver;*/
+    border-radius: 4px;
 }
+
+.innerLbl_top.innerLblWrapper{
+    flex-direction: column;
+}
+.innerLbl_bottom.innerLblWrapper{
+    flex-direction: column-reverse;
+}
+
+.innerLbl_left.innerLblWrapper{
+    flex-direction: row;
+    align-items: center;
+}
+.innerLbl_right.innerLblWrapper{
+    flex-direction: row-reverse;
+    align-items: center;
+}
+
+
+
 .innerLblWrapper.innerLblWrapper_widget_simpletextarea{
+    border-width: 0;
 }
 
 
-.tundra .innerLbl_top.innerLblWrapper .dijitTextBox, 
-.tundra .innerLbl_top.innerLblWrapper .dijitComboBox, 
-.tundra .innerLbl_top.innerLblWrapper .dijitSpinner, 
-.tundra .innerLbl_top.innerLblWrapper .dijitInlineEditor input,
-.tundra .innerLbl_top.innerLblWrapper .dijitTextArea{
-    /*box-shadow: 0 2px 2px #DDDDDD inset;*/
-    border-top-left-radius:0;
-    border-top-right-radius:0;
-    border-top:0;
+.tundra .innerLblWrapper .dijitTextBox, 
+.tundra .innerLblWrapper .dijitComboBox, 
+.tundra .innerLblWrapper .dijitSpinner, 
+.tundra .innerLblWrapper .dijitInlineEditor input,
+.tundra .innerLblWrapper .dijitTextArea, 
+.tundra .innerLblWrapper .gnrcheckbox_wrapper{
+    border-width: 0;
+    background: #f5f5f5;
+    padding-right: 5px;
+    font-size: 1.1em;
+    line-height: 1.5;
+    padding-left: 4px;
+    margin: 2px 4px 4px 4px;
 }
 
 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitTextBox, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitComboBox, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitSpinner, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitInlineEditor input,
-.tundra .innerLbl_bottom.innerLblWrapper .dijitTextArea{
-    /*box-shadow: 0 2px 2px #DDDDDD inset;*/
-    border-bottom-left-radius:0;
-    border-bottom-right-radius:0;
-    border-bottom:0;
+.tundra .innerLblWrapper .dijitError.dijitTextBox, 
+.tundra .innerLblWrapper .dijitError.dijitComboBox, 
+.tundra .innerLblWrapper .dijitError.dijitSpinner, 
+.tundra .innerLblWrapper .dijitError.dijitInlineEditor input,
+.tundra .innerLblWrapper .dijitError.dijitTextArea, 
+.tundra .innerLblWrapper .dijitError.gnrcheckbox_wrapper{
+    background: #ffe0e0;
 }
 
 
