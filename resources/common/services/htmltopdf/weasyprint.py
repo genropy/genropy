@@ -18,7 +18,6 @@ class Service(HtmlToPdfService):
                 margin: {pageMargin}; /* Set margin on each page */
             }}"""
             stylesheets.append(page_css_input)
-        print('stylesheets',stylesheets)
         stylesheets = [CSS(string=css) for css in stylesheets]
         if destPath is None:
             tmp = tempfile.NamedTemporaryFile(prefix='temp', suffix='.pdf',delete=False)

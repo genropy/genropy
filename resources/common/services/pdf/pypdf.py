@@ -77,19 +77,25 @@ class Service(PdfService):
         doc.save()
 
     def multipartPDF(self, documents=None, output=None):
-        if not isinstance(documents,str):
-            doc = fitz.open('pdf',f.read())
+        if isinstance(documents,str):
+            documents = documents.split(',')
+        if not isinstance(documents,list):
+            doc = fitz.open('pdf',documents.read())
             for page in doc:
                 yield page
             doc.save(output)
             return
-        for doc in documents.split(','):
-            with self.parent.storageNode(doc).open('rb') as f:
-                doc = fitz.open('pdf',f.read())
-                for page in doc:
+        resultdoc = fitz.open()
+        for docpath in documents:
+            with self.parent.storageNode(docpath).open('rb') as f:
+                srcdoc = fitz.open('pdf',f.read())
+                tmpdoc = BytesIO()
+                for page in srcdoc:
                     yield page
-                doc.save(output)
-        #doc.close() 
+                srcdoc.save(tmpdoc)
+                tmpdoc.seek(0)
+                resultdoc.insert_pdf(fitz.open('pdf',tmpdoc.read()))
+        resultdoc.save(output)
 
     def _createPdf(self,html=None,margin_top=None,margin_right=None,margin_bottom=None,margin_left=None,pageSize='A4'):
         service = self.parent.getService('htmltopdf')
