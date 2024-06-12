@@ -1250,6 +1250,12 @@ class GnrWebPage(GnrBaseWebPage):
     def getSentryJs(self, arg_dict):
         if self.site.config['sentry?js']:
             arg_dict['sentryjs'] = self.site.config['sentry?js']
+            for ck in ['sample_rate', 'traces_sample_rate', 'profiles_sample_rate',
+                       'replays_session_sample_rate', 'replays_on_error_sample_rate']:
+                cv = self.site.config.get(f"sentry?{ck}")
+                if cv is None:
+                    cv = "0.0"
+                arg_dict[f'sentry_{ck}'] = cv
         return arg_dict
 
 
