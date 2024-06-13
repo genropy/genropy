@@ -114,9 +114,9 @@ class GnrCustomWebPage(object):
         form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
-        r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;')
-        side = 'left'
-        r.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True)
+        r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;',margin='5px')
+        side = 'top'
+        r.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True,helpcode='nome')
         r.textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
         r.dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
         r.dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',

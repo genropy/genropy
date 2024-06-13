@@ -5653,10 +5653,53 @@ div[disabled='true'], div[disabled='disabled']{
 .slotbar_cell .innerLbl{
     display: none;
 }
+.tundra .gnrgridbox .dijitTextBox,.tundra .gnrgridbox .dijitComboBox,.tundra .gnrgridbox .dijitSpinner{
+    width:unset;
+}
 
 .showInnerLabel .slotbar_cell .innerLbl{
     display: block;
 }
+
+
+.labledBox{
+    display: inline-flex;
+}
+
+
+.labledBox.labledBox_top{
+    flex-direction: column;
+}
+
+.labledBox.labledBox_left{
+    flex-direction: row;
+}
+
+.labledBox.labledBox_bottom{
+    flex-direction: column-reverse;
+}
+
+.labledBox.labledBox_right{
+    flex-direction: row-reverse;
+}
+
+
+.labledBox_label{
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+
+.innerLbl{
+    color:var(--root-dark);
+    font-weight: bold;
+    font-size: .9em;
+    /*line-height: 24px;*/
+}
+
+
+
+
 
 
 .innerLblWrapperlabelContainer{
@@ -5664,6 +5707,7 @@ div[disabled='true'], div[disabled='disabled']{
     align-items: flex-end;
     justify-content: space-between;
 }
+
 .innerLbl{
     color:var(--root-dark);
     font-weight: bold;

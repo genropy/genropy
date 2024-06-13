@@ -624,6 +624,130 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
 
 });
 
+dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        attributes.display = 'flex';
+        let wrap = objectPop(attributes,'wrap');
+        let direction = objectPop(attributes,'direction');
+        if(wrap){
+            attributes.flex_wrap = 'wrap';
+        }
+        if(direction){
+            attributes.flex_direction = direction;
+        }
+
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+
+    },
+    setDirection:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_direction = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    setWrap:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_wrap = value?'wrap':'nowrap';
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+});
+
+
+dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        attributes.display = 'grid';
+        savedAttrs.columns = objectPop(attributes,'columns');
+        let fitContent = objectPop(attributes,'fitContent');
+        let _class = attributes._class || ''
+        attributes._class = _class || ' gnrgridbox';
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
+
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        if(savedAttrs.columns){
+            this.setColumns(newobj,savedAttrs.columns)
+        }
+    },
+
+    setColumns:function(domNode,value,kw){
+        if(typeof(value)=='number' ||  /^\d+$/.test(value)){
+            value = `repeat(${parseInt(value)}, 1fr)`;
+        }
+        domNode.sourceNode.attr.grid_template_columns = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+});
+
+
+dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+
+    onBuilding:function(sourceNode){
+        let label = sourceNode.attr.label;
+        let side = sourceNode.attr.side;
+        var children = sourceNode.getValue();
+        let label_attr = objectExtract(sourceNode.attr,'label_*');
+        let box_l_kw = objectExtract(sourceNode.attr,'box_l_*');
+        let box_c_kw = objectExtract(sourceNode.attr,'box_c_*');
+
+        sourceNode.attr._class = 'labledBox labledBox_'+side;
+        
+        sourceNode._value = null;
+        
+        let helpcode = objectPop(sourceNode.attr,'helpcode');
+        let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
+        if (sourceNode.attr.moveable){
+            labelBoxAttr.id='handle_'+sourceNode.getStringId()
+            sourceNode.attr.moveable_handle=label_attr.id;
+        }
+        let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
+        labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
+        if(helpcode){
+            let helperValue = sourceNode.getHelperValue()
+            let emptyHelper = helperValue?'':' emptyhelper';
+            let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            labelBox._('lightbutton','helper',{_class:'helperbutton'+emptyHelper+helperEditor,
+                action:function(){
+                    sourceNode.onHelperClick();
+                },
+            },{'doTrigger':false});
+        }
+        let contentBox = sourceNode._('div',{_class:'labledBox_content',...box_c_kw},{'doTrigger':false});
+        children.forEach(function(childNode){
+            contentBox._(childNode.attr.tag,childNode.label,childNode.attr,{'doTrigger':false});
+        });
+
+    },
+    creating:function(attributes, sourceNode) {
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+
+    },
+});
+
 dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
     _default_ext : 'py,png,jpg,jpeg,gif,html,pdf',
 
