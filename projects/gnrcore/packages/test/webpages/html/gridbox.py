@@ -63,8 +63,6 @@ class GnrCustomWebPage(object):
         gb.textbox(value='^.email',lbl='Email',lbl_side=side,wrp_style='grid-column:span 2;')
         gb.radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',lbl='Genere',lbl_side=side)
         gb.checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance',lbl_side=side)
-
-        gb.labelBox('Pippo').textBox()
         bar = form.bottom.slotBar('*,confirm,5')
         bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
         pane.dataController("frm.newrecord();",
@@ -72,11 +70,47 @@ class GnrCustomWebPage(object):
             _onStart=True
         )
 
-    def test_4_labledBox(self,pane):
-        pane.labledBox(label='Pippo',side='top',helpcode='uuu',label_color='green',label_font_size='16px',
-                       box_l_background='orange',
-                       padding='10px',border='1px solid silver').textBox(value='^.pippo')
 
-        pane.labledBox(label='Pluto',side='top',
-                       padding='10px',border='1px solid green',
-                       moveable=True).simpleTextArea(value='^.paperino',height='200px',width='400px')
+    def test_4_gridboxformLabledBox(self,pane):
+
+        fb = pane.gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
+        fb.textBox(value='^.columns',default='3',lbl='Columns')
+        fb.filteringSelect(value='^.item_side',lbl='label Side',values='top,left,bottom,right')
+        fb.textbox(value='^.item_border',lbl='Item border')
+        fb.numberTextBox(value='^.item_rounded',lbl='Rounded')
+        fb.input(value='^.item_box_l_background',lbl='Top background',type='color')
+        fb.textbox(value='^.item_box_c_padding',lbl='Content Padding')
+        fb.textbox(value='^.item_fld_border',lbl='Field border')
+        fb.textbox(value='^.item_fld_background',lbl='Field background')
+
+
+
+        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        bc = form.center.borderContainer(datapath='.record')
+        bc.contentPane(region='right',splitter=True,width='150px')
+        gb = bc.contentPane(region='center').gridbox(columns='^#boxControllers.columns',gap='10px',margin='20px',
+                                                     item_border='^#boxControllers.item_border',
+                                                     item_side='^#boxControllers.item_side',
+                                                     item_rounded='^#boxControllers.item_rounded',
+                                                     item_fld_border='^#boxControllers.item_fld_border',
+                                                    item_fld_background='^#boxControllers.item_fld_background',
+                                                     item_box_l_background='^#boxControllers.item_box_l_background',
+                                                     item_box_c_padding='^#boxControllers.item_box_c_padding')
+        gb.labledBox('Nome',helpcode='bbb').textbox(value='^.nome',validate_notnull=True)
+        gb.labledBox('Cognome',helpcode='aaa').textbox(value='^.cognome',validate_notnull=True)
+        gb.labledBox('Genere',rowspan=2).radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',cols=1)
+
+        gb.labledBox('Essendo Nato il').dateTextBox(value='^.nato_il')
+        gb.labledBox('Pr.Nascita').dbSelect(value='^.provincia_nascita',table='glbl.provincia',
+                        hasDownArrow=True)
+        gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
+
+        gb.labledBox('Email',colspan=2).textbox(value='^.email')
+
+        bar = form.bottom.slotBar('*,confirm,5')
+        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
+        pane.dataController("frm.newrecord();",
+            frm=form.js_form,
+            _onStart=True
+        )
+

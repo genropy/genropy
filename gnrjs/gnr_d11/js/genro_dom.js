@@ -29,12 +29,12 @@ dojo.declare("gnr.GnrDomHandler", null, {
     constructor: function(application) {
         this.application = application;
         this.pendingHeaders = {};
-        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter'];
+        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter',];
         this.styleAttrNames = ['height', 'width','top','left', 'right', 'bottom', 'resize',
             'visibility','opacity', 'overflow', 'float', 'clear', 'display','line_height',
             'z_index', 'border','position','padding','margin','cursor',
             'color','white_space','vertical_align','background','font','text','gap','row_gap','column_gap',
-            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items',
+            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items'
         ].concat(this.css3AttrNames);
         
     },

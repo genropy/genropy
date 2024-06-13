@@ -98,7 +98,7 @@ class GnrCustomWebPage(object):
         r = t.tr()
         r.td(colspan=2).textbox(value='^.email',lbl='Email',width='30em',lbl_side=side)
         r = t.tr()
-        r.td().radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',lbl='Genere',lbl_side=side)
+        r.td().labledbox(side=side,label='Genere').radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro')
         r.td().checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance',lbl_side=side)
         bar = form.bottom.slotBar('*,confirm,5')
         bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
@@ -116,7 +116,7 @@ class GnrCustomWebPage(object):
         bc.contentPane(region='right',splitter=True,width='150px')
         r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;',margin='5px')
         side = 'top'
-        r.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True,helpcode='nome')
+        r.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True,sss=33) #helpcode='nome'
         r.textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
         r.dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
         r.dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',

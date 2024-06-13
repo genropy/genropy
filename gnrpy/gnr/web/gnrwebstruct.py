@@ -622,6 +622,9 @@ class GnrDomSrc(GnrStructData):
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items
                           ,**kwargs)
+    
+    def labledbox(self,label=None,**kwargs):
+        return self.child('labledbox',label=label,**kwargs)
 
 
     def htmlform(self,childcontent=None,**kwargs):

@@ -5653,154 +5653,10 @@ div[disabled='true'], div[disabled='disabled']{
 .slotbar_cell .innerLbl{
     display: none;
 }
-.tundra .gnrgridbox .dijitTextBox,.tundra .gnrgridbox .dijitComboBox,.tundra .gnrgridbox .dijitSpinner{
-    width:unset;
-}
 
 .showInnerLabel .slotbar_cell .innerLbl{
     display: block;
 }
-
-
-.labledBox{
-    display: inline-flex;
-}
-
-
-.labledBox.labledBox_top{
-    flex-direction: column;
-}
-
-.labledBox.labledBox_left{
-    flex-direction: row;
-}
-
-.labledBox.labledBox_bottom{
-    flex-direction: column-reverse;
-}
-
-.labledBox.labledBox_right{
-    flex-direction: row-reverse;
-}
-
-
-.labledBox_label{
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-}
-
-.innerLbl{
-    color:var(--root-dark);
-    font-weight: bold;
-    font-size: .9em;
-    /*line-height: 24px;*/
-}
-
-
-
-
-
-
-.innerLblWrapperlabelContainer{
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-}
-
-.innerLbl{
-    color:var(--root-dark);
-    font-weight: bold;
-    font-size: .9em;
-    /*line-height: 24px;*/
-}
-.innerLblWrapper_error .innerLbl{
-}
-
-.tundra .innerLblWrapper .dijitError{
-    background: white;
-}
-
-.innerLbl_top .innerLbl,.innerLbl_bottom .innerLbl{
-    padding-left: 2px;
-}
-
-.innerLbl_left .innerLbl{
-
-}
-
-
-
-.innerLbl_bottom .innerLbl{
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    padding-left: 5px;
-    padding-right: 5px;
-
-}
-
-.innerLbl_top .innerLbl{
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-    padding-left: 5px;
-    padding-right: 5px;
-}
-
-.innerLblWrapper{
-    display: inline-flex;
-    /*border:1px solid silver;*/
-    border-radius: 4px;
-}
-
-.innerLbl_top.innerLblWrapper{
-    flex-direction: column;
-}
-.innerLbl_bottom.innerLblWrapper{
-    flex-direction: column-reverse;
-}
-
-.innerLbl_left.innerLblWrapper{
-    flex-direction: row;
-    align-items: center;
-}
-.innerLbl_right.innerLblWrapper{
-    flex-direction: row-reverse;
-    align-items: center;
-}
-
-
-
-.innerLblWrapper.innerLblWrapper_widget_simpletextarea{
-    border-width: 0;
-}
-
-
-.tundra .innerLblWrapper .dijitTextBox, 
-.tundra .innerLblWrapper .dijitComboBox, 
-.tundra .innerLblWrapper .dijitSpinner, 
-.tundra .innerLblWrapper .dijitInlineEditor input,
-.tundra .innerLblWrapper .dijitTextArea, 
-.tundra .innerLblWrapper .gnrcheckbox_wrapper{
-    border-width: 0;
-    background: #f5f5f5;
-    padding-right: 5px;
-    font-size: 1.1em;
-    line-height: 1.5;
-    padding-left: 4px;
-    margin: 2px 4px 4px 4px;
-}
-
-
-.tundra .innerLblWrapper .dijitError.dijitTextBox, 
-.tundra .innerLblWrapper .dijitError.dijitComboBox, 
-.tundra .innerLblWrapper .dijitError.dijitSpinner, 
-.tundra .innerLblWrapper .dijitError.dijitInlineEditor input,
-.tundra .innerLblWrapper .dijitError.dijitTextArea, 
-.tundra .innerLblWrapper .dijitError.gnrcheckbox_wrapper{
-    background: #ffe0e0;
-}
-
-
 
 .grid_gallery_grid .dojoxGrid-scrollbox{
     margin-left: 5px;
@@ -6532,3 +6388,111 @@ div[disabled='true'], div[disabled='disabled']{
     margin-top:0;
     margin-bottom: 20px;
 }
+
+
+
+
+/*labledbox  start*/
+
+
+.labledBox{
+    display: inline-flex;
+}
+.labledBoxBordered.labledBox, .labledBoxBordered .labledBox{
+    border:1px solid silver;
+    border-radius: 3px;
+}
+.labledBox, .labledBox.labledBox_top, .labledBoxes_top .labledBox{
+    flex-direction: column;
+}
+
+.labledBox.labledBox_left, .labledBoxes_left .labledBox{
+    flex-direction: row;
+    align-items:center;
+}
+
+.labledBox.labledBox_bottom, .labledBoxes_bottom .labledBox{
+    flex-direction: column-reverse;
+}
+
+.labledBox.labledBox_right, .labledBoxes_right .labledBox{
+    flex-direction: row-reverse;
+    align-items:center;
+}
+
+.labledBox_content{
+    display: flex;
+    align-items: stretch;
+    flex:1;
+}
+
+.labledBox_content > *{
+    flex:1;
+}
+
+.labledBox_label{
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+
+
+.labledBoxClean .labledBox_title, .labledBoxInputBorderless .labledBox_title{
+    color:var(--root-dark);
+    font-weight: bold;
+    font-size: .9em;
+}
+
+.labledBoxInputBorderless .labledBox_title{
+    margin-left:6px;
+}
+
+
+.tundra .labledBoxInputBorderless .dijitTextBox, 
+.tundra .labledBoxInputBorderless .dijitComboBox, 
+.tundra .labledBoxInputBorderless .dijitSpinner, 
+.tundra .labledBoxInputBorderless .dijitInlineEditor input,
+.tundra .labledBoxInputBorderless .dijitTextArea, 
+.tundra .labledBoxInputBorderless .gnrcheckbox_wrapper,
+
+.tundra .labledBoxBordered .dijitTextBox, 
+.tundra .labledBoxBordered .dijitComboBox, 
+.tundra .labledBoxBordered .dijitSpinner, 
+.tundra .labledBoxBordered .dijitInlineEditor input,
+.tundra .labledBoxBordered .dijitTextArea, 
+.tundra .labledBoxBordered .gnrcheckbox_wrapper{
+    border-width: 0;
+    background: #f5f5f5;
+    padding-right: 5px;
+    font-size: 1.1em;
+    line-height: 1.5;
+    padding-left: 4px;
+    margin: 2px 4px 4px 4px;
+}
+
+
+.tundra .labledBoxInputBorderless .dijitError.dijitTextBox, 
+.tundra .labledBoxInputBorderless .dijitError.dijitComboBox, 
+.tundra .labledBoxInputBorderless .dijitError.dijitSpinner, 
+.tundra .labledBoxInputBorderless .dijitError.dijitInlineEditor input,
+.tundra .labledBoxInputBorderless .dijitError.dijitTextArea, 
+.tundra .labledBoxInputBorderless .dijitError.gnrcheckbox_wrapper,
+
+.tundra .labledBoxBordered .dijitError.dijitTextBox, 
+.tundra .labledBoxBordered .dijitError.dijitComboBox, 
+.tundra .labledBoxBordered .dijitError.dijitSpinner, 
+.tundra .labledBoxBordered .dijitError.dijitInlineEditor input,
+.tundra .labledBoxBordered .dijitError.dijitTextArea, 
+.tundra .labledBoxBordered .dijitError.gnrcheckbox_wrapper{
+    background: #ffe0e0;
+}
+
+.gnrgridbox{
+    align-items: flex-start;
+}
+.tundra .gnrgridbox .dijitTextBox,.tundra .gnrgridbox .dijitComboBox,.tundra .gnrgridbox .dijitSpinner{
+    width:unset;
+}
+
+
+/*labledbox  end*/
