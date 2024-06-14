@@ -141,9 +141,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         if(sourceNode.getParentNode() && sourceNode.getParentNode().widget && sourceNode.getParentNode().widget.gnr.onChildBuilding){
             return sourceNode.getParentNode().widget.gnr.onChildBuilding(sourceNode.getParentNode(),sourceNode);
         }
-
         var lbl = objectPop(sourceNode.attr,'lbl');
-
         if(lbl){
             let inherited_attr = sourceNode.getInheritedAttributes();
             let label_attr = {};
@@ -158,18 +156,22 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             label_attr.label = lbl;
             objectExtract(attr,'lbl_*');
             objectExtract(attr,'wrp_*');
+            let box_l_kw = objectExtract(attr,'box_l_*',null,true);
+            let box_c_kw = objectExtract(attr,'box_c_*',null,true);
+            let box_kw = objectExtract(attr,'box_*');
             wrp_attr.side = side;
             let tag = objectPop(attr,'tag');
             let children = sourceNode.getValue();
             sourceNode._value = null;
             wrp_attr.tag = 'labledbox'
-            sourceNode.attr = {...wrp_attr,...label_attr};
+            let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+            sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+            sourceNode.label = 'labled_'+sourceNode.label;
             let contentNode = sourceNode._(tag,attr,{doTrigger:false});
-            children.forEach(function(n){
-                contentNode._(n.attr.tag,n.label,n.attr,{doTrigger:false});
-            });
+            for(let childNode of children.getNodes()){
+                contentNode.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
+            }
             genro.wdg.getHandler(sourceNode.attr.tag).onBuilding(sourceNode);
-
         }
         else{
             this.onBuilding(sourceNode);
@@ -652,28 +654,18 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         this._domtag ='div';
     },
 
-    adaptChild:function(childNode){
-        let kw = objectExtract(childNode.attr,'rowspan,colspan');
-        if(kw.colspan){
-            childNode.attr.grid_column = `span ${kw.colspan}`;
-        }
-        if(kw.rowspan){
-            childNode.attr.grid_row = `span ${kw.rowspan}`;
-        }
-    },
 
     onBuilding:function(sourceNode){
-        let items_attr = objectExtract(sourceNode.attr,'item_*');
+        sourceNode.attr.nodeId = sourceNode.attr.nodeId || `gridbox_${genro.time36Id()}`;
+        sourceNode.attr._workspace = true;
+        sourceNode.attr.items = sourceNode.attr.items || '^#WORKSPACE.items';
+        sourceNode.attr._items_attr = objectExtract(sourceNode.attr,'item_*');
         let children = sourceNode.getValue();
-        var that = this;
-        children.forEach(function(n){
-            for(let k in items_attr){
-                n.attr[k] = isNullOrBlank(n.attr[k])?items_attr[k]:n.attr[k]
-            }
-            that.adaptChild(n);
-        });
+        sourceNode._value = null;
+        if(children){
+            genro.setData(sourceNode.absDatapath(sourceNode.attr.items),children.deepCopy(),null,{doTrigger:false});
+        }
     },
-
 
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
@@ -691,7 +683,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
             attributes.right = margin;
 
         }
-
         return savedAttrs;
     },
 
@@ -699,6 +690,7 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(savedAttrs.columns){
             this.setColumns(newobj,savedAttrs.columns)
         }
+        this.setItems(newobj);
     },
 
     setColumns:function(domNode,value,kw){
@@ -707,6 +699,63 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         }
         domNode.sourceNode.attr.grid_template_columns = value;
         genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    adaptChild:function(childNode){
+        let kw = objectExtract(childNode.attr,'rowspan,colspan');
+        if(kw.colspan){
+            childNode.attr.grid_column = `span ${kw.colspan}`;
+        }
+        if(kw.rowspan){
+            childNode.attr.grid_row = `span ${kw.rowspan}`;
+        }
+        childNode.attr._itemId = childNode.attr._itemId || `item_${genro.time36Id()}`;
+
+    },
+
+    setItems:function(domNode,value,kw){
+        var sourceNode = domNode.sourceNode;
+        let children = sourceNode.getAttributeFromDatasource('items');
+        var items_attr = sourceNode.attr._items_attr;
+        var that = this;
+        let trigger_kw = kw || {};
+        if(trigger_kw.evt == 'upd' && trigger_kw.node){
+            let itemNode = trigger_kw.node.attributeOwnerNode('_itemId');
+            this.insertItem(sourceNode,itemNode);
+        }else if(trigger_kw.evt=='del' && trigger_kw.node){
+            if(trigger_kw.node.attr._itemId){
+                this.deleteItem(sourceNode,trigger_kw.node);
+            }else{
+                let itemNode = kw.node.attributeOwnerNode('_itemId');
+                this.insertItem(sourceNode,itemNode);
+            }
+        }
+        if(children && children.len()){
+            if(kw===undefined){
+                children.forEach(function(item){
+                    for(let k in items_attr){
+                        item.attr[k] = isNullOrBlank(item.attr[k])?items_attr[k]:item.attr[k]
+                    }
+                    that.insertItem(sourceNode,item,{doTrigger:false});
+                });
+                
+            }
+        }
+    },
+
+    insertItem:function(sourceNode,item,triggerkw){
+        this.adaptChild(item);
+        let attr = {...item.attr};
+        let itemId = objectPop(attr,'_itemId');
+        let itemValue = item.getValue();
+        itemValue = itemValue?itemValue.deepCopy():null;
+        genro.src.getSource().setItem(sourceNode.getFullpath(null,true)+'.'+itemId,itemValue,attr,triggerkw);
+    },
+
+    deleteItem:function(sourceNode,item,triggerkw){
+        var srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        triggerkw = triggerkw || {};
+        srcBag.popNode(item.attr._itemId,triggerkw.doTrigger);
     }
 
 });
@@ -759,7 +808,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             for(let k in fld_kw){
                 childNodeAttr[k] = isNullOrBlank(childNodeAttr[k])?fld_kw[k]:childNodeAttr[k];
             }
-            contentBox._(childNode.attr.tag,childNode.label,childNodeAttr,{'doTrigger':false});
+            contentBox.addItem(childNode.label,childNode.getValue(),childNodeAttr,{doTrigger:false});
         });
 
     },
