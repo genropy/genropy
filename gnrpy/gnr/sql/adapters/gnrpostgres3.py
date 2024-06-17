@@ -177,7 +177,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         command = 'DROP TABLE IF EXISTS %s;'
         if cascade:
             command = 'DROP TABLE %s CASCADE;'
-        tablename = dbtable if isinstance(dbtable,basestring) else dbtable.model.sqlfullname
+        tablename = dbtable if isinstance(dbtable,str) else dbtable.model.sqlfullname
         self.dbroot.execute(command % tablename)
 
     def dump(self, filename,dbname=None,excluded_schemas=None, options=None,**kwargs):

@@ -715,7 +715,7 @@ class SqlQueryCompiler(object):
         colPars = {}
         joindict = {}
         virtual_columns = virtual_columns or []
-        if isinstance(virtual_columns, basestring):
+        if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         for fieldname, value, attrs in self.relations.digest('#k,#v,#a'):
             xattrs = dict([(k, v) for k, v in list(attrs.items()) if not k in ['tag', 'comment', 'table', 'pkg']])
