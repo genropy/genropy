@@ -303,10 +303,9 @@ class FrameIndex(BaseComponent):
             "dlg.hide()",
             dlg=dlg.js_widget
         )
-        rms = getRmsOptions()
+        rms = getRmsOptions() or {}
         customer_code = rms.get('customer_code') or 'UNLICENSED'
         pod_number = rms.get('code') or '-'
-
         box = dlg.div(padding='10px')
         top = box.div(style='display: flex;align-items: center;justify-content: space-evenly;')
         top.div("Created in Genropy",font_weight='bold')
