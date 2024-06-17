@@ -3,13 +3,12 @@
 # test_special_action.py
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2011 Softwell. All rights reserved.
-from gnr.web.batch.btcbase import BaseResourceBatch
-from gnr.app.gnrlocalization import AppLocalizer
-from gnr.core.gnrbag import Bag
+
 from json import dumps
 from datetime import datetime
 import re
 import sys
+import time
 
 if sys.version_info[0] == 3:
     from urllib.request import urlopen
@@ -18,6 +17,12 @@ else:
     # But note that this might need an update when Python 4
     # might be around one day
     from urllib import urlopen
+
+import boto3
+
+from gnr.web.batch.btcbase import BaseResourceBatch
+from gnr.app.gnrlocalization import AppLocalizer
+from gnr.core.gnrbag import Bag
 
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
@@ -328,7 +333,7 @@ class Main(BaseResourceBatch):
         return '\n%s\n%s\n\n\n   %s' % (".. toctree::", '\n'.join(toc_options),'\n   '.join(elements))
 
     def invalidateCloudfrontCache(self):
-        import boto3, time
+
         client = boto3.client('cloudfront')
         response = client.create_invalidation(
                     DistributionId=self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'),

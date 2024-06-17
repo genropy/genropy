@@ -11,5 +11,15 @@ class Table(object):
         tbl.column('headline', name_long='!!Headline')
         tbl.column('abstract', name_long='!!Abstract')
         tbl.column('text', name_long='!!Text')
-        tbl.column('html', name_long='!!Html')
+        tbl.column('html', name_long='!!HTML')
+
         tbl.column('tplbag', dtype='X', name_long='!!Template')
+
+    def trigger_onInserted(self, record):
+        self.db.table('docu.content_history').makeNewVersionFromContent(record)
+
+    def trigger_onUpdated(self, record, old_record=None):
+        if self.fieldsChanged('text', record, old_record):
+            self.db.table('docu.content_history').makeNewVersionFromContent(record)
+
+    

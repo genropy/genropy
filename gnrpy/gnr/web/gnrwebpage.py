@@ -1158,6 +1158,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
+        self.getSentryJs(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
@@ -1245,6 +1246,18 @@ class GnrWebPage(GnrBaseWebPage):
         if google_fonts:
             arg_dict['google_fonts'] = google_fonts
         return arg_dict
+
+    def getSentryJs(self, arg_dict):
+        if self.site.config['sentry?js']:
+            arg_dict['sentryjs'] = self.site.config['sentry?js']
+            for ck in ['sample_rate', 'traces_sample_rate', 'profiles_sample_rate',
+                       'replays_session_sample_rate', 'replays_on_error_sample_rate']:
+                cv = self.site.config.get(f"sentry?{ck}")
+                if cv is None:
+                    cv = "0.0"
+                arg_dict[f'sentry_{ck}'] = cv
+        return arg_dict
+
 
     def mtimeurl(self, *args):
         """TODO"""
@@ -2612,7 +2625,8 @@ class GnrWebPage(GnrBaseWebPage):
                 rec[field] = f'{dest_stn.format(**rec.asDict())}.{uploadedSn.ext}'
             dest_stn = rec[field]
             self.setInClientRecord(tblobj=tblobj,record=rec,fields=field,silent=True)
-
+        else:
+            dest_stn = f'{dest_stn}.{uploadedSn.ext}'
         uploadedSn.move(dest_stn)
         if dest_fld:
             self.db.commit()

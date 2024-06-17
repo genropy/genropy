@@ -34,10 +34,13 @@ import re
 import smtplib
 import time
 import glob
+import subprocess
+from collections import defaultdict
+import pkg_resources
 from email.mime.text import MIMEText
+
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
-#from gnr.app.gnrconfig import MenuStruct
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
@@ -102,27 +105,23 @@ class ApplicationCache(object):
         return key not in self.cache
 
 
-class GnrModuleFinder(object):
+class GnrModuleFinder:
     """TODO"""
     
     path_list=[]
     app_list=set()
     instance_lib = None
-    def __init__(self, path_entry, app):
-        self.path_entry = path_entry
+    def __init__(self, app):
         self.app = app
         if app not in self.app_list:
             self.app_list.add(app)
         if self.instance_lib is None:
             self.instance_lib = os.path.join(app.instanceFolder, 'lib')
-        if not path_entry==self.instance_lib and not path_entry in self.path_list:
-            raise ImportError
-        return
 
     def __str__(self):
-        return '<%s for "%s">' % (self.__class__.__name__, self.path_entry)
+        return f"<{self.__class__.__name__}>"
 
-    def find_spec(self, fullname, target=None):
+    def find_spec(self, fullname, path, target=None):
         splitted=fullname.split('.')
         if splitted[0] != 'gnrpkg':
             return
@@ -450,15 +449,6 @@ class GnrPackage(object):
     def language(self):
         return self.attributes.get('language') or self.projectInfo['project?language']
 
-   #def pkgMenu(self,branchMethod=None,**kwargs):
-   #    pkgMenu = MenuStruct(os.path.join(self.packageFolder, 'menu'),
-   #                            config_method=branchMethod, 
-   #                            application=self.application,autoconvert=True,
-   #                            **kwargs)
-   #    for pluginname,plugin in list(self.plugins.items()):
-   #        pkgMenu.update(plugin.menuBag)
-   #    return pkgMenu
-
     @property
     def db(self):
         return self.application.db
@@ -655,8 +645,7 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
-        sys.path.append(os.path.join(self.instanceFolder, 'lib'))
-        sys.path_hooks.append(self.get_modulefinder)
+        sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
         self.packages = Bag()
@@ -695,14 +684,10 @@ class GnrApp(object):
         self.init(forTesting=forTesting,restorepath=restorepath)
         self.creationTime = time.time()
 
-    def get_modulefinder(self, path_entry):
+    def get_modulefinder(self):
         """TODO"""
-        return GnrModuleFinder(path_entry,self)
+        return GnrModuleFinder(self)
         
-   #def load_instance_menu(self):
-   #    """TODO"""
-   #    return MenuStruct(os.path.join(self.instanceFolder, 'menu'),application=self,autoconvert=True)
-
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
@@ -771,11 +756,16 @@ class GnrApp(object):
                 shutil.rmtree(tempdir)
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-        
+
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
 
+        
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
             self.db.packageMixin('%s' % (pkgid), apppkg.pkgMixin)
@@ -816,7 +806,48 @@ class GnrApp(object):
             self.addPackage(reqpkgid)
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
-    
+
+    def check_package_dependencies(self):
+        log.info("Checking python dependencies")
+        instance_deps = defaultdict(list)
+        for a, p in self.packages.items():
+            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+            if os.path.isfile(requirements_file):
+                with open(requirements_file) as fp:
+                    for line in fp:
+                        dep_name = line.strip()
+                        if dep_name:
+                            instance_deps[dep_name].append(a)
+        self.instance_packages_dependencies = instance_deps
+
+        if not 'checkdepcli' in self.kwargs:
+            missing, wrong = self.check_package_missing_dependencies()
+            if missing:
+                log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
+            if wrong:
+                log.error(f"ERROR: wrong dependecies:")
+                for requested, installed in wrong:
+                    log.error(f"{requested} is requested, but {installed} found")
+            
+    def check_package_missing_dependencies(self):
+        missing = []
+        wrong = []
+        for name in self.instance_packages_dependencies:
+            if name:
+                try:
+                    pkg_resources.get_distribution(name)
+                except pkg_resources.DistributionNotFound:
+                    missing.append(name)
+                except pkg_resources.VersionConflict as e:
+                    wrong.append((e.req, e.dist))
+                except Exception as e:
+                    log.error(f"ERROR on {name}: {e}")
+        return missing, wrong
+
+    def check_package_install_missing(self):
+        missing, wrong = self.check_package_missing_dependencies()
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
         if ':' in source_instance:
@@ -972,7 +1003,7 @@ class GnrApp(object):
 
     @property
     def locale(self):
-        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getdefaultlocale()[0]
+        found_locale = self.config_locale or os.environ.get('GNR_LOCALE') or locale.getlocale()[0]
         if not found_locale:
             locale.setlocale(locale.LC_ALL, "")
             found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
@@ -1367,7 +1398,7 @@ class GnrApp(object):
             externaldb.importModelFromDb()
             externaldb.model.build()
             setattr(self,'legacy_db_%s' %name,externaldb)
-            print('got externaldb',name)
+            log.info('got externaldb',name)
         return externaldb
 
     def importFromLegacyDb(self,packages=None,legacy_db=None,thermo_wrapper=None,thermo_wrapper_kwargs=None, intermediate_commits=False):
@@ -1396,7 +1427,7 @@ class GnrApp(object):
         if not legacy_db:
             return
         if destbl.query().count():
-            print('do not import again',tbl)
+            log.info('do not import again',tbl)
             return
         
    
@@ -1418,7 +1449,7 @@ class GnrApp(object):
         try:
             oldtbl = sourcedb.table(table_legacy_name)
         except Exception:
-            print('missing table in legacy',table_legacy_name)
+            log.error('missing table in legacy',table_legacy_name)
         if not oldtbl:
             return
         q = oldtbl.query(columns=columns,addPkeyColumn=False,bagFields=True)
@@ -1441,7 +1472,7 @@ class GnrApp(object):
             if rows:
                 destbl.insertMany(rows)
         sourcedb.closeConnection()
-        print('imported',tbl)
+        log.info('imported',tbl)
 
     def getAuxInstance(self, name=None,check=False):
         """TODO

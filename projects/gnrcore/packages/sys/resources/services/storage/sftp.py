@@ -2,20 +2,11 @@
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-
-from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
-from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import GnrException
+import hashlib
 from collections import defaultdict
 import _thread
 from threading import RLock
 #from gnr.core.gnrlang import componentFactory
-try: 
-    import paramiko
-except ImportError:
-    paramiko = False
 import stat
 import os
 import tempfile
@@ -24,6 +15,18 @@ from datetime import datetime
 from paste import fileapp
 from paste.httpheaders import ETAG
 import warnings
+
+try: 
+    import paramiko
+except ImportError:
+    paramiko = False
+
+from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
+from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import GnrException
+
 warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
 
@@ -121,7 +124,6 @@ class Service(StorageService):
 
 
     def md5hash(self,*args):
-        import hashlib
         BLOCKSIZE = 65536
         hasher = hashlib.new('md5', usedforsecurity=False)
         with self.open(*args, mode='rb') as afile:

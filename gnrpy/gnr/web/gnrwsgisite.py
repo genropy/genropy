@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import io
 import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
@@ -8,10 +9,10 @@ import httplib2
 import _thread
 import mimetypes
 import pickle
+import functools
 from time import time
 from collections import defaultdict
 from threading import RLock
-import pdb
 import warnings
 
 from werkzeug.wrappers import Request, Response
@@ -186,7 +187,8 @@ class GnrWsgiSite(object):
     def __call__(self, environ, start_response):
         return self.wsgiapp(environ, start_response)
 
-    def __init__(self, script_path, site_name=None, _config=None, _gnrconfig=None, counter=None, noclean=None,
+    def __init__(self, script_path, site_name=None, _config=None,
+                 _gnrconfig=None, counter=None, noclean=None,
                  options=None, tornado=None, websockets=None):
         global GNRSITE
         GNRSITE = self
@@ -262,6 +264,12 @@ class GnrWsgiSite(object):
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
         self.page_factory_lock = RLock()
         self.webtools = self.resource_loader.find_webtools()
+        self.webtools_static_routes = {}
+        for tool_name, tool_impl in self.webtools.items():
+            alias_url = getattr(tool_impl.__call__, "alias_url", None)
+            if alias_url:
+                self.webtools_static_routes[alias_url] = tool_name
+            
         self.register
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
@@ -867,30 +875,48 @@ class GnrWsgiSite(object):
             return result
         return self.config.getAttr('pwa')
 
-    def _dispatcher(self, environ, start_response):
-        """Main :ref:`wsgi` dispatcher, calls serve_staticfile for static files and
-        self.createWebpage for :ref:`gnrcustomwebpage`
+    @functools.lru_cache
+    def lookup_webtools_static_route(self, request_path):
+        return self.webtools_static_routes.get(request_path, None)
 
+    def _dispatcher(self, environ, start_response):
+        """Main :ref:`wsgi` dispatcher, serve static files and
+        self.createWebpage for :ref:`gnrcustomwebpage`
         :param environ: TODO
         :param start_response: TODO"""
+        
         self.currentPage = None
         t = time()
         request = self.currentRequest
         response = Response()
+
+        # default mime type
         response.mimetype = 'text/html'
+        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
+        
         # Url parsing start
         path_list = self.get_path_list(request.path)
         # path_list is never empty
         expiredConnections = self.register.cleanup()
         if expiredConnections:
             self.connectionLog('close',expiredConnections)
+
+        # lookup webtools static routes
+        webtool_static_route_handler = self.lookup_webtools_static_route(request.path)
+        if webtool_static_route_handler:
+            return self.serve_tool(['_tools', webtool_static_route_handler], environ, start_response, **request_kwargs)
+            
+        # can this be moved?
         if path_list == ['favicon.ico']:
             path_list = ['_site', 'favicon.ico']
             self.log_print('', code='FAVICON')
+
+        # can this be moved?
         if path_list == ['_pwa_worker.js']:
             path_list = ['_rsrc','common', 'pwa','worker.js']
             # return response(environ, start_response)
-        request_kwargs = self.parse_kwargs(self.parse_request_params(request))
+        
+
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')
         user_agent = request.user_agent.string or ''
         isMobile = len(IS_MOBILE.findall(user_agent))>0
@@ -908,6 +934,7 @@ class GnrWsgiSite(object):
         path_list = path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]
+        # this can be moved.
         if first_segment == '_ping':
             try:
                 self.log_print('kwargs: %s' % str(request_kwargs), code='PING')
@@ -921,6 +948,8 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+
+        # this can be moved
         if first_segment == '_pwa_manifest.json':
             try:
                 result = self.serve_manifest(response, environ, start_response, **request_kwargs)
@@ -980,7 +1009,7 @@ class GnrWsgiSite(object):
                     if content_type:
                         page.response.content_type = content_type
                     page.response.add_header("Content-Disposition", str("attachment; filename=%s" %download_name))
-                import io
+
                 try:
                     file_types = file, io.IOBase
                 except NameError:
@@ -1185,9 +1214,9 @@ class GnrWsgiSite(object):
         if '%%s' in message:
             message = message % self.request_url(environ)
         exc = HTTPPreconditionFailed(message,
-                                                    comment='SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
-                                                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
-                                                       debug_message or '(none)'))
+                                     comment='SCRIPT_NAME=%r; PATH_INFO=%r; debug: %s'
+                                     % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO'),
+                                        debug_message or '(none)'))
         return exc(environ, start_response)
 
     def client_exception(self, message, environ):
@@ -1197,8 +1226,8 @@ class GnrWsgiSite(object):
         :param environ: TODO"""
         message = 'ERROR REASON : %s' % message
         exc = HTTPClientError(message,
-                                             comment='SCRIPT_NAME=%r; PATH_INFO=%r'
-                                             % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+                              comment='SCRIPT_NAME=%r; PATH_INFO=%r'
+                              % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
         return exc
 
     def build_wsgiapp(self, options=None):
@@ -1206,7 +1235,6 @@ class GnrWsgiSite(object):
         wsgiapp = self.dispatcher
         self.error_smtp_kwargs = None
         profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        gzip = boolean(options.gzip) if options else boolean(self.config['wsgi?gzip'])
         if profile:
             try:
                 from repoze.profile.profiler import AccumulatingProfileMiddleware
@@ -1221,27 +1249,19 @@ class GnrWsgiSite(object):
                    flush_at_shutdown=True,
                    path='/__profile__'
                   )
-
-        if self.debug:
-            pass
-            #wsgiapp = SafeEvalException(wsgiapp, debug=True)
-        else:
-            err_kwargs = dict(debug=True)
-            if 'debug_email' in self.config:
-                error_smtp_kwargs = self.config.getAttr('debug_email')
-                if error_smtp_kwargs.get('smtp_password'):
-                    error_smtp_kwargs['smtp_password'] = error_smtp_kwargs['smtp_password'].encode('utf-8')
-                if error_smtp_kwargs.get('smtp_username'):
-                    error_smtp_kwargs['smtp_username'] = error_smtp_kwargs['smtp_username'].encode('utf-8')
-                if 'error_subject_prefix' not in error_smtp_kwargs:
-                    error_smtp_kwargs['error_subject_prefix'] = '[%s] ' % self.site_name
-                error_smtp_kwargs['error_email'] = error_smtp_kwargs['error_email'].replace(';', ',').split(',')
-                if 'smtp_use_tls' in error_smtp_kwargs:
-                    error_smtp_kwargs['smtp_use_tls'] = (error_smtp_kwargs['smtp_use_tls'] in (True, 'true', 't', 'True', '1', 'TRUE'))
-                self.error_smtp_kwargs = dict(error_smtp_kwargs)
-                self.error_smtp_kwargs['error_email_from'] = self.error_smtp_kwargs.pop('from_address')
-                err_kwargs.update(error_smtp_kwargs)
-                #wsgiapp = ErrorMiddleware(wsgiapp, **err_kwargs)
+        if 'sentry' in self.config:
+            try:
+                import sentry_sdk
+                from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
+                from sentry_sdk import set_tags
+                set_tags({"genropy_instance": self.site_name})
+                sentry_sdk.init(
+                    dsn=self.config['sentry?pydsn'],
+                    traces_sample_rate=float(self.config['sentry?traces_sample_rate']) if self.config['sentry?traces_sample_rate'] else 1.0,
+                    profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
+                wsgiapp = SentryWsgiMiddleware(wsgiapp)
+            except Exception as e:
+                log.error(f"Sentry support has been disabled due to configuration errors: {e}")
         return wsgiapp
 
     def build_gnrapp(self, options=None):
@@ -1252,7 +1272,6 @@ class GnrWsgiSite(object):
         if not os.path.isdir(instance_path):
             instance_path = self.config['instance?path'] or self.config['instances.#0?path']
         self.instance_path = instance_path
-        #restorepath = self.option_restore
         restorepath = options.restore if options else None
         restorefiles=[]
  #      if restorepath:

@@ -1,16 +1,19 @@
 # encoding: utf-8
 
-from smtplib import SMTPException,SMTPConnectError
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import templateReplace
-from gnr.core.gnrstring import slugify
+
 import re
 import os
 import email
 import base64
 from datetime import datetime
+from smtplib import SMTPException,SMTPConnectError
+from mailparser import parse_from_bytes
 
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import templateReplace
+from gnr.core.gnrstring import slugify
+from gnr.core.gnrlang import gnrImport
 
 EMAIL_PATTERN = re.compile(r'([\w\-\.]+@(\w[\w\-]+\.)+[\w\-]+)')
 
@@ -112,8 +115,6 @@ class Table(object):
            
     @public_method
     def receive_imap(self, page=None, account=None, remote_mailbox='Inbox', local_mailbox='Inbox'):
-        from gnr.core.gnrlang import gnrImport
-        import os
         imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap.py'),
             silent=False,avoid_module_cache=True)
         imap_module = gnrImport(os.path.join(self.db.application.packages['email'].packageFolder,'lib','imap'))
@@ -132,7 +133,7 @@ class Table(object):
         return
     
     def newReceivedMessage(self, email_bytes, email_id=None, account_id=None, mailbox_id=None):
-        from mailparser import parse_from_bytes
+
         new_mail = self.newrecord(assignId=True, 
             account_id=account_id, mailbox_id=mailbox_id, in_out='I')
         mail = parse_from_bytes(email_bytes)

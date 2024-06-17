@@ -2,11 +2,12 @@
 
 """replab_2_graphics_and_text"""
 
-
-from reportlab.pdfgen import canvas
-from gnr.core.gnrdecorator import public_method
 from io import BytesIO
 
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+
+from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull, gnrcomponents/source_viewer/source_viewer:SourceViewer"
@@ -46,7 +47,7 @@ class GnrCustomWebPage(object):
 
     def rlab_rect(self, mytext=None, **kwargs):
         mytext = mytext or 'rectangle!'
-        from reportlab.lib.units import inch
+
         c = self.canvas
         # move the origin up and to the left
         c.translate(inch,inch)

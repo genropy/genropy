@@ -3,21 +3,22 @@
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-
-from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
-from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-#from gnr.core.gnrlang import componentFactory
-import boto3
-import botocore
 import os
 import tempfile
 import mimetypes
 from datetime import datetime
 import warnings
+import traceback
 warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
 
+import boto3
+import botocore
+from smart_open import open as so_open
+
+from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
+from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 
 class S3LocalFile(object):
     def __init__(self, mode='rb', bucket=None, key=None, s3_session=None):
@@ -58,7 +59,6 @@ class S3LocalFile(object):
                     result = self.file.__exit__(*exit_args)
                 self.file.close()
             except Exception as e:
-                import traceback
                 traceback.print_exc()
             finally:
                 os.unlink(self.name)
@@ -302,9 +302,8 @@ class Service(StorageService):
 
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
-        from smart_open import open
-        open.DEFAULT_BUFFER_SIZE = 1024 * 1024
-        return open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
+        so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
+        return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
             transport_params={'session':self._session}, **kwargs)
 
 

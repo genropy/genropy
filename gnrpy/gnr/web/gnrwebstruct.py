@@ -419,6 +419,16 @@ class GnrDomSrc(GnrStructData):
         :param id: the :ref:`nodeid`"""
         return self.findNodeByAttr('nodeId', id)
         
+    def fullScreenDialog(self,backTitle='!!Back',**kwargs):
+        dlg = self.dialog(fullScreen=True,**kwargs)
+        frame = dlg.framePane(childname='center')
+        bar = frame.top.slotBar('backTitle,*',height='30px',font_weight='bold',
+                             color='var(--mainWindow-color)',border_bottom='1px solid silver')
+        btn = bar.backTitle.lightButton(action="_dlg.hide();",_dlg=dlg.js_widget,style='display:flex;align-items:center;',cursor='pointer')
+        btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
+        btn.div(backTitle)
+        return dlg
+
     def framepane(self, frameCode=None, centerCb=None, **kwargs):
         """Create a :ref:`framepane` and return it. A framePane is a :ref:`bordercontainer`
         with :ref:`frame_sides` attribute added: these sides follow the Dojo borderContainer

@@ -59,7 +59,7 @@ def main():
     project_maker = ProjectMaker(project_name, base_path=base_path)
     print('Project %s created' % project_name)
     project_maker.do()
-    packages = add_packages.split(',') if add_packages else []
+    packages = [x.strip() for x in add_packages.split(',')] if add_packages else []
     
     if main_package:
         package_maker = PackageMaker(main_package,base_path=os.path.join((base_path or '.'),

@@ -5,10 +5,12 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable
+from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -58,7 +60,7 @@ class FrameIndex(BaseComponent):
             frameplugins.append('maintenance')
         return ','.join(frameplugins)
 
-    def main(self,root,new_window=None,gnrtoken=None,custom_index=None,**kwargs):
+    def main(self,root,new_window=None,gnrtoken=None,custom_index=None,menucode=None,**kwargs):
         if gnrtoken and not self.db.table('sys.external_token').check_token(gnrtoken):
             root.dataController("""genro.dlg.alert(msg,'Error',null,null,{confirmCb:function(){
                     var href = window.location.href;
@@ -67,6 +69,15 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        if menucode:
+            menucode_kwargs = dictExtract(kwargs,f'{menucode}_')
+            menucode_kwargs['menucode'] = menucode
+            root.dataController("genro.publish('selectPageMenuCode',menucode_kwargs)",
+                                menucode_kwargs=menucode_kwargs,_onStart=100)
+
+        elif self.device_mode=='std':
+            root.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
+                                _if='!genro.startArgs.new_window')
         testing_preference = self.getPreference('testing',pkg='adm') or Bag()
         if self.check_tester and testing_preference['beta_tester_tag'] \
             and not self.application.checkResourcePermission(testing_preference['beta_tester_tag'], 
@@ -220,10 +231,7 @@ class FrameIndex(BaseComponent):
                                 }
                                 """,
                             data="=iframes",externalWindows='=externalWindows',_refreshTablist='^refreshTablist',tabroot=tabroot,indexTab=self.indexTab,
-                            onCreatingTablist=onCreatingTablist or False,_onStart=True)
-        if not self.isMobile:
-            pane.dataController("genro.framedIndexManager.loadFavorites();",_onStart=100,
-                                _if='!genro.startArgs.new_window')
+                            onCreatingTablist=onCreatingTablist or False,_onStart=True)    
         pane.dataController(""" var cb = function(){
                                                 var iframetab = tabroot.getValue().getNode(page);
                                                 if(iframetab){
@@ -249,13 +257,11 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,20,count_errors,devlink,openGnrIDE,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,helpdesk,settings,refresh,count_errors,left_placeholder,*,
                                     right_placeholder,owner_name,user_name,logout,debugping,5""",
                                     _class='slotbar_toolbar framefooter',height='22px', background='#EEEEEE',border_top='1px solid silver')    
         return sb
     
-    recuperare = 'applogo,userpref,appdownload,appInfo,preferences' #DP togliere
-
     @customizable
     def prepareBottom_mobile(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
@@ -272,15 +278,45 @@ class FrameIndex(BaseComponent):
             applogo.div(_class='application_logo_container').img(src=self.application_logo,height='100%')
 
     @struct_method
-    def fi_slotbar_genrologo(self,slot,**kwargs):
+    def fi_slotbar_madewithgenropy(self,slot,**kwargs):
         slot.div(_class='application_logo_container').img(src='/_rsrc/common/images/made_with_genropy_small.png',height='100%')
 
     @struct_method
-    def fi_slotbar_devlink(self,slot,**kwargs):
-        formula = '==(_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"";'
-        slot.a(href=formula,_iframes='=iframes',_selectedFrame='^selectedFrame').div(
-                                    _class="iconbox flash",tip='!!Open the page outside frame',_tags='_DEV_')
+    def fi_slotbar_genrologo(self,slot,**kwargs):
+        logomenu = slot.menudiv(iconClass='iconbox icnBaseGenroLogo',singleOption='button')
+        logomenu.menuline('!![en]Open inspector root',_tags='_DEV_').dataController('genro.dev.openInspector();') 
+        logomenu.menuline('!![en]Open inspector current',_tags='_DEV_').dataController(
+                                                        'genro._lastFocusedWindow.genro.dev.openInspector();')
+        logomenu.menuline('!![en]Open the page outside frame',_tags='_DEV_').dataController(
+            """genro.openBrowserTab((_iframes && _iframes.len()>0)?_iframes.getAttr(_selectedFrame,"url"):"");
+            """,_iframes='=iframes',_selectedFrame='=selectedFrame'
+        )
+        logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
+        logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
+        slot.dataController('dlg.show()', subscribe_application_info=True,
+                            dlg =self.applicationInfoDialog(slot).js_widget)
         
+    
+    def applicationInfoDialog(self,pane):
+        dlg = pane.dialog(_class='lightboxDialog')
+        dlg.lightbutton(_class='dlg_closebtn',top='1px',right='1px').dataController(
+            "dlg.hide()",
+            dlg=dlg.js_widget
+        )
+        rms = getRmsOptions() or {}
+        customer_code = rms.get('customer_code') or 'UNLICENSED'
+        pod_number = rms.get('code') or '-'
+        box = dlg.div(padding='10px')
+        top = box.div(style='display: flex;align-items: center;justify-content: space-evenly;')
+        top.div("Created in Genropy",font_weight='bold')
+        top.lightbutton(_class='icnBaseGenroLogo',height='30px',width='30px',
+                        action='genro.openBrowserTab("https://www.genropy.org")')
+        content = box.div(style='display:flex;',margin_top='20px')
+        content.div(f'<b>LICENCE CODE</b>:{customer_code}')
+        content.div(width='30px')
+        content.div(f'<b>POD</b>:{pod_number}')
+        return dlg
+
     @struct_method
     def fi_slotbar_userpref(self,slot,**kwargs):
         slot.lightbutton(_class='iframeroot_userpref', tip='!!%s preference' % (
@@ -312,7 +348,6 @@ class FrameIndex(BaseComponent):
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()
-
 
     def helpdesk_documentation(self):
         return
@@ -380,6 +415,11 @@ class FrameIndex(BaseComponent):
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
                             },1);""",subscribe_selectIframePage=True)
+        sc.dataController("""setTimeout(function(){
+                                let kw = {...selectPageMenuCode[0]};
+                                let menucode = objectPop(kw,'menucode');
+                                genro.framedIndexManager.handleExternalMenuCode(menucode,kw);
+                            },1);""",subscribe_selectPageMenuCode=True)
         sc.dataController("genro.framedIndexManager.onSelectedFrame(selectedPage);",selectedPage='^selectedFrame')
 
         scattr = sc.attributes
@@ -416,8 +456,13 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,selpagetitle,*',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('10,backbtn,*,selpagetitle,*,30',childname='underbar',
                                                                             height='30px',color='white')
+        backbtn = underbar.backbtn.lightbutton(_class="iconbox arrowBack",background_color='white',width='20px',height='20px',
+                                     visible='^pageHistory?=#v && #v.length')
+        
+        backbtn.dataController("""genro.framedIndexManager.historyBack();""")
+        
         underbar.selpagetitle.div('^selectedPageTitle',padding='2px',font_weight='bold',font_size='13px')
 
 
@@ -480,7 +525,7 @@ class FrameIndex(BaseComponent):
                                 overflow='hidden')
         custom_plugins = self.custom_plugin_list.split(',') if self.custom_plugin_list else []
         plugins = self.plugin_list.split(',') + custom_plugins
-        pluginbar = frame.bottom.slotBar('*,pluginButtons,*',_class='plugin_mobile_footer',hidden=len(plugins)<2)
+        pluginbar = frame.bottom.slotBar('5,pluginButtons,*,madewithgenropy,5',_class='plugin_mobile_footer',hidden=len(plugins)<2)
         frame.dataController("""if(!page){return;}
                              genro.publish(page+'_'+(selected?'on':'off'));
                              genro.dom.setClass(genro.nodeById('plugin_block_'+page).getParentNode(),'iframetab_selected',selected);

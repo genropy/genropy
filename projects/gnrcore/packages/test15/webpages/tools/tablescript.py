@@ -35,7 +35,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def downloadTemplatePrint(self,table=None,tplname=None,letterhead_id=None,record_id=None,**kwargs):
-        from gnr.web.gnrbaseclasses import TableTemplateToHtml
+
         htmlbuilder = TableTemplateToHtml(table=self.db.table(table))
         htmlbuilder(record=record_id,template=self.loadTemplate('%s:%s' %(table,tplname)))
         sn = self.site.storageNode('page:pippo.pdf')

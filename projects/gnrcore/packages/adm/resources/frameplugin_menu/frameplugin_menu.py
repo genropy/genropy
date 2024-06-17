@@ -169,8 +169,12 @@ class MenuIframes(BaseComponent):
     def mainLeft_mobilemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='mobilemenu_plugin')
         self.menu_iframemenuPane(frame.center.contentPane().div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+        self.menu_credits(frame.bottom)
 
     def btn_mobilemenu_plugin(self,pane,**kwargs):
         pane.pluginButton('mobilemenu_plugin',caption='!!Menu',
                             iconClass='iframemenu_plugin_icon',defaultWidth='210px')
 
+    def menu_credits(self, pane):
+        "Hook method to create a bottom slotbar with credits informations in a menu"
+        pass

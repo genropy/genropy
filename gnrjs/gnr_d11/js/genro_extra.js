@@ -270,25 +270,25 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         objectPop(editor_attrs,'htmlpath');
         let handler = window.toastui.Editor;
         if (editor_attrs.viewer){
-            console.log('as viewer')
             handler = window.toastui.Editor.factory;
         }
         let editor = new window.toastui.Editor({
             el: widget,...editor_attrs
         });
         this.setExternalWidget(sourceNode,editor);
-       // editor.addHook('keydown',function(){
-       //     genro.callAfter(function(){
-       //         editor.gnr_onTyped();
-       //         editor.gnr_setInDatastore();
-       //     },1,this,'typing');
-       // });
-        editor.on('afterPreviewRender',function(){
+        editor.addHook('keydown',function(){
             genro.callAfter(function(){
                 editor.gnr_onTyped();
                 editor.gnr_setInDatastore();
-            },10,sourceNode,'typing');
-        })
+            },10,this,'typing');
+        });
+       //editor.on('afterPreviewRender',function(){
+       //    genro.callAfter(function(){
+       //        console.log('aaa')
+       //        editor.gnr_onTyped();
+       //        editor.gnr_setInDatastore();
+       //    },10,sourceNode,'typing');
+       //})
 
     },
 

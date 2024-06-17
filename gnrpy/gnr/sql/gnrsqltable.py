@@ -34,7 +34,8 @@ from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime,timedelta
+import pytz
 import logging
 import threading
 
@@ -1979,6 +1980,13 @@ class SqlTable(GnrObject):
             return result,False
         return self.tableCachedData('guessedPkey',cb,identifier=identifier)
 
+    def newUTCDatetime(self,delta_minutes=None):
+        utc_tz = pytz.timezone('UTC')
+        utc_dt = datetime.now(utc_tz)   
+        if delta_minutes:
+            utc_dt += timedelta(minutes=delta_minutes)
+        return utc_dt
+    
 
     def newPkeyValue(self,record=None):
         """Get a new unique id to use as :ref:`primary key <pkey>`
