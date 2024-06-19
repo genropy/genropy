@@ -1515,14 +1515,18 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     setHidden:function(hidden){
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            return labelWrapper.setHidden(hidden);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         targets.forEach(function(domNode){
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
+        genro.dom.resizeFirstContainerResizable(this);
     },
     
     updateRemoteContent:function(forceUpdate,async) {
-
         var _onRemote = false;
         var currentValue = this.getValue('static');
         if (currentValue && currentValue.len() > 0 && !forceUpdate) {
@@ -1702,10 +1706,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
     },
+    getLabelWrapper:function(){
+        if (this.attr._labelWrapper){
+            return this.attributeOwnerNode('_labelWrapperId',this.attr._labelWrapper)
+        }
+    },
 
     updateValidationClasses: function() {
-        if(this.getParentNode().attr._labelWrapper){
-            genro.dom.setClass(this.getParentNode(),'innerLblWrapper_error',this.hasValidationError())
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            genro.dom.setClass(labelWrapper,'innerLblWrapper_error',this.hasValidationError())
         }
         if (this.widget.cellNode) {
             var domnode = this.widget.cellNode;

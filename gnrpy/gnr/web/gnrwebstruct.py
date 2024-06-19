@@ -617,8 +617,8 @@ class GnrDomSrc(GnrStructData):
                           align_items=align_items,justify_items=justify_items,**kwargs)
     
     def gridbox(self,columns=None,align_content=None,justify_content=None,
-                align_items=None,justify_items=None,**kwargs):
-        return self.child('gridbox',columns=columns,
+                align_items=None,justify_items=None,table=None,**kwargs):
+        return self.child('gridbox',columns=columns,table=table or self.page.maintable,
                           align_content=align_content,justify_content=justify_content,
                           align_items=align_items,justify_items=justify_items
                           ,**kwargs)
@@ -882,14 +882,54 @@ class GnrDomSrc(GnrStructData):
                         _class=_class or 'mobilefields')
         pars.update(kwargs)
         return box.formbuilder(**pars)
-        
-    def formbuilder(self, cols=1, table=None, tblclass='formbuilder',
+    
+    def formbuilder_gridbox(self, cols=1, table=None, formlet=None,tblclass='formbuilder',
                     lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
                     _class='', fieldclass='gnrfield',
                     colswidth=None,
                     lblalign=None, lblvalign='top',
                     fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,**kwargs):
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
+        commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
+        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
+        commonKwargs.pop('item_lbl_width',None)
+        commonKwargs.pop('item_lbl_min_width',None)
+        kwargs.update(commonKwargs)
+        result =  self.gridbox(columns=cols,table=table or self.page.maintable,
+                            formletCode=formlet,_class='gnrgridbox formbuilder',**kwargs)
+        return result
+
+    def formbuilder(self,*args,**kwargs):
+        dbtable = kwargs.get('table') 
+        if not dbtable:
+            dbtable = kwargs.get('dbtable') or self.getInheritedAttributes().get('table')
+            kwargs['table'] = dbtable
+        defaultUseFormlet = self.page.getPreference('theme.use_formlets',pkg='sys')
+        if dbtable and not defaultUseFormlet:
+            useFormletCb = getattr(self.page.db.table(dbtable),'useFormlet',None)
+            if useFormletCb:
+                defaultUseFormlet = useFormletCb()
+
+        kwFormlet = kwargs.get('formlet')
+        if kwFormlet is not False and defaultUseFormlet:
+            kwargs.setdefault('item_lbl_side','left')
+            return self.formbuilder_gridbox(*args,**kwargs)
+        else:
+            return self.formbuilder_table(*args,**kwargs)
+
+
+
+
+        
+    def formbuilder_table(self, cols=1, table=None, tblclass='formbuilder',
+                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
+                    _class='', fieldclass='gnrfield',
+                    colswidth=None,
+                    lblalign=None, lblvalign='top',
+                    fldalign=None, fldvalign='top', disabled=False,
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,
+                    formlet=None,**kwargs):
         """In :ref:`formbuilder` you can put dom and widget elements; its most classic usage is to create
         a :ref:`form` made by fields and layers, and that's because formbuilder can manage automatically
         fields and their positioning
@@ -926,7 +966,9 @@ class GnrDomSrc(GnrStructData):
         if kwargs.get('fbname'):
             kwargs['fbname'] = kwargs['fbname'] if not dbtable else '%s:%s' %(dbtable,kwargs['fbname'])
         commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
-        commonKwargs = dict([(k, kwargs.pop(k)) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix])
+        commonKwargs = {k:kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+
+        #commonKwargs = dict([(k, kwargs.pop(k)) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix])
         tbl = self.child('table', _class='%s %s' % (tblclass, _class), **kwargs).child('tbody')
         formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
         excludeCols = kwargs.pop('excludeCols',None)
@@ -1820,7 +1862,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         return self.child('radiobutton', label=label, **kwargs)
         
-    def checkbox(self, value=None, label=None,**kwargs):
+    def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
         
@@ -1828,7 +1870,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
         """
-        return self.child('checkbox', value=value, label=label, **kwargs)
+        if lbl and not label:
+            label = lbl
+            lbl = '&nbsp;'
+        return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
         """The :ref:`dropdownbutton` can be used to build a :ref:`menu`
@@ -1913,8 +1958,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             assert hasattr(parentfb,'tblobj'),'missing default table. HINT: are you using a formStore in a bad place?'
             tblobj = parentfb.tblobj
         else:
-            raise GnrDomSrcError('No table')
-                
+            tbl = self.parentNode.attr.get('table')
+            if not tbl:
+                raise GnrDomSrcError('No table')
+            else:
+                tblobj = self.page.db.table(tbl)
         fieldobj = tblobj.column(fld)
         if fieldobj is None:
             raise GnrDomSrcError('Not existing field %s' % fld)
@@ -2017,7 +2065,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             result['lbl__zoomKw_title'] = forcedTitle or lnktblobj.name_plural or lnktblobj.name_long
                             result['lbl__zoomKw_pkey'] = '=.%s' %fld
                             result['lbl_connect_onclick'] = "genro.dlg.zoomPaletteFromSourceNode(this,$1);"  
-                    result['lbl'] = '<span class="gnrzoomicon">&nbsp;&nbsp;&nbsp;&nbsp;</span><span>%s</span>' %self.page._(result['lbl'])
+                    result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
                     result['lbl_class'] = 'gnrzoomlabel'
             result['tag'] = 'DbSelect'
             _selected_defaultFrom(fieldobj=fieldobj,result=result)

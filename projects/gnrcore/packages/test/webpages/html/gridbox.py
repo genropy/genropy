@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 "Test HTML DIV"
+from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
@@ -129,3 +130,33 @@ class GnrCustomWebPage(object):
 
 
     
+    def test_6_gridbox_inside(self,pane):
+        pane.button('Set source').dataController("SET .items=source;",source='=.test_from_source')
+        pane.button('Set bag').dataController("SET .items=source;",source='=.test_from_bag')
+        pane.br()
+        pane.gridbox(cols=2,items='^.items',lbl='Dati anagrafici')
+        pane.data('.test_from_source',self.contentAnagrafica())
+        pane.data('.test_from_bag',self.contentAnagrafica_bag())
+        
+
+    
+    def contentAnagrafica_bag(self):
+        result = Bag()
+        result.addItem('item_0',None,tag='textbox',value='^.nome',lbl='Nome da bag')
+        result.addItem('item_1',None,tag='textbox',value='^.cognome',lbl='Cognome da bag')
+        return result
+
+    def contentAnagrafica(self):
+        pane = self.newSourceRoot()
+        pane.textbox(value='^.nome',lbl='Nome')
+        pane.textbox(value='^.cognome',lbl='Cognome')
+        return pane
+    
+
+
+    def test_7_gridbox_hiddenElementsFormula(self,pane):
+        gb = pane.gridbox(columns=2)
+        gb.checkbox(value='^.check_1',lbl='Check 1')
+        gb.checkbox(value='^.check_2',lbl='Check 2')
+        gb.textbox(value='^.nascondimi',hidden='==_check_1 && _check_2',
+                   _check_1='^.check_1', _check_2='^.check_2',lbl='Ciao')
