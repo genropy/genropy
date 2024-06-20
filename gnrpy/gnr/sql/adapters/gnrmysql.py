@@ -38,7 +38,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTrans
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
@@ -47,7 +47,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'enum': 'A',
                  'boolean': 'B', 'date': 'D', 'time': 'H', 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
                  'integer': 'I', 'bigint': 'L','mediumint':'L', 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
-                 'bytea': 'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
+                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
 
     revTypesDict = {'A': 'varchar', 'T': 'text', 'C': 'char',
                     'X': 'text', 'P': 'text', 'Z': 'text',
@@ -219,45 +219,51 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: list of relation's details
         """
-        return []
-        #sql = """SELECT r.constraint_name AS ref,
-        #c1.table_schema AS ref_schema,
-        #c1.table_name AS ref_tbl,
-        #mcols.column_name AS ref_col,
+        #return []
+        sql = """
+        SELECT r.constraint_name AS ref,
+        c1.table_schema AS ref_schema,
+        c1.table_name AS ref_tbl,
+        mcols.column_name AS ref_col,
 
-        #r.unique_constraint_name AS un_ref,
-        #c2.table_schema AS un_schema,
-        #c2.table_name AS un_tbl,
-        #ucols.column_name AS un_col
-
-        #FROM information_schema.referential_constraints AS r
-        #JOIN information_schema.table_constraints AS c1
-        #ON c1.constraint_catalog = r.constraint_catalog
-        #AND c1.constraint_schema = r.constraint_schema
-        #AND c1.constraint_name = r.constraint_name
-        #JOIN information_schema.table_constraints AS c2
-        #ON c2.constraint_catalog = r.unique_constraint_catalog
-        #AND c2.constraint_schema = r.unique_constraint_schema
-        #AND c2.constraint_name = r.unique_constraint_name
-        #JOIN information_schema.key_column_usage as mcols
-        #ON mcols.constraint_schema = r.constraint_schema
-        #AND mcols.constraint_name= r.constraint_name
-        #JOIN information_schema.key_column_usage as ucols
-        #ON ucols.constraint_schema = r.unique_constraint_schema
-        #AND ucols.constraint_name= r.unique_constraint_name
-        #"""
-        #ref_constraints = self.dbroot.execute(sql).fetchall()
-        #ref_dict = {}
-        #for (ref, schema, tbl, col, un_ref, un_schema, un_tbl, un_col) in ref_constraints:
-        #r = ref_dict.get(ref, None)
-        #if r:
-        #if not col in r[3]:
-        #r[3].append(col)
-        #if not un_col in r[7]:
-        #r[7].append(un_col)
-        #else:
-        #ref_dict[ref] = [ref, schema, tbl, [col], un_ref, un_schema, un_tbl, [un_col]]
-        #return ref_dict.values()
+        r.unique_constraint_name AS un_ref,
+        c2.table_schema AS un_schema,
+        c2.table_name AS un_tbl,
+        ucols.column_name AS un_col,
+        r.update_rule AS upd_rule,
+        r.delete_rule AS del_rule,
+        FALSE
+            
+        
+        FROM information_schema.referential_constraints AS r
+        JOIN information_schema.table_constraints AS c1
+        ON c1.constraint_catalog = r.constraint_catalog
+        AND c1.constraint_schema = r.constraint_schema
+        AND c1.constraint_name = r.constraint_name
+        JOIN information_schema.table_constraints AS c2
+        ON c2.constraint_catalog = r.unique_constraint_catalog
+        AND c2.constraint_schema = r.unique_constraint_schema
+        AND c2.constraint_name = r.unique_constraint_name
+        JOIN information_schema.key_column_usage as mcols
+        ON mcols.constraint_schema = r.constraint_schema
+        AND mcols.constraint_name= r.constraint_name
+        JOIN information_schema.key_column_usage as ucols
+        ON ucols.constraint_schema = r.unique_constraint_schema
+        AND ucols.constraint_name= r.unique_constraint_name
+        """
+        ref_constraints = self.dbroot.execute(sql).fetchall()
+        ref_dict = {}
+        for (ref, schema, tbl, col, un_ref, un_schema, un_tbl, un_col, upd_rule, del_rule, init_defer) in ref_constraints:
+            r = ref_dict.get(ref, None)
+            if r:
+                if not col in r[3]:
+                    r[3].append(col)
+                if not un_col in r[7]:
+                    r[7].append(un_col)
+            else:
+                ref_dict[ref] = [ref, schema, tbl, [col], un_ref, un_schema, un_tbl, [un_col],upd_rule, del_rule,
+                                 init_defer]
+        return ref_dict.values()
 
     def getPkey(self, table, schema):
         """TODO
@@ -289,8 +295,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #        @param table: table name
         #        @param schema: schema name
         #        @return: list of index infos"""
-        sql = """SELECT DISTINCT INDEX_NAME as name,(NON_UNIQUE IS TRUE) AS un,
-            (INDEX_NAME = 'PRIMARY') AS pri, COLUMN_NAME as columns 
+        sql = """SELECT DISTINCT INDEX_NAME as 'name',(NON_UNIQUE IS TRUE) AS 'unique',
+            (INDEX_NAME = 'PRIMARY') AS 'primary', COLUMN_NAME as 'columns' 
             FROM INFORMATION_SCHEMA.STATISTICS 
             WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table;"""
         indexes = self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()
@@ -394,6 +400,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 col['size'] = str(col.get('length'))
         if column:
             result = result[0]
+        
         return result
 
 
