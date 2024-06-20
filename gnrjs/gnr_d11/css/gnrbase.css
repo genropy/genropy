@@ -6430,6 +6430,14 @@ div[disabled='true'], div[disabled='disabled']{
     border:unset;
 }
 
+.formlet_fakelabel.labledBox.labledBox_top>.labledBox_label{
+    display: none;
+}
+
+.developerToolElementsVisible .formlet_fakelabel.labledBox.labledBox_top> .labledBox_label{
+    display: unset;
+}
+
 .labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
     padding:10px;
 }

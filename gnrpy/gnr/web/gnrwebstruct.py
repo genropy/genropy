@@ -879,7 +879,8 @@ class GnrDomSrc(GnrStructData):
                         lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class=_class or 'mobilefields')
+                        _class=_class or 'mobilefields',
+                        formlet=False)
         pars.update(kwargs)
         return box.formbuilder(**pars)
     
@@ -897,7 +898,7 @@ class GnrDomSrc(GnrStructData):
         kwFormlet = kwargs.get('formlet')
         if kwFormlet is not False and defaultUseFormlet:
             kwargs.setdefault('item_lbl_side','left')
-            if not kwargs.get('lbl'):
+            if 'lbl' not in kwargs:
                 kwargs['lbl'] = '&nbsp;'
                 kwargs['box__class'] = 'formlet_fakelabel'
             return self.formbuilder_formlet(*args,**kwargs)

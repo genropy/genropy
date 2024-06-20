@@ -128,7 +128,6 @@ class GnrCustomWebPage(object):
         gb.textbox(value='^.nome',lbl='Nome',helpcode='pippo')
         gb.textbox(value='^.cognome',lbl='Cognome').comboArrow(nodeId='alfredo')
 
-
     
     def test_6_gridbox_inside(self,pane):
         pane.button('Set source').dataController("SET .items=source;",source='=.test_from_source')
@@ -139,7 +138,11 @@ class GnrCustomWebPage(object):
         pane.data('.test_from_bag',self.contentAnagrafica_bag())
         
 
-    
+    def test_99_gridbox(self,pane):
+        gb = pane.gridbox(cols=2,lbl='Dati anagrafici')
+        gb.textbox(value='^.nome',lbl='Nome')
+        gb.textbox(value='^.cognome',lbl='Cognome')
+
     def contentAnagrafica_bag(self):
         result = Bag()
         result.addItem('item_0',None,tag='textbox',value='^.nome',lbl='Nome da bag')
