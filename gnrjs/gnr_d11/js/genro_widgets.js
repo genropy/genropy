@@ -165,6 +165,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             let tag = objectPop(attr,'tag');
             let children = sourceNode.getValue();
             sourceNode._value = null;
+            wrp_attr.helpcode = objectPop(attr,'helpcode');
             wrp_attr.tag = 'labledbox'
             let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
             sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
@@ -744,7 +745,10 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
                 this.insertItem(sourceNode,itemNode);
             }
         }else if(trigger_kw.evt=='ins' && trigger_kw.node){
-            let itemNode = kw.node.attributeOwnerNode('_itemId');
+            let itemNode = kw.node.attributeOwnerNode('_itemId') || kw.node;
+            for(let k in items_attr){
+                itemNode.attr[k] = isNullOrBlank(itemNode.attr[k])?items_attr[k]:itemNode.attr[k]
+            }
             this.insertItem(sourceNode,itemNode);
         }
         if(fullBuild){
@@ -828,16 +832,16 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
         if(helpcode){
             let helperValue = sourceNode.getHelperValue()
-            let emptyHelper = helperValue?'':' emptyhelper';
+            let emptyHelper = helperValue?'':' emptyhelper developerToolElement';
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
-            labelBox._('lightbutton','helper',{_class:'helperbutton'+emptyHelper+helperEditor,
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+emptyHelper+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick();
                 },
             },{'doTrigger':false});
         }
         if(genro.isDeveloper){
-            m = labelBox._('menudiv','devbtn',{iconClass:'innericonbox gear',btn__class:'developerToolElement',
+            m = labelBox._('menudiv','devbtn',{iconClass:'innericonbox threedots',btn__class:'developerToolElement',
                 border:'1px solid silver'
             },{'doTrigger':false});
             m._('menuline',{'label':'Edit labled box',action:function(){

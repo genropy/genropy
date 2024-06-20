@@ -883,23 +883,6 @@ class GnrDomSrc(GnrStructData):
         pars.update(kwargs)
         return box.formbuilder(**pars)
     
-    def formbuilder_gridbox(self, cols=1, table=None, formlet=None,tblclass='formbuilder',
-                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
-                    _class='', fieldclass='gnrfield',
-                    colswidth=None,
-                    lblalign=None, lblvalign='top',
-                    fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
-        commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
-        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
-        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
-        commonKwargs.pop('item_lbl_width',None)
-        commonKwargs.pop('item_lbl_min_width',None)
-        kwargs.update(commonKwargs)
-        result =  self.gridbox(columns=cols,table=table or self.page.maintable,
-                            formletCode=formlet,_class='gnrgridbox formbuilder',**kwargs)
-        return result
-
     def formbuilder(self,*args,**kwargs):
         dbtable = kwargs.get('table') 
         if not dbtable:
@@ -914,11 +897,29 @@ class GnrDomSrc(GnrStructData):
         kwFormlet = kwargs.get('formlet')
         if kwFormlet is not False and defaultUseFormlet:
             kwargs.setdefault('item_lbl_side','left')
-            return self.formbuilder_gridbox(*args,**kwargs)
+            if not kwargs.get('lbl'):
+                kwargs['lbl'] = '&nbsp;'
+                kwargs['box__class'] = 'formlet_fakelabel'
+            return self.formbuilder_formlet(*args,**kwargs)
         else:
             return self.formbuilder_table(*args,**kwargs)
-
-
+        
+    def formbuilder_formlet(self, cols=1, table=None, formlet=None,formletclass='formlet',
+                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
+                    _class='', fieldclass='gnrfield',
+                    colswidth=None,
+                    lblalign=None, lblvalign='top',
+                    fldalign=None, fldvalign='top', disabled=False,
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
+        commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
+        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
+        commonKwargs.pop('item_lbl_width',None)
+        commonKwargs.pop('item_lbl_min_width',None)
+        kwargs.update(commonKwargs)
+        result =  self.gridbox(columns=cols,table=table or self.page.maintable,
+                            formletCode=formlet,_class=f'gnrgridbox {formletclass}',**kwargs)
+        return result
 
 
         

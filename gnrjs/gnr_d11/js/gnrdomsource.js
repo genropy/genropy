@@ -1516,8 +1516,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     
     setHidden:function(hidden){
         let labelWrapper = this.getLabelWrapper();
+        console.log('labelWrapper',labelWrapper)
         if(labelWrapper){
-            return labelWrapper.setHidden(hidden);
+            labelWrapper.setHidden(hidden);
         }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         targets.forEach(function(domNode){

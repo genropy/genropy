@@ -297,6 +297,12 @@ class FrameIndex(BaseComponent):
         logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
         logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
                                                         'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
+        
+        logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController('genro.dom.toggleClass(document.body,"developerToolElementsVisible");') 
+        logomenu.menuline('!![en]Toggle dev items in current',_tags='_DEV_').dataController(
+                                                        """
+                                                            genro._lastFocusedWindow.genro.dom.toggleClass(genro._lastFocusedWindow.document.body,"developerToolElementsVisible");""")
+        
         slot.dataController('dlg.show()', subscribe_application_info=True,
                             dlg =self.applicationInfoDialog(slot).js_widget)
         

@@ -196,22 +196,11 @@ cursorZoom_plus{
 
 
 .helperbutton{
-    height: 16px;
-    width: 16px;
-    background: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
-    background-size: contain;
-    cursor: pointer;
+    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
 }
 
 .emptyhelper.helperbutton{
-    display: none;
-}
-
-
-.emptyhelper.helperEditor.helperbutton{
-    display: block;
-    background: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
-    background-size: contain;
+    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
 }
 
 
@@ -6078,9 +6067,10 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .innericonbox.iconbox{
-    height:12px;
-    width: 12px;
+    height:11px;
+    width: 11px;
     margin:auto;
+    background-size: contain;
 }
 
 .center_box{
@@ -6436,15 +6426,29 @@ div[disabled='true'], div[disabled='disabled']{
     border:1px solid #efefef;
 }
 
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox{
+    border:unset;
+}
+
 .labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
     padding:10px;
 }
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
+    padding:unset;
+}
+
 
 .labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
     padding:2px 5px;
     background:var(--roundedgroup-bar);
     color:var(--roundedgroup-bar-color);
 }
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
+    background:unset;
+}
+
 
 
 .labledBox.labledBox_left{
@@ -6457,6 +6461,11 @@ div[disabled='true'], div[disabled='disabled']{
 .labledBox.labledBox_left.labledBox_simpletextarea .labledBox_label,.labledBox.labledBox_right.labledBox_simpletextarea .labledBox_label{
     padding-top:2px
 }
+
+.labledBox.labledBox_left .labledBox_label{
+    flex-direction: row-reverse;
+}
+
 .labledBox.labledBox_bottom{
     flex-direction: column-reverse;
 }
@@ -6468,17 +6477,21 @@ div[disabled='true'], div[disabled='disabled']{
 
 .labledBox_content{
     display: flex;
-    align-items: stretch;
+    align-items: flex-start;
     flex:1;
 }
 
 .labledBox_content > *{
     flex:1;
 }
+.labledBox.labledBox_left .labledBox_title{
+    padding-top: 2px;
+}
+
 
 .labledBox_label{
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     font-size: .9em;
     font-weight: bold;
@@ -6486,6 +6499,10 @@ div[disabled='true'], div[disabled='disabled']{
     padding-bottom: 1px;
 }
 
+.labledBox_content>.gnrcheckbox_wrapper{
+    font-size: .9em;
+    padding-bottom: 1px;
+}
 
 .labledBoxClean .labledBox_title, .labledBoxInputBorderless .labledBox_title{
     color:var(--root-dark);
@@ -6537,16 +6554,13 @@ div[disabled='true'], div[disabled='disabled']{
     background: #ffe0e0;
 }
 
-.gnrgridbox{
-    align-items: flex-start;
-}
 
-.gnrgridbox.formbuilder{
+.gnrgridbox.formlet{
     gap: 7px 20px;
     padding: 7px;
 }
 
-.gnrgridbox.formbuilder .labledBox_left>.labledBox_label{
+.gnrgridbox.formlet .labledBox_left>.labledBox_label{
     padding-right: 2px;
 }
 
@@ -6554,7 +6568,7 @@ div[disabled='true'], div[disabled='disabled']{
     width:unset;
 }
 
-.slotbar_cell .gnrgridbox.formbuilder{
+.slotbar_cell .gnrgridbox.formlet{
     padding: 2px;
     gap: 3px;
 }

@@ -71,6 +71,8 @@ class GnrCustomWebPage(object):
             _onStart=True
         )
 
+    def test_10_xxx(self,pane):
+        pane.textbox(value='^.nome',lbl='Nome',lbl_side='left')
 
     def test_4_gridboxformLabledBox(self,pane):
 
@@ -121,11 +123,9 @@ class GnrCustomWebPage(object):
     def test_5_gridbox_structpath(self,pane):
         bc = pane.borderContainer(height='500px',width='500px')
         pane =  bc.contentPane(region='center')
-        gb =pane.gridbox(columns=2,items='^.items',
-                          border='2px solid silver',
-                          padding='10px',margin='10px')
+        gb =pane.gridbox(columns=2,items='^.items',lbl='Miei dati')
         gb.radioButtonText(value='^.genere',values='M:Maschio,F:Femmina',cols=2,lbl='Genere',colspan=2)
-        gb.textbox(value='^.nome',lbl='Nome')
+        gb.textbox(value='^.nome',lbl='Nome',helpcode='pippo')
         gb.textbox(value='^.cognome',lbl='Cognome').comboArrow(nodeId='alfredo')
 
 
