@@ -78,6 +78,13 @@ class BaseSql(BaseGnrSqlTest):
         result = self.db.execute('SELECT 1;').fetchall()
         assert result[0][0] == 1
 
+    def test_execute_env(self):
+        self.db.updateEnv(workdate="2020-01-01", storename="babbala")
+        r = self.db.execute("SELECT :env_workdate;", storename=False).fetchall()
+        self.db.clearCurrentEnv()
+        r = self.db.execute("SELECT :env_workdate;", sqlargs=dict(a=b'ciao', b="\$hello")).fetchall()
+
+        
     #------------table test-----------------------------------------
     def test_insert(self):
         tbl = self.db.table('video.movie')
