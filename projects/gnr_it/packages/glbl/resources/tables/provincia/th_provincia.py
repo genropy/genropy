@@ -9,15 +9,6 @@ from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import customizable,metadata,public_method
 
 class Form(BaseComponent):
-
-    def hp_helperPath(self,table):
-        return self.packageResourcePath(table,'helper.xml')
-    
-    @struct_method
-    def hp_helperData(self,pane,table=None):
-        table = table or pane.getInheritedAttributes().get('table')
-        pane.data('#FORM.helper',Bag(self.hp_helperPath(table)))
-        
     def th_form(self,form,**kwargs):
         pane = form.record
         form.helperData()

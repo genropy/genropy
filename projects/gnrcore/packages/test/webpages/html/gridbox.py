@@ -6,6 +6,20 @@ from gnr.core.gnrbag import Bag
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
                 
+
+    def test_98_labledItem(self,pane):
+        pane.labledBox(label='Nome',side='top',border='1px solid red',
+                       box_l_background='red',box_c_background='lime',
+                       label_color='white',box_c_padding='10px').textbox(value='^.nome')
+        pane.labledBox(label='Cognome',side='top').textbox(value='^.cognome')
+
+
+    def test_97_labledItem(self,pane):
+        pane.textbox(value='^.nome',lbl='Nome',
+                      box_l_background='red',box_c_background='lime',
+                       lbl_color='white',box_c_padding='10px',box_border='1px solid green')
+
+
     def test_0_gridbox(self,pane):
         "Simple"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
@@ -24,12 +38,12 @@ class GnrCustomWebPage(object):
         bc.contentPane(region='right',width='100px',splitter=True,background='pink')
         fb = bc.contentPane(region='top').formbuilder(cols=2)
         fb.textBox(value='^.columns',default='4',lbl='Columns')
-        fc = bc.contentPane(region='center').gridbox(width='90%',height='400px',columns='^.columns',column_gap='10px',row_gap='5px',
+        fc = bc.contentPane(region='center').gridbox(width='90%',item_height='100px',columns='^.columns',column_gap='10px',row_gap='5px',
                                                      border='1px solid silver',padding='5px',
                                                      margin='5px')
         fc.div('Item 1',border='1px solid red')
-        fc.div('Item 2',style='grid-column:span 2;',border='1px solid green')
-        fc.div('Item 3',style='grid-row:span 2;',border='1px solid red')
+        fc.div('Item 2',colspan=2,border='1px solid green')
+        fc.div('Item 3',rowspan=2,border='1px solid red',height='100%')
         fc.div('Item 4',border='1px solid red')
         fc.div('Item 5',border='1px solid red')
         fc.div('Item 6',border='1px solid red')

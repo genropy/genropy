@@ -166,6 +166,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             let children = sourceNode.getValue();
             sourceNode._value = null;
             wrp_attr.helpcode = objectPop(attr,'helpcode');
+            wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
             wrp_attr.tag = 'labledbox'
             let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
             sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
@@ -825,7 +826,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         }
         sourceNode._value = null;
         
-        let helpcode = objectPop(sourceNode.attr,'helpcode');
+        let helpcode = sourceNode.attr.helpcode;
         let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
         if (sourceNode.attr.moveable){
             labelBoxAttr.id='handle_'+sourceNode.getStringId()
@@ -837,15 +838,15 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             let helperValue = sourceNode.getHelperValue()
             let emptyHelper = helperValue?'':' emptyhelper developerToolElement';
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
             labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+emptyHelper+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick();
                 },
             },{'doTrigger':false});
         }
-        if(genro.isDeveloper){
+        if(childIsGridbox && genro.isDeveloper){
             m = labelBox._('menudiv','devbtn',{iconClass:'innericonbox threedots',btn__class:'developerToolElement',
-                border:'1px solid silver'
             },{'doTrigger':false});
             m._('menuline',{'label':'Edit labled box',action:function(){
                 genro.dev.openBagNodeEditorPalette(sourceNode.getFullpath(),{name:'_devSrcInspector_',title:'Sourcenode Inspector',origin:'*S'});

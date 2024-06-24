@@ -23,7 +23,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-
+import os
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
@@ -863,7 +863,7 @@ class GnrDomSrc(GnrStructData):
 
     def getFormBuilder(self,fbname=None,table=None):
         fbname = fbname if not table else '%s:%s' %(table,fbname)
-        result = self.getNodeByAttr('fbname',fbname)
+        result = self.getNodeByAttr('fbname',fbname) or self.getNodeByAttr('formletCode',fbname)
         if result:
             return result.value.getItem('#0')
         
@@ -884,6 +884,18 @@ class GnrDomSrc(GnrStructData):
         pars.update(kwargs)
         return box.formbuilder(**pars)
     
+
+    def setHelperData(self,table=None,name=None,**kwargs):
+        data,kw = self.page.getHelperData(table=table,name=name)
+        if kw.get('in_cache'):
+            return
+        return self.page.pageSource().data(f"gnr.helpers.{kw['path']}",data)
+       #return self.page.pageSource().child('dataRemote', path=f"gnr.helpers.{kw['path']}", 
+       #                                    method='getHelperData',
+       #                                    childcontent=childcontent,_resolved=True, 
+       #                                    table=table,name=name)
+
+
     def formbuilder(self,*args,**kwargs):
         dbtable = kwargs.get('table') 
         if not dbtable:
@@ -905,7 +917,22 @@ class GnrDomSrc(GnrStructData):
         else:
             return self.formbuilder_table(*args,**kwargs)
         
-    def formbuilder_formlet(self, cols=1, table=None, formlet=None,formletclass='formlet',
+    def formlet(self,columns=None,table=None,formletCode=None,
+                formletclass='formlet',_class=None,**kwargs):
+        formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
+        excludeCols = kwargs.pop('excludeCols',None)
+        if excludeCols:
+            raise NotImplementedError('Not implemented in formlet')
+        result =  self.gridbox(columns=columns,
+                               table=table,
+                            formletCode=formletCode,
+                            _class=_class or f'gnrgridbox {formletclass}',**kwargs)
+        if formNode:
+            if not hasattr(formNode,'_mainformbuilder'):
+                formNode._mainformbuilder = result
+        return result
+        
+    def formbuilder_formlet(self, cols=1, table=None, formlet=None,
                     lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
                     _class='', fieldclass='gnrfield',
                     colswidth=None,
@@ -918,8 +945,8 @@ class GnrDomSrc(GnrStructData):
         commonKwargs.pop('item_lbl_width',None)
         commonKwargs.pop('item_lbl_min_width',None)
         kwargs.update(commonKwargs)
-        result =  self.gridbox(columns=cols,table=table or self.page.maintable,
-                            formletCode=formlet,_class=f'gnrgridbox {formletclass}',**kwargs)
+        result =  self.formlet(columns=cols,table=table or self.page.maintable,
+                            formletCode=formlet,**kwargs)
         return result
 
 
@@ -1970,6 +1997,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             raise GnrDomSrcError('Not existing field %s' % fld)
         wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)    
         wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
+        if fieldobj.attributes.get('_owner_package'):
+            wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld

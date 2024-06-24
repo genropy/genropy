@@ -6067,8 +6067,8 @@ div[disabled='true'], div[disabled='disabled']{
 }
 
 .innericonbox.iconbox{
-    height:11px;
-    width: 11px;
+    height:13px;
+    width: 13px;
     margin:auto;
     background-size: contain;
 }

@@ -700,23 +700,55 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     onHelperClick:function(){
         if(genro.isDeveloper){
             var dflt = this.getHelperValue()
+            var that = this;
             genro.dlg.prompt(_T('Edit help'),{
                 widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
                 action:function(value){
-                    this.saveHelper();
+                    that.saveHelper(value);
                 },dflt:dflt,onEnter:null});
         }
     },
-    saveHelper:function(){
-
+    saveHelper:function(value,custom){
+        custom = custom===false?false:true;
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr.table;
+        let kw = {table:table || genro.getData('gnr.pagename'),value:value,helpcode:this.attr.helpcode,customizationPackage:this.attr.helpcode_package};
+        if (table && custom){
+            kw.name = `th_${table.split('.')[1]}_${inAttr.resourceClass}`;
+        }
+        genro.serverCall('saveHelperValue',kw,function(){
+            let r = genro.getDataNode(`gnr.helpers.${this.getHelperFolder(custom)}`).getResolver();
+            r.refresh(true);
+        });
     },
 
     getHelperValue:function(){
-        return this.getRelativeData(this.getHelperPath())
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr.table;
+        let defaultValue = this.getRelativeData(this.getHelperPath())
+        if(table && inAttr.resourceClass){
+            return this.getRelativeData(this.getHelperPath(true)) || defaultValue;
+        }
+        return defaultValue;
     },
 
-    getHelperPath:function(){
-        return this.form?'#FORM.helper.wdg_fields.'+this.attr.helpcode:'helper.wdg_fields.'+this.attr.helpcode;
+    getHelperPath:function(custom){
+        let helpcode = this.attr.helpcode;
+        return `gnr.helpers.${this.getHelperFolder(custom)}.${helpcode}?${genro.getData('gnr.language')}`;
+    },
+
+    getHelperFolder:function(custom){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr['table'];
+        let resourceClass = inAttr.resourceClass;
+        if(table){
+            let tablename = table.split('.')[1];
+            if(custom){
+                return `${table}.th_${tablename}_${resourceClass}`;
+            }
+            return `${table}.tbl_${tablename}`;
+        }
+        return genro.getData('gnr.pagename');
     },
 
     connect: function(target, eventname, handler) {
@@ -780,7 +812,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.attr.href) {
             genro.dom.loadCss(this.attr.href, this.attr.cssTitle);
         } else {
-            console.log('_bld_stylesheet',this.getValue())
             genro.dom.addStyleSheet(this.getValue(), this.attr.cssTitle);
         }
     },
@@ -1516,7 +1547,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     
     setHidden:function(hidden){
         let labelWrapper = this.getLabelWrapper();
-        console.log('labelWrapper',labelWrapper)
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
         }
