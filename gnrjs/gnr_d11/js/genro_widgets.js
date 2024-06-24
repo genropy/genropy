@@ -808,6 +808,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         let label_attr = objectExtract(sourceNode.attr,'label_*');
         let box_l_kw = objectExtract(sourceNode.attr,'box_l_*');
         let box_c_kw = objectExtract(sourceNode.attr,'box_c_*');
+        let childIsGridbox = false;
         var fld_kw = objectExtract(sourceNode.attr,'fld_*');
 
         label_attr._class = label_attr._class || 'labledBox_title';
@@ -818,7 +819,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             sourceNode.attr._class += ' labledBox_'+side;
         }
         if(children && children.len()==1){
-            sourceNode.attr._class += ' labledBox_'+children.getNode('#0').attr.tag.toLowerCase();
+            let childTag = children.getNode('#0').attr.tag.toLowerCase();
+            sourceNode.attr._class += ' labledBox_'+childTag;
+            childIsGridbox = childTag=='gridbox';
         }
         sourceNode._value = null;
         
