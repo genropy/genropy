@@ -29,6 +29,7 @@ import re
 import _thread
 import locale
 from time import time
+from multiprocessing.pool import ThreadPool
 
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
@@ -460,7 +461,9 @@ class GnrSqlDb(GnrObject):
             if isinstance(v, str):
                 if (v.startswith(r'\$') or v.startswith(r'\@')):
                     sqlargs[k] = v[1:]
-        if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False:
+
+        # FIXME: we'll need an external package  table to test this
+        if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
             storename = self.rootstore
         with self.tempEnv(storename=storename):
             if _adaptArguments:
@@ -476,8 +479,16 @@ class GnrSqlDb(GnrObject):
                         cursor = self.adapter.cursor(self.connection, cursorname)
                     else:
                         cursor = self.adapter.cursor(self.connection)
+
                 if isinstance(cursor, list):
-                    self._multiCursorExecute(cursor,sql,sqlargs)
+                    # since sqlite won't support different cursors in different
+                    # threads, we simply serialize the cursor execution
+                    if self.implementation == "sqlite":
+                        for c in cursor:
+                            c.execute(sql, sqlargs)
+                            c.connection.committed = False
+                    else:
+                        self._multiCursorExecute(cursor,sql,sqlargs)
                 else:
                     cursor.execute(sql, sqlargs)
                     cursor.connection.committed = False
@@ -486,25 +497,22 @@ class GnrSqlDb(GnrObject):
             
             except Exception as e:
                 gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
-                #print(str('error %s executing:%s - with kwargs:%s \n\n' % (
-                #str(e), sql, str(sqlargs).encode('ascii', 'ignore'))))
                 self.rollback()
                 raise
-        
+
             if autocommit:
                 self.commit()
             
         return cursor
 
     def _multiCursorExecute(self, cursor_list, sql, sqlargs):
-        from multiprocessing.pool import ThreadPool
         p = ThreadPool(4)
         def _executeOnThread(cursor):
             cursor.execute(sql.replace("_STORENAME_" ,cursor.connection.storename),sqlargs)
         p.map(_executeOnThread, cursor_list)
 
     def notifyDbEvent(self,tblobj,**kwargs):
-        pass
+        pass # pragma: no cover
 
     def _onDbChange(self,tblobj,evt,record,old_record=None,**kwargs):
         if tblobj.totalizers:

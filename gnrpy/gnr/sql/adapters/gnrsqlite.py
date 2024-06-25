@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqlclass : Genro sqlite connection
@@ -20,11 +20,12 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #import weakref
-import os, re, time
 
+import os, re, time
 import datetime
 import pprint
 import decimal
+import logging
 
 try:
     import sqlite3 as pysqlite
@@ -36,7 +37,6 @@ from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 os.makedirs(dbdir)
         conn = pysqlite.connect(dbpath, detect_types=pysqlite.PARSE_DECLTYPES | pysqlite.PARSE_COLNAMES, timeout=20.0,factory=GnrSqliteConnection)
         conn.create_function("regexp", 2, self.regexp)
-        #conn.row_factory = pysqlite.Row
         conn.row_factory = GnrDictRow
         curs = conn.cursor(GnrSqliteCursor)
         attached = [self.defaultMainSchema()]
