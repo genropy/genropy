@@ -709,17 +709,23 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     saveHelper:function(value,custom){
-        custom = custom===false?false:true;
         let inAttr = this.getInheritedAttributes();
+        custom = custom===false?false:inAttr.resourceClass!==null;
         let table = inAttr.table;
         let kw = {table:table || genro.getData('gnr.pagename'),value:value,helpcode:this.attr.helpcode,customizationPackage:this.attr.helpcode_package};
         if (table && custom){
             kw.name = `th_${table.split('.')[1]}_${inAttr.resourceClass}`;
         }
+        genro.setData(this.getHelperPath(custom),value)
+        this.updateHelperClasses(custom);
         genro.serverCall('saveHelperValue',kw,function(){
-            let r = genro.getDataNode(`gnr.helpers.${this.getHelperFolder(custom)}`).getResolver();
-            r.refresh(true);
         });
+    },
+
+    updateHelperClasses:function(){
+        let helperValue = this.getHelperValue();
+        console.log('helperValue',helperValue)
+        genro.dom.setClass(this,'emptyhelper',!helperValue);
     },
 
     getHelperValue:function(){

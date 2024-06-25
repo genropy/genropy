@@ -195,14 +195,6 @@ cursorZoom_plus{
 }
 
 
-.helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
-}
-
-.emptyhelper.helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
-}
-
 
 
 .gnrcheckbox_wrapper{
@@ -1018,6 +1010,24 @@ label{
 .gnrzoomlabel{
     display: inline-flex;
 }
+
+.helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
+    background-size:contain;
+}
+
+.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
+    display: block;
+    background-size:contain;
+}
+
+.labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: none;
+}
+
+
+
 .labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
 .labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{
     flex-direction: row-reverse;

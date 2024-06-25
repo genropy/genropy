@@ -835,11 +835,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
         labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
         if(helpcode){
-            let helperValue = sourceNode.getHelperValue()
-            let emptyHelper = helperValue?'':' emptyhelper developerToolElement';
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
-            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+emptyHelper+helperEditor,
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick();
                 },
@@ -867,7 +865,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode){
-
+        sourceNode.updateHelperClasses();
     },
 
     setSide:function(domNode,value,kw){
