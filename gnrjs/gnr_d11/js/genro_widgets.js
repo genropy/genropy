@@ -141,32 +141,45 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         if(sourceNode.getParentNode() && sourceNode.getParentNode().widget && sourceNode.getParentNode().widget.gnr.onChildBuilding){
             return sourceNode.getParentNode().widget.gnr.onChildBuilding(sourceNode.getParentNode(),sourceNode);
         }
-
         var lbl = objectPop(sourceNode.attr,'lbl');
-
         if(lbl){
-            var inherited_attr = sourceNode.getInheritedAttributes();
-            var lbl_attr = objectExtract(inherited_attr,'lbl_*');
-            var wrp_attr = objectExtract(inherited_attr,'wrp_*')
-            var attr = objectUpdate({},sourceNode.attr)
-            var tag = objectPop(attr,'tag');
-            var moveable = objectPop(attr,'moveable');
-            if (moveable){
-                wrp_attr.moveable=moveable;
-                objectUpdate(wrp_attr, objectExtract(attr,'top,left,position'));
-                lbl_attr.id='handle_'+sourceNode.getStringId()
-                wrp_attr.moveable_handle=lbl_attr.id;
+            let inherited_attr = sourceNode.getInheritedAttributes();
+            let label_attr = {};
+            let wrp_attr = objectExtract(inherited_attr,'wrp_*');
+            wrp_attr._labelWrapperId = genro.time36Id();
+            let attr = objectUpdate({},sourceNode.attr);
+            let side = objectPop(inherited_attr,'lbl_side') || 'top';
+            for(let k in attr){
+                if(k.startsWith('lbl_')){
+                    label_attr[`label_${k.slice(4)}`] = objectPop(inherited_attr,k);
+                }
             }
-            var children = sourceNode.getValue();
+            label_attr.label = lbl;
+            objectExtract(attr,'lbl_*');
+            objectExtract(attr,'wrp_*');
+            let box_l_kw = objectExtract(attr,'box_l_*',null,true);
+            let box_c_kw = objectExtract(attr,'box_c_*',null,true);
+            let box_kw = objectExtract(attr,'box_*');
+            attr._labelWrapper = wrp_attr._labelWrapperId;
+            wrp_attr.side = side;
+            let tag = objectPop(attr,'tag');
+            let children = sourceNode.getValue();
             sourceNode._value = null;
-            var side = lbl_attr['side'] || 'top';
-            sourceNode.attr = objectUpdate({tag:'div',_class:'innerLblWrapper innerLbl_'+side+ ' innerLblWrapper_widget_'+tag.toLowerCase()},wrp_attr);
-            sourceNode._('div',objectUpdate({innerHTML:lbl,_class:'innerLbl'},lbl_attr),{'doTrigger':false});
-            var c = sourceNode._(tag,attr,{'doTrigger':false});
-            if(children && children.len()){
-                c.concat(children);
+            wrp_attr.helpcode = objectPop(attr,'helpcode');
+            wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
+            wrp_attr.tag = 'labledbox'
+            let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+            sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+            sourceNode.label = 'labled_'+sourceNode.label;
+            if(children){
+                let contentNode = sourceNode._(tag,attr,{doTrigger:false});
+                for(let childNode of children.getNodes()){
+                    contentNode.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
+                }
             }
-        }else{
+            genro.wdg.getHandler(sourceNode.attr.tag).onBuilding(sourceNode);
+        }
+        else{
             this.onBuilding(sourceNode);
         }
     },
@@ -606,6 +619,264 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
         }
     },
 
+});
+
+dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        attributes.display = 'flex';
+        let wrap = objectPop(attributes,'wrap');
+        let direction = objectPop(attributes,'direction');
+        if(wrap){
+            attributes.flex_wrap = 'wrap';
+        }
+        if(direction){
+            attributes.flex_direction = direction;
+        }
+
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+
+    },
+    setDirection:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_direction = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    setWrap:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_wrap = value?'wrap':'nowrap';
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+});
+
+
+dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+
+
+    onBuilding:function(sourceNode){
+        sourceNode.attr.nodeId = sourceNode.attr.nodeId || `gridbox_${genro.time36Id()}`;
+        sourceNode.attr._workspace = true;
+        sourceNode.attr.items = sourceNode.attr.items || '^#WORKSPACE.items';
+        sourceNode.attr._items_attr = objectExtract(sourceNode.attr,'item_*');
+        let children = sourceNode.getValue();
+        if(children && children.len()){
+            let itemsPath = sourceNode.absDatapath(sourceNode.attr.items);
+            let currentItems = genro.getData(itemsPath);
+            genro.assert(isNullOrBlank(currentItems) || currentItems.len()==0,'gridbox items are already filled');
+            sourceNode._value = null;
+            genro.setData(itemsPath,children.deepCopy(),null,{doTrigger:false});
+        }
+    },
+
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        attributes.display = 'grid';
+        savedAttrs.columns = objectPop(attributes,'columns');
+        let fitContent = objectPop(attributes,'fitContent');
+        let _class = attributes._class || ''
+        attributes._class = _class + ' gnrgridbox';
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        if(savedAttrs.columns){
+            this.setColumns(newobj,savedAttrs.columns)
+        }
+        this.setItems(newobj);
+    },
+
+    setColumns:function(domNode,value,kw){
+        if(typeof(value)=='number' ||  /^\d+$/.test(value)){
+            value = `repeat(${parseInt(value)}, 1fr)`;
+        }
+        domNode.sourceNode.attr.grid_template_columns = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    adaptChild:function(childNode){
+        let kw = objectExtract(childNode.attr,'rowspan,colspan');
+        if(kw.colspan){
+            childNode.attr.grid_column = `span ${kw.colspan}`;
+        }
+        if(kw.rowspan){
+            childNode.attr.grid_row = `span ${kw.rowspan}`;
+        }
+        childNode.attr._itemId = childNode.attr._itemId || `item_${genro.time36Id()}`;
+
+    },
+
+    setItems:function(domNode,value,kw){
+        var sourceNode = domNode.sourceNode;
+        let items = sourceNode.getAttributeFromDatasource('items');
+        var items_attr = sourceNode.attr._items_attr;
+        var that = this;
+        let trigger_kw = kw || {};
+        let fullBuild = kw === undefined;
+        let doTrigger = false;
+        if(trigger_kw.node && trigger_kw.node.getFullpath(null,true)==sourceNode.absDatapath(sourceNode.attr.items)){
+            fullBuild = true;
+            trigger_kw = {}
+            doTrigger = true;
+        }
+        else if(trigger_kw.evt == 'upd' && trigger_kw.node){
+            let itemNode = trigger_kw.node.attributeOwnerNode('_itemId');
+            this.insertItem(sourceNode,itemNode);
+        }else if(trigger_kw.evt=='del' && trigger_kw.node){
+            if(trigger_kw.node.attr._itemId){
+                this.deleteItem(sourceNode,trigger_kw.node);
+            }else{
+                let itemNode = kw.node.attributeOwnerNode('_itemId');
+                this.insertItem(sourceNode,itemNode);
+            }
+        }else if(trigger_kw.evt=='ins' && trigger_kw.node){
+            let itemNode = kw.node.attributeOwnerNode('_itemId') || kw.node;
+            for(let k in items_attr){
+                itemNode.attr[k] = isNullOrBlank(itemNode.attr[k])?items_attr[k]:itemNode.attr[k]
+            }
+            this.insertItem(sourceNode,itemNode);
+        }
+        if(fullBuild){
+            this.clearItems(sourceNode);
+            if(items){
+                items.forEach(function(item){
+                    for(let k in items_attr){
+                        item.attr[k] = isNullOrBlank(item.attr[k])?items_attr[k]:item.attr[k]
+                    }
+                    that.insertItem(sourceNode,item,{doTrigger:doTrigger});
+                });
+            }
+        }
+    },
+
+    insertItem:function(sourceNode,item,triggerkw){
+        this.adaptChild(item);
+        let attr = {...item.attr};
+        if(attr.width){
+            attr.max_width = attr.width;
+        }
+        let itemId = objectPop(attr,'_itemId');
+        let itemValue = item.getValue();
+        itemValue = itemValue?itemValue.deepCopy():new gnr.GnrDomSource();
+        genro.src.getSource().setItem(sourceNode.getFullpath(null,true)+'.'+itemId,itemValue,attr,triggerkw);
+    },
+
+    deleteItem:function(sourceNode,item,triggerkw){
+        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        triggerkw = triggerkw || {};
+        srcBag.popNode(item.attr._itemId,triggerkw.doTrigger);
+    },
+
+    clearItems:function(sourceNode){
+        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        if(!srcBag){
+            return;
+        }
+        for(let n of srcBag.getNodes()){
+            srcBag.popNode(n.label,true);
+        }
+    }
+
+});
+
+
+dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+
+    onBuilding:function(sourceNode){
+        let label = sourceNode.attr.label;
+        let default_side = sourceNode.getInheritedAttributes().label_side;
+        let side = sourceNode.attr.side || default_side;
+        var children = sourceNode.getValue();
+        let label_attr = objectExtract(sourceNode.attr,'label_*');
+        let box_l_kw = objectExtract(sourceNode.attr,'box_l_*');
+        let box_c_kw = objectExtract(sourceNode.attr,'box_c_*');
+        let childIsGridbox = false;
+        var fld_kw = objectExtract(sourceNode.attr,'fld_*');
+
+        label_attr._class = label_attr._class || 'labledBox_title';
+
+
+        sourceNode.attr._class = (sourceNode.attr._class || '') + ' labledBox';
+        if(side){
+            sourceNode.attr._class += ' labledBox_'+side;
+        }
+        if(children && children.len()==1){
+            let childTag = children.getNode('#0').attr.tag.toLowerCase();
+            sourceNode.attr._class += ' labledBox_'+childTag;
+            childIsGridbox = childTag=='gridbox';
+        }
+        sourceNode._value = null;
+        
+        let helpcode = sourceNode.attr.helpcode;
+        let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
+        if (sourceNode.attr.moveable){
+            labelBoxAttr.id='handle_'+sourceNode.getStringId()
+            sourceNode.attr.moveable_handle=label_attr.id;
+        }
+        let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
+        labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
+        if(helpcode){
+            let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+                action:function(){
+                    sourceNode.onHelperClick(this);
+                },
+            },{'doTrigger':false});
+        }
+        if(childIsGridbox && genro.isDeveloper){
+            m = labelBox._('menudiv','devbtn',{iconClass:'innericonbox threedots',btn__class:'developerToolElement',
+            },{'doTrigger':false});
+            m._('menuline',{'label':'Edit labled box',action:function(){
+                genro.dev.openBagNodeEditorPalette(sourceNode.getFullpath(),{name:'_devSrcInspector_',title:'Sourcenode Inspector',origin:'*S'});
+            }},{'doTrigger':false});
+        }
+        let contentBox = sourceNode._('div',{_class:'labledBox_content',...box_c_kw},{'doTrigger':false});
+        if(children){
+            children.forEach(function(childNode){
+                let childNodeAttr = childNode.attr;
+                for(let k in fld_kw){
+                    childNodeAttr[k] = isNullOrBlank(childNodeAttr[k])?fld_kw[k]:childNodeAttr[k];
+                }
+                contentBox.addItem(childNode.label,childNode.getValue(),childNodeAttr,{doTrigger:false});
+            });
+        }
+    },
+    creating:function(attributes, sourceNode) {
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        sourceNode.updateHelperClasses();
+    },
+
+    setSide:function(domNode,value,kw){
+        genro.dom.removeClass(domNode,'labledBox_bottom');
+        genro.dom.removeClass(domNode,'labledBox_left');
+        genro.dom.removeClass(domNode,'labledBox_right');
+        genro.dom.removeClass(domNode,'labledBox_top');
+        if(value){
+            genro.dom.addClass(domNode,`labledBox_${value}`);
+        }
+    }
 });
 
 dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {

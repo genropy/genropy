@@ -69,6 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
+        return this.getParentNode().getDomNode();
 
     },
     
@@ -695,6 +696,68 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
     },
 
+
+    onHelperClick:function(helperButtonNode){
+        if(genro.isDeveloper && genro.getData('gnr.developerToolsVisible')){
+            var dflt = this.getHelperValue()
+            var that = this;
+            genro.dlg.prompt(_T('Edit help'),{
+                widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
+                action:function(value){
+                    that.saveHelper(value);
+                },dflt:dflt,onEnter:null});
+        }else{
+            let helperValue = this.getHelperValue()
+        }
+    },
+    saveHelper:function(value,custom){
+        let inAttr = this.getInheritedAttributes();
+        custom = custom===false?false:inAttr.resourceClass!==null;
+        let table = inAttr.table;
+        let kw = {table:table || genro.getData('gnr.pagename'),value:value,helpcode:this.attr.helpcode,customizationPackage:this.attr.helpcode_package};
+        if (table && custom){
+            kw.name = `th_${table.split('.')[1]}_${inAttr.resourceClass}`;
+        }
+        genro.setData(this.getHelperPath(custom),value)
+        this.updateHelperClasses(custom);
+        genro.serverCall('saveHelperValue',kw,function(){
+        });
+    },
+
+    updateHelperClasses:function(){
+        let helperValue = this.getHelperValue();
+        genro.dom.setClass(this,'emptyhelper',!helperValue);
+    },
+
+    getHelperValue:function(){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr.table;
+        let defaultValue = this.getRelativeData(this.getHelperPath())
+        if(table && inAttr.resourceClass){
+            return this.getRelativeData(this.getHelperPath(true)) || defaultValue;
+        }
+        return defaultValue;
+    },
+
+    getHelperPath:function(custom){
+        let helpcode = this.attr.helpcode;
+        return `gnr.helpers.${this.getHelperFolder(custom)}.${helpcode}?${genro.getData('gnr.language')}`;
+    },
+
+    getHelperFolder:function(custom){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr['table'];
+        let resourceClass = inAttr.resourceClass;
+        if(table){
+            let tablename = table.split('.')[1];
+            if(custom){
+                return `${table}.th_${tablename}_${resourceClass}`;
+            }
+            return `${table}.tbl_${tablename}`;
+        }
+        return genro.getData('gnr.pagename');
+    },
+
     connect: function(target, eventname, handler) {
         var eventname = ((!eventname) || eventname == 'action') ? target.gnr._defaultEvent : eventname;
         var handler = dojo.hitch(this, funcCreate(handler));
@@ -756,7 +819,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.attr.href) {
             genro.dom.loadCss(this.attr.href, this.attr.cssTitle);
         } else {
-            console.log('_bld_stylesheet',this.getValue())
             genro.dom.addStyleSheet(this.getValue(), this.attr.cssTitle);
         }
     },
@@ -1491,14 +1553,18 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     setHidden:function(hidden){
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            labelWrapper.setHidden(hidden);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         targets.forEach(function(domNode){
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
+        genro.dom.resizeFirstContainerResizable(this);
     },
     
     updateRemoteContent:function(forceUpdate,async) {
-
         var _onRemote = false;
         var currentValue = this.getValue('static');
         if (currentValue && currentValue.len() > 0 && !forceUpdate) {
@@ -1678,8 +1744,17 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
     },
+    getLabelWrapper:function(){
+        if (this.attr._labelWrapper){
+            return this.attributeOwnerNode('_labelWrapperId',this.attr._labelWrapper)
+        }
+    },
 
     updateValidationClasses: function() {
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            genro.dom.setClass(labelWrapper,'innerLblWrapper_error',this.hasValidationError())
+        }
         if (this.widget.cellNode) {
             var domnode = this.widget.cellNode;
         } else {

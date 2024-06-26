@@ -36,6 +36,131 @@ class GnrCustomWebPage(object):
         fb.combobox(value='^.ttt',lbl='Combobox',width='10em',storepath='.xxx',selected_test='.zzz')
         fb.div('^.zzz')
 
+    def test_1M_basic(self, pane):
+        "Formbuilder with basic widgets: use of textbox, readOnly and data"
+        fb = pane.formbuilder(cols=2, border_spacing='2px', fld_width='100%',boxMode=True,lblclass=None)
+        fb.textbox(value='^.short_text', lbl='Shortname',validate_len='0:5')
+        fb.data('.bb','piero')
+        fb.textbox(value='^.bb', lbl='readOnly',readOnly=True)
+        fb.textbox(value='^.cc', lbl='Bigger textbox', colspan=2,width='30em')
+        fb.radioButtonText(value='^.sex',values='M:Male,F:Female',lbl='Sex')
+        fb.checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance')
+
+        b = Bag()
+        b.setItem('foo',None,id='foo',caption='Foo',test='AAA')
+        b.setItem('bar',None,id='bar',caption='Bar',test='BBB')
+        b.setItem('spam',None,id='spam',caption='Spam',test='CCC')
+        
+        fb.data('.xxx',b)
+        fb.combobox(value='^.ttt',lbl='Combobox',width='10em',storepath='.xxx',selected_test='.zzz')
+        fb.div('^.zzz')
+
+
+    def test_1Z_basic(self, pane):
+        pane.textbox(value='^.left',lbl='Test L',lbl_side='left')
+        pane.textbox(value='^.top',lbl='Test T',lbl_side='top')
+        pane.textbox(value='^.right',lbl='Test R',lbl_side='right')
+        pane.textbox(value='^.bottom',lbl='Test B',lbl_side='bottom')
+
+
+    def test_2Z_testForm(self, pane):
+        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        t = form.record.table(border_spacing='8px',margin='20px').tbody()
+        r = t.tr()
+        r.td().textbox(value='^.nome',lbl='Nome',validate_notnull=True)
+        r.td().textbox(value='^.cognome',lbl='Cognome',validate_notnull=True)
+        r = t.tr()
+        r.td().dateTextBox(value='^.nato_il',lbl='Nato il')
+        r.td().dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',hasDownArrow=True)
+        r = t.tr()
+        r.td(colspan=2).textbox(value='^.email',lbl='Email',width='30em')
+        r = t.tr()
+        r.td().radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',lbl='Genere')
+        r.td().checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance')
+        bar = form.bottom.slotBar('*,confirm,5')
+        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
+        pane.dataController("frm.newrecord();",
+            frm=form.js_form,
+            _onStart=True
+        )
+
+    def test_2K_testForm(self, pane):
+        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        t = form.record.table(border_spacing='8px',margin='20px').tbody()
+        r = t.tr()
+        side = 'top'
+        r.td().textbox(value='^.nome',lbl='Nome',helpcode='nome',lbl_side=side,validate_notnull=True)
+        r.td().textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
+        r = t.tr()
+        r.td().dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
+        r.td().dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',
+                        hasDownArrow=True,lbl_side=side)
+        r = t.tr()
+        r.td(colspan=2).textbox(value='^.email',lbl='Email',width='30em',lbl_side=side)
+        r = t.tr()
+        r.td().labledbox(side=side,label='Genere').radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro')
+        r.td().checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance',lbl_side=side)
+        bar = form.bottom.slotBar('*,confirm,5')
+        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
+        pane.dataController("frm.newrecord();",
+            frm=form.js_form,
+            _onStart=True
+        )
+
+
+
+
+    def test_2FLEX_testForm(self, pane):
+        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        bc = form.center.borderContainer(datapath='.record')
+        bc.contentPane(region='right',splitter=True,width='150px')
+        r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;',margin='5px')
+        side = 'top'
+        r.textbox(value='^.nome',lbl='Nome',lbl_side=side,validate_notnull=True,sss=33) #helpcode='nome'
+        r.textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
+        r.dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
+        r.dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',
+                        hasDownArrow=True,lbl_side=side)
+        r.textbox(value='^.email',lbl='Email',width='30em',lbl_side=side)
+        r.radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',lbl='Genere',lbl_side=side)
+        r.checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance',lbl_side=side)
+        bar = form.bottom.slotBar('*,confirm,5')
+        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
+        pane.dataController("frm.newrecord();",
+            frm=form.js_form,
+            _onStart=True
+        )
+
+    def test_3FLEX_random(self, pane):
+        import random
+        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        bc = form.center.borderContainer(datapath='.record')
+        bc.contentPane(region='right',splitter=True,width='150px')
+        r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;justify-content:stretch;')
+        side = 'top'
+        for j in range(30):
+            r.textbox(value=f'^.field_{j}',lbl=f'Field {j}',lbl_side=side,
+                      width=f'{random.randint(8,20)}em')
+
+       #r.textbox(value='^.cognome',lbl='Cognome',lbl_side=side,validate_notnull=True)
+       #r.dateTextBox(value='^.nato_il',lbl='Essendo Nato il',lbl_side=side)
+       #r.dbSelect(value='^.provincia_nascita',lbl='Pr.Nascita',table='glbl.provincia',
+       #                hasDownArrow=True,lbl_side=side)
+       #r.textbox(value='^.email',lbl='Email',width='30em',lbl_side=side)
+       #r.radioButtonText(value='^.genere',values='M:Maschi,F:Femmina,N:Neutro',lbl='Genere',lbl_side=side)
+       #r.checkbox(value='^.privacy',label='Accept',lbl='Privacy acceptance',lbl_side=side)
+       #bar = form.bottom.slotBar('*,confirm,5')
+       #bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
+        pane.dataController("frm.newrecord();",
+            frm=form.js_form,
+            _onStart=True
+        )
+    def test_2LABELCONT_aaa(self, pane):
+        tc = pane.tabContainer(height='300px',width='600px',lbl='Zio')
+        tc.contentPane(title='Miao')
+        tc.contentPane(title='Bau')
+
+
     def test_2_tabindex(self, pane):
         "Use of tabindex to customize behaviour if you press tab. Label positioned on top"
         fb = pane.formbuilder(cols=2, lblpos='T')

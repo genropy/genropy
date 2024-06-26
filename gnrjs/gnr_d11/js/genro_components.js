@@ -3965,7 +3965,6 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         var allowedExtensions = objectPop(kw,'extensions');
-        console.log('allowedExtensions',allowedExtensions)
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         
