@@ -74,18 +74,19 @@ pipelines:
                 services:
                   - postgres
 
-            # - step:
-            #     name: Tests against python 3.12
-            #     image: python:3.12.1-bookworm
-            #     caches:
-            #       - pip
-            #     script:
-            #       - cd gnrpy
-            #       - pip install --editable .[developer]
-            #       - cd tests
-            #       - GNR_LOCALE="en_US" pytest core sql web app xtnd
-            #     services:
-            #       - postgres
+            - step:
+                name: Tests against python 3.12
+                image: python:3.12.1-bookworm
+                caches:
+                  - pip
+                script:
+                  - apt update && apt install -y locales-all
+                  - cd gnrpy
+                  - pip install --editable .[developer]
+                  - cd tests
+                  - LC_ALL="en_US.UTF-8" GNR_LOCALE="en_US.UTF-8" pytest core sql web app xtnd
+                services:
+                  - postgres
                   
   tags:
     ecr-release-*:
