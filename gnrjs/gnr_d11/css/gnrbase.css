@@ -1011,40 +1011,14 @@ label{
     display: inline-flex;
 }
 
-.helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
-    background-size:contain;
-}
 
-.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
-    display: block;
-    background-size:contain;
-}
-
-.labledBox.emptyhelper>.labledBox_label> .helperbutton{
-    display: none;
-}
-
-
-
-.labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
-.labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{
-    flex-direction: row-reverse;
-}
 .gnrzoomicon{
     width:15px;
 }
-.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel .gnrzoomicon{
-    display: none;
-}
-.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel:hover .gnrzoomicon{
-    display: block;
-}
-
 .gnrzoomlabel:hover .gnrzoomicon{
     background: transparent url(icons/base14/linkto.gif) no-repeat center center;
 }
+  
 /* @group loading classes */
 
 /*topLabelTable css for toplabel forbuilders*/
@@ -6527,6 +6501,43 @@ div[disabled='true'], div[disabled='disabled']{
     font-weight: bold;
     font-size: .9em;
 }
+
+
+
+
+.helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
+    background-size:contain;
+    position: relative;
+}
+
+.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
+    display: block;
+    background-size:contain;
+}
+
+.labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: none;
+}
+
+.labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
+.labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{
+    flex-direction: row-reverse;
+}
+
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel .gnrzoomicon{
+    display: none;
+}
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel:hover .gnrzoomicon{
+    display: block;
+}
+
+
+
+
+
+
 
 .labledBoxInputBorderless .labledBox_title{
     margin-left:6px;

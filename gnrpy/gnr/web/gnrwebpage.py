@@ -2115,6 +2115,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.main_root(page, **kwargs)
             return (page, pageattr)
         page.data('gnr.windowTitle',windowTitle or self.windowTitle())
+        page.data('gnr.developerToolsVisible',False)
+        page.dataController("""
+                            genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
+                            developerToolsVisible='^gnr.developerToolsVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)

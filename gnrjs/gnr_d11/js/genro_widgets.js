@@ -837,9 +837,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         if(helpcode){
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
-            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
                 action:function(){
-                    sourceNode.onHelperClick();
+                    sourceNode.onHelperClick(this);
                 },
             },{'doTrigger':false});
         }

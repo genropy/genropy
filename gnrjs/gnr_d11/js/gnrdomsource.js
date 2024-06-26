@@ -697,8 +697,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
 
 
-    onHelperClick:function(){
-        if(genro.isDeveloper){
+    onHelperClick:function(helperButtonNode){
+        if(genro.isDeveloper && genro.getData('gnr.developerToolsVisible')){
             var dflt = this.getHelperValue()
             var that = this;
             genro.dlg.prompt(_T('Edit help'),{
@@ -706,6 +706,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 action:function(value){
                     that.saveHelper(value);
                 },dflt:dflt,onEnter:null});
+        }else{
+            let helperValue = this.getHelperValue()
         }
     },
     saveHelper:function(value,custom){
@@ -724,7 +726,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     updateHelperClasses:function(){
         let helperValue = this.getHelperValue();
-        console.log('helperValue',helperValue)
         genro.dom.setClass(this,'emptyhelper',!helperValue);
     },
 
