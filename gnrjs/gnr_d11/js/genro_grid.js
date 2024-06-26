@@ -68,8 +68,9 @@ gnr.columnsFromStruct = function(struct, columns) {
         if(node.attr.group_aggr){
             fld = fld+'_'+node.attr.group_aggr.toLowerCase().replace(/\W/g, '_');
         }
-        if(node.attr.template_columns){
-            node.attr.template_columns.split(',').forEach(function(n){
+        if(node.attr.template_columns || node.attr.rowTemplate){
+            let template_columns = node.attr.template_columns?node.attr.template_columns.split(','):node.attr.rowTemplate.match(/\$[a-zA-Z_]+/g);
+            template_columns.forEach(function(n){
                 arrayPushNoDup(columns,(n[0]=='$' || n[0]=='@')?n:'$'+n);
             });
         }
