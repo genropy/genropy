@@ -170,10 +170,14 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             wrp_attr.tag = 'labledbox'
             let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
             sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+            let original_label = sourceNode.label;
+            sourceNode.label = 'labled_'+original_label;
+            let content = sourceNode._(tag,original_label,attr,{doTrigger:false});
+            sourceNode._contentNode = content.getParentNode();
+
             if(children){
-                let contentNode = sourceNode._(tag,attr,{doTrigger:false});
                 for(let childNode of children.getNodes()){
-                    contentNode.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
+                    content.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
                 }
             }
             genro.wdg.getHandler(sourceNode.attr.tag).onBuilding(sourceNode);

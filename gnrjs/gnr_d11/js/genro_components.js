@@ -3682,6 +3682,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     
     createContent:function(sourceNode, kw,children) {
         var resource = objectPop(kw,'resource');
+        var gnrwdg = sourceNode.gnrwdg;
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
         }
@@ -3737,6 +3738,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         kw.onCreated = function(domnode,attributes){
             this._templateHandler = {};
+            gnrwdg.chunkNode = domnode.sourceNode;
             var templateHandler=this._templateHandler
             templateHandler.showAlways = showAlways;
             if(record_id){
@@ -3747,9 +3749,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
             //this.updateTemplate(); to check
         }
-        var chunk = sourceNode._('div','templateChunk',kw)
-        sourceNode.gnrwdg.chunkNode = chunk.getParentNode();
-        return chunk;
+        return sourceNode._('div','templateChunk',kw);
     },
 
     emptyChunk:function(plainText,editable){
@@ -3870,16 +3870,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
     gnrwdg_refresh:function(){
         var pkey;
-        var tnode = this.sourceNode._value.getNode('templateChunk');
-
         if(this.sourceNode.attr.record_id){
             pkey = this.sourceNode.getAttributeFromDatasource('record_id');
         }
-        tnode.updateTemplate(pkey);
+        this.chunkNode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
-        var tnode = this.sourceNode._value.getNode('templateChunk');
-        tnode.updateTemplate(pkey);
+        this.chunkNode.updateTemplate(pkey);
     }
 });
 
