@@ -416,26 +416,14 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
     },
     
-    resizeContainer:function(wdgt) {
-        if (wdgt.parent && wdgt.parent.isContainer) {
-            this.resizeContainer(wdgt.parent);
-        } else if (wdgt && wdgt.isContainer) {
-            wdgt.onResized();
-        }
-    },
-
-    resizeFirstContainerResizable:function(sourceNode){
-        let node = sourceNode;
-        let widget = sourceNode.getWidget();
-        while (!(widget && widget.resize && widget.isContainer)){
-            node = node.getParentNode();
-            if(!node){
-                return;
-            }
-            widget = node.getWidget();
-        }
-        widget.resize();
-    },
+    
+   //resizeContainer:function(wdgt) {
+   //    if (wdgt.parent && wdgt.parent.isContainer) {
+   //        this.resizeContainer(wdgt.parent);
+   //    } else if (wdgt && wdgt.isContainer) {
+   //        wdgt.onResized();
+   //    }
+   //},
 
     getStyleDict: function(attributes/*{}*/, noConvertStyle) {
         if (attributes.gnrIcon) {
