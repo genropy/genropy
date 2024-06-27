@@ -1800,7 +1800,12 @@ class SqlTable(GnrObject):
             pkey = old_record.get(self.pkey)
         if record.get(self.pkey) == pkey:
             pkey = None
-        self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            _storename = packageStorename
+        
+        with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
+            self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         return record
         
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):
