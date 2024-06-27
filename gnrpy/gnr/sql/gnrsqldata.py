@@ -352,9 +352,9 @@ class SqlQueryCompiler(object):
         elif (joiner.get('case_insensitive', False) == 'Y'):
             cnd = 'lower(%s.%s) = lower(%s.%s)' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
         elif joiner.get('virtual'):
-            cnd = f'(${from_column})="{alias}".{target_sqlcolumn}'
+            cnd = f'(${from_column})={self.db.adapter.adaptSqlName(alias)}.{target_sqlcolumn}'
         else:
-            cnd = '"%s".%s = "%s".%s' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
+            cnd = '%s.%s = %s.%s' % (self.db.adapter.adaptSqlName(alias), target_sqlcolumn, self.db.adapter.adaptSqlName(basealias), from_sqlcolumn)
         cnd = self.updateFieldDict(cnd, reldict=joindict)
         if joindict:
             for f in joindict.values():
@@ -370,7 +370,7 @@ class SqlQueryCompiler(object):
                 cnd = '(%s AND %s)' % (cnd, extracnd)
                 if one_one:
                     manyrelation = False # if in the model a relation is defined as one_one
-        self.cpl.joins.append(f'LEFT JOIN {target_sqlfullname} AS "{alias}" ON ({cnd})')
+        self.cpl.joins.append(f'LEFT JOIN {target_sqlfullname} AS {self.db.adapter.adaptSqlName(alias)} ON ({cnd})')
         # if a relation many is traversed the number of returned rows are more of the rows in the main table.
         # the columns causing the increment of rows number are saved for use by SqlSelection._aggregateRows
         if manyrelation:
@@ -641,7 +641,7 @@ class SqlQueryCompiler(object):
             else:
                 columns = 'count(*) AS "gnr_row_count"'  # use the sql count function istead of load all data
         elif addPkeyColumn and self.tblobj.pkey and not aggregate:
-            columns = columns + ',\n' + '"%s"."%s" AS "pkey"' % (self.aliasCode(0),self.tblobj.column(self.tblobj.pkey).sqlname)  # when possible add pkey to all selections
+            columns = columns + ',\n' + '%s.%s AS %s' % (self.db.adapter.adaptSqlName(self.aliasCode(0)),self.db.adapter.adaptSqlName(self.tblobj.column(self.tblobj.pkey).sqlname),self.db.adapter.asTranslator('pkey'))  # when possible add pkey to all selections
             columns = columns.lstrip(',')                                   # if columns was '', now it starts with ','
         else:
             columns = columns.strip('\n').strip(',')
@@ -733,7 +733,7 @@ class SqlQueryCompiler(object):
                 xattrs['_relmode'] = self._getRelationMode(attrs['joiner'])
             else:
                 sqlname = attrs.get('sqlname') or fieldname
-                self.fieldlist.append('"%s"."%s" AS "%s_%s"' % (self.aliasCode(0),sqlname, self.aliasCode(0),fieldname))
+                self.fieldlist.append( '%s.%s AS %s' % (self.db.adapter.adaptSqlName(self.aliasCode(0)),self.db.adapter.adaptSqlName(sqlname),self.db.adapter.asTranslator('%s_%s'%(self.aliasCode(0),fieldname))))
                 xattrs['as'] = '%s_%s' %(self.aliasCode(0),fieldname)
             self.cpl.resultmap.setItem(fieldname,None,xattrs)
         self._handle_virtual_columns(virtual_columns)
@@ -2298,6 +2298,7 @@ class SqlRecord(object):
     def _get_result(self):
         if self._result is None:
             with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
+                print('dbImplementation', self.dbtable.dbImplementation)
                 self.adapterResult()
         return self._result
 
