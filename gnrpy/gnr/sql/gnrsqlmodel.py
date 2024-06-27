@@ -464,7 +464,6 @@ class DbModelSrc(GnrStructData):
         return self.child('table', 'tables.%s' % name, comment=comment,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           pkey=pkey, lastTS=lastTS, rowcaption=rowcaption, pkg=pkg,
-                          sqlname=sqlname, sqlschema=sqlschema,
                           fullname='%s.%s' %(pkg,name),
                           **kwargs)
 
@@ -1018,7 +1017,7 @@ class DbTableObj(DbModelObj):
         if not self.db.adapter.use_schemas():
             return self.adapted_sqlname
         else:
-            return '%s.%s' % (self.db.adapter.adaptSqlName(self.sqlschema), self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
+            return '%s.%s' % (self.sqlschema, self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
     sqlfullname = property(_get_sqlfullname)
 
     def _get_sqlnamemapper(self):
@@ -1536,7 +1535,7 @@ class DbBaseColumnObj(DbModelObj):
 
     def _get_sqlfullname(self):
         """property. Returns the sqlfullname"""
-        return '%s.%s' % (self.table.sqlfullname, self.adapted_sqlname)
+        return '%s.%s' % (self.table.sqlfullname, self.sqlname)
 
     sqlfullname = property(_get_sqlfullname)
 
@@ -1591,8 +1590,7 @@ class DbColumnObj(DbBaseColumnObj):
         """TODO"""
         
         super(DbColumnObj, self).doInit()
-        with self.db.tempEnv(currentImplementation=self.table.dbtable.dbImplementation):        
-            self.table.sqlnamemapper[self.name] = self.adapted_sqlname
+        self.table.sqlnamemapper[self.name] = self.adapted_sqlname
         column_relation = self.structnode.value['relation']
         if column_relation is not None:
             reldict = dict(column_relation.attributes)

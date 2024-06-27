@@ -169,7 +169,7 @@ class GnrClassCatalog(object):
         :param translate_cb: TODO. 
         :returns: TODO
         """
-        if isinstance(o, str):
+        if isinstance(o, (bytes,str)):
             result = o
             if translate_cb: # a translation is needed, if no locale leave all as is including "!!"
                 result = translate_cb(result)
@@ -211,7 +211,7 @@ class GnrClassCatalog(object):
         if not txt:
             return self.getEmpty(clsname)
     
-        if not isinstance(txt, (str,)):
+        if not isinstance(txt, (str, bytes)):
             if self.getType(txt)==clsname:
                 return txt
             else:
@@ -255,7 +255,7 @@ class GnrClassCatalog(object):
         :param txt: TODO
         :returns: TODO
         """
-        if not isinstance(txt,(str,)):
+        if not isinstance(txt,(str,bytes)):
             return txt
         result = re.split('::(\w*)$', txt)
         if len(result) == 1:
@@ -312,7 +312,7 @@ class GnrClassCatalog(object):
         """
         from gnr.core.gnrbag import Bag
         
-        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[], empty='')
+        self.addClass(cls=str, key='T', aliases=['TEXT', 'P', 'A','text'], altcls=[bytes], empty='')
         #self.addSerializer("asText", unicode, lambda txt: txt)
         
         self.addClass(cls=float, key='R', aliases=['REAL', 'FLOAT', 'F'], align='R', empty=0.0)

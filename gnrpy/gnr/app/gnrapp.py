@@ -192,7 +192,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param tblobj: the :ref:`database table <table>` object
         :param record: the record to be deleted"""
         self.checkTransactionWritable(tblobj)
-        super().delete(tblobj, record,**kwargs)
+        GnrSqlDb.delete(self, tblobj, record,**kwargs)
         if self.systemDbEvent():
             return
         self.application.notifyDbEvent(tblobj, record, 'D')
@@ -205,7 +205,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param old_record: the old record to be updated
         :param pkey: the record :ref:`primary key <pkey>`"""
         self.checkTransactionWritable(tblobj)
-        super().update(tblobj, record, old_record=old_record, pkey=pkey,**kwargs)
+        GnrSqlDb.update(self, tblobj, record, old_record=old_record, pkey=pkey,**kwargs)
         if self.systemDbEvent():
             return
         self.application.notifyDbEvent(tblobj, record, 'U', old_record)
@@ -216,7 +216,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param tblobj: the :ref:`database table <table>` object
         :param record: the record to be inserted"""
         self.checkTransactionWritable(tblobj)
-        super().insert(tblobj, record,**kwargs)
+        GnrSqlDb.insert(self, tblobj, record,**kwargs)
         if self.systemDbEvent():
             return
         self.application.notifyDbEvent(tblobj, record, 'I')
@@ -229,7 +229,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param tblobj: the :ref:`database table <table>` object
         :param record: the record to be deleted"""
         self.checkTransactionWritable(tblobj)
-        super().raw_delete(tblobj, record,**kwargs)
+        GnrSqlDb.raw_delete(self, tblobj, record,**kwargs)
         if self.systemDbEvent():
             return
         self.application.notifyDbEvent(tblobj, record, 'D')
@@ -242,7 +242,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param old_record: the old record to be updated
         :param pkey: the record :ref:`primary key <pkey>`"""
         self.checkTransactionWritable(tblobj)
-        super().raw_update(tblobj, record,old_record=old_record, pkey=pkey,**kwargs)
+        GnrSqlDb.raw_update(self, tblobj, record,old_record=old_record, pkey=pkey,**kwargs)
         if self.systemDbEvent():
             return
         old_record = record or dict(record)
@@ -254,7 +254,7 @@ class GnrSqlAppDb(GnrSqlDb):
         :param tblobj: the :ref:`database table <table>` object
         :param record: the record to be inserted"""
         self.checkTransactionWritable(tblobj)
-        super().raw_insert(tblobj, record,**kwargs)
+        GnrSqlDb.raw_insert(self, tblobj, record,**kwargs)
         if self.systemDbEvent():
             return
         self.application.notifyDbEvent(tblobj, record, 'I')

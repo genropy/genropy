@@ -469,9 +469,9 @@ class GnrSqlDb(GnrObject):
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
         for k,v in list(sqlargs.items()):
-            #if isinstance(v,bytes):
-            #    v=v.decode('utf-8')
-            #    sqlargs[k] = v
+            if isinstance(v,bytes):
+                v=v.decode('utf-8')
+                sqlargs[k] = v
             if isinstance(v, str):
                 if (v.startswith(r'\$') or v.startswith(r'\@')):
                     sqlargs[k] = v[1:]
