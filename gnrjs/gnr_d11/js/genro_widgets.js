@@ -170,7 +170,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             wrp_attr.tag = 'labledbox'
             let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
             sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
-            sourceNode.label = 'labled_'+sourceNode.label;
             if(children){
                 let contentNode = sourceNode._(tag,attr,{doTrigger:false});
                 for(let childNode of children.getNodes()){
