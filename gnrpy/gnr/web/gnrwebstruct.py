@@ -1899,7 +1899,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
         """
-        if lbl and not label:
+        if lbl and not label and not getattr(self,'fbuilder',None):
             label = lbl
             lbl = '&nbsp;'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
