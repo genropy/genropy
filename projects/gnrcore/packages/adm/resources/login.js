@@ -109,7 +109,9 @@ const LoginComponent = {
                     }
                 }else{
                     //different context page
-                    genro.pageReload({page_id:genro.page_id,...genro.startArgs});
+                    let kwreload = {page_id:genro.page_id,...genro.startArgs};
+                    objectPop(kwreload,'new_window');
+                    genro.pageReload(kwreload);
                 }
             }
         },null,'POST');
