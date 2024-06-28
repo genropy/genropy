@@ -6,20 +6,6 @@ from gnr.core.gnrbag import Bag
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
                 
-
-    def test_98_labledItem(self,pane):
-        pane.labledBox(label='Nome',side='top',border='1px solid red',
-                       box_l_background='red',box_c_background='lime',
-                       label_color='white',box_c_padding='10px').textbox(value='^.nome')
-        pane.labledBox(label='Cognome',side='top').textbox(value='^.cognome')
-
-
-    def test_97_labledItem(self,pane):
-        pane.textbox(value='^.nome',lbl='Nome',
-                      box_l_background='red',box_c_background='lime',
-                       lbl_color='white',box_c_padding='10px',box_border='1px solid green')
-
-
     def test_0_gridbox(self,pane):
         "Simple"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
@@ -39,14 +25,14 @@ class GnrCustomWebPage(object):
         fb = bc.contentPane(region='top').formbuilder(cols=2)
         fb.textBox(value='^.columns',default='4',lbl='Columns')
         fc = bc.contentPane(region='center').gridbox(width='90%',item_height='100px',columns='^.columns',column_gap='10px',row_gap='5px',
-                                                     border='1px solid silver',padding='5px',
+                                                     border='1px solid silver',padding='5px',item_border='1px solid red',
                                                      margin='5px')
-        fc.div('Item 1',border='1px solid red')
+        fc.div('Item 1')
         fc.div('Item 2',colspan=2,border='1px solid green')
-        fc.div('Item 3',rowspan=2,border='1px solid red',height='100%')
-        fc.div('Item 4',border='1px solid red')
-        fc.div('Item 5',border='1px solid red')
-        fc.div('Item 6',border='1px solid red')
+        fc.div('Item 3',rowspan=2,height='100%')
+        fc.div('Item 4')
+        fc.div('Item 5')
+        fc.div('Item 6')
 
 
     def test_2_gridbox(self,pane):
@@ -133,24 +119,13 @@ class GnrCustomWebPage(object):
 
 
 
-
-    def test_5_gridbox_structpath(self,pane):
-        bc = pane.borderContainer(height='500px',width='500px')
-        pane =  bc.contentPane(region='center')
-        gb =pane.gridbox(columns=2,items='^.items',lbl='Miei dati')
-        gb.radioButtonText(value='^.genere',values='M:Maschio,F:Femmina',cols=2,lbl='Genere',colspan=2)
-        gb.textbox(value='^.nome',lbl='Nome',helpcode='pippo')
-        gb.textbox(value='^.cognome',lbl='Cognome').comboArrow(nodeId='alfredo')
-
     
     def test_6_gridbox_inside(self,pane):
-        pane.button('Set source').dataController("SET .items=source;",source='=.test_from_source')
-        pane.button('Set bag').dataController("SET .items=source;",source='=.test_from_bag')
-        pane.br()
-        pane.gridbox(cols=2,items='^.items',lbl='Dati anagrafici')
-        pane.data('.test_from_source',self.contentAnagrafica())
-        pane.data('.test_from_bag',self.contentAnagrafica_bag())
-        
+        bc = pane.borderContainer(height='500px')
+        bc.contentPane(region='top').button('Set bag').dataController("SET .items=source;",source='=.test_from_bag')
+        bc.contentPane(region='center').gridbox(cols=2,items='^.items',lbl='Dati anagrafici',item_datapath='.data')
+        bc.data('.test_from_bag',self.contentAnagrafica_bag())
+        bc.treeFrame(frameCode='editor',width='400px',border='1px solid silver',region='left',storepath='.items',editable=True)
 
     def test_99_gridbox(self,pane):
         gb = pane.gridbox(cols=2,lbl='Dati anagrafici')

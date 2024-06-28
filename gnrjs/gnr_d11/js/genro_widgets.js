@@ -138,9 +138,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     },
 
     _onBuilding:function(sourceNode){        
-        if(sourceNode.getParentNode() && sourceNode.getParentNode().widget && sourceNode.getParentNode().widget.gnr.onChildBuilding){
-            return sourceNode.getParentNode().widget.gnr.onChildBuilding(sourceNode.getParentNode(),sourceNode);
-        }
         var lbl = objectPop(sourceNode.attr,'lbl');
         if(lbl){
             let inherited_attr = sourceNode.getInheritedAttributes();
@@ -162,6 +159,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             let box_kw = objectExtract(attr,'box_*');
             attr._labelWrapper = wrp_attr._labelWrapperId;
             wrp_attr.side = side;
+            wrp_attr._itemId = objectPop(attr,'_itemId');
             let tag = objectPop(attr,'tag');
             let children = sourceNode.getValue();
             sourceNode._value = null;
@@ -171,10 +169,9 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
             sourceNode.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
             let original_label = sourceNode.label;
-            sourceNode.label = 'labled_'+original_label;
+            sourceNode.label = wrp_attr._itemId || 'labled_'+original_label;
             let content = sourceNode._(tag,original_label,attr,{doTrigger:false});
             sourceNode._contentNode = content.getParentNode();
-
             if(children){
                 for(let childNode of children.getNodes()){
                     content.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
@@ -183,6 +180,13 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             genro.wdg.getHandler(sourceNode.attr.tag).onBuilding(sourceNode);
         }
         else{
+            let parentNode = sourceNode.getParentNode();
+            if(parentNode.widget || parentNode.domNode){
+                let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
+                if(parentHandler && parentHandler.onChildBuilding){
+                    parentHandler.onChildBuilding(parentNode,sourceNode);
+                }
+            }
             this.onBuilding(sourceNode);
         }
     },
@@ -667,15 +671,10 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     onBuilding:function(sourceNode){
         sourceNode.attr.nodeId = sourceNode.attr.nodeId || `gridbox_${genro.time36Id()}`;
         sourceNode.attr._workspace = true;
-        sourceNode.attr.items = sourceNode.attr.items || '^#WORKSPACE.items';
         sourceNode.attr._items_attr = objectExtract(sourceNode.attr,'item_*');
-        let children = sourceNode.getValue();
-        if(children && children.len()){
-            let itemsPath = sourceNode.absDatapath(sourceNode.attr.items);
-            let currentItems = genro.getData(itemsPath);
-            genro.assert(isNullOrBlank(currentItems) || currentItems.len()==0,'gridbox items are already filled');
-            sourceNode._value = null;
-            genro.setData(itemsPath,children.deepCopy(),null,{doTrigger:false});
+        if(sourceNode.attr.items){
+            let children = sourceNode.getValue();
+            genro.assert((!children || children.len()==0),'if gridbox use items attribute cannot have children')
         }
     },
 
@@ -701,7 +700,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(savedAttrs.columns){
             this.setColumns(newobj,savedAttrs.columns)
         }
-        this.setItems(newobj);
     },
 
     setColumns:function(domNode,value,kw){
@@ -712,7 +710,7 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
     },
 
-    adaptChild:function(childNode){
+    onChildBuilding:function(sourceNode,childNode){
         let kw = objectExtract(childNode.attr,'rowspan,colspan');
         if(kw.colspan){
             childNode.attr.grid_column = `span ${kw.colspan}`;
@@ -720,70 +718,55 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(kw.rowspan){
             childNode.attr.grid_row = `span ${kw.rowspan}`;
         }
-        childNode.attr._itemId = childNode.attr._itemId || `item_${genro.time36Id()}`;
-
+        let items_attr = sourceNode.attr._items_attr;
+        for(let k in items_attr){
+            childNode.attr[k] = isNullOrBlank(childNode.attr[k])?items_attr[k]:childNode.attr[k]
+        }
     },
 
     setItems:function(domNode,value,kw){
         var sourceNode = domNode.sourceNode;
         let items = sourceNode.getAttributeFromDatasource('items');
-        var items_attr = sourceNode.attr._items_attr;
-        var that = this;
-        let trigger_kw = kw || {};
-        let fullBuild = kw === undefined;
-        let doTrigger = false;
-        if(trigger_kw.node && trigger_kw.node.getFullpath(null,true)==sourceNode.absDatapath(sourceNode.attr.items)){
-            fullBuild = true;
-            trigger_kw = {}
-            doTrigger = true;
-        }
-        else if(trigger_kw.evt == 'upd' && trigger_kw.node){
-            let itemNode = trigger_kw.node.attributeOwnerNode('_itemId');
-            this.insertItem(sourceNode,itemNode);
-        }else if(trigger_kw.evt=='del' && trigger_kw.node){
-            if(trigger_kw.node.attr._itemId){
-                this.deleteItem(sourceNode,trigger_kw.node);
-            }else{
-                let itemNode = kw.node.attributeOwnerNode('_itemId');
-                this.insertItem(sourceNode,itemNode);
-            }
-        }else if(trigger_kw.evt=='ins' && trigger_kw.node){
-            let itemNode = kw.node.attributeOwnerNode('_itemId') || kw.node;
-            for(let k in items_attr){
-                itemNode.attr[k] = isNullOrBlank(itemNode.attr[k])?items_attr[k]:itemNode.attr[k]
-            }
-            this.insertItem(sourceNode,itemNode);
-        }
-        if(fullBuild){
+        let storeNode = items.getParentNode()
+        var parent_lv = kw.node.parentshipLevel(storeNode);
+        if(parent_lv===0){
             this.clearItems(sourceNode);
             if(items){
-                items.forEach(function(item){
-                    for(let k in items_attr){
-                        item.attr[k] = isNullOrBlank(item.attr[k])?items_attr[k]:item.attr[k]
-                    }
-                    that.insertItem(sourceNode,item,{doTrigger:doTrigger});
-                });
+                for(let item of items.getNodes()){
+                    this.insertItem(sourceNode,item,{doTrigger:true});
+                }
             }
+            return
+        }
+        if(!kw.node){
+            return;
+        }
+        console.log('items',parent_lv)
+        let nodeToUpdate = kw.node;
+        while (parent_lv>1){
+            nodeToUpdate = nodeToUpdate.getParentNode();
+            parent_lv-=1;
+        }
+        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        if(kw.evt == 'upd'){
+            let index = srcBag.index(nodeToUpdate.attr._itemId)
+            srcBag.popNode(nodeToUpdate.attr._itemId);
+            this.insertItem(sourceNode,nodeToUpdate,{_position:index});
+        }else if(kw.evt=='del' && kw.node){
+            srcBag.popNode(nodeToUpdate.label);
+        }else if(kw.evt=='ins' && kw.node){
+            this.insertItem(sourceNode,nodeToUpdate);
         }
     },
 
     insertItem:function(sourceNode,item,triggerkw){
-        this.adaptChild(item);
-        let attr = {...item.attr};
-        if(attr.width){
-            attr.max_width = attr.width;
-        }
-        let itemId = objectPop(attr,'_itemId');
         let itemValue = item.getValue();
         itemValue = itemValue?itemValue.deepCopy():new gnr.GnrDomSource();
-        genro.src.getSource().setItem(sourceNode.getFullpath(null,true)+'.'+itemId,itemValue,attr,triggerkw);
+        item.attr._itemId = `item_${genro.time36Id()}`;
+        genro.src.getSource().setItem(sourceNode.getFullpath(null,true)+'.'+item.attr._itemId,itemValue,item.attr,triggerkw);
     },
 
-    deleteItem:function(sourceNode,item,triggerkw){
-        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
-        triggerkw = triggerkw || {};
-        srcBag.popNode(item.attr._itemId,triggerkw.doTrigger);
-    },
+
 
     clearItems:function(sourceNode){
         let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
