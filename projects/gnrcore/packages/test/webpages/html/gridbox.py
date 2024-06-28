@@ -108,7 +108,7 @@ class GnrCustomWebPage(object):
                         hasDownArrow=True)
         gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
 
-        gb.labledBox('Email',colspan=2).textbox(value='^.email')
+        gb.textbox(value='^.email',lbl='Email',colspan=2)
 
         bar = form.bottom.slotBar('*,confirm,5')
         bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')

@@ -139,6 +139,13 @@ dojo.declare("gnr.widgets.baseHtml", null, {
 
     _onBuilding:function(sourceNode){        
         var lbl = objectPop(sourceNode.attr,'lbl');
+        let parentNode = sourceNode.getParentNode();
+        if(parentNode.widget || parentNode.domNode){
+            let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
+            if(parentHandler && parentHandler.onChildBuilding){
+                parentHandler.onChildBuilding(parentNode,sourceNode);
+            }
+        }
         if(lbl){
             let inherited_attr = sourceNode.getInheritedAttributes();
             let label_attr = {};
@@ -180,13 +187,6 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             genro.wdg.getHandler(sourceNode.attr.tag).onBuilding(sourceNode);
         }
         else{
-            let parentNode = sourceNode.getParentNode();
-            if(parentNode.widget || parentNode.domNode){
-                let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
-                if(parentHandler && parentHandler.onChildBuilding){
-                    parentHandler.onChildBuilding(parentNode,sourceNode);
-                }
-            }
             this.onBuilding(sourceNode);
         }
     },
@@ -680,7 +680,7 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
 
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
-        savedAttrs.columns = objectPop(attributes,'columns');
+        savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
         let fitContent = objectPop(attributes,'fitContent');
         let _class = attributes._class || ''
         attributes._class = _class + ' gnrgridbox';
