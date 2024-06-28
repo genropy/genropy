@@ -139,13 +139,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
 
     _onBuilding:function(sourceNode){        
         var lbl = objectPop(sourceNode.attr,'lbl');
-        let parentNode = sourceNode.getParentNode();
-        if(parentNode.widget || parentNode.domNode){
-            let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
-            if(parentHandler && parentHandler.onChildBuilding){
-                parentHandler.onChildBuilding(parentNode,sourceNode);
-            }
-        }
+        sourceNode.checkOnChildBuilding();
         if(lbl){
             let inherited_attr = sourceNode.getInheritedAttributes();
             let label_attr = {};

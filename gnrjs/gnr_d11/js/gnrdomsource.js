@@ -1756,6 +1756,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
     },
+    checkOnChildBuilding:function(){
+        let parentNode = this.getParentNode();
+        if(parentNode.widget || parentNode.domNode){
+            let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
+            if(parentHandler && parentHandler.onChildBuilding){
+                parentHandler.onChildBuilding(parentNode,this);
+            }
+        }
+    },
+
     getLabelWrapper:function(){
         if (this.attr._labelWrapper){
             return this.attributeOwnerNode('_labelWrapperId',this.attr._labelWrapper)

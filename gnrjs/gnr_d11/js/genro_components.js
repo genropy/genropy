@@ -5,6 +5,7 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
     },
 
     _beforeCreation: function(original_attr, sourceNode) {
+        sourceNode.checkOnChildBuilding();
         sourceNode.gnrwdg = objectUpdate({'gnr':this,'sourceNode':sourceNode},objectExtract(this,'gnrwdg_*',true));
         var attributes = sourceNode.attr;
         sourceNode._saved_attributes = objectUpdate({},attributes);
