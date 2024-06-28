@@ -356,7 +356,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                 attributes['title'] = tip;
             }
             var extracted = objectExtract(attributes, '_*', {'_type':null}); // strip all attributes used only for triggering rebuild or as input for ==function
-            objectExtract(attributes,'action,side,label');
+            objectExtract(attributes,'action,side,label,items');
             newobj = this.createHtmlElement(domnode, attributes, kw, sourceNode);
             if(zoomToFit){
                 newobj = genro.dom.autoScaleWrapper(newobj,zoomToFit);
