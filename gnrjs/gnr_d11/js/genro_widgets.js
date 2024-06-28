@@ -681,7 +681,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
 
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
-        attributes.display = 'grid';
         savedAttrs.columns = objectPop(attributes,'columns');
         let fitContent = objectPop(attributes,'fitContent');
         let _class = attributes._class || ''

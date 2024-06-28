@@ -6583,6 +6583,10 @@ div[disabled='true'], div[disabled='disabled']{
     background: #ffe0e0;
 }
 
+.gnrgridbox{
+    display: grid;
+}
+
 
 .gnrgridbox.formlet{
     gap: 7px 20px;
