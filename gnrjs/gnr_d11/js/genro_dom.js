@@ -29,11 +29,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
     constructor: function(application) {
         this.application = application;
         this.pendingHeaders = {};
-        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter'];
+        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter',];
         this.styleAttrNames = ['height', 'width','top','left', 'right', 'bottom', 'resize',
             'visibility','opacity', 'overflow', 'float', 'clear', 'display','line_height',
             'z_index', 'border','position','padding','margin','cursor',
-            'color','white_space','vertical_align','background','font','text'].concat(this.css3AttrNames);
+            'color','white_space','vertical_align','background','font','text','gap','row_gap','column_gap',
+            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items'
+        ].concat(this.css3AttrNames);
         
     },
     isStyleAttr:function(name) {
@@ -414,26 +416,14 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
     },
     
-    resizeContainer:function(wdgt) {
-        if (wdgt.parent && wdgt.parent.isContainer) {
-            this.resizeContainer(wdgt.parent);
-        } else if (wdgt && wdgt.isContainer) {
-            wdgt.onResized();
-        }
-    },
-
-    resizeFirstContainerResizable:function(sourceNode){
-        let node = sourceNode;
-        let widget = sourceNode.getWidget();
-        while (!(widget && widget.resize && widget.isContainer)){
-            node = node.getParentNode();
-            if(!node){
-                return;
-            }
-            widget = node.getWidget();
-        }
-        widget.resize();
-    },
+    
+   //resizeContainer:function(wdgt) {
+   //    if (wdgt.parent && wdgt.parent.isContainer) {
+   //        this.resizeContainer(wdgt.parent);
+   //    } else if (wdgt && wdgt.isContainer) {
+   //        wdgt.onResized();
+   //    }
+   //},
 
     getStyleDict: function(attributes/*{}*/, noConvertStyle) {
         if (attributes.gnrIcon) {
@@ -452,7 +442,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         for (var i = 0; i < this.styleAttrNames.length; i++) {
             attrname = this.styleAttrNames[i];
             if (attrname in attributes && arrayIndexOf(noConvertStyle, attrname) == -1) {
-                styledict[attrname.replace('_', '-')] = objectPop(attributes, attrname);
+                styledict[attrname.replace(/_/g, '-')] = objectPop(attributes, attrname);
             }
         }
         this.style_setall('min', styledict, attributes, noConvertStyle);
@@ -464,6 +454,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         this.style_setall('padding', styledict, attributes, noConvertStyle);
         this.style_setall('border', styledict, attributes, noConvertStyle);
         this.style_setall('overflow', styledict, attributes, noConvertStyle);
+        this.style_setall('flex', styledict, attributes, noConvertStyle);
+        this.style_setall('grid', styledict, attributes, noConvertStyle);
         return styledict;
     },
     css3style_filter:function(value,valuedict, styledict,noConvertStyle){

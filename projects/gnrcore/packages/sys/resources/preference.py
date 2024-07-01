@@ -46,6 +46,7 @@ class AppPref(object):
         fb.filteringSelect(value='^.theme_variant',values='blue,red,green,yellow,orange,',lbl='!![en]Theme variant')       
         fb.textbox(value='^.palette_colors',lbl='!![en]Default color palette')
         fb.textbox(value='^.palette_steps',lbl='!![en]Default color steps')
+        fb.checkBox(value='^.use_formlets',label='Use formlets')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',

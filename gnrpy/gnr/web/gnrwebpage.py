@@ -611,6 +611,48 @@ class GnrWebPage(GnrBaseWebPage):
             return None
         return handler or defaultCb or emptyCb
     
+    @public_method
+    def saveHelperValue(self,table=None,name=None,helpcode=None,value=None,customizationPackage=None):
+        relpath = f'helper/{name}.xml'
+        if table:
+            path = self.packageResourcePath(table,relpath,
+                                    forcedPackage=customizationPackage)
+        else:
+            path = self.getResource(relpath,pkg=customizationPackage or self.package)
+        data = Bag(path) if os.path.exists(path) else Bag()
+        data.setAttr(helpcode,{self.language:value})
+        data.toXml(path)
+    
+    @public_method
+    def getHelperData(self,table=None,name=None,**kwargs):
+        path = []
+        if table:
+            path.append(table)
+            name = name or 'default'
+        if name:
+            path.append(name)
+        if not hasattr(self,'_helpers'):
+            self._helpers = {}
+        path = '.'.join(path)
+        if path in self._helpers:
+            return self._helpers[path],{'path':path,'in_cache':True}
+        relpath = f'helper/{name}.xml'
+        def bagFromFile(filepath):
+            return Bag(filepath) if os.path.exists(filepath) else Bag()
+        if table:
+            data = bagFromFile(self.packageResourcePath(table,relpath))
+            customData = bagFromFile(self.packageResourcePath(table,relpath,
+                                    forcedPackage=self.package.name))
+            for n in customData:
+                d = dict(n.attr)
+                d['_custom_package'] = self.package.name
+                data.setAttr(n.label,d,_updattr=False)
+        else:
+            data = bagFromFile(self.getResource(relpath,pkg=self.package))
+        self._helpers[path] = data
+        return self._helpers[path],{'path':path,'in_cache':False}
+
+
     def mixinTableResource(self, table, path,**kwargs):
         """TODO
         
@@ -2073,6 +2115,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.main_root(page, **kwargs)
             return (page, pageattr)
         page.data('gnr.windowTitle',windowTitle or self.windowTitle())
+        page.data('gnr.developerToolsVisible',False)
+        page.dataController("""
+                            genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
+                            developerToolsVisible='^gnr.developerToolsVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -2658,7 +2704,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def saveSiteDocument(self,path=None,data=None):
+    def saveSiteDocument(self,path=None,data=None,**kwargs):
         snode = self.site.storageNode(path)
         if snode.ext == 'xml':
             with snode.open('wb') as f:
@@ -2666,7 +2712,7 @@ class GnrWebPage(GnrBaseWebPage):
         else:
             with snode.open('wb') as f:
                 f.write(data['content'])
-        return dict(path=path)
+        return dict(savedPkey=path,path=path)
 
     @property
     def permissionPars(self):

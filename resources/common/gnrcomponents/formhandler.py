@@ -511,7 +511,7 @@ class FormHandler(BaseComponent):
 
     @struct_method           
     def fh_formButton(self,pane,label=None,iconClass=None,topic=None,command=True,**kwargs):
-        pane.slotButton(label, lbl=label,iconClass=iconClass,topic=topic,
+        pane.slotButton(label,iconClass=iconClass,topic=topic,
                     action="""let opt = objectExtract(_kwargs,'opt_*',true);
                                 let kw = {command:command,modifiers:genro.dom.getEventModifiers(event)};
                                 objectUpdate(kw,opt)

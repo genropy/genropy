@@ -5,6 +5,7 @@ dojo.declare("gnr.widgets.gnrwdg", null, {
     },
 
     _beforeCreation: function(original_attr, sourceNode) {
+        sourceNode.checkOnChildBuilding();
         sourceNode.gnrwdg = objectUpdate({'gnr':this,'sourceNode':sourceNode},objectExtract(this,'gnrwdg_*',true));
         var attributes = sourceNode.attr;
         sourceNode._saved_attributes = objectUpdate({},attributes);
@@ -3682,6 +3683,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     
     createContent:function(sourceNode, kw,children) {
         var resource = objectPop(kw,'resource');
+        var gnrwdg = sourceNode.gnrwdg;
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
         }
@@ -3737,6 +3739,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         kw.onCreated = function(domnode,attributes){
             this._templateHandler = {};
+            gnrwdg.chunkNode = domnode.sourceNode;
             var templateHandler=this._templateHandler
             templateHandler.showAlways = showAlways;
             if(record_id){
@@ -3747,9 +3750,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
             //this.updateTemplate(); to check
         }
-        var chunk = sourceNode._('div','templateChunk',kw)
-        sourceNode.gnrwdg.chunkNode = chunk.getParentNode();
-        return chunk;
+        return sourceNode._('div','templateChunk',kw);
     },
 
     emptyChunk:function(plainText,editable){
@@ -3792,6 +3793,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
         };
         sourceNode.updateTemplate = function(){
+            console.log('updateTemplate',updateTemplate)
             this._templateHandler.template = null;
             var result = dataTemplate(this._templateHandler, this, this.attr.datasource);
             if(this.isPointerPath(this.attr.innerHTML)){
@@ -3799,6 +3801,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }else{
                 this.domNode.innerHTML = result;
             }
+            this.getContainer().resize();
         }
         sourceNode.attr.template = templateHandler;
         sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
@@ -3833,6 +3836,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 setter(r);
                 templateHandler.data = new gnr.GnrBag();
             }
+            sourceNode.getContainer().resize();
         };
         sourceNode.updateTemplate = function(pkey){
             let nodeVal = sourceNode.getValue();
@@ -3870,16 +3874,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
     gnrwdg_refresh:function(){
         var pkey;
-        var tnode = this.sourceNode._value.getNode('templateChunk');
-
         if(this.sourceNode.attr.record_id){
             pkey = this.sourceNode.getAttributeFromDatasource('record_id');
         }
-        tnode.updateTemplate(pkey);
+        this.chunkNode.updateTemplate(pkey);
     },
     gnrwdg_setRecord_id:function(pkey){
-        var tnode = this.sourceNode._value.getNode('templateChunk');
-        tnode.updateTemplate(pkey);
+        this.chunkNode.updateTemplate(pkey);
     }
 });
 
@@ -3965,7 +3966,6 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         dropAreaKw.innerHTML = dropAreaKw.innerHTML || label || '&nbsp;';
         var maxsize = objectPop(kw,'maxsize');
         var allowedExtensions = objectPop(kw,'extensions');
-        console.log('allowedExtensions',allowedExtensions)
         uploaderKw.uploaderId = dropAreaKw.nodeId;  
         var onUploadingCb = objectPop(kw,'onUploadingCb') || function(){};
         

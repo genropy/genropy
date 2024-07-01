@@ -2387,7 +2387,9 @@ dojo.declare('gnr.GenroClient', null, {
                 sourceNode.setHiderLayer(false);
             }
         }
-    }
+    },
+
+
 });
 
 dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
