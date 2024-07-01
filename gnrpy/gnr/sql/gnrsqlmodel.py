@@ -27,7 +27,7 @@ import threading
 import re
 
 
-from gnr.core.gnrstring import boolean
+from gnr.core.gnrstring import boolean, toJson
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag, BagResolver
@@ -848,6 +848,7 @@ class DbModelObj(GnrStructObj):
             return self.attributes.get(attr, dflt)
         else:
             return self.attributes
+        
             
 class DbPackageObj(DbModelObj):
     """TODO"""
@@ -898,6 +899,13 @@ class DbPackageObj(DbModelObj):
         return self.db.adapter.adaptSqlSchema(self.attributes.get('sqlschema', self.dbroot.main_schema))
             
     sqlschema = property(_get_sqlschema)
+
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            tables = [t.toJson() for t in self.tables.values()]
+        )
             
 class DbTableObj(DbModelObj):
     """TODO"""
@@ -1472,6 +1480,14 @@ class DbTableObj(DbModelObj):
                 result.append((tblname,pkey,fkey))
         return result
         
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            pkey = self.pkey,
+            columns = [c.toJson() for c in (self.columns.values()+[v for k,v in self.virtual_columns.items() if not k.startswith('__')])]
+        )
+        
         
 class DbBaseColumnObj(DbModelObj):
     def _get_dtype(self):
@@ -1549,7 +1565,21 @@ class DbBaseColumnObj(DbModelObj):
             attributes_mixin.update(self.attributes)
             self.attributes = attributes_mixin
         
-        
+    def toJson(self,**kwargs):
+        result = dict(
+            code= self.name,
+            name = self.name_long,
+            dtype = self.dtype,
+            column_class=self.sqlclass
+        )
+        relatedColumn = self.relatedColumn()
+        if relatedColumn:
+            result['related_to'] = relatedColumn.fullname
+        return result
+    
+    def relatedColumn(self):
+        return
+
 class DbColumnObj(DbBaseColumnObj):
     """TODO"""
     sqlclass = 'column'
@@ -1600,7 +1630,8 @@ class DbColumnObj(DbBaseColumnObj):
 
     def rename(self,newname):
         self.db.adapter.renameColumn(self.table.sqlname,self.sqlname,newname)
-            
+
+
 class DbVirtualColumnObj(DbBaseColumnObj):
     sqlclass = 'virtual_column'
     
