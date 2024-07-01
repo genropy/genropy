@@ -923,6 +923,8 @@ class GnrDomSrc(GnrStructData):
         excludeCols = kwargs.pop('excludeCols',None)
         if excludeCols:
             raise NotImplementedError('Not implemented in formlet')
+        if formNode:
+            table = table or formNode.attr.get('table')
         result =  self.gridbox(columns=columns,
                                table=table,
                             formletCode=formletCode,
