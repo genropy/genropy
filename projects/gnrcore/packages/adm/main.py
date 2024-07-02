@@ -106,5 +106,3 @@ class Table(GnrDboTable):
     def isInStartupData(self):
         return False
         
-    def useFormlet(self):
-        return True
