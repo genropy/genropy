@@ -1574,7 +1574,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         targets.forEach(function(domNode){
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
-        this.getContainer().resize();
+        let resizableContainer = this.getContainer();
+        if(resizableContainer){
+            resizableContainer.resize();
+        }
     },
     
     updateRemoteContent:function(forceUpdate,async) {
@@ -1653,7 +1656,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                         if (_onRemote) {
                             _onRemote();
                         }
-                        that.getContainer().resize();
+                        let resizableContainer = that.getContainer();
+                        if(resizableContainer){
+                            resizableContainer.resize();
+                        }
+                        
                     });
                 }
                 delete that._remotebuilding;
