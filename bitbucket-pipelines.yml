@@ -84,7 +84,7 @@ pipelines:
                   - cd gnrpy
                   - pip install --editable .[developer]
                   - cd tests
-                  - LC_ALL="en_US.UTF-8" GNR_LOCALE="en_US.UTF-8" pytest core sql web app xtnd
+                  - LC_ALL="en_US" GNR_LOCALE="en_US" pytest core sql web app xtnd
                 services:
                   - postgres
                   
