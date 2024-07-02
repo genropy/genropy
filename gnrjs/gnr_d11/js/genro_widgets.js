@@ -601,10 +601,14 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
         if(genro.isMobile){
             genro.dom.setAutoSizer(sourceNode,newobj.parentNode,function(w,h){
                 newobj.style.width = w+'px';
-                newobj.contentWindow.postMessage({topic:'setClientWidth',width:w},'*');
+                if(newobj.contentWindow){   
+                    newobj.contentWindow.postMessage({topic:'setClientWidth',width:w},'*');
+                }
             });
             dojo.connect(newobj, 'onload', function(){
-                newobj.contentWindow.document.body.classList.add('touchDevice');
+                if(newobj.contentWindow){
+                    newobj.contentWindow.document.body.classList.add('touchDevice');
+                }
                 setTimeout(function(){
                     genro.dom.resetAutoSizer(sourceNode);
                 },50);
@@ -612,10 +616,12 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
         }
         if(sourceNode.attr.autoScale){
             dojo.connect(newobj, 'onload', function(){
-                var scalables = newobj.contentWindow.document.getElementsByClassName('gnrAutoScale');
-                for (var i = scalables.length - 1; i >= 0; i--) {
-                    genro.dom.setAutoScale(scalables[i],sourceNode.attr.autoScale);
-                };
+                if(newobj.contentWindow){
+                    var scalables = newobj.contentWindow.document.getElementsByClassName('gnrAutoScale');
+                    for (var i = scalables.length - 1; i >= 0; i--) {
+                        genro.dom.setAutoScale(scalables[i],sourceNode.attr.autoScale);
+                    };
+                }
             });
         }
     },
