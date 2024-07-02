@@ -598,7 +598,7 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
             shield_kw.opacity = .2;
             sourceNode.getParentNode().setHiderLayer(true,shield_kw);
         }
-        if(genro.isMobile && false){
+        if(genro.isMobile){
             genro.dom.setAutoSizer(sourceNode,newobj.parentNode,function(w,h){
                 newobj.style.width = w+'px';
                 if(newobj.contentWindow){   
