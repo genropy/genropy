@@ -1452,7 +1452,6 @@ dojo.declare('gnr.GenroClient', null, {
         genro.src.getNode()._('div', '_dlframe');
         var node = genro.src.getNode('_dlframe').clearValue().freeze();
         var params = {'src':url, display:'none', width:'0px', height:'0px'};
-        params.sandbox="allow-same-origin allow-scripts allow-popups allow-forms";
         if (onload_cb) {
             params['connect_onload'] = onload_cb;
         }
