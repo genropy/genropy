@@ -113,24 +113,9 @@ class FormHandler(BaseComponent):
         gridattr['_watchOnVisible'] = True
         gridsubscribers = dict()
         if link_kwargs.get('event'):
-            if self.isMobile:
-                gridattr['selfsubscribe_tap'] = """
-                            var rowIndex= $1.event.rowIndex;
-                            if(isNullOrBlank(rowIndex) || rowIndex==-1){
-                                return;
-                            }
-                            genro.callAfter(function(){
-                                var selectedRows = this.widget.getSelectedRowidx() || [];
-                                if(rowIndex>-1){
-                                    this.publish('editrow',{pkey:this.widget.rowIdByIndex(rowIndex),rowIndex:rowIndex});
-                                }else{
-                                    this.publish('editrow',{pkey:'*norecord*',rowIndex:rowIndex});
-                                }
-                            },100,this,'editselectedrow_'+this._id);
-
-            """
-            else:
-                gridattr['connect_%(event)s' %link_kwargs] = """
+            if self.isMobile and link_kwargs['event']=='onRowDblClick':
+                link_kwargs['event'] = 'onRowClick'
+            gridattr['connect_%(event)s' %link_kwargs] = """
                                             if($1.cell && $1.cell.cellAction){
                                                 funcApply($1.cell.cellAction,{
                                                     'cell':$1.cell

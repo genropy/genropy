@@ -3801,7 +3801,10 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }else{
                 this.domNode.innerHTML = result;
             }
-            this.getContainer().resize();
+            let resizableContainer = this.getContainer();
+            if(resizableContainer){
+                resizableContainer.resize();
+            }
         }
         sourceNode.attr.template = templateHandler;
         sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
@@ -3836,7 +3839,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 setter(r);
                 templateHandler.data = new gnr.GnrBag();
             }
-            sourceNode.getContainer().resize();
+            let resizableContainer = sourceNode.getContainer();
+            if(resizableContainer){
+                resizableContainer.resize();
+            }
+            
         };
         sourceNode.updateTemplate = function(pkey){
             let nodeVal = sourceNode.getValue();
