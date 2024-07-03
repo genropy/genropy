@@ -2785,7 +2785,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
     mixin_restoreSelectedRows:function(){
         this.selection.unselectAll();
         this.selectionKeeper('load');
-        if (this.autoSelect && (this.selection.selectedIndex < 0)) {
+        if (this.autoSelect && (this.selection.selectedIndex < 0) && !this._pendingSelectionByAttr) {
             var sel = this.autoSelect === true ? 0 : this.autoSelect();
             this.selection.select(sel);
         }
@@ -4683,6 +4683,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
         var that = this;
+        this._pendingSelectionByAttr = {attrName:attrValue};
         this.sourceNode.watch('pendingStore',function(){
             let cs = that.collectionStore();
             if(!cs){
@@ -4691,6 +4692,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return !(cs.runningQuery || cs.loadingData);
         },function(){
             that.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+            that._pendingSelectionByAttr = null;
         });
     },
 
