@@ -615,11 +615,11 @@ class TableHandlerView(BaseComponent):
         if all_begin is None and all_end is None:
             all_begin = True
         if all_begin:
-            s.append(dict(code='c_all_begin',caption='!!All' if all_begin is True else all_begin))
+            s.append(dict(code='_all_',caption='!!All' if all_begin is True else all_begin))
         for i,r in enumerate(f):
-            s.append(dict(code=slugify(r[pkeyfield],'_'),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
+            s.append(dict(code=r[pkeyfield].replace('.','_'),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
         if all_end:
-            s.append(dict(code='c_all_end',caption='!!All' if all_end is True else all_end))
+            s.append(dict(code='_all_',caption='!!All' if all_end is True else all_end))
         return s
 
 
