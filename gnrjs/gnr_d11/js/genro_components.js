@@ -3793,7 +3793,6 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
         };
         sourceNode.updateTemplate = function(){
-            console.log('updateTemplate',updateTemplate)
             this._templateHandler.template = null;
             var result = dataTemplate(this._templateHandler, this, this.attr.datasource);
             if(this.isPointerPath(this.attr.innerHTML)){
