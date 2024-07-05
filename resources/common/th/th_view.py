@@ -114,6 +114,7 @@ class TableHandlerView(BaseComponent):
                                 dockTo='dummyDock',datapath='.depending_relation_explorer')
         pane.remote(self._th_dependingRelationExplorerContent,th_root=th_root,table=gridattr['table'])
     
+
     @public_method
     def _th_dependingRelationExplorerContent(self,pane,th_root=None,table=None):
         bc = pane.borderContainer(nodeId=f'{th_root}_dep_tables_root')
@@ -594,6 +595,7 @@ class TableHandlerView(BaseComponent):
     def _th_section_from_type(self,tblobj,sections,condition=None,condition_kwargs=None,
                             all_begin=None,all_end=None,codePkey=False,include_inherited=None):
         rt = tblobj.column(sections).relatedTable() 
+        
         if rt:
             section_table = tblobj.column(sections).relatedTable().dbtable
             pkeyfield = section_table.pkey
@@ -601,6 +603,7 @@ class TableHandlerView(BaseComponent):
             condition_kwargs = condition_kwargs or dict()
             default_order_by = section_table.attributes.get('order_by','$%s' %caption_field)
             f = section_table.query(columns='*,$%s' %caption_field,where=condition,order_by=default_order_by,**condition_kwargs).fetch()
+            sectionCodeTransformer = slugify
         else:
             caption_field = 'description'
             pkeyfield = 'code'
@@ -608,6 +611,7 @@ class TableHandlerView(BaseComponent):
             for s in tblobj.column(sections).attributes['values'].split(','):
                 s = s.split(':')
                 f.append(dict(code=s[0],description=s[1] if len(s)==2 else s[0]))
+            sectionCodeTransformer = lambda txt: txt.replace('.','_')
         s = []
         sec_cond = '$%s=:s_id' %sections
         if include_inherited:
@@ -617,7 +621,7 @@ class TableHandlerView(BaseComponent):
         if all_begin:
             s.append(dict(code='_all_',caption='!!All' if all_begin is True else all_begin))
         for i,r in enumerate(f):
-            s.append(dict(code=r[pkeyfield].replace('.','_'),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
+            s.append(dict(code=sectionCodeTransformer(r[pkeyfield]),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
         if all_end:
             s.append(dict(code='_all_',caption='!!All' if all_end is True else all_end))
         return s
