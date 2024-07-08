@@ -278,12 +278,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result
         
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         
         Other info may be present with an adapter-specific prefix."""
-        # TODO: implement getTableContraints
+        # TODO: implement getTableConstraints
         return Bag()
         
 
