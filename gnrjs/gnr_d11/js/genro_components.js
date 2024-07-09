@@ -1863,7 +1863,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
         this._prepareSearchBoxMenu(searchOn, databag,sourceNode);
         databag.setItem('value', '');
         sourceNode.setRelativeData(null, databag);
-        var searchbox = sourceNode._('form',{autocomplete:'false',action:'javascript:void(0);'})._('table', {nodeId:nodeId})._('tbody')._('tr');
+        var searchbox = sourceNode._('form',{autocomplete:'false',action:'javascript:void(0);',onsubmit:"event.preventDefault()"})._('table', {nodeId:nodeId})._('tbody')._('tr');
         var delay = objectPop(kw, 'delay') || objectPop(search_kw, 'delay') || 100;
         var search_kw = objectPop(kw,'search_kw') || {};
         sourceNode._('dataController', {'script':'genro.publish(searchBoxId+"_changedValue",currentValue,field,this.evaluateOnNode(search_kw));',
