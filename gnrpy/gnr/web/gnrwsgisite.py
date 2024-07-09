@@ -1316,7 +1316,7 @@ class GnrWsgiSite(object):
 
         :param event: TODO
         :param page_id: the 22 characters page id"""
-        if self.connectionLogEnabled:
+        if self.connectionLogEnabled == 'A':
             self.db.table('adm.served_page').pageLog(event, page_id=page_id)
 
 
