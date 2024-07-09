@@ -1800,6 +1800,7 @@ class SqlTable(GnrObject):
             pkey = old_record.get(self.pkey)
         if record.get(self.pkey) == pkey:
             pkey = None
+        _storename = None
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
             _storename = packageStorename
