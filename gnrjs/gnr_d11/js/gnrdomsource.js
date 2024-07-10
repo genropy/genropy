@@ -61,19 +61,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return parentNode.getBuiltObj();
         }
     },
-    
-    getContainer:function(){
-        let node = this;
-        let widget = this.getWidget();
-        while (!(widget && widget.isContainer && widget.resize)){
-            node = node.getParentNode();
-            if(!node){
-                return;
-            }
-            widget = node.getWidget();
-        }
-        return widget
-    },
 
     getDomNode:function() {
         if (this.domNode) {
@@ -1574,10 +1561,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         targets.forEach(function(domNode){
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
-        let resizableContainer = this.getContainer();
-        if(resizableContainer){
-            resizableContainer.resize();
-        }
+        genro.fakeResize()
     },
     
     updateRemoteContent:function(forceUpdate,async) {
@@ -1656,11 +1640,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                         if (_onRemote) {
                             _onRemote();
                         }
-                        let resizableContainer = that.getContainer();
-                        if(resizableContainer){
-                            resizableContainer.resize();
-                        }
-                        
+                        genro.fakeResize();
                     });
                 }
                 delete that._remotebuilding;
