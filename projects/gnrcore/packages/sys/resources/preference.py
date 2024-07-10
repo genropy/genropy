@@ -135,11 +135,12 @@ class UserPref(object):
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.filteringSelect('^.device_mode',lbl='!![en]Device mode',
                         values='std:Standard,mobile:Mobile,xmobile:Large mobile')
-
         #fb.checkbox(value='^.bordered_icons',label='Bordered icons')
-        fb.filteringSelect(value='^.desktop.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Desktop Font size')
         fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
-        fb.filteringSelect(value='^.mobile.font_size',values='!!12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large',lbl='Mobile Font size')
+        fb.filteringSelect(value='^.desktop.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
+                           default=1, lbl='!!Desktop Zoom', width='15em')
+        fb.filteringSelect(value='^.mobile.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
+                           default=1, lbl='!!Mobile Zoom', width='15em')
         fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')
         fb.checkbox(value='^.#parent.jsPdfViewer',label='!![en]Extended pdf viewer')
 

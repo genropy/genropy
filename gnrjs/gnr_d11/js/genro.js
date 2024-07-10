@@ -1125,6 +1125,9 @@ dojo.declare('gnr.GenroClient', null, {
 
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
+    simulateResize: function() {
+        window.dispatchEvent(new Event('resize'));
+    },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
         cb = funcCreate(cb);

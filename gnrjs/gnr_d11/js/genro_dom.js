@@ -1779,6 +1779,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         if(rs instanceof gnr.GnrBag){
             let customStyleDict = objectUpdate(objectFromStyle(document.body.style.cssText),genro.dom.getStyleDict(rs.asDict(), {}))
             document.body.style.cssText = objectAsStyle(customStyleDict);
+            genro.simulateResize();
         }        
     },
     printElementContent:function(where,title,doprint){
