@@ -6173,6 +6173,8 @@ div[disabled='true'], div[disabled='disabled']{
     color:#888;
     font-size:1.2em;
     padding-top: 2px;
+    padding-left: 10px;
+    padding-right: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
