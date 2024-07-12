@@ -903,7 +903,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(sourceNode.attr.fillDown){
                 dojo.connect(widget,'updateRowCount',function(){
                     var that = this;
-                    setTimeout(function(){that.drawFiller();},1);
+                    that.sourceNode.delayedCall(function(){that.drawFiller();},1,'updatingRowCOunt');
                 });
             }
         }

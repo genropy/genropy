@@ -3556,27 +3556,23 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         paletteNode.setRelativeData('.status','info');
     },
-    gnrwdg_setTemplate:function(templateBag){
-        if(this.chunkNode._connectedPalette){
-            this.gnr.loadTemplateEditData(this.chunkNode);
-        }
-    },
-    
-    openTemplatePalette:function(sourceNode,editorConstrain,showLetterhead){
-        var paletteCode = 'template_editor_'+sourceNode._id;
+
+    openTemplatePalette:function(chunkNode,editorConstrain,showLetterhead){
+        var paletteCode = 'template_editor_'+chunkNode._id;
         //genro._data.popNode('gnr.palettes.'+paletteCode);
-        var tplpars = sourceNode.attr._tplpars;
-        var templateHandler = sourceNode._templateHandler;
+        let componentNode = chunkNode.getParentNode();
+        var tplpars = componentNode.gnrwdg.tplpars;
+        var templateHandler = chunkNode._templateHandler;
         var handler = this;
         var paletteId = paletteCode+'_floating';
 
-        if(sourceNode._connectedPalette){
-            let paletteNode = sourceNode._connectedPalette;
+        if(chunkNode._connectedPalette){
+            let paletteNode = chunkNode._connectedPalette;
             paletteNode.getWidget().show();
         }else{
-            var table = tplpars.table;
-            var remote_datasourcepath = sourceNode.attr.datasource? sourceNode.absDatapath(sourceNode.attr.datasource):null;
-            showLetterhead = typeof(showLetterhead)=='string'?(sourceNode.getRelativeData(showLetterhead) || true):showLetterhead;
+            var table = componentNode.getAttributeFromDatasource('table');
+            var remote_datasourcepath = chunkNode.attr.datasource? chunkNode.absDatapath(chunkNode.attr.datasource):null;
+            showLetterhead = typeof(showLetterhead)=='string'?(chunkNode.getRelativeData(showLetterhead) || true):showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,
@@ -3584,47 +3580,47 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                     remote:'te_chunkEditorPane',
                     remote_table:table,
                     remote_paletteId:paletteId,
-                    remote_plainText:sourceNode.attr.plainText,
-                    remote_emailChunk : sourceNode.attr.emailChunk,
+                    remote_plainText:chunkNode.attr.plainText,
+                    remote_emailChunk : componentNode.getAttributeFromDatasource('emailChunk'),
                     remote_resource_mode:!table || (templateHandler.dataInfo.respath!=null),
                     remote_datasourcepath:remote_datasourcepath,
                     remote_showLetterhead:showLetterhead,
                     remote_editorConstrain: editorConstrain
                     };  
            //kw.remote__onRemote = function(){
-           //    sourceNode._editorReady = true;
-           //    handler.loadTemplateEditData(sourceNode);
+           //    chunkNode._editorReady = true;
+           //    handler.loadTemplateEditData(chunkNode);
            //}
 
             kw.selfsubscribe_showing = function(){
-                handler.loadTemplateEditData(sourceNode);
+                handler.loadTemplateEditData(chunkNode);
             };
             kw.palette_selfsubscribe_savechunk = function(publishkw){
-                tplpars = sourceNode.evaluateOnNode(tplpars);
-                var template = tplpars.template || new gnr.GnrBag();
+                let evaluatedTplPars = chunkNode.evaluateOnNode(tplpars);
+                var template = evaluatedTplPars.template || new gnr.GnrBag();
                 var data = this.getRelativeData('.data').deepCopy();
                 var custom = data.pop('metadata.custom');
                 if(typeof(template)=='string'){
-                    var respath = handler.saveTemplate(sourceNode,data,tplpars,custom,publishkw);
+                    var respath = handler.saveTemplate(chunkNode,data,evaluatedTplPars,custom,publishkw);
                     templateHandler.dataInfo.respath = respath;
                 }else{
-                    var tplpath = sourceNode.attr._tplpars.template;
-                    var currdata = sourceNode.getRelativeData(tplpath,data) 
+                    var tplpath = tplpars.template;
+                    var currdata = chunkNode.getRelativeData(tplpath,data) 
                     if(!currdata){
                         currdata = new gnr.GnrBag();
-                        sourceNode.setRelativeData(tplpath,currdata)
+                        chunkNode.setRelativeData(tplpath,currdata)
                     }
                     currdata.clear();
                     data.forEach(function(n){currdata.setItem(n.label,n._value,n.attr)});
                 }
                 templateHandler.setNewData({data:data,template: data.getItem('compiled'),dataInfo:templateHandler.dataInfo});           
-                sourceNode.updateTemplate();
-                sourceNode.publish('onChunkEdit');
+                chunkNode.updateTemplate();
+                chunkNode.publish('onChunkEdit');
                 this.widget.hide();
             }
-            let palette = sourceNode._('palettePane',kw);
+            let palette = chunkNode._('palettePane',kw);
             let paletteNode = palette.getParentNode();  
-            sourceNode._connectedPalette = paletteNode; 
+            chunkNode._connectedPalette = paletteNode; 
         }
     },
     
@@ -3653,13 +3649,13 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
     },
     
-    loadTemplate:function(sourceNode,kw){
+    loadTemplate:function(chunkNode,kw){
         kw.template = kw.template || new gnr.GnrBag();
         if(kw.template instanceof gnr.GnrBag){
             var data = kw.template;
             return {data:data,dataInfo:{},template:data.getItem('compiled')};
         }
-        var template_address =( kw.table || '')+':'+kw.template;
+        var template_address =( chunkNode.getAttributeFromDatasource('table') || '')+':'+kw.template;
         var result = genro.serverCall("loadTemplate",{template_address:template_address,asSource:kw.asSource});
         if(result.attr.html){
             var content = result.getValue().getItem('content');
@@ -3672,8 +3668,9 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         return {template:result};
     },
     
-    saveTemplate:function(sourceNode,data,kw,custom,savekw){
-        var template_address = (kw.table || '')+':'+kw.template;
+    saveTemplate:function(chunkNode,data,kw,custom,savekw){
+        let componentNode = chunkNode.getParentNode();
+        var template_address = (componentNode.getAttributeFromDatasource('table') || '')+':'+kw.template;
         if(custom){
             template_address = template_address+',custom'
         }
@@ -3687,11 +3684,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         if(resource){
             console.warn('templateChunk warning: use "template" param instead of "resource" param');
         }
-        var tplpars = objectExtract(kw,'table,template,editable');
-        tplpars.table = tplpars.table || '';
+        var tplpars = objectExtract(kw,'template,editable');
         var editorConstrain = objectExtract(kw,'constrain_*',null,true);
         var showLetterhead = objectPop(kw, 'showLetterhead');
-
+        sourceNode.attr.table = objectPop(kw,'table');
+        sourceNode.attr.emailChunk = objectPop(kw,'emailChunk');
         var safeMode = objectPop(kw,'safeMode');
         if(safeMode){
             kw.overflow = 'hidden';
@@ -3712,10 +3709,11 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
         var showAlways = tplpars.editable;
         tplpars.template = tplpars.template || resource;
-        kw._tplpars = tplpars;
-        kw._tplpars.editable = kw._tplpars.editable || (genro.isDeveloper? 'developer':false);
-        kw._tplpars.showAlways = kw._tplpars.editable===true;
-        kw._tplpars.asSource =  kw._tplpars.editable!=null;
+
+        gnrwdg.tplpars = tplpars;
+        gnrwdg.tplpars.editable = gnrwdg.tplpars.editable || (genro.isDeveloper? 'developer':false);
+        gnrwdg.tplpars.showAlways = gnrwdg.tplpars.editable===true;
+        gnrwdg.tplpars.asSource =  gnrwdg.tplpars.editable!=null;
         
         kw._class = (kw._class || '') + ' selectable'
         if(kw.plainText){
@@ -3764,18 +3762,18 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }
     },
 
-    createClientChunk:function(sourceNode,dataProvider,tplpars){
-        var templateHandler = sourceNode._templateHandler;
+    createClientChunk:function(chunkNode,dataProvider,tplpars){
+        var templateHandler = chunkNode._templateHandler;
         var cls = this;
         templateHandler.cb = function(){
-            this.setNewData(cls.loadTemplate(sourceNode,sourceNode.evaluateOnNode(tplpars))); 
+            this.setNewData(cls.loadTemplate(chunkNode,chunkNode.evaluateOnNode(tplpars))); 
         };   
         templateHandler.setNewData= function(result){
             this.data = result.data;
             this.dataInfo = result.dataInfo;
             this.template = result.template;
             this.defaults = {};
-            var datasourcePath = sourceNode.absDatapath(sourceNode.attr.datasource);
+            var datasourcePath = chunkNode.absDatapath(chunkNode.attr.datasource);
             var datasourceNode = genro.getDataNode(datasourcePath);
             if(this.template instanceof gnr.GnrBag){
                  var varsbag = this.data.getItem('varsbag');
@@ -3787,12 +3785,12 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                          },'static');
                 }
                 var mainNode = this.template.getNode('main');
-                cls.updateVirtualColumns(sourceNode,datasourceNode,dataProvider,mainNode)  
+                cls.updateVirtualColumns(chunkNode,datasourceNode,dataProvider,mainNode)  
             }else{
-                this.template = this.template || cls.emptyChunk(sourceNode.attr.plainText,tplpars.editable);
+                this.template = this.template || cls.emptyChunk(chunkNode.attr.plainText,tplpars.editable);
             }
         };
-        sourceNode.updateTemplate = function(){
+        chunkNode.updateTemplate = function(){
             this._templateHandler.template = null;
             var result = dataTemplate(this._templateHandler, this, this.attr.datasource);
             if(this.isPointerPath(this.attr.innerHTML)){
@@ -3802,20 +3800,20 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
             genro.fakeResize();
         }
-        sourceNode.attr.template = templateHandler;
-        sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
+        chunkNode.attr.template = templateHandler;
+        chunkNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate();",_fired:tplpars.template});
     },
     
 
-    createServerChunk:function(sourceNode,record_id,tplpars,safeMode){
-        var templateHandler = sourceNode._templateHandler;
+    createServerChunk:function(chunkNode,record_id,tplpars,safeMode){
+        var templateHandler = chunkNode._templateHandler;
 
         var setter = function(html){
-            sourceNode.domNode.innerHTML = html;
+            chunkNode.domNode.innerHTML = html;
         };
         if(safeMode){
             setter = function(html){
-                let iframe = sourceNode._('htmliframe','safeIframe',{height:'100%',width:'100%',border:0})
+                let iframe = chunkNode._('htmliframe','safeIframe',{height:'100%',width:'100%',border:0})
                 iframe.getParentNode().domNode.contentWindow.document.body.innerHTML = html;
             };
         }
@@ -3824,7 +3822,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var r = resultNode.getValue();
             templateHandler.dataInfo = resultNode.attr;
             if(r=='missing_template'){
-                r = cls.emptyChunk(sourceNode.attr.plainText, tplpars.editable)
+                r = cls.emptyChunk(chunkNode.attr.plainText, tplpars.editable)
             }
             if(r instanceof gnr.GnrBag){
                 let rendered = r.getItem('rendered');
@@ -3837,8 +3835,8 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             }
             genro.fakeResize()
         };
-        sourceNode.updateTemplate = function(pkey){
-            let nodeVal = sourceNode.getValue();
+        chunkNode.updateTemplate = function(pkey){
+            let nodeVal = this.getValue();
             if(nodeVal){
                 nodeVal.popNode('safeIframe');
             }
@@ -3849,24 +3847,25 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
                 if(template instanceof gnr.GnrBag){
                     template_bag = template;
                 }else{
-                    template_address = tplpars.table+':'+tplpars.template
+                    let componentNode = this.getParentNode();
+                    template_address = componentNode.getAttributeFromDatasource('table')+':'+template
                 }
                 genro.serverCall('te_renderChunk',{record_id:pkey,
-                    template_address:template_address,template_bag:template_bag,_sourceNode:sourceNode},onResult,null,'POST');
+                    template_address:template_address,template_bag:template_bag,_sourceNode:chunkNode},onResult,null,'POST');
             }else{
-                sourceNode.domNode.innerHTML = '';
+                chunkNode.domNode.innerHTML = '';
                 templateHandler.dataInfo = {};
                 templateHandler.data = new gnr.GnrBag();
             }
         }
         templateHandler.setNewData = function(result){
-            sourceNode.updateTemplate(sourceNode.getRelativeData(record_id));
+            chunkNode.updateTemplate(chunkNode.getRelativeData(record_id));
         }
-        sourceNode.registerSubscription('changeInTable',sourceNode,function(kw){
-            var mainNode = this.getParentNode();
-            var currpkey = mainNode.getAttributeFromDatasource('record_id');
-            if(kw.table==this.attr._tplpars.table && currpkey==kw.pkey){
-                mainNode.gnrwdg.refresh();
+        chunkNode.registerSubscription('changeInTable',chunkNode,function(kw){
+            let componentNode = this.getParentNode();
+            let currpkey = componentNode.getAttributeFromDatasource('record_id');
+            if(kw.table==componentNode.getAttributeFromDatasource('table') && currpkey==kw.pkey){
+                componentNode.gnrwdg.refresh();
             }
         });
         //sourceNode._('dataController',{'script':"this.getParentBag().getParentNode().updateTemplate(pkey);",pkey:record_id});
@@ -3880,7 +3879,28 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
     },
     gnrwdg_setRecord_id:function(pkey){
         this.chunkNode.updateTemplate(pkey);
-    }
+    },
+
+    gnrwdg_setTemplate:function(templateBag){
+        if(this.chunkNode._connectedPalette){
+            this.gnr.loadTemplateEditData(this.chunkNode);
+        }
+    },
+
+    gnrwdg_setTable:function(){
+        if(this.chunkNode._connectedPalette){
+            this.chunkNode._connectedPalette._destroy();
+            this.chunkNode._connectedPalette = null;
+        }
+
+    },
+
+    gnrwdg_setEmailChunk:function(){
+        if(this.chunkNode._connectedPalette){
+            this.chunkNode._connectedPalette._destroy();
+            this.chunkNode._connectedPalette = null;
+        }
+    },
 });
 
 dojo.declare("gnr.widgets.DropUploaderGrid", gnr.widgets.gnrwdg, {
