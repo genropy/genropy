@@ -498,11 +498,9 @@ class SqlDbAdapter(object):
         """
         tblobj = dbtable.model
         columns = ', '.join(tblobj.columns.keys())
-        print('cols',columns)
         sql = """INSERT INTO {dest_table}({columns})
                  SELECT {columns} FROM {source_table};""".format(dest_table = tblobj.sqlfullname, 
                                                         source_table = sqltablename,columns=columns)
-        print('SQL', sql)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname)
 
     def analyze(self):
