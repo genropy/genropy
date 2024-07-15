@@ -20,7 +20,7 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.url',lbl='Url', default='http://www.genropy.org')
         fb.button('!!Make calendar').dataRpc('.ics_result', self.getIcs, event_name='=.name', event_description='=.description', 
                                                     event_begin='=.start_ts', event_end='=.end_ts', event_url='=.url')
-        fb.div('^.ics_result', lbl='Ics result')
+        fb.div('^.ics_result', lbl='Ics result', _class='selectable')
 
     def test_2_dlcalendar(self, pane):
         "Click button build ics object and click on a button to get result"
@@ -31,11 +31,13 @@ class GnrCustomWebPage(object):
         fb.dateTimeTextBox(value='^.start_ts',lbl='Start', default=datetime.now())
         fb.dateTimeTextBox(value='^.end_ts',lbl='End', default=datetime.now()+timedelta(hours=1))
         fb.textbox(value='^.url',lbl='Url', default='http://www.genropy.org')
-        fb.a("!!Download ICS", href='^.webtool_url', _class='iconbox download')
+        fb.a(lbl='!!Add to calendar', href='^.webtool_url').div(
+                            _class='google_icon calendar', background='#555')
         fb.dataFormula('.webtool_url', """genro.callWebTool('ics', 
-                       {event_name:event_name,event_description:event_description,event_begin:event_begin,event_end:event_end,event_url:event_url});""", 
+                       {event_name:event_name,event_description:event_description,event_begin:event_begin,event_end:event_end,event_url:event_url,download_name:download_name});""", 
                             event_name='^.name', event_description='^.description', 
-                            event_begin='^.start_ts', event_end='^.end_ts', event_url='^.url', _onStart=True)
+                            event_begin='^.start_ts', event_end='^.end_ts', event_url='^.url', 
+                            download_name='^.name', _onStart=True)
 
         #fb.icsButton(event_name='^.name', event_description='^.description', 
         #                    event_begin='^.start_ts', event_end='^.end_ts', event_url='^.url') #webstruct component?
