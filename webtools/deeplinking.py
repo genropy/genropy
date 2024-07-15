@@ -6,7 +6,7 @@
 #
 #  Copyright (c) 2024 Softwell. All rights reserved.
 #
-
+import copy
 import json
 
 from gnr.web.gnrbaseclasses import BaseWebtool
@@ -23,19 +23,20 @@ class DeepLinkIOS(DeepLink):
     config_item = "ios_apps"
     content_type = "text/plain"
     def get_content(self, apps_config):
+        app_template = {
+            "appIDs": [],
+            "components": [
+                {
+                    "/": "/*",
+                    "comment": "match all URLs"
+                }
+            ]
+        }
+
         file_template = {
             "applinks": {
                 "apps": [],
                 "details": [
-                    {
-                        "appIDs": [],
-                        "components": [
-                            {
-                                "/": "/*",
-                                "comment": "match all URLs"
-                            }
-                        ]
-                    }
                 ]
             },
             "webcredentials": {
@@ -43,10 +44,24 @@ class DeepLinkIOS(DeepLink):
             }
         }
         for a in apps_config:
-            file_template['applinks']['details'][0]['appIDs'].append("{apple_app_id}.{apple_bundle_id}".format(**a.attr))
-            file_template['applinks']['details'][0]['appIDs'].append("{apple_team_id}.{apple_bundle_id}".format(**a.attr))
+            t = copy.deepcopy(app_template)
+            t['appIDs'].append("{apple_app_id}.{apple_bundle_id}".format(**a.attr))
+            t['appIDs'].append("{apple_team_id}.{apple_bundle_id}".format(**a.attr))
             file_template['webcredentials']['apps'].append("{apple_app_id}.{apple_bundle_id}".format(**a.attr))
             file_template['webcredentials']['apps'].append("{apple_team_id}.{apple_bundle_id}".format(**a.attr))
+            
+            exclusions = a.getValue("excluded_path")
+            if exclusions:
+                for e in exclusions:
+                    new_exclusion = {
+                        "/": e.attr["path"],
+                        "exclude": True,
+                        "comment": e.attr["comment"]
+                        }
+                    t['components'].insert(0, new_exclusion)
+
+            file_template['applinks']['details'].append(t)
+            
         return json.dumps(file_template)
     
     @metadata(alias_url="/.well-known/apple-app-site-association")
