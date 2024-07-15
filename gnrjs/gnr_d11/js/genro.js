@@ -1932,6 +1932,12 @@ dojo.declare('gnr.GenroClient', null, {
         return url + sep + parameters.join('&');
     },
 
+    callWebTool:function(toolCode,params){  
+        objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
+        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
+        return url
+    },
+
     textToClipboard:function(txt,cb){
         let promise = navigator.clipboard.writeText(txt); 
         if(cb){
