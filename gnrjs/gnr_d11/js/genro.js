@@ -1125,6 +1125,9 @@ dojo.declare('gnr.GenroClient', null, {
 
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
+    fakeResize:function(){
+        window.dispatchEvent(new Event('resize'));
+    },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
         cb = funcCreate(cb);
@@ -1927,6 +1930,12 @@ dojo.declare('gnr.GenroClient', null, {
         }
         var sep = (url.indexOf('?') != -1) ? '&' : '?';
         return url + sep + parameters.join('&');
+    },
+
+    callWebTool:function(toolCode,params){  
+        objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
+        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
+        return url
     },
 
     textToClipboard:function(txt,cb){

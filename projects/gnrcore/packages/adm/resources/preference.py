@@ -60,7 +60,9 @@ class AppPref(object):
 
     def _adm_dev(self,pane):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.checkbox(value='^.connection_log_enabled',label='!![en]Connection log enabled')
+        fb.filteringSelect(value='^.connection_log_enabled',
+                           lbl='!![en]Connection log',
+                           values='C:Connection Only,A:Connection and pages')
 
     def _adm_general(self, bc):
         top = bc.contentPane(region='top')

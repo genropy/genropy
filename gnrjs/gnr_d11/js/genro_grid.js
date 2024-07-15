@@ -903,7 +903,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(sourceNode.attr.fillDown){
                 dojo.connect(widget,'updateRowCount',function(){
                     var that = this;
-                    setTimeout(function(){that.drawFiller();},1);
+                    that.sourceNode.delayedCall(function(){that.drawFiller();},1,'updatingRowCOunt');
                 });
             }
         }
@@ -3222,6 +3222,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         var scaleX = this.sourceNode.getAttributeFromDatasource('scaleX') || 1;
         var scaleY = this.sourceNode.getAttributeFromDatasource('scaleY') || 1;
         var scalecb = function(domNode){
+            if(!domNode){
+                return;
+            }
             domNode.style.transform = "scale("+scaleX+","+scaleY+")";   
             domNode.style.transformOrigin = '0 0';
         }

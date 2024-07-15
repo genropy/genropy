@@ -53,9 +53,9 @@ class ScannedFileParser(object):
         with tempfile.TemporaryDirectory() as tmppath:
             pages = convert_from_path(inputpdf, output_folder=tmppath)
             for page_no, page in enumerate(pages):
-                print page_no
+                print(page_no)
                 qr_codes = zbarlight.scan_codes('qrcode', page)
-                print qr_codes
+                print(qr_codes)
                 page_qr = None
                 if qr_codes:
                     for qr_code in qr_codes:
@@ -65,8 +65,7 @@ class ScannedFileParser(object):
                             page_qr = qr_code
                             break
                 if page_qr:
-                    print page_qr
-                    print current_pages
+                    print(page_qr,current_pages)
                     if current_qr:
                         output.append((current_qr, current_pages))
                     current_pages = []

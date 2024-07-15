@@ -901,7 +901,7 @@ class GnrDomSrc(GnrStructData):
         if not dbtable:
             dbtable = kwargs.get('dbtable') or self.getInheritedAttributes().get('table')
             kwargs['table'] = dbtable
-        defaultUseFormlet = self.page.pageOptions.get('useFormlet', True) or \
+        defaultUseFormlet = self.page.pageOptions.get('useFormlet') or \
                             self.page.getPreference('theme.use_formlets',pkg='sys')
         if dbtable and not defaultUseFormlet:
             useFormletCb = getattr(self.page.db.table(dbtable),'useFormlet',None)

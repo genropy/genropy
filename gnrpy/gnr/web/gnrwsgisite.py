@@ -1150,8 +1150,11 @@ class GnrWsgiSite(object):
         content_type = getattr(tool, 'content_type', 'text/plain')
         response.mimetype = content_type
         headers = getattr(tool, 'headers', [])
+        download_name = getattr(tool, 'download_name', None)
+        if download_name:
+            headers.append(("Content-Disposition", f"attachment; filename={download_name}"))
         for header_name, header_value in headers:
-            response.add_header(header_name, header_value)
+            response.headers[header_name] = header_value
         if isinstance(result, Response):
             response = result
         else:
@@ -1316,7 +1319,7 @@ class GnrWsgiSite(object):
 
         :param event: TODO
         :param page_id: the 22 characters page id"""
-        if self.connectionLogEnabled:
+        if self.connectionLogEnabled == 'A':
             self.db.table('adm.served_page').pageLog(event, page_id=page_id)
 
 

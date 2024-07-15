@@ -437,7 +437,9 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
         cm.on('update',function(){
             sourceNode.delayedCall(function(){
                 var v = sourceNode.externalWidget.getValue();
-                sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                if(sourceNode.attr.value){
+                    sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                }
             },sourceNode.attr._delay || 500,'updatingContent')
         })
         let startValue = sourceNode.getAttributeFromDatasource('value');

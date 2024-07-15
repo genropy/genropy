@@ -59,7 +59,7 @@ class View(BaseComponent):
         r.fieldcell('send_date',width='8em')
         r.fieldcell('account_id',width='12em')
 
-    @metadata(isMain=True,_if='inout=="o"',_if_inout='^.in_out.current', variable_struct=True)
+    @metadata(isMain=True,_if='inout=="O"',_if_inout='^.in_out.current', variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
