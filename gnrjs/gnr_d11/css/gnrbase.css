@@ -6597,6 +6597,9 @@ div[disabled='true'], div[disabled='disabled']{
 .gnrgridbox{
     display: grid;
 }
+.gnrflexbox{
+    display: flex;
+}
 
 
 .gnrgridbox.formlet{
