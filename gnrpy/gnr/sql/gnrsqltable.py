@@ -715,7 +715,9 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
-            result[colname] = fromRecord.get(colname)
+            val = fromRecord.get(colname)
+            if val is not None:
+                result[colname] = val
         return result
 
 
