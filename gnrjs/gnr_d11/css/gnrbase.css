@@ -2242,16 +2242,19 @@ div.dojoxDock {
     height: 15px;
 }
 
-.radioOn {
-    background: url(icons/radioOn.gif) no-repeat center center;
+.radioOn {    
+
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 .radioOff {
-    background: url(icons/radioOff.gif) no-repeat center center;
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 /* @group boole */
