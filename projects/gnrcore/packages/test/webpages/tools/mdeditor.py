@@ -8,14 +8,13 @@ class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
         
     def test_0_base(self, pane):
-        pane.MDEditor(value='^.mycontent',height='300px',width='400px',htmlpath='.mycontent_html')
+        pane.MDEditor(value='^.mycontent',height='300px',width='400px',htmlpath='.mycontent_html',
+                      usageStatistics=True)
 
 
     def test_2_viewer(self, pane):
         pane.data('.mycontent','My *content*')
         pane.MDEditor(value='^.mycontent',height='300px',width='400px',viewer=True)
-
-
 
     def test_1_parametric(self, pane):
         bc = pane.borderContainer(height='800px',width='600px',border='1px solid silver')
