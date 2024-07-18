@@ -57,6 +57,22 @@ def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
     desttype = typeconverter[dtype]
     return """CAST ( ( %s ) AS %s) """ %(sql_formula,desttype) if desttype!='text' else sql_formula
 
+def toolFormula(tool,dtype=None,kwargs=None):
+    result =  f"(:env_external_host || '/_tools/{tool}?record_pointer=' || $__record_pointer)"
+    _class = kwargs.get('format_class','')
+    if _class:
+        _class = f'class="{_class}"'
+    if dtype=='P':
+        result = f"""format('<img {_class} src="%%s"/>', {result})"""
+    else:
+        iconClass = kwargs.get('iconClass')
+        if iconClass:
+            contentHTML = f""" '<div class="{iconClass}">&nbsp;</div>' """
+        else:
+            contentHTML = kwargs.get('link_text') or kwargs.get('name_long')
+        result = f"""format('<a {_class} href="%%s">%%s</a>', {result},{contentHTML})"""
+    return result
+
 class NotExistingTableError(Exception):
     pass
     
@@ -639,6 +655,12 @@ class DbModelSrc(GnrStructData):
         sql_formula = bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype,kwargs=kwargs)
         return self.virtual_column(name, sql_formula=sql_formula, 
                                 dtype=dtype, bagcolumn=bagcolumn, itempath=itempath, **kwargs)
+    
+    def toolColumn(self,name,tool=None,dtype=None,**kwargs):
+        sql_formula = toolFormula(tool,dtype=dtype,kwargs=kwargs)
+        return self.virtual_column(name, sql_formula=sql_formula, 
+                                dtype=dtype, **kwargs)
+    
 
     def subQueryColumn(self,name,query=None,mode=None,**kwargs):
         if mode=='json':
@@ -676,7 +698,7 @@ class DbModelSrc(GnrStructData):
         :returns: a formulaColumn"""
         py_method = py_method or 'pyColumn_%s' %name
         return self.virtual_column(name, py_method=py_method, **kwargs)
-        
+            
     def aliasTable(self, name, relation_path, **kwargs):
         """Insert a related table alias into a table. The aliasTable is a child of the table
         created with the :meth:`table()` method
