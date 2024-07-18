@@ -244,7 +244,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         if(value){
             editorAttrs.initialValue = value;
         }
-        
+        editorAttrs.usageStatistics = objectPop(editorAttrs,'usageStatistics') || false; //usageStatistics is false by default
         objectPopAll(attributes);
         return editorAttrs;
     },
