@@ -9,9 +9,12 @@ from io import BytesIO
 class Ics(BaseWebtool):
     content_type = 'text/calendar'
     
-    def __call__(self, download_name='calendar', events=None, **kwargs):   
-        if not events:
-            events = [dictExtract(kwargs, 'event_')]
+    def __call__(self, table=None,pkey=None,record_pointer=None, **kwargs): 
+        if not table:
+            table,pkey = record_pointer.rsplit('.',1)
+        events,download_name = self.site.db.table(table).getIcsEvents(pkey) 
+        if not isinstance(events,list):
+            events = [events]
         calendar = self.getIcs(events)
         buffer = BytesIO()
         buffer.write(calendar.encode('utf-8'))

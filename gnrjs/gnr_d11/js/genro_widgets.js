@@ -634,7 +634,9 @@ dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
     },
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
-        attributes.display = 'flex';
+        let _class = attributes._class || ''
+        attributes._class = _class + ' gnrflexbox';
+
         let wrap = objectPop(attributes,'wrap');
         let direction = objectPop(attributes,'direction');
         if(wrap){

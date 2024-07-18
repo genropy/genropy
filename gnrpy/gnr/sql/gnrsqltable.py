@@ -537,6 +537,7 @@ class SqlTable(GnrObject):
     def variantColumn_egvariant(self,field,**kwargs):
         #for documentation
         pass
+ 
 
     def variantColumn_age_day(self, field, dateArg=None, **kwargs):
         sql_formula=self.db.adapter.ageAtDate(field, dateArg=dateArg, timeUnit='day')
