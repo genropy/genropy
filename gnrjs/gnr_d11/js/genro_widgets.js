@@ -820,7 +820,8 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             sourceNode.attr.moveable_handle=label_attr.id;
         }
         let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
-        labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
+        let labelSrc = labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
+        sourceNode._labelNode = labelSrc.getParentNode();
         if(helpcode){
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
@@ -863,6 +864,10 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         if(value){
             genro.dom.addClass(domNode,`labledBox_${value}`);
         }
+    },
+
+    setLabel:function(domNode,value,kw){
+        domNode.sourceNode._labelNode.domNode.innerHTML = value;
     }
 });
 
