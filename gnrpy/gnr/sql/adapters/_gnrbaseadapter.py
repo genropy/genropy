@@ -529,7 +529,7 @@ class SqlDbAdapter(object):
         return statement
 
     def addUniqueConstraint(self, pkg, tbl, fld):
-        statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'),pkg, fld, fld)
+        statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'), fld, fld)
         return statement
 
     def createExtensionSql(self,extension):

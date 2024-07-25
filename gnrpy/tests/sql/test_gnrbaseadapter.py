@@ -253,3 +253,15 @@ class TestSqlDbAdapter():
         assert "31536000" in r
 
     
+    def test_statements(self):
+        r = self.adapter.string_agg("field", "separator")
+        assert "string_agg(" in r
+        assert "field" in r
+        assert "separator" in r
+
+        
+        r = self.adapter.addUniqueConstraint("package", "table", "field")
+        assert r == "ALTER TABLE package.table ADD CONSTRAINT un_package_table_field UNIQUE (field)"
+
+        r = self.adapter.createSchemaSql("MYSCHEMA")
+        assert r == "CREATE SCHEMA MYSCHEMA;"
