@@ -4411,9 +4411,76 @@ p {
     font-size: .9em;
     font-variant:small-caps;
     min-height: 19px;
+    display: flex;
+    flex-direction: row;
 }
+
+.multibutton_itemsContainer{
+    overflow: hidden;
+}
+.multibutton_container.multibutton_itemsContainer{
+    padding-top:0;
+    padding-bottom:0;
+    line-height:unset;
+    font-size:unset;
+}
+.multibutton_scrollNext{
+    display: none;
+}
+.multibutton_scrollPrev{
+    display: none;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollNext{
+    display: block;
+    box-shadow:-3px 0 3px -1px;
+    z-index: 1;
+}
+
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtEnd .multibutton_scrollNext{
+    box-shadow:unset;
+    opacity: .3;
+    border-left:0;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollPrev{
+    display: block;
+    box-shadow:3px 0 3px -1px;
+    z-index: 1;
+}
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{
+    box-shadow:unset;
+    opacity: .3;
+}
+
 .multibutton_container .hidden.multibutton{
     display: none;
+}
+
+.multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-right: 1px solid;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: unset;
+    border-bottom-left-radius: unset;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    /*border-right: unset;*/
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer{
+    box-shadow: inset -5px 0 5px -5px rgba(0, 0, 0, 0.5) ;
 }
 
 .multibutton:last-child{
@@ -4450,9 +4517,9 @@ p {
 
 
 
+
 .multibutton{
     position:relative;
-    display:inline-block;
     padding-left:12px;
     padding-right:12px;
     cursor:pointer;
