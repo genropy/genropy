@@ -1446,7 +1446,11 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def insertRecord(self,table=None,record=None,**kwargs):
         tblobj = self.db.table(table)
-        newrecord = tblobj.insert(tblobj.newrecord(_fromRecord=record))
+        newrecord = tblobj.newrecord(_fromRecord=record)
+        col_list = list(tblobj.columns.keys())
+        extra_items = {k:v for k,v in record.items() if k not in col_list}
+        newrecord.update(extra_items)
+        tblobj.insert(newrecord)
         self.db.commit()
         return newrecord[tblobj.pkey]
 
