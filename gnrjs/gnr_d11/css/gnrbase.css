@@ -4433,7 +4433,7 @@ p {
 
 .multibutton_itemsContainerHasOverflow .multibutton_scrollNext{
     display: block;
-    box-shadow:-3px 0 3px -1px;
+    box-shadow:-3px 0 3px -3px;
     z-index: 1;
 }
 
@@ -4445,7 +4445,7 @@ p {
 
 .multibutton_itemsContainerHasOverflow .multibutton_scrollPrev{
     display: block;
-    box-shadow:3px 0 3px -1px;
+    box-shadow:3px 0 3px -3px;
     z-index: 1;
 }
 .multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{

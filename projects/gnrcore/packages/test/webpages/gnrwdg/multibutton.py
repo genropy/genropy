@@ -29,5 +29,7 @@ class GnrCustomWebPage(object):
     def test_1_itemsMaxWidth(self,pane):
         pane.textbox(value='^.base',lbl='Curr selected')
         pane.textbox(value='^.values',lbl='Curr values',default='pippo:Pippo,pluto:Pluto,paperino:Paperino,mario:Mario,l:luca,c:Cesare,p:Pancrazio,o:Ortensia,a:Antonella,b:Brigitta')
-    
+        pane.div(height='20px')
         pane.multibutton(value='^.base',values='^.values',itemsMaxWidth='300px')
+        pane.div(height='20px')
+        pane.div(_class='mobile_bar').multibutton(value='^.base',values='^.values',itemsMaxWidth='300px')
