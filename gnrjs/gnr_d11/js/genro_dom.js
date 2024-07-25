@@ -1715,6 +1715,16 @@ dojo.declare("gnr.GnrDomHandler", null, {
         return genro.dialogStack.length===0 || sourceNode.isChildOf(genro.dialogStack.slice(-1)[0].sourceNode);
     },
 
+    checkScrollPosition:function(element) {
+        const isAtStart = element.scrollLeft === 0;
+        const isAtEnd = element.scrollLeft + element.clientWidth >= element.scrollWidth;
+    
+        return {
+            isAtStart: isAtStart,
+            isAtEnd: isAtEnd
+        };
+    },
+
     setAutoSizer:function(sourceNode,domNode,cb,timing){
         sourceNode._autoSizer = setInterval(function(){
             if((domNode.clientHeight != sourceNode._current_height) || (domNode.clientWidth != sourceNode._current_width)){

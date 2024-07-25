@@ -2161,7 +2161,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
-        if has_adm:
+        if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
