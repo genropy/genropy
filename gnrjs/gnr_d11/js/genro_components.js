@@ -4280,26 +4280,31 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         });
         gnrwdg.itemsMaxWidth = objectPop(kw,'itemsMaxWidth');
         if(gnrwdg.itemsMaxWidth){
-            childItemsPrev.addItem('prevScrollLeft',null,{caption:'<',action:function(){
+            childItemsPrev.addItem('prevScrollLeft',null,{caption:'<',deleteAction:false,action:function(){
                 let element = gnrwdg._itemsContainerNode.domNode
                 let currScroll = element.scrollLeft;
                 gnrwdg._itemsContainerNode.domNode.scrollLeft= Math.max(0,currScroll-Math.floor(element.clientWidth/2));
                 let scrollposition = genro.dom.checkScrollPosition(element);
                 let mainNode = gnrwdg.multibuttonSource.getParentNode();
+                let moreItemsPrev = gnrwdg.childItemsPrev.len()>1;
                 genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
                 genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
+                genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
+
             },code:'prevScrollLeft',_class:'multibutton_scrollPrev'});
-            childItemsPost.addItem('nextScrollRight',null,{caption:'>',code:'nextScrollRight',
+            childItemsPost.addItem('nextScrollRight',null,{caption:'>',deleteAction:false,code:'nextScrollRight',
                 action:function(){
                     let element = gnrwdg._itemsContainerNode.domNode
                     let currScroll = element.scrollLeft;
                     gnrwdg._itemsContainerNode.domNode.scrollLeft= Math.min(element.scrollWidth,currScroll+Math.floor(element.clientWidth/2));
                     let scrollposition = genro.dom.checkScrollPosition(element);
                     let mainNode = gnrwdg.multibuttonSource.getParentNode();
+                    let moreItemsPost = gnrwdg.childItemsPost.len()>1;
                     genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
                     genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
+                    genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
                 },_class:'multibutton_scrollNext'
-            },{_position:-1});
+            },{_position:0});
         }
         gnrwdg.childItemsPrev = childItemsPrev;
         gnrwdg.childItemsPost = childItemsPost;
