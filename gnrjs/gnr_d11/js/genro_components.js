@@ -4375,13 +4375,16 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         let element = this._itemsContainerNode.domNode
         let scrollposition = genro.dom.checkScrollPosition(element);
         let mainNode = this.multibuttonSource.getParentNode();
+        let hasScrollX = element.scrollWidth > element.clientWidth;
         let moreItemsPost = this.childItemsPost.len()>1;
         let moreItemsPrev = this.childItemsPrev.len()>1;
+        genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
         genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
         genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
         genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
         genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
     },
+
     gnrwdg_isDisabled:function(){
         return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
     },
@@ -4485,6 +4488,10 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
             sn.setRelativeData(sn.attr.value,null);
         }
         this.makeButtons(this.getItems());
+        var that = this;
+        setTimeout(function(){
+            that.checkScrollClasses()
+        },1);
     },
 
     gnrwdg_getItemNode:function(identifier){
@@ -4517,14 +4524,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 itemsContainer = mb._('div',{_class:'multibutton_container multibutton_itemsContainer',
                                             max_width:this.itemsMaxWidth,
                                             onCreated:function(){
-                                                var element = this.domNode;
                                                 setTimeout(function(){
-                                                    let hasScrollX = element.scrollWidth > element.clientWidth;
-                                                    let scrollposition = genro.dom.checkScrollPosition(element);
-                                                    let mainNode = that.multibuttonSource.getParentNode();
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
+                                                    that.checkScrollClasses()
                                                 },1);
                                                 
                                             }});
