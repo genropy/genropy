@@ -4433,7 +4433,7 @@ p {
 
 .multibutton_itemsContainerHasOverflow .multibutton_scrollNext{
     display: block;
-    box-shadow:-3px 0 3px -1px;
+    box-shadow:-3px 0 3px -3px;
     z-index: 1;
 }
 
@@ -4445,7 +4445,7 @@ p {
 
 .multibutton_itemsContainerHasOverflow .multibutton_scrollPrev{
     display: block;
-    box-shadow:3px 0 3px -1px;
+    box-shadow:3px 0 3px -3px;
     z-index: 1;
 }
 .multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{
@@ -4462,16 +4462,25 @@ p {
     border-bottom-left-radius: 6px;
 }
 
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: unset;
+    border-bottom-left-radius: unset;
+}
+.multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
 .multibutton_itemsContainer .multibutton:last-child{
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
     border-right: 1px solid;
 }
-
-.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
-    border-top-left-radius: unset;
-    border-bottom-left-radius: unset;
+.multibutton_extraItemsPost .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    border-right: 0px;
 }
+
 
 .multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:last-child{
     border-top-right-radius: unset;
