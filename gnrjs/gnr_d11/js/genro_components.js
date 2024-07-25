@@ -4373,8 +4373,11 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
     },
     gnrwdg_checkScrollClasses:function(){
         var that = this;
-        this._itemsContainerNode.watch('parentVisible',function(){
-            return genro.dom.isVisible(that._itemsContainerNode.getParentNode());
+        if(!this.itemsMaxWidth){
+            return
+        }
+        this.sourceNode.watch('parentVisible',function(){
+            return genro.dom.isVisible(that.sourceNode.getParentNode());
         },function(){
             let element = that._itemsContainerNode.domNode
             let scrollposition = genro.dom.checkScrollPosition(element);
