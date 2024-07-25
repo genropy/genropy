@@ -4372,17 +4372,22 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         return multibutton;
     },
     gnrwdg_checkScrollClasses:function(){
-        let element = this._itemsContainerNode.domNode
-        let scrollposition = genro.dom.checkScrollPosition(element);
-        let mainNode = this.multibuttonSource.getParentNode();
-        let hasScrollX = element.scrollWidth > element.clientWidth;
-        let moreItemsPost = this.childItemsPost.len()>1;
-        let moreItemsPrev = this.childItemsPrev.len()>1;
-        genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
-        genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
-        genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
-        genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
-        genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
+        var that = this;
+        this._itemsContainerNode.watch('parentVisible',function(){
+            return genro.dom.isVisible(that._itemsContainerNode.getParentNode());
+        },function(){
+            let element = that._itemsContainerNode.domNode
+            let scrollposition = genro.dom.checkScrollPosition(element);
+            let mainNode = that.multibuttonSource.getParentNode();
+            let hasScrollX = element.scrollWidth > element.clientWidth;
+            let moreItemsPost = that.childItemsPost.len()>1;
+            let moreItemsPrev = that.childItemsPrev.len()>1;
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
+            genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
+            genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
+        },);
     },
 
     gnrwdg_isDisabled:function(){
@@ -4447,9 +4452,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                         if(genro.dom.isElementOverflowing(n.domNode)){
                             setTimeout(()=>{
                                 n.domNode.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                                setTimeout(()=>{
-                                    gnrwdg.checkScrollClasses();
-                                },100);
+                                gnrwdg.checkScrollClasses();
                             },1)
                             
                         }
@@ -4488,10 +4491,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
             sn.setRelativeData(sn.attr.value,null);
         }
         this.makeButtons(this.getItems());
-        var that = this;
-        setTimeout(function(){
-            that.checkScrollClasses()
-        },1);
+        this.checkScrollClasses()
     },
 
     gnrwdg_getItemNode:function(identifier){
@@ -4527,7 +4527,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                                                 setTimeout(function(){
                                                     that.checkScrollClasses()
                                                 },1);
-                                                
                                             }});
                 this._itemsContainerNode = itemsContainer.getParentNode();
             }
