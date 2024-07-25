@@ -4599,7 +4599,6 @@ p {
 }
 .mobile_bar .multibutton {
     position: relative;
-    display: inline-block;
     font-variant: normal;
     font-size: 1em;
     padding-left: 12px;
