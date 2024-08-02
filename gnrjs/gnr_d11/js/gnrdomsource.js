@@ -940,6 +940,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var content = this.getValue('static');
         if (content instanceof gnr.GnrDomSource) {
             content.forEach(function(node){
+                node.buildLblWrapper();
                 node.build(destination, -1);
             },'static');
         }
@@ -1751,6 +1752,52 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 parentHandler.onChildBuilding(parentNode,this);
             }
         }
+    },
+
+    buildLblWrapper:function(){
+        let lbl = objectPop(this.attr,'lbl');
+        if(!lbl){
+            return this;
+        }
+        let inherited_attr = this.getInheritedAttributes();
+        let label_attr = {};
+        let wrp_attr = objectExtract(inherited_attr,'wrp_*');
+        wrp_attr._labelWrapperId = genro.time36Id();
+        let attr = objectUpdate({},this.attr);
+        let side = objectPop(inherited_attr,'lbl_side') || 'top';
+        for(let k in attr){
+            if(k.startsWith('lbl_')){
+                label_attr[`label_${k.slice(4)}`] = objectPop(inherited_attr,k);
+            }
+        }
+        label_attr.label = lbl;
+        objectExtract(attr,'lbl_*');
+        objectExtract(attr,'wrp_*');
+        let box_l_kw = objectExtract(attr,'box_l_*',null,true);
+        let box_c_kw = objectExtract(attr,'box_c_*',null,true);
+        let box_kw = objectExtract(attr,'box_*');
+        attr._labelWrapper = wrp_attr._labelWrapperId;
+        wrp_attr.side = side;
+        wrp_attr._itemId = objectPop(attr,'_itemId');
+        let tag = objectPop(attr,'tag');
+        let children = this.getValue();
+        this._value = null;
+        wrp_attr.helpcode = objectPop(attr,'helpcode');
+        wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
+        wrp_attr.tag = 'labledbox'
+        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+        this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+        let original_label = this.label;
+        this.label = wrp_attr._itemId || 'labled_'+original_label;
+        let content = this._(tag,original_label,attr,{doTrigger:false});
+        this._contentNode = content.getParentNode();
+        if(children){
+            for(let childNode of children.getNodes()){
+                content.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
+                childNode.setParentBag(content)
+            }
+        }
+        return this._contentNode;
     },
 
     getLabelWrapper:function(){

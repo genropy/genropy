@@ -418,17 +418,18 @@ class GnrWebPage(GnrBaseWebPage):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-
             self._db.updateEnv(storename=self.dbstore, workdate=self.workdate, locale=self.locale,
                                 maxdate=datetime.date.max,mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
                                mainpackage=self.mainpackage,_user_conf_expirebag=expirebag,
                                external_host=self.external_host)
+            
             self._db.setLocale()
             avatar = self.avatar
             if avatar:
                 self._db.updateEnv(_excludeNoneValues=True,**self.avatar.extra_kwargs)
             storeDbEnv = self.site.register.get_dbenv(self.page_id,register_name='page') if self.page_id else dict()
+            storeDbEnv.pop('workdate',None) #it does not override page workdate
             if len(storeDbEnv)>0:
                 self._db.updateEnv(**storeDbEnv.asDict(ascii=True))
             envPageArgs = dictExtract(self.pageArgs,'env_')
@@ -446,7 +447,10 @@ class GnrWebPage(GnrBaseWebPage):
         
     def _get_workdate(self):
         today = datetime.date.today()
-        if not getattr(self,'_workdate',None):
+        workdate = getattr(self,'_workdate',None)
+        custom_workdate = getattr(self,'_custom_workdate',None)
+        if workdate is None or (workdate!=today and not custom_workdate):
+            #if workdate != today check if is custom workdate
             with self.pageStore() as store:
                 rootenv = store.getItem('rootenv')
                 if not rootenv:
@@ -457,9 +461,11 @@ class GnrWebPage(GnrBaseWebPage):
                 if not custom_workdate:
                     workdate = datetime.date.today()
                     rootenv['workdate'] = workdate
+                else:
+                    self._custom_workdate = custom_workdate
                 self._workdate =  workdate
                 self._rootenv = rootenv
-        return self._workdate
+        return workdate
 
     def _set_workdate(self, workdate):
         self.pageStore().setItem('rootenv.workdate', workdate)

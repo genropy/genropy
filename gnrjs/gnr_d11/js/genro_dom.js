@@ -1710,6 +1710,22 @@ dojo.declare("gnr.GnrDomHandler", null, {
         return false;
     },
 
+    isElementOverflowing:function(element) {
+        const parent = element.parentElement;
+      
+        const parentRect = parent.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+      
+        const isOverflowing = (
+          elementRect.left < parentRect.left ||
+          elementRect.right > parentRect.right ||
+          elementRect.top < parentRect.top ||
+          elementRect.bottom > parentRect.bottom
+        );
+      
+        return isOverflowing;
+    },
+
     isActiveLayer:function(what){
         var sourceNode = this.getSourceNode(this.getDomNode(what));
         return genro.dialogStack.length===0 || sourceNode.isChildOf(genro.dialogStack.slice(-1)[0].sourceNode);

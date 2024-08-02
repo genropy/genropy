@@ -4284,25 +4284,14 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 let element = gnrwdg._itemsContainerNode.domNode
                 let currScroll = element.scrollLeft;
                 gnrwdg._itemsContainerNode.domNode.scrollLeft= Math.max(0,currScroll-Math.floor(element.clientWidth/2));
-                let scrollposition = genro.dom.checkScrollPosition(element);
-                let mainNode = gnrwdg.multibuttonSource.getParentNode();
-                let moreItemsPrev = gnrwdg.childItemsPrev.len()>1;
-                genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
-                genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
-                genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
-
+                gnrwdg.checkScrollClasses()
             },code:'prevScrollLeft',_class:'multibutton_scrollPrev'});
             childItemsPost.addItem('nextScrollRight',null,{caption:'>',deleteAction:false,code:'nextScrollRight',
                 action:function(){
                     let element = gnrwdg._itemsContainerNode.domNode
                     let currScroll = element.scrollLeft;
                     gnrwdg._itemsContainerNode.domNode.scrollLeft= Math.min(element.scrollWidth,currScroll+Math.floor(element.clientWidth/2));
-                    let scrollposition = genro.dom.checkScrollPosition(element);
-                    let mainNode = gnrwdg.multibuttonSource.getParentNode();
-                    let moreItemsPost = gnrwdg.childItemsPost.len()>1;
-                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
-                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
-                    genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
+                    gnrwdg.checkScrollClasses()
                 },_class:'multibutton_scrollNext'
             },{_position:0});
         }
@@ -4382,6 +4371,27 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         }
         return multibutton;
     },
+    gnrwdg_checkScrollClasses:function(){
+        var that = this;
+        if(!this.itemsMaxWidth){
+            return
+        }
+        this.sourceNode.watch('parentVisible',function(){
+            return genro.dom.isVisible(that.sourceNode.getParentNode());
+        },function(){
+            let element = that._itemsContainerNode.domNode
+            let scrollposition = genro.dom.checkScrollPosition(element);
+            let mainNode = that.multibuttonSource.getParentNode();
+            let hasScrollX = element.scrollWidth > element.clientWidth;
+            let moreItemsPost = that.childItemsPost.len()>1;
+            let moreItemsPrev = that.childItemsPrev.len()>1;
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
+            genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
+            genro.dom.setClass(mainNode,'multibutton_extraItemsPost',moreItemsPost);
+            genro.dom.setClass(mainNode,'multibutton_extraItemsPrev',moreItemsPrev);
+        },);
+    },
 
     gnrwdg_isDisabled:function(){
         return this.multibuttonSource.getParentNode().getAttributeFromDatasource('disabled')
@@ -4433,12 +4443,22 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 value = value.split(',');
                 var identifier = this.identifier;
                 var code;
+                var gnrwdg = this;
                 mb.forEach(function(n){
                     if('multibutton_code' in n.attr){
                         code = n.attr.multibutton_code;
                     }else{
-                        console.warn('missing multibutton_code');
                         code = n.attr[identifier] || n.attr['code'] || n.label;
+                    }
+                    
+                    if(value.length==1 && value[0]==code){
+                        if(genro.dom.isElementOverflowing(n.domNode)){
+                            setTimeout(()=>{
+                                n.domNode.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                                gnrwdg.checkScrollClasses();
+                            },1)
+                            
+                        }
                     }
                     genro.dom.setClass(n,'multibutton_selected',value.indexOf(code)>=0);
                 });
@@ -4474,6 +4494,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
             sn.setRelativeData(sn.attr.value,null);
         }
         this.makeButtons(this.getItems());
+        this.checkScrollClasses()
     },
 
     gnrwdg_getItemNode:function(identifier){
@@ -4506,16 +4527,9 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 itemsContainer = mb._('div',{_class:'multibutton_container multibutton_itemsContainer',
                                             max_width:this.itemsMaxWidth,
                                             onCreated:function(){
-                                                var element = this.domNode;
                                                 setTimeout(function(){
-                                                    let hasScrollX = element.scrollWidth > element.clientWidth;
-                                                    let scrollposition = genro.dom.checkScrollPosition(element);
-                                                    let mainNode = that.multibuttonSource.getParentNode();
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtStart',scrollposition.isAtStart);
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerScrollAtEnd',scrollposition.isAtEnd);
-                                                    genro.dom.setClass(mainNode,'multibutton_itemsContainerHasOverflow ',hasScrollX);
+                                                    that.checkScrollClasses()
                                                 },1);
-                                                
                                             }});
                 this._itemsContainerNode = itemsContainer.getParentNode();
             }
@@ -4572,7 +4586,6 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 connect_onclick:function(e){
                 dojo.stopEvent(e);
                 if(deleteAction===true){
-                    console.log('defaultDeleteAction');
                     gnrwdg.defaultDeleteAction(code,caption);
                 }else{
                     deleteAction.call(this.sourceNode,code,caption);

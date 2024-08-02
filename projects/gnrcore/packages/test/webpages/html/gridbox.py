@@ -152,3 +152,15 @@ class GnrCustomWebPage(object):
         gb.checkbox(value='^.check_2',lbl='Check 2')
         gb.textbox(value='^.nascondimi',hidden='==_check_1 && _check_2',
                    _check_1='^.check_1', _check_2='^.check_2',lbl='Ciao')
+
+    def test_88_checkboxtext(self,pane):
+        pane.checkboxtext(value='^.dinamico',
+                         values='1:Ciao,2:Beta,3:Gamma',lbl='Test dinamico')
+
+       #pane.checkboxtext(value='^.dinamico_bis',
+       #                 values='1:Alfa,2:Zorro,3:Ciorro',lbl='Test dinamico bis')
+        
+
+        pane.checkboxtext(value='^.nolable',
+                         values='u:UUU,a:AAA,c:CCC')
+        

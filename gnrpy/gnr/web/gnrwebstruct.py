@@ -1990,7 +1990,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             assert hasattr(parentfb,'tblobj'),'missing default table. HINT: are you using a formStore in a bad place?'
             tblobj = parentfb.tblobj
         else:
-            tbl = self.parentNode.attr.get('table')
+            tbl = self.getInheritedAttributes().get('table')
             if not tbl:
                 raise GnrDomSrcError('No table')
             else:

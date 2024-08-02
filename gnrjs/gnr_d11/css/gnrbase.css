@@ -4439,7 +4439,6 @@ p {
 
 .multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtEnd .multibutton_scrollNext{
     box-shadow:unset;
-    opacity: .3;
     border-left:0;
 }
 
@@ -4450,7 +4449,6 @@ p {
 }
 .multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{
     box-shadow:unset;
-    opacity: .3;
 }
 
 .multibutton_container .hidden.multibutton{
@@ -4601,7 +4599,6 @@ p {
 }
 .mobile_bar .multibutton {
     position: relative;
-    display: inline-block;
     font-variant: normal;
     font-size: 1em;
     padding-left: 12px;
