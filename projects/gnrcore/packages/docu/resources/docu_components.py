@@ -499,7 +499,7 @@ class ContentsComponent(BaseComponent):
     
     def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
         pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg',viewer=True, **kwargs)
+                        initialEditType='wysiwyg', viewer=True, **kwargs)
         
     @customizable    
     def contentData(self, pane, **kwargs):
@@ -533,8 +533,8 @@ class ContentsComponent(BaseComponent):
                                                     configurable=False, 
                                                     **kwargs)
     
-    def contentText(self, bc):
-        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text',htmlpath='.html')
+    def contentText(self, pane, **kwargs):
+        self.contentEditor(pane, value='^.text',htmlpath='.html', **kwargs)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',

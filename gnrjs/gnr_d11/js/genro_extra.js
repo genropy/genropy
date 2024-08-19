@@ -275,9 +275,17 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         let editor = new window.toastui.Editor({
             el: widget,...editor_attrs
         });
+        editor_attrs.removeToolbarItems?.forEach(function(item) {
+            editor.removeToolbarItem(item);
+        });
+        editor_attrs.insertToolbarItems?.forEach(function(item) {
+                editor.insertToolbarItem(item)
+        });
         this.setExternalWidget(sourceNode,editor);
         editor.addHook('keydown',function(){
             genro.callAfter(function(){
+                if(editor_attrs.maxLength){
+                    editor.gnr_checkMaxLength(editor,editor_attrs.maxLength)};
                 editor.gnr_onTyped();
                 editor.gnr_setInDatastore();
             },10,this,'typing');
@@ -313,8 +321,24 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     mixin_gnr_onPaste:function(){
         this.gnr_setInDatastore();
     },
+    
     mixin_gnr_onTyped:function(){
+    },
 
+    mixin_gnr_checkMaxLength:function(editor,maxLength){
+        let value = this.getMarkdown();
+        let sliced_value = value.slice(0,maxLength)
+        this.setMarkdown(sliced_value);
+        editor.removeToolbarItem('remaining');
+        editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
+            name: 'remaining',
+            tooltip: 'Remaining characters',
+            text: `Remaining: ${(maxLength - sliced_value.length)}`,
+            action: null,
+            style:  {textAlign: 'right', position: 'absolute', right:'0', width:'auto', cursor:'pointer',
+                        cursor: 'auto', fontStyle: 'italic', fontSize: '.8em', background: 'none', border: 'none'}
+          });
+        
     },
 
     mixin_gnr_disabled:function(value){
