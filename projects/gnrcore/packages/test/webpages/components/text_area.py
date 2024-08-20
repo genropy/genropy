@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-"""Html elements tester"""
-
-
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase,msgarea_component:MsgArea"

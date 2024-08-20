@@ -7,7 +7,7 @@ class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
                 
     def test_0_gridbox(self,pane):
-        "Simple"
+        "Simple fixed gridbox"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
         fc = bc.contentPane(region='center').gridbox(width='400px',height='400px',
                                                      style='grid-template-columns:repeat(4,1fr)',
@@ -16,9 +16,8 @@ class GnrCustomWebPage(object):
         for k in range(20):
             fc.div(f'Item {k}',border='1px solid red',margin='5px')
 
-
     def test_1_gridbox(self,pane):
-        "Simple"
+        "Simple gridbox, specify number of columns"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
 
         bc.contentPane(region='right',width='100px',splitter=True,background='pink')
@@ -36,10 +35,9 @@ class GnrCustomWebPage(object):
 
 
     def test_2_gridbox(self,pane):
+        "Simple gridbox, only one centered item"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
-
         bc.contentPane(region='right',width='100px',splitter=True,background='pink')
-
         fc = bc.contentPane(region='center').gridbox(width='90%',height='400px',
                                                      style='grid-template-columns:repeat(4,1fr);column-gap:10px;row-gap:5px;',
                                                      border='1px solid silver',padding='5px',
@@ -48,10 +46,11 @@ class GnrCustomWebPage(object):
 
 
     def test_3_gridboxform(self,pane):
+        "Gridbox can be used instead of formbuilder, with more control on layout"
         fb = pane.contentPane(region='top').formbuilder(cols=2)
         fb.textBox(value='^columns',default='4',lbl='Columns')
     
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm3',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
         gb = bc.contentPane(region='center').gridbox(columns='^columns',gap='5px')
@@ -71,11 +70,8 @@ class GnrCustomWebPage(object):
             _onStart=True
         )
 
-    def test_10_xxx(self,pane):
-        pane.textbox(value='^.nome',lbl='Nome',lbl_side='left')
-
     def test_4_gridboxformLabledBox(self,pane):
-
+        "Labels, rounded, border, background, padding attributes can be specified"
         fb = pane.gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
         fb.textBox(value='^.columns',default='3',lbl='Columns')
         fb.filteringSelect(value='^.item_side',lbl='label Side',values='top,left,bottom,right')
@@ -86,9 +82,7 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.item_fld_border',lbl='Field border')
         fb.textbox(value='^.item_fld_background',lbl='Field background')
 
-
-
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm4',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
         gb = bc.contentPane(region='center').gridbox(columns='^#boxControllers.columns',gap='10px',margin='20px',
@@ -116,51 +110,3 @@ class GnrCustomWebPage(object):
             frm=form.js_form,
             _onStart=True
         )
-
-
-
-    
-    def test_6_gridbox_inside(self,pane):
-        bc = pane.borderContainer(height='500px')
-        bc.contentPane(region='top').button('Set bag').dataController("SET .items=source;",source='=.test_from_bag')
-        bc.contentPane(region='center').gridbox(cols=2,items='^.items',lbl='Dati anagrafici',item_datapath='.data')
-        bc.data('.test_from_bag',self.contentAnagrafica_bag())
-        bc.treeFrame(frameCode='editor',width='400px',border='1px solid silver',region='left',storepath='.items',editable=True)
-
-    def test_99_gridbox(self,pane):
-        gb = pane.gridbox(cols=2,lbl='Dati anagrafici')
-        gb.textbox(value='^.nome',lbl='Nome')
-        gb.textbox(value='^.cognome',lbl='Cognome')
-
-    def contentAnagrafica_bag(self):
-        result = Bag()
-        result.addItem('item_0',None,tag='textbox',value='^.nome',lbl='Nome da bag')
-        result.addItem('item_1',None,tag='textbox',value='^.cognome',lbl='Cognome da bag')
-        return result
-
-    def contentAnagrafica(self):
-        pane = self.newSourceRoot()
-        pane.textbox(value='^.nome',lbl='Nome')
-        pane.textbox(value='^.cognome',lbl='Cognome')
-        return pane
-    
-
-
-    def test_7_gridbox_hiddenElementsFormula(self,pane):
-        gb = pane.gridbox(columns=2)
-        gb.checkbox(value='^.check_1',lbl='Check 1')
-        gb.checkbox(value='^.check_2',lbl='Check 2')
-        gb.textbox(value='^.nascondimi',hidden='==_check_1 && _check_2',
-                   _check_1='^.check_1', _check_2='^.check_2',lbl='Ciao')
-
-    def test_88_checkboxtext(self,pane):
-        pane.checkboxtext(value='^.dinamico',
-                         values='1:Ciao,2:Beta,3:Gamma',lbl='Test dinamico')
-
-       #pane.checkboxtext(value='^.dinamico_bis',
-       #                 values='1:Alfa,2:Zorro,3:Ciorro',lbl='Test dinamico bis')
-        
-
-        pane.checkboxtext(value='^.nolable',
-                         values='u:UUU,a:AAA,c:CCC')
-        

@@ -327,15 +327,16 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
     mixin_gnr_checkMaxLength:function(editor,maxLength){
         let value = this.getMarkdown();
-        let sliced_value = value.slice(0,maxLength)
-        this.setMarkdown(sliced_value);
+        if (value.length > maxLength) {
+            this.setMarkdown(value);
+        }
         editor.removeToolbarItem('remaining');
         editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
             name: 'remaining',
             tooltip: 'Remaining characters',
-            text: `Remaining: ${(maxLength - sliced_value.length)}`,
+            text: `Remaining: ${(maxLength - value.length)}`,
             action: null,
-            style:  {textAlign: 'right', position: 'absolute', right:'0', width:'auto', cursor:'pointer',
+            style:  {textAlign: 'right', right:'0', width:'auto', cursor:'pointer',
                         cursor: 'auto', fontStyle: 'italic', fontSize: '.8em', background: 'none', border: 'none'}
           });
         
