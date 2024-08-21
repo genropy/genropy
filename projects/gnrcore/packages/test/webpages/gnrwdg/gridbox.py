@@ -70,9 +70,10 @@ class GnrCustomWebPage(object):
             _onStart=True
         )
 
-    def test_4_gridboxformLabledBox(self,pane):
+    def test_4_gridboxLabledBox(self,pane):
         "Labels, rounded, border, background, padding attributes can be specified"
-        fb = pane.gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
+        bc = pane.borderContainer(height='500px')
+        fb = bc.contentPane(region='top').gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
         fb.textBox(value='^.columns',default='3',lbl='Columns')
         fb.filteringSelect(value='^.item_side',lbl='label Side',values='top,left,bottom,right')
         fb.textbox(value='^.item_border',lbl='Item border')
@@ -82,9 +83,6 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.item_fld_border',lbl='Field border')
         fb.textbox(value='^.item_fld_background',lbl='Field background')
 
-        form = pane.frameForm(frameCode='TestForm4',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
-        bc = form.center.borderContainer(datapath='.record')
-        bc.contentPane(region='right',splitter=True,width='150px')
         gb = bc.contentPane(region='center').gridbox(columns='^#boxControllers.columns',gap='10px',margin='20px',
                                                      item_border='^#boxControllers.item_border',
                                                      item_side='^#boxControllers.item_side',
@@ -103,10 +101,3 @@ class GnrCustomWebPage(object):
         gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
 
         gb.textbox(value='^.email',lbl='Email',colspan=2)
-
-        bar = form.bottom.slotBar('*,confirm,5')
-        bar.confirm.button('Save',action='alert(this.form.getFormData().toXml())')
-        pane.dataController("frm.newrecord();",
-            frm=form.js_form,
-            _onStart=True
-        )

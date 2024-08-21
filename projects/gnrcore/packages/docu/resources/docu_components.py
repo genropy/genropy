@@ -496,7 +496,7 @@ class ContentsComponent(BaseComponent):
     
     def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
         pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg', viewer=True, **kwargs)
+                        initialEditType='wysiwyg', **kwargs)
         
     @customizable    
     def contentData(self, pane, **kwargs):
