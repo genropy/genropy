@@ -26,8 +26,8 @@ class Table(object):
         tbl.column('sphinx_toc', dtype='B', name_long='Sphinx toc')
 
         tbl.formulaColumn('example_url',"'/webpages/docu_examples/'||$hierarchical_name")
-
-
+        tbl.formulaColumn('available_languages', select=dict(table='docu.documentation_content', where='$documentation_id=#THIS.id',
+                                        columns="STRING_AGG($language_code, ',')"), name_long='!![en]Available languages', static=True)
         tbl.formulaColumn('is_published',"""
             CASE WHEN $publish_date IS NOT NULL THEN EXISTS(#has_published_children)
             ELSE $publish_date<=:env_workdate END

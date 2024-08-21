@@ -56,19 +56,21 @@ class Form(BaseComponent):
         frame = bc.framePane(region='center', margin='2px')
         frame.top.slotToolbar('*,stackButtons,*')
         sc = frame.center.stackContainer(region='center',margin='2px')
-        docpage = sc.borderContainer(title='!!Documentation')
-        #rsttc = docpage.tabContainer(margin='2px',region='center',selectedPage='^gnr.language')
-        #for lang in self.db.table('adm.language').query().fetch():
-        #    rsttc.fullEditorPane(title=lang['name'],lang=lang['code'],pageName=lang['code'])
-        docpage.contentPane(margin='2px',region='center').multiButtonForm(relation='@contents',
-                                                                            formResource='ContentForm')
-
-        if self.isDeveloper():
-            source_footer = docpage.contentPane(region='bottom',height='50%',splitter=True,closable='close')
-            self.sourceEditor(source_footer.framePane(datapath='#FORM.versionsFrame'))
-
+        self.documentationContent(sc.borderContainer(title='!!Documentation'))
         sc.contentPane(title='!![en]Parameters',datapath='#FORM').fieldsGrid()
 
+    def documentationContent(self,bc):
+        cframe = bc.contentPane(margin='2px',region='center').multiButtonForm(relation='@contents',
+                                                                            formResource='ContentForm',
+                                                                            datapath='#FORM.content', 
+                                                                            parentForm=True)
+        cframe.multiButtonView.item(code='add_account',caption='+',frm=cframe.form.js_form,
+                                    action='frm.newrecord();',
+                                    parentForm=True,deleteAction=False)
+
+        if self.isDeveloper():
+            source_footer = bc.contentPane(region='bottom',height='50%',splitter=True,closable='close')
+            self.sourceEditor(source_footer.framePane(datapath='#FORM.versionsFrame'))
     
     def browserSource(self,struct):
         r = struct.view().rows()
