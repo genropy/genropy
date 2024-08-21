@@ -12,7 +12,6 @@ class GnrCustomWebPage(object):
         pane.MDEditor(value='^.mycontent',height='300px',width='400px',htmlpath='.mycontent_html',
                       usageStatistics=True)
 
-
     def test_1_viewer(self, pane):
         "MDEditor with viewer"
         pane.data('.mycontent','My *content*')

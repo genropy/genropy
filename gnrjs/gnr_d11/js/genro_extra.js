@@ -231,9 +231,8 @@ dojo.declare("gnr.widgets.qrscanner", gnr.widgets.baseHtml, {
         //console.log('aaa')
     }
 });
+
 dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
-
-
     constructor: function(application) {
         this._domtag = 'div';
     },
@@ -251,16 +250,21 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
 
     created:function(widget, savedAttrs, sourceNode){
         var that=this;
-        if (!(window.toastui && window.toastui.Editor)){
-            genro.dom.loadJs("https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js",
-                          function(){
-                            genro.dom.loadCss("https://uicdn.toast.com/editor/latest/toastui-editor.min.css",'tuieditor',
-                                function(){
-                                    that.ready = true;
-                                    that.initialize(widget,savedAttrs,sourceNode);
-                                }
-                            )
-                          });
+        var scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
+        var cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
+
+        var editorLoaded = window.toastui && window.toastui.Editor;
+
+        if (!editorLoaded) {
+            genro.dom.loadJs(scriptUrl, function() {
+                genro.dom.loadCss(cssUrl, 'tuieditor', function() {
+                    that.ready = true;
+                    that.initialize(widget, savedAttrs, sourceNode);
+                });
+            });
+        } else {
+            that.ready = true;
+            that.initialize(widget, savedAttrs, sourceNode);
         }
     },
 
@@ -268,13 +272,23 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         let editor_attrs = {...savedAttrs};
         editor_attrs.autofocus = editor_attrs.autofocus || false;
         objectPop(editor_attrs,'htmlpath');
-        let handler = window.toastui.Editor;
-        if (editor_attrs.viewer){
-            handler = window.toastui.Editor.factory;
+        
+        let editor;
+
+        if (editor_attrs.viewer) {
+            // Build viewer using factory
+            editor = window.toastui.Editor.factory({
+                el: widget,
+                ...editor_attrs
+            });
+        } else {
+            // Build editor
+            editor = new window.toastui.Editor({
+                el: widget,
+                ...editor_attrs
+            });
         }
-        let editor = new window.toastui.Editor({
-            el: widget,...editor_attrs
-        });
+
         editor_attrs.removeToolbarItems?.forEach(function(item) {
             editor.removeToolbarItem(item);
         });
