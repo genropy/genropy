@@ -12,12 +12,14 @@ class Table(object):
                         name_plural='!!Documentation',caption_field='name',audit='lazy')
         self.sysFields(tbl,hierarchical='name',df=True,
                         counter=True,user_ins=True,user_upd=True)
+        
         tbl.column('name',name_long='!!Code', validate_notnull=True)
         tbl.column('topics',name_long='!!Topics')
         tbl.column('publish_date',dtype='D',name_long='!!Publish date')
-        tbl.column('sourcebag',dtype='X',name_long='Python Source',_sendback=True)
-        tbl.column('docbag',dtype='X',name_long='Rst data',_sendback=True)
-        tbl.column('revision',size=':3', name_long='!!Revision',values='001:Draft,050:Work in progress,080:Pre-release,100:Final')
+        tbl.column('sourcebag',dtype='X',name_long='!!Python Source',_sendback=True)
+        tbl.column('docbag',dtype='X',name_long='!!Rst data',_sendback=True)
+        tbl.column('revision',size=':3', name_long='!!Revision',
+                        values='001:[!![en]Draft],050:[!![en]Work in progress],080:[!![en]Pre-release],100:[!![en]Final]')
         tbl.column('author', name_long='Author')
         tbl.column('base_language',size=':2',name_long='Base language').relation('adm.language.code')
         tbl.column('old_html')
