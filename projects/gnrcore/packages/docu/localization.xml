@@ -2,7 +2,7 @@
 <GenRoBag><menu path="menu.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
 <en_handbooks base="Handbooks" it="Manuali" en="Handbooks"></en_handbooks>
 <en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"></en_redirects>
-<en_docu_tables base="Docu tables" en="Docu tables" it="Tavoli Docu"></en_docu_tables></menu>
+<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"></en_docu_tables></menu>
 <model><_packages><orgn><annotation path="model/_packages/orgn/annotation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation></annotation></orgn></_packages>
 <author path="model/author.py" ext="py"><en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author>
 <en_authors base="Authors" it="Autori"></en_authors>

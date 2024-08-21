@@ -10,12 +10,12 @@ from gnr.core.gnrdecorator import public_method
 class View(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('name', name='!!Name', width='20em')
-        r.fieldcell('title', name='!!Title', width='20em')
-        r.fieldcell('docroot_id', name='!!Doc root', width='20em')
+        r.fieldcell('name', name='!!Name', width='15em')
+        r.fieldcell('title', name='!!Title', width='25em')
+        r.fieldcell('docroot_id', name='!!Doc root', width='15em')
         r.fieldcell('language', name='!!Language', width='5em')
-        r.fieldcell('version', name='!!Version', width='8em')
-        r.fieldcell('last_exp_ts', width='12em')
+        r.fieldcell('version', name='!!Vers.', width='4em')
+        r.fieldcell('last_exp_ts', name='!!Last exp.ts', width='8em')
         r.fieldcell('handbook_url', width='auto', template="<a href='#' target='_blank'>#</a>")
         
     def th_order(self):
@@ -32,7 +32,7 @@ class View(BaseComponent):
                 dict(code='online',caption='!![en]Online',condition='$is_local_handbook IS NOT TRUE'),
                 dict(code='local',caption='!![en]Local', condition='$is_local_handbook IS TRUE'),
                 ]
-
+    
 
 class Form(BaseComponent):
 
@@ -143,4 +143,4 @@ class Form(BaseComponent):
         bar.dataController("this.form.reload();", subscribe_btc_eseguito=True)
 
     def th_options(self):
-        return dict(duplicate=True)
+        return dict(duplicate=True, hierarchical=False)
