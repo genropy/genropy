@@ -88,7 +88,7 @@ class GnrCustomWebPage(object):
                                                      item_side='^#boxControllers.item_side',
                                                      item_rounded='^#boxControllers.item_rounded',
                                                      item_fld_border='^#boxControllers.item_fld_border',
-                                                    item_fld_background='^#boxControllers.item_fld_background',
+                                                     item_fld_background='^#boxControllers.item_fld_background',
                                                      item_box_l_background='^#boxControllers.item_box_l_background',
                                                      item_box_c_padding='^#boxControllers.item_box_c_padding')
         gb.labledBox('Nome',helpcode='bbb').textbox(value='^.nome',validate_notnull=True)

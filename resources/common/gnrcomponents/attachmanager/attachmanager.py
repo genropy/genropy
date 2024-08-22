@@ -147,7 +147,8 @@ class Form(BaseComponent):
                      onUploadingMethod=None,onUploadedMethod=None,**kwargs):
         sc = parent.stackContainer(**kwargs)
         bc = sc.borderContainer(title='!![en]Viewer')
-        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',currentPreviewZoom='^#FORM.currentPreviewZoom')
+        bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',overflow='hidden',
+                                   currentPreviewZoom='^#FORM.currentPreviewZoom')
         da = sc.contentPane(title='!![en]Uploader').div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
             text_align='center',border='3px dotted #999',rounded=8)
         upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
@@ -226,10 +227,18 @@ class UploaderViewerPane(BaseComponent):
         sc.contentPane(pageName='document').iframe(src=src,height='100%',
                                   avoidCache=True,width='100%',border='0px',documentClasses=True)
         sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        sc.contentPane(pageName='video').video(src=src,height='100%',width='100%',
+                                    border=0,controls=True)
         parent.dataController("""
         let ext = src.split("?")[0].split('.').pop()
         SET .$ext = src.split("?")[0].split('.').pop();
-        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        if(['jpg','jpeg','png','svg'].includes(ext)){
+            sc.switchPage(1);
+        }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
+            sc.switchPage(2);
+        }else{
+            sc.switchPage(0);
+        }
         """,src=src,_if='src',sc=sc.js_widget)
 
     @extract_kwargs(uploader=True)
@@ -249,8 +258,7 @@ class UploaderViewerPane(BaseComponent):
         da.dropUploader(position='absolute',top=0,bottom=0,left=0,right=0,z_index=10,
                         _class='attachmentDropUploader',
                         **uploader_kwargs)
-        bc.dataController("""console.log('fileurl',fileurl);
-                                sc.switchPage(fileurl?0:1)""",fileurl=fileurl,sc=sc.js_widget)
+        bc.dataController("""sc.switchPage(fileurl?0:1)""",fileurl=fileurl,sc=sc.js_widget)
 
 class AttachManager(BaseComponent):
     py_requires = 'gnrcomponents/attachmanager/attachmanager:UploaderViewerPane'
@@ -309,12 +317,20 @@ class AttachManager(BaseComponent):
     def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
         sc.contentPane(pageName='document').iframe(src=src,height='100%',
-                                  avoidCache=True,width='100%',border='0px',documentClasses=True)
+                                    avoidCache=True,width='100%',border='0px',documentClasses=True)
         sc.contentPane(pageName='image').img(src=src,zoom=currentPreviewZoom)
+        sc.contentPane(pageName='video').video(src=src,height='100%',width='100%',
+                                    border=0,controls=True)
         parent.dataController("""
         let ext = src.split("?")[0].split('.').pop()
         SET .$ext = src.split("?")[0].split('.').pop();
-        sc.switchPage(['jpg','jpeg','png','svg'].includes(ext)?1:0);
+        if(['jpg','jpeg','png','svg'].includes(ext)){
+            sc.switchPage(1);
+        }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
+            sc.switchPage(2);
+        }else{
+            sc.switchPage(0);
+        }
         """,src=src,_if='src',sc=sc.js_widget)
 
     @extract_kwargs(default=True,vpane=True,fpane=True)
@@ -512,8 +528,8 @@ class AttachManager(BaseComponent):
         table = frame.multiButtonView.itemsStore.attributes['table']
         bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
-                                         hidden='^.form.viewerMode?=#v!="image"',
-                                 intermediateChanges=True, width='15em',default_value=1)
+                                        hidden='^.form.viewerMode?=#v!="image"',
+                                        intermediateChanges=True, width='15em',default_value=1)
         fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
