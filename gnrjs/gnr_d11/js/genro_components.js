@@ -3655,7 +3655,15 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
             var data = kw.template;
             return {data:data,dataInfo:{},template:data.getItem('compiled')};
         }
-        var template_address =( chunkNode.getAttributeFromDatasource('table') || '')+':'+kw.template;
+        var template_address =( kw.table || '')+':'+kw.template;
+        //console.log('aaa',template_address)
+        let table;
+        if(chunkNode.attr.datasource){
+            table = genro.getDataNode(chunkNode.absDatapath(chunkNode.attr.datasource)).attr.table;
+        }else{
+            table = chunkNode.getAttributeFromDatasource('table') || '';
+        }
+        var template_address = table +':'+kw.template;
         var result = genro.serverCall("loadTemplate",{template_address:template_address,asSource:kw.asSource});
         if(result.attr.html){
             var content = result.getValue().getItem('content');
