@@ -1499,7 +1499,7 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
     def pyColumn_full_external_url(self,record,field):
-        if not record['fileurl']:
+        if not record.get('fileurl'):
             return
         return self.db.application.site.externalUrl(record['fileurl'])
     
