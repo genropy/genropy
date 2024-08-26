@@ -105,7 +105,11 @@ class Main(BaseResourceBatch):
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
-                f.write(urlopen(source_url).read())
+                try:
+                    f.write(urlopen(source_url).read())
+                except:
+                    print('Image is missing',source_url)
+                    continue
         for relpath,source in self.examplesDict.items():
             if not source:
                 continue

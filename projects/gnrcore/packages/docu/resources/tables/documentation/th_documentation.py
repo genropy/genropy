@@ -36,6 +36,7 @@ class ViewFromHandbooks(BaseComponent):
     def th_query(self):
         return dict(column='_row_count', op='contains', val='')
 
+
 class Form(BaseComponent):
     py_requires='docu_components:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
     css_requires = 'docu'
@@ -234,72 +235,6 @@ class GnrCustomWebPage(object):
         else:
             self.db.table('docu.documentation').checkSourceBagModules(record)
 
-
-class GifMaker(Form):
-    def sourceViewerCM(self,parent):
-        pattr = parent.attributes
-        pattr['border'] = None
-        top = parent.contentPane(region='top',datapath='^#FORM.versionsFrame._editorDatapath',height='55px')
-        fb = top.formbuilder(cols=4)
-        fb.slotButton('!!Empty',action="""SET #FORM.versionsFrame.lastSelected = selectedUrl;
-                                                 SET #FORM.versionsFrame.selectedUrl = null;
-                                                 var lastSource = this.getRelativeData(editorDatapath+'.source');
-                                                 SET #FORM.versionsFrame.lastSource = lastSource;
-                                                 this.setRelativeData(editorDatapath+'.source',null);
-                                                 """,
-                            selectedUrl='=#FORM.versionsFrame.selectedUrl',
-                            editorDatapath='=#FORM.versionsFrame._editorDatapath')
-        fb.slotButton('!!Movie',fire='#FORM.sourceMovie')
-        fb.slotButton('!!Run',action="""SET #FORM.versionsFrame.selectedUrl = lastSelected;""",
-                                lastSelected='=#FORM.versionsFrame.lastSelected')
-        fb.numberTextBox(value='^#FORM.sleepTime',width='3em',default=10,lbl='Freq.')
-
-        
-        bc = parent.borderContainer(region='center',datapath='^#FORM.versionsFrame._editorDatapath',margin_left='6px')
-        cm = bc.contentPane(region='center',margin='5px',
-                        ).codemirror(value='^.source',parentForm=True,config_theme='night',
-                          config_mode='python',config_lineNumbers=True,
-                          config_indentUnit=4,config_keyMap='softTab',
-                          font_size='1.2em',
-                          height='100%')
-        bc.dataController("""
-        var that = this;
-        source = source || currSource;
-        source = source.split('');
-        sleepTime = sleepTime || 80;
-        var currtext = [];
-        this.watch('writing',function(){
-            if(source.length==0){
-                return true;
-            }
-            currtext.push(source.shift());
-            cm.externalWidget.setValue(currtext.join(''));
-        },function(){
-            that.setRelativeData('#FORM.versionsFrame.selectedUrl',lastSelected);
-            return;
-        },sleepTime);
-        """,source='=#FORM.versionsFrame.lastSource',_fired='^#FORM.sourceMovie',
-        cm=cm,sleepTime='=#FORM.sleepTime',currSource='=.source',
-        lastSelected='=#FORM.versionsFrame.lastSelected')
-
-        return cm
-
-    def sourcePreviewIframe(self,parent):
-        bc = parent.borderContainer(region='right',width='50%')
-        bc.contentPane(region='center',overflow='hidden',margin='5px',background='white').iframe(src='^#FORM.versionsFrame.selectedUrl',src__avoid_module_cache=True,height='100%',
-                    width='100%',border=0,margin='3px')
-        bc.dataController("PUT #FORM.versionsFrame.selectedUrl = null;",_fired='^#FORM.controller.saving')
-        return bc
-
-    def th_form(self,form):
-        bc = form.center.borderContainer()
-        bc.contentPane(region='center',background='RGBA(30, 48, 85, 1.00)')
-        self.sourceEditor(bc.contentPane(region='bottom',height='440px',
-                                        splitter=True).framePane(margin_top='5px'))
-
-
-    def th_options(self):
-        return dict(hierarchical=False)
 
 class FormPalette(Form):
     def th_form(self, form):

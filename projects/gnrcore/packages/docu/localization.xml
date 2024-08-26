@@ -140,7 +140,7 @@
 <en_info fr="Infos" de="Info" en="Info" it="Info" base="Info"></en_info>
 <en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
-<en_zip base="Zip" en="Zip" it="Cerniera"></en_zip>
+<en_zip base="Zip" en="Zip" it="Zip"></en_zip>
 <en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"></en_is_local_handbook>
 <en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"></en_sphinx_path>
 <en_toc_roots base="TOC roots" en="TOC roots" it="Radici TOC"></en_toc_roots>
