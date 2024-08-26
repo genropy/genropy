@@ -27,8 +27,8 @@ from gnr.core.gnrstring import slugify
 import os
 
 
-IMAGES_EXT = ('.png','.jpg','.jpeg','.gif')
-
+IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
+VIDEOS_EXT = ('.mp4','.avi','.mpg','.mpeg')
 
 
 class ViewAtcMobile(BaseComponent):
@@ -232,7 +232,7 @@ class UploaderViewerPane(BaseComponent):
         parent.dataController("""
         let ext = src.split("?")[0].split('.').pop()
         SET .$ext = src.split("?")[0].split('.').pop();
-        if(['jpg','jpeg','png','svg'].includes(ext)){
+        if(['jpg','jpeg','png','svg','webp'].includes(ext)){
             sc.switchPage(1);
         }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
             sc.switchPage(2);
@@ -324,7 +324,7 @@ class AttachManager(BaseComponent):
         parent.dataController("""
         let ext = src.split("?")[0].split('.').pop()
         SET .$ext = src.split("?")[0].split('.').pop();
-        if(['jpg','jpeg','png','svg'].includes(ext)){
+        if(['jpg','jpeg','png','svg','webp'].includes(ext)){
             sc.switchPage(1);
         }else if(['mp4','avi','mpg','mpeg'].includes(ext)){
             sc.switchPage(2);
