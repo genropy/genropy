@@ -2,7 +2,10 @@ UPCOMING RELEASE
 ================
 
 * Introduced support for Sentry.io monitoring
-* Fixes in deploybuilder to support older instances
+* deploybuilder will now create the 'config' subdirectory, to support
+  older instances without it
+* mkthresource allow the regeneration of the menu (-m switch) even if
+  the resources already exists.
 
 Version 24.5.30.2
 =================
