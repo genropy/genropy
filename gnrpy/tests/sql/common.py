@@ -25,10 +25,16 @@ class BaseGnrSqlTest:
                                port="5432",
                                user="postgres",
                                password="postgres")
+            # no mysql in CI environment
+            cls.mysql_conf = None
         else:
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
-
+            cls.mysql_conf = dict(host="localhost",
+                                  port=3306,
+                                  user="genrotest",
+                                  password="genrotest")
+        
     @classmethod    
     def teardown_class(cls):
         """

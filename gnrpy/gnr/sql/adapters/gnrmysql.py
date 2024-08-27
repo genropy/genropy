@@ -33,7 +33,7 @@ from MySQLdb.cursors import DictCursor
 
 #from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
 
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
@@ -69,18 +69,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             port = int(dbroot.port)
         else:
             port = 3306
-        #kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password, 
-        # port=dbroot.port, use_unicode=True, cursorclass=GnrDictCursor)
         kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password,
                       port=port , cursorclass=GnrDictCursor)
         kwargs = dict(
-                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
+                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters
         kwargs['charset'] = 'utf8'
-        #kwargs['connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
         return MySQLdb.connect(**kwargs)
 
-    #def adaptSqlName(self,name):
-    #    return '`%s`' %name 
+    def adaptSqlName(self,name):
+        return '`%s`' %name 
+
+    def cursor(self, name=None):
+        return self._managerConnection().cursor()
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
@@ -113,28 +113,33 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def getWhereTranslator(self):
         return GnrWhereTranslator(self.dbroot)
 
-        #def _managerConnection(self):
-        #dbroot=self.dbroot
-        #kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user, 
-        #password=dbroot.password, port=dbroot.port)
-        #kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
-        #conn =  MySQLdb.connect(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        #return conn
+    def _managerConnection(self):
+        dbroot=self.dbroot
+        kwargs = dict(host=dbroot.host, database='mysql', user=dbroot.user, 
+                      password=dbroot.password, port=dbroot.port)
+        kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
+        print("KWARGS", kwargs)
+        conn =  MySQLdb.connect(autocommit=True, **kwargs)
+        return conn
+    
+    def createDb(self, name, encoding='unicode'):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                conn = self._managerConnection()
+                curs = conn.cursor()
+                try:
+                    curs.execute(f"CREATE DATABASE `{name}`;")
+                except:
+                    raise DbAdapterException(f"Could not create database {name}")
+                finally:
+                    curs.close()
+                    conn.close()
 
-        #def createDb(self, name, encoding='unicode'):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("CREATE DATABASE %s CHARSET '%s';" % (name, encoding))
-        #curs.close()
-        #conn.close()
 
-        #def dropDb(self, name):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("DROP DATABASE %s;" % name)
-        #curs.close()
-        #conn.close()
+    def dropDb(self, name):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                curs.execute(f"DROP DATABASE `{name}`")
 
         #def createTableAs(self, sqltable, query, sqlparams):
         #self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
