@@ -145,9 +145,6 @@ class GnrCustomWebPage(object):
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')
         bar.updateLoc.slotButton('!![en]Rebuild', do_autotranslate=False,
-                                ask=dict(title='!![en]Options',
-                                        fields=[dict(name='do_autotranslate',tag='checkbox',
-                                                     label='!![en]Autotranslate')]),
                                 action='FIRE #FORM.rebuildLocalization = do_autotranslate')
         bar.autoTranslate.slotButton('!![en]Translate package',hidden='^.currentLocalizationBlock?=!#v').dataRpc(self.translateBlockToLanguage,
                         _lockScreen=True,                                       
@@ -158,7 +155,6 @@ class GnrCustomWebPage(object):
                                           tag='dbselect',
                                           table='adm.language',
                                           validate_notnull=True,
-                                          width='20em',
                                           hasDownArrow=True),
                                       dict(name='override',tag='checkbox',lbl='',label='!![en]Override current values')]),
                      _onResult='this.form.reload()')

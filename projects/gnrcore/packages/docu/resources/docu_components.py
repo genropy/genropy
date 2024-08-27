@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 
-"""
-examplehandler.py
-Created by Giovanni Porcari on 2010-08-09.
-Copyright (c) 2011 Softwell. All rights reserved.
-"""
-
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,customizable
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import GnrException
 
 class RstDocumentationHandler(BaseComponent):
     py_requires='gnrcomponents/attachmanager/attachmanager:AttachManager'
@@ -226,7 +221,9 @@ class RstDocumentationHandler(BaseComponent):
     @public_method
     def rst_getTranslation(self,docbody=None,doctitle=None,to_language=None,base_language=None,**kwargs):
         if docbody or doctitle:
-            tr = self.getService(service_name='aws', service_type='translation')  # tr = self.getService('translation')
+            tr = self.getService('translation')
+            if not tr:
+                raise GnrException('Please configure a translation service first')
             base_language = base_language or 'it'
             docbody = docbody or doctitle
             return dict(docbody=tr.translate(docbody,to_language=to_language,from_language=base_language) if docbody else None,
@@ -499,7 +496,7 @@ class ContentsComponent(BaseComponent):
     
     def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
         pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg',viewer=True, **kwargs)
+                        initialEditType='wysiwyg', **kwargs)
         
     @customizable    
     def contentData(self, pane, **kwargs):
@@ -533,8 +530,8 @@ class ContentsComponent(BaseComponent):
                                                     configurable=False, 
                                                     **kwargs)
     
-    def contentText(self, bc):
-        self.contentEditor(bc.contentPane(region='center',overflow='hidden',datapath='.record'), value='^.text',htmlpath='.html')
+    def contentText(self, pane, **kwargs):
+        self.contentEditor(pane, value='^.text',htmlpath='.html', **kwargs)
 
     def contentTemplate(self, pane):
         pane.templateChunk(template='^.tplbag', editable=True, height='100%', margin='5px', overflow='hidden',

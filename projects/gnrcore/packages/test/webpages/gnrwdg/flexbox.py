@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
-"Test HTML DIV"
-
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
                 
     def test_0_flex(self,pane):
-        "Simple"
+        "Boxes with flex. Specify direction and wrap"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
         fb = bc.contentPane(region='top').formbuilder(cols=2)
         fb.filteringSelect(value='^.direction',values='row,column,row-reverse,column-reverse')
@@ -20,7 +18,7 @@ class GnrCustomWebPage(object):
 
 
     def test_1_2dtable(self,pane):
-        "2d table"
+        "Boxes with flex. Specify direction and wrap"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
         fb = bc.contentPane(region='top').formbuilder(cols=2)
         fb.filteringSelect(value='^.direction',values='row,column,row-reverse,column-reverse',default='row')
@@ -41,7 +39,7 @@ class GnrCustomWebPage(object):
 
 
     def test_3_2dtable(self,pane):
-        "2d table"
+        "Boxes with flex. Specify direction and wrap"
         bc = pane.borderContainer(height='500px',width='600px',border='1px solid lime')
         fb = bc.contentPane(region='top').formbuilder(cols=2)
         fb.filteringSelect(value='^.direction',values='row,column,row-reverse,column-reverse',default='row')

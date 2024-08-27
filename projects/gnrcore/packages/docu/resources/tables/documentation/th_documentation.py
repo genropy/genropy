@@ -52,8 +52,8 @@ class Form(BaseComponent):
         form.dataController("tree.widget.updateLabels()",_fired='^gnr.language',_delay=1,
                             tree=form.htree)
 
-        self.tutorial_head(bc.contentPane(region='top', height='70px', splitter=True))
-        frame = bc.framePane(region='center')
+        self.tutorial_head(bc.contentPane(region='top'))
+        frame = bc.framePane(region='center', margin='2px')
         frame.top.slotToolbar('*,stackButtons,*')
         sc = frame.center.stackContainer(region='center',margin='2px')
         docpage = sc.borderContainer(title='!!Documentation')
