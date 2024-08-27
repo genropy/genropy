@@ -2,15 +2,16 @@ import os
 import sys
 import site
 import glob
-
+import pathlib
 import shutil
 import random
 import string
+from collections import defaultdict
+
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import uniquify, GnrException
-from collections import defaultdict
 from gnr.web.gnrmenu import MenuStruct
 from gnr.app.gnrconfig import IniConfStruct
 from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
@@ -1203,7 +1204,13 @@ class GunicornDeployBuilder(object):
         pars['max_requests_jitter'] = self.default_max_requests_jitter
         pars['chdir'] = self.site_path if os.path.exists(os.path.join(self.site_path,'root.py')) else self.instance_path
         conf_content = GUNICORN_DEFAULT_CONF_TEMPLATE %pars
-        print('write gunicorn file',self.gunicorn_conf_path)
+        print('Writing gunicorn conf file at',self.gunicorn_conf_path)
+
+        # ensure the directory exists before writing the file, to support
+        # older instances with new deploys
+        gunicorn_base_conf_dir = os.path.dirname(self.gunicorn_conf_path)
+        pathlib.Path(gunicorn_base_conf_dir).mkdir(parents=True, exist_ok=True)
+        
         with open(self.gunicorn_conf_path,'w') as conf_file:
             conf_file.write(conf_content)
 
