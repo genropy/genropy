@@ -2,6 +2,7 @@ UPCOMING RELEASE
 ================
 
 * Introduced support for Sentry.io monitoring
+* Fixes in deploybuilder to support older instances
 
 Version 24.5.30.2
 =================
