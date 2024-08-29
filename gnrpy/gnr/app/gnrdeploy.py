@@ -220,8 +220,8 @@ def gnrdaemonServiceBuilder():
     print("""
 Gnrdaemon service created Now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 $ sudo systemctl start %(service_name)s
@@ -275,8 +275,8 @@ def gnrsiterunnerServiceBuilder():
     print("""
 Gnrsiterunner service created, now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 
