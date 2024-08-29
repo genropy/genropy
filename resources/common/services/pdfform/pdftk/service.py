@@ -7,7 +7,8 @@ from gnr.web.gnrbaseclasses import BaseComponent
 try:
     import pypdftk
 except:
-    raise Exception('Missing pypdftk library. Please install it or disable pdf forms in preferences')
+    from gnr.core.gnrlang import GnrException
+    raise GnrException('Missing pypdftk library. Please install it or disable pdf forms in preferences')
 
 
 class Service(PdfFormService):
