@@ -2879,7 +2879,7 @@ textarea:disabled {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .dimmed {
@@ -4415,6 +4415,9 @@ p {
     flex-direction: row;
 }
 
+.multibutton_container.hidden{
+    display: none;
+}
 .multibutton_itemsContainer{
     overflow: hidden;
 }
