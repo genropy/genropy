@@ -2257,20 +2257,23 @@ dojo.declare('gnr.GenroClient', null, {
     openBrowserTab:function(url,params){
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,params);
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        
         //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
     childBrowserTab:function(url,parent_page_id,params){
-        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id),...params});
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        genro.bp(true)
         window.open(url);
     },
     
