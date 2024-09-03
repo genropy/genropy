@@ -3660,6 +3660,10 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         let table;
         if(chunkNode.attr.datasource){
             table = genro.getDataNode(chunkNode.absDatapath(chunkNode.attr.datasource)).attr.table;
+            if(!table){
+                let componentNode = chunkNode.getParentNode();
+                table = componentNode.getAttributeFromDatasource('table');
+            }
         }else{
             table = chunkNode.getAttributeFromDatasource('table') || '';
         }
