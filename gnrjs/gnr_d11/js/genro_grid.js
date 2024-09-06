@@ -68,8 +68,9 @@ gnr.columnsFromStruct = function(struct, columns) {
         if(node.attr.group_aggr){
             fld = fld+'_'+node.attr.group_aggr.toLowerCase().replace(/\W/g, '_');
         }
-        if(node.attr.template_columns){
-            node.attr.template_columns.split(',').forEach(function(n){
+        if(node.attr.template_columns || node.attr.rowTemplate){
+            let template_columns = node.attr.template_columns?node.attr.template_columns.split(','):node.attr.rowTemplate.match(/\$[a-zA-Z_]+/g);
+            template_columns.forEach(function(n){
                 arrayPushNoDup(columns,(n[0]=='$' || n[0]=='@')?n:'$'+n);
             });
         }
@@ -902,7 +903,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(sourceNode.attr.fillDown){
                 dojo.connect(widget,'updateRowCount',function(){
                     var that = this;
-                    setTimeout(function(){that.drawFiller();},1);
+                    that.sourceNode.delayedCall(function(){that.drawFiller();},1,'updatingRowCOunt');
                 });
             }
         }
@@ -2784,7 +2785,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
     mixin_restoreSelectedRows:function(){
         this.selection.unselectAll();
         this.selectionKeeper('load');
-        if (this.autoSelect && (this.selection.selectedIndex < 0)) {
+        if (this.autoSelect && (this.selection.selectedIndex < 0) && !this._pendingSelectionByAttr) {
             var sel = this.autoSelect === true ? 0 : this.autoSelect();
             this.selection.select(sel);
         }
@@ -3221,6 +3222,9 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
         var scaleX = this.sourceNode.getAttributeFromDatasource('scaleX') || 1;
         var scaleY = this.sourceNode.getAttributeFromDatasource('scaleY') || 1;
         var scalecb = function(domNode){
+            if(!domNode){
+                return;
+            }
             domNode.style.transform = "scale("+scaleX+","+scaleY+")";   
             domNode.style.transformOrigin = '0 0';
         }
@@ -4682,6 +4686,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_selectByRowAttr:function(attrName, attrValue, op,scrollTo,default_idx) {
         var that = this;
+        this._pendingSelectionByAttr = {attrName:attrValue};
         this.sourceNode.watch('pendingStore',function(){
             let cs = that.collectionStore();
             if(!cs){
@@ -4690,6 +4695,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return !(cs.runningQuery || cs.loadingData);
         },function(){
             that.selectByRowAttrDo(attrName, attrValue, op,scrollTo,default_idx);
+            that._pendingSelectionByAttr = null;
         });
     },
 

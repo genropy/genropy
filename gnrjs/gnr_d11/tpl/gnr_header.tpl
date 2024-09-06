@@ -6,6 +6,44 @@
     <script type="text/javascript" src="/_rsrc/common/pwa/app.js"></script>
 % endif
 
+% if sentryjs:
+    <script type="text/javascript">
+    window.sentryOnLoad = function() {
+	console.log("GENROPY SENTRY SUPPORT INIT");
+	Sentry.init({
+	    sampleRate: ${sentry_sample_rate},
+	    traceSampleRate: ${sentry_traces_sample_rate},
+	    profilesSampleRate: ${sentry_profiles_sample_rate},
+	    replaysSessionSampleRate: ${sentry_replays_session_sample_rate},
+	    replaysOnErrorSampleRate: ${sentry_replays_on_error_sample_rate},
+	    
+	});
+	// using an event processo to retrieve and
+	// add extra data when sending, due to genro client
+	// not immediately available when the page is loading
+	
+	Sentry.addEventProcessor(event => {
+	    try {
+		event.tags = {
+		    gnr_package: genro.getData('gnr.package'),
+		    genropy_instance: genro.getData('gnr.siteName'),
+		    genro_loaded: true,
+		    gnr_table: genro.getData('gnr.table'),
+		    gnr_pagename: genro.getData('gnr.pagename'),
+		    gnr_page_id: genro.getData('gnr.page_id')
+		}
+		Sentry.setUser({"username": genro.getData('gnr.avatar.user')});
+	    } catch (error) {
+		Sentry.setTag("genro_loaded", false);
+	    }
+	    return event;
+	});
+    }
+    </script>
+    <script src="${sentryjs}" crossorigin="anonymous"></script>
+
+% endif
+
 % if favicon:
      <link rel="icon" href="${favicon}" />
      <link rel="apple-touch-icon" href="${favicon}" />

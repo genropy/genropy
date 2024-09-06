@@ -57,6 +57,7 @@ class Table(object):
                                         """, name_long=u'!!Name',static=True)
 
         tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
+        tbl.formulaColumn('watermark_notice',"'Copy for ' || $username")
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
@@ -284,3 +285,10 @@ class Table(object):
             with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
                 inviting_rec['user_id'] = new_user['id']
         self.db.commit()
+
+
+    @public_method
+    def pushNotification(self,user_pkeys=None,title=None,message=None,
+                         url=None,expiry_date=None,
+                         sender=None,**kwargs):
+        raise self.exception('business_logic',msg='Missing Webpush notification package')

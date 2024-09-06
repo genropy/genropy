@@ -55,9 +55,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode.registerSubscription('closeExternalWindow',function(kw){
             that.onExternalWindowClosed(kw.windowKey);
         });
+        var that = this;
+        this.stackSourceNode.watch('menuReady',
+            function(){
+                return genro.getData('gnr.appmenu.root')
+            },function(){that.checkStartPage()});
         
 
     },
+
+
     
     createIframeRootPage:function(kw){
         this.finalizePageUrl(kw);
@@ -203,6 +210,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
         var cb = function(){
+            if(kw.addToHistory!==false){
+                that.addToPageHistory();
+            }
             that.stackSourceNode.setRelativeData('selectedFrame',rootPageName);
             if(that.getCurrentIframe(rootPageName)){
                 that.checkStartsArgs(rootPageName);
@@ -304,6 +314,19 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(!genro._windowClosing){
             this.stackSourceNode.fireEvent('refreshTablist',true);
         }
+    },
+
+    addToPageHistory:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        pageHistory.push(this.selectedFrame());
+        genro.setData('pageHistory',pageHistory);
+    },
+
+    historyBack:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        let backToPage = pageHistory.pop();
+        genro.setData('pageHistory',pageHistory.length?pageHistory:null);
+        this.stackSourceNode.setRelativeData('selectedFrame',backToPage);
     },
 
     onExternalWindowClosed:function(windowKey){
@@ -415,6 +438,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
         return genro.getData('selectedFrame');
     },
 
+    currentGenro:function(){
+        let iframe = this.getCurrentIframe();
+        return iframe.sourceNode._genro;
+    },
 
     changeFrameLabel:function(kw){
         if(kw.pageName && this.iframesbag.getNode(kw.pageName)){
@@ -446,10 +473,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
             curlen = this.externalWindowsBag().len()>0?curlen-1:curlen;
             selected = selected>=curlen? curlen-1:selected;
             var nextPageName = 'indexpage';
-            if(selected>=0){
+            let pageHistory = genro.getData('pageHistory') || [];
+            if(pageHistory){
+                pageHistory.pop()
+            }
+            if(pageHistory.length){
+                nextPageName = pageHistory.pop()
+            }
+            else if(selected>=0){
                 nextPageName = iframesbag.getNode('#'+selected)? iframesbag.getNode('#'+selected).attr.pageName:'indexpage';
             }
-            console.log('nextPageName',nextPageName)
             this.stackSourceNode.setRelativeData('selectedFrame',nextPageName); //PUT
         }
   
@@ -523,6 +556,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     getCurrentIframe:function(rootPageName){
+        rootPageName = rootPageName || this.selectedFrame()
         var iframesbag= genro.getData('iframes');
         if(!iframesbag){
             return;
@@ -582,10 +616,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         genro.setUserPreference('index.favorite_pages',favorite_pages,'adm')
     },
 
-    loadFavorites:function(){
+    loadFavorites:function(cb){
         var favorite_pages = genro.userPreference('adm.index.favorite_pages');
-        var external_menucode = genro.startArgs.menucode;
-        if(favorite_pages || external_menucode){
+        if(favorite_pages){
             var that = this;
             var v;
             var startPage;
@@ -616,23 +649,33 @@ dojo.declare("gnr.FramedIndexManager", null, {
                     }
                 },'static');
             }
-            if(external_menucode){
-                var menubag = genro.getData('gnr.appmenu.root');
-                let n = menubag.getNodeByAttr('menucode',external_menucode);
-                inattr = n.getInheritedAttributes()
-                kw = objectUpdate({name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
-                                      viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null},n.attr);
-                kw.openKw = kw.openKw || {};
-                objectUpdate(kw.openKw,{topic:'frameindex_external'});
-                objectUpdate(kw.openKw,objectExtract(genro.startArgs,'start_*',true,true));
-                genro.publish('selectIframePage',kw);
-            }else{
-                setTimeout(function(){
-                    that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
-                    that.stackSourceNode.fireEvent('refreshTablist',true);
-                },100);
-            }
+            setTimeout(function(){
+                that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
+                that.stackSourceNode.fireEvent('refreshTablist',true);
+            },100);
         }
+    },
+
+    checkStartPage:function(){
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('openOnStart');
+        if(!n){
+            return;
+        }
+        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
+    },
+    handleExternalMenuCode:function(external_menucode,runKwargs){
+        runKwargs = runKwargs || {}
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('menucode',external_menucode);
+        inattr = n.getInheritedAttributes()
+        let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
+                                viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
+                    ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};
+        kw.openKw = kw.openKw || {};
+        objectUpdate(kw.openKw,runKwargs);
+        objectUpdate(kw.openKw,{topic:'frameindex_external'});
+        genro.publish('selectIframePage',kw);
     },
 
     detachPage:function(attr,title,evt){

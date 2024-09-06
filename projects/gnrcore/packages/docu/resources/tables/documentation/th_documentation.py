@@ -37,7 +37,7 @@ class ViewFromHandbooks(BaseComponent):
         return dict(column='_row_count', op='contains', val='')
 
 class Form(BaseComponent):
-    py_requires='rst_documentation_handler:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
+    py_requires='docu_components:RstDocumentationHandler,gnrcomponents/dynamicform/dynamicform:DynamicForm'
     css_requires = 'docu'
 
     def th_form(self, form):
@@ -52,8 +52,8 @@ class Form(BaseComponent):
         form.dataController("tree.widget.updateLabels()",_fired='^gnr.language',_delay=1,
                             tree=form.htree)
 
-        self.tutorial_head(bc.contentPane(region='top', height='70px', splitter=True))
-        frame = bc.framePane(region='center')
+        self.tutorial_head(bc.contentPane(region='top'))
+        frame = bc.framePane(region='center', margin='2px')
         frame.top.slotToolbar('*,stackButtons,*')
         sc = frame.center.stackContainer(region='center',margin='2px')
         docpage = sc.borderContainer(title='!!Documentation')

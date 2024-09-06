@@ -103,6 +103,7 @@ class THPicker(BaseComponent):
                         one=one,many=many,grid=grid.js_widget,defaults=defaults,
                         **dropDefaults)  
         return palette
+    
 
 
     @struct_method
@@ -274,23 +275,15 @@ class THPicker(BaseComponent):
         commit = False
         for fkey in dragPkeys:
             commit = True
-            if not many:
-                many = '_dup_'
             d = {one:dropPkey,many:fkey,**dropDefaults}
             if many==pkeyfield:
                 with tblobj.recordToUpdate(fkey) as rec:
                     rec[one] = dropPkey
             else:
-                if many=='_dup_':
-                    pkeyToDup = d.pop(many)
-                    if dragDefaults:
-                        d.update(dragDefaults[fkey])
-                    tblobj.duplicateRecord(pkeyToDup,**d)
-                else:
-                    r = tblobj.newrecord(**d)
-                    if dragDefaults:
-                        r.update(dragDefaults[fkey])
-                    tblobj.insert(r)
+                r = tblobj.newrecord(**d)
+                if dragDefaults:
+                    r.update(dragDefaults[fkey])
+                tblobj.insert(r)
         if commit:
             self.db.commit()
 

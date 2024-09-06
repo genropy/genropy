@@ -35,7 +35,8 @@ from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime,timedelta
+import pytz
 import logging
 import threading
 
@@ -530,6 +531,7 @@ class SqlTable(GnrObject):
     def variantColumn_egvariant(self,field,**kwargs):
         #for documentation
         pass
+ 
 
     def variantColumn_age_day(self, field, dateArg=None, **kwargs):
         sql_formula=self.db.adapter.ageAtDate(field, dateArg=dateArg, timeUnit='day')
@@ -708,7 +710,9 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
-            result[colname] = fromRecord.get(colname)
+            val = fromRecord.get(colname)
+            if val is not None:
+                result[colname] = val
         return result
 
 
@@ -1966,6 +1970,13 @@ class SqlTable(GnrObject):
             return result,False
         return self.tableCachedData('guessedPkey',cb,identifier=identifier)
 
+    def newUTCDatetime(self,delta_minutes=None):
+        utc_tz = pytz.timezone('UTC')
+        utc_dt = datetime.now(utc_tz)   
+        if delta_minutes:
+            utc_dt += timedelta(minutes=delta_minutes)
+        return utc_dt
+    
 
     def newPkeyValue(self,record=None):
         """Get a new unique id to use as :ref:`primary key <pkey>`

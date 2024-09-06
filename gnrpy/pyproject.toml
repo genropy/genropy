@@ -119,11 +119,11 @@ gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
 "Homepage" = "https://www.genropy.org/"
 "Bug Reports" = "https://bitbucket.org/genropy/"
 "Source" = "https://bitbucket.org/genropy/"
+"ChangeLog" = "https://bitbucket.org/genropy/genropy/src/master/gnrpy/RELEASE_NOTES.rst"
 
 [tool.setuptools.dynamic]
 version = {attr = "gnr.VERSION"}
 readme = {file = ["README.md"]}
-
 
 [tool.setuptools]
 include-package-data = true

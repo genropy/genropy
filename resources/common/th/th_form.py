@@ -20,7 +20,7 @@ class TableHandlerForm(BaseComponent):
     def th_tableEditor(self,pane,frameCode=None,table=None,th_pkey=None,formResource=None,
                         formInIframe=False,dfltoption_kwargs=None,**kwargs):
         table = table or pane.attributes.get('table')
-        self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
+        resourcePath = self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
         options = dfltoption_kwargs
         options.update(self._th_getOptions(frameCode))
         options.update(kwargs)
@@ -40,6 +40,7 @@ class TableHandlerForm(BaseComponent):
                                  childname='form',
                                  table=table,
                                  formResource=formResource,
+                                 resourceClass=resourcePath.split(':')[1],
                                  iframe=formInIframe,
                                  remoteForm=remoteForm,
                                  remotePars=remotePars,
@@ -70,8 +71,17 @@ class TableHandlerForm(BaseComponent):
         self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
         return self.th_finalizeForm(form,table=table,options=kwargs,frameCode=frameCode)
     
+    def _th_prepareFormDataHelper(self,form):
+        attr = form.attributes
+        tbl = attr['table']
+        resourceClass = attr['resourceClass']
+        form.setHelperData(table=tbl)
+        form.setHelperData(table=tbl,name=f"th_{tbl.split('.')[1]}_{resourceClass}")
+
+
     def th_finalizeForm(self,form,table=None,options=None,frameCode=None,formCb=None):
         self._th_applyOnForm(form,options=options,mangler=frameCode)  
+        self._th_prepareFormDataHelper(form)
         if formCb:
             formCb(form)
         elif table == self.maintable and hasattr(self,'th_form'):
@@ -121,7 +131,7 @@ class TableHandlerForm(BaseComponent):
                         store='recordCluster',handlerType=None,tree_kwargs=None,**kwargs):
         tableCode = table.replace('.','_')
         formId = formId or tableCode
-        self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
+        resourcePath = self._th_mixinResource(formId,table=table,resourceName=formResource,defaultClass='Form')
         resource_options = self._th_getOptions(formId)
         resource_options.update(kwargs)
         resource_options.update(tree_kwargs)
@@ -139,6 +149,7 @@ class TableHandlerForm(BaseComponent):
         if not self.checkTablePermission(table,'readonly'):
             resource_options['readOnly'] = True
         form = formroot.frameForm(frameCode=formId,formId=formId,table=table,
+                                  resourceClass=resourcePath.split(':')[1],
                              store_startKey=startKey,context_dbstore=dbstore,
                              datapath='.form',store=store,store_kwargs=store_kwargs,
                              **kwargs)
@@ -356,7 +367,7 @@ class TableHandlerForm(BaseComponent):
     def _th_handleModalBar(self,form,mode=None,**kwargs):
         if mode=='navigation':
             if form.store.attributes.get('storeType') == 'Collection':
-                slots = 'dismissTitle,*,prevUp,nextDown'
+                slots = 'dismissTitle,left_placeholder,*,right_placeholder,prevUp,nextDown'
             else:
                 slots = 'dismissTitle'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'

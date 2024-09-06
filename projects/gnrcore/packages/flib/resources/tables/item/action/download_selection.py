@@ -1,12 +1,15 @@
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 # test_special_action.py
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
-from gnr.web.batch.btcaction import BaseResourceAction
+
 import time
 import os
+import zipfile
+
+from gnr.web.batch.btcaction import BaseResourceAction
 
 caption = '!!Download Selection'
 description='!!Download selected files'
@@ -21,7 +24,7 @@ class Main(BaseResourceAction):
          
     def do(self):
         selection = self.get_selection()
-        import zipfile
+
         self.zipNode = self.page.site.storageNode('page:output','%s.zip' % self.filename, autocreate=-1)
         self.zipurl = self.zipNode.url()
         with self.zipNode.open(mode='wb') as zipresult:

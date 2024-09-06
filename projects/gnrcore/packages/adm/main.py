@@ -11,7 +11,8 @@ class Package(GnrDboPackage):
                     comment='Admin',
                     name_short='Adm',
                     name_long='!!Administration',
-                    name_full='!!Administration Tool')
+                    name_full='!!Administration Tool',
+                    )
 
     def config_db(self, pkg):
         pass
@@ -21,6 +22,7 @@ class Package(GnrDboPackage):
 
     def authenticate(self, username,group_code=None,**kwargs):
         tblobj = self.db.table('adm.user')
+        login_group_code = group_code
         def cb(cache=None,identifier=None,group_code=None,**kwargs):
             if identifier in cache:
                 return cache[identifier],True
@@ -29,7 +31,6 @@ class Package(GnrDboPackage):
                                   where='$username = :user',
                                   user=username, limit=1).fetch()
             kwargs = dict()
-            
             if result:
                 user_record = dict(result[0])
                 all_groups = user_record['all_groups']
@@ -55,7 +56,10 @@ class Package(GnrDboPackage):
                 kwargs['lastname'] = user_record['lastname']
                 kwargs['user_id'] = user_record['id']
                 kwargs['multi_group'] = all_groups and (len(all_groups)>1 or user_record['group_code'] is None)
-                kwargs['group_code'] = group_code
+                if kwargs['multi_group'] and login_group_code is None:
+                    kwargs['group_code'] = None
+                else:
+                    kwargs['group_code'] = group_code
                 kwargs['main_group_code'] = user_record['group_code']
                 kwargs['avatar_rootpage'] = user_record['avatar_rootpage'] or group_record.get('rootpage')
                 kwargs['locale'] = user_record['locale'] or self.application.config('default?client_locale')

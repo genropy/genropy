@@ -86,6 +86,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'datetextbox':null,
             'geocoderfield':null,
             'ckeditor':null,
+            'mdeditor':null,
             'datetimetextbox':null
         };
         
@@ -1998,12 +1999,14 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }
             });
         }
+        this.setControllerData('status',this.status);
         this.applyDisabledStatus();
     },
 
     checkInvalidFields: function() {
         var node, sourceNode,node_identifiers,idx, changekey;
         for(let k in this._register){
+            if(this._register[k] && this._register[k])
             this._register[k].updateValidationStatus();
         }
         var invalidfields = this.getInvalidFields();
@@ -2474,7 +2477,7 @@ dojo.declare("gnr.formstores.Base", null, {
         var handler,handler_type,method,actionKw,callbacks,defaultCb;
         var that = this;
         var rpcmethod;
-        dojo.forEach(['save','load','del'],function(action){
+        ['save','load','del'].forEach(function(action){
             actionKw = objectExtract(handlerKw,action+'_*');
             handler = objectUpdate({},that.handlers[action]);
             handler_type = objectPop(handler,'handler_type') || objectPop(handlerKw,action)||base_handler_type;

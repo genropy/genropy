@@ -55,21 +55,6 @@ def checkDateKeywords(keywords,datestr,locale):
     return anyWordIn(gnrlocale.getDateKeywords(keywords, locale), datestr) or anyWordIn(
                 gnrlocale.getDateKeywords(keywords), datestr)
 
-def yearDecode(datestr):
-    """returns the year number as an int from a string of 2 or 4 digits:
-    if 2 digits is given century is added
-    
-    :param datestr: the string including year"""
-    year = None
-    datestr = datestr.strip()
-    if datestr and datestr.isdigit():
-        year = int(datestr)
-        if len(datestr) == 2:
-            if year < 70:
-                year = 2000 + year
-            else:
-                year = 1900 + year
-    return year
 
 def monthsFromDateRange(date_start=None,date_end=None,locale=None):
     curr_date = datetime.date(date_start.year,date_start.month,1)
@@ -104,7 +89,8 @@ def prevMonth(date):
         y -= 1
     return datetime.date(y,m-1,1)
 
-def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None, locale=None, isEndPeriod=False):
+def decodeOneDate(datestr, workdate=None, months=None, days=None, 
+                  quarters=None, locale=None, isEndPeriod=False,pivotYear=None):
     """Parse a string representing a date or a period. Return ``datetime.date``
     or ``tuple(year,month)`` or ``None``
     
@@ -185,13 +171,11 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
         dateStart = None
         dateEnd = None
         workdate = workdate or datetime.date.today()
-        
         if datestr.isdigit() and len(datestr) in (2, 4):                          # a full year
-            year = yearDecode(datestr)
+            year = gnrlocale.yearDecode(datestr,pivotYear=pivotYear)
             dateStart = datetime.date(year, 1, 1)
             if isEndPeriod:
                 dateEnd = datetime.date(year, 12, 31)
-                
         elif checkDateKeywords('today', datestr, locale):     # today
             dateStart = addToDay(datestr, workdate)
         elif checkDateKeywords('yesterday', datestr, locale): # yesterday
@@ -223,30 +207,30 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None, quarters=None,
                 dateEnd = monthEnd(date=dateStart)
         elif anyWordIn(list(quarters.keys()), datestr): # quarter
             qt, year = splitAndStrip(datestr, sep=' ', n=1, fixed=2)
-            year = yearDecode(year)
+            year = gnrlocale.yearDecode(year,pivotYear=pivotYear)
             qt = quarters[datestr]
             dateStart = (year, qt * 3 - 2)
             if isEndPeriod:
                 dateEnd = (year, qt * 3)
         elif anyWordIn(list(months.keys()), datestr):                                 # month name
             month, year = splitAndStrip(datestr, sep=' ', n=1, fixed=2)
-            year = yearDecode(year)
+            year = gnrlocale.yearDecode(year,pivotYear=pivotYear)
             month = months[month]
             dateStart = (year, month)
         elif anyWordIn(list(def_months.keys()), datestr):                                 # month name
             month, year = splitAndStrip(datestr, sep=' ', n=1, fixed=2)
-            year = yearDecode(year)
+            year = gnrlocale.yearDecode(year,pivotYear=pivotYear)
             month = def_months[month]
             dateStart = (year, month)
-        elif datestr in days:                                                   # weekday name
+        elif datestr in days:        
             dateStart = workdate + datetime.timedelta(days[datestr] - workdate.weekday())
-        elif datestr in def_days:                                                   # weekday name
+        elif datestr in def_days:
             dateStart = workdate + datetime.timedelta(def_days[datestr] - workdate.weekday())
         elif re.match('\d{4}-\d{2}-\d{2}', datestr):                            # ISO date
             date_items = [int(el) for el in wordSplit(datestr)[0:3]]
             dateStart = datetime.date(*[int(el) for el in wordSplit(datestr)[0:3]])
-        else:                                                                   # a date in local format
-            dateStart = gnrlocale.parselocal(datestr, datetime.date, locale)
+        else:       
+            dateStart = gnrlocale.parselocal(datestr, datetime.date, locale,pivotYear=pivotYear)
         dateResult = dateEnd if isEndPeriod and dateEnd else dateStart
         if timestr:
             time =  gnrlocale.parselocal(timestr, datetime.time, locale)
@@ -274,7 +258,8 @@ def periodCaption(dateFrom=None, dateTo=None, locale=None):
     else:
         return localNoPeriod
         
-def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtype='D',min_date=None,max_date=None):
+def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtype='D',
+                     min_date=None,max_date=None,pivotYear=None):
     """Parse a string representing a date or a period and returns a string of one or two dates in iso format separated by ``;``.
     See doc of :meth:`decodeOneDate()` for details on possible formats of a single date
     
@@ -337,8 +322,8 @@ def decodeDatePeriod(datestr, workdate=None, locale=None, returnDate=False, dtyp
         # the period is given as an unique string info
         dateStart = dateEnd = datestr
 
-    dateStart = decodeOneDate(dateStart, workdate, months=months, days=days, locale=locale)
-    dateEnd = decodeOneDate(dateEnd, workdate, months=months, days=days, locale=locale, isEndPeriod=True)
+    dateStart = decodeOneDate(dateStart, workdate, months=months, days=days, locale=locale,pivotYear=pivotYear)
+    dateEnd = decodeOneDate(dateEnd, workdate, months=months, days=days, locale=locale, isEndPeriod=True,pivotYear=pivotYear)
 
     if isinstance(dateStart, tuple): # is a month
         year, month = dateStart

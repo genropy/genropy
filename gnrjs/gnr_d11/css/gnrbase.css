@@ -194,6 +194,9 @@ cursorZoom_plus{
     background: white;
 }
 
+
+
+
 .gnrcheckbox_wrapper{
     position: relative;
     padding-right: 2px;
@@ -972,7 +975,7 @@ label.ghostlabel span {
 
 .gnrfieldlabel {
     /*vertical-align: middle;*/
-    color: #1c004e;
+    color: var(--gnrfieldlabel-color);
     margin-top:2px;
     white-space: nowrap;
     padding-left:4px;
@@ -1004,13 +1007,18 @@ label{
     /*padding-left: 15px;*/
     cursor: pointer;
 }
+.gnrzoomlabel{
+    display: inline-flex;
+}
+
+
 .gnrzoomicon{
-    display: inline-block;
     width:15px;
 }
 .gnrzoomlabel:hover .gnrzoomicon{
     background: transparent url(icons/base14/linkto.gif) no-repeat center center;
 }
+  
 /* @group loading classes */
 
 /*topLabelTable css for toplabel forbuilders*/
@@ -2183,7 +2191,6 @@ div.dojoxDock {
     height: 16px;
 }
 
-
 .icnBaseUserLogout {
     background: url(icons/base16/user_logout.png) no-repeat center center;
     width: 16px;
@@ -2199,6 +2206,13 @@ div.dojoxDock {
     background: url(icons/base16/ok.gif) no-repeat center center;
     width: 17px;
     height: 17px;
+}
+
+.icnBaseGenroLogo {
+    background: transparent url(/_rsrc/common/css_icons/svg/16/genrologo.svg) no-repeat center center;
+    background-size: contain;
+    width: 16px;
+    height: 16px;
 }
 
 .disabled_row {
@@ -2228,16 +2242,19 @@ div.dojoxDock {
     height: 15px;
 }
 
-.radioOn {
-    background: url(icons/radioOn.gif) no-repeat center center;
+.radioOn {    
+
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_checked.svg) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 .radioOff {
-    background: url(icons/radioOff.gif) no-repeat center center;
+    background: url(/_rsrc/common/css_icons/google_icons/radio_button_unchecked.svg) no-repeat center center;
     width: 15px;
     height: 15px;
+    background-size: contain;
 }
 
 /* @group boole */
@@ -2862,7 +2879,7 @@ textarea:disabled {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .dimmed {
@@ -3100,7 +3117,7 @@ body *{
 
 }
 .tundra .dijitTextBoxFocused, .tundra .dijitTextAreaFocused,.tundra .dijitComboBoxFocused {
-    box-shadow: 0px 0px 5px #488fd7;
+    box-shadow: 0px 0px 3px #488fd7;
 }
 
 .tundra .formattedTextBox input{
@@ -4340,7 +4357,6 @@ p {
     padding-top: 0px;
     padding-bottom: 0px;
     height: 18px;
-    display: inline-block;
 }
 
 .quickgrid_container .iconbox {
@@ -4353,6 +4369,8 @@ p {
 .iconbox.iconbox_short{
     height: 12px;
 }
+
+
 .quickgrid_container .iconbox:hover {
     opacity:1;
 }
@@ -4392,9 +4410,86 @@ p {
     font-size: .9em;
     font-variant:small-caps;
     min-height: 19px;
+    display: flex;
+    flex-direction: row;
 }
+
+.multibutton_container.hidden{
+    display: none;
+}
+.multibutton_itemsContainer{
+    overflow: hidden;
+}
+.multibutton_container.multibutton_itemsContainer{
+    padding-top:0;
+    padding-bottom:0;
+    line-height:unset;
+    font-size:unset;
+}
+.multibutton_scrollNext{
+    display: none;
+}
+.multibutton_scrollPrev{
+    display: none;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollNext{
+    display: block;
+    box-shadow:-3px 0 3px -3px;
+    z-index: 1;
+}
+
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtEnd .multibutton_scrollNext{
+    box-shadow:unset;
+    border-left:0;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_scrollPrev{
+    display: block;
+    box-shadow:3px 0 3px -3px;
+    z-index: 1;
+}
+.multibutton_itemsContainerHasOverflow.multibutton_itemsContainerScrollAtStart .multibutton_scrollPrev{
+    box-shadow:unset;
+}
+
 .multibutton_container .hidden.multibutton{
     display: none;
+}
+
+.multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:first-child{
+    border-top-left-radius: unset;
+    border-bottom-left-radius: unset;
+}
+.multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-right: 1px solid;
+}
+.multibutton_extraItemsPost .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    border-right: 0px;
+}
+
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer .multibutton:last-child{
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    /*border-right: unset;*/
+}
+
+.multibutton_itemsContainerHasOverflow .multibutton_itemsContainer{
+    box-shadow: inset -5px 0 5px -5px rgba(0, 0, 0, 0.5) ;
 }
 
 .multibutton:last-child{
@@ -4431,9 +4526,9 @@ p {
 
 
 
+
 .multibutton{
     position:relative;
-    display:inline-block;
     padding-left:12px;
     padding-right:12px;
     cursor:pointer;
@@ -4506,7 +4601,6 @@ p {
 }
 .mobile_bar .multibutton {
     position: relative;
-    display: inline-block;
     font-variant: normal;
     font-size: 1em;
     padding-left: 12px;
@@ -4853,11 +4947,16 @@ div[disabled='true'], div[disabled='disabled']{
     height: 18px;
     width: 18px;
     cursor: pointer;
-    background: url(icons/fm_close.gif) no-repeat center center;
+    mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    mask-size: 100%;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/close.svg') center center no-repeat;
+    -webkit-mask-size: 100%;
+    background-color: var(--root-dark);
     position: absolute;
     right:2px;
     top:4px;
 }
+
 .genropylogo{
 	background: url(icons/genropy.png) no-repeat center center;
     height: 60px;
@@ -5599,7 +5698,7 @@ div[disabled='true'], div[disabled='disabled']{
 .dropUploaderBox{
     width:150px;
     border: 1px solid silver;
-    border-radius: 4px;
+    border-radius: 2px;
     font-size: 20px;
     color: #666;
     text-align: center;
@@ -5624,63 +5723,6 @@ div[disabled='true'], div[disabled='disabled']{
 .showInnerLabel .slotbar_cell .innerLbl{
     display: block;
 }
-.innerLbl{
-    background: #B3B3B3;
-    color: white;
-    text-align: left;
-    margin-left: 1px;
-    margin-right: 1px;;
-    font-size: 0.9em;
-    padding-left: 5px;
-    padding-right: 5px;
-    padding-top: 1px;
-    padding-bottom: 1px;
-    border:1px solid #B3B3B3;
-}
-
-.innerLbl_top .innerLbl{
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-    border-bottom:0;
-}
-
-.innerLbl_bottom .innerLbl{
-    border-bottom-left-radius: 3px;
-    border-bottom-right-radius: 3px;
-    border-top:0;
-}
-
-.innerLblWrapper{
-    display: inline-block;
-}
-.innerLblWrapper.innerLblWrapper_widget_simpletextarea{
-}
-
-
-.tundra .innerLbl_top.innerLblWrapper .dijitTextBox, 
-.tundra .innerLbl_top.innerLblWrapper .dijitComboBox, 
-.tundra .innerLbl_top.innerLblWrapper .dijitSpinner, 
-.tundra .innerLbl_top.innerLblWrapper .dijitInlineEditor input,
-.tundra .innerLbl_top.innerLblWrapper .dijitTextArea{
-    /*box-shadow: 0 2px 2px #DDDDDD inset;*/
-    border-top-left-radius:0;
-    border-top-right-radius:0;
-    border-top:0;
-}
-
-
-.tundra .innerLbl_bottom.innerLblWrapper .dijitTextBox, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitComboBox, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitSpinner, 
-.tundra .innerLbl_bottom.innerLblWrapper .dijitInlineEditor input,
-.tundra .innerLbl_bottom.innerLblWrapper .dijitTextArea{
-    /*box-shadow: 0 2px 2px #DDDDDD inset;*/
-    border-bottom-left-radius:0;
-    border-bottom-right-radius:0;
-    border-bottom:0;
-}
-
-
 
 .grid_gallery_grid .dojoxGrid-scrollbox{
     margin-left: 5px;
@@ -6086,6 +6128,13 @@ div[disabled='true'], div[disabled='disabled']{
     cursor: pointer;
 }
 
+.innericonbox.iconbox{
+    height:13px;
+    width: 13px;
+    margin:auto;
+    background-size: contain;
+}
+
 .center_box{
     display: flex;
     justify-content: center;
@@ -6202,6 +6251,8 @@ div[disabled='true'], div[disabled='disabled']{
     color:#888;
     font-size:1.2em;
     padding-top: 2px;
+    padding-left: 10px;
+    padding-right: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6274,6 +6325,22 @@ div[disabled='true'], div[disabled='disabled']{
     mask-size: 100%;
     -webkit-mask-size: 100%;
 }
+
+.arrowBack{
+    mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/arrow_back.svg') center center no-repeat;
+}
+
+.helper{
+    mask: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/help.svg') center center no-repeat;
+}
+
+.upload{
+    mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') center center no-repeat;
+}
+
 .add_circle{
     mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
     -webkit-mask: url('/_rsrc/common/css_icons/google_icons/add_circle.svg') center center no-repeat;
@@ -6383,6 +6450,12 @@ div[disabled='true'], div[disabled='disabled']{
     height: 35px;
 }
 
+.calendar{
+    mask: url('/_rsrc/common/css_icons/google_icons/calendar.svg') center center no-repeat;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/calendar.svg') center center no-repeat;
+    height: 35px;
+}
+
 
 .largeCell{
     padding:5px;
@@ -6396,3 +6469,236 @@ div[disabled='true'], div[disabled='disabled']{
     margin-top:0;
     margin-bottom: 20px;
 }
+
+.developerToolElement{
+    display: none;
+}
+
+.developerToolElementsVisible .developerToolElement{
+    display: block;
+}
+
+
+/*labledbox  start*/
+
+
+.labledBox{
+    display: flex;
+}
+.labledBoxBordered.labledBox, .labledBoxBordered .labledBox{
+    border:1px solid silver;
+    border-radius: 3px;
+}
+.labledBox, .labledBox.labledBox_top, .labledBoxes_top .labledBox{
+    flex-direction: column;
+}
+.labledBox.labledBox_top.labledBox_gridbox{
+    border:1px solid #efefef;
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox{
+    border:unset;
+}
+
+.formlet_fakelabel.labledBox.labledBox_top>.labledBox_label{
+    display: none;
+}
+
+.developerToolElementsVisible .formlet_fakelabel.labledBox.labledBox_top> .labledBox_label{
+    display: unset;
+}
+
+.labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
+    padding:10px;
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
+    padding:unset;
+}
+
+
+.labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
+    padding:2px 5px;
+    background:var(--roundedgroup-bar);
+    color:var(--roundedgroup-bar-color);
+}
+
+.formlet_fakelabel.labledBox.labledBox_top.labledBox_gridbox>.labledBox_label{
+    background:unset;
+}
+
+
+
+.labledBox.labledBox_left{
+    flex-direction: row;
+    align-items:stretch;
+}
+.labledBox.labledBox_left.labledBox_simpletextarea,.labledBox.labledBox_right.labledBox_simpletextarea{
+    align-items:flex-start;
+}
+.labledBox.labledBox_left.labledBox_simpletextarea .labledBox_label,.labledBox.labledBox_right.labledBox_simpletextarea .labledBox_label{
+    padding-top:2px
+}
+
+.labledBox.labledBox_left .labledBox_label{
+    flex-direction: row-reverse;
+}
+
+.labledBox.labledBox_bottom{
+    flex-direction: column-reverse;
+}
+
+.labledBox.labledBox_right{
+    flex-direction: row-reverse;
+    align-items:right;
+}
+
+.labledBox_content{
+    display: flex;
+    align-items: flex-start;
+    flex:1;
+}
+
+.labledBox_content > *{
+    flex:1;
+}
+.labledBox.labledBox_left .labledBox_title{
+    padding-top: 2px;
+}
+
+
+.labledBox_label{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .9em;
+    font-weight: bold;
+    padding-left: 6px;
+    padding-bottom: 1px;
+}
+
+.labledBox_content>.gnrcheckbox_wrapper{
+    font-size: .9em;
+    padding-bottom: 1px;
+}
+
+.labledBoxClean .labledBox_title, .labledBoxInputBorderless .labledBox_title{
+    color:var(--root-dark);
+    font-weight: bold;
+    font-size: .9em;
+}
+
+
+
+
+.helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
+    background-size:contain;
+    position: relative;
+}
+
+.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
+    display: block;
+    background-size:contain;
+}
+
+.labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: none;
+}
+
+.labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
+.labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{
+    flex-direction: row-reverse;
+}
+
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel .gnrzoomicon{
+    display: none;
+}
+.labledBox.labledBox_left>.labledBox_label .gnrzoomlabel:hover .gnrzoomicon{
+    display: block;
+}
+
+
+
+
+
+
+
+.labledBoxInputBorderless .labledBox_title{
+    margin-left:6px;
+}
+
+
+.tundra .labledBoxInputBorderless .dijitTextBox, 
+.tundra .labledBoxInputBorderless .dijitComboBox, 
+.tundra .labledBoxInputBorderless .dijitSpinner, 
+.tundra .labledBoxInputBorderless .dijitInlineEditor input,
+.tundra .labledBoxInputBorderless .dijitTextArea, 
+.tundra .labledBoxInputBorderless .gnrcheckbox_wrapper,
+
+.tundra .labledBoxBordered .dijitTextBox, 
+.tundra .labledBoxBordered .dijitComboBox, 
+.tundra .labledBoxBordered .dijitSpinner, 
+.tundra .labledBoxBordered .dijitInlineEditor input,
+.tundra .labledBoxBordered .dijitTextArea, 
+.tundra .labledBoxBordered .gnrcheckbox_wrapper{
+    border-width: 0;
+    background: #f5f5f5;
+    padding-right: 5px;
+    font-size: 1.1em;
+    line-height: 1.5;
+    padding-left: 4px;
+    margin: 2px 4px 4px 4px;
+}
+
+
+.tundra .labledBoxInputBorderless .dijitError.dijitTextBox, 
+.tundra .labledBoxInputBorderless .dijitError.dijitComboBox, 
+.tundra .labledBoxInputBorderless .dijitError.dijitSpinner, 
+.tundra .labledBoxInputBorderless .dijitError.dijitInlineEditor input,
+.tundra .labledBoxInputBorderless .dijitError.dijitTextArea, 
+.tundra .labledBoxInputBorderless .dijitError.gnrcheckbox_wrapper,
+
+.tundra .labledBoxBordered .dijitError.dijitTextBox, 
+.tundra .labledBoxBordered .dijitError.dijitComboBox, 
+.tundra .labledBoxBordered .dijitError.dijitSpinner, 
+.tundra .labledBoxBordered .dijitError.dijitInlineEditor input,
+.tundra .labledBoxBordered .dijitError.dijitTextArea, 
+.tundra .labledBoxBordered .dijitError.gnrcheckbox_wrapper{
+    background: #ffe0e0;
+}
+
+.gnrgridbox{
+    display: grid;
+}
+.gnrflexbox{
+    display: flex;
+}
+
+
+.gnrgridbox.formlet{
+    gap: 7px 20px;
+    padding: 7px;
+}
+
+.gnrgridbox.formlet .labledBox_left>.labledBox_label{
+    padding-right: 2px;
+}
+
+.tundra .gnrgridbox .dijitTextBox,.tundra .gnrgridbox .dijitComboBox,.tundra .gnrgridbox .dijitSpinner{
+    width:unset;
+}
+
+.slotbar_cell .gnrgridbox.formlet{
+    padding: 2px;
+    gap: 3px;
+}
+
+
+.tundra .slotbar_cell .gnrgridbox .dijitTextBox,.tundra .slotbar_cell .gnrgridbox .dijitComboBox,.tundra .slotbar_cell .gnrgridbox .dijitSpinner{
+    width:15em;
+}
+
+
+/*labledbox  end*/

@@ -910,7 +910,7 @@ class SiteRegister(BaseRemoteObject):
 
     def dump(self):
         """TODO"""
-        with open(self.storage_path, 'w') as storagefile:
+        with open(self.storage_path, 'wb') as storagefile:
             self.user_register.dump(storagefile)
             self.connection_register.dump(storagefile)
             self.page_register.dump(storagefile)

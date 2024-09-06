@@ -574,14 +574,28 @@ dojo.declare('gnr.GenroClient', null, {
         if (this.isMobile) {
             this.mobile = new gnr.GnrMobileHandler(this);  
         }
-
+        if (this.isCordova) {
+            this.cordova = new gnr.GnrCordovaHandler(this);  
+        }
         dojo.subscribe('debugstep',
                        function(data){genro.dev.onDebugstep(data)}
                      );
         dojo.subscribe('closePage',function(){
             genro.closePage();
         });
-
+        window.addEventListener('focus', function() {
+            genro.publish('focusedWindow')
+            let mainGenro = genro.mainGenroWindow.genro
+            mainGenro._focusedWindow = window;
+            mainGenro.publish('focusedChildWindow')
+        });
+        window.addEventListener('blur', function() {
+            genro.publish('blurredWindow')
+            let mainGenro = genro.mainGenroWindow.genro
+            mainGenro.publish('blurredChildWindow')
+            mainGenro._lastFocusedWindow = mainGenro._focusedWindow;
+            mainGenro._focusedWindow = null;
+        });
         if(this.startArgs['_parent_page_id']){
             this.parent_page_id = this.startArgs['_parent_page_id'];
         }
@@ -600,47 +614,12 @@ dojo.declare('gnr.GenroClient', null, {
                 this.parentIframeSourceNode = window.frameElement.sourceNode;
             }catch(e){
                 parentGenro = false;
+                document.addEventListener('visibilitychange', function() {
+                    genro.setData('gnr.windowVisibility', document.visibilityState);
+                });
             }
         }
 
-	// if cordova is detected, load the js payload from localhost
-	// which will load all the configured plugins payload
-	if(this.isCordova) {
-	    if(!this.getParentGenro()) {
-		
-		document.addEventListener('deviceready', function() {
-		    console.log("CORDOVA JS LOAD COMPLETED");
-		    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
-		    genro.cordova_ready = true;
-		    genro.setData("gnr.cordova.platform", cordova.platformId)
-		    genro.setData("gnr.cordova.version", cordova.version)
-		    genro.setData("gnr.cordova.ready", true);
-		    
-		    if(device) {
-			genro.setData("gnr.cordova.device.uuid", device.uuid);
-			genro.setData("gnr.cordova.device.model", device.model);
-			genro.setData("gnr.cordova.device.manufacturer", device.manufacturer);
-		    }
-		    if(PushNotification) {
-			console.log("We have PushNotification");
-			genro.notification_obj = PushNotification.init({android: {}, ios: {}});
-			PushNotification.hasPermission(function(status) {
-			    console.log("Push Notification Permission", status)
-			});
-			genro.notification_obj.on("registration", (data) => {
-			    console.log("Push Notification registered: ", data);
-			    genro.setData("gnr.cordova.fcm_push_registration", data);
-			});
-		    }
-		}, false);
-
-		genro.dom.loadJs("https://localhost/cordova.js", () => {
-                    console.log("CORDOVA JS LOADED");
-		});
-	    }
-	}
-
-	
         genro.src.getMainSource(function(mainBagPage){
             if (mainBagPage  &&  mainBagPage.attr && mainBagPage.attr.redirect) {
                 var pageUrl = genro.absoluteUrl();
@@ -675,11 +654,12 @@ dojo.declare('gnr.GenroClient', null, {
         genro.dom.removeClass('mainWindow', 'waiting');
         genro.dom.removeClass('_gnrRoot', 'notvisible');
         genro.dom.effect('_gnrRoot', 'fadein', {duration:400});
-        dojo.connect(dojo.doc, 'onkeydown', function(event) {
-              if ((event.keyCode == dojo.keys.BACKSPACE ) &&(event.target.size === undefined ) && (event.target.rows === undefined )){
-                 event.preventDefault();
-              }
-        })
+        //past workaround to avoid backspace history in browsers commmented 
+        //dojo.connect(dojo.doc, 'onkeydown', function(event) {
+        //      if ((event.keyCode == dojo.keys.BACKSPACE ) &&(event.target.size === undefined ) && (event.target.rows === undefined )){
+        //         event.preventDefault();
+        //      }
+        //})
         genro.dragDropConnect();
         genro.standardEventConnection();
         if(genro.isDeveloper){
@@ -795,6 +775,7 @@ dojo.declare('gnr.GenroClient', null, {
             genro.publish('onPageStart');
             genro.dom.removeClass(dojo.body(),'startingPage');
             genro._pageStarted = true;
+            window.focus();
         }, 100);
     },
 
@@ -1145,6 +1126,9 @@ dojo.declare('gnr.GenroClient', null, {
 
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
+    fakeResize:function(){
+        window.dispatchEvent(new Event('resize'));
+    },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
         cb = funcCreate(cb);
@@ -1472,12 +1456,13 @@ dojo.declare('gnr.GenroClient', null, {
         genro.src.getNode()._('div', '_dlframe');
         var node = genro.src.getNode('_dlframe').clearValue().freeze();
         var params = {'src':url, display:'none', width:'0px', height:'0px'};
+        params.sandbox="allow-same-origin allow-scripts allow-popups allow-forms";
         if (onload_cb) {
             params['connect_onload'] = onload_cb;
         }
-        ;
         let frm = node._('htmliframe', params);
         node.unfreeze();
+        console.log('iframe download',frm.getParentNode().domNode)
 
 
     },
@@ -1948,6 +1933,12 @@ dojo.declare('gnr.GenroClient', null, {
         return url + sep + parameters.join('&');
     },
 
+    callWebTool:function(toolCode,params){  
+        objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
+        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
+        return url
+    },
+
     textToClipboard:function(txt,cb){
         let promise = navigator.clipboard.writeText(txt); 
         if(cb){
@@ -2267,20 +2258,23 @@ dojo.declare('gnr.GenroClient', null, {
     openBrowserTab:function(url,params){
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,params);
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        
         //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
     childBrowserTab:function(url,parent_page_id,params){
-        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id),...params});
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        genro.bp(true)
         window.open(url);
     },
     
@@ -2385,7 +2379,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         options = options || {};
         
-        var sourceNode = genro.nodeById(options.nodeId || '_gnrRoot');
+        var sourceNode = genro.nodeById(options.nodeId || '_gnrRoot') || genro.src.getNode();
         reason = reason || sourceNode.getStringId();
         sourceNode._lockingElements = sourceNode._lockingElements || {};
         sourceNode._lockingElements[reason] = reason;
@@ -2407,7 +2401,9 @@ dojo.declare('gnr.GenroClient', null, {
                 sourceNode.setHiderLayer(false);
             }
         }
-    }
+    },
+
+
 });
 
 dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {

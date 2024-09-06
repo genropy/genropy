@@ -231,10 +231,12 @@ class GnrWebPage(GnrBaseWebPage):
             init_info = dict(request_kwargs=request_kwargs, request_args=request_args,
                           filepath=filepath, packageId=packageId, pluginId=pluginId,  basename=basename)
             self.page_item = self._register_new_page(kwargs=request_kwargs,class_info=class_info,init_info=init_info)
-
         self.isMobile = (self.connection.user_device.startswith('mobile')) or self.page_item['data']['pageArgs'].get('is_mobile')
         self.deviceScreenSize = self.connection.user_device.split(':')[1]
         self._inited = True
+        
+    def onPageRegistered(self,**kwargs):
+        pass
 
     def _T(self,value,lockey=None):
         return GnrLocString(value,lockey=lockey)
@@ -242,7 +244,7 @@ class GnrWebPage(GnrBaseWebPage):
     def onPreIniting(self, *request_args, **request_kwargs):
         """TODO"""
         pass
-        
+
     @property
     def pagename(self):
         return os.path.splitext(os.path.basename(self.filepath))[0].split(os.path.sep)[-1]
@@ -303,6 +305,7 @@ class GnrWebPage(GnrBaseWebPage):
         if self.wsk_enabled and not getattr(self,'system_page',False):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
+        self.onPageRegistered(**kwargs)
         return page_item
 
     def registerToAsyncServer(self,**kwargs):
@@ -418,16 +421,18 @@ class GnrWebPage(GnrBaseWebPage):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-
             self._db.updateEnv(storename=self.dbstore, workdate=self.workdate, locale=self.locale,
                                 maxdate=datetime.date.max,mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
-                               mainpackage=self.mainpackage,_user_conf_expirebag=expirebag)
+                               mainpackage=self.mainpackage,_user_conf_expirebag=expirebag,
+                               external_host=self.external_host)
+            
             self._db.setLocale()
             avatar = self.avatar
             if avatar:
                 self._db.updateEnv(_excludeNoneValues=True,**self.avatar.extra_kwargs)
             storeDbEnv = self.site.register.get_dbenv(self.page_id,register_name='page') if self.page_id else dict()
+            storeDbEnv.pop('workdate',None) #it does not override page workdate
             if len(storeDbEnv)>0:
                 self._db.updateEnv(**storeDbEnv.asDict(ascii=True))
             envPageArgs = dictExtract(self.pageArgs,'env_')
@@ -440,11 +445,30 @@ class GnrWebPage(GnrBaseWebPage):
                 kwargs = dbenv() or {}
                 self._db.updateEnv(**kwargs)
         return self._db    
+    
+
         
     def _get_workdate(self):
-        if not getattr(self,'_workdate',None):
-            self._workdate = self.pageStore().getItem('rootenv.workdate') or datetime.date.today()
-        return self._workdate
+        today = datetime.date.today()
+        workdate = getattr(self,'_workdate',None)
+        custom_workdate = getattr(self,'_custom_workdate',None)
+        if workdate is None or (workdate!=today and not custom_workdate):
+            #if workdate != today check if is custom workdate
+            with self.pageStore() as store:
+                rootenv = store.getItem('rootenv')
+                if not rootenv:
+                    self._workdate =  today
+                    return self._workdate
+                workdate = rootenv['workdate']
+                custom_workdate = rootenv['custom_workdate']
+                if not custom_workdate:
+                    workdate = datetime.date.today()
+                    rootenv['workdate'] = workdate
+                else:
+                    self._custom_workdate = custom_workdate
+                self._workdate =  workdate
+                self._rootenv = rootenv
+        return workdate
 
     def _set_workdate(self, workdate):
         self.pageStore().setItem('rootenv.workdate', workdate)
@@ -597,6 +621,48 @@ class GnrWebPage(GnrBaseWebPage):
             return None
         return handler or defaultCb or emptyCb
     
+    @public_method
+    def saveHelperValue(self,table=None,name=None,helpcode=None,value=None,customizationPackage=None):
+        relpath = f'helper/{name}.xml'
+        if table:
+            path = self.packageResourcePath(table,relpath,
+                                    forcedPackage=customizationPackage)
+        else:
+            path = self.getResource(relpath,pkg=customizationPackage or self.package)
+        data = Bag(path) if os.path.exists(path) else Bag()
+        data.setAttr(helpcode,{self.language:value})
+        data.toXml(path)
+    
+    @public_method
+    def getHelperData(self,table=None,name=None,**kwargs):
+        path = []
+        if table:
+            path.append(table)
+            name = name or 'default'
+        if name:
+            path.append(name)
+        if not hasattr(self,'_helpers'):
+            self._helpers = {}
+        path = '.'.join(path)
+        if path in self._helpers:
+            return self._helpers[path],{'path':path,'in_cache':True}
+        relpath = f'helper/{name}.xml'
+        def bagFromFile(filepath):
+            return Bag(filepath) if os.path.exists(filepath) else Bag()
+        if table:
+            data = bagFromFile(self.packageResourcePath(table,relpath))
+            customData = bagFromFile(self.packageResourcePath(table,relpath,
+                                    forcedPackage=self.package.name))
+            for n in customData:
+                d = dict(n.attr)
+                d['_custom_package'] = self.package.name
+                data.setAttr(n.label,d,_updattr=False)
+        else:
+            data = bagFromFile(self.getResource(relpath,pkg=self.package))
+        self._helpers[path] = data
+        return self._helpers[path],{'path':path,'in_cache':False}
+
+
     def mixinTableResource(self, table, path,**kwargs):
         """TODO
         
@@ -1144,6 +1210,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
+        self.getSentryJs(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
@@ -1231,6 +1298,18 @@ class GnrWebPage(GnrBaseWebPage):
         if google_fonts:
             arg_dict['google_fonts'] = google_fonts
         return arg_dict
+
+    def getSentryJs(self, arg_dict):
+        if self.site.config['sentry?js']:
+            arg_dict['sentryjs'] = self.site.config['sentry?js']
+            for ck in ['sample_rate', 'traces_sample_rate', 'profiles_sample_rate',
+                       'replays_session_sample_rate', 'replays_on_error_sample_rate']:
+                cv = self.site.config.get(f"sentry?{ck}")
+                if cv is None:
+                    cv = "0.0"
+                arg_dict[f'sentry_{ck}'] = cv
+        return arg_dict
+
 
     def mtimeurl(self, *args):
         """TODO"""
@@ -2046,6 +2125,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.main_root(page, **kwargs)
             return (page, pageattr)
         page.data('gnr.windowTitle',windowTitle or self.windowTitle())
+        page.data('gnr.developerToolsVisible',False)
+        page.dataController("""
+                            genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
+                            developerToolsVisible='^gnr.developerToolsVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -2087,7 +2170,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
-        if has_adm:
+        if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
@@ -2584,6 +2667,27 @@ class GnrWebPage(GnrBaseWebPage):
             return self.site.storage('user').kwargs_url(self.user, *args, **kwargs)
         else:
             return self.site.storage('user').url(self.user, *args)
+    
+    @public_method
+    def moveUploadedFileToDestination(self,temp_path=None,dest_stn=None,
+                                      dest_fld=None,dest_record_pkey=None,**kwargs):
+        uploadedSn = self.site.storageNode(temp_path)
+        if dest_fld:
+            pkg,tbl,field = dest_fld.split('.')
+            tblobj = self.db.table(f'{pkg}.{tbl}')
+            column = tblobj.column(field)
+            dest_stn = column.attributes['dest_stn']
+            with tblobj.recordToUpdate(dest_record_pkey) as rec:
+                rec[field] = f'{dest_stn.format(**rec.asDict())}.{uploadedSn.ext}'
+            dest_stn = rec[field]
+            self.setInClientRecord(tblobj=tblobj,record=rec,fields=field,silent=True)
+        else:
+            dest_stn = f'{dest_stn}.{uploadedSn.ext}'
+        uploadedSn.move(dest_stn)
+        if dest_fld:
+            self.db.commit()
+        return dest_stn
+            
    
     @public_method
     def getSiteDocument(self,path,defaultContent=None,**kwargs):
@@ -2610,7 +2714,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def saveSiteDocument(self,path=None,data=None):
+    def saveSiteDocument(self,path=None,data=None,**kwargs):
         snode = self.site.storageNode(path)
         if snode.ext == 'xml':
             with snode.open('wb') as f:
@@ -2618,7 +2722,7 @@ class GnrWebPage(GnrBaseWebPage):
         else:
             with snode.open('wb') as f:
                 f.write(data['content'])
-        return dict(path=path)
+        return dict(savedPkey=path,path=path)
 
     @property
     def permissionPars(self):

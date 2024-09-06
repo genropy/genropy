@@ -22,6 +22,7 @@ import os
 import gzip
 import shutil
 from io import BytesIO
+from zipfile import ZipFile
 import pickle
 
 from gnr.core.gnrdecorator import public_method
@@ -335,7 +336,6 @@ class StartupDataManager(BaseComponent):
     def sd_loadDbTemplate(self, filepath=None):
         extractpath = filepath.replace('.zip', '')
         if not os.path.isdir(filepath):
-            from zipfile import ZipFile
             myzip = ZipFile(filepath, 'r')
             myzip.extractall(extractpath)
         prefrecord = self.db.table('adm.preference').loadPreference()

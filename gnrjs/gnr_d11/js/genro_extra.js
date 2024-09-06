@@ -232,6 +232,149 @@ dojo.declare("gnr.widgets.qrscanner", gnr.widgets.baseHtml, {
     }
 });
 
+dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
+    constructor: function(application) {
+        this._domtag = 'div';
+    },
+
+    creating: function(attributes, sourceNode) {
+        let editorAttrs = {...attributes};
+        let value = objectPop(editorAttrs,'value');
+        if(value){
+            editorAttrs.initialValue = value;
+        }
+        editorAttrs.usageStatistics = objectPop(editorAttrs,'usageStatistics') || false; //usageStatistics is false by default
+        objectPopAll(attributes);
+        return editorAttrs;
+    },
+
+    created:function(widget, savedAttrs, sourceNode){
+        var that=this;
+        var scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
+        var cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
+
+        var editorLoaded = window.toastui && window.toastui.Editor;
+
+        if (!editorLoaded) {
+            genro.dom.loadJs(scriptUrl, function() {
+                genro.dom.loadCss(cssUrl, 'tuieditor', function() {
+                    that.ready = true;
+                    that.initialize(widget, savedAttrs, sourceNode);
+                });
+            });
+        } else {
+            that.ready = true;
+            that.initialize(widget, savedAttrs, sourceNode);
+        }
+    },
+
+    initialize:function(widget,savedAttrs,sourceNode){
+        let editor_attrs = {...savedAttrs};
+        editor_attrs.autofocus = editor_attrs.autofocus || false;
+        objectPop(editor_attrs,'htmlpath');
+        
+        let editor;
+
+        if (editor_attrs.viewer) {
+            // Build viewer using factory
+            editor = window.toastui.Editor.factory({
+                el: widget,
+                ...editor_attrs
+            });
+        } else {
+            // Build editor
+            editor = new window.toastui.Editor({
+                el: widget,
+                ...editor_attrs
+            });
+        }
+
+        editor_attrs.removeToolbarItems?.forEach(function(item) {
+            editor.removeToolbarItem(item);
+        });
+        editor_attrs.insertToolbarItems?.forEach(function(item) {
+                editor.insertToolbarItem(item)
+        });
+        this.setExternalWidget(sourceNode,editor);
+        editor.addHook('keydown',function(){
+            genro.callAfter(function(){
+                if(editor_attrs.maxLength){
+                    editor.gnr_checkMaxLength(editor,editor_attrs.maxLength)};
+                editor.gnr_onTyped();
+                editor.gnr_setInDatastore();
+            },10,this,'typing');
+        });
+       //editor.on('afterPreviewRender',function(){
+       //    genro.callAfter(function(){
+       //        console.log('aaa')
+       //        editor.gnr_onTyped();
+       //        editor.gnr_setInDatastore();
+       //    },10,sourceNode,'typing');
+       //})
+
+    },
+
+    mixin_gnr_value:function(value,kw, trigger_reason){    
+        this.setMarkdown(value || '');
+    },
+
+    mixin_gnr_setInDatastore:function(){
+        let value = this.getMarkdown();
+        if(this.sourceNode.getAttributeFromDatasource('value')!=value){
+            this.sourceNode.setAttributeInDatasource('value',value || null);
+            let htmlpath = this.sourceNode.attr.htmlpath;
+            if(htmlpath){
+                this.sourceNode.setRelativeData(htmlpath,this.getHTML())
+            }
+        }
+    },
+    mixin_gnr_getHTML:function(){
+        return this.getHTML();
+    },
+
+    mixin_gnr_onPaste:function(){
+        this.gnr_setInDatastore();
+    },
+    
+    mixin_gnr_onTyped:function(){
+    },
+
+    mixin_gnr_checkMaxLength:function(editor,maxLength){
+        let value = this.getMarkdown();
+        if (value.length > maxLength) {
+            this.setMarkdown(value);
+        }
+        editor.removeToolbarItem('remaining');
+        editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
+            name: 'remaining',
+            tooltip: 'Remaining characters',
+            text: `Remaining: ${(maxLength - value.length)}`,
+            action: null,
+            style:  {textAlign: 'right', right:'0', width:'auto', cursor:'pointer',
+                        cursor: 'auto', fontStyle: 'italic', fontSize: '.8em', background: 'none', border: 'none'}
+          });
+        
+    },
+
+    mixin_gnr_disabled:function(value){
+        this.gnr_setDisabled(value);
+    },
+   
+    mixin_gnr_readOnly:function(value){
+        this.gnr_setDisabled(value);
+    },
+   
+    mixin_gnr_setDisabled:function(value){
+        this.sourceNode.domNode.setAttribute('disabled',value===true?'true':'false');
+        this.mdEditor.el.lastChild.setAttribute('contenteditable',value===true?'false':'true');
+    }
+
+    
+
+
+
+});
+
 dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
     constructor: function(application) {
         this._domtag = 'div';
@@ -333,7 +476,9 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
         cm.on('update',function(){
             sourceNode.delayedCall(function(){
                 var v = sourceNode.externalWidget.getValue();
-                sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                if(sourceNode.attr.value){
+                    sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                }
             },sourceNode.attr._delay || 500,'updatingContent')
         })
         let startValue = sourceNode.getAttributeFromDatasource('value');

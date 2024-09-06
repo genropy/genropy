@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from time import sleep
 
+from imdb import IMDb
+
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException
 from gnr.app.gnrdeploy import PathResolver
 
@@ -56,10 +58,6 @@ class GnrCustomWebPage(object):
 
     @public_method
     def getMovieId(self,_querystring=None,**kwargs):
-        try:
-            from imdb import IMDb
-        except:
-            raise GnrException('This test requires library imdb')
         ia = IMDb()
         result = Bag()
         movies = ia.search_movie(_querystring)
@@ -129,3 +127,12 @@ class GnrCustomWebPage(object):
                     res_key = res.split('.')[0]
                     result.setItem(res_key, None, pkg=p, tbl=t, caption=res, _pkey=res_key)
         return result,dict(columns='pkg,tbl,caption', headers='Package,Table,Print res')
+    
+    def test_6_getServices(self, pane):
+        "Get available services in instance"
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.remoteSelect(value='^.service_type',lbl='!!Service type', 
+                                                 hasDownArrow=True,
+                                                 method=self.db.table('sys.service').getAvailableServiceTree,
+                                                 auxColumns='service_type,implementation',
+                                                 selected_implementation='.implementation')
