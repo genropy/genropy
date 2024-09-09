@@ -109,11 +109,13 @@ class Table(object):
                     record['__ins_ts'] = None
                     record['__mod_ts'] = None
                     self.insert(record)
+                    
         for pkgid,pkgobj in list(self.db.application.packages.items()):
             table_resource_folder = os.path.join(pkgobj.packageFolder,'resources','tables') 
             d = DirectoryResolver(table_resource_folder,include='*.xml',callback=cbattr,processors=dict(xml=False))
             d().walk(cbwalk,_mode='deep')
-
+        self.db.commit()
+        
     def listUserObject(self, objtype=None,pkg=None, tbl=None, userid=None, authtags=None, onlyQuicklist=None, flags=None):
         onlyQuicklist = onlyQuicklist or False
         def checkUserObj(r):
