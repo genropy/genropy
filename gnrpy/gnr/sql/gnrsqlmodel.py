@@ -187,7 +187,7 @@ class DbModel(object):
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
                     one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,
                     external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None,
-                    range=None, cnd=None, virtual=None):
+                    between=None, cnd=None, virtual=None):
         """Add a relation in the current model.
 
         :param many_relation_tuple: tuple. The column of the "many table". e.g: ('video','movie','director_id')
@@ -245,7 +245,7 @@ class DbModel(object):
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    private_relation=private_relation,external_relation=external_relation,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   range=range, cnd=cnd, virtual=virtual,
+                                   between=between, cnd=cnd, virtual=virtual,
                                    resolver_kwargs=resolver_kwargs)
             one_relkey = '%s.%s.@%s' % (one_pkg, one_table, relation_name)
             
@@ -260,7 +260,7 @@ class DbModel(object):
                                    onUpdate=onUpdate, onUpdate_sql=onUpdate_sql, deferred=deferred,external_relation=external_relation,
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   range=range, cnd=cnd, virtual=virtual,
+                                   between=between, cnd=cnd, virtual=virtual,
                                    inheritLock=inheritLock,inheritProtect=inheritProtect,onDuplicate=onDuplicate,**meta_kwargs)
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
             if not virtual:
@@ -358,6 +358,8 @@ class DbModel(object):
 
     def applyModelChanges(self):
         """TODO"""
+        if not self.modelChanges:
+            return
         if self.modelChanges[0].startswith('CREATE DATABASE'):
             self.db.adapter.createDb()
             self.modelChanges.pop(0)
