@@ -10,6 +10,7 @@ import os
 import sys
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import GunicornDeployBuilder, gnrdaemonServiceBuilder
 from gnr.app.gnrdeploy import gnrsiterunnerServiceBuilder,createVirtualEnv
 
@@ -49,7 +50,20 @@ def main():
         if options.domain:
             print('Writing nginx conf in cwd please copy in /etc/nginx/sites-enabled')
             deployer.write_nginx_conf(options.domain)
-
+        # check for missing dependencies
+        app = GnrApp(site, checkdepcli=True)
+        instance_deps = app.instance_packages_dependencies
+        missing, wrong = app.check_package_missing_dependencies()
+        if missing:
+            print("WARNING: the following dependencies are missing:", " ".join(missing))
+            print(f"Please run 'gnr app checkdep -i {site}' to install")
+            print("")
+        if wrong:
+            print("WARNING: detected the following wrong dependencies:")
+            for requested, installed in wrong:
+                print(f"{requested} is requested, but {installed} found")
+            print("Please fix the installed packages")
+            print("")
     if options.make_gnrdaemon:
         gnrdaemonServiceBuilder()
 

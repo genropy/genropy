@@ -530,6 +530,7 @@ class SqlTable(GnrObject):
     def variantColumn_egvariant(self,field,**kwargs):
         #for documentation
         pass
+ 
 
     def variantColumn_age_day(self, field, dateArg=None, **kwargs):
         sql_formula=self.db.adapter.ageAtDate(field, dateArg=dateArg, timeUnit='day')
@@ -707,7 +708,9 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
-            result[colname] = fromRecord.get(colname)
+            val = fromRecord.get(colname)
+            if val is not None:
+                result[colname] = val
         return result
 
 

@@ -1125,6 +1125,9 @@ dojo.declare('gnr.GenroClient', null, {
 
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
+    fakeResize:function(){
+        window.dispatchEvent(new Event('resize'));
+    },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
         cb = funcCreate(cb);
@@ -1452,12 +1455,13 @@ dojo.declare('gnr.GenroClient', null, {
         genro.src.getNode()._('div', '_dlframe');
         var node = genro.src.getNode('_dlframe').clearValue().freeze();
         var params = {'src':url, display:'none', width:'0px', height:'0px'};
+        params.sandbox="allow-same-origin allow-scripts allow-popups allow-forms";
         if (onload_cb) {
             params['connect_onload'] = onload_cb;
         }
-        ;
         let frm = node._('htmliframe', params);
         node.unfreeze();
+        console.log('iframe download',frm.getParentNode().domNode)
 
 
     },
@@ -1928,6 +1932,12 @@ dojo.declare('gnr.GenroClient', null, {
         return url + sep + parameters.join('&');
     },
 
+    callWebTool:function(toolCode,params){  
+        objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
+        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
+        return url
+    },
+
     textToClipboard:function(txt,cb){
         let promise = navigator.clipboard.writeText(txt); 
         if(cb){
@@ -2247,20 +2257,23 @@ dojo.declare('gnr.GenroClient', null, {
     openBrowserTab:function(url,params){
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,params);
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        
         //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
     childBrowserTab:function(url,parent_page_id,params){
-        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id),...params});
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        genro.bp(true)
         window.open(url);
     },
     
@@ -2387,7 +2400,9 @@ dojo.declare('gnr.GenroClient', null, {
                 sourceNode.setHiderLayer(false);
             }
         }
-    }
+    },
+
+
 });
 
 dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {

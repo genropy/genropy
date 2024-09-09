@@ -298,11 +298,14 @@ class TableBase(object):
                       For more information, check the :ref:`group` section
         :param group_name: TODO"""
         user_ins,user_upd = self._sysFields_defaults(user_ins=user_ins,user_upd=user_upd)
+        pkey = tbl.attributes.get('pkey')
         if id:
             tbl.column('id', size='22', group=group, readOnly='y', name_long='!![en]Id',_sendback=True,_sysfield=True)
-            pkey = tbl.attributes.get('pkey')
             if not pkey:
-                tbl.attributes['pkey'] = 'id'
+                pkey = 'id'
+                tbl.attributes['pkey'] = pkey
+        tbl.formulaColumn('__record_pointer',f" '{tbl.attributes['fullname']}.' || ${pkey} ",group=group,
+                          name_long='!![en]Record pointer',_sysfield=True)
         if group and group_name:
             tbl.attributes['group_%s' % group] = group_name
         else:
@@ -455,6 +458,7 @@ class TableBase(object):
 
         tbl.formulaColumn('__invalid_reasons',sql_formula=True,group=group,name_long='!![en]Invalid reasons',_sysfield=True)
         tbl.formulaColumn('__is_invalid_row',"$__invalid_reasons!=''",group=group,name_long='!![en]Invalid row',_sysfield=True)
+
 
         if [r for r in dir(self) if r!='_release_' and r.startswith('_release_')]:
             tbl.column('__release', dtype='L', name_long='Sys Version', group=group,_sysfield=True)
@@ -1495,7 +1499,7 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
     def pyColumn_full_external_url(self,record,field):
-        if not record['fileurl']:
+        if not record.get('fileurl'):
             return
         return self.db.application.site.externalUrl(record['fileurl'])
     

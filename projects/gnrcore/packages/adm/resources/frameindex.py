@@ -293,6 +293,18 @@ class FrameIndex(BaseComponent):
         )
         logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
+        
+        logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
+        logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                        'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
+        
+        logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController("""let current = genro.getData('gnr.developerToolsVisible');
+                                                                                         genro.setData('gnr.developerToolsVisible',!current);""") 
+        logomenu.menuline('!![en]Toggle dev items in current',_tags='_DEV_').dataController(
+                                                        """ let cg = genro._lastFocusedWindow.genro;
+                                                            let current = cg.getData('gnr.developerToolsVisible');
+                                                            cg.setData('gnr.developerToolsVisible',!current);""")
+        
         slot.dataController('dlg.show()', subscribe_application_info=True,
                             dlg =self.applicationInfoDialog(slot).js_widget)
         
@@ -340,6 +352,7 @@ class FrameIndex(BaseComponent):
                     m.menuline(r['title'],url=r['url'])
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+        
 
     def helpdesk_userGroupDocumentation(self):
         if not self.avatar.group_code:
@@ -456,7 +469,7 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('10,backbtn,*,selpagetitle,*,30',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,backbtn,selpagetitle,20,*',childname='underbar',
                                                                             height='30px',color='white')
         backbtn = underbar.backbtn.lightbutton(_class="iconbox arrowBack",background_color='white',width='20px',height='20px',
                                      visible='^pageHistory?=#v && #v.length')

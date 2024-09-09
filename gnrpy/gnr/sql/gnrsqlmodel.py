@@ -27,7 +27,7 @@ import threading
 import re
 
 
-from gnr.core.gnrstring import boolean
+from gnr.core.gnrstring import boolean, toJson
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag, BagResolver
@@ -56,6 +56,22 @@ def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
                  'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}
     desttype = typeconverter[dtype]
     return """CAST ( ( %s ) AS %s) """ %(sql_formula,desttype) if desttype!='text' else sql_formula
+
+def toolFormula(tool,dtype=None,kwargs=None):
+    result =  f"(:env_external_host || '/_tools/{tool}?record_pointer=' || $__record_pointer)"
+    _class = kwargs.get('format_class','')
+    if _class:
+        _class = f'class="{_class}"'
+    if dtype=='P':
+        result = f"""format('<img {_class} src="%%s"/>', {result})"""
+    else:
+        iconClass = kwargs.get('iconClass')
+        if iconClass:
+            contentHTML = f""" '<div class="{iconClass}">&nbsp;</div>' """
+        else:
+            contentHTML = kwargs.get('link_text') or kwargs.get('name_long')
+        result = f"""format('<a {_class} href="%%s">%%s</a>', {result},{contentHTML})"""
+    return result
 
 class NotExistingTableError(Exception):
     pass
@@ -660,6 +676,12 @@ class DbModelSrc(GnrStructData):
         sql_formula = bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype,kwargs=kwargs)
         return self.virtual_column(name, sql_formula=sql_formula, 
                                 dtype=dtype, bagcolumn=bagcolumn, itempath=itempath, **kwargs)
+    
+    def toolColumn(self,name,tool=None,dtype=None,**kwargs):
+        sql_formula = toolFormula(tool,dtype=dtype,kwargs=kwargs)
+        return self.virtual_column(name, sql_formula=sql_formula, 
+                                dtype=dtype, **kwargs)
+    
 
     def subQueryColumn(self,name,query=None,mode=None,**kwargs):
         if mode=='json':
@@ -920,6 +942,13 @@ class DbPackageObj(DbModelObj):
 
     sqlschema = property(_get_sqlschema)
 
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            tables = [t.toJson() for t in self.tables.values()]
+        )
+            
 class DbTableObj(DbModelObj):
     """TODO"""
     sqlclass = 'table'
@@ -1494,8 +1523,16 @@ class DbTableObj(DbModelObj):
                 pkey = fldlist[-1]
                 result.append((tblname,pkey,fkey))
         return result
-
-
+        
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            pkey = self.pkey,
+            columns = [c.toJson() for c in (self.columns.values()+[v for k,v in self.virtual_columns.items() if not k.startswith('__')])]
+        )
+        
+        
 class DbBaseColumnObj(DbModelObj):
     def _get_dtype(self):
         """property. Returns the data type"""
@@ -1571,6 +1608,21 @@ class DbBaseColumnObj(DbModelObj):
             self.attributes['dtype'] = attributes_mixin.pop('dtype')
             attributes_mixin.update(self.attributes)
             self.attributes = attributes_mixin
+        
+    def toJson(self,**kwargs):
+        result = dict(
+            code= self.name,
+            name = self.name_long,
+            dtype = self.dtype,
+            column_class=self.sqlclass
+        )
+        relatedColumn = self.relatedColumn()
+        if relatedColumn:
+            result['related_to'] = relatedColumn.fullname
+        return result
+    
+    def relatedColumn(self):
+        return
 
     def _fillRelatedColumn(self, related_column):
             relation_list = related_column.split('.')
