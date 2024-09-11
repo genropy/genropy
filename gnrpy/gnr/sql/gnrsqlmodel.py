@@ -280,7 +280,6 @@ class DbModel(object):
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
 
         except Exception:
-            raise
             if self.debug:
                 raise
             logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
