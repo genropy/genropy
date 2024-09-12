@@ -47,7 +47,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'enum': 'A',
                  'boolean': 'B', 'date': 'D', 'time': 'H', 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
                  'integer': 'I', 'bigint': 'L','mediumint':'L', 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
-                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
+                 'bytea': 'O', 'binary':'binary', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
 
     revTypesDict = {'A': 'varchar', 'T': 'text', 'C': 'char',
                     'X': 'text', 'P': 'text', 'Z': 'text',
@@ -56,8 +56,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'serial': 'serial', 'O': 'longblob'}
 
     def defaultMainSchema(self):
-        return ''
-
+        return None
+    
     def connect(self, storename=None):
         """Return a new connection object: provides cursors accessible by col number or col name
         
@@ -65,23 +65,32 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         import MySQLdb
         from MySQLdb.cursors import DictCursor
         dbroot = self.dbroot
-        if dbroot.port:
-            port = int(dbroot.port)
-        else:
-            port = 3306
+        #if dbroot.port:
+        #    port = int(dbroot.port)
+        #else:
+        #    port = 3306
+        dbroot = self.dbroot
+        kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs['port'] = int(kwargs.get('port', 3306))
+        kwargs.pop('implementation', None)
+        kwargs['cursorclass'] = GnrDictCursor
         #kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password, 
         # port=dbroot.port, use_unicode=True, cursorclass=GnrDictCursor)
-        kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password,
-                      port=port , cursorclass=GnrDictCursor)
+        #kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password,
+        #              port=port , cursorclass=GnrDictCursor)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['charset'] = 'utf8'
         #kwargs['connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
-        return MySQLdb.connect(**kwargs)
 
-    #def adaptSqlName(self,name):
-    #    return '`%s`' %name 
+        connection = MySQLdb.connect(**kwargs)
+        return connection
 
+    def adaptSqlName(self,name):
+        return f'`{name}`' 
+
+    def asTranslator(self, as_):
+        return f'`{as_}`'
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
         Replace the 'REGEXP' operator with '~*'.
@@ -110,8 +119,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return sql
 
 
-    def getWhereTranslator(self):
-        return GnrWhereTranslator(self.dbroot)
+    #def getWhereTranslator(self):
+    #    return GnrWhereTranslator(self.dbroot)
 
         #def _managerConnection(self):
         #dbroot=self.dbroot
@@ -178,10 +187,60 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #if autocommit:
         #self.dbroot.commit()
 
+    def update(self, dbtable, record_data, pkey=None,**kwargs):
+        """Update a record in the db.
+        All fields in record_data will be updated: all keys must correspond to a column in the db.
+
+        :param dbtable: specify the :ref:`database table <table>`. More information in the
+                        :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
+        :param record_data: a dict compatible object
+        :param pkey: the :ref:`primary key <pkey>`
+        """
+        tblobj = dbtable.model
+        record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
+        sql_flds = []
+        for k in list(record_data.keys()):
+            sqlcolname = tblobj.sqlnamemapper.get(k)
+            sql_par_prefix = ':'
+            if sqlcolname:
+                if sqlcolname in self.colcache:
+                    sql_value = self.colcache[sqlcolname]
+                else:
+                    sql_value = tblobj.column(k).attributes.get('sql_value')
+                    self.colcache[sqlcolname] = sql_value
+                if sql_value:
+                    sql_par_prefix = ''
+                    k = sql_value
+                sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
+        pkeyColumn = tblobj.pkey
+        if pkey:
+            pkeyColumn = '__pkey__'
+            record_data[pkeyColumn] = pkey
+        with self.dbroot.tempEnv(currentImplementation=tblobj.dbtable.dbImplementation):
+        
+            sql = 'UPDATE %s SET %s WHERE %s=:%s;' % (
+            tblobj.sqlfullname, ','.join(sql_flds), tblobj.sqlnamemapper[tblobj.pkey], pkeyColumn)
+        return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
+    def delete(self, dbtable, record_data,**kwargs):
+        """Delete a record from the db
+        All fields in record_data will be added: all keys must correspond to a column in the db
+
+        :param dbtable: specify the :ref:`database table <table>`. More information in the
+                        :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
+        :param record_data: a dict compatible object containing at least one entry for the pkey column of the table
+        """
+        tblobj = dbtable.model
+        record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
+        pkey = tblobj.pkey
+        sql = 'DELETE FROM %s WHERE %s=:%s;' % (tblobj.sqlfullname, tblobj.sqlnamemapper[pkey], pkey)
+        return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
+
+
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return 'FOR UPDATE'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
@@ -192,6 +251,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             return []
         query = handler()
         result = self.dbroot.execute(query, kwargs).fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_schemata(self):
