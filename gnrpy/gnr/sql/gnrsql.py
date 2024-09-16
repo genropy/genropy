@@ -281,6 +281,9 @@ class GnrSqlDb(GnrObject):
         :param tblpath: the path of the table
         :param obj: a class or an object to mixin"""
         self.model.tableMixin(tblpath, obj)
+
+    def toJson(self,**kwargs):
+        return [t.toJson() for t in self.packages.values()]
         
     def loadModel(self, source=None):
         """Load the model.src from a XML source
@@ -293,6 +296,7 @@ class GnrSqlDb(GnrObject):
         """Load the model.src extracting it from the database's information schema.
         """
         self.model.importFromDb()
+        
         
     def saveModel(self, path):
         """Save the current model in the path as an XML file

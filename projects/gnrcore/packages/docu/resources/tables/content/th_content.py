@@ -62,7 +62,7 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.borderContainer(title='!!Text', datapath='.record', overflow='hidden'))
+        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc

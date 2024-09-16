@@ -27,7 +27,7 @@ import threading
 import re
 
 
-from gnr.core.gnrstring import boolean
+from gnr.core.gnrstring import boolean, toJson
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag, BagResolver
@@ -56,6 +56,22 @@ def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
                  'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real','X':'text'}
     desttype = typeconverter[dtype]
     return """CAST ( ( %s ) AS %s) """ %(sql_formula,desttype) if desttype!='text' else sql_formula
+
+def toolFormula(tool,dtype=None,kwargs=None):
+    result =  f"(:env_external_host || '/_tools/{tool}?record_pointer=' || $__record_pointer)"
+    _class = kwargs.get('format_class','')
+    if _class:
+        _class = f'class="{_class}"'
+    if dtype=='P':
+        result = f"""format('<img {_class} src="%%s"/>', {result})"""
+    else:
+        iconClass = kwargs.get('iconClass')
+        if iconClass:
+            contentHTML = f""" '<div class="{iconClass}">&nbsp;</div>' """
+        else:
+            contentHTML = kwargs.get('link_text') or kwargs.get('name_long')
+        result = f"""format('<a {_class} href="%%s">%%s</a>', {result},{contentHTML})"""
+    return result
 
 class NotExistingTableError(Exception):
     pass
@@ -171,7 +187,7 @@ class DbModel(object):
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
                     one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,
                     external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None,
-                    range=None, cnd=None, virtual=None):
+                    between=None, cnd=None, virtual=None):
         """Add a relation in the current model.
 
         :param many_relation_tuple: tuple. The column of the "many table". e.g: ('video','movie','director_id')
@@ -229,7 +245,7 @@ class DbModel(object):
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    private_relation=private_relation,external_relation=external_relation,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   range=range, cnd=cnd, virtual=virtual,
+                                   between=between, cnd=cnd, virtual=virtual,
                                    resolver_kwargs=resolver_kwargs)
             one_relkey = '%s.%s.@%s' % (one_pkg, one_table, relation_name)
             
@@ -244,7 +260,7 @@ class DbModel(object):
                                    onUpdate=onUpdate, onUpdate_sql=onUpdate_sql, deferred=deferred,external_relation=external_relation,
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
-                                   range=range, cnd=cnd, virtual=virtual,
+                                   between=between, cnd=cnd, virtual=virtual,
                                    inheritLock=inheritLock,inheritProtect=inheritProtect,onDuplicate=onDuplicate,**meta_kwargs)
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
             if not virtual:
@@ -264,7 +280,6 @@ class DbModel(object):
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
 
         except Exception:
-            raise
             if self.debug:
                 raise
             logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
@@ -342,6 +357,8 @@ class DbModel(object):
 
     def applyModelChanges(self):
         """TODO"""
+        if not self.modelChanges:
+            return
         if self.modelChanges[0].startswith('CREATE DATABASE'):
             self.db.adapter.createDb()
             self.modelChanges.pop(0)
@@ -659,6 +676,12 @@ class DbModelSrc(GnrStructData):
         sql_formula = bagItemFormula(bagcolumn=bagcolumn,itempath=itempath,dtype=dtype,kwargs=kwargs)
         return self.virtual_column(name, sql_formula=sql_formula, 
                                 dtype=dtype, bagcolumn=bagcolumn, itempath=itempath, **kwargs)
+    
+    def toolColumn(self,name,tool=None,dtype=None,**kwargs):
+        sql_formula = toolFormula(tool,dtype=dtype,kwargs=kwargs)
+        return self.virtual_column(name, sql_formula=sql_formula, 
+                                dtype=dtype, **kwargs)
+    
 
     def subQueryColumn(self,name,query=None,mode=None,**kwargs):
         if mode=='json':
@@ -919,6 +942,13 @@ class DbPackageObj(DbModelObj):
 
     sqlschema = property(_get_sqlschema)
 
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            tables = [t.toJson() for t in self.tables.values()]
+        )
+            
 class DbTableObj(DbModelObj):
     """TODO"""
     sqlclass = 'table'
@@ -1493,8 +1523,16 @@ class DbTableObj(DbModelObj):
                 pkey = fldlist[-1]
                 result.append((tblname,pkey,fkey))
         return result
-
-
+        
+    def toJson(self,**kwargs):
+        return dict(
+            code= self.name,
+            name = self.name_long,
+            pkey = self.pkey,
+            columns = [c.toJson() for c in (self.columns.values()+[v for k,v in self.virtual_columns.items() if not k.startswith('__')])]
+        )
+        
+        
 class DbBaseColumnObj(DbModelObj):
     def _get_dtype(self):
         """property. Returns the data type"""
@@ -1570,6 +1608,21 @@ class DbBaseColumnObj(DbModelObj):
             self.attributes['dtype'] = attributes_mixin.pop('dtype')
             attributes_mixin.update(self.attributes)
             self.attributes = attributes_mixin
+        
+    def toJson(self,**kwargs):
+        result = dict(
+            code= self.name,
+            name = self.name_long,
+            dtype = self.dtype,
+            column_class=self.sqlclass
+        )
+        relatedColumn = self.relatedColumn()
+        if relatedColumn:
+            result['related_to'] = relatedColumn.fullname
+        return result
+    
+    def relatedColumn(self):
+        return
 
     def _fillRelatedColumn(self, related_column):
             relation_list = related_column.split('.')

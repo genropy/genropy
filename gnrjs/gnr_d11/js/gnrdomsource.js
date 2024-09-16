@@ -61,7 +61,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return parentNode.getBuiltObj();
         }
     },
-    
+
     getDomNode:function() {
         if (this.domNode) {
             return  this.domNode;
@@ -69,6 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
+        return this.getParentNode().getDomNode();
 
     },
     
@@ -695,6 +696,68 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
     },
 
+
+    onHelperClick:function(helperButtonNode){
+        if(genro.isDeveloper && genro.getData('gnr.developerToolsVisible')){
+            var dflt = this.getHelperValue()
+            var that = this;
+            genro.dlg.prompt(_T('Edit help'),{
+                widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
+                action:function(value){
+                    that.saveHelper(value);
+                },dflt:dflt,onEnter:null});
+        }else{
+            let helperValue = this.getHelperValue()
+        }
+    },
+    saveHelper:function(value,custom){
+        let inAttr = this.getInheritedAttributes();
+        custom = custom===false?false:inAttr.resourceClass!==null;
+        let table = inAttr.table;
+        let kw = {table:table || genro.getData('gnr.pagename'),value:value,helpcode:this.attr.helpcode,customizationPackage:this.attr.helpcode_package};
+        if (table && custom){
+            kw.name = `th_${table.split('.')[1]}_${inAttr.resourceClass}`;
+        }
+        genro.setData(this.getHelperPath(custom),value)
+        this.updateHelperClasses(custom);
+        genro.serverCall('saveHelperValue',kw,function(){
+        });
+    },
+
+    updateHelperClasses:function(){
+        let helperValue = this.getHelperValue();
+        genro.dom.setClass(this,'emptyhelper',!helperValue);
+    },
+
+    getHelperValue:function(){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr.table;
+        let defaultValue = this.getRelativeData(this.getHelperPath())
+        if(table && inAttr.resourceClass){
+            return this.getRelativeData(this.getHelperPath(true)) || defaultValue;
+        }
+        return defaultValue;
+    },
+
+    getHelperPath:function(custom){
+        let helpcode = this.attr.helpcode;
+        return `gnr.helpers.${this.getHelperFolder(custom)}.${helpcode}?${genro.getData('gnr.language')}`;
+    },
+
+    getHelperFolder:function(custom){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr['table'];
+        let resourceClass = inAttr.resourceClass;
+        if(table){
+            let tablename = table.split('.')[1];
+            if(custom){
+                return `${table}.th_${tablename}_${resourceClass}`;
+            }
+            return `${table}.tbl_${tablename}`;
+        }
+        return genro.getData('gnr.pagename');
+    },
+
     connect: function(target, eventname, handler) {
         var eventname = ((!eventname) || eventname == 'action') ? target.gnr._defaultEvent : eventname;
         var handler = dojo.hitch(this, funcCreate(handler));
@@ -756,7 +819,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.attr.href) {
             genro.dom.loadCss(this.attr.href, this.attr.cssTitle);
         } else {
-            console.log('_bld_stylesheet',this.getValue())
             genro.dom.addStyleSheet(this.getValue(), this.attr.cssTitle);
         }
     },
@@ -878,6 +940,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var content = this.getValue('static');
         if (content instanceof gnr.GnrDomSource) {
             content.forEach(function(node){
+                node.buildLblWrapper();
                 node.build(destination, -1);
             },'static');
         }
@@ -1491,14 +1554,18 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     setHidden:function(hidden){
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            labelWrapper.setHidden(hidden);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         targets.forEach(function(domNode){
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
+        genro.fakeResize()
     },
     
     updateRemoteContent:function(forceUpdate,async) {
-
         var _onRemote = false;
         var currentValue = this.getValue('static');
         if (currentValue && currentValue.len() > 0 && !forceUpdate) {
@@ -1574,8 +1641,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                         if (_onRemote) {
                             _onRemote();
                         }
-                        genro.dom.resizeFirstContainerResizable(that);
-                        
+                        genro.fakeResize();
                     });
                 }
                 delete that._remotebuilding;
@@ -1678,8 +1744,73 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
     },
+    checkOnChildBuilding:function(){
+        let parentNode = this.getParentNode();
+        if(parentNode.widget || parentNode.domNode){
+            let parentHandler = parentNode.widget?parentNode.widget.gnr : parentNode.domNode.gnr;
+            if(parentHandler && parentHandler.onChildBuilding){
+                parentHandler.onChildBuilding(parentNode,this);
+            }
+        }
+    },
+
+    buildLblWrapper:function(){
+        let lbl = objectPop(this.attr,'lbl');
+        if(!lbl){
+            return this;
+        }
+        let inherited_attr = this.getInheritedAttributes();
+        let label_attr = {};
+        let wrp_attr = objectExtract(inherited_attr,'wrp_*');
+        wrp_attr._labelWrapperId = genro.time36Id();
+        let attr = objectUpdate({},this.attr);
+        let side = objectPop(inherited_attr,'lbl_side') || 'top';
+        for(let k in attr){
+            if(k.startsWith('lbl_')){
+                label_attr[`label_${k.slice(4)}`] = objectPop(inherited_attr,k);
+            }
+        }
+        label_attr.label = lbl;
+        objectExtract(attr,'lbl_*');
+        objectExtract(attr,'wrp_*');
+        let box_l_kw = objectExtract(attr,'box_l_*',null,true);
+        let box_c_kw = objectExtract(attr,'box_c_*',null,true);
+        let box_kw = objectExtract(attr,'box_*');
+        attr._labelWrapper = wrp_attr._labelWrapperId;
+        wrp_attr.side = side;
+        wrp_attr._itemId = objectPop(attr,'_itemId');
+        let tag = objectPop(attr,'tag');
+        let children = this.getValue();
+        this._value = null;
+        wrp_attr.helpcode = objectPop(attr,'helpcode');
+        wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
+        wrp_attr.tag = 'labledbox'
+        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+        this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+        let original_label = this.label;
+        this.label = wrp_attr._itemId || 'labled_'+original_label;
+        let content = this._(tag,original_label,attr,{doTrigger:false});
+        this._contentNode = content.getParentNode();
+        if(children){
+            for(let childNode of children.getNodes()){
+                content.addItem(childNode.label,childNode.getValue(),childNode.attr,{doTrigger:false});
+                childNode.setParentBag(content)
+            }
+        }
+        return this._contentNode;
+    },
+
+    getLabelWrapper:function(){
+        if (this.attr._labelWrapper){
+            return this.attributeOwnerNode('_labelWrapperId',this.attr._labelWrapper)
+        }
+    },
 
     updateValidationClasses: function() {
+        let labelWrapper = this.getLabelWrapper();
+        if(labelWrapper){
+            genro.dom.setClass(labelWrapper,'innerLblWrapper_error',this.hasValidationError())
+        }
         if (this.widget.cellNode) {
             var domnode = this.widget.cellNode;
         } else {

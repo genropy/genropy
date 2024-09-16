@@ -13,7 +13,7 @@
         <link rel="apple-touch-startup-image" href="_rsrc/mobile/ios/images/startup_image.jpg">
         <%include file="gnr_header.tpl" />
         <style type="text/css" title="localcss">
-            html, body, #mainWindow{width: 100%;height: 100%; overflow-x:hidden;}
+            html, body, #mainWindow{width: 100%;height: 100%; overflow:hidden;}
         </style>
     </head>
     <body class="${bodyclasses}" >

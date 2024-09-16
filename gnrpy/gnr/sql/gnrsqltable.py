@@ -530,6 +530,7 @@ class SqlTable(GnrObject):
     def variantColumn_egvariant(self,field,**kwargs):
         #for documentation
         pass
+ 
 
     def variantColumn_age_day(self, field, dateArg=None, **kwargs):
         sql_formula=self.db.adapter.ageAtDate(field, dateArg=dateArg, timeUnit='day')
@@ -707,7 +708,9 @@ class SqlTable(GnrObject):
                 continue
             if obj.attributes.get('_sysfield') and colname not in (self.draftField, 'parent_id'):
                 continue
-            result[colname] = fromRecord.get(colname)
+            val = fromRecord.get(colname)
+            if val is not None:
+                result[colname] = val
         return result
 
 
@@ -845,6 +848,8 @@ class SqlTable(GnrObject):
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
             _storename = packageStorename
+        else:
+            _storename = None
         record = SqlRecord(self, pkey=pkey, where=where,
                            lazy=lazy, eager=eager,
                            relationDict=relationDict,
@@ -1280,6 +1285,8 @@ class SqlTable(GnrObject):
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
             _storename = packageStorename
+        else:
+            _storename = None
         query = SqlQuery(self, columns=columns, where=where, order_by=order_by,
                          distinct=distinct, limit=limit, offset=offset,
                          group_by=group_by, having=having, for_update=for_update,
@@ -1800,7 +1807,13 @@ class SqlTable(GnrObject):
             pkey = old_record.get(self.pkey)
         if record.get(self.pkey) == pkey:
             pkey = None
-        self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            _storename = packageStorename
+        else:
+            _storename = None
+        with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
+            self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         return record
         
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):

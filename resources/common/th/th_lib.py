@@ -110,7 +110,7 @@ class TableHandlerCommon(BaseComponent):
             if refpkg!=self.package.name:
                 self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True)
         self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True)
-        return
+        return resourcePath
     
     def _th_getResClass(self,table=None,resourceName=None,defaultClass=None):
         pkg,tablename = table.split('.')
