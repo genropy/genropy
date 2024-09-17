@@ -1619,8 +1619,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var result = {};
         var style = whatDomNode.style;
         var whereposition = whereDomNode.style.position;
-        var deltax = viewport.l || viewport.x;
-        var deltay = viewport.t || viewport.y;
+        var deltax = isNullOrBlank(viewport.l)? viewport.x:viewport.l;
+        var deltay = isNullOrBlank(viewport.t)? viewport.y:viewport.t;
         var onlyX,onlyY;
         xRatio = xRatio || 0;
         yRatio = yRatio || 0;
@@ -1634,6 +1634,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         //    deltax = deltax +viewport.x;
         //    deltay = deltay + viewport.y;
         //}
+        
         if (!onlyY) {
             style.left = Math.floor((deltax + (viewport.w - mb.w)*(1+xRatio) / 2)) + "px";
         }
