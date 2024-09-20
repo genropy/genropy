@@ -42,10 +42,10 @@ class View(BaseComponent):
                         _lockScreen=True)
     
     def th_top_custom(self,top):
-        top.slotToolbar('2,sections@types,*,sections@systemuserobject,2')
+        top.slotToolbar('2,sections@types,*,sections@systemuserobject,2',childname='upper',_position='<bar')
 
     def th_bottom_custom(self,bottom):
-        bottom.slotToolbar('2,sections@packages,*',childname='upper',_position='<bar')
+        bottom.slotToolbar('2,sections@packages,*')
 
     def th_sections_packages(self):
         return self.th_distinctSections(table='adm.userobject',field='pkg')
