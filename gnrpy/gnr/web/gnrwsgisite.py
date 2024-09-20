@@ -29,7 +29,7 @@ from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrdecorator import extract_kwargs
+from gnr.core.gnrdecorator import extract_kwargs,metadata
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
@@ -967,9 +967,8 @@ class GnrWsgiSite(object):
                 method = request_kwargs.pop('method',None)
                 if method:
                     handler = getattr(self,method,None)
-                    if handler:
-                        result = handler(**request_kwargs)
-                        return []
+                    if handler and hasattr(handler,'beacon'):
+                        handler(**request_kwargs)
                 self.cleanup()
             except Exception as exc:
                 raise
@@ -1136,6 +1135,7 @@ class GnrWsgiSite(object):
         :param page: TODO"""
         pass
 
+    @metadata(beacon=True)
     def onClosedPage(self, page_id=None):
         "Drops page when closing"
         self.register.drop_page(page_id)
