@@ -46,6 +46,7 @@ from gnr.sql.gnrsql_exceptions import GnrSqlException,SelectionExecutionError, R
 
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
+COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
 
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
@@ -267,7 +268,7 @@ class SqlQueryCompiler(object):
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
-    def _findRelationAlias(self, pathlist, curr, basealias, newpath):
+    def _findRelationAlias(self, pathlist, curr, basealias, newpath, parent=None):
         """Internal method: called by getFieldAlias to get the alias (t1, t2...) for the join table.
         It is recursive to resolve paths like ``@rel.@rel2.@rel3.column``"""
         p = pathlist.pop(0)
@@ -285,16 +286,16 @@ class SqlQueryCompiler(object):
                 pathlist = tblalias.relation_path.split(
                         '.') + pathlist # set the alias table relation_path in the current path
         else:                                                           # then call _findRelationAlias recursively
-            alias, newpath = self._getRelationAlias(currNode, newpath, basealias)
+            alias, newpath = self._getRelationAlias(currNode, newpath, basealias, parent=parent)
             basealias = alias
             curr = curr[p]
         if pathlist:
-            alias, curr = self._findRelationAlias(pathlist, curr, basealias, newpath)
+            alias, curr = self._findRelationAlias(pathlist, curr, basealias, newpath, parent=f"{parent}.{p}" if parent else p) 
         return alias, curr
 
     #def _getJoinerCnd(self, joiner):
 
-    def _getRelationAlias(self, relNode, path, basealias):
+    def _getRelationAlias(self, relNode, path, basealias, parent=None):
         """Internal method: returns the alias (t1, t2...) for the join table of the current relation.
         If the relation is traversed for the first time, it builds the join clause.
         Here case_insensitive relations and joinConditions are addressed.
@@ -355,6 +356,8 @@ class SqlQueryCompiler(object):
             cnd = f'(${from_column})={self.db.adapter.adaptSqlName(alias)}.{target_sqlcolumn}'
         else:
             cnd = '%s.%s = %s.%s' % (self.db.adapter.adaptSqlName(alias), target_sqlcolumn, self.db.adapter.adaptSqlName(basealias), from_sqlcolumn)
+        if parent:
+            cnd =COLRELFINDER.sub(lambda g:f'{parent}.'+g.group(0).replace('$',''),cnd)
         cnd = self.updateFieldDict(cnd, reldict=joindict)
         if joindict:
             for f in joindict.values():
