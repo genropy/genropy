@@ -19,6 +19,7 @@ class BaseResourceBatch(object):
     batch_thermo_lines = 'batch_steps,batch_main,ts_loop'
     batch_title = 'My Batch Title'
     batch_cancellable = True
+    batch_hidden_transaction = True
     batch_delay = 2
     batch_note = None
     batch_steps = None #'foo,bar'
@@ -65,7 +66,7 @@ class BaseResourceBatch(object):
                                 batch_title=self.batch_title,tbl=self.tblobj.fullname,
                                 start_ts=datetime.now(),notes=self.batch_note)
         try:
-            with self.db.tempEnv(cacheInPage=self.batch_local_cache):
+            with self.db.tempEnv(cacheInPage=self.batch_local_cache,hidden_transaction=self.batch_hidden_transaction):
                 self.run()
                 result, result_attr = self.result_handler()
                 self.btc.batch_complete(result=result, result_attr=result_attr)
@@ -96,7 +97,7 @@ class BaseResourceBatch(object):
                     raise
         finally:
             if self.batch_dblog:
-                with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+                with self.db.tempEnv(connectionName='system',storename=self.db.rootstore,hidden_transaction=self.batch_hidden_transaction):
                     self.batch_logrecord['logbag'] =  self.batch_debug
                     self.batch_logrecord['end_ts'] = datetime.now()
                     self.batch_logtbl.insert(self.batch_logrecord)

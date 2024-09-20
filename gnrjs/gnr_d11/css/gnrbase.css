@@ -6557,6 +6557,14 @@ div[disabled='true'], div[disabled='disabled']{
     display: flex;
     align-items: flex-start;
     flex:1;
+    position: relative;
+}
+.labledBox_content>.dijitBorderContainer,.labledBox_content>.dijitContentPane{
+    position: absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
 }
 
 .labledBox_content > *{
