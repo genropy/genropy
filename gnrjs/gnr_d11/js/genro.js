@@ -198,13 +198,12 @@ dojo.declare('gnr.GenroClient', null, {
             if (genro.checkBeforeUnload && !genro._checkedUnload) {
                 let exitStatus = genro.checkBeforeUnload();
                 if(!isNullOrBlank(exitStatus)){
-                    event.returnValue = true;
+                    event.returnValue = exitStatus;
                 }
                 
             }
         });
-        window.addEventListener('unload',function(){
-            //unload deprecated. Find another way in future
+        window.addEventListener('pagehide',function(){
             genro.onWindowUnload();
         });
 

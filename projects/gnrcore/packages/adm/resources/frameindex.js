@@ -371,6 +371,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     
     closeRootFramPage:function(frameName,title,evt){
         var that = this;
+        genro._windowClosing = false; //reset windowClosing variable
         var finalizeCb = function(){
             that.deleteFramePage(frameName);
         }
@@ -496,6 +497,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     reloadSelectedIframe:function(rootPageName,modifiers){
+        genro._windowClosing = false; //reset windowClosing variable of the maiwindow
         var iframe = this.getCurrentIframe(rootPageName);
         if(iframe){
             var finalizeCb = function(){
