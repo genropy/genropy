@@ -193,27 +193,21 @@ dojo.declare('gnr.GenroClient', null, {
                              '%'  : function(a, b) {return (a.indexOf(b) >= 0);},
                              '!%' : function(a, b) {return (a.indexOf(b) < 0);}
                              };
-        window.onbeforeunload = function(e) {
+        window.addEventListener('beforeunload', function (e) {
             genro._windowClosing = true;
-            var exit;
             if (genro.checkBeforeUnload && !genro._checkedUnload) {
-                exit = genro.checkBeforeUnload();
+                let exitStatus = genro.checkBeforeUnload();
+                if(!isNullOrBlank(exitStatus)){
+                    event.returnValue = true;
+                }
+                
             }
-            if (exit) {
-                return exit;
-            }
-            //if(!genro.root_page_id){
-            //    var rootenv = genro.getData('gnr.rootenv');
-            //    if(rootenv){
-            //        var b = new gnr.GnrBag();
-            //        b.setItem('rootenv',rootenv,{page_id:genro.page_id});
-            //        dojo.cookie(genro.getData('gnr.siteName')+'_dying_'+genro.getData('gnr.package')+'_'+genro.getData('gnr.pagename'),b.toXml(),{'expires':new Date((new Date().getTime()+2000))});
-            //    }
-            //}            
-        };
-        window.onunload = function(e) {
-            genro.onWindowUnload(e);
-        };
+        });
+        window.addEventListener('unload',function(){
+            //unload deprecated. Find another way in future
+            genro.onWindowUnload();
+        });
+
         this.rpc = new gnr.GnrRpcHandler(this);
         this.src = new gnr.GnrSrcHandler(this);
         this.wdg = new gnr.GnrWdgHandler(this);

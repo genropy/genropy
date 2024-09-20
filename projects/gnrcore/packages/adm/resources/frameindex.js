@@ -383,7 +383,12 @@ dojo.declare("gnr.FramedIndexManager", null, {
             return n.contentWindow.genro.checkBeforeUnload();
         })){
             genro.dlg.ask(_T('Closing ')+title,_T("There is a pending operation in this tab"),{confirm:_T('Close anyway'),cancel:_T('Cancel')},
-                            {confirm:function(){ finalizeCb();}})
+                            {confirm:function(){ 
+                                iframes.forEach(function(f){
+                                    f.sourceNode._genro._checkedUnload = true;
+                                })
+                                finalizeCb();
+                            }})
         }else{
             finalizeCb();
         }
