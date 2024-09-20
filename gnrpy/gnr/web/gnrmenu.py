@@ -481,7 +481,7 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         table = attributes['table']
         attributes['webpage'] = f'/sys/thpage/{table.replace(".","/")}'
-        for k in ('pkey','pageResource','formResource','viewResource'):
+        for k in ('pkey','pageResource','formResource','viewResource','subtable'):
             v = attributes.pop(k,None)
             if v is not None:
                 attributes[f'url_th_{k}'] = v

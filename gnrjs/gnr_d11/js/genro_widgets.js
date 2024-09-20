@@ -2310,6 +2310,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
             var value = splitter.child.domNode.style[splitter.horizontal ? "height" : "width"];
             regions.setItem(region, value, null, {'doTrigger':sourceNode});
         }
+        genro.fakeResize();
     },
     mixin_setRegions:function(value, kw) {
         let region,show,size;

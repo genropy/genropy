@@ -12,14 +12,23 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import GnrMissingResourceException
 
+class PickerViewSimple(BaseComponent):
+
+    def th_view(self,view):
+        view.attributes.update(
+            _class='noselect noheader'
+        )
+        view.top.pop('bar')
+
+
 class THPicker(BaseComponent):
     js_requires='th/th_picker'
 
     @struct_method
     def pk_palettePicker(self,pane,grid=None,table=None,relation_field=None,paletteCode=None,
-                         viewResource=None,searchOn=True,multiSelect=True,structure_field=None,
+                         viewResource=None,searchOn=None,multiSelect=True,structure_field=None,
                          title=None,autoInsert=None,dockButton=None,nodup=None,picker_kwargs=None,
-                         height=None,width=None,checkbox=False,defaults=None,condition=None,**kwargs):
+                         height=None,width=None,checkbox=False,defaults=None,condition=None,subtable=None,**kwargs):
         dockButton = dockButton or dict(parentForm=True,iconClass='iconbox picker app')
         picker_kwargs = picker_kwargs or dict()
         checkbox = checkbox or picker_kwargs.get('checkbox',False)
@@ -27,6 +36,8 @@ class THPicker(BaseComponent):
         picker_kwargs.setdefault('uniqueRow',True)
         nodup = nodup or picker_kwargs.get('nodup')
         condition= condition or picker_kwargs.pop('condition',None)
+        subtable= subtable or picker_kwargs.pop('subtable',None)
+
         many = relation_field or picker_kwargs.get('relation_field',None)
         table = table or picker_kwargs.get('table',None)
         height = height or picker_kwargs.get('height')
@@ -74,13 +85,14 @@ class THPicker(BaseComponent):
                                                 dragValues['text/plain'] = treeItem.attr.caption;
                                                 dragValues['%s'] = treeItem.attr;
                                             }""" %paletteCode,
-                            condition=condition,checkbox=checkbox,**tree_kwargs)
+                            condition=condition,checkbox=checkbox,subtable=subtable,**tree_kwargs)
         else:
             palette = pane.paletteGridPicker(grid=grid,table=table,relation_field=many,
                                             paletteCode=paletteCode,viewResource=viewResource,
                                             searchOn=searchOn,multiSelect=multiSelect,title=title,
                                             dockButton=dockButton,height=height,
                                             width=width,condition=condition,condition_kwargs=condition_kwargs,
+                                            subtable=subtable,
                                             checkbox=checkbox,structure_field = structure_field or picker_kwargs.get('structure_field'),
                                             uniqueRow=picker_kwargs.get('uniqueRow',True),
                                             top_height=picker_kwargs.get('top_height'),structure_kwargs = dictExtract(picker_kwargs,'structure_'),**kwargs)
@@ -112,7 +124,7 @@ class THPicker(BaseComponent):
                                 title=None,dockButton=True,
                                 height=None,width=None,condition=None,condition_kwargs=None,
                                 structure_field=None,uniqueRow=True,top_height=None,
-                                checkbox=None,structure_kwargs=None,
+                                checkbox=None,structure_kwargs=None,subtable=None,
                                 **kwargs):
         many = relation_field 
         if viewResource is True:
@@ -140,7 +152,7 @@ class THPicker(BaseComponent):
             default_width = '800px'
             default_height = '500px'
         except GnrMissingResourceException:
-            pass
+            viewResource = 'th/th_picker:PickerViewSimple' if checkbox else viewResource
 
         palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,
                                         title=title,width=width or default_width,height=height or default_height)
@@ -152,11 +164,14 @@ class THPicker(BaseComponent):
 
         bc = palette.borderContainer(_anchor=True)
         center = bc.contentPane(region='center')
+        if searchOn is None:
+            searchOn = not checkbox
         paletteth = center.plainTableHandler(table=table,viewResource=viewResource,
                                                 grid_onDrag='dragValues["%s"]=dragValues.gridrow.rowset;' %paletteCode,
                                                 grid_multiSelect=multiSelect,
                                                 view_structCb=struct,
                                                 groupable=groupable,
+                                                subtable=subtable,
                                                 title=title,searchOn=searchOn,configurable=False,
                                                 childname='picker_tablehandler',nodeId='%s_th' %paletteCode)
         if structure_field:
@@ -171,10 +186,13 @@ class THPicker(BaseComponent):
                                                 maintable=maintable, structure_tbl=structure_tbl, paletteCode=paletteCode, 
                                                 checkbox=checkbox, structure_kwargs=structure_kwargs, **kwargs)
         if checkbox or self.isMobile:
-            paletteth.view.grid.attributes.update(onCreating="""function(attributes,handler){
-                    handler.addNewSetColumn(this,{field:'pickerset'});
+            paletteth.view.grid.attributes.update(selfsubscribe_onSetStructpath="""function(){
+                    if(this.widget.structBag.getNodeByAttr('field','pickerset')){
+                        return;
+                    }
+                    this.widget.addNewSetColumn({field:'pickerset'});
                 }""")
-            bar = paletteth.view.bottom.slotBar('*,moveButton,2',margin_bottom='2px',_class='slotbar_dialog_footer')
+            bar = paletteth.view.bottom.slotBar('*,moveButton,2',margin_bottom='4px',_class='slotbar_dialog_footer')
             bar.moveButton.slotButton('!!Pick checked',
                                         action="""
                                             if(!pickerset){
@@ -193,7 +211,7 @@ class THPicker(BaseComponent):
                                         destgrid=grid,paletteCode=paletteCode)
 
         if condition:
-            paletteth.view.store.attributes.update(condition=condition,**condition_kwargs)
+            paletteth.view.store.attributes.update(condition=condition,subtable=subtable,**condition_kwargs)
         if not condition_kwargs:
             paletteth.view.store.attributes.update(_onStart=True)
         if grid and uniqueRow:
