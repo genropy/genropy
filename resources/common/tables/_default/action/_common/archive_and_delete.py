@@ -24,7 +24,7 @@ class Main(BaseResourceAction):
 
     def step_get_dependencies(self):
         "Get dependencies"
-        self.curr_records = self.tblobj.query(where='$id IN :pkeys',pkeys=self.get_selection_pkeys(),addPkeyColumns=False,
+        self.curr_records = self.tblobj.query(where=f'${self.tblobj.pkey} IN :pkeys',pkeys=self.get_selection_pkeys(),addPkeyColumns=False,
                                     excludeLogicalDelete=False,excludeDraft=False).fetch()
         name = self.batch_parameters.get('name') or 'archive_for_%s' %self.tblobj.fullname.replace('.','_')
         self.source_folder = self.page.site.getStaticPath('site:export_archive','source',name)
