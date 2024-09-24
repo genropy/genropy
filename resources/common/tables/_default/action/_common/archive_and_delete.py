@@ -86,6 +86,7 @@ class Main(BaseResourceAction):
         "Delete archived"
         if self.mode == 'A':
             return
+        self.db.setConstraintsDeferred()
         for t in reversed(self.index_tables):
             t = t.replace('/','.')
             if t in self.tableDependencies:
