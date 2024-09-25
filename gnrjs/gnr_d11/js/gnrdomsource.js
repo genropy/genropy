@@ -1559,10 +1559,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             labelWrapper.setHidden(hidden);
         }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
+        var statusChanged = false;
         targets.forEach(function(domNode){
+            let currenHidden = !genro.dom.isVisible(domNode);
+            statusChanged = currenHidden!=hidden;
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
-        genro.fakeResize()
+        if(statusChanged){
+            genro.fakeResize()
+        }
     },
     
     updateRemoteContent:function(forceUpdate,async) {
