@@ -200,6 +200,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.newWindow){
             return this.newBrowserWindowPage(kw);
         }
+        if(kw.modal){
+            return this.newModalPanel(kw);
+        }
         if(kw.newPanel){
             return this.newBrowserPanel(kw);
         }
@@ -254,6 +257,17 @@ dojo.declare("gnr.FramedIndexManager", null, {
         })
         
     },
+
+    newModalPanel:function(kw){
+        this.finalizePageUrl(kw);
+        let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+                                                {src:kw.url,windowRatio:.8,title:kw.label,
+                                                closable:kw.closable,
+                                                iframe_subscribe_modal_page_close:'this.publish("close")',
+                                                openKw:{'topic':'modal_page_open'}
+                                                });
+    },
+
     newBrowserWindowPage:function(kw){
         this.finalizePageUrl(kw);
         if(kw.rootPageName in genro.externalWindowsObjects){
