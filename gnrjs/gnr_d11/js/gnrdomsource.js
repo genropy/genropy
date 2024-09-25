@@ -1785,7 +1785,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         wrp_attr.helpcode = objectPop(attr,'helpcode');
         wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
         wrp_attr.tag = 'labledbox'
-        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
         this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
         let original_label = this.label;
         this.label = wrp_attr._itemId || 'labled_'+original_label;
