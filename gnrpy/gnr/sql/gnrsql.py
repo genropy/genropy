@@ -200,7 +200,7 @@ class GnrSqlDb(GnrObject):
             pkeysToAdd = [r[tblobj.pkey] for r in records] 
             f = tblobj.query(where='$%s IN :pkeys' %tblobj.pkey,pkeys=pkeysToAdd,
                             addPkeyColumns=False,excludeLogicalDeleted=False,
-                            excludeDraft=False,columns='$%s' %tblobj.pkey
+                            excludeDraft=False,columns='$%s' %tblobj.pkey,subtable='*',
                             ).fetch()
             pkeysToAdd = set(pkeysToAdd)-set([r[tblobj.pkey] for r in f])
             rlist = [dict(r) for r in records if r[tblobj.pkey] in pkeysToAdd ]

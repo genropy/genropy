@@ -275,7 +275,7 @@ class LoginComponent(BaseComponent):
         data['group_selector_mandatory'] = False
         if avatar.extra_kwargs.get('multi_group'):
             other_groups = self.db.table('adm.user').readColumns(columns='$other_groups',pkey=avatar.user_id)
-            other_groups = [r for r in other_groups.split(',') if r]
+            other_groups = [r for r in other_groups.split(',') if r] if other_groups else []
             data['all_groups'] = [avatar.main_group_code] if avatar.main_group_code else []
             if other_groups:
                 data['all_groups'] = [avatar.main_group_code] + other_groups

@@ -6584,6 +6584,10 @@ div[disabled='true'], div[disabled='disabled']{
     padding-left: 6px;
     padding-bottom: 1px;
 }
+.labledBox_content label{
+    font-size: .9em;
+    font-weight: bold;
+}
 
 .labledBox_content>.gnrcheckbox_wrapper{
     font-size: .9em;

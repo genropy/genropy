@@ -304,7 +304,7 @@ class Service(StorageService):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
-            transport_params={'session':self._session}, **kwargs)
+            transport_params={'session':self._session, 'client': self._client}, **kwargs)
 
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket

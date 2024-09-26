@@ -206,9 +206,12 @@ class THPicker(BaseComponent):
                                                 destgrid.fireEvent('.dropped_'+paletteCode,rows);
                                             } 
                                             PUT .grid.sets.pickerset = null;
-                                        """,sourcegrid=paletteth.view.grid.js_widget,
+                                            genro.wdgById(paletteCode+'_floating').hide()
+                                            
+                                        """,paletteCode=paletteCode,
+                                        sourcegrid=paletteth.view.grid.js_widget,
                                         pickerset='=.grid.sets.pickerset',
-                                        destgrid=grid,paletteCode=paletteCode)
+                                        destgrid=grid)
 
         if condition:
             paletteth.view.store.attributes.update(condition=condition,subtable=subtable,**condition_kwargs)

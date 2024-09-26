@@ -1120,7 +1120,10 @@ dojo.declare('gnr.GenroClient', null, {
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
     fakeResize:function(){
-        window.dispatchEvent(new Event('resize'));
+        genro.callAfter(()=>{
+            window.dispatchEvent(new Event('resize'))
+        },1,null,'resizing')
+        
     },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
