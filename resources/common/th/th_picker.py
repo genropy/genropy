@@ -16,7 +16,7 @@ class PickerViewSimple(BaseComponent):
 
     def th_view(self,view):
         view.attributes.update(
-            _class='noselect noheader'
+            _class='noheader'
         )
         view.top.pop('bar')
 
