@@ -1,10 +1,10 @@
 #-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
-# module gnrwebcore : core module for genropy web framework
-# Copyright (c)     : 2004 - 2007 Softwell sas - Milano
+# module gnrsiteregister : core module for genropy web framework
+# Copyright (c)     : 2004 - 2024 Softwell srl - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
-#                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
+#                 Saverio Porcari, Francesco Porcari, Francesco Cavazzana
 #--------------------------------------------------------------------------
 #This library is free software; you can redistribute it and/or
 #modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import time
+import pickle
 import _thread
 import Pyro4
 import os
@@ -28,7 +29,10 @@ import re
 import sys
 from datetime import datetime
 from collections import defaultdict
+from collections.abc import Iterable
 import logging
+from psutil import pid_exists
+            
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -48,13 +52,6 @@ class GnrDaemonException(Exception):
 
 class GnrDaemonLocked(GnrDaemonException):
     pass
-
-
-
-try:
-    import pickle as pickle
-except ImportError:
-    import pickle
 
 BAG_INSTANCE = Bag()
 
@@ -177,27 +174,43 @@ class RemoteStoreBag(object):
 
 class BaseRegister(BaseRemoteObject):
     """docstring for BaseRegister"""
+    multi_index_attrs = []
+    
     def __init__(self, siteregister):
         self.siteregister = siteregister
+        self._reset_all_registers()
+
+
+    def _reset_all_registers(self):
         self.registerItems = dict()
         self.itemsData = dict()
+        
+        self.offloaded_items = dict()
+        
         self.itemsTS = dict()
         self.locked_items = dict()
         self.cached_tables = defaultdict(dict)
-
-
-
+        self.multi_indexes = {x: {} for x in self.multi_index_attrs}
+        
     def lock_item(self,register_item_id,reason=None):
         locker = self.locked_items.get(register_item_id)
         if not locker:
-            self.locked_items[register_item_id] = dict(reason=reason,count=1,last_lock_ts=datetime.now())
+            self.locked_items[register_item_id] = dict(
+                reason=reason,
+                count=1,
+                last_lock_ts=time.time()
+            )
             return True
-        elif locker['reason']==reason:
+        
+        elif locker['reason'] == reason:
             locker['count'] += 1
-            locker['last_lock_ts'] = datetime.now()
+            locker['last_lock_ts'] = time.time()
             return True
-        if (datetime.now()-locker['last_lock_ts']).total_seconds() > LOCK_EXPIRY_SECONDS:
+
+        # this case 
+        if (time.time()-locker['last_lock_ts']) > LOCK_EXPIRY_SECONDS:
             self.locked_items.pop(register_item_id,None)
+            
         return False
 
     def unlock_item(self,register_item_id,reason=None):
@@ -237,7 +250,7 @@ class BaseRegister(BaseRemoteObject):
                 break
 
     def invalidateTableCache(self,table):
-        table_cache = self.cached_tables.pop(table)
+        table_cache = self.cached_tables.pop(table, {})
         for register_item_id,pathset in list(table_cache.items()):
             data = self.get_item_data(register_item_id)
             if not data:
@@ -245,21 +258,19 @@ class BaseRegister(BaseRemoteObject):
             for p in pathset:
                 data[p] = None
 
-    def getRemoteData(self,register_item_id):
-        pass
-
     def updateTS(self,register_item_id):
         self.itemsTS[register_item_id] = datetime.now()
 
     def get_item_data(self,register_item_id):
-        data = self.itemsData.get(register_item_id)
-        if data is None:
-            data = Bag()
-        return data
+        return self.itemsData.get(register_item_id, Bag())
 
     def get_item(self,register_item_id,include_data=False):
-        item = self.registerItems.get(register_item_id)
+        # _change_item to search and load the item
+        # from the offloaded internal register
+        item = self.registerItems.get(register_item_id, self._charge_item(register_item_id))
+        
         self.updateTS(register_item_id)
+        
         if item and include_data:
             item['data'] = self.get_item_data(register_item_id)
         return item
@@ -270,17 +281,19 @@ class BaseRegister(BaseRemoteObject):
     def keys(self):
         return list(self.registerItems.keys())
 
-    def items(self,include_data=None):
+    def items(self,include_data=False):
         if not include_data:
             return list(self.registerItems.items())
-        return [(k,self.get_item(k,include_data=True)) for k in list(self.keys())]
+        return [(k,self.get_item(k,include_data=True)) for k in self.keys()]
 
     def values(self,include_data=False):
         if not include_data:
             return list(self.registerItems.values())
-        return [self.get_item(k,include_data=True) for k in list(self.keys())]
+        return [self.get_item(k,include_data=True) for k in self.keys()]
 
-    def refresh(self,register_item_id,last_user_ts=None,last_rpc_ts=None,refresh_ts=None):
+    def refresh(self,register_item_id, last_user_ts=None,
+                last_rpc_ts=None, refresh_ts=None):
+        
         item = self.registerItems.get(register_item_id)
         if not item:
             return
@@ -288,12 +301,12 @@ class BaseRegister(BaseRemoteObject):
         item['last_user_ts'] = max(item['last_user_ts'],last_user_ts) if item.get('last_user_ts') else last_user_ts
         item['last_rpc_ts'] = max(item['last_rpc_ts'],last_rpc_ts) if item.get('last_rpc_ts') else last_rpc_ts
         item['last_refresh_ts'] = max(item['last_refresh_ts'],refresh_ts) if item.get('last_refresh_ts') else refresh_ts
+        
         return item
 
     @property
     def registerName(self):
         return self.__class__.__name__
-
 
     def drop_item(self,register_item_id):
         register_item = self.registerItems.pop(register_item_id,None)
@@ -301,12 +314,52 @@ class BaseRegister(BaseRemoteObject):
         self.itemsTS.pop(register_item_id,None)
         return register_item
 
-    def update_item(self,register_item_id,upddict=None):
+    # items offloading - still available, but out of the main
+    # register - internal method can be expanded/changed to use
+    # different offloading methods rather that just plain memory
+    # like disk pickling, keystore etc.
+    def offload_item(self, register_item_id):
+        self.offloaded_items[register_item_id] = self.registerItems.pop(register_item_id, None)
+
+    def _charge_item(self, register_item_id):
+        i = self.offloaded_items.pop(register_item_id, None)
+        if i:
+            self.registerItems[register_item_id] = i
+        return i
+        
+    def item_is_offloaded(self, register_item_id):
+        return register_item_id in self.offloaded_items
+
+    
+    def update_item(self,register_item_id,upddict={}):
         register_item = self.get_item(register_item_id)
         if not register_item:
             return
         register_item.update(upddict)
         return register_item
+
+    def set_datachange(self,register_item_id, path,
+                       value=None, attributes=None,
+                       fired=False, reason=None,
+                       replace=False, delete=False):
+        
+        register_item = self.get_item(register_item_id)
+        if not register_item:
+            return
+        
+        datachanges = register_item['datachanges']
+        register_item['datachanges_idx'] = register_item.get('datachanges_idx', 0) + 1
+        datachange = ClientDataChange(path, value,
+                                      attributes=attributes,
+                                      fired=fired,
+                                      reason=reason,
+                                      change_idx=register_item['datachanges_idx'],
+                                      delete=delete)
+        
+        if replace and datachange in datachanges:
+            datachanges.pop(datachanges.index(datachange))
+            
+        datachanges.append(datachange)
 
     def get_datachanges(self,register_item_id,reset=False):
         register_item = self.get_item(register_item_id)
@@ -320,21 +373,6 @@ class BaseRegister(BaseRemoteObject):
 
     def reset_datachanges(self,register_item_id):
         return self.update_item(register_item_id,dict(datachanges=list(),datachanges_idx=0))
-
-
-    def set_datachange(self,register_item_id, path, value=None, attributes=None, fired=False, reason=None, replace=False, delete=False):
-        register_item = self.get_item(register_item_id)
-        if not register_item:
-            return
-        datachanges = register_item['datachanges']
-        register_item['datachanges_idx'] = register_item.get('datachanges_idx', 0)
-        register_item['datachanges_idx'] += 1
-        datachange = ClientDataChange(path, value, attributes=attributes, fired=fired,
-                                      reason=reason, change_idx=register_item['datachanges_idx'],
-                                      delete=delete)
-        if replace and datachange in datachanges:
-            datachanges.pop(datachanges.index(datachange))
-        datachanges.append(datachange)
 
     def drop_datachanges(self,register_item_id, path):
         register_item = self.get_item(register_item_id)
@@ -365,12 +403,14 @@ class BaseRegister(BaseRemoteObject):
         pickle.dump(self.itemsData, storagefile)
         pickle.dump(self.itemsTS, storagefile)
         pickle.dump(self.locked_items, storagefile)
+        pickle.dump(self.offloaded_items, storagefile)
 
     def load(self,storagefile):
         self.registerItems = pickle.load(storagefile)
         self.itemsData = pickle.load(storagefile)
         self.itemsTS = pickle.load(storagefile)
         self.locked_items = pickle.load(storagefile)
+        self.offloaded_items = pickle.load(storagefile)
 
 
 class GlobalRegister(BaseRegister):
@@ -394,7 +434,10 @@ class GlobalRegister(BaseRegister):
 
 class UserRegister(BaseRegister):
     """docstring for UserRegister"""
-    def create(self, user, user_id=None,user_name=None,user_tags=None,avatar_extra=None):
+    def create(self, user, user_id=None,
+               user_name=None, user_tags=None,
+               avatar_extra=None):
+        
         register_item = dict(
                 register_item_id=user,
                 start_ts=datetime.now(),
@@ -407,12 +450,15 @@ class UserRegister(BaseRegister):
         self.addRegisterItem(register_item)
         return register_item
 
-    def drop(self,user):
-        self.siteregister.drop_connections(user)
+    def drop(self,user, _testing=False):
+        if _testing == False:
+            self.siteregister.drop_connections(user) # pragma: no cover
         self.drop_item(user)
 
 class ConnectionRegister(BaseRegister):
     """docstring for ConnectionRegister"""
+    multi_index = ['user']
+    
     def create(self, connection_id, connection_name=None,user=None,user_id=None,
                             user_name=None,user_tags=None,user_ip=None,user_agent=None,browser_name=None,
                             electron_static=None):
@@ -433,46 +479,57 @@ class ConnectionRegister(BaseRegister):
         self.addRegisterItem(register_item)
         return register_item
 
-    def drop(self,register_item_id=None,cascade=None):
-        self.siteregister.drop_pages(register_item_id)
+    def drop(self, register_item_id, cascade=None, _testing=False):
+        if _testing is False:
+            self.siteregister.drop_pages(register_item_id) # pragma: no cover
+
         register_item = self.drop_item(register_item_id)
+
         if cascade:
             user = register_item['user']
             keys = self.user_connection_keys(user)
-            if not keys:
+            if not keys and not _testing: # pragma: no cover
                 self.siteregister.drop_user(user)
 
     def user_connection_keys(self,user):
+        # FIXME multi dict
         return [k for k,v in list(self.items()) if v['user'] == user]
 
     def user_connection_items(self,user):
+        # FIXME multi dict
         return [(k,v) for k,v in list(self.items()) if v['user'] == user]
 
 
-
-    def connections(self,user=None,include_data=None):
+    def connections(self,user=None,include_data=False):
+        # FIXME multi dict
         connections = self.values(include_data=include_data)
         if user:
             connections = [v for v in connections if v['user'] == user]
         return connections
 
+    # just a name remap for compat
+    user_connections = connections
 
 class PageRegister(BaseRegister):
     def __init__(self,*args,**kwargs):
         super(PageRegister, self).__init__(*args,**kwargs)
         self.pageProfilers = dict()
 
-    def create(self, page_id,pagename=None,connection_id=None,subscribed_tables=None,user=None,user_ip=None,user_agent=None ,relative_url=None,data=None):
+    def create(self, page_id, pagename=None,
+               connection_id=None,
+               subscribed_tables: str = None,
+               user=None, user_ip=None,
+               user_agent=None,
+               relative_url=None, data=None):
+        
         register_item_id = page_id
         start_ts = datetime.now()
-        if subscribed_tables:
-            subscribed_tables = subscribed_tables.split(',')
         register_item = dict(
                 register_item_id=register_item_id,
                 pagename=pagename,
                 connection_id=connection_id,
                 start_ts=start_ts,
-                subscribed_tables=subscribed_tables or [],
+                subscribed_tables=subscribed_tables and {subscribed_table.split(",")} or set(),
                 user=user,
                 user_ip=user_ip,
                 user_agent=user_agent,
@@ -484,49 +541,75 @@ class PageRegister(BaseRegister):
         return register_item
 
 
-    def drop(self,register_item_id=None,cascade=None):
+    def drop(self,register_item_id=None,cascade=False, _testing=False):
         register_item = self.drop_item(register_item_id)
         self.pageProfilers.pop(register_item_id,None)
         if cascade:
             connection_id = register_item['connection_id']
             n = self.connection_page_keys(connection_id)
-            if not n:
+            if not n and not _testing: # pragma: no cover
                 self.siteregister.drop_connection(connection_id)
 
-    def filter_subscribed_tables(self,table_list):
-        s = set()
-        for k,v in list(self.items()):
-            s.update(v['subscribed_tables'])
+    def filter_subscribed_tables(self, table_list: Iterable):
+        s = { v['subscribed_table'] for k, v in self.items() }
         return list(s.intersection(table_list))
 
     def subscribed_table_page_keys(self,table):
-        return [k for k,v in list(self.items()) if table in v['subscribed_tables']]
+        """
+        Return a list of page ids which have subscribed to the
+        requested table
+        """
+        # FIXME multidict
+        return [k for k,v in self.items() if table in v['subscribed_tables']]
 
     def subscribed_table_page_items(self,table):
-        return [(k,v) for k,v in list(self.items()) if table in v['subscribed_tables']]
+        """
+        Return a list ot tuples with page_id, page item
+        subscribed to the requested table
+        """
+        # FIXME multidict
+        return [(k,v) for k,v in self.items() if table in v['subscribed_tables']]
 
     def subscribed_table_pages(self,table):
-        return [v for k,v in list(self.items()) if table in v['subscribed_tables']]
+        """
+        Return a list of page items which are subscribed
+        to the requested table
+        """
+        # FIXME multidict
+        return [v for k,v in self.items() if table in v['subscribed_tables']]
 
     def connection_page_keys(self,connection_id):
-        return [k for k,v in list(self.items()) if v['connection_id'] == connection_id]
+        # FIXME multidict
+        return [k for k,v in self.items() if v['connection_id'] == connection_id]
 
     def connection_page_items(self,connection_id):
-        return [(k,v) for k,v in list(self.items()) if v['connection_id'] == connection_id]
+        # FIXME multidict
+        return [(k,v) for k,v in self.items() if v['connection_id'] == connection_id]
 
-    def pages(self,connection_id=None,user=None,include_data=None,filters=None):
+    def connection_pages(self, connection_id):
+        return self.pages(connection_id=connection_id)
+    
+    def pages(self, connection_id=None,
+              user=None, include_data=None,
+              filters=None):
+        
         pages = self.values(include_data=include_data)
         if connection_id:
+            # FIXME multidict
             pages = [v for v in pages if v['connection_id'] == connection_id]
         if user:
+            # FIXME multidict
             pages = [v for v in pages if v['user'] == user]
+            
         if not filters or filters == '*':
             return pages
         fltdict = dict()
         for flt in filters.split(' AND '):
             fltname, fltvalue = flt.split(':', 1)
             fltdict[fltname] = fltvalue
+
         filtered = []
+        
         def checkpage(page, fltname, fltval):
             value = page[fltname]
             if not value:
@@ -539,19 +622,25 @@ class PageRegister(BaseRegister):
                 return False
         for page in pages:
             page = Bag(page)
-            for fltname, fltval in list(fltdict.items()):
+            for fltname, fltval in fltdict.items():
                 if checkpage(page, fltname, fltval):
                     filtered.append(page)
         return filtered
 
 
 
-    def updatePageProfilers(self,page_id,pageProfilers):
+    def updatePageProfilers(self, page_id, pageProfilers):
+        """
+        Add a profiler for the requested page_id to the profiler
+        container
+        """
         self.pageProfilers[page_id] = pageProfilers
 
-    def setStoreSubscription(self,page_id,storename=None,client_path=None,active=None):
+    def setStoreSubscription(self, page_id, storename=None,
+                             client_path=None, active=None):
+        
         register_item_data = self.get_item_data(page_id)
-        subscription_path = '_subscriptions.%s' %storename
+        subscription_path = f'_subscriptions.{storename}'
         storesub = register_item_data.getItem(subscription_path)
         if storesub is None:
             storesub = dict()
@@ -559,12 +648,14 @@ class PageRegister(BaseRegister):
         pathsub = storesub.setdefault(client_path, {})
         pathsub['on'] = active
 
-    def subscribeTable(self,page_id,table=None,subscribe=None,subscribeMode=None):
-        register_item = self.get_item(page_id)
-        subscribed_tables = register_item['subscribed_tables']
+    def subscribeTable(self,page_id, table=None,
+                       subscribe=False,
+                       subscribeMode=None):
+
+        # FIXME: subscribeMode parameter is not used, should be removed
+        subscribed_tables = self.get_item(page_id)['subscribed_tables']
         if subscribe:
-            if not table in subscribed_tables:
-                subscribed_tables.append(table)
+            subscribed_tables.add(table)
         else:
             if table in subscribed_tables:
                 subscribed_tables.remove(table)
@@ -579,7 +670,11 @@ class PageRegister(BaseRegister):
             if not subscribers:
                 continue
             for page in subscribers:
-                self.set_datachange(page['register_item_id'],'gnr.dbchanges.%s' %table_code, dbevents,attributes=dict(from_page_id=origin_page_id,dbevent_reason=dbevent_reason))
+                self.set_datachange(page['register_item_id'],
+                                    f'gnr.dbchanges.{table_code}',
+                                    dbevents,attributes=dict(from_page_id=origin_page_id,
+                                                             dbevent_reason=dbevent_reason)
+                                    )
 
     def setPendingContext(self,page_id,pendingContext):
         data = self.get_item_data(page_id)
@@ -590,27 +685,45 @@ class PageRegister(BaseRegister):
                 data.setBackRef()
             self.subscribe_path(page_id,serverpath)
 
-    def pageInMaintenance(self,page_id=None):
+    def pageInMaintenance(self,page_id=None,
+                          _testing=False):
         page_item = self.get_item(page_id)
         if not page_item:
             return
         user = page_item['user']
-        return self.siteregister.isInMaintenance(user)
+        if not _testing: # pragma: no cover
+            return self.siteregister.isInMaintenance(user)
 
-    def setInClientData(self,path, value=None, attributes=None, page_id=None, filters=None,
-                        fired=False, reason=None, public=False, replace=False):
+    def setInClientData(self, path, value=None, attributes=None,
+                        page_id=None, filters=None,
+                        fired=False, reason=None,
+                        public=False, replace=False):
+        # FIXME: seems that the last 2 parameters are ununsed
+        # and not necessary
         if filters:
             pages = [p['register_item_id'] for p in self.pages(filters=filters)]
         else:
             pages = [page_id]
+
         for page_id in pages:
             if isinstance(path, Bag):
-                changeBag = path
-                for changeNode in changeBag:
+                for changeNode in path:
                     attr = changeNode.attr
-                    self.set_datachange(page_id,path=attr.pop('_client_path'),value=changeNode.value,attributes=attr, fired=attr.pop('fired', None))
+                    self.set_datachange(
+                        page_id,path=attr.pop('_client_path'),
+                        value=changeNode.value,
+                        attributes=attr,
+                        fired=attr.pop('fired', None)
+                    )
             else:
-                self.set_datachange(page_id,path=path,value=value,reason=reason, attributes=attributes, fired=fired)
+                self.set_datachange(
+                    page_id,
+                    path=path,
+                    value=value,
+                    reason=reason,
+                    attributes=attributes,
+                    fired=fired
+                )
 
 class SiteRegister(BaseRemoteObject):
     def __init__(self,server,sitename=None,storage_path=None):
@@ -629,7 +742,7 @@ class SiteRegister(BaseRemoteObject):
         self.allowed_users = None
         self.interproces_commands = dict()
 
-    def on_reloader_restart(self):
+    def on_reloader_restart(self): # pragma: no cover
         if self.server.gnr_daemon_uri:
             with Pyro4.Proxy(self.server.gnr_daemon_uri) as proxy:
                 if not OLD_HMAC_MODE:
@@ -646,14 +759,18 @@ class SiteRegister(BaseRemoteObject):
 
     def setConfiguration(self,cleanup=None):
         cleanup = cleanup or dict()
+        # FIXME: with 'or', if I want to setup
+        # a value equal to 0, it will be reverted as default
         self.cleanup_interval = int(cleanup.get('interval') or 120)
         self.page_max_age = int(cleanup.get('page_max_age') or 120)
         self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
 
-    def new_connection(self,connection_id,connection_name=None,user=None,user_id=None,
-                            user_name=None,user_tags=None,user_ip=None,user_agent=None,browser_name=None,avatar_extra=None,
-                            electron_static=None):
+    def new_connection(self,connection_id,connection_name=None,
+                       user=None,user_id=None,
+                       user_name=None,user_tags=None,user_ip=None,
+                       user_agent=None,browser_name=None,
+                       avatar_extra=None, electron_static=None):
         assert not self.connection_register.exists(connection_id), 'SITEREGISTER ERROR: connection_id %s already registered' % connection_id
         if not self.user_register.exists(user):
             self.new_user( user, user_id=user_id,user_name=user_name,user_tags=user_tags,avatar_extra=avatar_extra)
@@ -664,11 +781,11 @@ class SiteRegister(BaseRemoteObject):
         return connection_item
 
 
-    def drop_pages(self,connection_id):
+    def drop_pages(self, connection_id):
         for page_id in self.connection_page_keys(connection_id):
             self.drop_page(page_id)
 
-    def drop_page(self,page_id, cascade=None):
+    def drop_page(self, page_id, cascade=None):
         return self.page_register.drop(page_id,cascade=cascade)
 
     def drop_connections(self,user):
@@ -700,10 +817,17 @@ class SiteRegister(BaseRemoteObject):
         return self.page_register.connection_pages(connection_id=connection_id)
 
 
-    def new_page(self,page_id,pagename=None,connection_id=None,subscribed_tables=None,user=None,user_ip=None,user_agent=None ,
-                relative_url=None,data=None):
-        page_item = self.page_register.create(page_id, pagename = pagename,connection_id=connection_id,user=user,
-                                            user_ip=user_ip,user_agent=user_agent,relative_url=relative_url, data=data)
+    def new_page(self, page_id, pagename=None, connection_id=None,
+                 subscribed_tables=None, user=None, user_ip=None,
+                 user_agent=None, relative_url=None, data=None):
+        page_item = self.page_register.create(page_id,
+                                              pagename = pagename,
+                                              connection_id=connection_id,
+                                              user=user,
+                                              user_ip=user_ip,
+                                              user_agent=user_agent,
+                                              relative_url=relative_url,
+                                              data=data)
         return page_item
 
 
@@ -746,15 +870,20 @@ class SiteRegister(BaseRemoteObject):
         return self.connection_register.connections(user=user,include_data=include_data)
 
 
-    def change_connection_user(self, connection_id, user=None, user_tags=None, user_id=None, user_name=None,
+    def change_connection_user(self, connection_id, user=None,
+                               user_tags=None, user_id=None,
+                               user_name=None,
                                avatar_extra=None):
+        
         connection_item = self.connection(connection_id)
 
         olduser = connection_item['user']
         newuser_item = self.user(user)
         if not newuser_item:
-            newuser_item = self.new_user( user=user, user_tags=user_tags, user_id=user_id, user_name=user_name,
-                               avatar_extra=avatar_extra)
+            newuser_item = self.new_user( user=user, user_tags=user_tags,
+                                          user_id=user_id,
+                                          user_name=user_name,
+                                          avatar_extra=avatar_extra)
         connection_item['user'] = user
         connection_item['user_tags'] = user_tags
         connection_item['user_name'] = user_name
@@ -771,8 +900,11 @@ class SiteRegister(BaseRemoteObject):
         if not page:
             return
         self.page_register.updatePageProfilers(page_id,pageProfilers)
+
         connection = self.connection_register.refresh(page['connection_id'],last_user_ts=last_user_ts,last_rpc_ts=last_rpc_ts,refresh_ts=refresh_ts)
-        if not connection:
+        # FIXME: if the page is not where, how can the connection
+        # of the page be there too?
+        if not connection: # pragma: no cover
             return
         return self.user_register.refresh(connection['user'],last_user_ts=last_user_ts,last_rpc_ts=last_rpc_ts,refresh_ts=refresh_ts)
 
@@ -796,9 +928,8 @@ class SiteRegister(BaseRemoteObject):
         self.last_cleanup = time.time()
         return dropped_connections
 
-
     def get_register(self,register_name):
-        return getattr(self,'%s_register' %register_name)
+        return getattr(self, f"{register_name}_register")
 
     def setStoreSubscription(self,page_id,storename=None, client_path=None, active=None):
         self.page_register.setStoreSubscription(page_id,storename=storename,client_path=client_path,active=active)
@@ -1007,7 +1138,7 @@ class SiteRegisterClient(object):
         sitedaemonconfig = self.site.config.getAttr('sitedaemon') or {}
         sitedaemon_xml_path = os.path.join(self.site.site_path,'sitedaemon.xml')
         if os.path.exists(sitedaemon_xml_path):
-            from psutil import pid_exists
+
             sitedaemon_bag = Bag(sitedaemon_xml_path)
             params = sitedaemon_bag.getAttr('params')
             sitedaemon_pid = params.get('pid')
