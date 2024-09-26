@@ -124,13 +124,26 @@ class SqlModelChecker(object):
     def __init__(self, db):
         self.db = db
         self.unaccent = False
+
+    @property
+    def tenantSchemas(self):
+        if not self.tenant_table:
+            return []
+        if hasattr(self,'_tenantSchemas'):
+            return self._tenantSchemas
+        tblobj = self.db.table(self.tenant_table)
+        f = tblobj.query(ignorePartition=True,subtable='*',
+                        where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
+        self._tenantSchemas = [r['tenant_schema'] for r in f]
+        return self._tenantSchemas
         
-    def checkDb(self,enableForeignKeys=None,custom_schemas_kw=None):
+    def checkDb(self,enableForeignKeys=None):
         """Return a list of instructions for the database building"""
         create_db = False
         self.changes = []
         self.bagChanges = Bag()
         self.enableForeignKeys = enableForeignKeys is not False
+        self.tenant_table = self.db.tenant_table
         try:
             self.actual_schemata = self.db.adapter.listElements('schemata')
         except GnrNonExistingDbException as exc:
@@ -151,18 +164,15 @@ class SqlModelChecker(object):
             for r in actual_relations:
                 self.actual_relations.setdefault('%s.%s' % (r[1], r[2]), []).append(r)
             self.unique_constraints = self.db.adapter.getTableContraints()
-        if custom_schemas_kw:
-            custom_schemas = self.getCustomSchemaList(**custom_schemas_kw)
-        else:
-            custom_schemas = None
+        
         for pkg in self.db.packages.values():
             if pkg.attributes.get('readOnly'):
                 continue
             #print '----------checking %s----------'%pkg.name
             if not pkg.tables:
                 continue
-            if custom_schemas_kw:
-                self._checkPackageNew(pkg,custom_schemas_kw=custom_schemas_kw)
+            if self.tenantSchemas:
+                self._checkPackageNew(pkg)
             else:
                 self._checkPackage(pkg)
         enabled_unaccent = False if create_db else 'unaccent' in self.db.adapter.listElements('enabled_extensions')
@@ -220,33 +230,22 @@ class SqlModelChecker(object):
                     #else:
                     #sql.extend(self._buildView(viewnode, tbl_schema))
 
-    def _checkPackageNew(self, pkg,custom_schema_field=None):
-        custom_schema_table,custom_schema_field = custom_schema_field.rsplit('.',1)
-        tblobj = self.db.table(custom_schema_table)
-        f = tblobj.query(ignorePartition=True,subtable='*',
-                         where=f'${custom_schema_field} IS NOT NULL',columns=f'${custom_schema_field}').fetch()
-        custom_schemas = [r[custom_schema_field] for r in f]
+    def _checkPackageNew(self, pkg):
         
+        self._checkSqlSchema(pkg)
         for tbl in pkg.tables.values():
             tableMainSchema = tbl.sqlschema
-            schemas = [tableMainSchema] + custom_schemas
+            schemas = [tableMainSchema] + self.tenantSchemas
             for schema in schemas:
-                if schema and not (schema in self.actual_schemata) and not (schema == self.db.main_schema):
-                    change = self.db.adapter.createSchemaSql(schema)
-                    self.changes.append(change)
-                    self.bagChanges.setItem(tbl.name, None, changes=change)
-                    self.actual_schemata.append(schema)
-                schema_tables = self.actual_tables.get(schema,[])
-                handler = self._checkTable if tbl.sqlname in schema_tables else self._buildTable
-                with self.db.tempEnv(custom_schema=schema):
-                    handler(tbl,schema=schema)
-                if tbl.sqlname in schema_tables:
-                    tablechanges = self._checkTable(tbl,schema=schema)
-                else:
-                    tablechanges = self._buildTable(tbl,schema=schema)#Create sql commands to BUILD the missing table
-                if tablechanges:
-                    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                            changes='\n'.join([ch for ch in tablechanges if ch]))
+                with self.db.tempEnv(tenent_schema=schema):
+                    self._checkSqlSchema(tbl)
+                    if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
+                        tablechanges = self._checkTable(tbl)
+                    else:
+                        tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
+                    if tablechanges:
+                        self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                                                changes='\n'.join([ch for ch in tablechanges if ch]))
                         
     def _checkSqlSchema(self, obj):
         """If the package/table/view is defined in a new schema that's not in the actual_schemata

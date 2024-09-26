@@ -1013,7 +1013,7 @@ class DbTableObj(DbModelObj):
     def _get_sqlschema(self):
         """property. Returns the sqlschema"""
         schema = self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
-        return self.db.currentEnv.get('custom_schema',schema) if self._refsqltable.attributes.get('custom_schema') else schema
+        return self.db.currentEnv.get('tenant_schema',schema) if self._refsqltable.attributes.get('multi_tenant') else schema
         
     sqlschema = property(_get_sqlschema)
     
