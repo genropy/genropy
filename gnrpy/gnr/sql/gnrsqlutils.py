@@ -125,7 +125,7 @@ class SqlModelChecker(object):
         self.db = db
         self.unaccent = False
         
-    def checkDb(self,enableForeignKeys=None):
+    def checkDb(self,enableForeignKeys=None,custom_schemas_kw=None):
         """Return a list of instructions for the database building"""
         create_db = False
         self.changes = []
@@ -151,11 +151,20 @@ class SqlModelChecker(object):
             for r in actual_relations:
                 self.actual_relations.setdefault('%s.%s' % (r[1], r[2]), []).append(r)
             self.unique_constraints = self.db.adapter.getTableContraints()
+        if custom_schemas_kw:
+            custom_schemas = self.getCustomSchemaList(**custom_schemas_kw)
+        else:
+            custom_schemas = None
         for pkg in self.db.packages.values():
             if pkg.attributes.get('readOnly'):
                 continue
             #print '----------checking %s----------'%pkg.name
-            self._checkPackage(pkg)
+            if not pkg.tables:
+                continue
+            if custom_schemas_kw:
+                self._checkPackageNew(pkg,custom_schemas_kw=custom_schemas_kw)
+            else:
+                self._checkPackage(pkg)
         enabled_unaccent = False if create_db else 'unaccent' in self.db.adapter.listElements('enabled_extensions')
         unaccent_statement = None
         if self.unaccent and not enabled_unaccent:
@@ -166,6 +175,12 @@ class SqlModelChecker(object):
             self.changes.append(unaccent_statement)
         self._checkAllRelations()
         return [x for x in self.changes if x]
+    
+
+    def getCustomSchemaList(self,table=None,field=None):
+        tblobj = self.db.table(table)
+        f = tblobj.query(ignorePartition=True,subtable='*',where=f'${field} IS NOT NULL',columns=f'${field}').fetch()
+        return ','.join([r[field] for r in f])
 
     def addExtesions(self):
         try:
@@ -185,18 +200,17 @@ class SqlModelChecker(object):
         
         :param pkg: the :ref:`package <packages>` object"""
         self._checkSqlSchema(pkg)
-        if pkg.tables:
-            for tbl in list(pkg.tables.values()):
-                #print '----------checking table %s----------'%tbl.name
-                self._checkSqlSchema(tbl)
-                if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
-                    tablechanges = self._checkTable(tbl)
-                else:
-                    tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
-                if tablechanges:
-                    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                            changes='\n'.join([ch for ch in tablechanges if ch]))
-                                            
+        for tbl in list(pkg.tables.values()):
+            #print '----------checking table %s----------'%tbl.name
+            self._checkSqlSchema(tbl)
+            if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
+                tablechanges = self._checkTable(tbl)
+            else:
+                tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
+            if tablechanges:
+                self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                                        changes='\n'.join([ch for ch in tablechanges if ch]))
+                                        
                     #views = node.value['views']
                     #if views:
                     #for viewnode in views:
@@ -205,7 +219,35 @@ class SqlModelChecker(object):
                     #sql.extend(self._checkView(viewnode, tbl_schema))
                     #else:
                     #sql.extend(self._buildView(viewnode, tbl_schema))
-                    
+
+    def _checkPackageNew(self, pkg,custom_schema_field=None):
+        custom_schema_table,custom_schema_field = custom_schema_field.rsplit('.',1)
+        tblobj = self.db.table(custom_schema_table)
+        f = tblobj.query(ignorePartition=True,subtable='*',
+                         where=f'${custom_schema_field} IS NOT NULL',columns=f'${custom_schema_field}').fetch()
+        custom_schemas = [r[custom_schema_field] for r in f]
+        
+        for tbl in pkg.tables.values():
+            tableMainSchema = tbl.sqlschema
+            schemas = [tableMainSchema] + custom_schemas
+            for schema in schemas:
+                if schema and not (schema in self.actual_schemata) and not (schema == self.db.main_schema):
+                    change = self.db.adapter.createSchemaSql(schema)
+                    self.changes.append(change)
+                    self.bagChanges.setItem(tbl.name, None, changes=change)
+                    self.actual_schemata.append(schema)
+                schema_tables = self.actual_tables.get(schema,[])
+                handler = self._checkTable if tbl.sqlname in schema_tables else self._buildTable
+                with self.db.tempEnv(custom_schema=schema):
+                    handler(tbl,schema=schema)
+                if tbl.sqlname in schema_tables:
+                    tablechanges = self._checkTable(tbl,schema=schema)
+                else:
+                    tablechanges = self._buildTable(tbl,schema=schema)#Create sql commands to BUILD the missing table
+                if tablechanges:
+                    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                                            changes='\n'.join([ch for ch in tablechanges if ch]))
+                        
     def _checkSqlSchema(self, obj):
         """If the package/table/view is defined in a new schema that's not in the actual_schemata
         the new schema is created and its name is appended to self.actual_schemata. Return the
@@ -217,7 +259,7 @@ class SqlModelChecker(object):
             self.bagChanges.setItem(obj.name, None, changes=change)
             self.actual_schemata.append(sqlschema)
             
-    def _checkTable(self, tbl):
+    def _checkTable(self, tbl,schema=None):
         """Check if any column has been changed and then build the sql statements for
         adding/deleting/editing table's columns calling the :meth:`_buildColumn()` method.
         
