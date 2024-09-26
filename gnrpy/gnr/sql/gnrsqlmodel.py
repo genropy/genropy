@@ -233,6 +233,8 @@ class DbModel(object):
             case_insensitive = (mode == 'insensitive')
             foreignkey = (mode == 'foreignkey')
             many_relkey = '%s.%s.@%s' % (many_pkg, many_table, link_many_name)
+            if deferred is None and (onDelete=='setnull' or onDelete_sql=='setnull'):
+                deferred = True
             if many_relkey in self.relations:
                 raise GnrSqlRelationError('Cannot add many relation %s because exist another relation to the table %s with relation_name=%s' % (many_relkey,many_table,relation_name))
             col_finder = self.column if not virtual else (lambda x: self.virtual_columns[x])

@@ -200,6 +200,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.newWindow){
             return this.newBrowserWindowPage(kw);
         }
+        if(kw.modal){
+            return this.newModalPanel(kw);
+        }
         if(kw.newPanel){
             return this.newBrowserPanel(kw);
         }
@@ -254,6 +257,17 @@ dojo.declare("gnr.FramedIndexManager", null, {
         })
         
     },
+
+    newModalPanel:function(kw){
+        this.finalizePageUrl(kw);
+        let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+                                                {src:kw.url,windowRatio:.8,title:kw.label,
+                                                closable:kw.closable,
+                                                iframe_subscribe_modal_page_close:'this.publish("close")',
+                                                openKw:{'topic':'modal_page_open'}
+                                                });
+    },
+
     newBrowserWindowPage:function(kw){
         this.finalizePageUrl(kw);
         if(kw.rootPageName in genro.externalWindowsObjects){
@@ -371,6 +385,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     
     closeRootFramPage:function(frameName,title,evt){
         var that = this;
+        genro._windowClosing = false; //reset windowClosing variable
         var finalizeCb = function(){
             that.deleteFramePage(frameName);
         }
@@ -383,7 +398,12 @@ dojo.declare("gnr.FramedIndexManager", null, {
             return n.contentWindow.genro.checkBeforeUnload();
         })){
             genro.dlg.ask(_T('Closing ')+title,_T("There is a pending operation in this tab"),{confirm:_T('Close anyway'),cancel:_T('Cancel')},
-                            {confirm:function(){ finalizeCb();}})
+                            {confirm:function(){ 
+                                iframes.forEach(function(f){
+                                    f.sourceNode._genro._checkedUnload = true;
+                                })
+                                finalizeCb();
+                            }})
         }else{
             finalizeCb();
         }
@@ -491,6 +511,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     reloadSelectedIframe:function(rootPageName,modifiers){
+        genro._windowClosing = false; //reset windowClosing variable of the maiwindow
         var iframe = this.getCurrentIframe(rootPageName);
         if(iframe){
             var finalizeCb = function(){

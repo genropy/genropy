@@ -1546,13 +1546,14 @@ class SqlTable(GnrObject):
     def fillFromSqlTable(self, sqltablename):
         self.db.adapter.fillFromSqlTable(self, sqltablename)
 
-    def sql_deleteSelection(self, where=None,_pkeys=None, **kwargs):
+    def sql_deleteSelection(self, where=None,_pkeys=None,subtable=None, **kwargs):
         """Delete a selection from the table. It works only in SQL so no python trigger is executed
 
         :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
         :param **kwargs: optional arguments for the "where" attribute"""
         if where:
-            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,_pkeys=_pkeys,**kwargs).fetch()
+            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,
+                                  _pkeys=_pkeys,subtable=subtable,**kwargs).fetch()
             _pkeys = [x[0] for x in todelete] if todelete else None
         if _pkeys:
             self.db.adapter.sql_deleteSelection(self, pkeyList=_pkeys)
@@ -2346,7 +2347,8 @@ class SqlTable(GnrObject):
             one_history_set = history[tablename]['one']
             sel = relatedTable.query(columns='*', where='$%s IN :pkeys' %ofld,
                                          pkeys=list(set([r[mfld] for r in records])-one_history_set),
-                                         excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 one_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=True)
@@ -2366,7 +2368,9 @@ class SqlTable(GnrObject):
             many_history_set = history[tablename]['many']
             sel = relatedTable.query(columns='*', where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
-                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False,
+                                         subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 many_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=False)

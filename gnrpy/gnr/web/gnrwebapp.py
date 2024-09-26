@@ -75,8 +75,6 @@ class GnrWsgiWebApp(GnrApp):
         :param event: TODO
         :param old_record: TODO. """
         currentEnv = self.db.currentEnv
-        if currentEnv.get('hidden_transaction'):
-            return
         dbeventKey = 'dbevents_%s' %self.db.connectionKey()
         if not currentEnv.get('env_transaction_id'):
             self.db.updateEnv(env_transaction_id= getUuid())
@@ -118,7 +116,8 @@ class GnrWsgiWebApp(GnrApp):
                 if page:
                     page_id = page.page_id
                     pagename = page.pagename
-                self.site.register.notifyDbEvents(dbeventsDict,register_name='page',
+                if not self.db.currentEnv.get('hidden_transaction'):
+                    self.site.register.notifyDbEvents(dbeventsDict,register_name='page',
                                                  origin_page_id=page_id,
                                                  dbevent_reason=dbevent_reason or pagename)
             self.db.updateEnv(env_transaction_id= None,dbevents=None)
