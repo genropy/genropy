@@ -1012,7 +1012,8 @@ class DbTableObj(DbModelObj):
      
     def _get_sqlschema(self):
         """property. Returns the sqlschema"""
-        return self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
+        schema = self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
+        return self.db.currentEnv.get('custom_schema',schema) if self._refsqltable.attributes.get('custom_schema') else schema
         
     sqlschema = property(_get_sqlschema)
     
@@ -1029,7 +1030,7 @@ class DbTableObj(DbModelObj):
         if not self.db.adapter.use_schemas():
             return self.adapted_sqlname
         else: 
-            return '%s.%s' % (self.sqlschema, self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
+            return '%s.%s' % (self.db.adapter.adaptSqlName(self.sqlschema), self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
     sqlfullname = property(_get_sqlfullname)
         
     def _get_sqlnamemapper(self):
