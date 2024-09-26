@@ -235,9 +235,11 @@ class SqlModelChecker(object):
         self._checkSqlSchema(pkg)
         for tbl in pkg.tables.values():
             tableMainSchema = tbl.sqlschema
-            schemas = [tableMainSchema] + self.tenantSchemas
+            schemas = [tableMainSchema]
+            if tbl.attributes.get('multi_tenant'):
+                schemas.extend(self.tenantSchemas)
             for schema in schemas:
-                with self.db.tempEnv(tenent_schema=schema):
+                with self.db.tempEnv(tenant_schema=schema):
                     self._checkSqlSchema(tbl)
                     if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
                         tablechanges = self._checkTable(tbl)
