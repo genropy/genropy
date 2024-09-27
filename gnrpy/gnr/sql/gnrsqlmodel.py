@@ -182,7 +182,7 @@ class DbModel(object):
     @extract_kwargs(resolver=True,meta=True) 
     def addRelation(self, many_relation_tuple, oneColumn, mode=None,storename=None, one_one=None, onDelete=None, onDelete_sql=None,
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
-                    one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,
+                    one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,ignore_tenant=None,
                     external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None):
         """Add a relation in the current model.
         
@@ -230,6 +230,13 @@ class DbModel(object):
             case_insensitive = (mode == 'insensitive')
             foreignkey = (mode == 'foreignkey')
             many_relkey = '%s.%s.@%s' % (many_pkg, many_table, link_many_name)
+            many_table_attr = self.src.getAttr(f'packages.{many_pkg}.tables.{many_table}')
+            if not many_table_attr.get('multi_tenant'):
+                ignore_tenant_auto = True
+            if ignore_tenant is None:
+                ignore_tenant = ignore_tenant_auto
+            elif ignore_tenant is False:
+                logger.warning(f"ignore_tenant cannot be False in {'.'.join(many_relation_tuple)}")
             if deferred is None and (onDelete=='setnull' or onDelete_sql=='setnull'):
                 deferred = True
             if many_relkey in self.relations:
@@ -242,6 +249,7 @@ class DbModel(object):
                                    onUpdate=onUpdate, onUpdate_sql=onUpdate_sql, deferred=deferred,
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
                                    private_relation=private_relation,external_relation=external_relation,
+                                   ignore_tenant=ignore_tenant,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
                                    resolver_kwargs=resolver_kwargs)
             one_relkey = '%s.%s.@%s' % (one_pkg, one_table, relation_name)
@@ -255,6 +263,7 @@ class DbModel(object):
                                    private_relation=private_relation,
                                    onUpdate=onUpdate, onUpdate_sql=onUpdate_sql, deferred=deferred,external_relation=external_relation,
                                    case_insensitive=case_insensitive, eager_one=eager_one, eager_many=eager_many,
+                                   ignore_tenant=ignore_tenant,
                                    one_group=one_group, many_group=many_group,storefield=storefield,_storename=storename,
                                    inheritLock=inheritLock,inheritProtect=inheritProtect,onDuplicate=onDuplicate,**meta_kwargs)
             #print 'The relation %s - %s was added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
@@ -1010,10 +1019,11 @@ class DbTableObj(DbModelObj):
     def _refsqltable(self):
         return self.maintable or self 
      
-    def _get_sqlschema(self):
+    def _get_sqlschema(self,ignore_tenant=None):
         """property. Returns the sqlschema"""
+        print('')
         schema = self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
-        return self.db.currentEnv.get('tenant_schema',schema) if self._refsqltable.attributes.get('multi_tenant') else schema
+        return self.db.currentEnv.get('tenant_schema',schema) if (self._refsqltable.attributes.get('multi_tenant') and not ignore_tenant) else schema
         
     sqlschema = property(_get_sqlschema)
     
@@ -1025,12 +1035,12 @@ class DbTableObj(DbModelObj):
         return sqlname
     sqlname = property(_get_sqlname)
         
-    def _get_sqlfullname(self):
+    def _get_sqlfullname(self,ignore_tenant=None):
         """property. Returns the table's sqlfullname"""
         if not self.db.adapter.use_schemas():
             return self.adapted_sqlname
         else: 
-            return '%s.%s' % (self.db.adapter.adaptSqlName(self.sqlschema), self.adapted_sqlname) if self.sqlschema else self.adapted_sqlname
+            return '%s.%s' % (self.db.adapter.adaptSqlName(self._get_sqlschema(ignore_tenant)), self.adapted_sqlname) if self._get_sqlschema(ignore_tenant) else self.adapted_sqlname
     sqlfullname = property(_get_sqlfullname)
         
     def _get_sqlnamemapper(self):
