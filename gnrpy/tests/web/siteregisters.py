@@ -8,6 +8,39 @@ import datetime
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwsgisite_proxy import gnrsiteregister as gsr
 
+class TestBaseSiteRegisterMultiIndex(object):
+    def setup_class(cls):
+        cls.test_items = [
+            {
+                "register_item_id": f"item{x}",
+                "connection_id": f"conn{x}",
+                "user": f"user{x}"
+            } for x in range(5)
+        ]
+
+        class FakeConnectionRegister(gsr.BaseRegister):
+            multi_index_attrs = ['user']
+
+        cls.obj = FakeConnectionRegister({})
+        for item in cls.test_items:
+            cls.obj.addRegisterItem(item)
+
+    def test_methods(self):
+        # ensure that modification to the object referenced
+        # by the main index is reflected also in the other one
+        r = self.obj.subscribe_path("item0", "mypath")
+        assert r is None
+        r = self.obj.get_item("item0")
+        assert len(r['subscribed_paths']) == 1
+        assert "mypath" in r['subscribed_paths']
+        for item in self.obj._multi_indexes['user'][r['user']]:
+            if item.get("register_item_id") == "item0":
+                assert len(item['subscribed_paths']) == 1
+                assert "mypath" in item['subscribed_paths']
+        # dropping
+        r = self.obj.drop_item("item0")
+        assert r['user'] not in self.obj._multi_indexes['user']
+
 class TestBaseSiteRegister(object):
     def setup_class(cls):
         cls.obj = gsr.BaseRegister({})
@@ -15,11 +48,10 @@ class TestBaseSiteRegister(object):
         cls.test_item = {
             "register_item_id": cls.test_item_id
             }
-
+        
     def test_base_methods(self):
-
         # multi indexes
-        assert len(self.obj.multi_indexes) == 0
+        assert len(self.obj._multi_indexes) == 0
         
         # addRegisterItem
         self.obj.addRegisterItem(self.test_item)
@@ -702,5 +734,4 @@ class TestSiteRegister(object):
         self.obj.last_cleanup -= self.obj.cleanup_interval*5
         r = self.obj.cleanup()
         assert len(r) == 0
-        assert False
         

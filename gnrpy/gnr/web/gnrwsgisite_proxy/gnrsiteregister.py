@@ -170,8 +170,6 @@ class RemoteStoreBag(object):
 #------------------------------- END REMOTEBAG  ---------------------------
 
 
-
-
 class BaseRegister(BaseRemoteObject):
     """docstring for BaseRegister"""
     multi_index_attrs = []
@@ -190,7 +188,18 @@ class BaseRegister(BaseRemoteObject):
         self.itemsTS = dict()
         self.locked_items = dict()
         self.cached_tables = defaultdict(dict)
-        self.multi_indexes = {x: {} for x in self.multi_index_attrs}
+        self._multi_indexes = {x: defaultdict(list) for x in self.multi_index_attrs}
+
+    def drop_multi_indexes(self, register_item):
+        for x in self.multi_index_attrs:
+            self._multi_indexes[x].pop(register_item.get(x))
+
+    def reindex_multi_index(self, index_name):
+        if index_name in self.multi_index_attrs:
+            newindex = defaultdict(list)
+            for k,v in self.items():
+                newindex[v[index_name]] = v
+            self._multi_indexes[index_name] = newindex
         
     def lock_item(self,register_item_id,reason=None):
         locker = self.locked_items.get(register_item_id)
@@ -225,6 +234,10 @@ class BaseRegister(BaseRemoteObject):
     def addRegisterItem(self,register_item,data=None):
         register_item_id = register_item['register_item_id']
         self.registerItems[register_item_id] = register_item
+        for k in self.multi_index_attrs:
+            if k in register_item:
+                self._multi_indexes[k][register_item[k]].append(register_item)
+                
         register_item['datachanges'] = list()
         register_item['datachanges_idx'] = 0
         register_item['subscribed_paths'] = set()
@@ -310,6 +323,7 @@ class BaseRegister(BaseRemoteObject):
 
     def drop_item(self,register_item_id):
         register_item = self.registerItems.pop(register_item_id,None)
+        if register_item: self.drop_multi_indexes(register_item)
         self.itemsData.pop(register_item_id,None)
         self.itemsTS.pop(register_item_id,None)
         return register_item
@@ -457,7 +471,7 @@ class UserRegister(BaseRegister):
 
 class ConnectionRegister(BaseRegister):
     """docstring for ConnectionRegister"""
-    multi_index = ['user']
+    multi_index_attrs = ['user']
     
     def create(self, connection_id, connection_name=None,user=None,user_id=None,
                             user_name=None,user_tags=None,user_ip=None,user_agent=None,browser_name=None,
@@ -465,11 +479,11 @@ class ConnectionRegister(BaseRegister):
         register_item = dict(
                 register_item_id=connection_id,
                 start_ts=datetime.now(),
-                connection_name = connection_name,
-                user= user,
-                user_id= user_id,
-                user_name = user_name,
-                user_tags = user_tags,
+                connection_name=connection_name,
+                user=user,
+                user_id=user_id,
+                user_name=user_name,
+                user_tags=user_tags,
                 user_ip=user_ip,
                 user_agent=user_agent,
                 electron_static=electron_static,
@@ -492,13 +506,12 @@ class ConnectionRegister(BaseRegister):
                 self.siteregister.drop_user(user)
 
     def user_connection_keys(self,user):
-        # FIXME multi dict
-        return [k for k,v in list(self.items()) if v['user'] == user]
+        return [u['register_item_id'] for u in self._multi_indexes.get('user')[user]]
+        #return [k for k,v in list(self.items()) if v['user'] == user]
 
     def user_connection_items(self,user):
-        # FIXME multi dict
-        return [(k,v) for k,v in list(self.items()) if v['user'] == user]
-
+        return [(i['register_item_id'], i) for i in self._multi_indexes.get('user')[user]]
+        #return [(k,v) for k,v in list(self.items()) if v['user'] == user]
 
     def connections(self,user=None,include_data=False):
         # FIXME multi dict
@@ -511,6 +524,8 @@ class ConnectionRegister(BaseRegister):
     user_connections = connections
 
 class PageRegister(BaseRegister):
+    multi_index_attrs = ['connection_id']
+    
     def __init__(self,*args,**kwargs):
         super(PageRegister, self).__init__(*args,**kwargs)
         self.pageProfilers = dict()
@@ -579,12 +594,12 @@ class PageRegister(BaseRegister):
         return [v for k,v in self.items() if table in v['subscribed_tables']]
 
     def connection_page_keys(self,connection_id):
-        # FIXME multidict
-        return [k for k,v in self.items() if v['connection_id'] == connection_id]
+        return [i['register_item_id'] for i in self._multi_indexes['connection_id'][connection_id]]
+        #return [k for k,v in self.items() if v['connection_id'] == connection_id]
 
     def connection_page_items(self,connection_id):
-        # FIXME multidict
-        return [(k,v) for k,v in self.items() if v['connection_id'] == connection_id]
+        return [(i['register_item_id'], i) for i in self._multi_indexes['connection_id'][connection_id]]
+        #return [(k,v) for k,v in self.items() if v['connection_id'] == connection_id]
 
     def connection_pages(self, connection_id):
         return self.pages(connection_id=connection_id)
@@ -626,8 +641,6 @@ class PageRegister(BaseRegister):
                 if checkpage(page, fltname, fltval):
                     filtered.append(page)
         return filtered
-
-
 
     def updatePageProfilers(self, page_id, pageProfilers):
         """
@@ -889,10 +902,14 @@ class SiteRegister(BaseRemoteObject):
         connection_item['user_name'] = user_name
         connection_item['user_id'] = user_id
         connection_item['avatar_extra'] = avatar_extra
+        self.connection_register.reindex_multi_index('user')
+        
         for p in self.pages(connection_id=connection_id):
             p['user'] = user
+            
         if not self.connection_register.connections(olduser):
             self.drop_user(olduser)
+
 
     def refresh(self, page_id, last_user_ts=None,last_rpc_ts=None,pageProfilers=None):
         refresh_ts = datetime.now()
