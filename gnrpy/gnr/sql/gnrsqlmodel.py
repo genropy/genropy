@@ -230,12 +230,11 @@ class DbModel(object):
             case_insensitive = (mode == 'insensitive')
             foreignkey = (mode == 'foreignkey')
             many_relkey = '%s.%s.@%s' % (many_pkg, many_table, link_many_name)
-            many_table_attr = self.src.getAttr(f'packages.{many_pkg}.tables.{many_table}')
-            if not many_table_attr.get('multi_tenant'):
-                ignore_tenant_auto = True
-            if ignore_tenant is None:
-                ignore_tenant = ignore_tenant_auto
-            elif ignore_tenant is False:
+            many_table_obj = self.obj[many_pkg]['tables'][many_table]
+            one_table_obj = self.obj[one_pkg]['tables'][one_table]
+            if one_table_obj.multi_tenant and not many_table_obj.multi_tenant and mode=='foreignkey' and not ignore_tenant:
+                many_table_obj.attributes['multi_tenant'] = True
+            if ignore_tenant is False and many_table_obj.multi_tenant:
                 logger.warning(f"ignore_tenant cannot be False in {'.'.join(many_relation_tuple)}")
             if deferred is None and (onDelete=='setnull' or onDelete_sql=='setnull'):
                 deferred = True
@@ -996,6 +995,13 @@ class DbTableObj(DbModelObj):
         maintable = self.attributes.get('maintable')
         self._maintable = self.db.table(maintable) if maintable else None
         return self._maintable
+    
+    @property
+    def multi_tenant(self):
+        multi_tenant = self.attributes.get('multi_tenant',None)
+        if multi_tenant is None:
+            return self.pkg.attributes.get('multi_tenant')
+        return multi_tenant
         
     def _get_pkg(self):
         """property. Returns the SqlPackage that contains the current table"""
@@ -1021,10 +1027,8 @@ class DbTableObj(DbModelObj):
      
     def _get_sqlschema(self,ignore_tenant=None):
         """property. Returns the sqlschema"""
-        print('')
         schema = self._refsqltable.attributes.get('sqlschema', self._refsqltable.pkg.sqlschema)
-        return self.db.currentEnv.get('tenant_schema',schema) if (self._refsqltable.attributes.get('multi_tenant') and not ignore_tenant) else schema
-        
+        return (self.db.currentEnv.get('tenant_schema') or schema) if (self._refsqltable.multi_tenant and not ignore_tenant) else schema
     sqlschema = property(_get_sqlschema)
     
     def _get_sqlname(self):

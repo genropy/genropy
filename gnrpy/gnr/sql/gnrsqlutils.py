@@ -236,7 +236,7 @@ class SqlModelChecker(object):
         for tbl in pkg.tables.values():
             tableMainSchema = tbl.sqlschema
             schemas = [tableMainSchema]
-            if tbl.attributes.get('multi_tenant'):
+            if tbl.multi_tenant:
                 schemas.extend(self.tenantSchemas)
             for schema in schemas:
                 with self.db.tempEnv(tenant_schema=schema):
@@ -531,7 +531,7 @@ class SqlModelChecker(object):
         
     def _sqlTable(self, tbl):
         """Return the sql statement string that creates the new table"""
-        tablename = '%s.%s' % (tbl.sqlschema, tbl.sqlname)
+        tablename = tbl.sqlfullname #'%s.%s' % (tbl.sqlschema, tbl.sqlname)
         
         sqlfields = []
         for col in list(tbl.columns.values()):

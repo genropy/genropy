@@ -416,6 +416,10 @@ class SqlTable(GnrObject):
     @property
     def multidb(self):
         return self.attributes.get('multidb',None)
+    
+    @property
+    def multi_tenant(self):
+        return self.model.multi_tenant
 
     @property
     def draftField(self):
