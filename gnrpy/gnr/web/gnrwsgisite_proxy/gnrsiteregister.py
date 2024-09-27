@@ -53,6 +53,13 @@ class GnrDaemonException(Exception):
 class GnrDaemonLocked(GnrDaemonException):
     pass
 
+# cleanup times defaults
+DEFAULT_CLEANUP_INTERVAL = 120
+DEFAULT_PAGE_MAX_AGE = 120
+DEFAULT_GUEST_CONNECTION_MAX_AGE = 40
+DEFAULT_CONNECTION_MAX_AGE = 600
+
+
 BAG_INSTANCE = Bag()
 
 PYRO_HOST = 'localhost'
@@ -335,6 +342,7 @@ class BaseRegister(BaseRemoteObject):
     def offload_item(self, register_item_id):
         self.offloaded_items[register_item_id] = self.registerItems.pop(register_item_id, None)
 
+        
     def _charge_item(self, register_item_id):
         i = self.offloaded_items.pop(register_item_id, None)
         if i:
@@ -505,22 +513,22 @@ class ConnectionRegister(BaseRegister):
             if not keys and not _testing: # pragma: no cover
                 self.siteregister.drop_user(user)
 
-    def user_connection_keys(self,user):
+    def user_connection_keys(self, user):
         return [u['register_item_id'] for u in self._multi_indexes.get('user')[user]]
         #return [k for k,v in list(self.items()) if v['user'] == user]
 
-    def user_connection_items(self,user):
+    def user_connection_items(self, user):
         return [(i['register_item_id'], i) for i in self._multi_indexes.get('user')[user]]
         #return [(k,v) for k,v in list(self.items()) if v['user'] == user]
 
-    def connections(self,user=None,include_data=False):
+    def connections(self, user=None, include_data=False):
         # FIXME multi dict
         connections = self.values(include_data=include_data)
         if user:
             connections = [v for v in connections if v['user'] == user]
         return connections
 
-    # just a name remap for compat
+    # just a name remap for compat - FIXME
     user_connections = connections
 
 class PageRegister(BaseRegister):
@@ -769,15 +777,13 @@ class SiteRegister(BaseRemoteObject):
         for register in (self.page_register,self.connection_register,self.user_register):
             if table in register.cached_tables:
                 register.invalidateTableCache(table)
-
+    
     def setConfiguration(self,cleanup=None):
         cleanup = cleanup or dict()
-        # FIXME: with 'or', if I want to setup
-        # a value equal to 0, it will be reverted as default
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
-        self.page_max_age = int(cleanup.get('page_max_age') or 120)
-        self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age') or 40)
-        self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+        self.cleanup_interval = int(cleanup.get('interval', DEFAULT_CLEANUP_INTERVAL)) 
+        self.page_max_age = int(cleanup.get('page_max_age', DEFAULT_PAGE_MAX_AGE)) 
+        self.guest_connection_max_age = int(cleanup.get('guest_connection_max_age', DEFAULT_GUEST_CONNECTION_MAX_AGE))
+        self.connection_max_age = int(cleanup.get('connection_max_age', DEFAULT_CONNECTION_MAX_AGE))
 
     def new_connection(self,connection_id,connection_name=None,
                        user=None,user_id=None,
@@ -937,8 +943,8 @@ class SiteRegister(BaseRemoteObject):
                 self.drop_page(page['register_item_id'])
         dropped_connections = []
         for connection in self.connections():
-            last_refresh_ts = connection.get('last_refresh_ts') or  connection.get('start_ts')
-            connection_max_age = self.connection_max_age if not connection['user'].startswith('guest_') else  self.guest_connection_max_age
+            last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
+            connection_max_age = self.connection_max_age if not connection['user'].startswith('guest_') else self.guest_connection_max_age
             if (now - last_refresh_ts).seconds > connection_max_age:
                 dropped_connections.append(connection['register_item_id'])
                 self.drop_connection(connection['register_item_id'],cascade=True)
