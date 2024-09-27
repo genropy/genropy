@@ -217,9 +217,9 @@ class SqlModelChecker(object):
                 tablechanges = self._checkTable(tbl)
             else:
                 tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
-            if tablechanges:
-                self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                        changes='\n'.join([ch for ch in tablechanges if ch]))
+            #if tablechanges:
+            #    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+            #                            changes='\n'.join([ch for ch in tablechanges if ch]))
                                         
                     #views = node.value['views']
                     #if views:
@@ -245,10 +245,10 @@ class SqlModelChecker(object):
                         tablechanges = self._checkTable(tbl)
                     else:
                         tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
-                    if tablechanges:
-                        self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                                changes='\n'.join([ch for ch in tablechanges if ch]))
-                        
+                    #if tablechanges:
+                    #    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                    #                            changes='\n'.join([ch for ch in tablechanges if ch]))
+                    #    
     def _checkSqlSchema(self, obj):
         """If the package/table/view is defined in a new schema that's not in the actual_schemata
         the new schema is created and its name is appended to self.actual_schemata. Return the
@@ -257,7 +257,7 @@ class SqlModelChecker(object):
         if sqlschema and not (sqlschema in self.actual_schemata) and not (sqlschema == self.db.main_schema):
             change = self.db.adapter.createSchemaSql(sqlschema)
             self.changes.append(change)
-            self.bagChanges.setItem(obj.name, None, changes=change)
+            #self.bagChanges.setItem(obj.name, None, changes=change)
             self.actual_schemata.append(sqlschema)
             
     def _checkTable(self, tbl,schema=None):
@@ -326,8 +326,8 @@ class SqlModelChecker(object):
                     change = self._buildColumn(col)
                     self.changes.append(change)
                     tablechanges.append(change)
-                    self.bagChanges.setItem('%s.%s.columns.%s' % (tbl.pkg.name, tbl.name, col.name), None,
-                                            changes=change)
+                    #self.bagChanges.setItem('%s.%s.columns.%s' % (tbl.pkg.name, tbl.name, col.name), None,
+                    #                        changes=change)
                                             
         if tbl.indexes:
             for idx in list(tbl.indexes.values()):
@@ -337,8 +337,8 @@ class SqlModelChecker(object):
                     if change:
                         self.changes.append(change)
                         tablechanges.append(change)
-                        self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
-                                                changes=change)
+                       #self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
+                       #                        changes=change)
                                                 
                 if idx.sqlname[:63] in dbindexes:
                     pass
@@ -351,8 +351,8 @@ class SqlModelChecker(object):
                     if change:
                         self.changes.append(change)
                         tablechanges.append(change)
-                        self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
-                                                changes=change)
+                        #self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
+                        #                        changes=change)
         return tablechanges
         
     def _checkAllRelations(self):
@@ -401,30 +401,30 @@ class SqlModelChecker(object):
                     if existing:
                         change = self._dropForeignKey(m_pkg_sql, m_tbl_sql, m_fld_sql, actual_name=actual_rel[0])
                         self.changes.append(change)
-                        self.bagChanges.setItem(
-                                '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql))
-                                , None, changes=change)
-                        prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-                        self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                                changes='%s\n%s' % (prevchanges, change))
+                        #self.bagChanges.setItem(
+                        #        '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql))
+                        #        , None, changes=change)
+                        #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+                        #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                        #                        changes='%s\n%s' % (prevchanges, change))
                     change = self._buildForeignKey(o_pkg_sql, o_tbl_sql, o_fld_sql, m_pkg_sql, m_tbl_sql, m_fld_sql,
                                                    on_up, on_del, init_deferred)
                     self.changes.append(change)
-                    self.bagChanges.setItem(
-                            '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)),
-                            None, changes=change)
-                    prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-                    self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                            changes='%s\n%s' % (prevchanges, change))
+                    #self.bagChanges.setItem(
+                    #        '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)),
+                    #        None, changes=change)
+                    #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+                    #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                    #                        changes='%s\n%s' % (prevchanges, change))
         for remaining_relation in tbl_actual_rels:
             m_pkg_sql = remaining_relation[1]
             m_tbl_sql = remaining_relation[2]
             m_fld_sql = remaining_relation[3][0]
             change = self._dropForeignKey(m_pkg_sql, m_tbl_sql, m_fld_sql,actual_name=remaining_relation[0])
             self.changes.append(change)
-            self.bagChanges.setItem('%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)), None, changes=change)
-            prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-            self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None, changes='%s\n%s' % (prevchanges, change))
+            #self.bagChanges.setItem('%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)), None, changes=change)
+            #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+            #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None, changes='%s\n%s' % (prevchanges, change))
                     
     def _onStatementToSql(self, command):
         if not command: return None
@@ -474,13 +474,13 @@ class SqlModelChecker(object):
         change = self._sqlTable(tbl)
         self.changes.append(change)
         tablechanges.append(change)
-        self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None, changes=change)
+        #self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None, changes=change)
         
         changes, bagindexes = self._sqlTableIndexes(tbl)
         self.changes.extend(changes)
         tablechanges.extend(changes)
         
-        self.bagChanges['%s.%s.indexes' % (tbl.pkg.name, tbl.name)] = bagindexes
+        #self.bagChanges['%s.%s.indexes' % (tbl.pkg.name, tbl.name)] = bagindexes
         
         return tablechanges
         
