@@ -160,7 +160,7 @@ class DbModel(object):
         #bag sorgente pronta
         self.runOnBuildingCb()
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
-        for many_relation_tuple, relation in list(self._columnsWithRelations.items()):
+        for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
