@@ -494,9 +494,9 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
+    def contentEditor(self, pane, value=None,htmlpath=None,initialEditType='wysiwyg',**kwargs):
         pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg', **kwargs)
+                        initialEditType=initialEditType, **kwargs)
         
     @customizable    
     def contentData(self, pane, **kwargs):
