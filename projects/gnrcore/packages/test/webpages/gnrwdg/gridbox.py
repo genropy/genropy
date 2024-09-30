@@ -74,7 +74,8 @@ class GnrCustomWebPage(object):
     def test_4_gridboxLabledBox(self,pane):
         "Labels, rounded, border, background, padding attributes can be specified"
         bc = pane.borderContainer(height='500px')
-        fb = bc.contentPane(region='top').gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
+        top =  bc.contentPane(region='top')
+        fb =top.gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
         fb.textBox(value='^.columns',default='3',lbl='Columns')
         fb.filteringSelect(value='^.item_side',lbl='label Side',values='top,left,bottom,right')
         fb.textbox(value='^.item_border',lbl='Item border')
@@ -83,8 +84,7 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.item_box_c_padding',lbl='Content Padding')
         fb.textbox(value='^.item_fld_border',lbl='Field border')
         fb.textbox(value='^.item_fld_background',lbl='Field background')
-
-        gb = bc.contentPane(region='center').gridbox(columns='^#boxControllers.columns',gap='10px',margin='20px',
+        gb = top.formlet(columns='^#boxControllers.columns',gap='10px',margin='20px',
                                                      item_border='^#boxControllers.item_border',
                                                      item_side='^#boxControllers.item_side',
                                                      item_rounded='^#boxControllers.item_rounded',
@@ -100,9 +100,9 @@ class GnrCustomWebPage(object):
         gb.labledBox('Pr.Nascita').dbSelect(value='^.provincia_nascita',table='glbl.provincia',
                         hasDownArrow=True)
         gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
-
-        gb.textbox(value='^.email',lbl='Email',colspan=2)
-
+        gb.br()
+        gb.textbox(value='^.email',lbl='Email',colspan=2,hidden='^.privacy?=!#v')
+        bc.contentPane(region='center').div('ciaociao')
 
     def test_5_gridboxLabledBoxWithTH(self,pane):
         gb = pane.gridbox(height='600px',
