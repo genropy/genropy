@@ -1721,7 +1721,7 @@ class DbSubtableObj(DbModelObj):
         for k,v in condition_kw.items():
             if v not in ('*',None):
                 newk = 'subtable_condition_{k}'.format(k=k)
-                condition = re.sub("(:)(%s)(\\W|$)" %k,
+                condition = re.sub(r"(:)(%s)(\\W|$)" %k,
                                     lambda m: '%s%s%s'%(m.group(1),newk,m.group(3)), condition)
                 sqlparams[newk] = v
         return condition
