@@ -920,7 +920,7 @@ class GnrWhereTranslator(object):
     def op_wordstart(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Word start"
         value = value.replace('(', r'\(').replace(')', r'\)').replace('[', r'\[').replace(']', r'\]')
-        return self.unaccentTpl(tblobj,column,'~*',mask=r"'(^|\\W)' || :%s")  % (column, self.storeArgs(value, dtype, sqlArgs,parname=parname))
+        return self.unaccentTpl(tblobj,column,'~*',mask="'(^|\\W)' || :%s")  % (column, self.storeArgs(value, dtype, sqlArgs,parname=parname))
 
     def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
