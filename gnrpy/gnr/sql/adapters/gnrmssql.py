@@ -31,7 +31,7 @@ from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 #DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(Cursor):
     def __init__(self, *args, **kwargs):

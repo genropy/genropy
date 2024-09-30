@@ -32,7 +32,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 
 DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(CursorWrapper):
     def __init__(self, *args, **kwargs):
