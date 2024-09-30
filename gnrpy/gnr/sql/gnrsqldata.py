@@ -357,7 +357,7 @@ class SqlQueryCompiler(object):
         else:
             cnd = '%s.%s = %s.%s' % (self.db.adapter.adaptSqlName(alias), target_sqlcolumn, self.db.adapter.adaptSqlName(basealias), from_sqlcolumn)
         if parent:
-            COLRELFINDER.sub(lambda g:f'{parent}.'+g.group(0).replace('$',''),cnd)
+            cnd =COLRELFINDER.sub(lambda g:f'{parent}.'+g.group(0).replace('$',''),cnd)
         cnd = self.updateFieldDict(cnd, reldict=joindict)
         if joindict:
             for f in joindict.values():
