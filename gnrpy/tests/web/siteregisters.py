@@ -351,7 +351,7 @@ class TestPageRegister(object):
         self.obj.subscribeTable(self.test_page_id, table='mytable',
                                 subscribe=True)
         assert self.test_page_id in self.obj.subscribed_table_page_keys("mytable")
-        
+
         self.obj.subscribeTable(self.test_page_id, table='mytable',
                                 subscribe=False)
         assert self.test_page_id not in self.obj.subscribed_table_page_keys("mytable")
@@ -489,6 +489,12 @@ class TestPageRegister(object):
                                    )
         r = self.obj.get_item(self.test_page_id)
         assert "/path" in r['subscribed_paths']
+
+        self.obj.create(self.test_page_id, pagename = self.test_page_name,
+                        subscribed_tables="mytable")
+        r = self.obj.subscribed_table_page_items("mytable")
+        assert r[0][0] == self.test_page_id
+        assert "mytable" in r[0][1]['subscribed_tables']
         
 class TestConnectionRegister(object):
     def setup_class(cls):

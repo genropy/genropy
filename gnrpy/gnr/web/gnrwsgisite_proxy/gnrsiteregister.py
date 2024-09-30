@@ -522,17 +522,21 @@ class ConnectionRegister(BaseRegister):
         #return [(k,v) for k,v in list(self.items()) if v['user'] == user]
 
     def connections(self, user=None, include_data=False):
-        # FIXME multi dict
-        connections = self.values(include_data=include_data)
         if user:
-            connections = [v for v in connections if v['user'] == user]
+            connections = self._multi_indexes.get('user')[user]
+        else:
+            connections = self.values(include_data=include_data)
         return connections
+                           
+        # connections = self.values(include_data=include_data)
+        # if user:
+        #     connections = [v for v in connections if v['user'] == user]
+        # return connections
 
-    # just a name remap for compat - FIXME
-    user_connections = connections
 
 class PageRegister(BaseRegister):
-    multi_index_attrs = ['connection_id']
+    multi_index_attrs = ['connection_id', 'user']
+    _subscribed_table_index = defaultdict(list)
     
     def __init__(self,*args,**kwargs):
         super(PageRegister, self).__init__(*args,**kwargs)
@@ -552,7 +556,7 @@ class PageRegister(BaseRegister):
                 pagename=pagename,
                 connection_id=connection_id,
                 start_ts=start_ts,
-                subscribed_tables=subscribed_tables and {subscribed_table.split(",")} or set(),
+                subscribed_tables=subscribed_tables and {x for x in subscribed_tables.split(",")} or set(),
                 user=user,
                 user_ip=user_ip,
                 user_agent=user_agent,
@@ -560,9 +564,14 @@ class PageRegister(BaseRegister):
                 datachanges=list(),
                 subscribed_paths=set(),
                 register_name='page')
+        
         self.addRegisterItem(register_item,data=data)
+        
+        if subscribed_tables:
+            for x in subscribed_tables.split(","):
+                self._subscribed_table_index[x].append(register_item_id)
+                
         return register_item
-
 
     def drop(self,register_item_id=None,cascade=False, _testing=False):
         register_item = self.drop_item(register_item_id)
@@ -573,8 +582,12 @@ class PageRegister(BaseRegister):
             if not n and not _testing: # pragma: no cover
                 self.siteregister.drop_connection(connection_id)
 
+
     def filter_subscribed_tables(self, table_list: Iterable):
-        s = { v['subscribed_table'] for k, v in self.items() }
+        # FIXME: multidict
+        #s = { v['subscribed_table'] for k, v in self.items() }
+        # PROPOSAL
+        s = {x for x in self._subscribed_table_index.keys()}
         return list(s.intersection(table_list))
 
     def subscribed_table_page_keys(self,table):
@@ -583,15 +596,23 @@ class PageRegister(BaseRegister):
         requested table
         """
         # FIXME multidict
-        return [k for k,v in self.items() if table in v['subscribed_tables']]
+        #return [k for k,v in self.items() if table in v['subscribed_tables']]
 
+        # PROPOSAL
+        return self._subscribed_table_index.get(table, [])
+    
+        
     def subscribed_table_page_items(self,table):
         """
         Return a list ot tuples with page_id, page item
         subscribed to the requested table
         """
         # FIXME multidict
-        return [(k,v) for k,v in self.items() if table in v['subscribed_tables']]
+        #return [(k,v) for k,v in self.items() if table in v['subscribed_tables']]
+
+        # PROPOSAL
+        return [(k, self.get_item(k)) for k in self._subscribed_table_index.get(table, [])]
+        
 
     def subscribed_table_pages(self,table):
         """
@@ -599,7 +620,10 @@ class PageRegister(BaseRegister):
         to the requested table
         """
         # FIXME multidict
-        return [v for k,v in self.items() if table in v['subscribed_tables']]
+        #return [v for k,v in self.items() if table in v['subscribed_tables']]
+        
+        # PROPOSAL
+        return [self.get_item(x) for x in self._subscribed_table_index.get(table, [])]
 
     def connection_page_keys(self,connection_id):
         return [i['register_item_id'] for i in self._multi_indexes['connection_id'][connection_id]]
@@ -610,22 +634,37 @@ class PageRegister(BaseRegister):
         #return [(k,v) for k,v in self.items() if v['connection_id'] == connection_id]
 
     def connection_pages(self, connection_id):
-        return self.pages(connection_id=connection_id)
+        #return self.pages(connection_id=connection_id)
+        return self._multi_indexes['connection_id'][connection_id]
     
     def pages(self, connection_id=None,
               user=None, include_data=None,
               filters=None):
-        
-        pages = self.values(include_data=include_data)
-        if connection_id:
-            # FIXME multidict
-            pages = [v for v in pages if v['connection_id'] == connection_id]
-        if user:
-            # FIXME multidict
-            pages = [v for v in pages if v['user'] == user]
+
+        # FIXME: usi internal multdict
+        # pages = self.values(include_data=include_data)
+        # if connection_id:
+        #     pages = [v for v in pages if v['connection_id'] == connection_id]
+        # if user:
+        #     pages = [v for v in pages if v['user'] == user]
+
+        # PROPOSAL
+        pages = []
+        if connection_id and not user:
+            pages = [self.get_item(x['register_item_id'], include_data=include_data) for x in self._multi_indexes['connection_id'][connection_id]]
             
+        elif user and not connection_id:
+            pages = [self.get_item(x['register_item_id'], include_data=include_data) for x in self._multi_indexes['user'][user]]
+            
+        elif connection_id and user:
+            pages = [self.get_item(x['register_item_id'], include_data=include_data) for x in self._multi_indexes['connection_id'][connection_id]]
+            pages = list(filter(lambda x: x['user'] == user, pages))
+        else:
+            pages = self.values(include_data=include_data)
+
         if not filters or filters == '*':
             return pages
+        
         fltdict = dict()
         for flt in filters.split(' AND '):
             fltname, fltvalue = flt.split(':', 1)
@@ -672,14 +711,17 @@ class PageRegister(BaseRegister):
     def subscribeTable(self,page_id, table=None,
                        subscribe=False,
                        subscribeMode=None):
-
         # FIXME: subscribeMode parameter is not used, should be removed
+        
         subscribed_tables = self.get_item(page_id)['subscribed_tables']
         if subscribe:
             subscribed_tables.add(table)
+            self._subscribed_table_index[table].append(page_id)
         else:
             if table in subscribed_tables:
                 subscribed_tables.remove(table)
+                if page_id in self._subscribed_table_index[table]:
+                    self._subscribed_table_index[table].remove(page_id)
 
     def notifyDbEvents(self,dbeventsDict=None,origin_page_id=None,dbevent_reason=None):
         for table,dbevents in list(dbeventsDict.items()):
@@ -824,7 +866,7 @@ class SiteRegister(BaseRemoteObject):
         return self.connection_register.user_connection_items(user)
 
     def user_connections(self,user):
-        return self.connection_register.user_connections(user)
+        return self.connection_register.connections(user=user)
 
     def connection_page_keys(self,connection_id):
         return self.page_register.connection_page_keys(connection_id=connection_id)
