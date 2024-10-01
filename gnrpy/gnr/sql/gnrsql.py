@@ -483,7 +483,7 @@ class GnrSqlDb(GnrObject):
                 if not cursor:
                     if cursorname:
                         if cursorname == '*':
-                            cursorname = 'c%s' % re.sub(r'\W', '_', getUuid())
+                            cursorname = 'c%s' % re.sub('\W', '_', getUuid())
                         cursor = self.adapter.cursor(self.connection, cursorname)
                     else:
                         cursor = self.adapter.cursor(self.connection)
@@ -725,8 +725,8 @@ class GnrSqlDb(GnrObject):
     def notify(self, *args, **kwargs):
         """Database Notify
         
-        :param *args: TODO
-        :param **kwargs: TODO"""
+        :param \*args: TODO
+        :param \*\*kwargs: TODO"""
         self.adapter.notify(*args, **kwargs)
         
     def analyze(self):
@@ -919,7 +919,7 @@ class GnrSqlDb(GnrObject):
             for k,v in list(kwargs.items()):
                 newk = '%s_%s' %(prefix,k)
                 currentEnv[newk] = v
-                result = re.sub(r"(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), result)
+                result = re.sub("(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), result)
         return result
 
         
@@ -927,7 +927,7 @@ class GnrSqlDb(GnrObject):
         """TODO
         
         :param col: a table :ref:`column`"""
-        as_ = re.sub(r'\W', '_', col)
+        as_ = re.sub('\W', '_', col)
         if as_[0].isdigit(): as_ = '_' + as_
         return as_
             
