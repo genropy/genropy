@@ -251,7 +251,7 @@ class SqlQueryCompiler(object):
                     for k,v in list(sql_formula_var.items()):
                         newk = f'{prefix}_{self._currColKey}_{k}'
                         currentEnv[newk] = v
-                        sql_formula = re.sub(r"(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), sql_formula)
+                        sql_formula = re.sub("(:)(%s)(\\W|$)" %k,lambda m: '%senv_%s%s'%(m.group(1),newk,m.group(3)), sql_formula)
                 subColPars = {}
                 for key, value in list(subreldict.items()):
                     subColPars[key] = self.getFieldAlias(value, curr=curr, basealias=alias)
