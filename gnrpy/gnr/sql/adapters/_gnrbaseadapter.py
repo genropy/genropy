@@ -547,7 +547,7 @@ class SqlDbAdapter(object):
 
     def createSchemaSql(self, sqlschema):
         """Returns the sql command to create a new database schema"""
-        return 'CREATE SCHEMA %s;' % sqlschema
+        return 'CREATE SCHEMA %s;' % self.adaptSqlName(sqlschema)
 
     def createSchema(self, sqlschema):
         """Create a new database schema"""

@@ -231,9 +231,6 @@ class DbModel(object):
             foreignkey = (mode == 'foreignkey')
             many_relkey = '%s.%s.@%s' % (many_pkg, many_table, link_many_name)
             many_table_obj = self.obj[many_pkg]['tables'][many_table]
-            one_table_obj = self.obj[one_pkg]['tables'][one_table]
-            if one_table_obj.multi_tenant and not many_table_obj.multi_tenant and mode=='foreignkey' and not ignore_tenant:
-                many_table_obj.attributes['multi_tenant'] = True
             if ignore_tenant is False and many_table_obj.multi_tenant:
                 logger.warning(f"ignore_tenant cannot be False in {'.'.join(many_relation_tuple)}")
             if deferred is None and (onDelete=='setnull' or onDelete_sql=='setnull'):

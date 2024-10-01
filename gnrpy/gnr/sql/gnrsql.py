@@ -103,7 +103,7 @@ class GnrSqlDb(GnrObject):
     def __init__(self, implementation='sqlite', dbname='mydb',
                  host=None, user=None, password=None, port=None,
                  main_schema=None, debugger=None, application=None,
-                 read_only=None, fixed_schema=None,tenant_table=None,**kwargs):
+                 read_only=None, fixed_schema=None,**kwargs):
         """
         This is the constructor method of the GnrSqlDb class.
         
@@ -124,7 +124,6 @@ class GnrSqlDb(GnrObject):
         self.user = self.dbpar(user)
         self.password = self.dbpar(password)
         self.fixed_schema = self.dbpar(fixed_schema)
-        self.tenant_table = self.dbpar(tenant_table)
         self.read_only = read_only
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
@@ -161,6 +160,16 @@ class GnrSqlDb(GnrObject):
     def dbstores(self):
         """TODO"""
         return self.stores_handler.dbstores
+    
+    @property
+    def tenant_table(self):
+        if hasattr(self,'_tenant_table'):
+            return self._tenant_table
+        tenant_table = None
+        for pkg in self.packages.values():
+            tenant_table = pkg.attributes.get('tenant_table') or tenant_table
+        self._tenant_table = tenant_table
+        return self._tenant_table
         
     @property
     def reuse_relation_tree(self):

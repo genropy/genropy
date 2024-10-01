@@ -9,7 +9,7 @@
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
-
+from psycopg2.errors import UndefinedTable
 class ModelExtractor(object):
     """TODO"""
     def __init__(self, dbroot):
@@ -131,10 +131,13 @@ class SqlModelChecker(object):
             return []
         if hasattr(self,'_tenantSchemas'):
             return self._tenantSchemas
-        tblobj = self.db.table(self.tenant_table)
-        f = tblobj.query(ignorePartition=True,subtable='*',
-                        where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
-        self._tenantSchemas = [r['tenant_schema'] for r in f]
+        try:
+            tblobj = self.db.table(self.tenant_table)
+            f = tblobj.query(ignorePartition=True,subtable='*',
+                            where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
+            self._tenantSchemas = [r['tenant_schema'] for r in f]
+        except UndefinedTable:
+            self._tenantSchemas = []
         return self._tenantSchemas
         
     def checkDb(self,enableForeignKeys=None):
@@ -244,7 +247,7 @@ class SqlModelChecker(object):
                     if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
                         tablechanges = self._checkTable(tbl)
                     else:
-                        tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
+                        tablechanges = self._buildTable(tbl,schema_code=schema)#Create sql commands to BUILD the missing table
                     #if tablechanges:
                     #    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
                     #                            changes='\n'.join([ch for ch in tablechanges if ch]))
@@ -466,7 +469,7 @@ class SqlModelChecker(object):
         
         return o_pkg_sql, o_tbl_sql, o_fld_sql, m_pkg_sql, m_tbl_sql, m_fld_sql
         
-    def _buildTable(self, tbl):
+    def _buildTable(self, tbl,schema_code=None):
         """Prepare the sql statement list for adding the new table and its indexes.
         Return the statement.
         """
@@ -474,6 +477,11 @@ class SqlModelChecker(object):
         change = self._sqlTable(tbl)
         self.changes.append(change)
         tablechanges.append(change)
+        if schema_code and schema_code!=tbl.pkg and tbl.attributes.get('multi_tenant'):
+            change_d =f"""ALTER TABLE {tbl.sqlfullname}
+                        ALTER COLUMN _tenant_schema SET DEFAULT '{schema_code}';"""
+            self.changes.append(change_d)
+            tablechanges.append(change_d)
         #self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None, changes=change)
         
         changes, bagindexes = self._sqlTableIndexes(tbl)
