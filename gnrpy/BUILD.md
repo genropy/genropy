@@ -75,7 +75,19 @@ with ```<VERSION>``` being the new version you've choosen. If there
 are no other builded package in the dist directory, you can rely on
 shell globbing, but you better not to.
 
+## Creating an updated release notes
 
+Using GPT it can analyze and create a nice release notes, given the
+full diff git log between the release tags, which can be obtained
+using something like:
 
+```git log --full-diff -p HEAD...release.X.Y.Z > /tmp/release-notes.txt```
+
+and uploading the output file ```/tmp/release-notes.txt``` attach to this example prompt (YMMV):
+
+```
+I will tatach a git full-diff log, please write the release notes in
+RST format for all the changes described in the log. 
+```
 
 
