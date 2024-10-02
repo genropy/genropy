@@ -18,6 +18,7 @@ class Main(BaseResourceAction):
     batch_cancellable = False
     batch_delay = 0.5
     batch_immediate = True
+    batch_hidden_transaction = False
     
     def do(self):
         values = self.batch_parameters.get('values')
