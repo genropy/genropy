@@ -1,3 +1,12 @@
+Version 24.10.2
+===============
+
+Bug Fixes
+---------
+
+* Reverted recent warning suppression commit which introduced a regression
+  in formuleColumns
+  
 Version 24.10.1
 ===============
 
