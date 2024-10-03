@@ -580,7 +580,9 @@ class SqlModelChecker(object):
         return self.db.adapter.columnSqlDefinition(sqlname=col.sqlname,
                                                    dtype=col.dtype, size=col.getAttr('size'),
                                                    notnull=col.getAttr('notnull', False),
-                                                   pkey=(col.name == col.table.pkey),unique=col.getAttr('unique'))
+                                                   pkey=(col.name == col.table.pkey),
+                                                    unique=col.getAttr('unique'),
+                                                    extra_sql=col.getAttr('extra_sql'))
 
     def changeRelations(self,table,column,old_colname):
         tblobj = self.db.table(table)

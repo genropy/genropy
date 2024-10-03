@@ -559,13 +559,13 @@ class DbModelSrc(GnrStructData):
 
 
     
-    @extract_kwargs(variant=dict(slice_prefix=False)) 
+    @extract_kwargs(variant=dict(slice_prefix=False),ext=True) 
     def column(self, name, dtype=None, size=None,
                default=None, notnull=None, unique=None, indexed=None,
                sqlname=None, comment=None,
                name_short=None, name_long=None, name_full=None,
                group=None, onInserting=None, onUpdating=None, onDeleting=None,
-               variant=None,variant_kwargs=None,**kwargs):
+               variant=None,variant_kwargs=None,ext_kwargs=None,**kwargs):
         """Insert a :ref:`column` into a :ref:`table`
         
         :param name: the column name. You can specify both the name and the :ref:`datatype`
@@ -592,12 +592,27 @@ class DbModelSrc(GnrStructData):
         if not 'columns' in self:
             self.child('column_list', 'columns')
         kwargs.update(variant_kwargs)
-        return self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
+        kwargs.update(ext_kwargs)
+        result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
+        if ext_kwargs:
+            for k,v in ext_kwargs.items():
+                handler = getattr(self,f'colext_{k}',None)
+                if handler:
+                    if not isinstance(v,dict):
+                        v = {k:v}
+                    handler(colname=name,colattr=result.attributes,**v)
+        return result
+
+    def colext_tsvector(self,colname=None,colattr=None,tsvector=None,language=None,**kwargs):
+        if tsvector is not True:
+            language = tsvector
+        #full_text_tsv tsvector GENERATED ALWAY
+        self.child('column',f'columns.{colname}_tsv',dtype='TSV',extra_sql=f"GENERATED ALWAYS AS (to_tsvector('{language}', {colname})) STORED",**kwargs)
     
     @extract_kwargs(variant=dict(slice_prefix=True))
     def virtual_column(self, name, relation_path=None, sql_formula=None,

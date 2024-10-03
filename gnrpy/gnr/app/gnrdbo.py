@@ -1473,6 +1473,8 @@ class AttachmentTable(GnrDboTable):
         tbl.column('description' ,name_long='!![en]Description')
         tbl.column('mimetype' ,name_long='!![en]Mimetype')
         tbl.column('text_content',name_long='!![en]Content')
+        #tbl.column('text_language',name_long='!![en]Text language')
+
         tbl.column('info' ,'X',name_long='!![en]Additional info')
         tbl.column('is_foreign_document','B',
                     name_long='!![en][Is foreign document]',
