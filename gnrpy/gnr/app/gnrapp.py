@@ -825,7 +825,7 @@ class GnrApp(object):
             if missing:
                 log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                log.error(f"ERROR: wrong dependecies:")
+                log.error(f"ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     log.error(f"{requested} is requested, but {installed} found")
             
