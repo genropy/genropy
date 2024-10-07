@@ -1920,11 +1920,12 @@ class SqlTable(GnrObject):
     def _doFieldTriggers(self, triggerEvent, record,**kwargs):
         trgFields = self.model._fieldTriggers.get(triggerEvent)
         if trgFields:
-            for fldname, trgFunc in trgFields:
+            for fldname, trgFunc,trigger_table in trgFields:
                 if callable(trgFunc):
                     trgFunc(record, fldname)
                 else:
-                    getattr(self, 'trigger_%s' % trgFunc)(record, fldname=fldname,**kwargs)
+                    ttable = self if not trigger_table else self.db.table(trigger_table)
+                    getattr(ttable, 'trigger_%s' % trgFunc)(record, fldname=fldname,tblname=self.fullname,**kwargs)
                 
     def _doExternalPkgTriggers(self, triggerEvent, record,**kwargs):
         if not self.db.application:
@@ -1934,7 +1935,6 @@ class SqlTable(GnrObject):
             avoid_trigger_par = self.db.currentEnv.get('avoid_trigger_%s' %pkg_id)
             if avoid_trigger_par:
                 if avoid_trigger_par=='*' or triggerEvent in avoid_trigger_par.split(','):
-                    print('avoiding trigger',triggerEvent)
                     continue
             trgFunc = getattr(self, trigger_name, None)
             if callable(trgFunc):

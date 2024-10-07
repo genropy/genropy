@@ -1457,7 +1457,7 @@ class AttachmentTable(GnrDboTable):
         model = self.db.model
         mastertbl =  model.src['packages.%s.tables.%s' %(pkgname,mastertblname)]
         mastertbl.attributes['atc_attachmenttable'] = '%s.%s' %(pkgname,tblname)
-        mastertbl_name_long = mastertbl.attributes.get('name_long')        
+        mastertbl_name_long = mastertbl.attributes.get('name_long')                
         tbl.attributes.setdefault('caption_field','description')
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
@@ -1467,8 +1467,11 @@ class AttachmentTable(GnrDboTable):
         #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
-                    onInserted='convertDocFile',
+                    onInserted='onInsertedAtc',
                     onInserting='checkExternalUrl')
+        tbl.column('filepath_hash', name_long='MD5 hash')
+        tbl.column('filepath_original_name', name_long='!![en]Original name')
+
         tbl.column('external_url', name_long='!![en]External url')
         tbl.column('description' ,name_long='!![en]Description')
         tbl.column('mimetype' ,name_long='!![en]Mimetype')
@@ -1508,7 +1511,6 @@ class AttachmentTable(GnrDboTable):
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
         return not sn.exists
-    
     
 
     def onArchiveExport(self,records,files=None):
@@ -1639,7 +1641,7 @@ class AttachmentTable(GnrDboTable):
         if not record.get('description') and 'external_url' in record:
             record['description'] = record['external_url']
 
-    def trigger_convertDocFile(self,record,**kwargs):
+    def trigger_onInsertedAtc(self,record,**kwargs):
         if not record.get('filepath') or \
             record.get('is_foreign_document'):
             return

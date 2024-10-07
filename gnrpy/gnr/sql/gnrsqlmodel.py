@@ -601,10 +601,13 @@ class DbModelSrc(GnrStructData):
                           variant=variant,**kwargs)
         if ext_kwargs:
             for k,v in ext_kwargs.items():
+                if not isinstance(v,dict):
+                    v = {k:v}
+                if k in self.root._dbmodel.db.application.packages:
+                    self.root._dbmodel.db.application.packages[k].configColumn(self,colname=name,colattr=result.attributes,**v)
+                    return result
                 handler = getattr(self,f'colext_{k}',None)
                 if handler:
-                    if not isinstance(v,dict):
-                        v = {k:v}
                     handler(colname=name,colattr=result.attributes,**v)
         return result
 
@@ -1658,11 +1661,11 @@ class DbColumnObj(DbBaseColumnObj):
         unique = boolean(self.attributes.get('unique'))
         if indexed or unique:
             self.table._indexedColumn[self.name] = {'columns': self.name, 'unique': unique}
-            
+        trigger_table = self.attributes.get('trigger_table')
         for trigType in ('onInserting', 'onUpdating', 'onDeleting','onInserted', 'onUpdated', 'onDeleted'):
             trigFunc = self.attributes.get(trigType)
             if trigFunc:
-                self.table._fieldTriggers.setdefault(trigType, []).append((self.name, trigFunc))
+                self.table._fieldTriggers.setdefault(trigType, []).append((self.name, trigFunc,trigger_table))
                     
     def relatedTable(self):
         """Get the SqlTable that is related by the current column"""

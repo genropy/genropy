@@ -18,13 +18,16 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from re import M
+
+import hashlib
+import os
+
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrstring import slugify
-import os
+
 
 
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
@@ -554,11 +557,17 @@ class AttachManager(BaseComponent):
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
 
+    def _handleFileHash(kwargs):
+        file_handle = kwargs.get('file_handle')
+        kwargs['filename_original_name'] = os.path.basename(file_handle.filename)
+        kwargs['filename_hash'] = hashlib.md5(file_handle.stream.read()).hexdigest()
+
     @public_method
     def onUploadingAttachment(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
+        self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
         uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
@@ -590,6 +599,7 @@ class AttachManager(BaseComponent):
         pkey = kwargs.get('pkey')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
+        self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname
