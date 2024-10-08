@@ -557,10 +557,11 @@ class AttachManager(BaseComponent):
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
 
-    def _handleFileHash(kwargs):
+    def _handleFileHash(self,kwargs):
         file_handle = kwargs.get('file_handle')
-        kwargs['filename_original_name'] = os.path.basename(file_handle.filename)
-        kwargs['filename_hash'] = hashlib.md5(file_handle.stream.read()).hexdigest()
+        kwargs['filepath_original_name'] = os.path.basename(file_handle.filename)
+        kwargs['filepath_hash'] = hashlib.md5(file_handle.stream.read()).hexdigest()
+        file_handle.stream.seek(0)
 
     @public_method
     def onUploadingAttachment(self,kwargs):

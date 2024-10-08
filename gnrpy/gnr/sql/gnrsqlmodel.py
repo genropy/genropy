@@ -601,21 +601,20 @@ class DbModelSrc(GnrStructData):
                           variant=variant,**kwargs)
         if ext_kwargs:
             for k,v in ext_kwargs.items():
+                pkg = [p for p in self.root._dbmodel.db.application.packages.keys() if k.startswith(p)]
+                if not pkg:
+                    continue
+                pkg = pkg[0]
+                command = k[len(pkg)+1:]
                 if not isinstance(v,dict):
-                    v = {k:v}
-                if k in self.root._dbmodel.db.application.packages:
-                    self.root._dbmodel.db.application.packages[k].configColumn(self,colname=name,colattr=result.attributes,**v)
-                    return result
-                handler = getattr(self,f'colext_{k}',None)
+                    v = {(command or pkg):v}
+                handlername = f'configColumn_{command}' if command else 'configColumn'
+                handler = getattr(self.root._dbmodel.db.application.packages[pkg],handlername,None)
                 if handler:
-                    handler(colname=name,colattr=result.attributes,**v)
+                    handler(self,colname=name,colattr=result.attributes,**v)
+                    return result
         return result
 
-    def colext_tsvector(self,colname=None,colattr=None,tsvector=None,language=None,**kwargs):
-        if tsvector is not True:
-            language = tsvector
-        #full_text_tsv tsvector GENERATED ALWAY
-        self.child('column',f'columns.{colname}_tsv',dtype='TSV',extra_sql=f"GENERATED ALWAYS AS (to_tsvector('{language}', {colname})) STORED",**kwargs)
     
     @extract_kwargs(variant=dict(slice_prefix=True))
     def virtual_column(self, name, relation_path=None, sql_formula=None,
