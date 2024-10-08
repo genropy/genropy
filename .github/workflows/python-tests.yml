@@ -11,7 +11,6 @@ jobs:
       fail-fast: true
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
-    container: node:20-bookwork-slim
     services:
       postgres:
         image: postgres
@@ -25,6 +24,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5
           --health-retries 5
+        ports:
+          - 5432:5432
             
     steps:
     - uses: actions/checkout@v4
