@@ -19,8 +19,8 @@ class BaseGnrSqlTest:
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
         cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
-        if "CI" in os.environ:
-            # we are running inside the bitbucket CI
+        if "GITHUB_WORKFLOW" in os.environ:
+            # we are running inside the Github CI
             cls.pg_conf = dict(host="127.0.0.1",
                                port="5432",
                                user="postgres",
