@@ -552,9 +552,3 @@ class SqlModelChecker(object):
                         db.rollback()
 
                                                    
-if __name__ == '__main__':
-    db = GnrSqlDb(implementation='postgres', dbname='pforce',
-                  host='localhost', user='postgres', password='postgres',
-                  main_schema=None)
-    db.importModelFromDb()
-    db.saveModel('/Users/fporcari/Desktop/testmodel', 'py') 
