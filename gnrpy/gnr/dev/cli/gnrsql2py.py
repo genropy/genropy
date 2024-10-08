@@ -89,7 +89,7 @@ def main():
         
         package_maker = PackageMaker(package, sqlprefix='', base_path = base_path)
         print(dir(package_maker))
-        print(f'Creating package {package} in {package_make.package_path}')
+        print(f'Creating package {package} in {package_maker.package_path}')
         package_maker.do()
         print(f'Package {package} done')
         print(f'Creating model files {package_maker.model_path}')
