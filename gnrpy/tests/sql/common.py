@@ -34,7 +34,7 @@ class BaseGnrSqlTest:
         """
         Teardown testing enviroment
         """
-        if not "CI" in os.environ:
+        if not "GITHUB_WORKFLOW" in os.environ:
             cls.pg_instance.stop()
 
 
