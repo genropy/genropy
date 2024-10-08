@@ -117,9 +117,9 @@ gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
 
 [project.urls]  
 "Homepage" = "https://www.genropy.org/"
-"Bug Reports" = "https://bitbucket.org/genropy/"
-"Source" = "https://bitbucket.org/genropy/"
-"ChangeLog" = "https://bitbucket.org/genropy/genropy/src/master/gnrpy/RELEASE_NOTES.rst"
+"Bug Reports" = "https://github.com/genropy/genropy/issues"
+"Source" = "https://github.com/genropy/genropy"
+"ChangeLog" = "https://github.com/genropy/genropy/blob/master/gnrpy/RELEASE_NOTES.rst"
 
 [tool.setuptools.dynamic]
 version = {attr = "gnr.VERSION"}
