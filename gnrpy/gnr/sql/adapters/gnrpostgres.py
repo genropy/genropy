@@ -74,6 +74,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'real': 'R',
                 'bytea': 'O',
                 'tsvector':'TSV',
+                'vector':'VEC',
                 'jsonb':'jsonb'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
@@ -85,7 +86,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'DHZ': 'timestamp with time zone',
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea','jsonb':'jsonb',
-                    'TSV':'tsvector'}
+                    'TSV':'tsvector','VEC':'vector'}
 
     _lock = threading.Lock()
     paramstyle = 'pyformat'
