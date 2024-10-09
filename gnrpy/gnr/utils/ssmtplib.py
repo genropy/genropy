@@ -29,6 +29,7 @@ from __future__ import print_function
 #
 # This is just a minor modification to the smtplib code by Dragon De Monsyn.
 import smtplib, socket
+from sys import stderr
 
 __version__ = "1.00"
 

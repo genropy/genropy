@@ -107,15 +107,17 @@ class ModelExtractor(object):
                 print('missing field %s in table %s.%s' %(many_field,many_schema,many_table))
             else:
                 fld.relation('%s.%s.%s' % (one_schema, one_table, one_field))
-            
-    def buildViews(self):
-        """TODO"""
-        elements = self.dbroot.adapter.listElements('views', schema=self.schema)
-        children = Bag(self.children)
-        for element in elements:
-            if not element in children:
-                children.setItem(element, None, tag='view')
-        return SqlTableList(parent=self.structparent, name=self.name, attrs=self.attrs, children=children)
+
+    # FIXME: temporarily disabled due to non-existing SqlTableList
+    # PLEASE DO NOT DELETE: MB wants to re-introduce the feature
+    # def buildViews(self):
+    #     """TODO"""
+    #     elements = self.dbroot.adapter.listElements('views', schema=self.schema)
+    #     children = Bag(self.children)
+    #     for element in elements:
+    #         if not element in children:
+    #             children.setItem(element, None, tag='view')
+    #     return SqlTableList(parent=self.structparent, name=self.name, attrs=self.attrs, children=children)
             
 class SqlModelChecker(object):
     """Keep a database aligned with its logical structure in the GnrSqlDb.
@@ -603,9 +605,3 @@ class SqlModelChecker(object):
                         db.rollback()
 
                                                    
-if __name__ == '__main__':
-    db = GnrSqlDb(implementation='postgres', dbname='pforce',
-                  host='localhost', user='postgres', password='postgres',
-                  main_schema=None)
-    db.importModelFromDb()
-    db.saveModel('/Users/fporcari/Desktop/testmodel', 'py') 
