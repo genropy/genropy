@@ -183,7 +183,7 @@ class DbModel(object):
     def addRelation(self, many_relation_tuple, oneColumn, mode=None,storename=None, one_one=None, onDelete=None, onDelete_sql=None,
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
                     one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,ignore_tenant=None,
-                    external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None):
+                    external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None,**kwargs):
         """Add a relation in the current model.
         
         :param many_relation_tuple: tuple. The column of the "many table". e.g: ('video','movie','director_id')
@@ -559,13 +559,13 @@ class DbModelSrc(GnrStructData):
 
 
     
-    @extract_kwargs(variant=dict(slice_prefix=False)) 
+    @extract_kwargs(variant=dict(slice_prefix=False),ext=True) 
     def column(self, name, dtype=None, size=None,
                default=None, notnull=None, unique=None, indexed=None,
                sqlname=None, comment=None,
                name_short=None, name_long=None, name_full=None,
                group=None, onInserting=None, onUpdating=None, onDeleting=None,
-               variant=None,variant_kwargs=None,**kwargs):
+               variant=None,variant_kwargs=None,ext_kwargs=None,**kwargs):
         """Insert a :ref:`column` into a :ref:`table`
         
         :param name: the column name. You can specify both the name and the :ref:`datatype`
@@ -592,12 +592,29 @@ class DbModelSrc(GnrStructData):
         if not 'columns' in self:
             self.child('column_list', 'columns')
         kwargs.update(variant_kwargs)
-        return self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
+        kwargs.update(ext_kwargs)
+        result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
+        if ext_kwargs:
+            for k,v in ext_kwargs.items():
+                pkg = [p for p in self.root._dbmodel.db.application.packages.keys() if k.startswith(p)]
+                if not pkg:
+                    continue
+                pkg = pkg[0]
+                command = k[len(pkg)+1:]
+                if not isinstance(v,dict):
+                    v = {(command or pkg):v}
+                handlername = f'configColumn_{command}' if command else 'configColumn'
+                handler = getattr(self.root._dbmodel.db.application.packages[pkg],handlername,None)
+                if handler:
+                    handler(self,colname=name,colattr=result.attributes,**v)
+                    return result
+        return result
+
     
     @extract_kwargs(variant=dict(slice_prefix=True))
     def virtual_column(self, name, relation_path=None, sql_formula=None,
@@ -1643,11 +1660,11 @@ class DbColumnObj(DbBaseColumnObj):
         unique = boolean(self.attributes.get('unique'))
         if indexed or unique:
             self.table._indexedColumn[self.name] = {'columns': self.name, 'unique': unique}
-            
+        trigger_table = self.attributes.get('trigger_table')
         for trigType in ('onInserting', 'onUpdating', 'onDeleting','onInserted', 'onUpdated', 'onDeleted'):
             trigFunc = self.attributes.get(trigType)
             if trigFunc:
-                self.table._fieldTriggers.setdefault(trigType, []).append((self.name, trigFunc))
+                self.table._fieldTriggers.setdefault(trigType, []).append((self.name, trigFunc,trigger_table))
                     
     def relatedTable(self):
         """Get the SqlTable that is related by the current column"""

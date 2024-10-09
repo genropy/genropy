@@ -443,7 +443,7 @@ def test_TimeInterval():
     r = gnrdate.TimeInterval(start=i)
     assert str(r) == str(i)
     assert i == r
-    assert i is not "hello there"
+    assert i != "hello there"
 
     t1 = gnrdate.TimeInterval("10:30-10:35")
     assert t1 < "10:40-10:50"

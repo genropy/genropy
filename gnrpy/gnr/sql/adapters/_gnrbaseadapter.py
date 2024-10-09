@@ -590,7 +590,7 @@ class SqlDbAdapter(object):
             command = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
         self.dbroot.execute(command % (sqltable,sqlname))
 
-    def columnSqlDefinition(self, sqlname, dtype, size, notnull, pkey, unique):
+    def columnSqlDefinition(self, sqlname, dtype, size, notnull, pkey, unique,extra_sql=None):
         """Return the statement string for creating a table's column
         """
         sql = '"%s" %s' % (sqlname, self.columnSqlType(dtype, size))
@@ -600,7 +600,7 @@ class SqlDbAdapter(object):
             sql = sql + ' PRIMARY KEY'
         if unique:
             sql = sql + ' UNIQUE'
-        return sql
+        return f"{sql} {extra_sql or ''}"
 
     def columnSqlType(self, dtype, size=None):
         if dtype != 'N' and size:

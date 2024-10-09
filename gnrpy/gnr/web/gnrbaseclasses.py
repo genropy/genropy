@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -71,63 +71,6 @@ def page_mixin(func):
         
     return decore
 
-def zzzcomponent_hook(func_or_name):
-    """A decorator. Allow to register a new method (in a page or in a component)
-    that will be available in the web structs::
-        
-        @struct_method
-        def includedViewBox(self, bc, ...):
-            pass
-            
-        def somewhereElse(self, bc):
-            bc.includedViewBox(...)
-            
-    If the method name includes an underscore, only the part that follows the first
-    underscore will be the struct method's name::
-        
-        @struct_method
-        def iv_foo(self, bc, ...):
-            pass
-            
-        def somewhereElse(self, bc):
-            bc.foo(...)
-            
-    You can also pass a name explicitly::
-        
-        @struct_method('bar')
-        def foo(self, bc, ...):
-            pass
-            
-        def somewhereElse(self, bc):
-            bc.bar(...)"""
-            
-    def register(name, func):
-        """TODO
-        
-        :param func:"""
-        func_name = func.__name__
-        existing_name = GnrDomSrc._external_methods.get(name, None)
-        if existing_name and (existing_name != func_name):
-            # If you want to override a struct_method, be sure to call its implementation method in the same way as the original.
-            # (Otherwise, the result would NOT  be well defined due to uncertainty in the mixin process at runtime plus the fact that the GnrDomSrc is global)
-            raise StructMethodError(
-                    "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
-        GnrDomSrc._external_methods[name] = func_name
-        
-    if isinstance(func_or_name, str):
-        name = func_or_name
-        
-        def decorate(func):
-            register(name, func)
-            return func
-            
-        return decorate
-    else:
-        name = func_or_name.__name__
-        if '_' in name:
-            name = name.split('_', 1)[1]
-        register(name, func_or_name)
-        return func_or_name
         
 class BaseComponent(object):
     """The base class for the :ref:`components`"""
