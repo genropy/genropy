@@ -183,7 +183,8 @@ class DbModel(object):
     def addRelation(self, many_relation_tuple, oneColumn, mode=None,storename=None, one_one=None, onDelete=None, onDelete_sql=None,
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
                     one_name=None, many_name=None, one_group=None, many_group=None, many_order_by=None,storefield=None,
-                    external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None):
+                    external_relation=None,resolver_kwargs=None,inheritProtect=None,inheritLock=None,meta_kwargs=None,onDuplicate=None,
+                    **kwargs):
         """Add a relation in the current model.
         
         :param many_relation_tuple: tuple. The column of the "many table". e.g: ('video','movie','director_id')
