@@ -288,13 +288,16 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
                 ...editor_attrs
             });
         }
-
-        editor_attrs.removeToolbarItems?.forEach(function(item) {
-            editor.removeToolbarItem(item);
-        });
-        editor_attrs.insertToolbarItems?.forEach(function(item) {
+        if(editor_attrs.removeToolbarItems){
+            editor_attrs.removeToolbarItems.forEach(function(item) {
+                editor.removeToolbarItem(item);
+            });
+        }
+        if(editor_attrs.insertToolbarItems){
+            editor_attrs.insertToolbarItems.forEach(function(item) {
                 editor.insertToolbarItem(item)
-        });
+            });
+        }
         this.setExternalWidget(sourceNode,editor);
         editor.addHook('keydown',function(){
             genro.callAfter(function(){

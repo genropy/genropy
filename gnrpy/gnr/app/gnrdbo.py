@@ -1269,7 +1269,7 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
-                self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+                self.db.table('adm.counter').releaseCounter(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
         "Inside dbo"
@@ -1279,8 +1279,15 @@ class TableBase(object):
             for field in self.counterColumns():
                 self.assignCounterColumn(field=field,record=record)
 
+    def releaseCounterColumn(self,field=None,record=None):
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+
     def assignCounterColumn(self,field=None,record=None):
-        self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
