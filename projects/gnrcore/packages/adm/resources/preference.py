@@ -50,7 +50,7 @@ class AppPref(object):
         fb = pane.formbuilder(cols=1)
         fb.textbox(value='^.url',lbl='!![en]Url',width='40em')
         fb.textbox(value='^.user',lbl='!![en]User',width='20em')
-        fb.textbox(value='^.password',lbl='!![en]Password',width='15em',type='password')
+        fb.passwordTextBox(value='^.password',lbl='!![en]Password',width='15em')
         fb.textbox(value='^.client_reference',lbl='!![en]Client reference')
         fb.textbox(value='^.documentation_url',lbl='!![en]Documentation url',width='40em')
         
@@ -96,7 +96,7 @@ class UserPref(object):
         fb.textbox(value='^.smtp_host', lbl='!![en]SMTP Host', dtype='T',disabled='^.email_account_id')
         fb.textbox(value='^.from_address', lbl='!![en]From address', dtype='T',disabled='^.email_account_id')
         fb.textbox(value='^.user', lbl='!![en]Username', dtype='T',disabled='^.email_account_id')
-        fb.textbox(value='^.password', lbl='!![en]Password', disabled='^.email_account_id', type='password')
+        fb.passwordTextBox(value='^.password', lbl='!![en]Password', disabled='^.email_account_id')
         fb.textbox(value='^.port', lbl='Port', disabled='^.email_account_id')
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', disabled='^.email_account_id')
