@@ -60,7 +60,7 @@ class Form(BaseComponent):
         fb.field('tls')
         fb.field('ssl')
         fb.field('username')
-        fb.field('password', type='password')
+        fb.field('password', tag='passwordTextBox')
         fb.field('last_uid')
         fb.field('schedulable')
 
@@ -80,7 +80,7 @@ class Form(BaseComponent):
         fb.field('smtp_host')
         fb.field('smtp_from_address')
         fb.field('smtp_username')
-        fb.field('smtp_password',type='password')
+        fb.field('smtp_password',tag='passwordTextBox')
         fb.field('smtp_port')
         fb.field('smtp_timeout')
         fb.field('smtp_tls')

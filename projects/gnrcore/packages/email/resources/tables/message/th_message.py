@@ -143,7 +143,6 @@ class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
 
     def attemptStruct(self,struct ):
-
         r = struct.view().rows()
         r.cell('tag',name='Tag', width='7em')
         r.cell('ts',name='Ts')
