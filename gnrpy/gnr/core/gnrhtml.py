@@ -6,6 +6,8 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
+from weasyprint import HTML
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrstructures import GnrStructData
@@ -535,7 +537,6 @@ class GnrHtmlBuilder(object):
         return txt
 
     def toPdf(self,filename,**kwargs):
-        from weasyprint import HTML
         html_doc = HTML(string=self.html)
         html_doc.write_pdf(target=filename)
             

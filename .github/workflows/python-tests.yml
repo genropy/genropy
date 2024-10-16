@@ -1,8 +1,6 @@
 name: Code testing (python)
 
-on:
-  push:
-    branches: [ "develop" ]
+on: [push, pull-request]
 
 jobs:
   build:
