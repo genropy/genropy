@@ -1,6 +1,6 @@
 name: Code testing (python)
 
-on: [push, pull-request]
+on: [push]
 
 jobs:
   build:
