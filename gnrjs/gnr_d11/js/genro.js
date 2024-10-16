@@ -348,8 +348,10 @@ dojo.declare('gnr.GenroClient', null, {
 
             }
         });
-        var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
-        navigator.sendBeacon(url);
+        if(!genro._reloading){
+            var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
+            navigator.sendBeacon(url);
+        }
         genro.publish('onClosePage');
         if (genro._data) {
             genro.saveContextCookie();
@@ -2179,6 +2181,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     pageReload:function(params,replaceParams) {
+        genro._reloading = true;
         if (params) {
             if (!replaceParams){
                 var oldparams = parseURL(window.location)['params'] || {};

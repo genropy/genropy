@@ -330,7 +330,8 @@ class SqlQueryCompiler(object):
             manyrelation = not joiner.get('one_one', False)
         #target_sqlschema = target_tbl.sqlschema
         #target_sqltable = target_tbl.sqlname
-        target_sqlfullname = target_tbl.sqlfullname
+        ignore_tenant = joiner.get('ignore_tenant')
+        target_sqlfullname = target_tbl._get_sqlfullname(ignore_tenant=ignore_tenant)
         target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
         from_sqlcolumn = from_tbl.sqlnamemapper[from_column] if not joiner.get('virtual') else None
         joindict = dict()

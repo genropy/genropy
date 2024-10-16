@@ -421,11 +421,14 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         return None,attributes
 
-    def checkExternalSite(self,attributes):
+    def checkContextParameters(self,attributes):
         externalSite = attributes.get('externalSite') or self.externalSite
         if externalSite:
             externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
             attributes['webpage'] = f"{externalSite}{attributes['webpage']}"
+        tenant_schema = attributes.pop('tenant_schema',None)
+        if  tenant_schema is not None:
+            attributes['url_env_tenant_schema'] = '_main_' if tenant_schema is False else tenant_schema
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
@@ -437,7 +440,7 @@ class MenuResolver(BagResolver):
         if webpage and self.basepath and not webpage.startswith('/'):
             attributes['webpage'] = f"{self.basepath}/{webpage}" 
         attributes['url_aux_instance'] = aux_instance
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         return None,attributes
 
     def nodeType_lookupBranch(self,node):
@@ -466,7 +469,7 @@ class MenuResolver(BagResolver):
         aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         attributes['url_th_from_package'] = attributes.get('pkg_menu')
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         attributes.setdefault('multipage',False)
@@ -488,7 +491,7 @@ class MenuResolver(BagResolver):
         aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         attributes['url_th_from_package'] = attributes.get('pkg_menu')
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         pkey = attributes.get('url_th_pkey') or attributes.get('start_pkey')

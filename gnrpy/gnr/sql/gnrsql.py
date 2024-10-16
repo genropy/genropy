@@ -169,6 +169,16 @@ class GnrSqlDb(GnrObject):
     def dbstores(self):
         """TODO"""
         return self.stores_handler.dbstores
+    
+    @property
+    def tenant_table(self):
+        if hasattr(self,'_tenant_table'):
+            return self._tenant_table
+        tenant_table = None
+        for pkg in self.packages.values():
+            tenant_table = pkg.attributes.get('tenant_table') or tenant_table
+        self._tenant_table = tenant_table
+        return self._tenant_table
         
     @property
     def reuse_relation_tree(self):
