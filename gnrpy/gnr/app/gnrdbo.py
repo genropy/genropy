@@ -1269,7 +1269,7 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
-                self.db.table('adm.counter').releaseCounter(field=field,record=record)
+                self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
         "Inside dbo"
