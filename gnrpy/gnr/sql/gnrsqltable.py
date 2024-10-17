@@ -622,7 +622,7 @@ class SqlTable(GnrObject):
                     if size:
                         sizelist = colattr['size'].split(':')
                         max_size = int(sizelist[1] if len(sizelist)>1 else sizelist[0])
-                        if len(record[k])>max_size:
+                        if record[k] and len(record[k])>max_size:
                             _coerce_errors.append(f'Max len exceeded for field {k} {record[k]} ({max_size})')
                             record[k] = None
         record['_coerce_errors'] = ','.join(_coerce_errors)

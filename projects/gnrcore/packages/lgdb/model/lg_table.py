@@ -25,6 +25,7 @@ class Table(object):
         tbl.column('group', name_long='Group', batch_assign=True)
     
         tbl.column('multidb', name_long='Multi DB', values='*:Replicated on all databases,one:Replicated on one specific database,true:Only subscripted records')
+
         tbl.aliasColumn('legacy_db','@lg_pkg.legacy_db',static=True)
         tbl.aliasColumn('legacy_schema','@lg_pkg.legacy_schema',static=True)
 
@@ -107,5 +108,6 @@ class Table(object):
             lg_column.insert(lg_column.newrecord(name=colname,data_type=col_dict['dtype'],
                                                 full_name='{pkg}.{tbl}.{name}'.format(pkg=legacy_schema,tbl=tbl_name,name=colname),
                                                 lg_table_id=tbl['id']))
+
 
 
