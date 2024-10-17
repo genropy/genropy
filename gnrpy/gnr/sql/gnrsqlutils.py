@@ -365,8 +365,19 @@ class SqlModelChecker(object):
             if pkg.attributes.get('readOnly'):
                 continue
             for tbl in pkg.tables.values():
+                if self.tenantSchemas:
+                    self._checkTblRelationsNew(tbl)
+                else:
+                    self._checkTblRelations(tbl)
+
+    def _checkTblRelationsNew(self, tbl):
+        self._checkTblRelations(tbl)
+        if not tbl.multi_tenant:
+            return
+        for schema in self.tenantSchemas:
+            with self.db.tempEnv(tenant_schema=schema):
                 self._checkTblRelations(tbl)
-                
+
     def _checkTblRelations(self, tbl):
         if not tbl.relations:
             return
@@ -536,7 +547,7 @@ class SqlModelChecker(object):
     def _dropForeignKey(self, referencing_package, referencing_table, referencing_field, actual_name=None):
         """Prepare the sql statement for dropping the givent constraint from the given table and return it"""
         constraint_name = actual_name or 'fk_%s_%s' % (referencing_table, referencing_field)
-        statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s' % (referencing_package, referencing_table, constraint_name)
+        statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s' % (self.db.adapter.adaptSqlName(referencing_package), referencing_table, constraint_name)
         return statement
         
     def _sqlTable(self, tbl):

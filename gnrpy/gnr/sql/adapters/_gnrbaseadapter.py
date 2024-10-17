@@ -535,6 +535,8 @@ class SqlDbAdapter(object):
         return f'CAST({fieldpath} AS VARCHAR({n}))'
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
+        o_pkg = self.adaptSqlName(o_pkg)
+        m_pkg = self.adaptSqlName(m_pkg)
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
         m_pkg, m_tbl, c_name, m_fld, o_pkg, o_tbl, o_fld)
         drop_statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s;' % (m_pkg, m_tbl, c_name)
