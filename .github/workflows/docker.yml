@@ -31,11 +31,20 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           
-      - name: Build and push Docker image
+      - name: Build and push main Docker image
         uses: docker/build-push-action@v5
         with:
          context: ./
          push: true
          tags: ghcr.io/${{ github.repository }}:testing
+         platforms: linux/amd64,linux/arm64
+         provenance: false
+
+      - name: Build and push full Docker image
+        uses: docker/build-push-action@v5
+        with:
+         context: ./dockerfiles/genropy-full
+         push: true
+         tags: ghcr.io/${{ github.repository }}-full:testing
          platforms: linux/amd64,linux/arm64
          provenance: false
