@@ -116,10 +116,15 @@ class GnrWsgiWebApp(GnrApp):
                 if page:
                     page_id = page.page_id
                     pagename = page.pagename
-                if not self.db.currentEnv.get('hidden_transaction'):
+                if self.db.currentEnv.get('hidden_transaction'):
+                    page.notifyLocalDbEvents(dbeventsDict,register_name='page',
+                                                 origin_page_id=page_id,
+                                                 dbevent_reason=dbevent_reason or pagename)
+                else:
                     self.site.register.notifyDbEvents(dbeventsDict,register_name='page',
                                                  origin_page_id=page_id,
                                                  dbevent_reason=dbevent_reason or pagename)
+
             self.db.updateEnv(env_transaction_id= None,dbevents=None)
 
     def _compress_dbevents(self,dbevents):
