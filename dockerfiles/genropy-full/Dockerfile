@@ -3,10 +3,10 @@
 ############################################################
 
 #FROM public.ecr.aws/genropy/genropy
-FROM ghcr.io/genropy/genropy
+FROM ghcr.io/genropy/genropy:testing
 USER root
 RUN apt update \
-  && apt install supervisor nginx
+  && apt install -y supervisor nginx
 
 RUN mkdir -p /var/lib/nginx/tmp/
 RUN mkdir -p /var/lib/nginx/tmp/proxy
