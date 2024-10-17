@@ -12,7 +12,7 @@ class View(BaseComponent):
         r.fieldcell('name')
         r.fieldcell('sqlname')
         r.fieldcell('primary_key')
-
+        r.fieldcell('legacy_count')
         r.fieldcell('description')
         r.fieldcell('notes')
         r.fieldcell('group')
@@ -46,7 +46,7 @@ class View(BaseComponent):
         result=[]
         result.append(dict(code='all', caption='All'))
         for g in groups:
-            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+            result.append(dict(code=g['group'].replace('-','_').replace('.','_'), caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
         result.append(dict(code='no_group', caption='No group', condition='$group IS NULL'))
         return result
 
@@ -58,6 +58,7 @@ class ViewFromPackage(BaseComponent):
         r.fieldcell('name')
         r.fieldcell('sqlname')
         r.fieldcell('primary_key')
+        r.fieldcell('legacy_count')
         r.fieldcell('description')
         r.fieldcell('notes')
         r.fieldcell('group')

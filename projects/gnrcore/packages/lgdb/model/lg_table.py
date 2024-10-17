@@ -23,6 +23,7 @@ class Table(object):
         tbl.column('description',name_long='Description', indexed=True)
         tbl.column('notes', name_long='Notes')
         tbl.column('group', name_long='Group', batch_assign=True)
+        tbl.column('legacy_count', dtype='L', name_long='Legacy count')
     
         tbl.column('multidb', name_long='Multi DB', values='*:Replicated on all databases,one:Replicated on one specific database,true:Only subscripted records')
 
@@ -54,7 +55,23 @@ class Table(object):
 
         for col_obj in tblobj.columns.values():
             self.db.table('lgdb.lg_column').importColumn(tbl_record['id'], col_obj, import_mode=None)
-            
+
+
+    @public_method(caption='Fill legacy count')
+    def actionMenu_fillLegacyCount(self,pkey=None,selectedPkeys=None,**kwargs):
+        selectedPkeys = selectedPkeys or [pkey]
+        f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys,for_update=True).fetch()
+        legacy_db = f[0]['legacy_db']
+        legacy_schema = f[0]['legacy_schema']
+        extdb = self.db
+        if legacy_db:
+            extdb = self.db.table('lgdb.lg_pkg').getLegacyDb(legacy_db)
+        for tb in f:
+            old_tb = dict(tb)
+            tb['legacy_count'] = extdb.execute(f'SELECT COUNT(*) FROM {legacy_schema}.{tb["sqlname"]}').fetchone()[0]
+            self.raw_update(tb,old_tb)
+            self.db.commit()
+
 
     @public_method(caption='Import columns and relations')
     def actionMenu_importColumns(self,pkey=None,selectedPkeys=None,**kwargs):
@@ -62,9 +79,9 @@ class Table(object):
         f = self.query(where='$id IN :selectedPkeys',selectedPkeys=selectedPkeys).fetch()
         legacy_db = f[0]['legacy_db']
         legacy_schema = f[0]['legacy_schema']
-        if not legacy_db:
-            return
-        extdb = self.db.table('lgdb.lg_pkg').getLegacyDb(legacy_db)
+        extdb = self.db
+        if legacy_db:
+            extdb = self.db.table('lgdb.lg_pkg').getLegacyDb(legacy_db)
         tblpkeys = []
         for tbl in f:
             self._importColumnsFromTbl(extdb,legacy_schema,tbl)
