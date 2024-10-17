@@ -3,7 +3,7 @@
 # Based on genropy/genropy
 ############################################################
 
-FROM public.ecr.aws/genropy/genropy
-
-RUN apk update \
-  && apk add py3-psycopg2
+#FROM public.ecr.aws/genropy/genropy
+FROM ghcr.io/genropy/genropy:testing
+RUN apt update \
+  && apt install -y python3-psycopg2

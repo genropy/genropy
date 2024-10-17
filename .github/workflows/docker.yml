@@ -48,3 +48,21 @@ jobs:
          tags: ghcr.io/${{ github.repository }}-full:testing
          platforms: linux/amd64,linux/arm64
          provenance: false
+
+      - name: Build and push postgres Docker image
+        uses: docker/build-push-action@v5
+        with:
+         context: ./dockerfiles/genropy-pg
+         push: true
+         tags: ghcr.io/${{ github.repository }}-pg:testing
+         platforms: linux/amd64,linux/arm64
+         provenance: false
+
+      - name: Build and push GnrDaemon Docker image
+        uses: docker/build-push-action@v5
+        with:
+         context: ./dockerfiles/genropy-gnrdaemon
+         push: true
+         tags: ghcr.io/${{ github.repository }}-gnrdaemon:testing
+         platforms: linux/amd64,linux/arm64
+         provenance: false
