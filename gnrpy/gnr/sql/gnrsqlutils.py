@@ -138,7 +138,7 @@ class SqlModelChecker(object):
             f = tblobj.query(ignorePartition=True,subtable='*',
                             where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
             self._tenantSchemas = [r['tenant_schema'] for r in f]
-        except UndefinedTable:
+        except Exception:
             self._tenantSchemas = []
         return self._tenantSchemas
         
