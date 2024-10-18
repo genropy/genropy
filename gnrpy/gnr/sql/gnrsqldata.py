@@ -2302,7 +2302,6 @@ class SqlRecord(object):
     def _get_result(self):
         if self._result is None:
             with self.db.tempEnv(currentImplementation=self.dbtable.dbImplementation):
-                print('dbImplementation', self.dbtable.dbImplementation)
                 self.adapterResult()
         return self._result
 
