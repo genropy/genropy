@@ -3,7 +3,8 @@ name: Create docker images
 on:
   push:
     branches: ["docker-ci-integration"]
-
+    # to be used in production stage
+    # tags: - release-**
 permissions:
   contents: write
   packages: write
