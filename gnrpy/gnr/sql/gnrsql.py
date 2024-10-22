@@ -117,7 +117,7 @@ class GnrSqlDb(GnrObject):
         :param debugger: TODO
         :param application: TODO
         """
-        self.implementation = implementation
+        self.implementation = self.dbpar(implementation)
         self.dbname = self.dbpar(dbname)
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
@@ -129,7 +129,7 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapter = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
+        self.adapter = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
         self.whereTranslator = self.adapter.getWhereTranslator()
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
@@ -147,6 +147,10 @@ class GnrSqlDb(GnrObject):
     #-----------------------Configure and Startup-----------------------------
 
     def dbpar(self,parvalue):
+        """
+        Expand from XML configuration key referencing
+        the environment
+        """
         if parvalue and parvalue.startswith("$"):
             return os.environ.get(parvalue[1:])
         return parvalue
