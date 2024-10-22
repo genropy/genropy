@@ -11,7 +11,6 @@ from gnr.core.gnrdecorator import customizable,metadata,public_method
 class Form(BaseComponent):
     def th_form(self,form,**kwargs):
         pane = form.record
-        form.helperData()
         fb = pane.formbuilder(cols=1, margin_left='2em',border_spacing='5px')
         fb.field('nome', width='20em')
         fb.field('sigla',width='3em')

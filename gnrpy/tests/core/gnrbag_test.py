@@ -6,8 +6,7 @@ import gnr.core.gnrbag as bm
 from gnr.core.gnrbag import Bag, BagNode, BagResolver
 
 
-def setup_module(module):
-    module.BAG_DATA = os.path.join(os.path.dirname(__file__), 'data/testbag.xml')
+BAG_DATA = os.path.join(os.path.dirname(__file__), 'data/testbag.xml')
 
 class TestBasicBag(object):
     def setup_class(cls):

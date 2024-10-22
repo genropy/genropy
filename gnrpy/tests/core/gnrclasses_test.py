@@ -188,7 +188,7 @@ def test_gnrclasscatalog():
     # have a real implementation
     with pytest.raises(Exception) as excinfo:
         cc.parse_timedelta("Hello")
-    assert str(excinfo.value) is ""
+    assert str(excinfo.value) == ""
 
     # serialize_timedelta
     res = cc.serialize_timedelta(datetime.timedelta(days=1))

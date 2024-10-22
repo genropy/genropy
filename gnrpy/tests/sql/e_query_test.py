@@ -215,7 +215,7 @@ class TestGnrSqlDb_postgres(BaseSql):
                           port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
                           user=cls.pg_conf.get("user"),
-                          password=''
+                          password=cls.pg_conf.get("password")
                           )
         
     init = classmethod(init)

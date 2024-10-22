@@ -9,7 +9,7 @@
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
-
+from psycopg2.errors import UndefinedTable
 class ModelExtractor(object):
     """TODO"""
     def __init__(self, dbroot):
@@ -107,15 +107,17 @@ class ModelExtractor(object):
                 print('missing field %s in table %s.%s' %(many_field,many_schema,many_table))
             else:
                 fld.relation('%s.%s.%s' % (one_schema, one_table, one_field))
-            
-    def buildViews(self):
-        """TODO"""
-        elements = self.dbroot.adapter.listElements('views', schema=self.schema)
-        children = Bag(self.children)
-        for element in elements:
-            if not element in children:
-                children.setItem(element, None, tag='view')
-        return SqlTableList(parent=self.structparent, name=self.name, attrs=self.attrs, children=children)
+
+    # FIXME: temporarily disabled due to non-existing SqlTableList
+    # PLEASE DO NOT DELETE: MB wants to re-introduce the feature
+    # def buildViews(self):
+    #     """TODO"""
+    #     elements = self.dbroot.adapter.listElements('views', schema=self.schema)
+    #     children = Bag(self.children)
+    #     for element in elements:
+    #         if not element in children:
+    #             children.setItem(element, None, tag='view')
+    #     return SqlTableList(parent=self.structparent, name=self.name, attrs=self.attrs, children=children)
             
 class SqlModelChecker(object):
     """Keep a database aligned with its logical structure in the GnrSqlDb.
@@ -124,6 +126,21 @@ class SqlModelChecker(object):
     def __init__(self, db):
         self.db = db
         self.unaccent = False
+
+    @property
+    def tenantSchemas(self):
+        if not self.tenant_table:
+            return []
+        if hasattr(self,'_tenantSchemas'):
+            return self._tenantSchemas
+        try:
+            tblobj = self.db.table(self.tenant_table)
+            f = tblobj.query(ignorePartition=True,subtable='*',
+                            where=f'$tenant_schema IS NOT NULL',columns='$tenant_schema').fetch()
+            self._tenantSchemas = [r['tenant_schema'] for r in f]
+        except UndefinedTable:
+            self._tenantSchemas = []
+        return self._tenantSchemas
         
     def checkDb(self,enableForeignKeys=None):
         """Return a list of instructions for the database building"""
@@ -131,6 +148,7 @@ class SqlModelChecker(object):
         self.changes = []
         self.bagChanges = Bag()
         self.enableForeignKeys = enableForeignKeys is not False
+        self.tenant_table = self.db.tenant_table
         try:
             self.actual_schemata = self.db.adapter.listElements('schemata')
         except GnrNonExistingDbException as exc:
@@ -151,11 +169,17 @@ class SqlModelChecker(object):
             for r in actual_relations:
                 self.actual_relations.setdefault('%s.%s' % (r[1], r[2]), []).append(r)
             self.unique_constraints = self.db.adapter.getTableContraints()
+        
         for pkg in self.db.packages.values():
             if pkg.attributes.get('readOnly'):
                 continue
             #print '----------checking %s----------'%pkg.name
-            self._checkPackage(pkg)
+            if not pkg.tables:
+                continue
+            if self.tenantSchemas:
+                self._checkPackageNew(pkg)
+            else:
+                self._checkPackage(pkg)
         enabled_unaccent = False if create_db else 'unaccent' in self.db.adapter.listElements('enabled_extensions')
         unaccent_statement = None
         if self.unaccent and not enabled_unaccent:
@@ -166,6 +190,12 @@ class SqlModelChecker(object):
             self.changes.append(unaccent_statement)
         self._checkAllRelations()
         return [x for x in self.changes if x]
+    
+
+    def getCustomSchemaList(self,table=None,field=None):
+        tblobj = self.db.table(table)
+        f = tblobj.query(ignorePartition=True,subtable='*',where=f'${field} IS NOT NULL',columns=f'${field}').fetch()
+        return ','.join([r[field] for r in f])
 
     def addExtesions(self):
         try:
@@ -185,18 +215,17 @@ class SqlModelChecker(object):
         
         :param pkg: the :ref:`package <packages>` object"""
         self._checkSqlSchema(pkg)
-        if pkg.tables:
-            for tbl in list(pkg.tables.values()):
-                #print '----------checking table %s----------'%tbl.name
-                self._checkSqlSchema(tbl)
-                if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
-                    tablechanges = self._checkTable(tbl)
-                else:
-                    tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
-                if tablechanges:
-                    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                            changes='\n'.join([ch for ch in tablechanges if ch]))
-                                            
+        for tbl in list(pkg.tables.values()):
+            #print '----------checking table %s----------'%tbl.name
+            self._checkSqlSchema(tbl)
+            if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
+                tablechanges = self._checkTable(tbl)
+            else:
+                tablechanges = self._buildTable(tbl)#Create sql commands to BUILD the missing table
+            #if tablechanges:
+            #    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+            #                            changes='\n'.join([ch for ch in tablechanges if ch]))
+                                        
                     #views = node.value['views']
                     #if views:
                     #for viewnode in views:
@@ -205,7 +234,26 @@ class SqlModelChecker(object):
                     #sql.extend(self._checkView(viewnode, tbl_schema))
                     #else:
                     #sql.extend(self._buildView(viewnode, tbl_schema))
-                    
+
+    def _checkPackageNew(self, pkg):
+        
+        self._checkSqlSchema(pkg)
+        for tbl in pkg.tables.values():
+            tableMainSchema = tbl.sqlschema
+            schemas = [tableMainSchema]
+            if tbl.multi_tenant:
+                schemas.extend(self.tenantSchemas)
+            for schema in schemas:
+                with self.db.tempEnv(tenant_schema=schema):
+                    self._checkSqlSchema(tbl)
+                    if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
+                        tablechanges = self._checkTable(tbl)
+                    else:
+                        tablechanges = self._buildTable(tbl,schema_code=schema)#Create sql commands to BUILD the missing table
+                    #if tablechanges:
+                    #    self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                    #                            changes='\n'.join([ch for ch in tablechanges if ch]))
+                    #    
     def _checkSqlSchema(self, obj):
         """If the package/table/view is defined in a new schema that's not in the actual_schemata
         the new schema is created and its name is appended to self.actual_schemata. Return the
@@ -214,10 +262,10 @@ class SqlModelChecker(object):
         if sqlschema and not (sqlschema in self.actual_schemata) and not (sqlschema == self.db.main_schema):
             change = self.db.adapter.createSchemaSql(sqlschema)
             self.changes.append(change)
-            self.bagChanges.setItem(obj.name, None, changes=change)
+            #self.bagChanges.setItem(obj.name, None, changes=change)
             self.actual_schemata.append(sqlschema)
             
-    def _checkTable(self, tbl):
+    def _checkTable(self, tbl,schema=None):
         """Check if any column has been changed and then build the sql statements for
         adding/deleting/editing table's columns calling the :meth:`_buildColumn()` method.
         
@@ -283,8 +331,8 @@ class SqlModelChecker(object):
                     change = self._buildColumn(col)
                     self.changes.append(change)
                     tablechanges.append(change)
-                    self.bagChanges.setItem('%s.%s.columns.%s' % (tbl.pkg.name, tbl.name, col.name), None,
-                                            changes=change)
+                    #self.bagChanges.setItem('%s.%s.columns.%s' % (tbl.pkg.name, tbl.name, col.name), None,
+                    #                        changes=change)
                                             
         if tbl.indexes:
             for idx in list(tbl.indexes.values()):
@@ -294,8 +342,8 @@ class SqlModelChecker(object):
                     if change:
                         self.changes.append(change)
                         tablechanges.append(change)
-                        self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
-                                                changes=change)
+                       #self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
+                       #                        changes=change)
                                                 
                 if idx.sqlname[:63] in dbindexes:
                     pass
@@ -308,8 +356,8 @@ class SqlModelChecker(object):
                     if change:
                         self.changes.append(change)
                         tablechanges.append(change)
-                        self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
-                                                changes=change)
+                        #self.bagChanges.setItem('%s.%s.indexes.%s' % (tbl.pkg.name, tbl.name, idx.sqlname), None,
+                        #                        changes=change)
         return tablechanges
         
     def _checkAllRelations(self):
@@ -358,30 +406,30 @@ class SqlModelChecker(object):
                     if existing:
                         change = self._dropForeignKey(m_pkg_sql, m_tbl_sql, m_fld_sql, actual_name=actual_rel[0])
                         self.changes.append(change)
-                        self.bagChanges.setItem(
-                                '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql))
-                                , None, changes=change)
-                        prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-                        self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                                changes='%s\n%s' % (prevchanges, change))
+                        #self.bagChanges.setItem(
+                        #        '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql))
+                        #        , None, changes=change)
+                        #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+                        #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                        #                        changes='%s\n%s' % (prevchanges, change))
                     change = self._buildForeignKey(o_pkg_sql, o_tbl_sql, o_fld_sql, m_pkg_sql, m_tbl_sql, m_fld_sql,
                                                    on_up, on_del, init_deferred)
                     self.changes.append(change)
-                    self.bagChanges.setItem(
-                            '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)),
-                            None, changes=change)
-                    prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-                    self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
-                                            changes='%s\n%s' % (prevchanges, change))
+                    #self.bagChanges.setItem(
+                    #        '%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)),
+                    #        None, changes=change)
+                    #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+                    #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None,
+                    #                        changes='%s\n%s' % (prevchanges, change))
         for remaining_relation in tbl_actual_rels:
             m_pkg_sql = remaining_relation[1]
             m_tbl_sql = remaining_relation[2]
             m_fld_sql = remaining_relation[3][0]
             change = self._dropForeignKey(m_pkg_sql, m_tbl_sql, m_fld_sql,actual_name=remaining_relation[0])
             self.changes.append(change)
-            self.bagChanges.setItem('%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)), None, changes=change)
-            prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
-            self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None, changes='%s\n%s' % (prevchanges, change))
+            #self.bagChanges.setItem('%s.%s.relations.%s' % (tbl.pkg.name, tbl.name, 'fk_%s_%s' % (m_tbl_sql, m_fld_sql)), None, changes=change)
+            #prevchanges = self.bagChanges.getAttr('%s.%s' % (tbl.pkg.name, tbl.name), 'changes')
+            #self.bagChanges.setAttr('%s.%s' % (tbl.pkg.name, tbl.name), None, changes='%s\n%s' % (prevchanges, change))
                     
     def _onStatementToSql(self, command):
         if not command: return None
@@ -423,7 +471,7 @@ class SqlModelChecker(object):
         
         return o_pkg_sql, o_tbl_sql, o_fld_sql, m_pkg_sql, m_tbl_sql, m_fld_sql
         
-    def _buildTable(self, tbl):
+    def _buildTable(self, tbl,schema_code=None):
         """Prepare the sql statement list for adding the new table and its indexes.
         Return the statement.
         """
@@ -431,13 +479,18 @@ class SqlModelChecker(object):
         change = self._sqlTable(tbl)
         self.changes.append(change)
         tablechanges.append(change)
-        self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None, changes=change)
+        if schema_code and schema_code!=tbl.pkg and tbl.attributes.get('multi_tenant'):
+            change_d =f"""ALTER TABLE {tbl.sqlfullname}
+                        ALTER COLUMN _tenant_schema SET DEFAULT '{schema_code}';"""
+            self.changes.append(change_d)
+            tablechanges.append(change_d)
+        #self.bagChanges.setItem('%s.%s' % (tbl.pkg.name, tbl.name), None, changes=change)
         
         changes, bagindexes = self._sqlTableIndexes(tbl)
         self.changes.extend(changes)
         tablechanges.extend(changes)
         
-        self.bagChanges['%s.%s.indexes' % (tbl.pkg.name, tbl.name)] = bagindexes
+        #self.bagChanges['%s.%s.indexes' % (tbl.pkg.name, tbl.name)] = bagindexes
         
         return tablechanges
         
@@ -488,7 +541,7 @@ class SqlModelChecker(object):
         
     def _sqlTable(self, tbl):
         """Return the sql statement string that creates the new table"""
-        tablename = '%s.%s' % (tbl.sqlschema, tbl.sqlname)
+        tablename = tbl.sqlfullname #'%s.%s' % (tbl.sqlschema, tbl.sqlname)
         
         sqlfields = []
         for col in list(tbl.columns.values()):
@@ -529,7 +582,9 @@ class SqlModelChecker(object):
         return self.db.adapter.columnSqlDefinition(sqlname=col.sqlname,
                                                    dtype=col.dtype, size=col.getAttr('size'),
                                                    notnull=col.getAttr('notnull', False),
-                                                   pkey=(col.name == col.table.pkey),unique=col.getAttr('unique'))
+                                                   pkey=(col.name == col.table.pkey),
+                                                    unique=col.getAttr('unique'),
+                                                    extra_sql=col.getAttr('extra_sql'))
 
     def changeRelations(self,table,column,old_colname):
         tblobj = self.db.table(table)
@@ -550,9 +605,3 @@ class SqlModelChecker(object):
                         db.rollback()
 
                                                    
-if __name__ == '__main__':
-    db = GnrSqlDb(implementation='postgres', dbname='pforce',
-                  host='localhost', user='postgres', password='postgres',
-                  main_schema=None)
-    db.importModelFromDb()
-    db.saveModel('/Users/fporcari/Desktop/testmodel', 'py') 
