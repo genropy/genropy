@@ -85,12 +85,3 @@ class DojoApiReader(object):
                 result.setItem(label, value, attr)
         return result
 
-
-if __name__ == '__main__':
-    obj = DojoApiReader("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/api.xml")
-    #obj.apibag.toXml("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/api_gnr.xml")
-    for k, v in list(obj.apibag.items()):
-        v.toXml("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/gnrapi/%s.xml" % k, autocreate=True)
-
-    print(list(obj.apibag.keys()))
-    print(x)

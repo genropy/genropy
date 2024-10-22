@@ -53,9 +53,9 @@ class ThResourceMaker(object):
                     tables.append((pkg,tbl_name))
         tables = uniquify(tables)
         if len(tables)>1 and (self.option_output or self.option_name):
-            if thresourcemaker.option_name:
+            if self.option_name:
                 print('-n/--name option is incompatible with multiple table mode')
-            if thresourcemaker.option_name:
+            if self.option_name:
                 print('-o/--output option is incompatible with multiple table mode')
             exit(-1)
         for pkg in list(self.pkg_tables.keys()):
