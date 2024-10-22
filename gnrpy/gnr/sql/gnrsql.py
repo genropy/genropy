@@ -132,7 +132,7 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
+        self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % self.dbpar(implementation)).SqlDbAdapter(self)
         self.main_schema = main_schema or self.adapter.defaultMainSchema()
         self.started = False
         self.stores_handler = DbStoresHandler(self)
@@ -155,7 +155,7 @@ class GnrSqlDb(GnrObject):
    
     @property
     def adapter(self):
-        implementation = self.currentEnv.get('currentImplementation') or self.implementation
+        implementation = self.currentEnv.get('currentImplementation') or self.dbpar(self.implementation)
         if implementation not in self.adapters:
             self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
         return self.adapters[implementation]
@@ -457,6 +457,7 @@ class GnrSqlDb(GnrObject):
         else:
             return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
     
+
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
         """Execute the sql statement using given kwargs. Return the sql cursor
