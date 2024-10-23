@@ -46,7 +46,7 @@ class Table(object):
 
         tbl.formulaColumn('other_groups',select=dict(columns="STRING_AGG($group_code,',')",where='$user_id=#THIS.id',
                                                 table='adm.user_group'))
-        tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
+        tbl.formulaColumn('all_groups',"STRING_AGG(#allgroups,',')",
                                                 select_allgroups=dict(columns='$code',
                                                                       where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
                                                 table='adm.group'))

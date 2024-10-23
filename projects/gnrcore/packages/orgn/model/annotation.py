@@ -89,7 +89,7 @@ class Table(object):
                                                         THEN $pivot_date+@action_type_id.deadline_days
                                                     ELSE NULL END)""",dtype='D',name_long='!!Pivot date due')
 
-        tbl.formulaColumn('following_actions',"array_to_string(ARRAY(#factions),',')",select_factions=dict(table='orgn.annotation',columns="$action_type_description || '-' || COALESCE($action_description,'missing description')",
+        tbl.formulaColumn('following_actions',"STRING_AGG(#factions,',')",select_factions=dict(table='orgn.annotation',columns="$action_type_description || '-' || COALESCE($action_description,'missing description')",
                                                                 where='$parent_annotation_id=#THIS.id'),name_long='!!Following actions')
         
         tbl.formulaColumn('__protected_by_author',"""
