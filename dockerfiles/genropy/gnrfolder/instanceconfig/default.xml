@@ -7,7 +7,7 @@
 	<authentication pkg="$GNR_MAINPACKAGE">
 		<py_auth defaultTags="user" method="authenticate" pkg="adm"/>
         <xml_auth defaultTags="user,xml">
-            <root pwd="$GNR_ROOTPWD" tags="_DEV_,admin"/>
+            <root pwd="{GNR_ROOTPWD}" tags="_DEV_,admin"/>
         </xml_auth>
         
 	</authentication>
