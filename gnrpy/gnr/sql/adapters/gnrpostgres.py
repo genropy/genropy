@@ -625,7 +625,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                                       dict(schema=schema,
                                            table=table,
                                            column=column)).fetchall()
-        result = []
+        iterator = self.columnAdapter(columns)
+        return iterator if not column else next(iterator)
+
+
+    def columnAdapter(self,columns):
         for col in columns:
             col = dict(col)
             col = self._filterColInfo(col, '_pg_')
@@ -636,17 +640,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 if precision:
                     col['size'] = '%i,%i' % (precision, scale)
             elif dtype == 'A':
-                size = col.get('length')
+                size = col.pop('length',None)
                 if size:
                     col['size'] = '0:%i' % size
                 else:
                     dtype = col['dtype'] = 'T'
             elif dtype == 'C':
                 col['size'] = str(col.get('length'))
-            result.append(col)
-        if column:
-            result = result[0]
-        return result
+            yield col
 
     def getWhereTranslator(self):
         return GnrWhereTranslatorPG(self.dbroot)
