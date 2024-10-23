@@ -1928,18 +1928,21 @@ class Bag(GnrObject):
                     else:
                         self.setItem(x[0], x[1])
 
-    def _fromSource(self, source, fromFile, mode):
+    def _fromSource(self, source, fromFile, mode, _template_kwargs=None):
         """Receive "mode" and "fromFile" and switch between the different
         modes calling _fromXml or _unpickle
         
         :param source: the source string or source URI
         :param fromFile: flag that says if source is eventually an URI
         :param mode: flag of the importation mode (XML, pickle or VCARD)
+        :param _template_kwargs: dict of default kwargs, defaulting to os.environ
         :returns: a Bag from _unpickle() method or from _fromXml() method"""
         if not source:
             return
         
         if mode == 'xml':
+            _template_kwargs = _template_kwargs or dict(os.environ)
+            source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
