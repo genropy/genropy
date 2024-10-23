@@ -734,6 +734,13 @@ class DbModelSrc(GnrStructData):
         """
         return self.virtual_column(name, sql_formula=sql_formula,select=select,exists=exists, dtype=dtype, **kwargs)
 
+    def compositeColumn(self,name,composed_of=None,**kwargs):
+        #'pippo,plu'
+        return self.virtual_column(name, #sql_formula=sql_formula, 
+                                   composed_of=composed_of,**kwargs)
+
+
+    
     def pyColumn(self, name, py_method=None,**kwargs):
         """Insert a pyColumn into a table, that is TODO. The aliasColumn is a child of the table
         created with the :meth:`table()` method
@@ -1309,6 +1316,8 @@ class DbTableObj(DbModelObj):
                     name = colalias.relation_path
                 elif colalias.sql_formula or colalias.select or colalias.exists:
                     return colalias
+                elif colalias.composed_of:
+                    return colalias
                 elif colalias.py_method:
                     return colalias
                 else:
@@ -1770,10 +1779,14 @@ class DbVirtualColumnObj(DbBaseColumnObj):
 
     relation_path = property(_get_relation_path)
 
+    def _get_composed_of(self):
+        return self.attributes.get('composed_of')
+    composed_of = property(_get_composed_of)
+
+
     def _get_sql_formula(self):
         """property. Returns the sql_formula"""
         return self.attributes.get('sql_formula')
-
     sql_formula = property(_get_sql_formula)
 
     def _get_select(self):

@@ -215,8 +215,10 @@ class SqlQueryCompiler(object):
                 # then call getFieldAlias again with the real path
                 return self.getFieldAlias(fldalias.relation_path, curr=curr,
                                           basealias=alias)  # call getFieldAlias recursively
-            elif fldalias.sql_formula or fldalias.select or fldalias.exists:
+            elif fldalias.sql_formula or fldalias.select or fldalias.exists or fldalias.composed_of:
                 sql_formula = fldalias.sql_formula
+                if not sql_formula and fldalias.composed_of:
+                    sql_formula = ' || '.join([f"COALESCE(${c},'{c}_isnull')" for c in fldalias.composed_of.split(',')])
                 attr = dict(fldalias.attributes)
                 if sql_formula is True:
                     sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
