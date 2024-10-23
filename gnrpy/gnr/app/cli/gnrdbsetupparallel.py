@@ -102,8 +102,7 @@ def check_db(app, options):
         print('STRUCTURE OK')
     return changes
 
-def import_db(filepath):
-    app = get_app()
+def import_db(app,filepath):
     app.db.importXmlData(filepath)
     app.db.commit()
 
@@ -114,7 +113,7 @@ def check_store(args):
     if options.check:
         check_db(app)
     elif options.import_file:
-        import_db(options.import_file)
+        import_db(app, options.import_file)
     else:
         changes = check_db(app)
         if changes:
