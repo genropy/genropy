@@ -66,6 +66,7 @@ from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
+import os
 import os.path
 import logging
 import sys
