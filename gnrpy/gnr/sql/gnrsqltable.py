@@ -500,7 +500,7 @@ class SqlTable(GnrObject):
         sep = sep or ','
         order_by = order_by or reltableobj.attributes.get('order_by') or f'${reltableobj.pkey}'
         where = f"${reltableobj.pkey} = ANY(string_to_array(#THIS.{field},'{sep}'))"
-        return dict(name=f'{field}_captions',sql_formula= f"STRING_AGG(#captions,'{sep}')",
+        return dict(name=f'{field}_captions',sql_formula=self.db.adapter.string_agg('#captions',separator=sep),
                         select_captions=dict(
                         table=related_table,
                         columns=f'${caption_field}',

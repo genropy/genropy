@@ -15,7 +15,7 @@ class Table(object):
         tbl.column('no2fa_alternative_group',size=':15', group='_', name_long='Without 2FA'
                     ).relation('adm.group.code', one_one=True, 
                                mode='foreignkey', onDelete='setnull')
-        tbl.formulaColumn('group_tags',"STRING_AGG(#tg,',')",
+        tbl.formulaColumn('group_tags', self.db.adapter.string_agg('#tg',separator=','),
                                                 select_tg=dict(columns='$tag_code',where='$group_code=#THIS.code',
                                                                distinct=True,table='adm.user_tag'))
         
