@@ -127,6 +127,16 @@ class BaseSql(BaseGnrSqlTest):
         result = query.count()
         assert result == 4
 
+    def test_not_in_statement(self):
+        query = self.db.query('video.movie',
+                              where='$year NOT IN :years',
+                              sqlparams={'years': (1960, 1975)})
+        result = query.count()
+        assert result == 9
+
+
+        
+
     def test_sqlparams_date(self):
         query = self.db.query('video.dvd',
                               columns='$purchasedate',
