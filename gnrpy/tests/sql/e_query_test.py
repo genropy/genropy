@@ -127,6 +127,16 @@ class BaseSql(BaseGnrSqlTest):
         result = query.count()
         assert result == 4
 
+    def test_not_in_statement(self):
+        query = self.db.query('video.movie',
+                              where='$year NOT IN :years',
+                              sqlparams={'years': (1960, 1975)})
+        result = query.count()
+        assert result == 9
+
+
+        
+
     def test_sqlparams_date(self):
         query = self.db.query('video.dvd',
                               columns='$purchasedate',
@@ -220,4 +230,18 @@ class TestGnrSqlDb_postgres(BaseSql):
         
     init = classmethod(init)
 
+
+class TestGnrSqlDb_postgres3(BaseSql):
+    def init(cls):
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
+                          dbname=cls.dbname,
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
+                          )
+        
+    init = classmethod(init)
 
