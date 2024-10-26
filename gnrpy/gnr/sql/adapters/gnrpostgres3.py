@@ -397,7 +397,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         query = getattr(self, '_list_%s' % elType)()
         try:
             result = self.dbroot.execute(query, kwargs).fetchall()
-        except psycopg2.OperationalError:
+        except psycopg.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         return [r[0] for r in result]
         
