@@ -209,16 +209,19 @@ class SqlQueryCompiler(object):
             if fldalias == None:
                 raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
-            elif fldalias.relation_path: #resolve
+            elif fldalias.relation_path and not fldalias.join_column: #resolve
                 #pathlist.append(fldalias.relation_path)
                 #newfieldpath = '.'.join(pathlist)        # replace the field alias with the column relation_path
                 # then call getFieldAlias again with the real path
                 return self.getFieldAlias(fldalias.relation_path, curr=curr,
                                           basealias=alias)  # call getFieldAlias recursively
-            elif fldalias.sql_formula or fldalias.select or fldalias.exists or fldalias.composed_of:
+            elif fldalias.sql_formula or fldalias.select or fldalias.exists or fldalias.join_column:
                 sql_formula = fldalias.sql_formula
-                if not sql_formula and fldalias.composed_of:
-                    sql_formula = ' || '.join([f"COALESCE(${c},'{c}_isnull')" for c in fldalias.composed_of.split(',')])
+                if not sql_formula and fldalias.join_column:
+                    if fldalias.join_column is True:
+                        sql_formula = " '-' "
+                    else: 
+                        sql_formula = ' || '.join([f"CAST (COALESCE({c},'-') AS TEXT) " for c in fldalias.join_column.split(',')])
                 attr = dict(fldalias.attributes)
                 if sql_formula is True:
                     sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
@@ -321,7 +324,7 @@ class SqlQueryCompiler(object):
         manyrelation = False
         if joiner['mode'] == 'O':
             target_tbl = self.dbmodel.table(joiner['one_relation'])
-            target_column = joiner['one_relation'].split('.')[-1]
+            target_column = joiner['one_relation'].split('.')[-1]                
             from_tbl = self.dbmodel.table(joiner['many_relation'])
             from_column = joiner['many_relation'].split('.')[-1]
         else:
@@ -334,9 +337,20 @@ class SqlQueryCompiler(object):
         #target_sqltable = target_tbl.sqlname
         ignore_tenant = joiner.get('ignore_tenant')
         target_sqlfullname = target_tbl._get_sqlfullname(ignore_tenant=ignore_tenant)
-        target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
+        multiKeyJoiner = []
+        target_sqlcolumn = None
         from_sqlcolumn = from_tbl.sqlnamemapper[from_column] if not joiner.get('virtual') else None
+        if target_column.startswith('['):
+            from_columns = from_tbl.column(from_column).attributes.get('join_column')
+            if not (from_columns or from_columns is True):
+                raise  GnrSqlException('Relation with multikey works only with joinColumn with columns parameter')
+            target_sqlcolumns = [target_tbl.sqlnamemapper[tc] for tc in re.findall(r'\[([^\]]+)\]', target_column)[0].split(',')]
+            multiKeyJoiner = list(zip(from_columns.split(','), target_sqlcolumns))
+        else:
+            target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
         joindict = dict()
+        adaptedAlias = self.db.adapter.adaptSqlName(alias)
+        adaptedBaseAlias = self.db.adapter.adaptSqlName(basealias)
         if 'join_on' in joiner:
             joiner['cnd'] = joiner['join_on']
         if joiner.get('cnd'):
@@ -354,11 +368,13 @@ class SqlQueryCompiler(object):
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
             joiner['cnd'] = cnd
         elif (joiner.get('case_insensitive', False) == 'Y'):
-            cnd = 'lower(%s.%s) = lower(%s.%s)' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
+            cnd = f'lower({adaptedAlias}.{target_sqlcolumn}) = lower({adaptedBaseAlias}.{from_sqlcolumn})'
+        elif multiKeyJoiner:
+            cnd = ' AND '.join([f'({from_column})={adaptedAlias}.{target_sqlcolumn}' for from_column,target_sqlcolumn in multiKeyJoiner])
         elif joiner.get('virtual'):
-            cnd = f'(${from_column})={self.db.adapter.adaptSqlName(alias)}.{target_sqlcolumn}'
+            cnd = f'(${from_column})={adaptedAlias}.{target_sqlcolumn}'
         else:
-            cnd = '%s.%s = %s.%s' % (self.db.adapter.adaptSqlName(alias), target_sqlcolumn, self.db.adapter.adaptSqlName(basealias), from_sqlcolumn)
+            cnd = f'{adaptedAlias}.{target_sqlcolumn} = {adaptedBaseAlias}.{from_sqlcolumn}'
         if parent:
             cnd =COLRELFINDER.sub(lambda g:f'{parent}.'+g.group(0).replace('$',''),cnd)
         cnd = self.updateFieldDict(cnd, reldict=joindict)
@@ -384,7 +400,6 @@ class SqlQueryCompiler(object):
                 self.cpl.explodingColumns.append(self._currColKey)
             self._explodingTables.append(pw)
             self._explodingRows = True
-
         return alias, newpath
 
     def getJoinCondition(self, target_fld, from_fld, alias,relation=None):
