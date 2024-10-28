@@ -1739,7 +1739,7 @@ class DbVirtualColumnObj(DbBaseColumnObj):
 
     def doInit(self):
         """TODO"""
-        super(DbBaseColumnObj, self).doInit()
+        super(DbVirtualColumnObj, self).doInit()
         column_relation = None
         if self.structnode.value and 'relation' in self.structnode.value:
             column_relation = self.structnode.value['relation']
