@@ -104,8 +104,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     re_pattern = """((t\\d+)(_t\\d+)*.\\"?\\w+\\"?" +)(NOT +)*(IN) *:%s""" %k
                     sql = re.sub(re_pattern,lambda m: 'TRUE' if m.group(4) else 'FALSE',sql,flags=re.I)
                 else:
-                    sqlargs.pop(k)
+                    
                     def unroll_list(match):
+                        sqlargs.pop(k,None)
                         base_name = match.group(2)
                         names_list = []
                         for i, value in enumerate(v):
@@ -113,7 +114,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                             names_list.append(f':{value_name}')
                             sqlargs[value_name] = value
                         return f"{match.group(1)}({','.join(names_list)})"
-                    re_pattern = r'((?:t\d+(?:_t\d+)*.\"?\w+\"?\" +)(?:NOT +)*(?:IN) *)(?::)(%s)'%k
+                    re_pattern = r'( *IN) *(?::)(%s)'%k
                     sql = re.sub(re_pattern,unroll_list,sql,flags=re.I)
         
 
