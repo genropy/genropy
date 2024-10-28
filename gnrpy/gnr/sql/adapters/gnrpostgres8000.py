@@ -134,7 +134,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         #conn =  psycopg2.connect(**kwargs)
         conn = DictConnectionWrapper(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
     def createDb(self, name, encoding='unicode'):
@@ -156,12 +155,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
         """Perform analyze routines on the db"""
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         if full:
             self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
         else:
             self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
 
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
@@ -172,7 +169,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param onNotify: function to execute on arrive of message
         @param onTimeout: function to execute on timeout
         """
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         curs = self.dbroot.execute('LISTEN %s;' % msg)
         listening = True
         while listening:
@@ -183,7 +179,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 if curs.isready():
                     if onNotify != None:
                         listening = onNotify(curs.connection.notifies.pop())
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
 
     def notify(self, msg, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.

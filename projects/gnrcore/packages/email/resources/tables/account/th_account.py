@@ -4,6 +4,7 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,customizable
 from gnr.lib.services.mail import MailService
+from gnr.core.gnrlang import GnrException
 
 class View(BaseComponent):
 
@@ -60,7 +61,7 @@ class Form(BaseComponent):
         fb.field('tls')
         fb.field('ssl')
         fb.field('username')
-        fb.field('password', type='password')
+        fb.field('password', tag='passwordTextBox')
         fb.field('last_uid')
         fb.field('schedulable')
 
@@ -80,7 +81,7 @@ class Form(BaseComponent):
         fb.field('smtp_host')
         fb.field('smtp_from_address')
         fb.field('smtp_username')
-        fb.field('smtp_password',type='password')
+        fb.field('smtp_password',tag='passwordTextBox')
         fb.field('smtp_port')
         fb.field('smtp_timeout')
         fb.field('smtp_tls')
@@ -119,9 +120,13 @@ class Form(BaseComponent):
                                 username=None, password=None, tls=None, ssl=None, port=None):
         account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls)
         mh = MailService()
-        msg = mh.build_base_message(subject='Test', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
-        with mh.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, to_address, msg.as_string())
+        msg = mh.build_base_message(subject='This is a test message', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
+        try:
+            with mh.get_smtp_connection(**account_params) as smtp_connection:
+                smtp_connection.sendmail(from_address, to_address, msg.as_string())
+        except Exception as e:
+            raise GnrException(f'Error sending test message: {e}')
+            
 
     def th_options(self):
         return dict(duplicate=True)

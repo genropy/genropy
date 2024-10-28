@@ -175,7 +175,7 @@ class BaseResourcePrint(BaseResourceBatch):
 
 
     def result_handler_html(self, resultAttr):
-        print(x)
+        raise Exception("x exception")
         
     def result_handler_pdf(self, resultAttr):
         if not self.results:

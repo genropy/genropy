@@ -157,6 +157,16 @@ class GnrSqlDb(GnrObject):
     def dbstores(self):
         """TODO"""
         return self.stores_handler.dbstores
+    
+    @property
+    def tenant_table(self):
+        if hasattr(self,'_tenant_table'):
+            return self._tenant_table
+        tenant_table = None
+        for pkg in self.packages.values():
+            tenant_table = pkg.attributes.get('tenant_table') or tenant_table
+        self._tenant_table = tenant_table
+        return self._tenant_table
         
     @property
     def reuse_relation_tree(self):
@@ -197,7 +207,7 @@ class GnrSqlDb(GnrObject):
             pkeysToAdd = [r[tblobj.pkey] for r in records] 
             f = tblobj.query(where='$%s IN :pkeys' %tblobj.pkey,pkeys=pkeysToAdd,
                             addPkeyColumns=False,excludeLogicalDeleted=False,
-                            excludeDraft=False,columns='$%s' %tblobj.pkey
+                            excludeDraft=False,columns='$%s' %tblobj.pkey,subtable='*',
                             ).fetch()
             pkeysToAdd = set(pkeysToAdd)-set([r[tblobj.pkey] for r in f])
             rlist = [dict(r) for r in records if r[tblobj.pkey] in pkeysToAdd ]

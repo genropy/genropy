@@ -64,7 +64,7 @@ class TableHandlerView(BaseComponent):
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
-        pkglist = list(self.db.packages.keys())
+        pkglist = list(self.db.packages.keys())+[None]
         for side in ('top','bottom','left','right'):
             hooks = self._th_hook(side,mangler=frameCode,asDict=True)
             for packagename,h in sorted([(getattr(handler,'__mixin_pkg',0),handler) for handler in hooks.values()],key=lambda x:pkglist.index(x[0])):

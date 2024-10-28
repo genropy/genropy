@@ -119,8 +119,8 @@ class GnrPdf(object):
             
     def _drawNode_textObject(self, node, attr, tag):
         textobject = canvas.beginText()
+        x, y = attr.get('y', 0), attr.get('y', 0)
         textobject.setTextOrigin(x, y)
-        
         self.canvas.drawText(textobject)
         
     def _drawNode_pane(self, node, attr, tag):

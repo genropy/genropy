@@ -58,6 +58,6 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         fb = pane.formbuilder(datapath=datapath)
         fb.textbox(value='^.issuer_name',lbl='Issuer name')
-        fb.textbox(value='^.secret',lbl='Secret',type='password')
+        fb.passwordTextBox(value='^.secret',lbl='Secret')
         fb.textbox(value='^.image',lbl='Image url')
         fb.numberTextBox(value='^.expiry_days',lbl='Expiry days')

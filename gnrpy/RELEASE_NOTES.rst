@@ -1,8 +1,94 @@
-UPCOMING RELEASE
-================
+Version 24.10.2
+===============
 
-* Introduced support for Sentry.io monitoring
+Bug Fixes
+---------
 
+* Reverted recent warning suppression commit which introduced a regression
+  in formuleColumns
+  
+Version 24.10.1
+===============
+
+New Features
+------------
+
+* **Service defaultPrompt and contentEditor**: Added `initialEditType`
+  as a customizable parameter for `contentEditor` and `MDEditor`,
+  allowing for more flexible configuration of the initial editing
+  mode.
+* **FrameIndex**: Introduced `fi_get_owner_name` method to allow
+  dynamic retrieval of owner names in the frame index interface.
+* **PickerViewSimple**: Simplified picker views, providing a basic
+  picker layout without headers.
+* **Multibutton Enhancements**: Improved the multibutton widget,
+  adding support for customizable item widths and content overflow
+  management.
+
+Bug Fixes
+---------
+
+* **Pattern Fixes**: Corrected the masking behavior in SQL regular
+  expressions to properly handle special characters such as
+  parentheses, brackets, and backslashes across multiple SQL adapters
+  (DB2, PostgreSQL, MSSQL).
+* **Archive and Delete Fixes**: Enhanced the `archive_and_delete`
+  functionality, allowing deletion of archived records and managing
+  dependencies effectively.
+* **Hidden Transaction Behavior**: Adjusted the `hidden_transaction`
+  behavior to prevent triggering unwanted database event
+  notifications, ensuring smoother background operations.
+* **Smart Open Compatibility**: Resolved issues with smart file
+  opening in AWS S3 services by ensuring the correct session and
+  client parameters are passed.
+* **Modal Panel in FrameIndex**: Added the option to open modal panels
+  in the frame index, improving the flexibility of panel management
+  within the UI.
+* **MD Editor Fixes**: Resolved issues with the Markdown editor's
+  viewer mode, toolbar item removal, and proper character counting for
+  content limits.
+* **Gridbox LabeledBox**: Fixed issues with `GridboxLabeledBox`
+  alignment, ensuring proper layout behavior when used with flexbox
+  and formlet components.
+
+Cosmetic Improvements
+---------------------
+
+* **Gridbox**: Minor cosmetic adjustments for better handling of grid
+  layouts and labeled boxes, including improved spacing and field
+  background management.
+* **Picker**: Enhanced the picker interface by improving conditions
+  and subtable management in tree and grid-based picker views.
+* **Attachment Manager**: Updated the attachment manager to support
+  video previews for common formats like MP4 and AVI, providing a more
+  comprehensive file handling experience.
+
+Performance Improvements
+------------------------
+
+* **Fake Resize Handling**: Improved the window resizing mechanism to
+  ensure it only triggers when a visibility change occurs, reducing
+  unnecessary event dispatches and improving performance in
+  resize-intensive scenarios.
+* **Dependency Tree Fix**: Optimized dependency tree processing to
+  handle foreign key relations more efficiently, especially when
+  dealing with `setnull` on delete operations.
+
+General Improvements
+--------------------
+
+* **Database Notifications**: Improved the database notification
+  system to allow better control over event triggering during hidden
+  transactions, avoiding unnecessary notifications.
+* **Menu Generation**: Updated the table resource generation script
+  (`gnrmkthresource`) to allow regeneration of menus even if resources
+  already exist, ensuring the menu structure stays current, using the -m switch
+* **Login Group Management**: Fixed an issue where users with multiple
+  groups could not log in to their non-primary groups.
+* **Monitoring**: Introduced support for Sentry.io monitoring
+* deploybuilder will now create the 'config' subdirectory, to support
+  older instances without it
+  
 Version 24.5.30.2
 =================
 

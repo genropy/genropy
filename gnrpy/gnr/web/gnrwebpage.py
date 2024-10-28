@@ -231,10 +231,12 @@ class GnrWebPage(GnrBaseWebPage):
             init_info = dict(request_kwargs=request_kwargs, request_args=request_args,
                           filepath=filepath, packageId=packageId, pluginId=pluginId,  basename=basename)
             self.page_item = self._register_new_page(kwargs=request_kwargs,class_info=class_info,init_info=init_info)
-
         self.isMobile = (self.connection.user_device.startswith('mobile')) or self.page_item['data']['pageArgs'].get('is_mobile')
         self.deviceScreenSize = self.connection.user_device.split(':')[1]
         self._inited = True
+        
+    def onPageRegistered(self,**kwargs):
+        pass
 
     def _T(self,value,lockey=None):
         return GnrLocString(value,lockey=lockey)
@@ -242,7 +244,7 @@ class GnrWebPage(GnrBaseWebPage):
     def onPreIniting(self, *request_args, **request_kwargs):
         """TODO"""
         pass
-        
+
     @property
     def pagename(self):
         return os.path.splitext(os.path.basename(self.filepath))[0].split(os.path.sep)[-1]
@@ -303,6 +305,7 @@ class GnrWebPage(GnrBaseWebPage):
         if self.wsk_enabled and not getattr(self,'system_page',False):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
+        self.onPageRegistered(**kwargs)
         return page_item
 
     def registerToAsyncServer(self,**kwargs):
@@ -2017,6 +2020,18 @@ class GnrWebPage(GnrBaseWebPage):
         self.setInClientData_legacy(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
                         fired=fired, reason=reason, replace=replace,public=public,**kwargs)
 
+    def notifyLocalDbEvents(self,dbeventsDict=None,origin_page_id=None,dbevent_reason=None):
+        for table,dbevents in list(dbeventsDict.items()):
+            if not dbevents:
+                continue
+            table_code = table.replace('.', '_')
+            self.addLocalDatachange('gnr.dbchanges.%s' %table_code, dbevents,attributes=dict(from_page_id=origin_page_id,dbevent_reason=dbevent_reason))
+
+
+    def addLocalDatachange(self, path, value=None, attributes=None, fired=False, reason=None, delete=False):
+        datachange = ClientDataChange(path, value, attributes=attributes, fired=fired,
+                                      reason=reason, delete=delete)
+        self.local_datachanges.append(datachange)
 
     def setInClientData_legacy(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):

@@ -396,7 +396,7 @@ class GnrCustomWebPage(object):
             item.pop('datachanges', None)
             #if child_name is None:
             #    self.maintenance_cellServerProfile(item)
-            result.setItem(key, None, _customClasses=' '.join(_customClasses), **item)
+            result.addItem(key.replace('.','_').replace('@','_'), None, _customClasses=' '.join(_customClasses), **item)
         return result
 
 

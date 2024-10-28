@@ -71,7 +71,7 @@ class DictCursorWrapper(object):
         if self._query_executed:
             self._build_index()
         resultset = self.cursor.fetchmany(size=size)
-        return [GnrUpperNamedList(self.index, values=values) for values in resultset]
+        return [GnrNamedList(self.index, values=values) for values in resultset]
 
 
     def __next__(self):

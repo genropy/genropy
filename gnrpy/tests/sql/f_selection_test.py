@@ -131,7 +131,21 @@ class TestGnrSqlDb_postgres(BaseDb):
                           port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
                           user=cls.pg_conf.get("user"),
-                          password=''
+                          password=cls.pg_conf.get("password")
+                          )
+
+    init = classmethod(init)
+    
+class TestGnrSqlDb_postgres3(BaseDb):
+    def init(cls):
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
+                          dbname=cls.dbname,
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
                           )
 
     init = classmethod(init)

@@ -22,7 +22,7 @@ class ThResourceMaker(object):
         self.option_guess_size = getattr(options, 'guess_size', False)
         self.packages = dict()
         self.pkg_tables = defaultdict(list)
-        self.packageMenues = dict()
+        self.packageMenus = dict()
         for table_name in self.args:
             if '.' in table_name:
                 full_pkg_name, table_name = table_name.split('.')
@@ -53,15 +53,16 @@ class ThResourceMaker(object):
                     tables.append((pkg,tbl_name))
         tables = uniquify(tables)
         if len(tables)>1 and (self.option_output or self.option_name):
-            if thresourcemaker.option_name:
+            if self.option_name:
                 print('-n/--name option is incompatible with multiple table mode')
-            if thresourcemaker.option_name:
+            if self.option_name:
                 print('-o/--output option is incompatible with multiple table mode')
             exit(-1)
         for pkg in list(self.pkg_tables.keys()):
             packageFolder = self.app.packages(pkg).packageFolder
             path = os.path.join(packageFolder,'menu.xml')
-            self.packageMenues[pkg] = Bag(path) if os.path.exists(path) else Bag()
+            self.packageMenus[pkg] = Bag(path) if os.path.exists(path) else Bag()
+
         for package,table in tables:
             if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
                 hasLookups=True
@@ -73,9 +74,9 @@ class ThResourceMaker(object):
                 packageFolder = self.app.packages(pkg).packageFolder
                 xmlmenupath = os.path.join(packageFolder,'menu.xml')
                 if hasLookups:
-                    self.packageMenues[package].setItem('auto.lookups', None, label="!!Lookup tables", 
+                    self.packageMenus[package].setItem('auto.lookups', None, label="!!Lookup tables", 
                                                                     pkg=pkg, tag='lookupBranch')
-                self.packageMenues[pkg].toXml(xmlmenupath)
+                self.packageMenus[pkg].toXml(xmlmenupath)
                 ms = MenuStruct(xmlmenupath)
                 ms.toPython(os.path.join(packageFolder,'menu.py'))
                 os.remove(xmlmenupath)
@@ -131,6 +132,12 @@ class ThResourceMaker(object):
     def createResourceFile(self, package, table):
         packageFolder = self.app.packages(package).packageFolder
         resourceFolder = os.path.join(packageFolder,'resources', 'tables', table)
+
+        # populate the menu anyway, even if the resource already exists
+        if self.option_menu:
+            self.packageMenus[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
+                                                            table='%s.%s' %(package,table), tag='thpage')
+
         if not os.path.exists(resourceFolder) and not self.option_output:
             os.makedirs(resourceFolder)
         if self.option_name and not self.option_name.endswith('.py'):
@@ -158,16 +165,13 @@ class ThResourceMaker(object):
             else:
                 size = 7
             columns.append((column.name,size))
-        print('COLUMNS:',columns)
+
         with open(path,'w') as out_file:
             self.writeHeaders(out_file)
             self.writeImports(out_file)
             self.writeViewClass(out_file, columns)
             self.writeFormClass(out_file, columns)
-            print('%s created' % name)
-        if self.option_menu:
-            self.packageMenues[package].setItem('auto.%s' %table,None,label='!!%s' %table.capitalize(),
-                                                            table='%s.%s' %(package,table), tag='thpage')
+            print(f'{name} created, columns:', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
 
 description = "create TableHandler resources automatically from model"
 

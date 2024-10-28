@@ -1,3 +1,5 @@
+raise DeprecationWarning("Please don't using gnr.core.gnrcaldav module, deprecated. Will be removed soon")
+
 from datetime import datetime
 import caldav
 from caldav.elements import dav, cdav
@@ -75,28 +77,3 @@ class CalDavConnection(object):
         
             
 
-
-
-if __name__=='__main__':
-    #data=testcal()
-    #calbag=VObjectBag(data)
-    #print calbag
-    #c=CalDavConnection(user='giovanni.porcari@softwell.it',password='toporaton',host='p04-caldav.icloud.com',root='/9403090/calendars/')
-    #c.createEvent(summary='Esempio di evento creato da genropy',dtstart='20121005T102000Z',dtend='20121005T122000Z',calendar='Personale')
-    #b=VObjectBag('/Users/gpo/Desktop/vcard_test.vcf')
-    #print b
-    c=test1()
-    calendars=c.principal.calendars()
-    c0= calendars[0]
-    print(c0._get_properties([dav.DisplayName(),]))
-    print(ss)
-    c.calendar.get_properties([dav.DisplayName(),])
-    print(c.calendars)
-   
-    b=c.eventsBag('Promemoria')
-    #print b
-    for event in list(b.values()):
-        s=event['#0'].digest('#v',condition=lambda n: n.attr.get('vtag') in ('VTODO','VEVENT'))
-    for event in s:
-        print(event)
-    

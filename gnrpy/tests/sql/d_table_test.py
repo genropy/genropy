@@ -205,16 +205,17 @@ class TestGnrSqlDb_postgres(BaseSql):
 
     init = classmethod(init)
 
-class TestGnrSqlDb_mysql(BaseSql):
+
+class TestGnrSqlDb_postgres3(BaseSql):
     def init(cls):
-        cls.name = 'mysql'
-        cls.dbname = 'genrotest'
-        cls.db = GnrSqlDb(implementation='mysql',
-                          host=cls.mysql_conf.get("host"),
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
-                          user=cls.mysql_conf.get("user"),
-                          password=cls.mysql_conf.get("password")
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
                           )
 
     init = classmethod(init)
-

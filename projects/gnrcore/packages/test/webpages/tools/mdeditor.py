@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 "MDEditor"
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
@@ -22,12 +20,13 @@ class GnrCustomWebPage(object):
         "MDEditor with parameters"
         bc = pane.borderContainer(height='800px',width='600px',border='1px solid silver')
         fb = bc.contentPane(region='top').formbuilder()
-        fb.textbox('^.initialEditType',lbl='initialEditType')
+        fb.textbox('^.initialEditType',lbl='initialEditType', values='markdown,wysiwyg')
         fb.textbox('^.initialValue',lbl='initialValue')
         fb.textbox('^.previewStyle',lbl='previewStyle')
         bc.contentPane(region='center',overflow='hidden').MDEditor(value='^.mycontent',height='100%',
                                                                    initialEditType='^.initialEditType',
-                                                                   previewStyle='^.previewStyle')
+                                                                   previewStyle='^.previewStyle', 
+                                                                   hideModeSwitch=True)
         
     def test_3_maxlen(self, pane):
         "MDEditor with maxLength"

@@ -46,8 +46,9 @@ class Table(object):
                     if _querystring!='*':
                         chunk = _querystring.replace('*','').lower()
                         if not chunk in service_type and not chunk in resname:
+                            print('continue',service_type,resname)
                             continue
-                    result.setItem(service_type,resource,implementation=resource,service_type=service_type,
+                    result.addItem(service_type,resource,implementation=resource,service_type=service_type,
                                         default_kw=dict(implementation=resource,service_type=service_type),
                                         _pkey=service_type, caption=f"{service_type} - {resname}")
         return result.sort(),dict(columns='service_type,implementation', headers='Service type,Implementation')

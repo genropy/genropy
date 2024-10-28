@@ -24,8 +24,8 @@ class Main(BaseResourceAction):
 
     def step_get_dependencies(self):
         "Get dependencies"
-        self.curr_records = self.tblobj.query(where='$id IN :pkeys',pkeys=self.get_selection_pkeys(),addPkeyColumns=False,
-                                    excludeLogicalDelete=False,excludeDraft=False).fetch()
+        self.curr_records = self.tblobj.query(where=f'${self.tblobj.pkey} IN :pkeys',pkeys=self.get_selection_pkeys(),addPkeyColumns=False,
+                                    excludeLogicalDelete=False,excludeDraft=False,subtable='*').fetch()
         name = self.batch_parameters.get('name') or 'archive_for_%s' %self.tblobj.fullname.replace('.','_')
         self.source_folder = self.page.site.getStaticPath('site:export_archive','source',name)
         self.archive_path = self.page.site.getStaticPath('site:export_archive','source',name,'records',autocreate=True)
@@ -53,7 +53,8 @@ class Main(BaseResourceAction):
                     archive[t] = reltblobj.query(where='$%s IN :pkeys' %reltblobj.pkey,
                                                 pkeys=list(pkeys),
                                                 addPkeyColumn=False,bagFields=True,
-                                                excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                                excludeDraft=False,excludeLogicalDeleted=False,
+                                                subtable='*').fetch()
             archivingTable = self.db.table(tablename)         
             if hasattr(archivingTable,'onArchiveExport') and (t in archive):
                 files = defaultdict(list)
@@ -85,6 +86,7 @@ class Main(BaseResourceAction):
         "Delete archived"
         if self.mode == 'A':
             return
+        self.db.setConstraintsDeferred()
         for t in reversed(self.index_tables):
             t = t.replace('/','.')
             if t in self.tableDependencies:

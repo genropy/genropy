@@ -2879,7 +2879,7 @@ textarea:disabled {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .dimmed {
@@ -4357,7 +4357,6 @@ p {
     padding-top: 0px;
     padding-bottom: 0px;
     height: 18px;
-    display: inline-block;
 }
 
 .quickgrid_container .iconbox {
@@ -4415,6 +4414,9 @@ p {
     flex-direction: row;
 }
 
+.multibutton_container.hidden{
+    display: none;
+}
 .multibutton_itemsContainer{
     overflow: hidden;
 }
@@ -6555,6 +6557,14 @@ div[disabled='true'], div[disabled='disabled']{
     display: flex;
     align-items: flex-start;
     flex:1;
+    position: relative;
+}
+.labledBox_content>.dijitBorderContainer,.labledBox_content>.dijitContentPane{
+    position: absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
 }
 
 .labledBox_content > *{
@@ -6573,6 +6583,10 @@ div[disabled='true'], div[disabled='disabled']{
     font-weight: bold;
     padding-left: 6px;
     padding-bottom: 1px;
+}
+.labledBox_content label{
+    font-size: .9em;
+    font-weight: bold;
 }
 
 .labledBox_content>.gnrcheckbox_wrapper{

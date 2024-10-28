@@ -946,7 +946,7 @@ class TableBase(object):
         if not getattr(record, '_notUserChange', None):
             record[fldname] = self.db.currentUser
 
-    def trigger_setAuditVersionIns(self, record, fldname):
+    def trigger_setAuditVersionIns(self, record, fldname,**kwargs):
         """TODO
         
         :param record: the record
@@ -1269,7 +1269,7 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
-                self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+                self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
         "Inside dbo"
@@ -1279,8 +1279,15 @@ class TableBase(object):
             for field in self.counterColumns():
                 self.assignCounterColumn(field=field,record=record)
 
+    def releaseCounterColumn(self,field=None,record=None):
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+
     def assignCounterColumn(self,field=None,record=None):
-        self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
@@ -1457,7 +1464,7 @@ class AttachmentTable(GnrDboTable):
         model = self.db.model
         mastertbl =  model.src['packages.%s.tables.%s' %(pkgname,mastertblname)]
         mastertbl.attributes['atc_attachmenttable'] = '%s.%s' %(pkgname,tblname)
-        mastertbl_name_long = mastertbl.attributes.get('name_long')        
+        mastertbl_name_long = mastertbl.attributes.get('name_long')                
         tbl.attributes.setdefault('caption_field','description')
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
@@ -1467,12 +1474,17 @@ class AttachmentTable(GnrDboTable):
         #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
-                    onInserted='convertDocFile',
+                    onInserted='onInsertedAtc',
                     onInserting='checkExternalUrl')
+        tbl.column('filepath_hash', name_long='MD5 hash')
+        tbl.column('filepath_original_name', name_long='!![en]Original name')
+
         tbl.column('external_url', name_long='!![en]External url')
         tbl.column('description' ,name_long='!![en]Description')
         tbl.column('mimetype' ,name_long='!![en]Mimetype')
         tbl.column('text_content',name_long='!![en]Content')
+        #tbl.column('text_language',name_long='!![en]Text language')
+
         tbl.column('info' ,'X',name_long='!![en]Additional info')
         tbl.column('is_foreign_document','B',
                     name_long='!![en][Is foreign document]',
@@ -1506,7 +1518,6 @@ class AttachmentTable(GnrDboTable):
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
         return not sn.exists
-    
     
 
     def onArchiveExport(self,records,files=None):
@@ -1637,7 +1648,7 @@ class AttachmentTable(GnrDboTable):
         if not record.get('description') and 'external_url' in record:
             record['description'] = record['external_url']
 
-    def trigger_convertDocFile(self,record,**kwargs):
+    def trigger_onInsertedAtc(self,record,**kwargs):
         if not record.get('filepath') or \
             record.get('is_foreign_document'):
             return

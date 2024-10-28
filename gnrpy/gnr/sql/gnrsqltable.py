@@ -422,6 +422,10 @@ class SqlTable(GnrObject):
     @property
     def multidb(self):
         return self.attributes.get('multidb',None)
+    
+    @property
+    def multi_tenant(self):
+        return self.model.multi_tenant
 
     @property
     def draftField(self):
@@ -496,7 +500,6 @@ class SqlTable(GnrObject):
         return dict(name='{field}_{side}filled'.format(field=field,side=side), 
                                             sql_formula=sql_formula,
                                             **kwargs)
-
 
 
     def variantColumn_captions(self, field, related_table=None,caption_field=None,
@@ -1535,13 +1538,14 @@ class SqlTable(GnrObject):
     def fillFromSqlTable(self, sqltablename):
         self.db.adapter.fillFromSqlTable(self, sqltablename)
 
-    def sql_deleteSelection(self, where=None,_pkeys=None, **kwargs):
+    def sql_deleteSelection(self, where=None,_pkeys=None,subtable=None, **kwargs):
         """Delete a selection from the table. It works only in SQL so no python trigger is executed
         
         :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
         :param **kwargs: optional arguments for the "where" attribute"""
         if where:
-            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,_pkeys=_pkeys,**kwargs).fetch()
+            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,
+                                  _pkeys=_pkeys,subtable=subtable,**kwargs).fetch()
             _pkeys = [x[0] for x in todelete] if todelete else None
         if _pkeys:
             self.db.adapter.sql_deleteSelection(self, pkeyList=_pkeys)
@@ -1921,11 +1925,12 @@ class SqlTable(GnrObject):
     def _doFieldTriggers(self, triggerEvent, record,**kwargs):
         trgFields = self.model._fieldTriggers.get(triggerEvent)
         if trgFields:
-            for fldname, trgFunc in trgFields:
+            for fldname, trgFunc,trigger_table in trgFields:
                 if callable(trgFunc):
                     trgFunc(record, fldname)
                 else:
-                    getattr(self, 'trigger_%s' % trgFunc)(record, fldname=fldname,**kwargs)
+                    ttable = self if not trigger_table else self.db.table(trigger_table)
+                    getattr(ttable, 'trigger_%s' % trgFunc)(record, fldname=fldname,tblname=self.fullname,**kwargs)
                 
     def _doExternalPkgTriggers(self, triggerEvent, record,**kwargs):
         if not self.db.application:
@@ -1935,7 +1940,6 @@ class SqlTable(GnrObject):
             avoid_trigger_par = self.db.currentEnv.get('avoid_trigger_%s' %pkg_id)
             if avoid_trigger_par:
                 if avoid_trigger_par=='*' or triggerEvent in avoid_trigger_par.split(','):
-                    print('avoiding trigger',triggerEvent)
                     continue
             trgFunc = getattr(self, trigger_name, None)
             if callable(trgFunc):
@@ -2329,7 +2333,8 @@ class SqlTable(GnrObject):
             one_history_set = history[tablename]['one']
             sel = relatedTable.query(columns='*', where='$%s IN :pkeys' %ofld,
                                          pkeys=list(set([r[mfld] for r in records])-one_history_set),
-                                         excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 one_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=True)
@@ -2349,7 +2354,9 @@ class SqlTable(GnrObject):
             many_history_set = history[tablename]['many']
             sel = relatedTable.query(columns='*', where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
-                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False,
+                                         subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 many_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=False)

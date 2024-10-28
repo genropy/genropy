@@ -4,7 +4,8 @@
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/source_viewer/source_viewer:SourceViewer" 
+    py_requires="""gnrcomponents/testhandler:TestHandlerFull,
+                th/th:TableHandler"""
                 
     def test_0_gridbox(self,pane):
         "Simple fixed gridbox"
@@ -73,7 +74,8 @@ class GnrCustomWebPage(object):
     def test_4_gridboxLabledBox(self,pane):
         "Labels, rounded, border, background, padding attributes can be specified"
         bc = pane.borderContainer(height='500px')
-        fb = bc.contentPane(region='top').gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
+        top =  bc.contentPane(region='top')
+        fb =top.gridbox(columns=4,gap='10px',margin='5px',nodeId='boxControllers',datapath='.controllers')
         fb.textBox(value='^.columns',default='3',lbl='Columns')
         fb.filteringSelect(value='^.item_side',lbl='label Side',values='top,left,bottom,right')
         fb.textbox(value='^.item_border',lbl='Item border')
@@ -82,8 +84,7 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.item_box_c_padding',lbl='Content Padding')
         fb.textbox(value='^.item_fld_border',lbl='Field border')
         fb.textbox(value='^.item_fld_background',lbl='Field background')
-
-        gb = bc.contentPane(region='center').gridbox(columns='^#boxControllers.columns',gap='10px',margin='20px',
+        gb = top.formlet(columns='^#boxControllers.columns',gap='10px',margin='20px',
                                                      item_border='^#boxControllers.item_border',
                                                      item_side='^#boxControllers.item_side',
                                                      item_rounded='^#boxControllers.item_rounded',
@@ -99,5 +100,49 @@ class GnrCustomWebPage(object):
         gb.labledBox('Pr.Nascita').dbSelect(value='^.provincia_nascita',table='glbl.provincia',
                         hasDownArrow=True)
         gb.labledBox('Privacy acceptance').checkbox(value='^.privacy',label='Accept')
+        gb.br()
+        gb.textbox(value='^.email',lbl='Email',colspan=2,hidden='^.privacy?=!#v')
+        bc.contentPane(region='center').div('ciaociao')
 
-        gb.textbox(value='^.email',lbl='Email',colspan=2)
+    def test_5_gridboxLabledBoxWithTH(self,pane):
+        gb = pane.gridbox(height='600px',
+                          width='600px',cols=3,item_border='1px solid silver')
+        gb.labledBox('Nazioni').borderContainer().plainTableHandler(table='glbl.nazione',region='center')
+        gb.labledBox('Regioni').borderContainer().plainTableHandler(table='glbl.regione',region='center')
+        gb.labledBox('Province').borderContainer().plainTableHandler(table='glbl.provincia',region='center')
+        gb.labledBox('Comuni',colspan=3).borderContainer().plainTableHandler(table='glbl.comune',region='center')
+
+    def test_6_liquidGridboxWithTH(self,pane):
+        gb = pane.gridbox(cols=3,item_border='1px solid silver')
+        gb.plainTableHandler(table='glbl.nazione',height='200px')
+        gb.plainTableHandler(table='glbl.regione',height='200px')
+        gb.plainTableHandler(table='glbl.provincia',height='200px')
+        gb.plainTableHandler(table='glbl.comune',height='200px',width='900px',colspan=3)
+
+
+    def test_7_fff(self,pane):
+        mainbc = pane.borderContainer(height='800px',width='500px')
+        mainbc.contentPane(region='bottom',height='30%',splitter=True,background='red')
+        fbox = mainbc.contentPane(region='center').flexbox(height='100%',width='100%',
+                                                     flex_direction='column')
+        fbox.labledBox('Alfa',height='30%',
+                     border='1px solid silver',margin='5px',rounded=6).borderContainer( 
+                     ).plainTableHandler(region='center',table='glbl.provincia',condition_onStart=True)
+        fl = fbox.labledBox('Beta',height='20%',border='1px solid silver',margin='5px',rounded=6).formlet(cols=2)
+        fl.textbox(value='^.nome',lbl='Nome')
+        fl.textbox(value='^.cognome',lbl='Cognome')
+        fl.textbox(value='^.indirizzo',lbl='Indirizzo',colspan=2)
+
+        bc = fbox.labledBox('Gamma',height='15%',border='1px solid silver',margin='5px',rounded=6).borderContainer()
+        bc.contentPane(region='top',height='20%',background='lime',splitter=True)
+        bc.contentPane(region='right',width='20%',background='red',splitter=True)
+        bc.contentPane(region='center',background='pink')
+
+        fbox.labledBox('Delta',border='1px solid silver',margin='5px',flex=1,rounded=6)
+
+    def test_8_fff(self,pane):
+        gb = pane.gridbox(height='800px',width='100%',item_border='1px solid silver')
+        gb.labledBox('Alfa',height='100px')
+        gb.labledBox('Beta',height='200px')
+        gb.labledBox('Gamma',height='150px')
+        gb.labledBox('Delta')

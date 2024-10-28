@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+#-*- coding: UTF-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -20,41 +20,23 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-import sys
 import re
 import select
-
-try:
-    import psycopg2
-except ImportError:
-    try:
-        from psycopg2cffi import compat
-        compat.register()
-    except ImportError:
-        try:
-            from psycopg2ct import compat
-            compat.register()
-        except ImportError:
-            pass
-    import psycopg2
-
-from psycopg2.extras import DictConnection, DictCursor, DictCursorBase
-from psycopg2.extensions import cursor as _cursor
-from psycopg2.extensions import connection as _connection
-
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
-
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator, DbAdapterException
+import psycopg
+from psycopg import Connection,ClientCursor,Cursor, IsolationLevel
+from psycopg.rows import no_result
+from psycopg import sql
+from gnr.core.gnrlist import GnrNamedList
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
+
 #IN_TO_ANY = re.compile(r'([$]\w+|[@][\w|@|.]+)\s*(NOT)?\s*(IN ([:]\w+))')
 #IN_TO_ANY = re.compile(r'(?P<what>\w+.\w+)\s*(?P<not>NOT)?\s*(?P<inblock>IN\s*(?P<value>[:]\w+))',re.IGNORECASE)
 
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 import threading
 import _thread
 
@@ -68,14 +50,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'timestamp without time zone': 'DH',
                  'timestamp with time zone': 'DHZ',
                   'numeric': 'N', 'money': 'M',
-                 'integer': 'I', 'bigint': 'L', 
-                 'smallint': 'I', 
-                 'double precision': 'R', 
-                 'real': 'R',
-                'bytea': 'O',
-                'tsvector':'TSV',
-                'vector':'VEC',
-                'jsonb':'jsonb'}
+                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'bytea': 'O'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
@@ -85,8 +60,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'DH': 'timestamp without time zone',
                     'DHZ': 'timestamp with time zone',
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
-                    'serial': 'serial8', 'O': 'bytea','jsonb':'jsonb',
-                    'TSV':'tsvector','VEC':'vector'}
+                    'serial': 'serial8', 'O': 'bytea'}
 
     _lock = threading.Lock()
     paramstyle = 'pyformat'
@@ -104,61 +78,114 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
+
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
-        kwargs[
-        'connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
-        self._lock.acquire()
+        #kwargs[
+        #'cursor_factory'] = GnrDictCursor # build a DictConnection: provides cursors accessible by col number or col name
+        #self._lock.acquire()
         if 'port' in kwargs:
             kwargs['port'] = int(kwargs['port'])
-        try:
-            conn = psycopg2.connect(**kwargs)
-        finally:
-            self._lock.release()
+        database = kwargs.pop('database', None)
+        kwargs['dbname'] = kwargs.get('dbname') or database
+        conn = psycopg.connect(**kwargs)
+        conn.cursor_factory = GnrDictCursor
         return conn
         
     def adaptTupleListSet(self,sql,sqlargs):
+        
         for k,v in list(sqlargs.items()):
             if isinstance(v, list) or isinstance(v, set) or isinstance(v,tuple):
-                if not isinstance(v,tuple):
-                    sqlargs[k] = tuple(v)
+                if not isinstance(v,list):
+                    v = list(v)
                 if len(v)==0:
                     re_pattern = """((t\\d+)(_t\\d+)*.\\"?\\w+\\"?" +)(NOT +)*(IN) *:%s""" %k
                     sql = re.sub(re_pattern,lambda m: 'TRUE' if m.group(4) else 'FALSE',sql,flags=re.I)
+                else:
+                    sqlargs.pop(k)
+                    def unroll_list(match):
+                        base_name = match.group(2)
+                        names_list = []
+                        for i, value in enumerate(v):
+                            value_name = f"{base_name}_{i}"
+                            names_list.append(f':{value_name}')
+                            sqlargs[value_name] = value
+                        return f"{match.group(1)}({','.join(names_list)})"
+                    re_pattern = r'((?:t\d+(?:_t\d+)*.\"?\w+\"?\" +)(?:NOT +)*(?:IN) *)(?::)(%s)'%k
+                    sql = re.sub(re_pattern,unroll_list,sql,flags=re.I)
+        
+
+
         return sql
 
-    def prepareSqlText(self, sql, kwargs):
+    def prepareSqlText(self, sqltext, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
-        Replace the 'REGEXP' operator with '~*'.
-        
-        :param sql: the sql string to execute.
+        Replace the 'REGEXP' operator with '~*'
+
+        :param sql: the sql string to execute
         :param kwargs: the params dict
-        :returns: tuple (sql, kwargs)
-        """
-        sql = self.adaptTupleListSet(sql,kwargs)
-        return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
+        :returns: tuple (sql, kwargs)"""
+        sqlargs = {}
+        sqltext = self.adaptTupleListSet(sqltext,kwargs)
+        def subArgs(m):
+            key = m.group(1)
+            sqlargs[key]=kwargs[key]
+            #sqlargs.append(kwargs[key])
+            return f'{{{key}}}{m.group(2)} '
+        #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
+        sqltext = RE_SQL_PARAMS.sub(subArgs, sqltext)
+        sqltext= sqltext.replace('REGEXP', '~*')
         
-    def adaptSqlName(self,name):
+        return sqltext, sqlargs
+
+    @classmethod
+    def adaptSqlName(cls,name):
         return '"%s"' %name
+    
+    def _selectForUpdate(self,maintable_as=None,**kwargs):
+        return 'FOR UPDATE'
+
+
+    def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
+                   group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):
+        def _smartappend(x, name, value):
+            if value:
+                x.append('%s %s' % (name, value))
+        maintable_as = maintable_as or 't0'
+        result = ['SELECT  %s%s' % (distinct, columns)]
+        result.append(' FROM %s AS %s' % (maintable, maintable_as))
+        joins = joins or []
+        for join in joins:
+            result.append('       %s' % join)
+        
+        _smartappend(result, 'WHERE', where)
+        _smartappend(result, 'GROUP BY', group_by)
+        _smartappend(result, 'HAVING', having)
+        _smartappend(result, 'ORDER BY', order_by)
+        _smartappend(result, 'LIMIT', limit)
+        _smartappend(result, 'OFFSET', offset)
+        if for_update:
+            result.append(self._selectForUpdate(maintable_as=maintable_as,mode=for_update))
+        
+        return ' '.join(result)
 
     def _managerConnection(self):
         dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port)
+        kwargs = dict(host=dbroot.host, dbname='template1', user=dbroot.user,
+                      password=dbroot.password, port=dbroot.port,autocommit=True)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        conn = psycopg2.connect(**kwargs)
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        #conn = PersistentDB(psycopg2, 1000, **kwargs).connection()
+        conn = psycopg.connect(**kwargs)
+        conn.isolation_level=IsolationLevel.READ_UNCOMMITTED
         return conn
 
     def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
         conn = self._managerConnection()
         curs = conn.cursor()
         try:
             curs.execute("""CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding))
-            conn.commit()
         except:
             raise DbAdapterException("Could not create database %s" % dbname)
         finally:
@@ -175,6 +202,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sql = "LOCK %s IN %s MODE %s;" % (dbtable.model.sqlfullname, mode, nowait)
         self.dbroot.execute(sql)
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
 
@@ -191,7 +219,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         command = 'DROP TABLE IF EXISTS %s;'
         if cascade:
             command = 'DROP TABLE %s CASCADE;'
-        tablename = dbtable if isinstance(dbtable, str) else dbtable.model.sqlfullname
+        tablename = dbtable if isinstance(dbtable,str) else dbtable.model.sqlfullname
         self.dbroot.execute(command % tablename)
 
     def dump(self, filename,dbname=None,excluded_schemas=None, options=None,**kwargs):
@@ -248,12 +276,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :param filename: db name"""
         from subprocess import call
         dbname = dbname or self.dbroot.dbname
-        from multiprocessing import cpu_count
-
         if filename.endswith('.pgd'):
-            host = self.dbroot.host or 'localhost'
-            port = self.dbroot.port or '5432'
-            call(['pg_restore', f"""--dbname=postgresql://{self.dbroot.user}:{self.dbroot.password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
+            call(['pg_restore','--dbname',dbname,'-U',self.dbroot.user,filename])
         else:
             return call(['psql', "dbname=%s user=%s password=%s" % (dbname, self.dbroot.user, self.dbroot.password), '-f', filename])
         
@@ -314,12 +338,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
     def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
         """Perform analyze routines on the db"""
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_UNCOMMITTED
         if full:
             self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
         else:
             self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
     
     def setLocale(self,locale):
         pass
@@ -339,29 +363,20 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :param onNotify: function to execute on arrive of message
         :param onTimeout: function to execute on timeout
         """
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_UNCOMMITTED
         curs = self.dbroot.execute('LISTEN %s;' % msg)
         listening = True
         conn = curs.connection
-        if psycopg2.__version__.startswith('2.0'):
-            selector = curs
-            #pg_go = curs.isready
-        else:
-            selector = conn
-            #pg_go = conn.poll
+        selector = curs
         while listening:
             if select.select([selector], [], [], timeout) == ([], [], []):
                 if onTimeout != None:
                     listening = onTimeout()
             else:
-                if psycopg2.__version__.startswith('2.0'):
-                    if curs.isready() and onNotify != None:
-                        listening = onNotify(conn.notifies.pop())
-                else:
-                    conn.poll()
-                    while conn.notifies and listening and onNotify != None:
-                        listening = onNotify(conn.notifies.pop())
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
+                if curs.isready() and onNotify != None:
+                    listening = onNotify(conn.notifies.pop())
+                
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
         
     def notify(self, msg, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
@@ -382,7 +397,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         query = getattr(self, '_list_%s' % elType)()
         try:
             result = self.dbroot.execute(query, kwargs).fetchall()
-        except psycopg2.OperationalError:
+        except psycopg.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         return [r[0] for r in result]
         
@@ -542,7 +557,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         indexes = self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()
         return indexes
 
-    def getTableConstraints(self, table=None, schema=None):
+    def getTableContraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
@@ -623,26 +638,22 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
 
 
+def gnrdict_row(cursor,):
+    desc = cursor.description
+    if desc is None:
+        return no_result
+    def _gnrdict_row(values):
+        if values is None:
+            values = [None] * len(desc)
+        return GnrNamedList(cursor.index, values=values)
+    return _gnrdict_row
 
-class GnrDictConnection(_connection):
-    """A connection that uses DictCursor automatically."""
 
-
-    def __init__(self, *args, **kwargs):
-        super(GnrDictConnection, self).__init__(*args, **kwargs)
-
-    def cursor(self, name=None):
-        if name:
-            cur = super(GnrDictConnection, self).cursor(name, cursor_factory=GnrDictCursor)
-        else:
-            cur = super(GnrDictConnection, self).cursor(cursor_factory=GnrDictCursor)
-        return cur
-
-class GnrDictCursor(_cursor):
+class GnrDictCursor(Cursor):
     """Base class for all dict-like cursors."""
 
     def __init__(self, *args, **kwargs):
-        row_factory = GnrDictRow
+        row_factory = gnrdict_row
         super(GnrDictCursor, self).__init__(*args, **kwargs)
         self._query_executed = 0
         self.row_factory = row_factory
@@ -674,12 +685,11 @@ class GnrDictCursor(_cursor):
             raise StopIteration()
         return res
 
-    def execute(self, query, vars=None, async_=0):
+    def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
-        if psycopg2.__version__.startswith('2.0'):
-            return super(GnrDictCursor, self).execute(query, vars, async_)
-        return super(GnrDictCursor, self).execute(query, vars)
+        return super(GnrDictCursor, self).execute(sql.SQL(query).format(**params))
+        #return super(GnrDictCursor, self).execute(sql.SQL(query),params)
     
     def setConstraintsDeferred(self):
         self.execute("SET CONSTRAINTS all DEFERRED;")
