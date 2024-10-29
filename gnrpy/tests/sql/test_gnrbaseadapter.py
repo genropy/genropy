@@ -47,9 +47,10 @@ class FakeTable(object):
 
     
 class TestSqlDbAdapter():
-    def setup(self):
-        self.adapter = ba.SqlDbAdapter(FakeDbRoot(False))
-        self.adapter_fixed_schema = ba.SqlDbAdapter(FakeDbRoot("fixed_schema"))
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = ba.SqlDbAdapter(FakeDbRoot(False))
+        cls.adapter_fixed_schema = ba.SqlDbAdapter(FakeDbRoot("fixed_schema"))
 
     def test_adapter_listing(self):
         from gnr.sql import adapters
