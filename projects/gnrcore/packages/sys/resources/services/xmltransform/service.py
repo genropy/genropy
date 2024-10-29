@@ -25,7 +25,7 @@ class Main(GnrBaseService):
             xslt_content = BytesIO(xsl_file_content)
         return xslt_content
 
-    def xml_to_html(self, xml):
+    def xml_to_html(self, xml, **kwargs):
         if not self.xsl_path:
             raise GnrException('XSL file is missing. Please upload it first.')
         recovering_parser = ET.XMLParser(recover=True)
