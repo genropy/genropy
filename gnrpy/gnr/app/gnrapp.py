@@ -844,7 +844,7 @@ class GnrApp(object):
                     required_spec = requirement.specifier
                     installed_version = Version(importlib.metadata.version(package_name))
                     if not required_spec.contains(installed_version):
-                        wrong.append((e.req, e.dist))                        
+                        wrong.append((name, installed_version))
                 except importlib.metadata.PackageNotFoundError:
                     missing.append(name)
                 except Exception as e:
