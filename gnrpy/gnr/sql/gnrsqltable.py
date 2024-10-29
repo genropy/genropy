@@ -23,25 +23,26 @@
 
 import os
 import re
+from collections import defaultdict
+from datetime import datetime,timedelta
+import logging
+import threading
+
+import pytz
 
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
-#from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
-from collections import defaultdict
-from datetime import datetime,timedelta
-import pytz
-import logging
-import threading
 
 
 __version__ = '1.0b'
+
 gnrlogger = logging.getLogger(__name__)
 
 class RecordUpdater(object):
@@ -204,18 +205,20 @@ EXCEPTIONS = {'save': GnrSqlSaveException,
 class SqlTable(GnrObject):
     """The base class for database :ref:`tables <table>`.
     
-    Your tables will inherit from it (altough it won't be explicit in your code, since it's
-    done by GenroPy mixin machinery).
+    Your tables will inherit from it (altough it won't be explicit in
+    your code, since it's done by GenroPy mixin machinery).
     
-    In your webpage, package or table methods, you can get a reference to a table by name it
-    in this way::
+    In your webpage, package or table methods, you can get a reference
+    to a table by name it in this way::
     
         self.db.table('packagename.tablename')
     
     You can also get them from the application instance::
     
         app = GnrApp('instancename')
-        app.db.table('packagename.tablename')"""
+        app.db.table('packagename.tablename')
+
+    """
     def __init__(self, tblobj):
         self._model = tblobj
         self.name = tblobj.name
@@ -230,6 +233,9 @@ class SqlTable(GnrObject):
             self.xtd = XTDHandler(self)
         
     def use_dbstores(self,**kwargs):
+        # package tables has to set an explicit returning
+        # value set to False if they want to contraint the
+        # usage of the root dbstore
         pass
 
     def exception(self, exception, record=None, msg=None, **kwargs):
@@ -494,7 +500,6 @@ class SqlTable(GnrObject):
         return dict(name='{field}_{side}filled'.format(field=field,side=side), 
                                             sql_formula=sql_formula,
                                             **kwargs)
-
 
 
     def variantColumn_captions(self, field, related_table=None,caption_field=None,

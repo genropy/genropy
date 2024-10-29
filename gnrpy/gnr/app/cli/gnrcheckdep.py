@@ -34,7 +34,7 @@ def main():
         print("Checking for installed dependencies")
         
     missing, wrong = app.check_package_missing_dependencies()
-    
+
     if missing:
         dep_list = " ".join(missing)
         print(f"\nThe following dependencies are missing: {dep_list}")
@@ -43,13 +43,14 @@ def main():
             app.check_package_install_missing()
         else:
             print(f"\nPlease execute\n\npip install {dep_list}") 
-        sys.exit(2)
+            sys.exit(2)
         
     if wrong:
         print("\nCheck has detected the following wrong dependencies")
         for requested, installed in wrong:
             print(f"{requested} is requested, but {installed} found")
         sys.exit(3)
+        
     if not missing and not wrong:
         print("All good!")
 if __name__ == "__main__":

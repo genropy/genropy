@@ -66,6 +66,7 @@ from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
+import os
 import os.path
 import logging
 import sys
@@ -1928,18 +1929,27 @@ class Bag(GnrObject):
                     else:
                         self.setItem(x[0], x[1])
 
-    def _fromSource(self, source, fromFile, mode):
+    def _fromSource(self, source, fromFile, mode, _template_kwargs=None):
         """Receive "mode" and "fromFile" and switch between the different
         modes calling _fromXml or _unpickle
         
         :param source: the source string or source URI
         :param fromFile: flag that says if source is eventually an URI
         :param mode: flag of the importation mode (XML, pickle or VCARD)
+        :param _template_kwargs: dict of default kwargs, defaulting to os.environ
         :returns: a Bag from _unpickle() method or from _fromXml() method"""
         if not source:
             return
         
         if mode == 'xml':
+            _template_kwargs = _template_kwargs or dict(os.environ)
+            if isinstance(source, bytes):
+                encoding_match = re.search(b"encoding=['\"](.*?)['\"]", source[:50])
+                if encoding_match:
+                    source = source.decode(encoding=encoding_match.group(1).decode().lower())
+                else:
+                    source = source.decode()
+            source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
@@ -1970,6 +1980,7 @@ class Bag(GnrObject):
         originalsource = source
         if (isinstance(source,bytes) and (source.startswith(b'<') or b'<?xml' in source)) or\
             (isinstance(source,str) and (source.startswith('<') or '<?xml' in source)):
+                    
             return source, False, 'xml'
         if len(source) > 300:
             #if source is longer than 300 chars it cannot be a path or an URI
@@ -1984,7 +1995,7 @@ class Bag(GnrObject):
             if os.path.exists(source):
                 if os.path.isfile(source):
                     fname, fext = os.path.splitext(source)
-                    fext = fext[1:]
+                    fext = fext[1:].lower()
                     if fext in ['pckl', 'pkl', 'pik']:
                         return source, True, 'pickle'
                     elif fext in ['xml', 'html', 'xhtml', 'htm']:

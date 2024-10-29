@@ -338,7 +338,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         indexes = []
         return indexes
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""

@@ -728,6 +728,16 @@ class GnrApp(object):
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
+
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
+
+
         
         if not forTesting:
             dbattrs = self.config.getAttr('db') or {}
@@ -756,14 +766,6 @@ class GnrApp(object):
                 shutil.rmtree(tempdir)
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
-        # check for packages python dependencies
-        self.check_package_dependencies()
-        if 'checkdepcli' in self.kwargs:
-            return
 
         
         for pkgid, apppkg in list(self.packages.items()):
@@ -846,7 +848,7 @@ class GnrApp(object):
 
     def check_package_install_missing(self):
         missing, wrong = self.check_package_missing_dependencies()
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        return subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
