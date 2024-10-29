@@ -160,7 +160,7 @@ class BaseResourceBatch(object):
         :param key: TODO
         :param result: TODO
         :param record: TODO
-        :param \*\* info: TODO"""
+        :param ** info: TODO"""
         self.results[key] = result
         self.records[key] = record
         self.result_info[key] = info

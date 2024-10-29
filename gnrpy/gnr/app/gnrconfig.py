@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -196,7 +196,7 @@ def gnrConfigPath(force_return=False, no_virtualenv=False):
         config_path = expandpath(os.path.join(prefix,'etc','gnr'))
         return config_path
     if sys.platform == 'win32':
-        config_path = '~\gnr'
+        config_path = r'~\gnr'
     else:
         config_path = '~/.gnr'
     config_path  = expandpath(config_path)

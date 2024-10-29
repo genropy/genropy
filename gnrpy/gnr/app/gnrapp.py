@@ -28,6 +28,9 @@ import locale
 import sys
 import types
 import importlib
+import importlib.metadata
+from packaging.requirements import Requirement
+from packaging.version import Version
 import os
 import hashlib
 import re
@@ -36,7 +39,6 @@ import time
 import glob
 import subprocess
 from collections import defaultdict
-import pkg_resources
 from email.mime.text import MIMEText
 
 from gnr.utils import ssmtplib
@@ -837,11 +839,14 @@ class GnrApp(object):
         for name in self.instance_packages_dependencies:
             if name:
                 try:
-                    pkg_resources.get_distribution(name)
-                except pkg_resources.DistributionNotFound:
+                    requirement = Requirement(name)
+                    package_name = requirement.name
+                    required_spec = requirement.specifier
+                    installed_version = Version(importlib.metadata.version(package_name))
+                    if not required_spec.contains(installed_version):
+                        wrong.append((e.req, e.dist))                        
+                except importlib.metadata.PackageNotFoundError:
                     missing.append(name)
-                except pkg_resources.VersionConflict as e:
-                    wrong.append((e.req, e.dist))
                 except Exception as e:
                     log.error(f"ERROR on {name}: {e}")
         return missing, wrong

@@ -8,8 +8,8 @@ import locale
 from decimal import Decimal
 import pytz
 from babel import numbers, dates, Locale
-from gnr.core.gnrlang import GnrException
 
+from gnr.core.gnrlang import GnrException
 
 def localize(obj, format=None, currency=None, locale=None):
     """TODO

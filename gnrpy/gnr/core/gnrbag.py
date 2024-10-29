@@ -1485,7 +1485,7 @@ class Bag(GnrObject):
                               +----------------------------+----------------------------------------------------------------------+
             
         :param _validators: it specifies the value's validators to set
-        :param \*\*kwargs: attributes AND/OR validators
+        :param **kwargs: attributes AND/OR validators
         
         Example:
         
@@ -1546,7 +1546,7 @@ class Bag(GnrObject):
         :param _updattr: boolean. TODO
         :param _validators: specify the value's validators to set
         :param _removeNullAttributes: boolean. If ``True``, remove the null attributes
-        :param \*\*kwargs: attributes AND/OR validators
+        :param **kwargs: attributes AND/OR validators
         
         Example:
         
@@ -1668,7 +1668,7 @@ class Bag(GnrObject):
         """Set a BagFormula resolver
         
         :param formula: a string that represents the expression with symbolic vars
-        :param \*\*kwargs: links between symbols and paths associated to their values"""
+        :param **kwargs: links between symbols and paths associated to their values"""
         self.setBackRef()
         if self._symbols == None:
             self._symbols = {}
@@ -1956,7 +1956,7 @@ class Bag(GnrObject):
         elif mode == 'pickle':
             return self._unpickle(source, fromFile)
         elif mode == 'direct':
-            return Bag((os.path.basename(source).replace('.', '\.'), UrlResolver(source)))
+            return Bag((os.path.basename(source).replace('.', r'\.'), UrlResolver(source)))
         elif mode == 'isdir':
             source = source.rstrip('/')
             return Bag((os.path.basename(source), DirectoryResolver(source)))

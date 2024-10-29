@@ -732,7 +732,7 @@ class GnrWsgiSite(object):
         """TODO
 
         :param pkg: the :ref:`package <packages>` object
-        :param \*path: TODO"""
+        :param *path: TODO"""
         return self.resource_loader.loadResource(*path, pkg=pkg)
 
     def get_path_list(self, path_info):
