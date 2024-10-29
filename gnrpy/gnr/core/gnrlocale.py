@@ -25,6 +25,7 @@ def localize(obj, format=None, currency=None, locale=None):
         
     obj,handler = formatHandler(obj)
     if handler:
+
         return handler(obj, locale, format=format, currency=currency)
     else:
         return str(obj)
@@ -301,7 +302,10 @@ def defaultLocale():
     return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
 
 def currentLocale(locale=None):
-    return (locale or defaultLocale()).replace('-', '_')
+    r = (locale or defaultLocale()).replace('-', '_')
+    if r == 'c':
+        r = "C"
+    return r
     
     
 def getDateKeywords(keyword, locale=None):
