@@ -168,7 +168,7 @@ class Table(object):
                     if h == 0:
                         pname = r['code']
                         if pname.endswith('_'):
-                            pname = '%s\_' %pname[0:-1]
+                            pname = r'%s\_' %pname[0:-1]
                         dtype = r['data_type']
                     else:
                         pname = ''
