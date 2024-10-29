@@ -48,7 +48,6 @@ class BaseSql(BaseGnrSqlTest):
     def setup_class(cls):
         super().setup_class()
         cls.init()
-        print("CLS DBNAME", cls.dbname)
         # create database (actually create the DB file or structure)
         cls.db.createDb(cls.dbname)
         
@@ -71,13 +70,42 @@ class BaseSql(BaseGnrSqlTest):
 
     def test_noStructDiff(self):
         check = self.db.checkDb()
-        print(self.db.model.modelChanges)
         assert not check
 
     def test_execute1(self):
         result = self.db.execute('SELECT 1;').fetchall()
         assert result[0][0] == 1
 
+    def test_execute_env(self):
+        self.db.updateEnv(workdate="2020-01-01", storename="babbala")
+        r = self.db.execute("SELECT :env_workdate;", storename=False).fetchall()
+        self.db.clearCurrentEnv()
+        r = self.db.execute("SELECT :env_workdate;", sqlargs=dict(a=b'ciao', b=r"\$hello")).fetchall()
+
+        def fake_debugger(*args, **kwargs):
+            pass
+        
+        self.db.debugger = fake_debugger
+        r = self.db.execute("SELECT :env_workdate;",
+                            autocommit=False,
+                            # FIXME: investigate server side cursors
+                            #cursorname="*",
+                            dbtable="video.people",
+                            sqlargs=dict(a=b'ciao', b=r"\$hello")).fetchall()
+        assert self.db.debugger is fake_debugger
+        assert len(r) > 0
+        self.db.debugger = None
+        
+        def get_fake_cursor():
+            return [self.db.adapter.cursor(self.db.connection) for x in range(2)]
+        
+        r = self.db.execute("SELECT :env_workdate;",
+                            autocommit=True,
+                            cursor=get_fake_cursor(),
+                            dbtable="video.people",
+                            sqlargs=dict(a=b'ciao', b=r"\$hello"))
+        assert len(r) is 2
+        
     #------------table test-----------------------------------------
     def test_insert(self):
         tbl = self.db.table('video.movie')
@@ -89,6 +117,21 @@ class BaseSql(BaseGnrSqlTest):
         tbl.delete(result)
         self.db.commit()
 
+    def test_insertMany(self):
+        tbl = self.db.table('video.movie')
+        tbl.insertMany([
+            {'id': 12, 'title': 'Forrest Gump 2'},
+            {'id': 13, 'title': 'Forrest Gump 3'}
+            ])
+    def test_raw(self):
+        tbl = self.db.table('video.movie')
+        tbl.raw_insert(
+            {'id': 14, 'title': 'Apollo 14'}
+            )
+        tbl.raw_update(
+            {'id': 14},
+            {'title': 'Apollo 15'}
+            )
     def test_update(self):
         self.db.table('video.movie').update({'id': 10, 'nationality': 'TIBET'})
         self.db.commit()
@@ -123,7 +166,6 @@ class BaseSql(BaseGnrSqlTest):
 
     def test_recordKwargs(self):
         result = self.db.table('video.movie').record(title='Munich', mode='bag')
-        print(result)
         assert result['genre'] == 'DRAMA'
 
     def test_record_modeDict(self):
@@ -164,3 +206,17 @@ class TestGnrSqlDb_postgres(BaseSql):
 
     init = classmethod(init)
 
+
+class TestGnrSqlDb_postgres3(BaseSql):
+    def init(cls):
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
+                          dbname=cls.dbname,
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
+                          )
+
+    init = classmethod(init)

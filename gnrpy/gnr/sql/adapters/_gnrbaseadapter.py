@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -24,6 +24,7 @@ from datetime import datetime
 from past.utils import old_div
 import re
 import datetime
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
@@ -202,10 +203,9 @@ class SqlDbAdapter(object):
         :param colinfo: dict of column infos
         :param prefix: adapter specific prefix
         :returns: a new colinfo dict"""
-        d = dict([(k, v) for k, v in list(colinfo.items()) if
-                  k in ('name', 'default', 'notnull', 'dtype', 'position', 'length')])
-        d.update(dict([(prefix + k, v) for k, v in list(colinfo.items()) if
-                       k not in ('name', 'default', 'notnull', 'dtype', 'position', 'length')]))
+        standard_keys = ('name', 'default', 'notnull', 'dtype', 'position', 'length')
+        d = {k: v for k, v in colinfo.items() if k in standard_keys}
+        d.update({f"{prefix}{k}": v for k, v in colinfo.items() if k not in standard_keys})
         return d
 
     def getIndexesForTable(self, table, schema):
@@ -220,7 +220,7 @@ class SqlDbAdapter(object):
         :returns: list of index infos"""
         raise NotImplementedException()
         
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         
@@ -238,13 +238,14 @@ class SqlDbAdapter(object):
         return sql, kwargs
 
     def adaptTupleListSet(self,sql,sqlargs):
+        # iter over sqlargs, and if the value is an iterable (but not strings)
+        # search and replace in the sql query
+        
         for k, v in [(k, v) for k, v in list(sqlargs.items()) if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set)]:
             sqllist = '(%s) ' % ','.join([':%s%i' % (k, i) for i, ov in enumerate(v)])
             sqlargs.pop(k)
             sqlargs.update(dict([('%s%i' % (k, i), ov) for i, ov in enumerate(v)]))
             sql = re.sub(r':%s(\W|$)' % k, sqllist+'\\1', sql)
-            
-
         return sql
 
     def schemaName(self, name):
@@ -336,6 +337,10 @@ class SqlDbAdapter(object):
         mode = '' if mode is True else mode
         return 'FOR UPDATE OF %s %s' %(maintable_as,mode)
 
+
+    # FIXME: tblobj is allowed to be None (being the default) in the function prototype
+    # but the implementation won't allow this value, searching for attributes related
+    # to table object
     def prepareRecordData(self, record_data, tblobj=None,blackListAttributes=None, **kwargs):
         """Normalize a *record_data* object before actually execute an sql write command.
         Delete items which name starts with '@': eager loaded relations don't have to be
@@ -493,11 +498,9 @@ class SqlDbAdapter(object):
         """
         tblobj = dbtable.model
         columns = ', '.join(tblobj.columns.keys())
-        print('cols',columns)
         sql = """INSERT INTO {dest_table}({columns})
                  SELECT {columns} FROM {source_table};""".format(dest_table = tblobj.sqlfullname, 
                                                         source_table = sqltablename,columns=columns)
-        print('SQL', sql)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname)
 
     def analyze(self):
@@ -526,7 +529,7 @@ class SqlDbAdapter(object):
         return statement
 
     def addUniqueConstraint(self, pkg, tbl, fld):
-        statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'),pkg, fld, fld)
+        statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'), fld, fld)
         return statement
 
     def createExtensionSql(self,extension):

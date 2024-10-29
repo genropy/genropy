@@ -15,7 +15,8 @@ class Table(object):
         tbl.column('zona', name_long='!![it]Zona')
         tbl.column('zona_numero', 'I', name_long='!![it]Zona n.')
         tbl.column('nuts', size=':128', name_long='!![it]NUTS2').relation('glbl.nuts.code',relation_name='regioni')
-        tbl.formulaColumn('sigle_prov_m',"""STRING_AGG(#m,',')""",select_m=dict(table='glbl.provincia',columns='$nome',
+        tbl.formulaColumn('sigle_prov_m',self.db.adapter.string_agg('#M',separator=','),
+                                                    select_m=dict(table='glbl.provincia',columns='$nome',
                                                     where="$regione=#THIS.sigla AND $nome LIKE 'M%%'"))
 
 
