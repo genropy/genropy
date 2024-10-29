@@ -44,13 +44,12 @@ class Table(object):
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
-        tbl.formulaColumn('other_groups',select=dict(columns="STRING_AGG($group_code,',')",where='$user_id=#THIS.id',
-                                                table='adm.user_group'))
-        tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
-                                                select_allgroups=dict(columns='$code',
-                                                                      where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
+        tbl.formulaColumn('other_groups',select=dict(columns=self.db.adapter.string_agg('$group_code',separator=','),
+                                                     where='$user_id=#THIS.id', table='adm.user_group'))
+        tbl.formulaColumn('all_groups',select=dict(columns=self.db.adapter.string_agg('$code',separator=','),
+                                                     where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
                                                 table='adm.group'))
-
+        
         tbl.formulaColumn('fullname', """CASE WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
                                             WHEN $lastname IS NOT NULL THEN $lastname
                                             ELSE $username END

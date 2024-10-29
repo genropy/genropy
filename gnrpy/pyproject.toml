@@ -59,7 +59,8 @@ dependencies = [
 	     "paramiko", # gnr.core.gnrssh
 	     "dulwich", # needed by gnrgit
 	     "reportlab",
-	     "caldav", 
+	     "caldav",
+	     "weasyprint",
 	     ]
 
 [project.optional-dependencies]
