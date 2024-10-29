@@ -170,7 +170,7 @@ class SqlModelChecker(object):
                 self.actual_relations.setdefault('%s.%s' % (r[1], r[2]), []).append(r)
 
             self.unique_constraints = self.db.adapter.getTableConstraints()
-            self.unique_constraints = self.db.adapter.getTableContraints()
+
         for pkg in self.db.packages.values():
             if pkg.attributes.get('readOnly'):
                 continue

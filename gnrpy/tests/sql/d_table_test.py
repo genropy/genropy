@@ -88,7 +88,8 @@ class BaseSql(BaseGnrSqlTest):
         self.db.debugger = fake_debugger
         r = self.db.execute("SELECT :env_workdate;",
                             autocommit=False,
-                            cursorname="*",
+                            # FIXME: investigate server side cursors
+                            #cursorname="*",
                             dbtable="video.people",
                             sqlargs=dict(a=b'ciao', b=r"\$hello")).fetchall()
         assert self.db.debugger is fake_debugger

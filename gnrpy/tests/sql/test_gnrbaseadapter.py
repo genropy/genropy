@@ -54,7 +54,7 @@ class TestSqlDbAdapter():
     def test_adapter_listing(self):
         from gnr.sql import adapters
         all_adapters = adapters.__all__
-        assert len(all_adapters) == 7
+        assert len(all_adapters) == 8
         assert "gnrpostgres" in all_adapters
         assert "gnrsqlite" in all_adapters
         
