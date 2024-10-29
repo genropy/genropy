@@ -1943,6 +1943,12 @@ class Bag(GnrObject):
         
         if mode == 'xml':
             _template_kwargs = _template_kwargs or dict(os.environ)
+            if isinstance(source, bytes):
+                encoding_match = re.search(b"encoding=['\"](.*?)['\"]", source[:50])
+                if encoding_match:
+                    source = source.decode(encoding=encoding_match.group(1).decode().lower())
+                else:
+                    source = source.decode()
             source = source.format(**_template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
@@ -1974,6 +1980,7 @@ class Bag(GnrObject):
         originalsource = source
         if (isinstance(source,bytes) and (source.startswith(b'<') or b'<?xml' in source)) or\
             (isinstance(source,str) and (source.startswith('<') or '<?xml' in source)):
+                    
             return source, False, 'xml'
         if len(source) > 300:
             #if source is longer than 300 chars it cannot be a path or an URI
@@ -1988,7 +1995,7 @@ class Bag(GnrObject):
             if os.path.exists(source):
                 if os.path.isfile(source):
                     fname, fext = os.path.splitext(source)
-                    fext = fext[1:]
+                    fext = fext[1:].lower()
                     if fext in ['pckl', 'pkl', 'pik']:
                         return source, True, 'pickle'
                     elif fext in ['xml', 'html', 'xhtml', 'htm']:
