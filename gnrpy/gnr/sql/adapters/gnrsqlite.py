@@ -1,8 +1,8 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqlclass : Genro sqlite connection
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano
+# Copyright (c) : 2004 - 2007 Softwell sas - Milano 
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
@@ -20,20 +20,23 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #import weakref
-import os, re, time
 
+import os, re, time
 import datetime
 import pprint
 import decimal
+import logging
 
-import sqlite3 as pysqlite
+try:
+    import sqlite3 as pysqlite
+except:
+    from pysqlite2 import dbapi2 as pysqlite
 
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +45,11 @@ class GnrSqliteConnection(pysqlite.Connection):
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'charactervarying': 'A','nvarchar':'A', 'character varying': 'A', 'character': 'C','char': 'C', 'text': 'T','varchar':'A', 'blob': 'X',
-                'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
-                'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
-                'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
-                'integer unsigned':'L',
-                'decimal':'N','serial8': 'L'}
+                 'boolean': 'B','bool':'B', 'date': 'D', 'time': 'H',
+                 'datetime':'DH','timestamp': 'DH','timestamp with time zone':'DHZ','datetime with time zone':'DHZ', 'numeric': 'N',
+                 'integer': 'I','int': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'smallint unsigned':'I',
+                 'integer unsigned':'L',
+                 'decimal':'N','serial8': 'L'}
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'blob', 'P': 'text', 'Z': 'text','DHZ':'timestamp with time zone',
@@ -65,24 +68,21 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         r = re.compile(expr, re.U)
         return r.match(item) is not None
 
-    def connect(self,storename=None,**kwargs):
+    def connect(self,*args,**kwargs):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
-        connection_parameters = self.dbroot.get_connection_params(storename=storename)
-        connection_parameters.pop('implementation',None)
-        dbpath = connection_parameters.get('database')
+        dbpath = self.dbroot.dbname
         if not os.path.exists(dbpath):
             dbdir = os.path.dirname(dbpath) or os.path.join('..','data')
             if not os.path.isdir(dbdir):
                 os.makedirs(dbdir)
         conn = pysqlite.connect(dbpath, detect_types=pysqlite.PARSE_DECLTYPES | pysqlite.PARSE_COLNAMES, timeout=20.0,factory=GnrSqliteConnection)
         conn.create_function("regexp", 2, self.regexp)
-        #conn.row_factory = pysqlite.Row
         conn.row_factory = GnrDictRow
         curs = conn.cursor(GnrSqliteCursor)
         attached = [self.defaultMainSchema()]
         if self.dbroot.packages:
-            for _, pkg in list(self.dbroot.packages.items()):
+            for schema, pkg in list(self.dbroot.packages.items()):
                 sqlschema = pkg.sqlschema
                 if sqlschema:
                     if not sqlschema in attached:
@@ -120,7 +120,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         val = '1' if m.group(2).lower() == 'true' else '0'
         return ' %s%s ' %(op,val)
 
-    @classmethod
     def adaptSqlName(self,name):
         return '"%s"' %name
 
@@ -139,36 +138,24 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return []
 
 
-    def _list_schemata(self, comment=None):
-        result = self.dbroot.execute("PRAGMA database_list;").fetchall()
-        if comment:
-            return [(r[1],None) for r in result]
-        return [r[1] for r in result]
+    def _list_schemata(self):
+        return [r[1] for r in self.dbroot.execute("PRAGMA database_list;").fetchall()]
 
-    def _list_tables(self, schema=None, comment=None):
+    def _list_tables(self, schema):
         query = "SELECT name FROM %s.sqlite_master WHERE type='table';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
-        if comment:
-            return [(r[0],None) for r in result]
-        return [r[0] for r in result]
+        return [r[0] for r in self.dbroot.execute(query).fetchall()]
 
-    def _list_views(self, schema=None, comment=None):
+    def _list_views(self, schema):
         query = "SELECT name FROM %s.sqlite_master WHERE type='view';" % (schema,)
-        result = self.dbroot.execute(query).fetchall()
-        if comment:
-            return [(r[0],None) for r in result]
-        return [r[0] for r in result]
+        return [r[0] for r in self.dbroot.execute(query).fetchall()]
 
-    def _list_columns(self, schema=None, table=None, comment=None):
+    def _list_columns(self, schema, table):
         """cid|name|type|notnull|dflt_value|pk"""
         query = "PRAGMA %s.table_info(%s);" % (schema, table)
-        result = self.dbroot.execute(query).fetchall()
-        if comment:
-            return [(r[1],None) for r in result]
-        return [r[1] for r in result]
+        return [r[1] for r in self.dbroot.execute(query).fetchall()]
 
     def relations(self):
-        """Get a list of all relations in the db.
+        """Get a list of all relations in the db. 
         Each element of the list is a list (or tuple) with this elements:
         [foreign_constraint_name, many_schema, many_tbl, [many_col, ...], unique_constraint_name, one_schema, one_tbl, [one_col, ...]]
         @return: list of relation's details
@@ -270,7 +257,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn.close()
 
     def dropDb(self, name):
-        """Drop an existing database file (actually delete the file)
+        """Drop an existing database file (actually delete the file) 
         @param name: db name
         """
         os.remove(name)
@@ -290,15 +277,15 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             cols = [c['name'] for c in cols]
             result.append(dict(name=idx['name'], primary=None, unique=idx['unique'], columns=','.join(cols)))
         return result
-
-    def getTableContraints(self, table=None, schema=None):
+        
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
-
+        
         Other info may be present with an adapter-specific prefix."""
-        # TODO: implement getTableContraints
+        # TODO: implement getTableConstraints
         return Bag()
-
+        
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
         """Sqlite cannot add foreign keys, only define them in CREATE TABLE. However they are not enforced."""
@@ -315,7 +302,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def createIndex(self, index_name, columns, table_sql, sqlschema=None, unique=None):
         """create a new index
-        sqlite specific implementation fix a naming difference:
+        sqlite specific implementation fix a naming difference: 
         schema must be prepended to index name and not to table name.
         @param index_name: name of the index (unique in schema)
         @param columns: comma separated list of columns to include in the index
