@@ -104,7 +104,7 @@ class BaseSql(BaseGnrSqlTest):
                             cursor=get_fake_cursor(),
                             dbtable="video.people",
                             sqlargs=dict(a=b'ciao', b=r"\$hello"))
-        assert len(r) is 2
+        assert len(r) == 2
         
     #------------table test-----------------------------------------
     def test_insert(self):

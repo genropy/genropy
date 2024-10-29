@@ -62,9 +62,9 @@ class TestSqlDbAdapter():
         assert self.adapter.use_schemas() is True
         assert self.adapter.setLocale("it_IT") is None
 
-        assert self.adapter.adaptSqlSchema("schema_name") is "schema_name"
-        assert self.adapter.adaptSqlName("schema_name") is "schema_name"
-        assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") is "fixed_schema"
+        assert self.adapter.adaptSqlSchema("schema_name") == "schema_name"
+        assert self.adapter.adaptSqlName("schema_name") == "schema_name"
+        assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") == "fixed_schema"
         assert self.adapter.asTranslator('hello') == '"hello"'
 
     def test_extension(self):

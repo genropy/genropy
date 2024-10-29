@@ -49,7 +49,7 @@ class TestGnrSql(BaseGnrSqlTest):
         with pytest.raises(KeyError):
             a = db.get_dbname()
         db.clearCurrentEnv()
-        assert db.get_dbname() is "mydb"
+        assert db.get_dbname() == "mydb"
 
         # rootstore/currentstore
         assert db.usingRootstore()
@@ -149,5 +149,5 @@ class TestGnrSql(BaseGnrSqlTest):
     def test_dummy_localizer(self):
         l = gs.DbLocalizer()
         test_str = "ciao"
-        assert l.translate(test_str) is test_str
+        assert l.translate(test_str) == test_str
         
