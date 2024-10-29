@@ -25,7 +25,8 @@ def localize(obj, format=None, currency=None, locale=None):
         
     obj,handler = formatHandler(obj)
     if handler:
-
+        if locale == 'c':
+            locale = "C"
         return handler(obj, locale, format=format, currency=currency)
     else:
         return str(obj)
@@ -303,8 +304,6 @@ def defaultLocale():
 
 def currentLocale(locale=None):
     r = (locale or defaultLocale()).replace('-', '_')
-    if r == 'c':
-        r = "C"
     return r
     
     
