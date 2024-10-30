@@ -705,8 +705,9 @@ class GnrApp(object):
                     packages.setItem(pkgid, n.value, n.attr)
                 config['packages']  = packages
             return config
+        
         instance_config_path = os.path.join(self.instanceFolder, 'instanceconfig.xml')
-        base_instance_config = normalizePackages(Bag(instance_config_path))
+        base_instance_config = normalizePackages(Bag(instance_config_path, _template_kwargs=os.environ))
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:

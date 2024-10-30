@@ -454,6 +454,9 @@ class Bag(GnrObject):
         self._del_subscribers = {}
         self._modified = None
         self._rootattributes = None
+
+        self._template_kwargs = kwargs.get("_template_kwargs", {})
+        
         source=source or kwargs
         if source:
             self.fillFrom(source)
@@ -1959,6 +1962,9 @@ class Bag(GnrObject):
             #     else:
             #         source = source.decode()
             # source = source.format_map(AllowMissingDict(_template_kwargs))
+
+            if self._template_kwargs:
+                source = source.format_map(self._template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
