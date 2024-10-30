@@ -62,6 +62,7 @@ import pickle as pickle
 from datetime import datetime, timedelta
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+
 from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
@@ -73,6 +74,11 @@ import sys
 import re
 gnrlogger = logging.getLogger(__name__)
 
+
+def AllowMissingDict(dict):
+    def __missing__(self, key):
+        return "{"+key+"}"
+    
 def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
         return item_path
@@ -99,7 +105,7 @@ class BagDeprecatedCall(BagException):
     def __init__(self, errcode, message):
         self.errcode = errcode
         self.message = message
-        
+
 class BagNode(object):
     """BagNode is the element type which a Bag is composed of. That's why it's possible to say that a Bag
     is a collection of BagNodes. A BagNode is an object that gather within itself, three main things:
@@ -1949,7 +1955,7 @@ class Bag(GnrObject):
                     source = source.decode(encoding=encoding_match.group(1).decode().lower())
                 else:
                     source = source.decode()
-            source = source.format(**_template_kwargs)
+            source = source.format_map(AllowMissingDict(**_template_kwargs))
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
