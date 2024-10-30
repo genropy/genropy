@@ -75,7 +75,7 @@ import re
 gnrlogger = logging.getLogger(__name__)
 
 
-def AllowMissingDict(dict):
+class AllowMissingDict(dict):
     def __missing__(self, key):
         return "{"+key+"}"
     
@@ -1948,14 +1948,17 @@ class Bag(GnrObject):
             return
         
         if mode == 'xml':
-            _template_kwargs = _template_kwargs or dict(os.environ)
-            if isinstance(source, bytes):
-                encoding_match = re.search(b"encoding=['\"](.*?)['\"]", source[:50])
-                if encoding_match:
-                    source = source.decode(encoding=encoding_match.group(1).decode().lower())
-                else:
-                    source = source.decode()
-            source = source.format_map(AllowMissingDict(**_template_kwargs))
+            # FIXME: the commented code was introduce for docker
+            # variables, just it clashes with templates
+            #
+            # _template_kwargs = _template_kwargs or dict(os.environ)
+            # if isinstance(source, bytes):
+            #     encoding_match = re.search(b"encoding=['\"](.*?)['\"]", source[:50])
+            #     if encoding_match:
+            #         source = source.decode(encoding=encoding_match.group(1).decode().lower())
+            #     else:
+            #         source = source.decode()
+            # source = source.format_map(AllowMissingDict(_template_kwargs))
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
