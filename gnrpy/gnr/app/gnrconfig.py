@@ -181,7 +181,7 @@ def getGnrConfig(config_path=None, set_environment=False):
     config_path = config_path or gnrConfigPath()
     if not config_path or not os.path.isdir(config_path):
         raise Exception('Missing genro configuration')
-    gnr_config = Bag(config_path)
+    gnr_config = Bag(config_path, _template_kargs=os.environ)
     if set_environment:
         setEnvironment(gnr_config)
     return gnr_config

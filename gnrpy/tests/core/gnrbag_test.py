@@ -34,6 +34,12 @@ class TestBasicBag(object):
         b = Bag("<name>John</name>")
         assert b['name'] == 'John'
 
+    def test_template_kwargs(self):
+        source = "<name>{TESTVAR}</name>"
+        test_kwargs = dict(TESTVAR="admin", TESTVAR2="admin2")
+        b = Bag(source, _template_kwargs=test_kwargs)
+        assert b['name'] == "admin"
+        
     def test_fillFromBag(self):
         c = Bag(self.mybag)
         assert c == self.mybag
