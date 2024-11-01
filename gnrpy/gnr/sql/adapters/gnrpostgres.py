@@ -58,7 +58,63 @@ psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 import threading
 import _thread
 
+class AdapterSqlStructure(object):
+    def __init__(self,parent):
+        self.parent = parent
 
+    def get_schema_info_sql(self):
+        return """
+            SELECT
+                s.schema_name,
+                t.table_name,
+                c.column_name,
+                c.data_type,
+                c.character_maximum_length,
+                c.is_nullable,
+                c.column_default
+            FROM
+                information_schema.schemata s
+            JOIN
+                information_schema.tables t
+                ON s.schema_name = t.table_schema
+            JOIN
+                information_schema.columns c
+                ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+            WHERE
+                s.schema_name IN %s
+            ORDER BY
+                s.schema_name, t.table_name, c.ordinal_position;
+        """
+
+    def get_schema_info(self, schemas=None):
+        """Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
+        
+        columns = self.parent.execute(self.get_schema_info_sql(),(tuple(schemas),)).fetchall()
+        for schema_name, table_name, \
+            column_name, data_type, \
+            char_max_length, is_nullable, column_default in columns:
+            col = dict(schema_name=schema_name,table_name=table_name,
+                       name=column_name,dtype = data_type,
+                    length=char_max_length,
+                        notnull= is_nullable=='NO',
+                        default= column_default)
+            col = self._filterColInfo(col, '_pg_')
+            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
+            if dtype == 'N':
+                precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
+                if precision:
+                    col['size'] = f'{precision},{scale}'
+            elif dtype == 'A':
+                size = col.pop('length',None)
+                if size:
+                    col['size'] = f'0:{size}'
+                else:
+                    dtype = col['dtype'] = 'T'
+            elif dtype == 'C':
+                col['size'] = str(col.get('length'))
+            yield col
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
@@ -95,11 +151,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #self._lock = threading.Lock()
 
         super(SqlDbAdapter, self).__init__(*args, **kwargs)
+        self.structure = AdapterSqlStructure(self)
 
     def defaultMainSchema(self):
         return 'public'
 
-    def connect(self, storename=None):
+    def connect(self, storename=None,autoCommit=False):
         """Return a new connection object: provides cursors accessible by col number or col name
 
         :returns: a new connection object"""
@@ -115,6 +172,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             kwargs['port'] = int(kwargs['port'])
         try:
             conn = psycopg2.connect(**kwargs)
+            if autoCommit:
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        except psycopg2.OperationalError:
+            raise GnrNonExistingDbException(self.dbroot.dbname)
         finally:
             self._lock.release()
         return conn
@@ -628,7 +689,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         iterator = self.columnAdapter(columns)
         return iterator if not column else next(iterator)
 
-
     def columnAdapter(self,columns):
         for col in columns:
             col = dict(col)
@@ -638,11 +698,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             if dtype == 'N':
                 precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
                 if precision:
-                    col['size'] = '%i,%i' % (precision, scale)
+                    col['size'] = f'{precision},{scale}'
             elif dtype == 'A':
                 size = col.pop('length',None)
                 if size:
-                    col['size'] = '0:%i' % size
+                    col['size'] = f'0:{size}'
                 else:
                     dtype = col['dtype'] = 'T'
             elif dtype == 'C':
@@ -715,6 +775,7 @@ class GnrDictCursor(_cursor):
         if psycopg2.__version__.startswith('2.0'):
             return super(GnrDictCursor, self).execute(query, vars, async_)
         return super(GnrDictCursor, self).execute(query, vars)
+
 
     def setConstraintsDeferred(self):
         self.execute("SET CONSTRAINTS all DEFERRED;")

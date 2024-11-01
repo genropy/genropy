@@ -20,14 +20,20 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from datetime import datetime
-from past.utils import old_div
-import re
 import datetime
+
+import re
+import pytz
+
+
+
+from decimal import Decimal
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+
 from gnr.core.gnrdate import decodeDatePeriod
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
@@ -76,6 +82,7 @@ class SqlDbAdapter(object):
 
     def use_schemas(self):
         return True
+    
 
     def connect(self, storename=None):
         """-- IMPLEMENT THIS --
@@ -304,9 +311,9 @@ class SqlDbAdapter(object):
            @dateArg: name of the parameter that contains the reference date
            @timeUnit: year,month,week,day,hour,minute,second. Defaulted to day"""
         dateArg = dateArg or 'env_workdate'
-        timeUnitDict = dict(year=365 * 24 * 60 * 60, month=old_div(365 * 24 * 60 * 60, 12), week=7 * 24 * 60 * 60,
+        timeUnitDict = dict(year=365 * 24 * 60 * 60, month=int(365 * 24 * 60 * 60/ 12), week=7 * 24 * 60 * 60,
                             day=24 * 60 * 60, hour=60 * 60, minute=60, second=1)
-        return """CAST((EXTRACT (EPOCH FROM(cast(:%s as date))) - 
+        return """CAST((EXTRACT (EPOCH FROM(cast(:%s as date))) -  
                         EXTRACT (EPOCH FROM(%s)))/%i as bigint)""" % (dateArg, dateColumn,
                                                                       timeUnitDict.get(timeUnit, None) or timeUnitDict[
                                                                                                           'day'])
@@ -417,8 +424,18 @@ class SqlDbAdapter(object):
         cursor = self.cursor(self.dbroot.connection)
         result = cursor.executemany(sql,records)
         return result
+    
+    def connection(self,manager=False):
+        return self._managerConnection() if manager else self.connect()
 
 
+    def execute(self,sql,sqlargs=None,manager=False,autoCommit=False):
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+        
+                
+            
     def changePrimaryKeyValue(self, dbtable, pkey=None,newpkey=None,**kwargs):
         tblobj = dbtable.model
         pkeyColumn =  tblobj.sqlnamemapper[tblobj.pkey]
@@ -593,17 +610,41 @@ class SqlDbAdapter(object):
             command = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
         self.dbroot.execute(command % (sqltable,sqlname))
 
-    def columnSqlDefinition(self, sqlname, dtype, size, notnull, pkey, unique,extra_sql=None):
+
+    def valueToSql(self, value):
+        if value is None:
+            return 'NULL'
+        if isinstance(value, (int, float, Decimal)):
+            return str(value)
+        elif isinstance(value, bool):
+            return str(int(value))
+        elif isinstance(value, str):
+            # Escaping single quotes to prevent SQL injection or query errors
+            strvalue = value.replace("'", "''")
+        elif isinstance(value, datetime):
+            txtformat = '%Y-%m-%d %H:%M:%S'
+            if value.tzinfo is not None:
+                value = value.astimezone(pytz.UTC)
+                txtformat = '%Y-%m-%d %H:%M:%S%z'
+            strvalue = value.strftime(txtformat)
+        else:
+            raise TypeError(f"Unsupported data type: {type(value)}")
+        return f"'{strvalue}'"
+
+    def columnSqlDefinition(self, sqlname, dtype=None, size=None, notnull=None, pkey=None, 
+                            unique=None,default=None,extra_sql=None):
         """Return the statement string for creating a table's column
         """
-        sql = '"%s" %s' % (sqlname, self.columnSqlType(dtype, size))
+        sql_list = [f'"{sqlname}" {self.columnSqlType(dtype, size)}'] 
         if notnull:
-            sql = sql + ' NOT NULL'
+            sql_list.append('NOT NULL')
         if pkey:
-            sql = sql + ' PRIMARY KEY'
+            sql_list.append('PRIMARY KEY')
         if unique:
-            sql = sql + ' UNIQUE'
-        return f"{sql} {extra_sql or ''}"
+            sql_list.append('UNIQUE')
+        if default:
+            sql_list.append(f'DEFAULT {self.valueToSql(default)}')
+        return f"{' '.join(sql_list)} {extra_sql or ''}"
 
     def columnSqlType(self, dtype, size=None):
         if dtype != 'N' and size:
