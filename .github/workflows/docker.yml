@@ -2,20 +2,23 @@ name: Create docker images
 
 on:
   push:
-    branches: ["docker-ci-integration"]
-    # to be used in production stage
-    # tags: - release-**
+    branches: ["master", "develop"]
+
 permissions:
   contents: write
   packages: write
 
 jobs:
-
   build-and-push-image:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+      - name: Get version
+        id: gerversion
+        run: echo "::set-output name=version::$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)"
+      - name: Get branch name
+        run: echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up docker Buildx
@@ -38,7 +41,7 @@ jobs:
           file: ./dockerfiles/genropy/Dockerfile
           context: ./
           push: true
-          tags: ghcr.io/${{ github.repository }}:testing
+          tags: ghcr.io/${{ github.repository }}-${{ env.BRANCH }}:latest, ghcr.io/${{ github.repository }}-${{ env.BRANCH }}:${{ steps.getversion.outputs.version }}
           platforms: linux/amd64,linux/arm64
           provenance: false
 

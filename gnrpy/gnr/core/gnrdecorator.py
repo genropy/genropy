@@ -59,7 +59,7 @@ def autocast(**cast_kwargs):
     return decore
 
 def public_method(*args,**metadata):
-    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`\s
+    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`
 
     :param func: the function to set as public method"""
     if metadata:
@@ -77,7 +77,7 @@ def public_method(*args,**metadata):
 
 
 def websocket_method(*args,**metadata):
-    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`\s
+    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`
     :param func: the function to set as public method"""
     if metadata:
         def decore(func):
@@ -99,7 +99,7 @@ def extract_kwargs(_adapter=None,_dictkwargs=None,**extract_kwargs):
     :param _adapter: the adapter names for extracted attributes (prefixes for sub-families)
                      every adapter name defines a single extract kwargs sub-family
     :param _dictkwargs: a dict with the extracted kwargs
-    :param \*\*extract_kwargs: others kwargs
+    :param **extract_kwargs: others kwargs
 
     In the "extract_kwargs" definition line you have to follow this syntax::
 

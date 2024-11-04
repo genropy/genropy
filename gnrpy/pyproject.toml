@@ -31,11 +31,7 @@ dependencies = [
 	     "pytz",
 	     "babel",
 	     "httplib2",
-#	     "selectors34", #apparently abandoned
-#	     "serpent<1.30", #it's a pyro dependencies, so it seem
-                             #not necessary to list it here
 	     "pyro4",
-	     #"argparse",# it's parte of the stdlib
 	     "xlrd",
 	     "xlwt",
 	     "docutils",
@@ -58,6 +54,7 @@ dependencies = [
 	     "jsmin",
 	     "paramiko", # gnr.core.gnrssh
 	     "dulwich", # needed by gnrgit
+	     "packaging",
 	     "reportlab",
 	     "caldav",
 	     "weasyprint",

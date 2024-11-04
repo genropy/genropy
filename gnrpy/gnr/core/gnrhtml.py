@@ -142,7 +142,7 @@ class GnrHtmlSrc(GnrStructData):
         :param hasBorderLeft: add the left border
         :param hasBorderRight: add the right border
         :param hasBorderBottom: add the bottom border
-        :param \*\*kwargs: you can pass:
+        :param **kwargs: you can pass:
         
             * *style*: a string with css style"""
         name = name or 'l_{}'.format('_'.join([p for p in self.fullpath.split('.') \
