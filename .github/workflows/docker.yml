@@ -12,11 +12,11 @@ jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
       - name: Get version
         id: gerversion
         run: echo "::set-output name=version::$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)"
-      - name: Checkout repository
-        uses: actions/checkout@v3
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up docker Buildx
