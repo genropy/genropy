@@ -1,8 +1,13 @@
 name: Create docker images
 
 on:
-  push:
-    branches: ["master", "develop"]
+  workflow_run:
+    workflows: [tests]
+    branches:
+      - "master"
+      - "develop"
+    types:
+      - completed
 
 permissions:
   contents: write
