@@ -24,11 +24,11 @@ jobs:
       - name: Publish version
         uses: richardsimko/update-tag@v1
         with:
-          version_name: "${{steps.read_toml.outputs.value}}"
+          tag_name: "${{steps.read_toml.outputs.value}}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          id: publish_version
-          run: echo "::set-output name=version::${{ steps.read_version.outputs.value }}"
+          id: publish_tag
+          run: echo "::set-output name=tag::${{ steps.read_version.outputs.value }}"
       
   build-and-push-image:
     runs-on: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
           file: ./dockerfiles/genropy/Dockerfile
           context: ./
           push: true
-          tags: ghcr.io/${{ github.repository }}-${GITHUB_REF##*/}:latest, ghcr.io/${{ github.repository }}-${GITHUB_REF##*/}:${{ needs.getversion.outputs.version }}
+          tags: ghcr.io/${{ github.repository }}-${GITHUB_REF##*/}:latest, ghcr.io/${{ github.repository }}-${GITHUB_REF##*/}:${{ needs.getversion.outputs.tag }}
           platforms: linux/amd64,linux/arm64
           provenance: false
 
