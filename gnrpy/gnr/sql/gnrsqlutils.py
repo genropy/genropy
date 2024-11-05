@@ -491,7 +491,7 @@ class SqlModelChecker(object):
         change = self._sqlTable(tbl)
         self.changes.append(change)
         tablechanges.append(change)
-        if schema_code and schema_code!=tbl.pkg and tbl.attributes.get('multi_tenant'):
+        if schema_code and schema_code!=tbl.pkg.name and tbl.attributes.get('multi_tenant'):
             change_d =f"""ALTER TABLE {tbl.sqlfullname}
                         ALTER COLUMN _tenant_schema SET DEFAULT '{schema_code}';"""
             self.changes.append(change_d)
