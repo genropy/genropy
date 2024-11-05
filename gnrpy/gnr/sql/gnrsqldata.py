@@ -27,11 +27,14 @@ import re
 import pickle
 import itertools
 import hashlib
+import json
+import datetime
 from collections import OrderedDict
 from xml.sax import saxutils
+import tempfile
+
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import deprecated, uniquify, MinValue
-import tempfile
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core import gnrclasses
@@ -1125,7 +1128,17 @@ class SqlQuery(object):
         pkeyfield = self.dbtable.pkey
         return [r[pkeyfield] for r in fetch]
 
+    def fetchAsJson(self, key=None):
 
+        fetch = self.fetch()
+        key = key or self.dbtable.pkey
+        class GnrDictRowEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, datetime.datetime):
+                    return obj.isoformat()
+                return str(obj)
+        return json.dumps([ {k: v for k, v in r.items()} for r in fetch], cls=GnrDictRowEncoder)
+    
     def fetchAsDict(self, key=None, ordered=False, pkeyOnly=False):
         """Return the :meth:`~gnr.sql.gnrsqldata.SqlQuery.fetch` method as a dict with as key
         the parameter key you gave (or the pkey if you don't specify any key) and as value the

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
@@ -709,8 +709,8 @@ class GnrDomSrc(GnrStructData):
         """Create a :ref:`data` and returns it. ``data`` allows to define
         variables from server to client
         
-        :param \*args: args[0] includes the path of the value, args[1] includes the value
-        :param \*\*kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
+        :param *args: args[0] includes the path of the value, args[1] includes the value
+        :param **kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
                            information, check the :ref:`data_serverpath` example"""
         value = None
         className = None
@@ -985,7 +985,7 @@ class GnrDomSrc(GnrStructData):
                          check the :ref:`disabled` attribute
         :param rowdatapath: TODO
         :param head_rows: TODO
-        :param \*\*kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
+        :param **kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
         if spacing:
             h_padding = float((kwargs.get('border_spacing') or '6px').replace('px',''))/2
             kwargs['border_spacing'] = '0px'
@@ -1162,7 +1162,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the dataFormula's path
         :param formula: the dataFormula's formula
-        :param \*\*kwargs: formula parameters and other ones (:ref:`css`, etc)
+        :param **kwargs: formula parameters and other ones (:ref:`css`, etc)
         """
         return self.child('dataFormula', path=path, formula=formula, **kwargs)
         
@@ -1177,8 +1177,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         execute Javascript code
         
         :param script: the Javascript code that ``datacontroller`` has to execute. 
-        :param \*\*kwargs: *_init*, *_onStart*, *_timing*. For more information,
-                       check the controllers' :ref:`controllers_attributes` section
+        :param **kwargs: *_init*, *_onStart*, *_timing*. For more information,
+                      check the controllers' :ref:`controllers_attributes` section
         """
         return self.child('dataController', script=script, **kwargs)
         
@@ -1190,7 +1190,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                      you have to write it even if you don't return any value in the ``dataRpc``
                      (in this situation it will become a "mandatory but dummy" parameter)
         :param method: the name of your ``dataRpc`` method
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if not method and callable(pathOrMethod):
@@ -1208,7 +1208,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """TODO
         
         :param cb: TODO
-        :param \*\*kwargs: TODO"""
+        :param **kwargs: TODO"""
         self.child('callBack',childcontent=cb,**kwargs)
         return self
         
@@ -1438,7 +1438,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                          :ref:`sql_group_by` section
         :param having: the sql "HAVING" clause. For more information check the :ref:`sql_having`
         :param columnsFromView: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if 'name' in kwargs:
@@ -1489,7 +1489,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`package <packages>` to which the table belongs to)
         :param pkey: the record :ref:`primary key <pkey>`
         :param method: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         return self.child('dataRpc', path=path, table=table, pkey=pkey, method=method, **kwargs)
@@ -1502,7 +1502,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the path where the dataRemote will save the result of the rpc
         :param method: the rpc name that has to be executed
-        :param \*\*kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
+        :param **kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
                            it for a number of seconds equal to ``NUMBER``
         """
         childcontent =None

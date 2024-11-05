@@ -31,11 +31,7 @@ dependencies = [
 	     "pytz",
 	     "babel",
 	     "httplib2",
-#	     "selectors34", #apparently abandoned
-#	     "serpent<1.30", #it's a pyro dependencies, so it seem
-                             #not necessary to list it here
 	     "pyro4",
-	     #"argparse",# it's parte of the stdlib
 	     "xlrd",
 	     "xlwt",
 	     "docutils",
@@ -58,17 +54,19 @@ dependencies = [
 	     "jsmin",
 	     "paramiko", # gnr.core.gnrssh
 	     "dulwich", # needed by gnrgit
+	     "packaging",
 	     "reportlab",
-	     "caldav", 
+	     "caldav",
+	     "weasyprint",
 	     ]
 
 [project.optional-dependencies]
-pgsql = ["psycopg2-binary"]
+pgsql = ["psycopg2-binary","psycopg"]
 mysql = ["mysqlclient"]
 developer = [
 	  "pytest", "pytest-cov", "graphviz",
 	  "build", "twine","ipython",
-	  "psycopg2-binary",
+	  "psycopg2-binary","psycopg",
    	  "testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 

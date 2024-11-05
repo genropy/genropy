@@ -946,7 +946,7 @@ class TableBase(object):
         if not getattr(record, '_notUserChange', None):
             record[fldname] = self.db.currentUser
 
-    def trigger_setAuditVersionIns(self, record, fldname):
+    def trigger_setAuditVersionIns(self, record, fldname,**kwargs):
         """TODO
         
         :param record: the record

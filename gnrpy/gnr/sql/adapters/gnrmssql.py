@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -31,7 +31,7 @@ from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 #DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(Cursor):
     def __init__(self, *args, **kwargs):
@@ -341,7 +341,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         indexes = []
         return indexes
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""

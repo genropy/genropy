@@ -2,12 +2,13 @@
 
 import os
 import tempfile
+from weasyprint import CSS, HTML
 
 from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError
 
 class Service(HtmlToPdfService):
     def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None, **kwargs):
-        from weasyprint import CSS, HTML
+
         srcPath = self.parent.storageNode(srcPath, parent=self.parent)        
         page_css = None
         stylesheets = stylesheets or []

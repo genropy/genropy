@@ -257,7 +257,7 @@ class GnrClassCatalog(object):
         """
         if not isinstance(txt,(str,bytes)):
             return txt
-        result = re.split('::(\w*)$', txt)
+        result = re.split(r'::(\w*)$', txt)
         if len(result) == 1:
             return txt
         elif result[1] == 'D':

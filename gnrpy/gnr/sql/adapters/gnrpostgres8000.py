@@ -23,16 +23,17 @@
 import re
 import select
 
-from pg8000 import DBAPI
+from pg8000 import dbapi
 from pg8000.dbapi import require_open_cursor, require_open_connection, CursorWrapper, ConnectionWrapper
 from pg8000.interface import DataIterator, Cursor
+
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 
-DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+dbapi.paramstyle = 'pyformat'
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(CursorWrapper):
     def __init__(self, *args, **kwargs):

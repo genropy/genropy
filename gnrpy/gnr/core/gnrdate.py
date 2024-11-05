@@ -226,7 +226,7 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None,
             dateStart = workdate + datetime.timedelta(days[datestr] - workdate.weekday())
         elif datestr in def_days:
             dateStart = workdate + datetime.timedelta(def_days[datestr] - workdate.weekday())
-        elif re.match('\d{4}-\d{2}-\d{2}', datestr):                            # ISO date
+        elif re.match(r'\d{4}-\d{2}-\d{2}', datestr):                            # ISO date
             date_items = [int(el) for el in wordSplit(datestr)[0:3]]
             dateStart = datetime.date(*[int(el) for el in wordSplit(datestr)[0:3]])
         else:       

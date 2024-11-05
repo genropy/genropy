@@ -8,8 +8,8 @@ import locale
 from decimal import Decimal
 import pytz
 from babel import numbers, dates, Locale
-from gnr.core.gnrlang import GnrException
 
+from gnr.core.gnrlang import GnrException
 
 def localize(obj, format=None, currency=None, locale=None):
     """TODO
@@ -301,7 +301,8 @@ def defaultLocale():
     return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
 
 def currentLocale(locale=None):
-    return (locale or defaultLocale()).replace('-', '_')
+    r = (locale or defaultLocale()).replace('-', '_')
+    return r
     
     
 def getDateKeywords(keyword, locale=None):
