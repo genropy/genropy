@@ -46,8 +46,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def remoteTester(self,**kwargs):
-        print(xxx)
-
+        raise Exception("XXX exception")
 
     def test_1_rpcjson(self, pane):
         btn = pane.button('Test')

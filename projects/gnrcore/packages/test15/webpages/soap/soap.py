@@ -17,6 +17,6 @@ class GnrCustomWebPage(object):
     @srpc(String,String,_returns=String, _no_ctx=False)
     def test(self, pippo, pluto):
         print(pippo)
-        print(x)
+        raise Exception("x exception")
         print(pluto)
         return pluto

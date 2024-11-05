@@ -72,7 +72,7 @@ class GridCustomizer(BaseComponent):
         tc = parent.tabContainer(datapath=datapath or '.gridCustomizer',**kwargs)
         structures = self.gc_customizerStructures(table=gridTable,resource=gridResource)
         tc.data('.base_structures',structures)
-        tc.dataController("""
+        tc.dataController(r"""
         if(this.form.isNewRecord()){
             return;
         }        

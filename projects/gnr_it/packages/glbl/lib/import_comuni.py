@@ -9,8 +9,8 @@ def importXlsComuni(db,docname):
     print('province',province_dict)
     for row in reader():
         row = dict(row)     
-        row['litoraneo'] = True if row['litoraneo'] is 1 else False    
-        row['capoluogo'] = True if row['capoluogo'] is 1 else False  
+        row['litoraneo'] = True if row['litoraneo'] == 1 else False
+        row['capoluogo'] = True if row['capoluogo'] == 1 else False
         row['sigla_provincia'] = province_dict[row['codice_provincia']]['sigla']
         comune.insert(row)
 
@@ -19,3 +19,4 @@ if __name__ == '__main__':
     importXlsComuni(db, '../../../data/comuni.xls')
     db.commit()
     print('OK')
+

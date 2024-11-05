@@ -33,7 +33,7 @@ class DropUploaderBase(BaseComponent):
                  width='100px', height='100px', _class="document_empty_64",
                  style="""border: 2px dashed #989898;border-radius: 3px;""")
         pane.data('.uploading_data', Bag())
-        pane.dataController("""
+        pane.dataController(r"""
                 dojo.forEach(files,
                             function(f){
                                 var row = objectUpdate({_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:uploaderId},external_params);
@@ -109,7 +109,7 @@ class DropUploaderBase(BaseComponent):
        #    gridEditor.child(_tag, gridcell=k)
         grid.dataController("""grid.editBagRow(null,fired);""", fired='^.on_drop',
                           grid=grid.js_widget)
-        grid.dataController("""
+        grid.dataController(r"""
                 if(!filebag){
                    filebag = new gnr.GnrBag();
                    SET .uploading_data = filebag;
@@ -297,7 +297,7 @@ class DropUploader(DropUploaderBase):
             gridEditor.child(_tag, gridcell=k)
         bc.dataController("""genro.wdgById(gridId).editBagRow(null,fired);""", fired='^.on_drop',
                           gridId=gridId, datapath=datapath)
-        bc.dataController("""
+        bc.dataController(r"""
                 dojo.forEach(files,
                             function(f){
                                 var row = objectUpdate({_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:uploaderId},external_params);
