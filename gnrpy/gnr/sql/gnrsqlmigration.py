@@ -435,53 +435,55 @@ class SqlMigrator():
 
     def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
         if changed_attribute in ('size','dtype'):
-            return self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
+            return f'changed_column {changed_attribute}' #self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
         return
-        new_dtype = col.attributes['dtype']
-        if col.attributes.get('unaccent'):
-            self.unaccent = True
-        new_size = col.attributes.get('size')
-        new_unique = col.attributes.get('unique')
-        new_notnull = col.attributes.get('notnull')
-        old_dtype = dbcolumns[col.sqlname]['dtype']
-        old_size = dbcolumns[col.sqlname].get('size')
-        old_notnull = dbcolumns[col.sqlname].get('notnull')
-        if not 'pkey' in tblattr:
-            raise GnrSqlException(f'Missing pkey in table {tbl.fullname}')
-        if tblattr['pkey']==col.sqlname:
-            new_notnull = old_notnull
-        old_unique = self.unique_constraints['%s.%s.%s'%(tbl.sqlschema,tbl.sqlname,col.sqlname)]
-        if not self.unique_constraints and col.sqlname in columnsindexes:
-            if tblattr['pkey']==col.sqlname:
-                old_unique = new_unique
-            else:
-                old_unique = columnsindexes[col.sqlname].get('unique')
-        if new_dtype == 'A' and not new_size:
-            new_dtype = 'T'
-        if new_dtype == 'A' and not ':' in new_size:
-            new_dtype = 'C'
-        if new_size and ':' in new_size:
-            t1, t2 = new_size.split(':')
-            new_size = '%s:%s' % (t1 or '0', t2)
-        if new_size and new_dtype == 'N' and not ',' in new_size:
-            new_size = '%s,0' % new_size
-        if new_dtype in ('X', 'Z', 'P') and old_dtype == 'T':
-            pass
-        elif new_dtype=='serial' and old_dtype=='L':
-            pass
-        elif new_dtype in ('L','I') and old_dtype in ('L','I') and not self.db.adapter.allowAlterColumn:
-            pass
-        elif new_dtype != old_dtype or new_size != old_size or bool(old_unique)!=bool(new_unique) or bool(old_notnull)!=bool(new_notnull):
-            if (new_dtype != old_dtype or new_size != old_size):
-                change = self._alterColumnType(col, new_dtype, new_size=new_size)
-                self.changes.append(change)
-            if bool(old_unique)!=bool(new_unique):
-                self.changes.append(self._alterUnique(col,new_unique,old_unique))
-            if bool(old_notnull)!=bool(new_notnull):
-                self.changes.append(self._alterNotNull(col,new_notnull, old_notnull))
-
-
-        return f'changed column {kwargs}'
+    
+    #def xxx(self,col):
+    #    new_dtype = col.attributes['dtype']
+    #    if col.attributes.get('unaccent'):
+    #        self.unaccent = True
+    #    new_size = col.attributes.get('size')
+    #    new_unique = col.attributes.get('unique')
+    #    new_notnull = col.attributes.get('notnull')
+    #    old_dtype = dbcolumns[col.sqlname]['dtype']
+    #    old_size = dbcolumns[col.sqlname].get('size')
+    #    old_notnull = dbcolumns[col.sqlname].get('notnull')
+    #    if not 'pkey' in tblattr:
+    #        raise GnrSqlException(f'Missing pkey in table {tbl.fullname}')
+    #    if tblattr['pkey']==col.sqlname:
+    #        new_notnull = old_notnull
+    #    old_unique = self.unique_constraints['%s.%s.%s'%(tbl.sqlschema,tbl.sqlname,col.sqlname)]
+    #    if not self.unique_constraints and col.sqlname in columnsindexes:
+    #        if tblattr['pkey']==col.sqlname:
+    #            old_unique = new_unique
+    #        else:
+    #            old_unique = columnsindexes[col.sqlname].get('unique')
+    #    if new_dtype == 'A' and not new_size:
+    #        new_dtype = 'T'
+    #    if new_dtype == 'A' and not ':' in new_size:
+    #        new_dtype = 'C'
+    #    if new_size and ':' in new_size:
+    #        t1, t2 = new_size.split(':')
+    #        new_size = '%s:%s' % (t1 or '0', t2)
+    #    if new_size and new_dtype == 'N' and not ',' in new_size:
+    #        new_size = '%s,0' % new_size
+    #    if new_dtype in ('X', 'Z', 'P') and old_dtype == 'T':
+    #        pass
+    #    elif new_dtype=='serial' and old_dtype=='L':
+    #        pass
+    #    elif new_dtype in ('L','I') and old_dtype in ('L','I') and not self.db.adapter.allowAlterColumn:
+    #        pass
+    #    elif new_dtype != old_dtype or new_size != old_size or bool(old_unique)!=bool(new_unique) or bool(old_notnull)!=bool(new_notnull):
+    #        if (new_dtype != old_dtype or new_size != old_size):
+    #            change = self._alterColumnType(col, new_dtype, new_size=new_size)
+    #            self.changes.append(change)
+    #        if bool(old_unique)!=bool(new_unique):
+    #            self.changes.append(self._alterUnique(col,new_unique,old_unique))
+    #        if bool(old_notnull)!=bool(new_notnull):
+    #            self.changes.append(self._alterNotNull(col,new_notnull, old_notnull))
+#
+#
+    #    return f'changed column {kwargs}'
 
     def missing_handler(self,**kwargs):
         return f'missing {kwargs}'
@@ -497,29 +499,29 @@ class SqlMigrator():
                                                     extra_sql=colattr.get('extra_sql'))
     
     
-    def alterColumnType(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None):
-        """Prepare the sql statement for altering the type of a given column and return it"""
-        attributes = item['attributes']
-        size = attributes.get('size')
-        if size and size.startswith(':'):
-            size = f'0{size}'
-        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], size)
-        rebuildColumn = None
-        if changed_attribute=='size' or (oldvalue in ('T','A','C')) and (newvalue in ('T','A','C')):
-            rebuildColumn = False
-            sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
-            return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
-        else:
-            usedColumn = self.db.adapter.raw_fetch(f'SELECT COUNT(*) FROM {self.tableSqlName(item)};')
-            if usedColumn:
-                rebuildColumn = False
-            else:
-                rebuildColumn = True
-        if rebuildColumn:
-            return ',\n'.join([f'DROP COLUMN {item['entity_name']}'  ,f"ADD COLUMN {self.columnSql(item)}"])
-        else:
-            sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
-            return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
+    #def alterColumnType(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None):
+    #    """Prepare the sql statement for altering the type of a given column and return it"""
+    #    attributes = item['attributes']
+    #    size = attributes.get('size')
+    #    if size and size.startswith(':'):
+    #        size = f'0{size}'
+    #    sqlType = self.db.adapter.columnSqlType(attributes['dtype'], size)
+    #    rebuildColumn = None
+    #    if changed_attribute=='size' or (oldvalue in ('T','A','C')) and (newvalue in ('T','A','C')):
+    #        rebuildColumn = False
+    #        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
+    #        return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
+    #    else:
+    #        usedColumn = self.db.adapter.raw_fetch(f'SELECT COUNT(*) FROM {self.tableSqlName(item)};')
+    #        if usedColumn:
+    #            rebuildColumn = False
+    #        else:
+    #            rebuildColumn = True
+    #    if rebuildColumn:
+    #        return ',\n'.join([f'DROP COLUMN {item['entity_name']}'  ,f"ADD COLUMN {self.columnSql(item)}"])
+    #    else:
+    #        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
+    #        return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
         
     def tableSqlName(self,item=None):
         schema_name = item['schema_name']
