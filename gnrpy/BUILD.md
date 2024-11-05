@@ -83,10 +83,11 @@ using something like:
 
 ```git log --full-diff -p HEAD...release.X.Y.Z > /tmp/release-notes.txt```
 
-and uploading the output file ```/tmp/release-notes.txt``` attach to this example prompt (YMMV):
+and uploading the output file ```/tmp/release-notes.txt``` attach to
+this example prompt (YMMV):
 
 ```
-I will tatach a git full-diff log, please write the release notes in
+I will attach a git full-diff log, please write the release notes in
 RST format for all the changes described in the log. 
 ```
 
