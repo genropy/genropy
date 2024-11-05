@@ -10,7 +10,8 @@ from .common import BaseGnrSqlTest, configurePackage
 class MockApplication(object):
     debug = True
     config = { "db?reuse_relation_tree": False,
-               "db?auto_static_enabled": False}
+               "db?auto_static_enabled": False,
+               'dbstores': None}
     localizer = False
     instanceFolder = None
     def checkResourcePermission(self, deletable, tags, test=True):

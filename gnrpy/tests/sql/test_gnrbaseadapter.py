@@ -256,7 +256,7 @@ class TestSqlDbAdapter():
     
     def test_statements(self):
         r = self.adapter.string_agg("field", "separator")
-        assert "string_agg(" in r
+        assert "string_agg(" in r.lower()
         assert "field" in r
         assert "separator" in r
 

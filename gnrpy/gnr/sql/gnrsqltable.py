@@ -23,13 +23,10 @@
 
 import os
 import re
-from collections import defaultdict
-from datetime import datetime,timedelta
-import logging
 import threading
-
+from datetime import datetime, timedelta
 import pytz
-
+from collections import defaultdict
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
@@ -43,7 +40,6 @@ from gnr.sql.gnrsql import GnrSqlException
 
 __version__ = '1.0b'
 
-gnrlogger = logging.getLogger(__name__)
 
 class RecordUpdater(object):
     """TODO

@@ -449,4 +449,4 @@ class GnrWhereTranslator(GnrWhereTranslator_base):
 
     def op_contains(self, column, value, dtype, sqlArgs,tblobj):
         "Contains"
-        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs))
+        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs, parname=parname))

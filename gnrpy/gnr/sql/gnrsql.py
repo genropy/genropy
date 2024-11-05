@@ -115,6 +115,9 @@ class GnrSqlDb(GnrObject):
         :param application: TODO
         """
         self.implementation = self.dbpar(implementation)
+        self._currentEnv = {}
+        self._connections = {}
+        self.adapters = {}
         self.dbname = self.dbpar(dbname)
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
@@ -126,8 +129,7 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapter = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
-        self.whereTranslator = self.adapter.getWhereTranslator()
+        self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
