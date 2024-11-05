@@ -79,6 +79,8 @@ class SqlDbAdapter(object):
     def __init__(self, dbroot, **kwargs):
         self.dbroot = dbroot
         self.options = kwargs
+        self._whereTranslator = None
+
 
     def use_schemas(self):
         return True
@@ -683,7 +685,7 @@ class SqlDbAdapter(object):
 
     def dropIndex(self, index_name, sqlschema=None):
         """Drop an index
-        
+
         :param index_name: name of the index (unique in schema)
         :param sqlschema: actual sql name of the schema. For more information check the :ref:`about_schema`
                           documentation section"""
@@ -693,7 +695,7 @@ class SqlDbAdapter(object):
 
     def createIndex(self, index_name, columns, table_sql, sqlschema=None, unique=None):
         """Create a new index
-        
+
         :param index_name: name of the index (unique in schema)
         :param columns: comma separated string (or list or tuple) of :ref:`columns` to include in the index
         :param table_sql: actual sql name of the table
@@ -701,7 +703,7 @@ class SqlDbAdapter(object):
                           documentation section
         :unique: boolean for unique indexing"""
         table_sql = self.adaptSqlName(table_sql)
-        
+
         if sqlschema:
             sqlschema  = self.adaptSqlName(sqlschema)
             table_sql = '%s.%s' % (sqlschema, table_sql)
@@ -710,14 +712,21 @@ class SqlDbAdapter(object):
         else:
             unique = ''
         columns = ','.join([self.adaptSqlName(c) for c in columns.split(',')])
-        
+
         return "CREATE %sINDEX %s ON %s (%s);" % (unique, index_name, table_sql, columns)
+
 
     def createDbSql(self, dbname, encoding):
         pass
 
     def unaccentFormula(self, field):
         return field
+
+    @property
+    def whereTranslator(self):
+        if not self._whereTranslator:
+            self._whereTranslator = self.getWhereTranslator()
+        return self._whereTranslator
 
     def getWhereTranslator(self):
         return GnrWhereTranslator(self.dbroot)
