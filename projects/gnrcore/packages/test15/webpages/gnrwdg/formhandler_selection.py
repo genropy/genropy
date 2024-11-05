@@ -140,14 +140,3 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.auxdata.mia',lbl='Mia')
         fb.textbox(value='^.auxdata.foo.bar',lbl='Bar')
         
-    def xxx(self,pane):
-        tb.reloader.button('reload',fire='.reload')
-        iv = frame.includedView(struct='regione',autoSelect=True)
-        iv.selectionStore(table='glbl.provincia',where='$regione=:r',
-                          r='^.regione',_fired='^.reload')
-        center = bc.contentPane(region='center',border='1px solid blue')
-        form=iv.linkedForm(frameCode='provincia',loadEvent='onSelected',
-                            formRoot=center,store_startKey='*norecord*',
-                            store_onSaved='reload')
-        form.testToolbar()
-        

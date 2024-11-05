@@ -5,8 +5,6 @@
 # Copyright (c) 2012 Softwell. All rights reserved.
 
 "Test page description"
-from __future__ import print_function
-
 from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
@@ -39,4 +37,4 @@ class GnrCustomWebPage(object):
 
     @public_method
     def bugkwargs(self,data=None):
-    	print(x)
+        raise Exception("x exception")
