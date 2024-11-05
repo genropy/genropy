@@ -24,6 +24,7 @@
 import sys
 import re
 import select
+from collections import defaultdict
 
 try:
     import psycopg2
@@ -57,64 +58,6 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 import threading
 import _thread
-
-class AdapterSqlStructure(object):
-    def __init__(self,parent):
-        self.parent = parent
-
-    def get_schema_info_sql(self):
-        return """
-            SELECT
-                s.schema_name,
-                t.table_name,
-                c.column_name,
-                c.data_type,
-                c.character_maximum_length,
-                c.is_nullable,
-                c.column_default
-            FROM
-                information_schema.schemata s
-            JOIN
-                information_schema.tables t
-                ON s.schema_name = t.table_schema
-            JOIN
-                information_schema.columns c
-                ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-            WHERE
-                s.schema_name IN %s
-            ORDER BY
-                s.schema_name, t.table_name, c.ordinal_position;
-        """
-
-    def get_schema_info(self, schemas=None):
-        """Get a (list of) dict containing details about a column or all the columns of a table.
-        Each dict has those info: name, position, default, dtype, length, notnull
-        Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
-        
-        columns = self.parent.execute(self.get_schema_info_sql(),(tuple(schemas),)).fetchall()
-        for schema_name, table_name, \
-            column_name, data_type, \
-            char_max_length, is_nullable, column_default in columns:
-            col = dict(schema_name=schema_name,table_name=table_name,
-                       name=column_name,dtype = data_type,
-                    length=char_max_length,
-                        notnull= is_nullable=='NO',
-                        default= column_default)
-            col = self._filterColInfo(col, '_pg_')
-            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
-            if dtype == 'N':
-                precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
-                if precision:
-                    col['size'] = f'{precision},{scale}'
-            elif dtype == 'A':
-                size = col.pop('length',None)
-                if size:
-                    col['size'] = f'0:{size}'
-                else:
-                    dtype = col['dtype'] = 'T'
-            elif dtype == 'C':
-                col['size'] = str(col.get('length'))
-            yield col
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
@@ -151,7 +94,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #self._lock = threading.Lock()
 
         super(SqlDbAdapter, self).__init__(*args, **kwargs)
-        self.structure = AdapterSqlStructure(self)
 
     def defaultMainSchema(self):
         return 'public'
@@ -597,8 +539,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                                  init_defer]
         return list(ref_dict.values())
 
-    def alterColumnSql(self, table, column, dtype):
+    def alterColumnSql(self, table=None, column=None, dtype=None):
+        if not table:
+            return 'ALTER COLUMN %s TYPE %s  USING %s::%s' % (column, dtype,column,dtype)
         return 'ALTER TABLE %s ALTER COLUMN %s TYPE %s  USING %s::%s' % (table, column, dtype,column,dtype)
+    
 
 
     def getPkey(self, table, schema):
@@ -693,8 +638,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         for col in columns:
             col = dict(col)
             col = self._filterColInfo(col, '_pg_')
-            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
             col['notnull'] = (col['notnull'] == 'NO')
+            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
             if dtype == 'N':
                 precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
                 if precision:
@@ -716,9 +661,147 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
+    def struct_get_schema_info_sql(self):
+        return """
+                SELECT
+                    s.schema_name,
+                    t.table_name,
+                    c.column_name,
+                    c.data_type,
+                    c.character_maximum_length,
+                    c.is_nullable,
+                    c.column_default,
+                    CASE
+                        WHEN kcu.column_name IS NOT NULL THEN 'YES'
+                        ELSE 'NO'
+                    END AS is_primary_key
+                FROM
+                    information_schema.schemata s
+                JOIN
+                    information_schema.tables t
+                    ON s.schema_name = t.table_schema
+                JOIN
+                    information_schema.columns c
+                    ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+                LEFT JOIN
+                    information_schema.table_constraints tc
+                    ON t.table_schema = tc.table_schema 
+                    AND t.table_name = tc.table_name 
+                    AND tc.constraint_type = 'PRIMARY KEY'
+                LEFT JOIN
+                    information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name 
+                    AND c.column_name = kcu.column_name
+                    AND c.table_schema = kcu.table_schema
+                    AND c.table_name = kcu.table_name
+                WHERE
+                    s.schema_name IN %s
+                ORDER BY
+                    s.schema_name, t.table_name, c.ordinal_position;
+        """
 
+    def struct_get_schema_info(self, schemas=None):
+        """Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
+        
+        columns = self.raw_fetch(self.struct_get_schema_info_sql(),(tuple(schemas),))
+        for schema_name, table_name, \
+            column_name, data_type, \
+            char_max_length, is_nullable, column_default,is_primary_key in columns:
+            col = dict(schema_name=schema_name,table_name=table_name,
+                       name=column_name,dtype = data_type,
+                    length=char_max_length,
+                        notnull= is_nullable=='NO',
+                        default= column_default,is_primary_key=is_primary_key=='YES')
+            col = self._filterColInfo(col, '_pg_')
+            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
+            if dtype == 'N':
+                precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
+                if precision:
+                    col['size'] = f'{precision},{scale}'
+            elif dtype == 'A':
+                size = col.pop('length',None)
+                if size:
+                    col['size'] = f'0:{size}'
+                else:
+                    dtype = col['dtype'] = 'T'
+            elif dtype == 'C':
+                col['size'] = str(col.get('length'))
+            yield col
 
-
+    def struct_get_foreign_keys_sql(self):
+        return """
+        SELECT 
+            kcu.constraint_name AS constraint_name,
+            kcu.constraint_schema AS schema_name,
+            kcu.table_name AS table_name,
+            kcu.column_name AS column_name,
+            ccu.constraint_schema AS related_schema,
+            ccu.table_name AS related_table,
+            ccu.column_name AS related_column,
+            rc.update_rule AS on_update,
+            rc.delete_rule AS on_delete,
+            tc.is_deferrable,
+            tc.initially_deferred,
+            kcu.ordinal_position
+        FROM 
+            information_schema.table_constraints AS tc
+        JOIN 
+            information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.constraint_schema = kcu.constraint_schema
+        JOIN 
+            information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name
+            AND ccu.constraint_schema = tc.constraint_schema
+        JOIN 
+            information_schema.referential_constraints AS rc
+            ON tc.constraint_name = rc.constraint_name
+        WHERE 
+            tc.constraint_type = 'FOREIGN KEY'
+            AND kcu.constraint_schema = ANY(%s)
+        ORDER BY 
+            kcu.constraint_schema, kcu.table_name, kcu.constraint_name, kcu.ordinal_position;
+        """
+    
+    def struct_get_foreign_keys(self):
+        query = self.struct_get_foreign_keys_sql()
+        foreign_keys = defaultdict(lambda: {
+            "related_schema": None,
+            "related_table": None,
+            "related_columns": [],
+            "onDelete": None,
+            "onUpdate": None,
+            "deferred": False
+        })
+        for row in self.raw_fetch(query, (self.schemas,)):
+            constraint_name, schema_name, table_name, column_name, related_schema, related_table, related_column, on_update, on_delete, is_deferrable, initially_deferred, ordinal_position = row
+            key = (schema_name, table_name, constraint_name)
+            foreign_keys[key]["related_schema"] = related_schema
+            foreign_keys[key]["related_table"] = related_table
+            foreign_keys[key]["related_columns"].append(related_column)
+            foreign_keys[key]["onDelete"] = on_delete
+            foreign_keys[key]["onUpdate"] = on_update
+            foreign_keys[key]["deferred"] = is_deferrable == 'YES' and initially_deferred == 'YES'
+            if "child_columns" not in foreign_keys[key]:
+                foreign_keys[key]["child_columns"] = []
+            foreign_keys[key]["child_columns"].append(column_name)
+        final_result = {}
+        for key, value in foreign_keys.items():
+            schema_name, table_name, constraint_name = key
+            concatenated_columns = tuple(value["child_columns"])
+            new_key = (schema_name, table_name, concatenated_columns)
+            final_result[new_key] = {
+                "related_schema": value["related_schema"],
+                "related_table": value["related_table"],
+                "related_columns": value["related_columns"],
+                "onDelete": value["onDelete"],
+                "onUpdate": value["onUpdate"],
+                "deferred": value["deferred"]
+            }
+        return final_result
+    
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
 

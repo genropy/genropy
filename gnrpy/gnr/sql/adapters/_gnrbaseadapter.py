@@ -434,6 +434,11 @@ class SqlDbAdapter(object):
         with connection.cursor() as cursor:
             cursor.execute(sql,sqlargs)
         
+    def raw_fetch(self,sql,sqlargs=None,manager=False,autoCommit=False):
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+            return cursor.fetchall()
                 
             
     def changePrimaryKeyValue(self, dbtable, pkey=None,newpkey=None,**kwargs):

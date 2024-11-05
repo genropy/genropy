@@ -4,6 +4,8 @@ import json
 import time
 import functools
 from collections import defaultdict
+
+import attr
 from deepdiff import DeepDiff, Delta
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
@@ -54,10 +56,12 @@ class OrmExtractor:
         self.schemas = self.json_structure['root']['schemas']
 
     def fill_json_package(self,pkgobj):
-        self.schemas[pkgobj.sqlname] = {
+        schema_name = pkgobj.sqlname
+        self.schemas[schema_name] = {
             'metadata':{},
+            'schema_name':schema_name,
             'entity':'schema',
-            'entity_name':pkgobj.sqlname,
+            'entity_name':schema_name,
             'tables':{}
         }
         for tblobj in pkgobj.tables.values():
@@ -65,12 +69,14 @@ class OrmExtractor:
 
     def fill_json_table(self,tblobj):
         schema_name = tblobj.pkg.sqlname
+        table_name = tblobj.sqlname
         pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.attributes['pkey'].split(',')])
-        self.schemas[schema_name]['tables'][tblobj.sqlname] = {
+        self.schemas[schema_name]['tables'][table_name] = {
             "metadata": {},
             'entity':'table',
             'schema_name':schema_name,
-            'entity_name':tblobj.sqlname,
+            'table_name':table_name,
+            'entity_name':table_name,
             "attributes":{"pkeys":pkeys},
             "columns": {},
             "constraints": {},
@@ -82,14 +88,34 @@ class OrmExtractor:
     def fill_json_column(self,colobj):
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
-        self.schemas[schema_name]['tables'][table_name]['columns'][colobj.sqlname] = {"entity":"column",
-                                                                                      "schema_name":schema_name,
-                                                                                      "table_name":table_name,
-                                                                                      "entity_name":colobj.sqlname,
-                                                                                      "attributes":self.convert_colattr(colobj)}
+        attributes = self.convert_colattr(colobj)
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        column_name = colobj.sqlname
+        if column_name in table_json['attributes']['pkeys']:
+            attributes['notnull'] = True
+        table_json['columns'][colobj.sqlname] = {"entity":"column",
+                                                "schema_name":schema_name,
+                                                "table_name":table_name,
+                                                "entity_name":column_name,
+                                                "attributes":attributes}
 
     def convert_colattr(self,colobj):
-        return {k:v for k,v in colobj.attributes.items() if k in self.col_json_keys and v is not None}
+        result =  {k:v for k,v in colobj.attributes.items() if k in self.col_json_keys and v is not None}
+        size = result.pop('size',None)
+        dtype = result.pop('dtype',None)
+        if size:
+            if size.startswith(':'):
+                size = f'0{size}'
+            if ':' in size:
+                dtype = 'A'
+            else:
+                dtype = 'C'
+        if dtype in ('A','C') and not size:
+            dtype = 'T'
+        result['dtype'] = dtype
+        if size:
+            result['size'] = size
+        return result
     
 
     def get_json_struct(self):
@@ -104,7 +130,7 @@ class DbExtractor(object):
     def __init__(self, db):
         self.db = db
         self.conn = None
-        self.schemas = [pkg.sqlname for pkg in self.db.packages.values()]
+        self.application_schemas = [pkg.sqlname for pkg in self.db.packages.values()]
 
 
     def connect(self):
@@ -216,86 +242,11 @@ class DbExtractor(object):
                     "definition": index_def  # Mantiene anche la definizione completa se serve
                 }
 
-    def get_foreign_keys(self):
-        query = """
-        SELECT 
-            kcu.constraint_name AS constraint_name,
-            kcu.constraint_schema AS schema_name,
-            kcu.table_name AS table_name,
-            kcu.column_name AS column_name,
-            ccu.constraint_schema AS related_schema,
-            ccu.table_name AS related_table,
-            ccu.column_name AS related_column,
-            rc.update_rule AS on_update,
-            rc.delete_rule AS on_delete,
-            tc.is_deferrable,
-            tc.initially_deferred,
-            kcu.ordinal_position
-        FROM 
-            information_schema.table_constraints AS tc
-        JOIN 
-            information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
-            AND tc.constraint_schema = kcu.constraint_schema
-        JOIN 
-            information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
-            AND ccu.constraint_schema = tc.constraint_schema
-        JOIN 
-            information_schema.referential_constraints AS rc
-            ON tc.constraint_name = rc.constraint_name
-        WHERE 
-            tc.constraint_type = 'FOREIGN KEY'
-            AND kcu.constraint_schema = ANY(%s)
-        ORDER BY 
-            kcu.constraint_schema, kcu.table_name, kcu.constraint_name, kcu.ordinal_position;
-        """
 
-        # Dizionario per memorizzare i risultati
-        foreign_keys = defaultdict(lambda: {
-            "related_schema": None,
-            "related_table": None,
-            "related_columns": [],
-            "onDelete": None,
-            "onUpdate": None,
-            "deferred": False
-        })
-
-        with self.conn.cursor() as cursor:
-            cursor.execute(query, (self.schemas,))
-            for row in cursor.fetchall():
-                constraint_name, schema_name, table_name, column_name, related_schema, related_table, related_column, on_update, on_delete, is_deferrable, initially_deferred, ordinal_position = row
-                key = (schema_name, table_name, constraint_name)
-                foreign_keys[key]["related_schema"] = related_schema
-                foreign_keys[key]["related_table"] = related_table
-                foreign_keys[key]["related_columns"].append(related_column)
-                foreign_keys[key]["onDelete"] = on_delete
-                foreign_keys[key]["onUpdate"] = on_update
-                foreign_keys[key]["deferred"] = is_deferrable == 'YES' and initially_deferred == 'YES'
-                if "child_columns" not in foreign_keys[key]:
-                    foreign_keys[key]["child_columns"] = []
-                foreign_keys[key]["child_columns"].append(column_name)
-
-        # Converti la chiave basata su singole colonne in una chiave con le colonne concatenate
-        final_result = {}
-        for key, value in foreign_keys.items():
-            schema_name, table_name, constraint_name = key
-            concatenated_columns = tuple(value["child_columns"])
-            new_key = (schema_name, table_name, concatenated_columns)
-            final_result[new_key] = {
-                "related_schema": value["related_schema"],
-                "related_table": value["related_table"],
-                "related_columns": value["related_columns"],
-                "onDelete": value["onDelete"],
-                "onUpdate": value["onUpdate"],
-                "deferred": value["deferred"]
-            }
-
-        return final_result
             
-    def process_metadata(self, db_structure, metadata):
+    def process_metadata(self, metadata):
         """Processes schema, table, and column metadata."""
-        for c in self.db.adapter.columnAdapter(self.metadataAdapter(metadata)):
+        for c in metadata:
             schema_name = c.pop('_pg_schema_name')
             table_name = c.pop('_pg_table_name')
             column_name = c.pop('name')
@@ -303,32 +254,63 @@ class DbExtractor(object):
             if colattr['notnull'] is False:
                 colattr.pop('notnull')
 
-            if schema_name not in db_structure:
-                db_structure[schema_name] = {
+            if schema_name not in self.json_schemas:
+                self.json_schemas[schema_name] = {
                     "metadata": {},
-                    "tables": {}
+                    "tables": {},
+                    "entity":"schema",
+                    "entity_name":schema_name,
+                    "schema_name":schema_name
                 }
-            if table_name not in db_structure[schema_name]["tables"]:
-                db_structure[schema_name]["tables"][table_name] = {
+            if table_name not in self.json_schemas[schema_name]["tables"]:
+                self.json_schemas[schema_name]["tables"][table_name] = {
                     "metadata": {},
                     "columns": {},
                     "constraints": {},
-                    "indices": {}
+                    "indices": {},
+                    "entity":"table",
+                    "attributes":{"pkeys":None},
+                    "entity_name":table_name,
+                    "table_name":table_name,
+                    "schema_name":schema_name
                 }
-            db_structure[schema_name]["tables"][table_name]["columns"][column_name] = colattr
+            if c.get('_pg_is_primary_key'):
+                self.pkeys_dict[(schema_name,table_name)].append(column_name)
+            self.json_schemas[schema_name]["tables"][table_name]["columns"][column_name] = {"entity":"column",
+                                                                                      "schema_name":schema_name,
+                                                                                      "table_name":table_name,
+                                                                                      "entity_name":column_name,
+                                                                                        "attributes":colattr}
+    
+    def process_primary_keys(self):
+        for t,pkeys in self.pkeys_dict.items():
+            schema_name,table_name = t
+            self.json_schemas[schema_name]['tables'][table_name]['attributes']['pkeys'] = ','.join(pkeys)
+
+    def process_foreign_keys(self,foreign_keys_dict=None):
+        for t,fkeyattr in foreign_keys_dict.items():
+            pass
 
     @measure_time
     def get_json_struct(self,metadata_only=False):
         """Generates the JSON structure of the database."""
-        db_structure = {}
-        
-
+        self.json_structure = {'root':{
+            'schemas':{},
+            'entity':'db',
+            'entity_name':self.db.dbname
+            }
+        }
+        self.json_schemas = self.json_structure["root"]['schemas']        
+        self.pkeys_dict = defaultdict(list)
         try:
             self.connect()
             # Fetch all metadata and constraints/indices
-            metadata = self.db.adapter.structure.get_info(schemas=self.schemas)
-            self.process_metadata(db_structure, metadata)
-            return db_structure
+            metadata = self.db.adapter.struct_get_schema_info(schemas=self.application_schemas)
+            #foreign_keys_dict = self.db.adapter.struct_get_foreign_keys()
+            self.process_metadata(metadata)
+            self.process_primary_keys()
+            #self.process_foreign_keys(foreign_keys_dict)
+            return self.json_structure
         except GnrNonExistingDbException:
             return {}
         finally:
@@ -340,11 +322,11 @@ class SqlMigrator():
         self.db = self.application.db
         self.ormStructure = OrmExtractor(self.db).get_json_struct()
         self.sqlStructure = DbExtractor(self.db).get_json_struct()
-
+        
     def toSql(self,fromStructure=None):
         if fromStructure is None:
             fromStructure = self.sqlStructure
-        self.commands = []
+        self.commands = defaultdict(list)
         self.diff = DeepDiff(fromStructure, self.ormStructure,
                               ignore_order=True,view='tree')
         for evt,dbchange in self.structChanges(self.diff):
@@ -353,13 +335,24 @@ class SqlMigrator():
             schema_name = item.get('schema_name')
             table_name = item.get('table_name')
             column_name = item.get('column_name')
-            self.commands.append({'sql':sql,'entity':dbchange['entity'],
-                                  'entity_name':dbchange['entity_name'],
-                                  'evt':evt,
-                                  'schema_name':schema_name,
-                                  'table_name':table_name,
-                                  'column_name':column_name})
-  
+            entity_name = dbchange['entity_name']
+            entity = dbchange['entity']
+            command_key = ['db']
+            if entity in ('table','column'):
+                command_key.append(schema_name)
+            if entity =='column' or (entity=='table' and evt=='upd'):
+                command_key.append(table_name)
+            command = {'sql':sql,'entity':dbchange['entity'],
+                                    'entity_name':entity_name,
+                                    'evt':evt,
+                                    'schema_name':schema_name,
+                                    'table_name':table_name,
+                                    'column_name':column_name}
+            self.commands[tuple(command_key)].append(command)
+
+
+            
+
     def structChanges(self,diff):
         for key,evt in (('dictionary_item_added','added'),
                         ('dictionary_item_removed','removed'),
@@ -373,6 +366,7 @@ class SqlMigrator():
                     kw['msg'] = 'Added {entity} {entity_name}: {item}'.format(**kw)
 
                 elif evt == 'removed':
+                    kw['action'] = 'REMOVE'
                     kw['entity'] = change.t1['entity']
                     kw['entity_name'] = change.t1['entity_name']
                     kw['item'] = change.t1
@@ -407,24 +401,16 @@ class SqlMigrator():
 
 
     def added_table(self, item=None,**kwargs):
-        tablename = f'{self.db.adapter.adaptSqlName(item["schema_name"])}.{self.db.adapter.adaptSqlName(item["entity_name"])}'
+        tablename = self.tableSqlName(item)
         sqlfields = []
         for col in item['columns'].values():
             sqlfields.append(self.columnSql(col))
         sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
         return 'CREATE TABLE %s (%s);' % (tablename, ', '.join(sqlfields))
 
-    def columnSql(self, col):
-        """Return the statement string for creating a table's column"""
-        colattr = col['attributes']
-        return self.db.adapter.columnSqlDefinition(col['entity_name'],
-                                                   dtype=colattr['dtype'], size=colattr.get('size'),
-                                                   notnull=colattr.get('notnull', False),
-                                                    unique=colattr.get('unique'),default=colattr.get('default'),
-                                                    extra_sql=colattr.get('extra_sql'))
 
-    def added_column(self, **kwargs):
-        return f'added column {kwargs}'
+    def added_column(self, item=None,**kwargs):
+        return f'ADD COLUMN {self.columnSql(item)}'
 
     def removed_db(self, **kwargs):
         return f'removed db {kwargs}'
@@ -447,12 +433,99 @@ class SqlMigrator():
     def changed_table(self, **kwargs):
         return f'changed table {kwargs}'
 
-    def changed_column(self, **kwargs):
+    def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
+        if changed_attribute in ('size','dtype'):
+            return self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
+        return
+        new_dtype = col.attributes['dtype']
+        if col.attributes.get('unaccent'):
+            self.unaccent = True
+        new_size = col.attributes.get('size')
+        new_unique = col.attributes.get('unique')
+        new_notnull = col.attributes.get('notnull')
+        old_dtype = dbcolumns[col.sqlname]['dtype']
+        old_size = dbcolumns[col.sqlname].get('size')
+        old_notnull = dbcolumns[col.sqlname].get('notnull')
+        if not 'pkey' in tblattr:
+            raise GnrSqlException(f'Missing pkey in table {tbl.fullname}')
+        if tblattr['pkey']==col.sqlname:
+            new_notnull = old_notnull
+        old_unique = self.unique_constraints['%s.%s.%s'%(tbl.sqlschema,tbl.sqlname,col.sqlname)]
+        if not self.unique_constraints and col.sqlname in columnsindexes:
+            if tblattr['pkey']==col.sqlname:
+                old_unique = new_unique
+            else:
+                old_unique = columnsindexes[col.sqlname].get('unique')
+        if new_dtype == 'A' and not new_size:
+            new_dtype = 'T'
+        if new_dtype == 'A' and not ':' in new_size:
+            new_dtype = 'C'
+        if new_size and ':' in new_size:
+            t1, t2 = new_size.split(':')
+            new_size = '%s:%s' % (t1 or '0', t2)
+        if new_size and new_dtype == 'N' and not ',' in new_size:
+            new_size = '%s,0' % new_size
+        if new_dtype in ('X', 'Z', 'P') and old_dtype == 'T':
+            pass
+        elif new_dtype=='serial' and old_dtype=='L':
+            pass
+        elif new_dtype in ('L','I') and old_dtype in ('L','I') and not self.db.adapter.allowAlterColumn:
+            pass
+        elif new_dtype != old_dtype or new_size != old_size or bool(old_unique)!=bool(new_unique) or bool(old_notnull)!=bool(new_notnull):
+            if (new_dtype != old_dtype or new_size != old_size):
+                change = self._alterColumnType(col, new_dtype, new_size=new_size)
+                self.changes.append(change)
+            if bool(old_unique)!=bool(new_unique):
+                self.changes.append(self._alterUnique(col,new_unique,old_unique))
+            if bool(old_notnull)!=bool(new_notnull):
+                self.changes.append(self._alterNotNull(col,new_notnull, old_notnull))
+
+
         return f'changed column {kwargs}'
 
     def missing_handler(self,**kwargs):
         return f'missing {kwargs}'
 
+
+    def columnSql(self, col):
+        """Return the statement string for creating a table's column"""
+        colattr = col['attributes']
+        return self.db.adapter.columnSqlDefinition(col['entity_name'],
+                                                   dtype=colattr['dtype'], size=colattr.get('size'),
+                                                   notnull=colattr.get('notnull', False),
+                                                    unique=colattr.get('unique'),default=colattr.get('default'),
+                                                    extra_sql=colattr.get('extra_sql'))
+    
+    
+    def alterColumnType(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None):
+        """Prepare the sql statement for altering the type of a given column and return it"""
+        attributes = item['attributes']
+        size = attributes.get('size')
+        if size and size.startswith(':'):
+            size = f'0{size}'
+        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], size)
+        rebuildColumn = None
+        if changed_attribute=='size' or (oldvalue in ('T','A','C')) and (newvalue in ('T','A','C')):
+            rebuildColumn = False
+            sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
+            return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
+        else:
+            usedColumn = self.db.adapter.raw_fetch(f'SELECT COUNT(*) FROM {self.tableSqlName(item)};')
+            if usedColumn:
+                rebuildColumn = False
+            else:
+                rebuildColumn = True
+        if rebuildColumn:
+            return ',\n'.join([f'DROP COLUMN {item['entity_name']}'  ,f"ADD COLUMN {self.columnSql(item)}"])
+        else:
+            sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
+            return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
+        
+    def tableSqlName(self,item=None):
+        schema_name = item['schema_name']
+        table_name = item['table_name'] 
+        return f'{self.db.adapter.adaptSqlName(schema_name)}.{self.db.adapter.adaptSqlName(table_name)}'
+                              
     def applyChanges(self):
         """TODO"""
         firstcommand = self.commands.pop(0)
@@ -460,7 +533,7 @@ class SqlMigrator():
             self.db.adapter.execute(firstcommand['sql'],manager=True)
         else:
             self.commands = [firstcommand]+self.commands
-        sql = '\n'.join([c['sql'] for c in self.commands])
+        sql = '\n'.join([c['sql'] for c in self.commands if c['sql']])
         self.db.adapter.execute(sql,autoCommit=True)
 
 if __name__ == '__main__':
@@ -477,5 +550,5 @@ if __name__ == '__main__':
     #print('\n---from 1 to 0',diff)
     #print('orm mig1',mig_1.ormStructure)
     mig.toSql()
-    mig.applyChanges()
+    #mig.applyChanges()
     #print('\n'.join([c["sql"] for c in mig.commands]))
