@@ -842,18 +842,7 @@ class TableBase(object):
             if k not in matched_cols:
                 errors.append(k)
         if errors:
-            return 'Missing %s' %','.join(errors)
-    
-    def importerInsertRow(self,row,import_mode=None):
-        record = self.importerRecordFromRow(row)
-        if import_mode=='insert_or_update':
-            self.insertOrUpdate(record)
-        else:
-            self.insert(record)
-    
-    def importerRecordFromRow(self,row):
-        return self.newrecord(**dict(row))
-
+            return 'Missing %s' %','.join(errors)        
 
     @public_method
     def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):

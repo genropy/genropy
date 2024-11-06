@@ -385,7 +385,8 @@ class GnrWebUtils(GnrBaseProxy):
                                             messageType='warning')
         else:
             for r in rows:
-                tblobj.importerInsertRow(r,import_mode=import_mode)
+                with tblobj.recordToUpdate(r[tblobj.pkey],insertMissing=True) as rec:
+                    rec.update(r)
                 docommit=True
         if docommit:
             self.page.db.commit()
