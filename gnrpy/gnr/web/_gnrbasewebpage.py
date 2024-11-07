@@ -482,7 +482,7 @@ class GnrBaseWebPage(GnrObject):
         :param onSavedHandler: TODO
         """
         #resultAttr = None #todo define what we put into resultAttr
-        resultAttr = {}
+        resultAttr = {'table':table}
         gridsChanges = data.pop('grids')
         onSavingMethod = 'onSaving'
         onSavedMethod = 'onSaved'
