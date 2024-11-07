@@ -1694,7 +1694,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             if (((data.len() > 0) && (data.__isRealChange)) || (!result)) {
                 var result = result || new gnr.GnrBag();
                 var recordNode = record.getParentNode();
-                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields', true);
+                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields,table', true);
                 result.setItem(recordNode.label, data, resultattr);
                 result.__isRealChange = data.__isRealChange;
             }
