@@ -676,7 +676,17 @@ class DbModelSrc(GnrStructData):
 
 
     def compositeColumn(self, name, columns=None, static=True,**kwargs):
-        return self.virtual_column(name, composed_of=columns, static=static,**kwargs)
+        chunks = []
+        for column in columns.split(','):
+            dtype,val = self.column(column).attributes.get('dtype','T'),f'${column}'
+            if dtype in ('A','C','T'):
+                val = f""" '"' ||  ${column} || '"' """
+            elif dtype not in ('L','F','R','B'):
+                val = f""" '"' ||  ${column} || '\:\:{dtype}"' """ 
+            chunks.append(f"""(CASE WHEN ${column} IS NULL THEN 'null' ELSE {val} END) """)
+        sql_formula = " ||','||".join(chunks)
+        sql_formula = f"'[' || {sql_formula} || ']' "
+        return self.virtual_column(name, composed_of=columns, static=static,sql_formula=sql_formula,dtype='JS',**kwargs)
 
 
 

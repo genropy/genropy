@@ -349,22 +349,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         dbtable = '%s.%s' % (pkg, tbl)
         if not relation_value:
             kwargs['limit'] = 0
-        
-        if relation_value and self.db.table(dbtable).column(related_field).attributes.get('composed_of'):
-            r = self.db.table(dbtable).parseSerializedKey(relation_value,field=related_field)
-            wherelist = []
-            for k,v in r.items():
-                wherelist.append(f'${k}=:val_{k}')
-                kwargs[f'val_{k}'] = v
-            where = ' AND '.join(wherelist)
-        else:
-            where = "$%s = :val_%s" % (related_field, related_field)
-            kwargs[str('val_%s' % related_field)] = relation_value
-        if condition:
-            where = ' ( %s ) AND ( %s ) ' % (where, condition)
-        query = self.db.query(dbtable, columns=columns, where=where,
-                              sqlContextName=sqlContextName, **kwargs)
 
+        
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=relation_value,where=condition,
+                                                    sqlContextName=sqlContextName, **kwargs)
         joinBag = None
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)

@@ -588,26 +588,31 @@ class SqlTable(GnrObject):
     def parseSerializedKey(self,key,field=None):
         """
         Parses a serialized primary key into a dictionary of key-value pairs.
-
         Args:
             pkey (str): The serialized primary key string.
 
         Returns:
             dict: A dictionary where the keys are the components of the primary key and the values are the corresponding values.
-
-        Raises:
-            False: If there are coercion errors during the parsing process.
         """
         field = field or self.pkey
         composed_of = self.column(field).attributes.get('composed_of')
         pkeykeys = composed_of.strip('[]').split(',')
-        pkeyvalues = key.strip('[]').split(',')
-        r = dict(zip(pkeykeys,pkeyvalues))
-        self.recordCoerceTypes(r)
-        _coerce_errors = r.pop('_coerce_errors',None)
-        if _coerce_errors:
-            raise self.exception('standard',f'Serialized pkey {key} cannot be parsed')
-        return r
+        pkeyvalues = self.db.typeConverter.fromJson(key)
+        return dict(zip(pkeykeys,pkeyvalues))
+    
+    def relatedQueryPars(self,where=None,field=None,value=None,kwargs=None):
+        where = [where] if where else []
+        if value and self.column(field).attributes.get('composed_of'):
+            joinDict = self.parseSerializedKey(value,field=field)
+        else:
+            joinDict = {field:value}
+        for k,v in joinDict.items():
+            where.append(f'${k}=:rq_val_{k}')
+            kwargs[f'rq_val_{k}'] = v
+        return dict(where=' AND '.join(where), **kwargs)
+    
+    def relatedQuery(self,where=None,field=None,value=None,**kwargs):
+        return self.query(**self.relatedQueryPars(where=where,field=field,value=value,kwargs=kwargs))
 
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
@@ -2042,10 +2047,12 @@ class SqlTable(GnrObject):
         on the current :ref:`database table <table>`"""
         return self.pkeyValue(record=record)
 
+    def compositeKey(self,record=None,field=None):
+        return self.db.typeConverter.toTypedJSON([record[key] for key in self.column(field).composed_of.split(',')])
 
     def pkeyValue(self,record=None):
         if len(self.pkeys)>1:
-            return f"[{','.join([str(record[key]) for key in self.pkeys])}]"
+            return self.compositeKey(record,field=self.pkey)
         pkeyfield = self.model.pkey
         pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):

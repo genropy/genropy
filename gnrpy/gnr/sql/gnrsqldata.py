@@ -218,11 +218,8 @@ class SqlQueryCompiler(object):
                 # then call getFieldAlias again with the real path
                 return self.getFieldAlias(fldalias.relation_path, curr=curr,
                                           basealias=alias)  # call getFieldAlias recursively
-            elif fldalias.sql_formula or fldalias.select or fldalias.exists or fldalias.composed_of:
+            elif fldalias.sql_formula or fldalias.select or fldalias.exists:
                 sql_formula = fldalias.sql_formula
-                if not sql_formula and fldalias.composed_of:
-                    sql_formula = " ||','||".join([f"CAST (COALESCE(${c},'NULL') AS TEXT) " for c in fldalias.composed_of.split(',')])
-                    sql_formula = f" '[' || {sql_formula} || ']' "
                 attr = dict(fldalias.attributes)
                 if sql_formula is True:
                     sql_formula = getattr(curr_tblobj,'sql_formula_%s' %fld)(attr)
@@ -731,7 +728,7 @@ class SqlQueryCompiler(object):
                              check the :ref:`relationdict` documentation section
         :param virtual_columns: TODO."""
         self.cpl = SqlCompiledQuery(self.tblobj.sqlfullname, relationDict=relationDict)
-        if not 'pkey' in self.cpl.relationDict and self.tblobj.pkey:
+        if 'pkey' not in self.cpl.relationDict and self.tblobj.pkey:
             self.cpl.relationDict['pkey'] = self.tblobj.pkey
         self.init(lazy=lazy, eager=eager)
         colPars = {}
@@ -2237,17 +2234,9 @@ class SqlRelatedSelectionResolver(BagResolver):
     def load(self):
         """TODO"""
         pkg, tbl, related_field = self.target_fld.split('.')
-        dbtable = '%s.%s' % (pkg, tbl)
-
-        where = "$%s = :val_%s" % (related_field, related_field)
-        self.sqlparams = self.sqlparams or {}
-        self.sqlparams[str('val_%s' % related_field)] = self.relation_value
-        if self.condition:
-            where = '(%s) AND (%s)' % (where, self.condition)
-
-        query = SqlQuery(self.db.table(dbtable), columns=self.columns, where=where,
-                         joinConditions=self.joinConditions, sqlContextName=self.sqlContextName,
-                         bagFields=self.bagFields, **self.sqlparams)
+        dbtable = '%s.%s' % (pkg, tbl)  
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=self.relation_value,where=self.condition,
+                                                    sqlContextName=self.sqlContextName, **self.sqlparams)
         return query.selection().output(self.mode, recordResolver=(self.mode == 'grid'),virtual_columns=self.virtual_columns)
 
 class SqlRecord(object):
@@ -2262,7 +2251,7 @@ class SqlRecord(object):
                  checkPermissions=None,
                  aliasPrefix=None,
                  **kwargs):
-        if pkey and len(dbtable.pkeys)>1:
+        if pkey and pkey.startswith('[') and len(dbtable.pkeys)>1:
             sqlparams = sqlparams or {}
             sqlparams.update(dbtable.parseSerializedKey(pkey))
             pkey = None
