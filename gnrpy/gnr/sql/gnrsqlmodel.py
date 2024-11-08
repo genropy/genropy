@@ -165,6 +165,7 @@ class DbModel(object):
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
 
+
     @extract_kwargs(resolver=True,meta=True)
     def addRelation(self, many_relation_tuple, oneColumn, mode=None,storename=None, one_one=None, onDelete=None, onDelete_sql=None,
                     onUpdate=None, onUpdate_sql=None, deferred=None, eager_one=None, eager_many=None, relation_name=None,
@@ -664,14 +665,20 @@ class DbModelSrc(GnrStructData):
         """
         return self.virtual_column(name, relation_path=relation_path, **kwargs)
 
-    def joinColumn(self, name, columns=None,**kwargs):
+    def joinColumn(self, name, **kwargs):
         """Insert an joinColumn into a :ref:`table`, that is a column with a relation path.
         The joinColumn is a child of the table created with the :meth:`table()` method
 
         :param name: the column name
         :returns: an joinColumn
         """
-        return self.virtual_column(name, join_column=columns or True, **kwargs)
+        return self.virtual_column(name, join_column=True, **kwargs)
+
+
+    def compositeColumn(self, name, columns=None, static=True,**kwargs):
+        return self.virtual_column(name, composed_of=columns, static=static,**kwargs)
+
+
 
     def bagItemColumn(self, name, bagcolumn=None,itempath=None,dtype=None, **kwargs):
         """Insert an aliasColumn into a :ref:`table`, that is a column with a relation path.
@@ -1070,6 +1077,13 @@ class DbTableObj(DbModelObj):
 
     sqlnamemapper = property(_get_sqlnamemapper)
 
+
+    def _get_pkeys(self):
+        if self.column(self.pkey).attributes.get('composed_of'):
+            return self.column(self.pkey).attributes.get('composed_of').split(',')
+        return [self.pkey]
+    pkeys = property(_get_pkeys)
+
     def _get_pkey(self):
         """property. Returns the table's pkey"""
         return self.attributes.get('pkey', '')
@@ -1290,6 +1304,8 @@ class DbTableObj(DbModelObj):
                 elif colalias.sql_formula or colalias.select or colalias.exists:
                     return colalias
                 elif colalias.join_column:
+                    return colalias
+                elif colalias.composed_of:
                     return colalias
                 elif colalias.py_method:
                     return colalias
@@ -1642,35 +1658,12 @@ class DbBaseColumnObj(DbModelObj):
         return
 
     def _fillRelatedColumn(self, related_column):
-
-        #lunghezza 1 --> è una table del mio package
-        #lunghezza 2 
-        #       --->vado a vedere il primo dei 2 se è un c
-        #lunghezza 3
-       #if len(related_column)<3:
-       #    related_column = [self.getInheritedAttributes().get('pkg')]+related_column
-       #related_column = '.'.join(related_column)
-        
-        pkg,tbl,column = self.pkg.name,None,None
         relation_list = related_column.split('.')
         if len(relation_list) == 3:
-            #fatt.cliente.id
             pkg,tbl,column = relation_list
-        elif len(relation_list) == 1:
-            #cliente
-            tbl = relation_list[0]
         else:
-            if self.dbroot.model.src['packages'][relation_list[0]] is None:
-                #cliente.id
-                tbl = relation_list[0]
-                column = relation_list[1]
-            else:
-                tbl = relation_list[1]
-        if not column:
-            tblsrc = self.dbroot.model.src['packages'][pkg]['tables'][tbl]
-            column = tblsrc.attributes.get('pkey')
-            if ',' in column:
-                column = f'[{column}]'
+            tbl,column = relation_list
+            pkg = self.pkg.name
         return f'{pkg}.{tbl}.{column}' 
 
 class DbColumnObj(DbBaseColumnObj):
@@ -1779,9 +1772,15 @@ class DbVirtualColumnObj(DbBaseColumnObj):
 
     relation_path = property(_get_relation_path)
 
+    def _get_composed_of(self):
+        return self.attributes.get('composed_of')
+    composed_of = property(_get_composed_of)
+
+
     def _get_join_column(self):
         return self.attributes.get('join_column')
     join_column = property(_get_join_column)
+
 
 
     def _get_sql_formula(self):

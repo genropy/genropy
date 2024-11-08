@@ -406,6 +406,11 @@ class SqlTable(GnrObject):
         return self.model.pkey
 
     @property
+    def pkeys(self):
+        """Return the pkey DbColumnObj object"""
+        return self.model.pkeys
+
+    @property
     def lastTS(self):
         """Return the lastTS DbColumnObj object"""
         return self.model.lastTS
@@ -579,6 +584,30 @@ class SqlTable(GnrObject):
                     customPermissions = customPermissions + permissions.split(',')
             self._availablePermissions = ','.join(uniquify(customPermissions))
         return self._availablePermissions
+    
+    def parseSerializedKey(self,key,field=None):
+        """
+        Parses a serialized primary key into a dictionary of key-value pairs.
+
+        Args:
+            pkey (str): The serialized primary key string.
+
+        Returns:
+            dict: A dictionary where the keys are the components of the primary key and the values are the corresponding values.
+
+        Raises:
+            False: If there are coercion errors during the parsing process.
+        """
+        field = field or self.pkey
+        composed_of = self.column(field).attributes.get('composed_of')
+        pkeykeys = composed_of.strip('[]').split(',')
+        pkeyvalues = key.strip('[]').split(',')
+        r = dict(zip(pkeykeys,pkeyvalues))
+        self.recordCoerceTypes(r)
+        _coerce_errors = r.pop('_coerce_errors',None)
+        if _coerce_errors:
+            raise self.exception('standard',f'Serialized pkey {key} cannot be parsed')
+        return r
 
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
@@ -587,7 +616,7 @@ class SqlTable(GnrObject):
         :param null: TODO"""
         converter = self.db.typeConverter
         _coerce_errors = []
-        for k in list(record.keys()):
+        for k in record.keys():
             if not k.startswith('@'):
                 if self.column(k) is None:
                     continue

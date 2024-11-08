@@ -488,8 +488,9 @@ class SqlDbAdapter(object):
         """
         tblobj = dbtable.model
         record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
-        pkey = tblobj.pkey
-        sql = 'DELETE FROM %s WHERE %s=:%s;' % (tblobj.sqlfullname, tblobj.sqlnamemapper[pkey], pkey)
+        pkeys = tblobj.pkeys
+        where = ' AND '.join([f'{key}=:{key}' for key in pkeys])
+        sql = f'DELETE FROM {tblobj.sqlfullname} WHERE {where};'
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def sql_deleteSelection(self, dbtable, pkeyList):
