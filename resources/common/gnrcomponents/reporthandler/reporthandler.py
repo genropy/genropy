@@ -145,7 +145,7 @@ class ReportHandler(BaseComponent):
         grid = frame.grid
         grid.data('.table',table)
         grid.dragAndDrop(dropCodes='fieldvars')
-        grid.dataController("""var caption = data.fullcaption;
+        grid.dataController(r"""var caption = data.fullcaption;
                                 var field = data.fieldpath;
                                 var pkey = field.replace(/\W/g,'_');
                                 var dtype = data.dtype;

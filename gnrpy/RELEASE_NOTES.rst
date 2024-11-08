@@ -1,3 +1,61 @@
+Version 24.11.4
+===============
+
+Enhancements
+------------
+
+* **Bag Template System**: Introduced `_template_kwargs` in the `Bag`
+  class to allow template expansion using environment variables, and
+  updated tests for the `Bag` template system.
+
+* **Docker Image Workflow**: Added Docker image tagging for `develop`
+  and `master` branches using project versioning, modified the GitHub
+  Actions workflow for Docker image builds, adding branch name
+  extraction and version handling, fixed issues with tag formatting
+  and added platform-specific build configurations (amd64 and arm64).
+
+* **Python Version Compatibility**: Added support for Python 3.12 and
+  3.13 in test matrices, ensuring compatibility with newer versions,
+  updated package dependencies, adding `packaging` to support version
+  management.
+
+Bug Fixes
+-----
+* **Dependency Management**: Replaced `pkg_resources` with
+  `importlib.metadata` for package version handling to resolve
+  deprecation warnings on Python >= 3.12.
+
+* **Various Typos and Formatting Issues**: Corrected numerous typos in
+  code comments, log messages, and parameter documentation,
+  standardized usage of raw string literals in regular expressions,
+  addressed issues in the `gnrlocale.py` and `gnrlist_test.py` files
+  related to locale and list handling.
+
+* **GitHub Actions Updates**: Fixed issues in `set-output` commands to
+  use the `GITHUB_ENV` for exporting environment variables, corrected
+  misplaced steps and adjusted sequence in Docker and test workflows.
+
+* **Code Documentation**: Standardized parameter formatting in
+  documentation strings, ensuring compatibility with Sphinx and other
+  documentation tools, improved documentation for public methods and
+  their parameters.
+
+* **General Code Cleanup**: Removed unused imports and cleaned up
+  deprecated syntax, addressed escaping issues in code to enhance
+  readability and avoid conflicts in syntax highlighting, adjusted the
+  usage of `locale` in the `gnrlocale` module to resolve compatibility
+  issues with Babel.
+
+Testing and Validation
+----------------------
+
+* Enhanced GitHub Actions workflows to set environment variables for
+  locale settings during test execution.
+
+* Updated `pytest` configurations to include testing across modules
+  `core`, `sql`, `web`, `app`, and `xtnd`.
+
+
 Version 24.10.2
 ===============
 

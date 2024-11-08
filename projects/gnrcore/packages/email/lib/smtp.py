@@ -27,7 +27,7 @@ def send_message(page=None,message=None, account=None, attachments=None):
     attachments=[a['path'] for a in attachments]
     smtp_host = account['host']
     port = account['port']
-    user = accounts['username']
+    user = account['username']
     password = account['password']
     ssl=account['ssl']
     tls=account['tls']
@@ -53,12 +53,10 @@ def send_pending(page=None, account=None):
                                             account=list(accounts.keys()),for_update=True).fetch()
     message_pkeys = [m['id'] for m in messages]
     attachments = attachments_table.query(where='$message_id IN :message_pkeys', message_pkeys=message_pkeys).fetchAsDict(key='message_id')
-    for account_id,messages in list(account_messages.items()):
+    for account_id,messages in list(messages.items()):
         for message in messages:
             send_message(page=page, message=message, account=accounts[message['account_id']], attachments=attachments.get(message['id']))
             message['sent'] = True
             messages_table.update(message)
     db.commit()
     
-if __name__=='__main__':
-    sent_smtp()
