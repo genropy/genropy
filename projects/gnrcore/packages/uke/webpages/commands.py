@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # # -*- coding: utf-8 -*-
 
-
-from __future__ import print_function
+from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'

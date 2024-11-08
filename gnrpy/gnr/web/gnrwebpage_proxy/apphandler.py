@@ -1545,7 +1545,8 @@ class GnrWebAppHandler(GnrBaseProxy):
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord, 
                        sqlContextName=sqlContextName,_storename=_storename,
-                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly)
+                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly,
+                       table=table)
         #if lock and not newrecord:
         if not newrecord and not readOnly:
             recInfo['_protect_write'] =  tblobj._islocked_write(record) or not tblobj.check_updatable(record,ignoreReadOnly=ignoreReadOnly)

@@ -1,5 +1,5 @@
 #!/usr/bin/env pythonw
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 #
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
@@ -36,5 +36,5 @@ class Main(GnrBaseService):
         f = attachment.file
         content = f.read()
         if pkg and tbl and attachment:
-            print(x)
+            raise Exception("X exception!")
         return json.dumps(kwargs)

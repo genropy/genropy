@@ -6,4 +6,4 @@ class GnrCustomWebPage(object):
 
     def saved_query(self,*args,**kwargs):
         self.getCallArgs('method','pkg','table','queryName')
-        print(x)
+        raise Exception("x exception")

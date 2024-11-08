@@ -501,7 +501,7 @@ class TableHandlerStats(BaseComponent):
                         dlgformula=self.ths_formulaEditor(grid))
         grid.data('.table',table)
         grid.dragAndDrop(dropCodes='fieldvars')
-        grid.dataController("""var caption = data.fullcaption;
+        grid.dataController(r"""var caption = data.fullcaption;
                                 var field = data.fieldpath;
                                 var pkey = field.replace(/\W/g,'_');
                                 var dtype = data.dtype;
@@ -526,7 +526,7 @@ class TableHandlerStats(BaseComponent):
                 action="genro.dom.setTextInSelection($2,$1.formula);")
         bar = frame.bottom.slotBar('*,cancel,10,confirm,2',margin_bottom='2px',_class='slotbar_dialog_footer')
         bar.cancel.slotButton('Cancel',action="dlg.hide()",dlg=dlg.js_widget)
-        bar.confirm.slotButton('Confirm',action="""
+        bar.confirm.slotButton('Confirm',action=r"""
                                                 grid.gridEditor.setCellValue(rowIndex,'value',formula);
                                                 var guessDtype = 'T';
                                                 if(formula.match(/[\+\-\*\\/]/im)){
