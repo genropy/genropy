@@ -2044,6 +2044,8 @@ class SqlTable(GnrObject):
 
 
     def pkeyValue(self,record=None):
+        if len(self.pkeys)>1:
+            return f"[{','.join([str(record[key]) for key in self.pkeys])}]"
         pkeyfield = self.model.pkey
         pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):
