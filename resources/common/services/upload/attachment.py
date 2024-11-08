@@ -6,8 +6,6 @@
 
 
 from gnr.core.gnrbaseservice import GnrBaseService
-import urllib2
-import os
 import json
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 

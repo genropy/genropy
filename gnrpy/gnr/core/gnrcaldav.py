@@ -2,7 +2,7 @@ raise DeprecationWarning("Please don't using gnr.core.gnrcaldav module, deprecat
 
 from datetime import datetime
 import caldav
-from caldav.elements import dav, cdav
+from caldav.elements import dav
 
 from gnr.core.gnrbag import Bag,VObjectBag
 from gnr.core.gnrlang import getUuid

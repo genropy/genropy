@@ -1,10 +1,9 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
+from io import BytesIO
 
 from gnr.lib.services.pdf import PdfService
-import os
-from io import BytesIO
 from gnr.core.gnrdecorator import extract_kwargs
 
 try:

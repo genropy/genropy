@@ -22,7 +22,6 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 
 

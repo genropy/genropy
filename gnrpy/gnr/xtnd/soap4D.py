@@ -4,7 +4,3 @@
 # Author Giovanni Porcari, Francesco Cavazzana, Saverio Porcari, Francesco Porcari
 
 
-
-from gnr.core.gnrbag import Bag
-
-

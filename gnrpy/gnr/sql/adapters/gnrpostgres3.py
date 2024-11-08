@@ -23,7 +23,7 @@
 import re
 import select
 import psycopg
-from psycopg import Connection,ClientCursor,Cursor, IsolationLevel
+from psycopg import Cursor, IsolationLevel
 from psycopg.rows import no_result
 from psycopg import sql
 from gnr.core.gnrlist import GnrNamedList
@@ -38,9 +38,6 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 #IN_TO_ANY = re.compile(r'(?P<what>\w+.\w+)\s*(?P<not>NOT)?\s*(?P<inblock>IN\s*(?P<value>[:]\w+))',re.IGNORECASE)
 
 import threading
-import _thread
-
-
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',

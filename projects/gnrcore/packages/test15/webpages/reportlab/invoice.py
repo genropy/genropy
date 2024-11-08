@@ -1,4 +1,3 @@
-from gnr.xtnd.gnrrml import GnrPdf
 from gnr.web.gnrwebutils import GnrWebPDF
 
 class JobTicketPDF(GnrWebPDF):

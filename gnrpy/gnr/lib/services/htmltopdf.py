@@ -3,7 +3,8 @@
 
 import os
 import tempfile
-
+from datetime import datetime, date
+            
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrlang import  GnrException
 from gnr.lib.services import GnrBaseService,BaseServiceType
@@ -95,8 +96,7 @@ class HtmlToPdfService(GnrBaseService):
             pdf_pref.update(pdf_kwargs)
             pdf_kwargs = pdf_pref
         if keep_html:
-            import shutil
-            from datetime import datetime, date
+
             now = datetime.now()
             sn = self.parent.storageNode(destPath) if destPath else srcNode
             baseName = sn.cleanbasename

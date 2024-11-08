@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
-from gnr.core.gnrdecorator import metadata
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import instanceMixin
-#from gnrpkg.multidb.multidbtable import MultidbTable
-from gnr.sql.gnrsql import GnrSqlException
-import os
-import datetime
 
+from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
+from gnr.core.gnrlang import instanceMixin
 
 class LegacyTableMixins(object):
     def lgcy_addLegacyCode(self,pkey,legacy_code):

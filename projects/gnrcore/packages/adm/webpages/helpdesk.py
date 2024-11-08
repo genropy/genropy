@@ -5,9 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 
-from gnr.web.gnrwebstruct import struct_method
-
-
 class GnrCustomWebPage(object):
     py_requires='ticket_handler/ticket_handler:TicketHandler'
 

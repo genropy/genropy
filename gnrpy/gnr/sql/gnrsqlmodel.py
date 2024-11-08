@@ -22,21 +22,19 @@
 
 import logging
 import copy
-from datetime import datetime,timedelta
 import threading
 import re
 
-
-from gnr.core.gnrstring import boolean, toJson
+from gnr.core.gnrstring import boolean
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrlang import moduleDict,uniquify
+from gnr.core.gnrlang import moduleDict
 from gnr.core.gnrstructures import GnrStructObj, GnrStructData
 from gnr.sql.gnrsqlutils import SqlModelChecker, ModelExtractor
 from gnr.sql.gnrsqltable import SqlTable
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlMissingTable,\
-    GnrSqlMissingColumn, GnrSqlRelationError
+from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable, GnrSqlMissingColumn, GnrSqlRelationError
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,7 @@
 # encoding: utf-8
 
-from __future__ import print_function
-
-
 from datetime import datetime
-from dateutil import rrule
+
 from gnr.core.gnrbag import Bag
 
 class Table(object):

@@ -21,17 +21,9 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import re
-import select
-
 
 import MySQLdb
 from MySQLdb.cursors import DictCursor
-
-#from psycopg2.extras import DictConnection, DictCursor, DictCursorBase
-#from psycopg2.extensions import cursor as _cursor
-#from psycopg2.extensions import connection as _connection
-
-#from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
 
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
@@ -62,8 +54,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
-        import MySQLdb
-        from MySQLdb.cursors import DictCursor
+
         dbroot = self.dbroot
         if dbroot.port:
             port = int(dbroot.port)
@@ -409,14 +400,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return result
 
 
-#class GnrDictConnection(DictConnection):
-#    """A connection that uses DictCursor automatically."""
-#    def cursor(self, name=None):
-#        if name:
-#            return _connection.cursor(self, name, cursor_factory=GnrDictCursor)
-#        else:
-#            return _connection.cursor(self, cursor_factory=GnrDictCursor)
-#
 class GnrDictCursor(DictCursor):
     def _post_get_result(self):
         _rows = self._fetch_row(0)

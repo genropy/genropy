@@ -1,20 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import print_function
-
-
-import email, imaplib,datetime
-from email.generator import Generator as EmailGenerator
-from gnr.core.gnrlang import getUuid
-import chardet
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import slugify
-import io
-detach_dir = '.'
-import os
 import re
-import six
+import imaplib
+
+detach_dir = '.'
 BASE_RE = re.compile('<base .*?>')
 wait = 600
 

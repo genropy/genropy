@@ -2,7 +2,6 @@
 Tests for gnr.app package
 """
 import sys
-import os.path
 import _frozen_importlib
 import pytest
 

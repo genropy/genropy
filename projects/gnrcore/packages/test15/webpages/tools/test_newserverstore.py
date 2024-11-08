@@ -5,13 +5,8 @@
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 """Messages"""
-from __future__ import print_function
-
 
 from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import RegisterResolver
-from gnr.core.gnrbag import Bag
-
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"

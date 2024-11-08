@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 "Test HTML DIV"
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,

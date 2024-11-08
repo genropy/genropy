@@ -20,7 +20,6 @@
 
 
 from gnrpkg.biz.dashboard import BaseDashboardItem
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
 

@@ -28,11 +28,8 @@ from functools import cmp_to_key
 import datetime
 import csv
 
-
-from gnr.core.gnrlang import GnrException
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
-from gnr.core.gnrexporter import BaseWriter
 
 # FIXME: what's this for?
 class FakeList(list):
@@ -519,10 +516,10 @@ class CsvReader(object):
 
     def detect_encoding(self):
         try:
-            import cchardet as chardet
+            import cchardet as chardet # noqa: F401
         except ImportError:
             try:
-                import chardet
+                import chardet # noqa: F401
             except ImportError:
                 print('either cchardet or chardet are required to detect encoding')
                 return
@@ -725,7 +722,7 @@ def getReader(file_path,filetype=None,**kwargs):
             reader = XlsReader(file_path,**kwargs)
         else: # .xlsx
             try:
-                import openpyxl
+                import openpyxl # noqa: F401
                 reader = XlsxReader(file_path,**kwargs)
             except ImportError: # pragma: no cover
                 import sys
