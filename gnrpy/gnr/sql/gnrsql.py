@@ -24,7 +24,7 @@ import logging
 import pickle
 import os
 import shutil
-from datetime import datetime, date
+from datetime import date
 import re
 import _thread
 import locale

@@ -20,7 +20,6 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs
 
 class IncludedView(BaseComponent):

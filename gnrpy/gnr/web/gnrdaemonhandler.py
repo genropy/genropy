@@ -12,11 +12,10 @@ import Pyro4
 
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 from gnr.core.gnrlang import gnrImport
-from gnr.core.gnrbag import Bag,NetBag
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
-from gnr.core.gnrstring import boolean
 from gnr.core.gnrlog import log_styles
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
 from gnr.web.gnrtask import GnrTaskScheduler

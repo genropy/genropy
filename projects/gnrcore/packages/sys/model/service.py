@@ -1,8 +1,9 @@
 # encoding: utf-8
 
-from gnr.core.gnrbag import Bag,DirectoryResolver
 import os
 from datetime import datetime
+
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
 class Table(object):

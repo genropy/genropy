@@ -32,7 +32,7 @@ try:
 except:
     from pysqlite2 import dbapi2 as pysqlite
 
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean

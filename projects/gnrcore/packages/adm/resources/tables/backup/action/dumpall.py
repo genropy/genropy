@@ -7,7 +7,6 @@ from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
 from datetime import datetime
 import os
-import shutil
 
 caption = 'Dump all'
 description = 'Dump all'

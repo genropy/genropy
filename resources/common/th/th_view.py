@@ -4,7 +4,10 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from xml.sax import handler
+from dateutil import rrule
+from dateutil.relativedelta import relativedelta
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -848,9 +851,6 @@ class TableHandlerView(BaseComponent):
                             allPosition=None, 
                             **kwargs):
         sections = []
-        import datetime
-        from dateutil import rrule
-        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
         dtstart = dtstart.replace(day=1)
         default_date = dtstart

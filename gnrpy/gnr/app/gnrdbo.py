@@ -4,10 +4,8 @@
 import datetime
 import warnings as warnings_module
 import os
-import shutil
 import pytz
 import mimetypes
-
 from collections import defaultdict
 
 from gnr.core.gnrlang import boolean

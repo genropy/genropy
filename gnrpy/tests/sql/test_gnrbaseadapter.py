@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
 

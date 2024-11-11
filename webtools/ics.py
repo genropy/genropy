@@ -1,10 +1,9 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
+from io import BytesIO
 from gnr.web.gnrbaseclasses import BaseWebtool
 from ics import Calendar, Event
-from gnr.core.gnrdict import dictExtract
-from io import BytesIO
 
 class Ics(BaseWebtool):
     content_type = 'text/calendar'

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from re import sub
+
 from gnr.core.gnrdecorator import public_method
 from gnr.lib.services.mail import MailService
 

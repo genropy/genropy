@@ -22,8 +22,7 @@
 Component for GridCustomizer:
 """
 from gnr.web.gnrbaseclasses import BaseComponent,page_proxy
-from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 DEFAULT_MD_MODE = 'STD'

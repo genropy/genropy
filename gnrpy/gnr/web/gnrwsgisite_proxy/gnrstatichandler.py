@@ -14,7 +14,6 @@ from gnr.core.gnrsys import expandpath
 from gnr.dev.decorator import callers
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrDebugException
 from gnr.core.gnrlang import file_types
 
 

@@ -6,13 +6,13 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from gnr.core.gnrbag import Bag, DirectoryResolver
 import os
-import re
+
 import inspect
 import glob
 import logging
 
+from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlang import gnrImport, classMixin, cloneClass,clonedClassMixin
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrsys import expandpath

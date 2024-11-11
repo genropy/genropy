@@ -33,7 +33,6 @@ from packaging.requirements import Requirement
 from packaging.version import Version
 import os
 import hashlib
-import re
 import smtplib
 import time
 import glob

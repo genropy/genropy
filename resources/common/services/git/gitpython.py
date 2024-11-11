@@ -1,20 +1,13 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-
 import os
-import tempfile
-from gnr.core.gnrdecorator import extract_kwargs
-from gnr.core.gnrlang import  GnrException
-from gnr.core.gnrbag import Bag
-from gnr.lib.services import GnrBaseService,BaseServiceType
-from gnr.lib.services.storage import StorageNode
 from collections import defaultdict
+
 from pygit2 import Repository,GIT_MERGE_ANALYSIS_UP_TO_DATE,GIT_MERGE_ANALYSIS_FASTFORWARD
-from pygit2 import GIT_MERGE_ANALYSIS_NORMAL
 
+from gnr.core.gnrbag import Bag
 from gnr.lib.services.git import GitService
-
 
 def find_dotgit(path, parent_path=None):
     if path==parent_path:

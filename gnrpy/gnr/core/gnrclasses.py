@@ -23,13 +23,12 @@
 import datetime
 import re
 from gnr.core import gnrstring
-from gnr.core.gnrdate import decodeOneDate, decodeDatePeriod
+from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core.gnrlang import gnrImport, serializedFuncName
 from decimal import Decimal
 from dateutil.parser import parse as dateutil_parse
 import tzlocal  # from dateutil.tz import tzlocal
 from gnr.core.gnrlang import GnrException
-import types
 
 ISO_MATCH = re.compile(r'\d{4}\W\d{1,2}\W\d{1,2}')
 

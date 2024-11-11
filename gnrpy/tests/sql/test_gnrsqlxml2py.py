@@ -1,4 +1,3 @@
-import os, os.path
 import tempfile
 import pytest
 from gnr.sql import gnrsqlxml2py as gx

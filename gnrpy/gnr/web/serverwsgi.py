@@ -1,8 +1,11 @@
 import sys
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrwsgisite import GnrWsgiSite
-from werkzeug.serving import run_simple, make_server, is_running_from_reloader
+from datetime import datetime
+import os
+import atexit
+import logging
+import re
+
+from werkzeug.serving import make_server, is_running_from_reloader
 from werkzeug._reloader import run_with_reloader
 from werkzeug.debug.tbtools import render_console_html
 try:
@@ -27,17 +30,16 @@ except ImportError:
 
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
-import glob
-from datetime import datetime
-import os
-import atexit
-import logging
+
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging, log_styles
 from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
-import re
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdict import dictExtract
+from gnr.web.gnrwsgisite import GnrWsgiSite
+
+
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
 

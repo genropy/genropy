@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from gnr.core.gnrdecorator import metadata
 
 class Table(object):
     def config_db(self, pkg):

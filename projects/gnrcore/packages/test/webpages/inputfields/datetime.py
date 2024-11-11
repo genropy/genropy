@@ -2,8 +2,6 @@
 
 "DateTextBox and TimeTextBox"
 
-from datetime import datetime
-
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
     
