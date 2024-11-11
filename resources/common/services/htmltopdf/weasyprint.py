@@ -4,7 +4,7 @@ import os
 import tempfile
 from weasyprint import CSS, HTML
 
-from gnr.lib.services.htmltopdf import HtmlToPdfService,HtmlToPdfError
+from gnr.lib.services.htmltopdf import HtmlToPdfService
 
 class Service(HtmlToPdfService):
     def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None, **kwargs):

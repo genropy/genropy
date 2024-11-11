@@ -30,8 +30,6 @@ from collections import defaultdict
 from gnr.core.gnrstring import boolean
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdict import dictExtract
 
 class SharedLockedObject(object):
     """docstring for SharedLockedObject"""

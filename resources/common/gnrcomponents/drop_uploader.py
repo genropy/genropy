@@ -4,14 +4,12 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrdecorator import extract_kwargs,public_method
+from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebstruct import struct_method
-import os
+
 try:
     from PIL import Image
 except:

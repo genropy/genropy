@@ -1,7 +1,6 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
 from gnrpkg.adm.services.mail import AdmMailService
 from gnr.web.gnrbaseclasses import BaseComponent

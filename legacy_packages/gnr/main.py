@@ -7,11 +7,6 @@ Created by Saverio Porcari on 2007-05-10.
 Copyright (c) 2007 __MyCompanyName__. All rights reserved.
 """
 
-import sys
-import os
-import datetime
-
-from gnr.core.gnrbag import Bag
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 
 class Package(GnrDboPackage):

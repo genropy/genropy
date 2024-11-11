@@ -8,7 +8,6 @@
 
 
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     testOnly='_2_'

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-
-from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from random import randint
 
 class GnrCustomWebPage(object):
     js_requires = 'test_hviewer'

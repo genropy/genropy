@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import io
@@ -8,7 +7,6 @@ import urllib.request, urllib.parse, urllib.error
 import httplib2
 import _thread
 import mimetypes
-import pickle
 import functools
 from time import time
 from collections import defaultdict
@@ -22,13 +20,12 @@ from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
+from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
-from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
@@ -47,7 +44,6 @@ try:
     from werkzeug import EnvironBuilder
 except ImportError:
     from werkzeug.test import EnvironBuilder
-from gnr.web.gnrheadlesspage import GnrHeadlessPage
 
 mimetypes.init()
 
@@ -222,11 +218,15 @@ class GnrWsgiSite(object):
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
+
+        # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
             try:
-                import psycopg2
+                import psycopg2 # noqa: F401
             except Exception:
                 pass
+
+            
         if self.default_uri[-1] != '/':
             self.default_uri += '/'
        

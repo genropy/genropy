@@ -6,10 +6,6 @@
 
 "Test page description"
 
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-from time import sleep
-
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
     dojo_source = True

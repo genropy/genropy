@@ -6,12 +6,11 @@ import os
 import email
 import base64
 from datetime import datetime
-from smtplib import SMTPException,SMTPConnectError
+from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport
 

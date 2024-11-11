@@ -27,23 +27,24 @@ from datetime import datetime
 from copy import deepcopy
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor,Future
+import signal
+
 from tornado.concurrent import Future as TornadoFuture
 import tornado.web
 from tornado import gen,locks
 import tornado.websocket as websocket
 import tornado.ioloop
-import signal
 from tornado.netutil import bind_unix_socket
 from tornado.tcpserver import TCPServer
 from tornado.httpserver import HTTPServer
+from tornado import queues
 
 from gnr.core.gnrbag import Bag,TraceBackResolver
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import AsyncWebSocketHandler
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.core.gnrstring import fromJson
-from tornado import version_info
 
-from tornado import queues
+
 
 class ObjectDict(dict):
     def __getattr__(self, name):
@@ -962,7 +963,6 @@ class GnrAsyncServer(GnrBaseAsyncServer):
         self.addHandler(r"/websocket", GnrWebSocketHandler)
         self.addHandler(r"/wsproxy", GnrWsProxyHandler)
         if self.web:
-            import tornado.wsgi
             from .tornado_wsgi import WSGIHandler
             wsgi_gnrsite=GnrWsgiSite(self.instance_name, tornado=True, websockets=True, **self.site_options)
             wsgi_gnrsite._local_mode=True

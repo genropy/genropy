@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import datetime
-from gnr.core.gnrdecorator import public_method
-
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                     gnrcomponents/userobject/userobject_editor:GroupByEditor"""

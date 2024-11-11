@@ -1,6 +1,6 @@
-from gnr.sql import gnrsqlutils as gsu
+from gnr.sql import gnrsqlutils as gsu # noqa: F401
 from gnr.sql import gnrsql as gs
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest
 
 class TestGnrSqlUtils(BaseGnrSqlTest):
     @classmethod

@@ -1,4 +1,3 @@
-import pytest
 from gnr.sql import gnrsql_exceptions as ge
 
 class TestGnrSqlExceptions():

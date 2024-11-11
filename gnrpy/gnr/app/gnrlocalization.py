@@ -23,7 +23,7 @@
 
 import os
 import re
-import hashlib
+
 from gnr.app.gnrconfig import getGenroRoot
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver

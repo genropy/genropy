@@ -20,8 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-import sys
 import re
 import select
 
@@ -39,7 +37,6 @@ except ImportError:
             pass
     import psycopg2
 
-from psycopg2.extras import DictConnection, DictCursor, DictCursorBase
 from psycopg2.extensions import cursor as _cursor
 from psycopg2.extensions import connection as _connection
 
@@ -56,8 +53,6 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 import threading
-import _thread
-
 
 
 class SqlDbAdapter(SqlDbBaseAdapter):

@@ -6,7 +6,6 @@ import os
 import locale
 
 from decimal import Decimal
-import pytz
 from babel import numbers, dates, Locale
 
 from gnr.core.gnrlang import GnrException

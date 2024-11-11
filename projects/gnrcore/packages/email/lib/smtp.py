@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from gnr.core.gnrlang import getUuid
 from datetime import datetime
+
+
 detach_dir = '.'
 wait = 600
     

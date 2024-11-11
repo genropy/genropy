@@ -3,8 +3,6 @@
 """Bag from external formats"""
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-from decimal import Decimal
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"

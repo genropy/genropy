@@ -4,21 +4,19 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
-
 from past.utils import old_div
+from datetime import datetime
+import os
+import re
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import fromJson
 from gnr.core.gnrlang import uniquify
-from datetime import datetime
-import httplib2
-import urllib.request, urllib.parse, urllib.error
-import os
-import re
+
 SH_ENABLED = False
+
 try:
     from sh import cd,ls,git
     SH_ENABLED = True

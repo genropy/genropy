@@ -4,12 +4,10 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from gnr.app.gnrconfig import gnrConfigPath,getRmsOptions
-
+from gnr.app.gnrconfig import getRmsOptions
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrbag import NetBag
 from gnr.web.gnrbaseclasses import BaseComponent
-
 
 class Main(GnrBaseService):
     def __init__(self, parent=None,token=None,domain=None,host=None,**kwargs):

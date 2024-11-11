@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,metadata
-
+from gnr.core.gnrdecorator import metadata
 
 class View(BaseComponent):
 

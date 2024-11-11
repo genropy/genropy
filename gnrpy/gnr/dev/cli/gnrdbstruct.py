@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys
 import urllib.request, urllib.parse, urllib.error
 
 from gnr.core.cli import GnrCliArgParse

@@ -1,3 +1,3 @@
-import gnr.web.gnrheadlesspage as hlp
+import gnr.web.gnrheadlesspage as hlp # noqa: F401
 
 
