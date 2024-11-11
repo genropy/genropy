@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys, os
+import os
 import glob, grp
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.app.gnrconfig import getGnrConfig
 

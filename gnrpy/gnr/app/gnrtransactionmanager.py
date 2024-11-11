@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqlclass : Genro transaction manager
@@ -19,12 +19,7 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-import weakref
 
-from datetime import datetime
-
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import boolean
 
 
 class TransactionManagerError(Exception):

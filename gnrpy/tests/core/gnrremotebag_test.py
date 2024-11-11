@@ -1,4 +1,4 @@
-from gnr.core import gnrremotebag
+from gnr.core import gnrremotebag  # noqa: F401
 
 def test():
     pass

@@ -8,7 +8,6 @@
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-import os
 
 class TableHandlerCommon(BaseComponent):
     def onLoadingRelatedMethod(self,table,sqlContextName=None):

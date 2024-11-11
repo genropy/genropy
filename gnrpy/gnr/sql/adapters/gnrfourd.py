@@ -21,16 +21,15 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import re
-
+import threading
 import fourd
 
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
-import threading
-import _thread
 
 class GnrFourDCursor(fourd.FourD_cursor):
     def __init__(self, *args, **kwargs):

@@ -6,20 +6,14 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from __future__ import print_function
+
+from time import time
+import os
 
 from gnr.core.gnrbag import Bag,BagNode
-from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrlang import GnrException
-from time import time
-import os
-import base64
-import mimetypes
-import re
-
-
 
 AUTH_FORBIDDEN = -1
 AUTH_EXPIRED = 2

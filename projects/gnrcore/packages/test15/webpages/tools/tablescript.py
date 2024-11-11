@@ -3,9 +3,10 @@
 # remote.py
 # Created by Francesco Porcari on 2011-05-01.
 # Copyright (c) 2011 Softwell. All rights reserved.
+
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
-from gnr.core.gnrbag import Bag
+
 
 "Test page description"
 class GnrCustomWebPage(object):

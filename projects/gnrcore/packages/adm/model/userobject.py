@@ -1,10 +1,11 @@
 # encoding: utf-8
-from __future__ import print_function
 
 import os
-import hashlib
+
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method
+
+
 class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',name_plural='!![en]User Objects',rowcaption='$code,$objtype',broadcast='objtype')

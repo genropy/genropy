@@ -29,8 +29,9 @@ import uuid
 import base64
 from types import MethodType
 from io import IOBase
+from functools import total_ordering
 
-from gnr.core.gnrdecorator import deprecated,extract_kwargs # keep for compatibility
+from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
 
 try:
     file_types = (file, IOBase)
@@ -39,9 +40,6 @@ except NameError:
 
 thread_ws = dict()
 _mixincount = 0
-
-from functools import total_ordering
-import time
 
 @total_ordering
 class MinType(object):

@@ -25,10 +25,8 @@
 """
 this test module focus on SqlQuery's methods
 """
-import os
-import datetime
 
-import pytest
+import datetime
 import logging
 
 gnrlogger = logging.getLogger('gnr')
@@ -38,9 +36,8 @@ gnrlogger.addHandler(hdlr)
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
-from gnr.core.gnrbag import Bag
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod

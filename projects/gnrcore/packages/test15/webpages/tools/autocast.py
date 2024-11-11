@@ -6,7 +6,6 @@
 
 """dataRemote"""
 
-import datetime
 from gnr.core.gnrdecorator import public_method,autocast
 from gnr.core.gnrbag import Bag
 

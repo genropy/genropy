@@ -27,7 +27,6 @@
 
 import os
 import sys
-import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
 import logging
@@ -40,12 +39,12 @@ except:
     import simplejson as json
 
 from gnr.core.gnrbag import Bag, TraceBackResolver
-from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson
 from gnr.core import gnrdate
 
-from gnr.sql.gnrsql_exceptions import GnrSqlSaveException, GnrSqlDeleteException
+from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1

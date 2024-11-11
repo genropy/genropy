@@ -8,12 +8,9 @@ import time
 from base64 import b32encode
 
 import pyotp
-import qrcode
 
 from gnr.lib.services import GnrBaseService
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrlang import GnrException
-
 
 class Main(GnrBaseService):
     def __init__(self, parent=None,secret=None,issuer_name=None,image=None,expiry_days=None,**kwargs):

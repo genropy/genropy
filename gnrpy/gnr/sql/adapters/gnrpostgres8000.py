@@ -27,9 +27,7 @@ from pg8000 import dbapi
 from pg8000.dbapi import require_open_cursor, require_open_connection, CursorWrapper, ConnectionWrapper
 from pg8000.interface import DataIterator, Cursor
 
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 
 dbapi.paramstyle = 'pyformat'

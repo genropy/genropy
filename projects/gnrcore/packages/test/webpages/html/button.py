@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
-
 "Test Button"
 
 class GnrCustomWebPage(object):

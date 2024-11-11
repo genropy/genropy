@@ -4,7 +4,7 @@
 gnrtablescript.py
 
 Created by Saverio Porcari on 2009-07-08.
-Copyright (c) 2009 __MyCompanyName__. All rights reserved.
+Copyright (c) 2009 Softwell Srl.
 """
 
 import os.path
@@ -13,7 +13,7 @@ from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrhtml import GnrHtmlBuilder
 from gnr.core.gnrstring import toText
 from gnr.core.gnrlang import NotImplementedException
-from gnr.core.gnrstring import slugify, templateReplace
+from gnr.core.gnrstring import slugify
 
 class TableScript(object):
     def __init__(self, page=None, resource_table=None, db=None, locale='en', tempFolder='', **kwargs):

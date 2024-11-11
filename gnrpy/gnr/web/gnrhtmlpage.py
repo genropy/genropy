@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package            : GenroPy web - see LICENSE for details
@@ -21,11 +21,9 @@
 #You should have received a copy of the GNU Lesser General Public
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
 from gnr.core.gnrhtml import GnrHtmlSrc, GnrHtmlBuilder
 from gnr.web.gnrwebpage import GnrWebPage
-from gnr.core.gnrstring import  splitAndStrip
-
-
 
 class GnrHtmlDojoSrc(GnrHtmlSrc):
     html_base_NS = ['a', 'abbr', 'acronym', 'address', 'area', 'base', 'bdo', 'big', 'blockquote',

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import Bag
-from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory
+from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory # noqa: F401
 
 class GnrCustomWebPage(object):
     skip_connection=True

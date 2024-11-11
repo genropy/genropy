@@ -9,7 +9,6 @@
 import math
 
 from gnr.web.gnrbaseclasses import TableScriptToHtml
-from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrnumber import decimalRound
 from gnr.core.gnrlang import position
 

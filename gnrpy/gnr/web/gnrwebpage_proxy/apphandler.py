@@ -29,14 +29,12 @@ import os
 import re
 import time
 from datetime import datetime
-from gnr.core.gnrdict import dictExtract
-
-from gnr.core.gnrlang import gnrImport
-
 import logging
-from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.core import gnrlist
 
+from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import gnrImport
+from gnr.core import gnrlist
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import uniquify
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip, toText, toJson,fromJson

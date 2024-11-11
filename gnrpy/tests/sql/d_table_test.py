@@ -25,7 +25,6 @@
 """
 this test module focus on SqlTable's methods
 """
-import os
 import datetime
 import tempfile
 
@@ -37,9 +36,6 @@ hdlr = logging.FileHandler('logs.log')
 gnrlogger.addHandler(hdlr)
 
 from gnr.sql.gnrsql import GnrSqlDb
-
-from gnr.core.gnrbag import Bag
-
 
 from .common import BaseGnrSqlTest, configurePackage
 

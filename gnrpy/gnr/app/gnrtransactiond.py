@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy app - see LICENSE for details
 # module gnrtransaction : Genro transaction agent from  4D db system.
@@ -21,7 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
 import logging
 

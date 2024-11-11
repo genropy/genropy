@@ -1,1 +1,1 @@
-import gnr.web.gnrwebpage
+import gnr.web.gnrwebpage  # noqa: F401

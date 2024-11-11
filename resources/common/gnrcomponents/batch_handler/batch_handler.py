@@ -6,7 +6,7 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method,customizable
-from gnr.core.gnrlang import gnrImport, objectExtract
+from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 

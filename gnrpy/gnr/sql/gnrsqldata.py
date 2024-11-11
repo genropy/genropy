@@ -26,7 +26,6 @@ import shutil
 import re
 import pickle
 import itertools
-import hashlib
 import json
 import datetime
 from collections import OrderedDict
@@ -34,7 +33,8 @@ from xml.sax import saxutils
 import tempfile
 
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrlang import deprecated, uniquify, MinValue
+from gnr.core.gnrdecorator import deprecated
+from gnr.core.gnrlang import uniquify, MinValue
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core import gnrclasses
@@ -2196,7 +2196,7 @@ class SqlSelection(object):
         :param outsource: TODO
         :param filePath: boolean. TODO. """
         try:
-            import openpyxl
+            import openpyxl # noqa: F401
             from gnr.core.gnrxls import XlsxWriter as ExcelWriter
         except ImportError:
             from gnr.core.gnrxls import XlsWriter as ExcelWriter

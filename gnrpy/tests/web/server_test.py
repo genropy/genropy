@@ -1,1 +1,1 @@
-import gnr.web.server
+import gnr.web.server  # noqa: F401

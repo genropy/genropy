@@ -1,17 +1,11 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-import os
 import tempfile
 
 from gnr.core.gnrdecorator import extract_kwargs
-
 from gnr.core.gnrlang import  GnrException
-
-
 from gnr.lib.services import GnrBaseService,BaseServiceType
-from gnr.lib.services.storage import StorageNode
-
 
 class ImgToPdfError(GnrException):
     pass

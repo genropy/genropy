@@ -52,11 +52,15 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
-from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+
+ # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
+
+
 from gnr.app.gnrlocalization import GnrLocString
 
 AUTH_OK = 0
@@ -2968,7 +2972,6 @@ class GnrGenshiPage(GnrWebPage):
     """TODO"""
     def onPreIniting(self, request_args, request_kwargs):
         """TODO"""
-        from genshi.template import TemplateLoader
         request_kwargs['_plugin'] = 'genshi'
         request_kwargs['genshi_path'] = self.genshi_template()
         
