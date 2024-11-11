@@ -27,6 +27,12 @@ class BaseGnrSqlTest:
                                password="postgres")
             # no mysql in CI environment
             cls.mysql_conf = None
+        elif "GNR_TEST_PG_PASSWORD" in os.environ:
+            cls.pg_conf = dict(host=os.environ.get("GNR_TEST_PG_HOST","127.0.0.1"),
+                               port=os.environ.get("GNR_TEST_PG_PORT","5432"),
+                               user=os.environ.get("GNR_TEST_PG_USER","postgres"),
+                               password=os.environ.get("GNR_TEST_PG_PASSWORD"))
+            cls.mysql_conf = None
         else:
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
@@ -40,8 +46,12 @@ class BaseGnrSqlTest:
         """
         Teardown testing enviroment
         """
-        if not "GITHUB_WORKFLOW" in os.environ:
+        if "GNR_TEST_PG_PASSWORD" in os.environ:
+            if hasattr(cls,'dbname'):
+                cls.db.dropDb(cls.dbname)
+        elif not ("GITHUB_WORKFLOW" in os.environ or "GNR_TEST_PG_PASSWORD" in os.environ):
             cls.pg_instance.stop()
+
 
 
 def configurePackage(pkg):
