@@ -24,4 +24,3 @@ docker/*
 .coverage
 
 .aider*
-gnrpy/tests/sql/data/
