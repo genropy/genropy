@@ -1,4 +1,5 @@
 import re
+import hashlib
 
 import json
 import time
@@ -43,6 +44,31 @@ def measure_time(func):
     return wrapper
 
 
+
+ 
+def hashed_name(schema, table, columns, obj_type='idx'):
+    """
+    Generate a unique name for constraints or indexes using a hash.
+
+    Parameters:
+    - schema (str): The name of the schema.
+    - table (str): The name of the table.
+    - columns (list): List of columns involved in the constraint or index.
+    - obj_type (str): Type of object ('idx' for index, 'fk' for foreign key constraint, etc.).
+
+    Returns:
+    - str: A unique name for the constraint or index.
+    """
+    # Concatena i dettagli in una stringa univoca
+    columns_str = "_".join(columns)  # Unisci i nomi delle colonne
+    identifier = f"{schema}_{table}_{columns_str}_{obj_type}"
+    # Calcola l'hash e tronca a 8 caratteri
+    hash_suffix = hashlib.md5(identifier.encode()).hexdigest()[:8]
+    # Costruisci il nome finale con prefisso e hash
+    return f"{obj_type}_{hash_suffix}"
+
+
+
 import jsmin
 from webob import year
 
@@ -75,6 +101,7 @@ class OrmExtractor:
         schema_name = tblobj.pkg.sqlname
         table_name = tblobj.sqlname
         pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.pkeys])
+        constraints = {}
         self.schemas[schema_name]['tables'][table_name] = {
             "metadata": {},
             'entity':'table',
@@ -83,13 +110,13 @@ class OrmExtractor:
             'entity_name':table_name,
             "attributes":{"pkeys":pkeys},
             "columns": {},
-            "constraints": {},
+            "constraints": constraints,
             "indices": {}
         }
         for colobj in tblobj.columns.values():
-            self.fill_json_column(colobj)
+            self.fill_json_column(colobj,constraints=constraints)
 
-    def fill_json_column(self,colobj):
+    def fill_json_column(self,colobj,constraints=None):
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
         attributes = self.convert_colattr(colobj)
@@ -102,6 +129,9 @@ class OrmExtractor:
                                                 "table_name":table_name,
                                                 "entity_name":column_name,
                                                 "attributes":attributes}
+        joiner =  colobj.relatedColumnJoiner()
+        if joiner:
+            print('joiner',joiner)
 
     def convert_colattr(self,colobj):
         result =  {k:v for k,v in colobj.attributes.items() if k in self.col_json_keys and v is not None}
@@ -310,7 +340,7 @@ class DbExtractor(object):
             self.connect()
             # Fetch all metadata and constraints/indices
             metadata = self.db.adapter.struct_get_schema_info(schemas=self.application_schemas)
-            #foreign_keys_dict = self.db.adapter.struct_get_foreign_keys()
+            foreign_keys_dict = self.db.adapter.struct_get_foreign_keys(schemas=self.application_schemas)
             self.process_metadata(metadata)
             self.process_primary_keys()
             #self.process_foreign_keys(foreign_keys_dict)
@@ -326,16 +356,14 @@ class SqlMigrator():
         self.db = self.application.db
         self.ormStructure = OrmExtractor(self.db).get_json_struct()
         self.sqlStructure = DbExtractor(self.db).get_json_struct()
-        self.command = nested_defaultdict()
+        self.commands = nested_defaultdict()
     
- 
-
 
         
     def toSql(self,fromStructure=None):
         if fromStructure is None:
             fromStructure = self.sqlStructure
-        self.command.pop('db',None) #rebuils
+        self.commands.pop('db',None) #rebuils
         self.diff = DeepDiff(fromStructure, self.ormStructure,
                               ignore_order=True,view='tree')
         for evt,kw in self.structChanges(self.diff):
@@ -394,7 +422,7 @@ class SqlMigrator():
         for col in item['columns'].values():
             sqlfields.append(self.columnSql(col))
         sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
-        sql = f"CREATE TABLE {sqltablename} {', '.join(sqlfields)};"
+        sql = f"CREATE TABLE {sqltablename} ({', '.join(sqlfields)});"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
 
     def added_column(self, item=None,**kwargs):
@@ -525,6 +553,8 @@ class SqlMigrator():
         if sql_command:
             self.db.adapter.execute(sql_command,manager=True)
         commandlist = []
+        #constrainList = []
+
         for schema_item in schemas.values():
             sql_command =schema_item.get('command')
             tables = schema_item.get('tables')
@@ -532,9 +562,10 @@ class SqlMigrator():
                 commandlist.append(sql_command)
             for tbl_item in tables.values():
                 col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
-                commandlist.append(f"{tbl_item['command']}\n {col_commands};")
-        print('commandlist',commandlist)
-        
+                commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
+                #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
+                #constrainList.append(constraints_commands)
+        self.db.adapter.execute('\n'.join(commandlist),autoCommit=True)        
 
     def applyChanges_old(self):
         """TODO"""
@@ -563,6 +594,7 @@ if __name__ == '__main__':
     #print('\n---from 1 to 0',diff)
     #print('orm mig1',mig_1.ormStructure)
     mig.toSql()
+    mig.applyChanges()
     print(mig.commands)
     #mig.applyChanges()
     #print('\n'.join([c["sql"] for c in mig.commands]))

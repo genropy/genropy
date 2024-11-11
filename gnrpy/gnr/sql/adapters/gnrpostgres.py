@@ -765,7 +765,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             kcu.constraint_schema, kcu.table_name, kcu.constraint_name, kcu.ordinal_position;
         """
     
-    def struct_get_foreign_keys(self):
+    def struct_get_foreign_keys(self,schemas=None):
         query = self.struct_get_foreign_keys_sql()
         foreign_keys = defaultdict(lambda: {
             "related_schema": None,
@@ -775,7 +775,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             "onUpdate": None,
             "deferred": False
         })
-        for row in self.raw_fetch(query, (self.schemas,)):
+        for row in self.raw_fetch(query, (schemas,)):
             constraint_name, schema_name, table_name, column_name, related_schema, related_table, related_column, on_update, on_delete, is_deferrable, initially_deferred, ordinal_position = row
             key = (schema_name, table_name, constraint_name)
             foreign_keys[key]["related_schema"] = related_schema
