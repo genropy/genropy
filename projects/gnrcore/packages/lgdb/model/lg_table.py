@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-import os
 from gnr.core.gnrdecorator import public_method
 from gnr.core import gnrlist
 

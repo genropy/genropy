@@ -12,7 +12,6 @@ from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrnumber import decimalRound
-from dateutil import rrule,relativedelta
 from datetime import datetime,time,date
 import string
 

@@ -2,7 +2,6 @@ import pytest
 import datetime
 import time
 from gnr.core import gnrcrypto as gc
-from urllib.parse import parse_qs, urlparse
 
 class TestGnrCrypto():
     def setup_class(cls):

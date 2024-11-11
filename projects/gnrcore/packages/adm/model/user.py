@@ -3,7 +3,7 @@
 
 import os
 import re
-from gnr.core.gnrdecorator import metadata, public_method
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
 

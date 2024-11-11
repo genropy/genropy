@@ -7,7 +7,6 @@
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
-import os
 
 
 class FilePicker(BaseComponent):

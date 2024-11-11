@@ -9,11 +9,7 @@
 
 """ info """
 
-import re
-from gnr.core.gnrstring import toJson
-from collections import defaultdict
-
-from gnr.core.gnrstring import splitAndStrip, toText
+from gnr.core.gnrstring import splitAndStrip
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class GetInfoPage(BaseComponent):

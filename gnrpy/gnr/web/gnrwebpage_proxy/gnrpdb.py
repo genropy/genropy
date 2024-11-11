@@ -17,7 +17,6 @@ from bdb import Breakpoint
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method
-from gnr.app.gnrconfig import gnrConfigPath
 
 class GnrPdbClient(GnrBaseProxy):
     @public_method

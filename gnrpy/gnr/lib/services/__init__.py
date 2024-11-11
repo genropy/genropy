@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -26,10 +26,7 @@
 
 import os
 
-import sys
-
-from collections import OrderedDict
-from gnr.core.gnrlang import  gnrImport,clonedClassMixin
+from gnr.core.gnrlang import  gnrImport
 from datetime import datetime
 from gnr.core.gnrbag import Bag
 

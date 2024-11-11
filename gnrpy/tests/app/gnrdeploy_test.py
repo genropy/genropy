@@ -1,1 +1,1 @@
-import gnr.app.gnrdeploy
+import gnr.app.gnrdeploy  # noqa: F401

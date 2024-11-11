@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 import sys
-import os
-import os.path
-import subprocess
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp

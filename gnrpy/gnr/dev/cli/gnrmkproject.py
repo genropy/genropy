@@ -9,9 +9,7 @@ usage: gnrmkproject projectname
 import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, SiteMaker,PackageMaker, PathResolver
+from gnr.app.gnrdeploy import ProjectMaker, InstanceMaker, PackageMaker, PathResolver
 
 description = "Bootstrap a new project folder and subfolders"
 

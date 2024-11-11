@@ -27,7 +27,7 @@ description = "an interactive helper utility for handling tables"
 
 def main():
     try:
-        import jedi
+        import jedi # noqa: F401
         print ("\n*** Note: jedi is installed, autocompletion may not work properly ***\n")
         # pip uninstall jedi
         # %config IPCompleter.use_jedi = False

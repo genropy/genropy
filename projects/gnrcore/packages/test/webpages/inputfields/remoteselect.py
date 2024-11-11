@@ -6,7 +6,6 @@ from imdb import IMDb
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrlang import GnrException
 from gnr.app.gnrdeploy import PathResolver
 
 class GnrCustomWebPage(object):

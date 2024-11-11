@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys, os
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrsys import expandpath
-from gnr.app.gnrconfig import gnrConfigPath,getSiteHandler,getGnrConfig
 
 description = "will run a websocket server for <site_name> using tornado."
 

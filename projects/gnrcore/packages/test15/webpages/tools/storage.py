@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import public_method
 from gnr.lib.services.storage import StorageResolver
 
 class GnrCustomWebPage(object):

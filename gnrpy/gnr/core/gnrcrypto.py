@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import time
 import hashlib
 import base64
 import hmac

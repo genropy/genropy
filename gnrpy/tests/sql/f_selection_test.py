@@ -29,13 +29,7 @@ this test module focus on SqlSelection's methods
 import os, os.path
 import datetime
 
-import pytest
-
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery
-from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj,\
-    DbTableListObj, DbColumnListObj, DbIndexListObj
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 

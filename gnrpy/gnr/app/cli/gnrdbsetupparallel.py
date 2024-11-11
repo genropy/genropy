@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys
 import os
 import glob
-import logging
 from multiprocessing import Pool
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
 from gnr.app.gnrconfig import getGnrConfig

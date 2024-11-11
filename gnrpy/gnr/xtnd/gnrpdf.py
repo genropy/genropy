@@ -4,8 +4,6 @@ from gnr.core.gnrlang import GnrException
 from reportlab.pdfgen import canvas
 
 from reportlab import lib as pdflib
-from reportlab.lib.units import inch
-from reportlab.lib.colors import pink, black, red, blue, green
 
 class GnrPdfElem(object):
     def __init__(self, obj, tag, tagType):

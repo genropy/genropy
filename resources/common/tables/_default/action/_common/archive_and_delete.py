@@ -7,8 +7,6 @@
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
 from collections import defaultdict
-import shutil
-import gzip
 import os
 
 caption = 'Archive and delete'
@@ -73,14 +71,6 @@ class Main(BaseResourceAction):
         archive.makePicklable()
         archive.pickle('%s.pik' %self.archive_path)
         self.page.site.zipFiles(self.source_folder,self.result_path)
-
-       #zipPath = '%s.gz' %self.archive_path
-       #with open('%s.pik' %self.archive_path,'rb') as sfile:
-       #    with gzip.open(zipPath, 'wb') as f_out:
-       #        f_out.writelines(sfile)
-        #os.remove('%s.pik' %self.archive_path)
-
-
 
     def step_delete_archived(self):
         "Delete archived"

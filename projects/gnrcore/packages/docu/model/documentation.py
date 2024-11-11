@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method, metadata
+from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
 

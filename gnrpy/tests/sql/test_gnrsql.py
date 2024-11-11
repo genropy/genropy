@@ -5,7 +5,7 @@ import locale
 import pytest
 
 from gnr.sql import gnrsql as gs
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest
 
 class MockApplication(object):
     debug = True
