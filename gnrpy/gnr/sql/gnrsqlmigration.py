@@ -12,6 +12,10 @@ from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
 
 COL_JSON_KEYS = ("dtype","notnull","default","size","unique")
 
+def nested_defaultdict():
+    return defaultdict(nested_defaultdict)
+
+
 
 def compare_json(json1, json2):
     """Compara due strutture JSON e ritorna le differenze."""
@@ -70,7 +74,7 @@ class OrmExtractor:
     def fill_json_table(self,tblobj):
         schema_name = tblobj.pkg.sqlname
         table_name = tblobj.sqlname
-        pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.attributes['pkey'].split(',')])
+        pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.pkeys])
         self.schemas[schema_name]['tables'][table_name] = {
             "metadata": {},
             'entity':'table',
@@ -322,37 +326,22 @@ class SqlMigrator():
         self.db = self.application.db
         self.ormStructure = OrmExtractor(self.db).get_json_struct()
         self.sqlStructure = DbExtractor(self.db).get_json_struct()
+        self.command = nested_defaultdict()
+    
+ 
+
+
         
     def toSql(self,fromStructure=None):
         if fromStructure is None:
             fromStructure = self.sqlStructure
-        self.commands = defaultdict(list)
+        self.command.pop('db',None) #rebuils
         self.diff = DeepDiff(fromStructure, self.ormStructure,
                               ignore_order=True,view='tree')
-        for evt,dbchange in self.structChanges(self.diff):
-            sql = getattr(self, f'{evt}_{dbchange["entity"]}' ,'missing_handler')(**dbchange)
-            item = dbchange.get('item',{})
-            schema_name = item.get('schema_name')
-            table_name = item.get('table_name')
-            column_name = item.get('column_name')
-            entity_name = dbchange['entity_name']
-            entity = dbchange['entity']
-            command_key = ['db']
-            if entity in ('table','column'):
-                command_key.append(schema_name)
-            if entity =='column' or (entity=='table' and evt=='upd'):
-                command_key.append(table_name)
-            command = {'sql':sql,'entity':dbchange['entity'],
-                                    'entity_name':entity_name,
-                                    'evt':evt,
-                                    'schema_name':schema_name,
-                                    'table_name':table_name,
-                                    'column_name':column_name}
-            self.commands[tuple(command_key)].append(command)
-
-
-            
-
+        for evt,kw in self.structChanges(self.diff):
+            handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
+            handler(**kw)
+ 
     def structChanges(self,diff):
         for key,evt in (('dictionary_item_added','added'),
                         ('dictionary_item_removed','removed'),
@@ -385,32 +374,44 @@ class SqlMigrator():
                 yield evt,kw
 
         
+    def schema_tables(self,schema_name):
+        return self.commands['db']['schemas'][schema_name]['tables']
+
     def added_db(self,item=None, **kwargs):
-        result = []
-        self.commands.append(self.db.adapter.createDbSql(item['entity_name'], 'UNICODE'))
+        self.commands['db']['command'] = self.db.adapter.createDbSql(item['entity_name'], 'UNICODE')
         for schema in item['schemas'].values():
-            result.append(self.added_schema(item=schema))
-        return '\n'.join(result)
+            self.added_schema(item=schema)
 
     def added_schema(self, item=None,**kwargs):
-        result = []
-        result.append(self.db.adapter.createSchemaSql(item['entity_name']))
+        schema_name = item['entity_name']
+        self.commands['db']['schemas'][schema_name]['command'] = self.db.adapter.createSchemaSql(schema_name)
         for table in item['tables'].values():
-            result.append(self.added_table(item=table))
-        return '\n'.join(result)
-
+            self.added_table(item=table)
 
     def added_table(self, item=None,**kwargs):
-        tablename = self.tableSqlName(item)
+        sqltablename = self.tableSqlName(item)
         sqlfields = []
         for col in item['columns'].values():
             sqlfields.append(self.columnSql(col))
         sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
-        return 'CREATE TABLE %s (%s);' % (tablename, ', '.join(sqlfields))
-
+        sql = f"CREATE TABLE {sqltablename} {', '.join(sqlfields)};"
+        self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
 
     def added_column(self, item=None,**kwargs):
-        return f'ADD COLUMN {self.columnSql(item)}'
+        sql =  f'ADD COLUMN {self.columnSql(item)}'
+        columns_command = self.schema_tables(item['schema_name'])[item['table_name']]['columns']
+        columns_command[item['entity_name']]['command'] = sql
+    
+    def changed_table(self, **kwargs):
+        print(xxx)
+        return f'changed table {kwargs}'
+
+    def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
+        if changed_attribute in ('size','dtype'):
+            return f'changed_column {changed_attribute}' #self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
+        return
+    
+
 
     def removed_db(self, **kwargs):
         return f'removed db {kwargs}'
@@ -424,20 +425,7 @@ class SqlMigrator():
     def removed_column(self, **kwargs):
         return f'removed column {kwargs}'
 
-    def changed_db(self, **kwargs):
-        return f'changed db {kwargs}'
 
-    def changed_schema(self, **kwargs):
-        return f'changed schema {kwargs}'
-    
-    def changed_table(self, **kwargs):
-        return f'changed table {kwargs}'
-
-    def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
-        if changed_attribute in ('size','dtype'):
-            return f'changed_column {changed_attribute}' #self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
-        return
-    
     #def xxx(self,col):
     #    new_dtype = col.attributes['dtype']
     #    if col.attributes.get('unaccent'):
@@ -527,9 +515,30 @@ class SqlMigrator():
         schema_name = item['schema_name']
         table_name = item['table_name'] 
         return f'{self.db.adapter.adaptSqlName(schema_name)}.{self.db.adapter.adaptSqlName(table_name)}'
-                              
+
+
     def applyChanges(self):
+        commands = self.commands
+        dbitem = commands['db']
+        sql_command = dbitem.get('command')
+        schemas = dbitem.get('schemas')
+        if sql_command:
+            self.db.adapter.execute(sql_command,manager=True)
+        commandlist = []
+        for schema_item in schemas.values():
+            sql_command =schema_item.get('command')
+            tables = schema_item.get('tables')
+            if sql_command:
+                commandlist.append(sql_command)
+            for tbl_item in tables.values():
+                col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
+                commandlist.append(f"{tbl_item['command']}\n {col_commands};")
+        print('commandlist',commandlist)
+        
+
+    def applyChanges_old(self):
         """TODO"""
+
         firstcommand = self.commands.pop(0)
         if firstcommand['entity_name'] == 'db':
             self.db.adapter.execute(firstcommand['sql'],manager=True)
@@ -537,6 +546,8 @@ class SqlMigrator():
             self.commands = [firstcommand]+self.commands
         sql = '\n'.join([c['sql'] for c in self.commands if c['sql']])
         self.db.adapter.execute(sql,autoCommit=True)
+
+        
 
 if __name__ == '__main__':
 
@@ -552,5 +563,6 @@ if __name__ == '__main__':
     #print('\n---from 1 to 0',diff)
     #print('orm mig1',mig_1.ormStructure)
     mig.toSql()
+    print(mig.commands)
     #mig.applyChanges()
     #print('\n'.join([c["sql"] for c in mig.commands]))
