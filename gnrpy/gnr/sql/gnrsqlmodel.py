@@ -81,6 +81,7 @@ class DbModel(object):
         self.db = db
         self.onBuildingCb = []
         self.src = DbModelSrc.makeRoot()
+        self.src.child('package_list', 'packages')
         self.src._dbmodel = self
         self.obj = None
         self.relations = Bag()
@@ -1087,6 +1088,8 @@ class DbTableObj(DbModelObj):
 
 
     def _get_pkeys(self):
+        if not self.pkey:
+            return []
         if self.column(self.pkey).attributes.get('composed_of'):
             return self.column(self.pkey).attributes.get('composed_of').split(',')
         return [self.pkey]

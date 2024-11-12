@@ -294,7 +294,7 @@ class DbExtractor(object):
                     "entity_name":schema_name,
                     "schema_name":schema_name
                 }
-            if table_name not in self.json_schemas[schema_name]["tables"]:
+            if table_name and table_name not in self.json_schemas[schema_name]["tables"]:
                 self.json_schemas[schema_name]["tables"][table_name] = {
                     "metadata": {},
                     "columns": {},
@@ -306,14 +306,15 @@ class DbExtractor(object):
                     "table_name":table_name,
                     "schema_name":schema_name
                 }
-            if c.get('_pg_is_primary_key'):
-                self.pkeys_dict[(schema_name,table_name)].append(column_name)
-            self.json_schemas[schema_name]["tables"][table_name]["columns"][column_name] = {"entity":"column",
-                                                                                      "schema_name":schema_name,
-                                                                                      "table_name":table_name,
-                                                                                      "entity_name":column_name,
-                                                                                        "attributes":colattr}
-    
+            if column_name:
+                if c.get('_pg_is_primary_key'):
+                    self.pkeys_dict[(schema_name,table_name)].append(column_name)
+                self.json_schemas[schema_name]["tables"][table_name]["columns"][column_name] = {"entity":"column",
+                                                                                        "schema_name":schema_name,
+                                                                                        "table_name":table_name,
+                                                                                        "entity_name":column_name,
+                                                                                            "attributes":colattr}
+        
     def process_primary_keys(self):
         for t,pkeys in self.pkeys_dict.items():
             schema_name,table_name = t
@@ -337,11 +338,12 @@ class DbExtractor(object):
         try:
             self.connect()
             # Fetch all metadata and constraints/indices
-            metadata = self.db.adapter.struct_get_schema_info(schemas=self.application_schemas)
-            foreign_keys_dict = self.db.adapter.struct_get_foreign_keys(schemas=self.application_schemas)
-            self.process_metadata(metadata)
-            self.process_primary_keys()
-            #self.process_foreign_keys(foreign_keys_dict)
+            if self.application_schemas:
+                metadata = self.db.adapter.struct_get_schema_info(schemas=self.application_schemas)
+                foreign_keys_dict = self.db.adapter.struct_get_foreign_keys(schemas=self.application_schemas)
+                self.process_metadata(metadata)
+                self.process_primary_keys()
+                #self.process_foreign_keys(foreign_keys_dict)
             return self.json_structure
         except GnrNonExistingDbException:
             return {}
@@ -433,14 +435,16 @@ class SqlMigrator():
         sqlfields = []
         for col in item['columns'].values():
             sqlfields.append(self.columnSql(col))
-        sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
+        if item["attributes"]["pkeys"]:
+            sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
         sql = f"CREATE TABLE {sqltablename} ({', '.join(sqlfields)});"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
 
     def added_column(self, item=None,**kwargs):
         sql =  f'ADD COLUMN {self.columnSql(item)}'
-        columns_command = self.schema_tables(item['schema_name'])[item['table_name']]['columns']
-        columns_command[item['entity_name']]['command'] = sql
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        columns_dict = table_dict['columns'] 
+        columns_dict[item['entity_name']]['command'] = sql
     
     def changed_table(self, **kwargs):
         return f'changed table {kwargs}'
@@ -559,21 +563,25 @@ class SqlMigrator():
         commands = self.commands
         dbitem = commands['db']
         sql_command = dbitem.get('command')
-        schemas = dbitem.get('schemas')
+        schemas = dbitem.get('schemas',{})
         if sql_command:
             self.sql_commands['db_creation'] = sql_command
         commandlist = []
         #constrainList = []
         for schema_item in schemas.values():
             sql_command =schema_item.get('command')
-            tables = schema_item.get('tables')
+            tables = schema_item.get('tables',{})
             if sql_command:
                 commandlist.append(sql_command)
             for tbl_item in tables.values():
                 col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
-                commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
                 #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
                 #constrainList.append(constraints_commands)
+                tbl_command = tbl_item.get('command')
+                if col_commands and not tbl_command:
+                    tbl_item['command'] = f'ALTER TABLE "{tbl_item['schema_name']}"."{tbl_item['table_name']}" '
+                commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
+
         self.sql_commands['build_commands'] = '\n'.join(commandlist)
         return '\n'.join(self.sql_commands.values())
 

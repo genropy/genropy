@@ -9,10 +9,11 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
     def setup_class(cls):
         super().setup_class()
         cls.init()
-        cls.db.createDb(cls.dbname)
-        cls.db.startup()
+        cls.src = cls.db.model.src
         cls.migrator = SqlMigrator(cls.db)
+        cls.db.dropDb(cls.dbname)
 
+    @classmethod
     def init(cls):
         cls.name = 'postgres'
         cls.dbname = 'test_gnrsqlmigration'
@@ -23,26 +24,44 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
                           user=cls.pg_conf.get("user"),
                           password=cls.pg_conf.get("password")
                           )
-        
-    def createTestPackage(self):
-        self.db.model.src.package('test', sqlschema='test')
 
-    def createTableRecipe(self):
-        pkg = self.db.package('test')
-        tbl = pkg.table('recipe',pkey='code')
-        tbl.column('code',size='5')
+    def checkChanges(self,check_value=None):
+        self.db.startup()
+        self.migrator.toSql()
+        if check_value=='?':
+            expectedChanges = self.migrator.getChanges()
+            print('expected value',expectedChanges)
+            return
+        changes =  self.migrator.getChanges()
+        if changes!=check_value:
+            print('changes',changes)
+            print('ormStructure',self.migrator.ormStructure)
+            print('sqlStructure',self.migrator.ormStructure)
+            assert changes==check_value,'Wrong sql command'
+        else:
+            self.migrator.applyChanges()
+            self.migrator.toSql()
+            changes = self.migrator.getChanges()
+            assert not changes,'wrong sql command execution'
+
+    def test_01_create_db(self):
+        check_value = """CREATE DATABASE "test_gnrsqlmigration" ENCODING \'UNICODE\';\n"""
+        self.checkChanges(check_value)
+    
+    def test_02_create_schema(self):
+        self.src.package('alfa',sqlschema='alfa')
+        check_value = 'CREATE SCHEMA "alfa";'
+        self.checkChanges(check_value)
+
+    def test_03_create_table_nopkey(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('code',size=':12')
+        self.checkChanges('CREATE TABLE "alfa"."alfa_recipe" ("code" character varying(12) );')
+
+    def test_04_add_column(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
         tbl.column('description')
-
-    def test_extractOrm(self):
-        self.createTestPackage()
-        self.createTableRecipe()
-
-
-    def test_addingTable(self):
-        db = self.migrator.application.db
-        pkg = db.package('mig')
-        tbl = pkg.table('ingredient',pkey='id')
-        tbl.column('id',size='22')
-        tbl.colmmn('description')
-        assert not json_equal(self.migrator.sqlStructure,self.migrator.ormStructure),'Struct must be different'
+        self.checkChanges('?')
 

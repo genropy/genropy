@@ -659,6 +659,44 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
     def struct_get_schema_info_sql(self):
+        return """SELECT
+                s.schema_name,
+                t.table_name,
+                c.column_name,
+                c.data_type,
+                c.character_maximum_length,
+                c.is_nullable,
+                c.column_default,
+                CASE
+                    WHEN kcu.column_name IS NOT NULL THEN 'YES'
+                    ELSE 'NO'
+                END AS is_primary_key
+            FROM
+                information_schema.schemata s
+            LEFT JOIN
+                information_schema.tables t
+                ON s.schema_name = t.table_schema
+            LEFT JOIN
+                information_schema.columns c
+                ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+            LEFT JOIN
+                information_schema.table_constraints tc
+                ON t.table_schema = tc.table_schema 
+                AND t.table_name = tc.table_name 
+                AND tc.constraint_type = 'PRIMARY KEY'
+            LEFT JOIN
+                information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name 
+                AND c.column_name = kcu.column_name
+                AND c.table_schema = kcu.table_schema
+                AND c.table_name = kcu.table_name
+            WHERE
+                s.schema_name IN %s
+            ORDER BY
+                s.schema_name, t.table_name, c.ordinal_position;
+    
+    """
+    def struct_get_schema_info_sql_noempty(self):
         return """
                 SELECT
                     s.schema_name,
@@ -696,7 +734,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 ORDER BY
                     s.schema_name, t.table_name, c.ordinal_position;
         """
-
+    
     def struct_get_schema_info(self, schemas=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
