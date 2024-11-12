@@ -1,3 +1,14 @@
+Version 24.11.12
+================
+
+Enhancements
+------------
+
+* Introduce linting for F401, with a full code check and cleanup
+
+* Tests can use a custom postgres database server using GNR_TEST_PG_*
+  env variables (HOST, PORT, USER, PASSWORD)
+
 Version 24.11.4
 ===============
 
