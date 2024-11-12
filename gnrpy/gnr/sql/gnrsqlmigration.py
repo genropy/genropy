@@ -6,10 +6,8 @@ import time
 import functools
 from collections import defaultdict
 
-import attr
-from deepdiff import DeepDiff, Delta
-from gnr.app.gnrapp import GnrApp
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
+from deepdiff import DeepDiff
+from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 COL_JSON_KEYS = ("dtype","notnull","default","size","unique")
 
@@ -351,21 +349,35 @@ class DbExtractor(object):
             self.close_connection()
 
 class SqlMigrator():
-    def __init__(self,instance_name):
-        self.application = GnrApp(instance_name)
-        self.db = self.application.db
-        self.ormStructure = OrmExtractor(self.db).get_json_struct()
-        self.sqlStructure = DbExtractor(self.db).get_json_struct()
+    def __init__(self,db):
+        self.db = db
         self.commands = nested_defaultdict()
-    
+        self.sql_commands = {'db_creation':None,'build_commands':None}
 
-        
-    def toSql(self,fromStructure=None):
-        if fromStructure is None:
-            fromStructure = self.sqlStructure
-        self.commands.pop('db',None) #rebuils
-        self.diff = DeepDiff(fromStructure, self.ormStructure,
+    def extractSql(self):
+        self.sqlStructure = DbExtractor(self.db).get_json_struct()
+    
+    def extractOrm(self):
+        self.ormStructure = OrmExtractor(self.db).get_json_struct()
+    
+    def clearSql(self):
+        self.sqlStructure = {}
+
+    def clearOrm(self):
+        self.ormStructure = {}
+
+    def setDiff(self):
+        self.diff = DeepDiff(self.sqlStructure, self.ormStructure,
                               ignore_order=True,view='tree')
+
+    def clearCommands(self):
+        self.commands.pop('db',None) #rebuils
+        
+    def toSql(self):
+        self.extractSql()
+        self.extractOrm()
+        self.setDiff()
+        self.clearCommands()
         for evt,kw in self.structChanges(self.diff):
             handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
             handler(**kw)
@@ -431,7 +443,6 @@ class SqlMigrator():
         columns_command[item['entity_name']]['command'] = sql
     
     def changed_table(self, **kwargs):
-        print(xxx)
         return f'changed table {kwargs}'
 
     def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
@@ -544,17 +555,15 @@ class SqlMigrator():
         table_name = item['table_name'] 
         return f'{self.db.adapter.adaptSqlName(schema_name)}.{self.db.adapter.adaptSqlName(table_name)}'
 
-
-    def applyChanges(self):
+    def getChanges(self):
         commands = self.commands
         dbitem = commands['db']
         sql_command = dbitem.get('command')
         schemas = dbitem.get('schemas')
         if sql_command:
-            self.db.adapter.execute(sql_command,manager=True)
+            self.sql_commands['db_creation'] = sql_command
         commandlist = []
         #constrainList = []
-
         for schema_item in schemas.values():
             sql_command =schema_item.get('command')
             tables = schema_item.get('tables')
@@ -565,36 +574,14 @@ class SqlMigrator():
                 commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
                 #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
                 #constrainList.append(constraints_commands)
-        self.db.adapter.execute('\n'.join(commandlist),autoCommit=True)        
+        self.sql_commands['build_commands'] = '\n'.join(commandlist)
+        return '\n'.join(self.sql_commands.values())
 
-    def applyChanges_old(self):
-        """TODO"""
-
-        firstcommand = self.commands.pop(0)
-        if firstcommand['entity_name'] == 'db':
-            self.db.adapter.execute(firstcommand['sql'],manager=True)
-        else:
-            self.commands = [firstcommand]+self.commands
-        sql = '\n'.join([c['sql'] for c in self.commands if c['sql']])
-        self.db.adapter.execute(sql,autoCommit=True)
-
-        
-
-if __name__ == '__main__':
-
-    #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
-    #with open('testorm.json','w') as f:
-    #    f.write(json.dump(jsonorm))
-
-    mig = SqlMigrator('dbsetup_tester')
-    mig_1 = SqlMigrator('dbsetup_tester_1')
-   #diff = compare_json({},mig.ormStructure)
-   #print('\n---from 0 to 1 \n',diff)
-    #diff = compare_json(mig_1.ormStructure,mig.ormStructure)
-    #print('\n---from 1 to 0',diff)
-    #print('orm mig1',mig_1.ormStructure)
-    mig.toSql()
-    mig.applyChanges()
-    print(mig.commands)
-    #mig.applyChanges()
-    #print('\n'.join([c["sql"] for c in mig.commands]))
+    def applyChanges(self):
+        self.getChanges()
+        db_creation = self.sql_commands.pop('db_creation',None)
+        if db_creation:
+            self.db.adapter.execute(db_creation,manager=True)
+        build_commands = self.sql_commands.pop('build_commands',None)
+        if build_commands:
+            self.db.adapter.execute(build_commands,autoCommit=True)
