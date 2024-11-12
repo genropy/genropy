@@ -111,4 +111,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
-        pacakges_dir: gnrpy/dist/
+        packages-dir: gnrpy/dist/
