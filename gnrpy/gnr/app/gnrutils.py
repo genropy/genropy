@@ -70,6 +70,8 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
                 project_inter = extra_counters[package_id] = self._count_lines_in_directory(obj.packageFolder)
             project_cumulative_counters[package_project] += project_inter
             
+        project_cumulative_counters[framework_name] = framework_lines
+        
         total_lines = sum(project_counters.values()) +\
             sum(extra_counters.values()) + framework_lines
         total_percentage = 100.0
