@@ -1,3 +1,11 @@
+Upcoming version
+================
+
+* introduce gnr.app.gnrutils module, for GnrApp utilities. First
+  utility is GnrAppInsights, which retrieve statistical information
+  about a specific GnrApp, with plugin support. Includes a new command
+  line tool 'gnr app insights' to retrieve and show the statistics.
+
 Version 24.11.12
 ================
 
