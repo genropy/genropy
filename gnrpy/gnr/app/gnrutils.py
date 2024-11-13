@@ -28,7 +28,8 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
     """
     name = "Project package composition"
     RELEVANT_EXTENSIONS = ['py', 'css','xml','js']
-
+    FRAMEWORK_DIRS = ['gnrpy', 'gnrjs']
+    
     def _count_lines_in_file(self, file_path):
         """Counts the number of lines in a single file."""
         ext = file_path.split(".")
@@ -49,18 +50,16 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
 
     def retrieve(self):
         project_folder = self.app.instanceFolder.split("instances")[0]
-        
-        framework_dir = os.path.abspath(os.path.join(os.path.dirname(gnr.__file__), "..", ".."))+os.path.sep
-        framework_lines = self._count_lines_in_directory(framework_dir)
+
+        framework_base_dir = os.path.abspath(os.path.join(os.path.dirname(gnr.__file__), "..", ".."))+os.path.sep
+        framework_dirs = [f"{framework_base_dir}/{x}" for x in self.FRAMEWORK_DIRS]
+        framework_lines = sum([self._count_lines_in_directory(d) for d in framework_dirs])
         framework_name = "genropy"
         
         extra_counters = defaultdict(int)
         project_counters = defaultdict(int)
         
         for package, obj in self.app.packages.items():
-            if obj.packageFolder.startswith(framework_dir):
-                continue
-        
             if obj.packageFolder.startswith(project_folder):
                 project_counters[obj.id] = self._count_lines_in_directory(obj.packageFolder)
             else:
