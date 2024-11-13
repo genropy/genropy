@@ -1,4 +1,4 @@
-import os.environ
+import os
 import os.path
 from gnr.app import gnrutils as gu
 import pytest
