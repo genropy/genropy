@@ -58,13 +58,18 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
         
         extra_counters = defaultdict(int)
         project_counters = defaultdict(int)
+        project_cumulative_counters = defaultdict(int)
         
         for package, obj in self.app.packages.items():
+            package_project = os.path.basename(os.path.abspath(os.path.join(obj.packageFolder, "..", "..")))
+            package_id = "{}.{}".format(package_project, obj.id)
+                                       
             if obj.packageFolder.startswith(project_folder):
-                project_counters[obj.id] = self._count_lines_in_directory(obj.packageFolder)
+                project_inter = project_counters[package_id] = self._count_lines_in_directory(obj.packageFolder)
             else:
-                extra_counters[obj.id] = self._count_lines_in_directory(obj.packageFolder)
-        
+                project_inter = extra_counters[package_id] = self._count_lines_in_directory(obj.packageFolder)
+            project_cumulative_counters[package_project] += project_inter
+            
         total_lines = sum(project_counters.values()) +\
             sum(extra_counters.values()) + framework_lines
         total_percentage = 100.0
@@ -74,11 +79,14 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
         
         extra_counters = {k: compute_percentage(v) for k, v in extra_counters.items()}
         project_counters = {k: compute_percentage(v) for k, v in project_counters.items()}
+        project_cumulative_counters = {k: compute_percentage(v) for k, v in project_cumulative_counters.items()}
         
         global_counters = dict(framework={"genropy": dict(lines=framework_lines,
                                                           percentage=(framework_lines/total_lines)*100)},
                                extra_packages = dict(extra_counters),
-                               project_packages = dict(project_counters))
+                               project_packages = dict(project_counters),
+                               project_cumulative = dict(project_cumulative_counters),
+                               )
         return global_counters
     
 class GnrAppInsights(object):

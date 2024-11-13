@@ -58,10 +58,12 @@ def main():
         print("-"*len(section_title))
         print(" ")
         for project_component, component_data in data.items():
-            print(project_component.capitalize())
+            print(project_component.replace("_", " ").capitalize())
             print("-"*len(project_component))
-            for package, package_stats in component_data.items():
-                print(f"{package:<16}: {package_stats['percentage']:=6.2f}% ({package_stats['lines']})")
+            ids_max_length = max([len(x) for x in component_data.keys()])
+            for package in sorted(component_data.keys()):
+                p = component_data[package]
+                print(f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})")
             print("")
 
 if __name__ == "__main__":
