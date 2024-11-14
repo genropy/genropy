@@ -670,82 +670,28 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return f'ALTER TABLE {sqltablename} ADD PRIMARY KEY ({pkeys});'
 
     def struct_get_schema_info_sql(self):
-        return """SELECT
+        return """
+            SELECT
                 s.schema_name,
                 t.table_name,
                 c.column_name,
                 c.data_type,
                 c.character_maximum_length,
                 c.is_nullable,
-                c.column_default,
-                CASE
-                    WHEN kcu.column_name IS NOT NULL THEN 'YES'
-                    ELSE 'NO'
-                END AS is_primary_key
+                c.column_default
             FROM
                 information_schema.schemata s
-            LEFT JOIN
+            JOIN
                 information_schema.tables t
                 ON s.schema_name = t.table_schema
-            LEFT JOIN
+            JOIN
                 information_schema.columns c
                 ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-            LEFT JOIN
-                information_schema.table_constraints tc
-                ON t.table_schema = tc.table_schema 
-                AND t.table_name = tc.table_name 
-                AND tc.constraint_type = 'PRIMARY KEY'
-            LEFT JOIN
-                information_schema.key_column_usage kcu
-                ON tc.constraint_name = kcu.constraint_name 
-                AND c.column_name = kcu.column_name
-                AND c.table_schema = kcu.table_schema
-                AND c.table_name = kcu.table_name
             WHERE
                 s.schema_name IN %s
             ORDER BY
                 s.schema_name, t.table_name, c.ordinal_position;
-    
-    """
-    def struct_get_schema_info_sql_noempty(self):
-        return """
-                SELECT
-                    s.schema_name,
-                    t.table_name,
-                    c.column_name,
-                    c.data_type,
-                    c.character_maximum_length,
-                    c.is_nullable,
-                    c.column_default,
-                    CASE
-                        WHEN kcu.column_name IS NOT NULL THEN 'YES'
-                        ELSE 'NO'
-                    END AS is_primary_key
-                FROM
-                    information_schema.schemata s
-                JOIN
-                    information_schema.tables t
-                    ON s.schema_name = t.table_schema
-                JOIN
-                    information_schema.columns c
-                    ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-                LEFT JOIN
-                    information_schema.table_constraints tc
-                    ON t.table_schema = tc.table_schema 
-                    AND t.table_name = tc.table_name 
-                    AND tc.constraint_type = 'PRIMARY KEY'
-                LEFT JOIN
-                    information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name 
-                    AND c.column_name = kcu.column_name
-                    AND c.table_schema = kcu.table_schema
-                    AND c.table_name = kcu.table_name
-                WHERE
-                    s.schema_name IN %s
-                ORDER BY
-                    s.schema_name, t.table_name, c.ordinal_position;
         """
-    
     def struct_get_schema_info(self, schemas=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
@@ -754,12 +700,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         columns = self.raw_fetch(self.struct_get_schema_info_sql(),(tuple(schemas),))
         for schema_name, table_name, \
             column_name, data_type, \
-            char_max_length, is_nullable, column_default,is_primary_key in columns:
+            char_max_length, is_nullable, column_default in columns:
             col = dict(schema_name=schema_name,table_name=table_name,
                        name=column_name,dtype = data_type,
                     length=char_max_length,
                         is_nullable=is_nullable,
-                        default= column_default,is_primary_key=is_primary_key=='YES')
+                        default= column_default)
             col = self._filterColInfo(col, '_pg_')
             if col['default'] and col['default'].startswith('nextval('):
                 col['_pg_default'] = col.pop('default')
@@ -781,78 +727,216 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 col['size'] = str(col.get('length'))
             yield col
 
-    def struct_get_foreign_keys_sql(self):
+    
+
+    def struct_get_constraints_sql(self):
         return """
-        SELECT 
-            kcu.constraint_name AS constraint_name,
-            kcu.constraint_schema AS schema_name,
-            kcu.table_name AS table_name,
-            kcu.column_name AS column_name,
-            ccu.constraint_schema AS related_schema,
-            ccu.table_name AS related_table,
-            ccu.column_name AS related_column,
-            rc.update_rule AS on_update,
-            rc.delete_rule AS on_delete,
-            tc.is_deferrable,
-            tc.initially_deferred,
-            kcu.ordinal_position
-        FROM 
-            information_schema.table_constraints AS tc
-        JOIN 
-            information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
-            AND tc.constraint_schema = kcu.constraint_schema
-        JOIN 
-            information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
-            AND ccu.constraint_schema = tc.constraint_schema
-        JOIN 
-            information_schema.referential_constraints AS rc
-            ON tc.constraint_name = rc.constraint_name
-        WHERE 
-            tc.constraint_type = 'FOREIGN KEY'
-            AND kcu.constraint_schema = ANY(%s)
-        ORDER BY 
-            kcu.constraint_schema, kcu.table_name, kcu.constraint_name, kcu.ordinal_position;
+            SELECT
+                tc.constraint_schema AS schema_name,
+                tc.table_name AS table_name,
+                tc.constraint_name AS constraint_name,
+                tc.constraint_type AS constraint_type,
+                kcu.column_name AS column_name,
+                rc.update_rule AS on_update,
+                rc.delete_rule AS on_delete,
+                ccu.table_schema AS related_schema,
+                ccu.table_name AS related_table,
+                ccu.column_name AS related_column,
+                ch.check_clause AS check_clause
+            FROM
+                information_schema.table_constraints AS tc
+            LEFT JOIN
+                information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.constraint_schema = kcu.constraint_schema
+                AND tc.table_name = kcu.table_name
+            LEFT JOIN
+                information_schema.referential_constraints AS rc
+                ON tc.constraint_name = rc.constraint_name
+                AND tc.constraint_schema = rc.constraint_schema
+            LEFT JOIN
+                information_schema.constraint_column_usage AS ccu
+                ON tc.constraint_name = ccu.constraint_name
+                AND tc.constraint_schema = ccu.constraint_schema
+            LEFT JOIN
+                information_schema.check_constraints AS ch
+                ON tc.constraint_name = ch.constraint_name
+                AND tc.constraint_schema = ch.constraint_schema
+            WHERE
+                tc.constraint_schema = ANY(%s)
+            ORDER BY
+                tc.constraint_schema, tc.table_name, tc.constraint_name;
         """
-    
-    def struct_get_foreign_keys(self,schemas=None):
-        query = self.struct_get_foreign_keys_sql()
-        foreign_keys = defaultdict(lambda: {
-            "related_schema": None,
-            "related_table": None,
-            "related_columns": [],
-            "onDelete": None,
-            "onUpdate": None,
-            "deferred": False
-        })
+
+
+    def struct_get_constraints(self, schemas):
+        query = self.struct_get_constraints_sql()
+        constraints = defaultdict(lambda: defaultdict(dict))
+        
         for row in self.raw_fetch(query, (schemas,)):
-            constraint_name, schema_name, table_name, column_name, related_schema, related_table, related_column, on_update, on_delete, is_deferrable, initially_deferred, ordinal_position = row
-            key = (schema_name, table_name, constraint_name)
-            foreign_keys[key]["related_schema"] = related_schema
-            foreign_keys[key]["related_table"] = related_table
-            foreign_keys[key]["related_columns"].append(related_column)
-            foreign_keys[key]["onDelete"] = on_delete
-            foreign_keys[key]["onUpdate"] = on_update
-            foreign_keys[key]["deferred"] = is_deferrable == 'YES' and initially_deferred == 'YES'
-            if "child_columns" not in foreign_keys[key]:
-                foreign_keys[key]["child_columns"] = []
-            foreign_keys[key]["child_columns"].append(column_name)
-        final_result = {}
-        for key, value in foreign_keys.items():
-            schema_name, table_name, constraint_name = key
-            concatenated_columns = tuple(value["child_columns"])
-            new_key = (schema_name, table_name, concatenated_columns)
-            final_result[new_key] = {
-                "related_schema": value["related_schema"],
-                "related_table": value["related_table"],
-                "related_columns": value["related_columns"],
-                "onDelete": value["onDelete"],
-                "onUpdate": value["onUpdate"],
-                "deferred": value["deferred"]
-            }
-        return final_result
+            (schema_name, table_name, constraint_name, constraint_type, column_name, 
+            on_update, on_delete, related_schema, related_table, related_column, check_clause) = row
+            
+            # Key for schema and table
+            table_key = (schema_name, table_name)
+            
+            if constraint_type == "PRIMARY KEY":
+                # For PRIMARY KEY, structure without an intermediate level for the constraint name
+                if "PRIMARY KEY" not in constraints[table_key]:
+                    constraints[table_key]["PRIMARY KEY"] = {
+                        "constraint_name": constraint_name,
+                        "constraint_type": "PRIMARY KEY",
+                        "columns": [],
+                        "on_update": on_update,
+                        "on_delete": on_delete,
+                        "related_schema": related_schema,
+                        "related_table": related_table,
+                        "related_column": related_column,
+                        "check_clause": check_clause
+                    }
+                # Add columns for the primary key if present
+                if column_name:
+                    constraints[table_key]["PRIMARY KEY"]["columns"].append(column_name)
+            else:
+                # For other constraints, structure with an intermediate level for the constraint name
+                if constraint_name not in constraints[table_key][constraint_type]:
+                    constraints[table_key][constraint_type][constraint_name] = {
+                        "constraint_name": constraint_name,
+                        "constraint_type": constraint_type,
+                        "columns": [],
+                        "on_update": on_update,
+                        "on_delete": on_delete,
+                        "related_schema": related_schema,
+                        "related_table": related_table,
+                        "related_column": related_column,
+                        "check_clause": check_clause
+                    }
+                # Add columns to the constraint, if any
+                if column_name:
+                    constraints[table_key][constraint_type][constraint_name]["columns"].append(column_name)
+        
+        # Clean up any empty column lists for CHECK constraints with no specific columns
+        for table_constraints in constraints.values():
+            for constraint_type, constraint_dict in table_constraints.items():
+                if constraint_type == "CHECK":
+                    for constraint_name, constraint_info in constraint_dict.items():
+                        if not constraint_info["columns"]:
+                            constraint_info["columns"] = None
+        
+        return constraints
+
+    def struct_get_indexes_sql(self):
+        return """
+        SELECT
+            n.nspname AS schema_name,               -- Schema name
+            t.relname AS table_name,
+            i.relname AS index_name,
+            a.attname AS column_name,
+            ix.indisunique AS is_unique,
+            ix.indoption[array_position(ix.indkey, a.attnum)-1] & 1 AS desc_order,
+            am.amname AS index_method,
+            spc.spcname AS tablespace,
+            pg_get_expr(ix.indpred, t.oid) AS where_clause,
+            i.reloptions AS with_options,
+            array_position(ix.indkey, a.attnum) AS ordinal_position,
+            con.contype AS constraint_type
+        FROM
+            pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_am am ON i.relam = am.oid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            JOIN pg_namespace n ON t.relnamespace = n.oid  -- Schema join
+            LEFT JOIN pg_tablespace spc ON i.reltablespace = spc.oid
+            LEFT JOIN pg_constraint con ON con.conindid = i.oid
+        WHERE
+            t.relkind = 'r'  -- ordinary tables only
+            AND n.nspname = ANY(%s)  -- Filter by schemas
+        ORDER BY
+            n.nspname, t.relname, i.relname, ordinal_position;
+        """
+
+    def struct_get_indexes(self, schemas):
+        query = self.struct_get_indexes_sql()
+        indexes = defaultdict(lambda: defaultdict(dict))
+        for row in self.raw_fetch(query, (schemas,)):
+            (schema_name, table_name, index_name, column_name, is_unique, 
+            desc_order, index_method, tablespace, where_clause, 
+            with_options, ordinal_position, constraint_type) = row
+            
+            # Chiave per schema e tabella
+            table_key = (schema_name, table_name)
+            
+            # Inizializza il dizionario per l'indice se non esiste già
+            if index_name not in indexes[table_key]:
+                indexes[table_key][index_name] = {
+                    "is_unique": is_unique,
+                    "method": index_method,
+                    "tablespace": tablespace,
+                    "where": where_clause,
+                    "with_options": {},
+                    "columns": {},
+                    "constraint_type": constraint_type  # p, u, etc., or None for manual indexes
+                }
+            
+            # Aggiunge le colonne e il relativo ordinamento
+            sort_order = "DESC" if desc_order else None
+            indexes[table_key][index_name]["columns"][column_name] = sort_order
+            
+            # Parse 'with_options' and store them in the dictionary
+            if with_options:
+                for option in with_options:
+                    k, v = option.split('=')
+                    indexes[table_key][index_name]["with_options"][k.strip()] = v.strip()
+        
+        return indexes
     
+    def struct_create_index_sql(self,schema_name=None,
+                                table_name=None,
+                                columns=None,index_name=None,
+                                unique=None,method=None,tablespace=None,
+                                with_options=None,where=None):
+        with_options = with_options or {}
+        method = method or "btree"
+        # Build the list of columns with specific sorting if present
+        column_defs = []
+        for column, order in columns.items():
+            if order:
+                column_defs.append(f"{column} {order}")
+            else:
+                column_defs.append(f"{column}")  # Default sorting if not specified
+
+        # Join columns into a single string
+        column_list = ", ".join(column_defs)
+
+        # Build the WITH options clause
+        with_parts = [f"{key} = {value}" for key, value in with_options.items()]
+        with_clause = f"WITH ({', '.join(with_parts)})" if with_parts else ""
+        
+        # Add TABLESPACE clause if specified
+        tablespace_clause = f"TABLESPACE {tablespace}" if tablespace else ""
+        
+        # Add WHERE clause if specified
+        where_clause = f"WHERE {where}" if where else ""
+        
+        # Build full table name with schema if schema is provided
+        full_table_name = self.struct_table_fullname_sql(schema_name,table_name)
+        
+        # Compose the final SQL statement
+        unique_clause = ' UNIQUE ' if unique else " "
+
+        sql = f"""
+        CREATE{unique_clause}INDEX {index_name}
+        ON {full_table_name}
+        USING {method} ({column_list})
+        {with_clause}
+        {tablespace_clause}
+        {where_clause};
+        """
+        
+        # Return a clean, single-line SQL string
+        return " ".join(sql.split())
+        
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
 

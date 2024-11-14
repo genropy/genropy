@@ -119,7 +119,8 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('recipy_type',size=':2',indexed=True)
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "recipy_type" character varying(2) ;\nCREATE INDEX idx_a540c475 ON "alfa"."alfa_recipe" USING btree (recipy_type) ;'
         self.checkChanges(check_value)
-
+        
+class Tappo:
     def test_05_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
