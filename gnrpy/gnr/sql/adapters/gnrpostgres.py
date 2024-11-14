@@ -658,6 +658,17 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
+    def struct_table_fullname_sql(self,schema_name,table_name):
+        return  f'"{schema_name}"."{table_name}"'
+    
+    def struct_drop_table_pkey_sql(self,schema_name,table_name):
+        sqltablename = self.struct_table_fullname_sql(schema_name,table_name)
+        return f"ALTER TABLE {sqltablename} DROP CONSTRAINT IF EXISTS {table_name}_pkey;"
+
+    def struct_add_table_pkey_sql(self,schema_name,table_name,pkeys):
+        sqltablename = self.struct_table_fullname_sql(schema_name,table_name)
+        return f'ALTER TABLE {sqltablename} ADD PRIMARY KEY ({pkeys});'
+
     def struct_get_schema_info_sql(self):
         return """SELECT
                 s.schema_name,
@@ -747,10 +758,15 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             col = dict(schema_name=schema_name,table_name=table_name,
                        name=column_name,dtype = data_type,
                     length=char_max_length,
-                        notnull= is_nullable=='NO',
+                        is_nullable=is_nullable,
                         default= column_default,is_primary_key=is_primary_key=='YES')
             col = self._filterColInfo(col, '_pg_')
+            if col['default'] and col['default'].startswith('nextval('):
+                col['_pg_default'] = col.pop('default')
             dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
+            if dtype=='L' and col.get('_pg_default'):
+                dtype = 'serial'
+                col['dtype'] = dtype
             if dtype == 'N':
                 precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
                 if precision:

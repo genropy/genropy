@@ -7,7 +7,10 @@ import functools
 from collections import defaultdict
 
 from deepdiff import DeepDiff
+from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from pyparsing import col
 
 COL_JSON_KEYS = ("dtype","notnull","default","size","unique")
 
@@ -98,8 +101,9 @@ class OrmExtractor:
     def fill_json_table(self,tblobj):
         schema_name = tblobj.pkg.sqlname
         table_name = tblobj.sqlname
-        pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.pkeys])
+        pkeys = ','.join([tblobj.column(col).sqlname for col in tblobj.pkeys]) if tblobj.pkeys else None
         constraints = {}
+        indexes = {}
         self.schemas[schema_name]['tables'][table_name] = {
             "metadata": {},
             'entity':'table',
@@ -109,30 +113,58 @@ class OrmExtractor:
             "attributes":{"pkeys":pkeys},
             "columns": {},
             "constraints": constraints,
-            "indices": {}
+            "indexes": indexes
         }
         for colobj in tblobj.columns.values():
-            self.fill_json_column(colobj,constraints=constraints)
+            self.fill_json_column(colobj,constraints=constraints,indexes=indexes)
+        for compositecol in tblobj.composite_columns.values():
+            pass
 
-    def fill_json_column(self,colobj,constraints=None):
+    def fill_json_column(self,colobj,constraints=None,indexes=None):
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
-        attributes = self.convert_colattr(colobj)
+        colattr = colobj.attributes
+        attributes = self.convert_colattr(colattr)
         table_json = self.schemas[schema_name]['tables'][table_name]
         column_name = colobj.sqlname
-        if column_name in table_json['attributes']['pkeys']:
-            attributes['notnull'] = True
         table_json['columns'][colobj.sqlname] = {"entity":"column",
                                                 "schema_name":schema_name,
                                                 "table_name":table_name,
                                                 "entity_name":column_name,
                                                 "attributes":attributes}
         joiner =  colobj.relatedColumnJoiner()
-        if joiner:
-            print('joiner',joiner)
+        indexed = colattr.get('indexed')
+        if joiner and joiner.get('mode')=='foreignkey':
+            pass
+            #constraint = {k[0:-4]:v for k,v in joiner.keys() if k.endswith('_sql')}
+            #constraint['related_field'] = joiner['one_relation'] #'alfa.ricetta.codice
+            #constraints[joiner['many_reltion']] = constraint
+            #print('joiner',joiner)
+        if indexed:
+            indexed_json = self.handle_indexed(colobj=colobj,indexed=indexed)
+            index_name = hashed_name(schema=schema_name,table=table_name,columns=list(indexed_json.keys()))
+            indexes[index_name] = {
+                "entity":"index",
+                "entity_name":index_name,
+                "schema_name":schema_name,
+                "table_name":table_name,
+                "attributes":indexed_json
+            }
 
-    def convert_colattr(self,colobj):
-        result =  {k:v for k,v in colobj.attributes.items() if k in self.col_json_keys and v is not None}
+    def handle_indexed(self,colobj,indexed=None):
+        indexed = {} if indexed in (True,'Y') else dict(indexed)
+        withpars = dictExtract(indexed,'with_',pop=True)
+        sorting = indexed.pop('sorting',None)
+        columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
+        sorting = sorting.split(',') if sorting else [None] * len(columns)
+        return dict(
+            columns=dict(zip(columns,sorting)),
+            indexwith=withpars,
+            **indexed
+        )
+
+    def convert_colattr(self,colattr):
+        result =  {k:v for k,v in colattr.items() if k in self.col_json_keys and v is not None}
         size = result.pop('size',None)
         dtype = result.pop('dtype',None)
         if size:
@@ -174,8 +206,8 @@ class DbExtractor(object):
         if self.conn:
             self.conn.close()
 
-    def fetch_constraints_and_indices(self):
-        """Fetches all constraints and indices for tables."""
+    def fetch_constraints_and_indexes(self):
+        """Fetches all constraints and indexes for tables."""
         query = """
             SELECT
                 i.schemaname AS table_schema,
@@ -230,10 +262,10 @@ class DbExtractor(object):
         
         return index_info
 
-    def process_constraints_and_indices(self, db_structure, constraints_and_indices):
-        """Processes constraints and indices data."""
+    def process_constraints_and_indexes(self, db_structure, constraints_and_indexes):
+        """Processes constraints and indexes data."""
         for (schema_name, table_name, constraint_name, constraint_type, column_name, 
-            referenced_table_schema, referenced_table_name, referenced_column_name, index_name, index_def) in constraints_and_indices:
+            referenced_table_schema, referenced_table_name, referenced_column_name, index_name, index_def) in constraints_and_indexes:
             
             if constraint_type == 'check' and '_not_null' in constraint_name:
                 continue  # Skip auto-generated NOT NULL constraints
@@ -258,15 +290,14 @@ class DbExtractor(object):
                 if constraint_type == 'FOREIGN KEY' and referenced_table_schema:
                     reference = f"{referenced_table_schema}.{referenced_table_name}({referenced_column_name})"
                     db_structure[schema_name]["tables"][table_name]["constraints"][constraint_name]["reference"] = reference
-
-            # Ensure the indices dictionary exists
-            if "indices" not in db_structure[schema_name]["tables"][table_name]:
-                db_structure[schema_name]["tables"][table_name]["indices"] = {}
+            # Ensure the indexes dictionary exists
+            if "indexes" not in db_structure[schema_name]["tables"][table_name]:
+                db_structure[schema_name]["tables"][table_name]["indexes"] = {}
 
             # Parse the index definition and store relevant details
             if index_name:
                 index_info = self.parse_index_definition(index_def)
-                db_structure[schema_name]["tables"][table_name]["indices"][index_name] = {
+                db_structure[schema_name]["tables"][table_name]["indexes"][index_name] = {
                     "index_name": index_name,
                     "index_type": index_info.get("index_type", "btree"),
                     "unique": index_info.get("unique", False),
@@ -281,9 +312,10 @@ class DbExtractor(object):
         for c in metadata:
             schema_name = c.pop('_pg_schema_name')
             table_name = c.pop('_pg_table_name')
+            is_nullable = c.pop('_pg_is_nullable')
             column_name = c.pop('name')
             colattr = {k:v for k,v in c.items()  if k in self.col_json_keys and v is not None}
-            if colattr['notnull'] is False:
+            if colattr.get('notnull') is False:
                 colattr.pop('notnull')
 
             if schema_name not in self.json_schemas:
@@ -299,7 +331,7 @@ class DbExtractor(object):
                     "metadata": {},
                     "columns": {},
                     "constraints": {},
-                    "indices": {},
+                    "indexes": {},
                     "entity":"table",
                     "attributes":{"pkeys":None},
                     "entity_name":table_name,
@@ -309,6 +341,8 @@ class DbExtractor(object):
             if column_name:
                 if c.get('_pg_is_primary_key'):
                     self.pkeys_dict[(schema_name,table_name)].append(column_name)
+                elif is_nullable=='NO':
+                    colattr['notnull'] = True
                 self.json_schemas[schema_name]["tables"][table_name]["columns"][column_name] = {"entity":"column",
                                                                                         "schema_name":schema_name,
                                                                                         "table_name":table_name,
@@ -337,7 +371,7 @@ class DbExtractor(object):
         self.pkeys_dict = defaultdict(list)
         try:
             self.connect()
-            # Fetch all metadata and constraints/indices
+            # Fetch all metadata and constraints/indexes
             if self.application_schemas:
                 metadata = self.db.adapter.struct_get_schema_info(schemas=self.application_schemas)
                 foreign_keys_dict = self.db.adapter.struct_get_foreign_keys(schemas=self.application_schemas)
@@ -387,7 +421,7 @@ class SqlMigrator():
     def structChanges(self,diff):
         for key,evt in (('dictionary_item_added','added'),
                         ('dictionary_item_removed','removed'),
-                        ('values_changed','changed')):
+                        ('values_changed','changed'),('type_changes','changed')):
             for change in diff.get(key,[]):
                 kw = dict(item=None)
                 if evt == 'added':
@@ -433,28 +467,47 @@ class SqlMigrator():
     def added_table(self, item=None,**kwargs):
         sqltablename = self.tableSqlName(item)
         sqlfields = []
+        sqlconstraints = []
         for col in item['columns'].values():
             sqlfields.append(self.columnSql(col))
+        for constr in item['constraints'].values():
+            sqlconstraints.append(self.constraintSql(constr))
         if item["attributes"]["pkeys"]:
             sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
         sql = f"CREATE TABLE {sqltablename} ({', '.join(sqlfields)});"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
+        for item in item['indexes'].values():
+            self.added_index(item=item)
 
     def added_column(self, item=None,**kwargs):
         sql =  f'ADD COLUMN {self.columnSql(item)}'
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         columns_dict = table_dict['columns'] 
         columns_dict[item['entity_name']]['command'] = sql
-    
-    def changed_table(self, **kwargs):
-        return f'changed table {kwargs}'
+
+    def added_index(self, item=None,**kwargs):
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        indexes_dict = table_dict['indexes'] 
+        indexes_dict[item['entity_name']]['command'] = self.createIndexSql(item)
+
+    def changed_table(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
+        """
+        Handles changes in table attributes, such as primary keys and unique constraints.
+        """
+        schema_name = item['schema_name']
+        table_name = item['table_name']
+        if changed_attribute == 'pkeys':
+            drop_pk_sql = self.db.adapter.struct_drop_table_pkey_sql(schema_name,table_name)
+            add_pk_sql =  self.db.adapter.struct_add_table_pkey_sql(schema_name,table_name,newvalue)
+            self.schema_tables(schema_name)[table_name]['command'] = f"{drop_pk_sql}\n{add_pk_sql}"
 
     def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
         if changed_attribute in ('size','dtype'):
             return f'changed_column {changed_attribute}' #self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
         return
     
-
+    def changed_index(self, item=None,**kwargs):
+        pass
 
     def removed_db(self, **kwargs):
         return f'removed db {kwargs}'
@@ -467,6 +520,9 @@ class SqlMigrator():
 
     def removed_column(self, **kwargs):
         return f'removed column {kwargs}'
+
+    def removed_index(self, item=None,**kwargs):
+        pass
 
 
     #def xxx(self,col):
@@ -529,6 +585,55 @@ class SqlMigrator():
                                                     unique=colattr.get('unique'),default=colattr.get('default'),
                                                     extra_sql=colattr.get('extra_sql'))
     
+    def constraintSql(self,const_item):
+        pass
+    
+    def createIndexSql(self,index_item):
+        # Extract main information from the dictionary
+        index_name = index_item.get("entity_name", "")
+        attributes = index_item.get("attributes", {})
+        columns = attributes.get("columns", {})
+        method = attributes.get("method", "btree")
+        with_options = attributes.get("with", {})
+        tablespace = attributes.get("tablespace", "")
+        where_clause = attributes.get("where", "")
+        
+        # Build the list of columns with specific sorting if present
+        column_defs = []
+        for column, order in columns.items():
+            if order:
+                column_defs.append(f"{column} {order}")
+            else:
+                column_defs.append(f"{column}")  # Default sorting if not specified
+
+        # Join columns into a single string
+        column_list = ", ".join(column_defs)
+
+        # Build the WITH options clause
+        with_parts = [f"{key} = {value}" for key, value in with_options.items()]
+        with_clause = f"WITH ({', '.join(with_parts)})" if with_parts else ""
+        
+        # Add TABLESPACE clause if specified
+        tablespace_clause = f"TABLESPACE {tablespace}" if tablespace else ""
+        
+        # Add WHERE clause if specified
+        where_clause = f"WHERE {where_clause}" if where_clause else ""
+        
+        # Build full table name with schema if schema is provided
+        full_table_name = self.tableSqlName(item=index_item)
+        
+        # Compose the final SQL statement
+        sql = f"""
+        CREATE INDEX {index_name}
+        ON {full_table_name}
+        USING {method} ({column_list})
+        {with_clause}
+        {tablespace_clause}
+        {where_clause};
+        """
+        
+        # Return a clean, single-line SQL string
+        return " ".join(sql.split())
     
     #def alterColumnType(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None):
     #    """Prepare the sql statement for altering the type of a given column and return it"""
@@ -568,20 +673,23 @@ class SqlMigrator():
             self.sql_commands['db_creation'] = sql_command
         commandlist = []
         #constrainList = []
-        for schema_item in schemas.values():
+        for schema_name,schema_item in schemas.items():
             sql_command =schema_item.get('command')
             tables = schema_item.get('tables',{})
             if sql_command:
                 commandlist.append(sql_command)
-            for tbl_item in tables.values():
+            for table_name,tbl_item in tables.items():
                 col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
+                index_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['indexes'].values()])
+
                 #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
                 #constrainList.append(constraints_commands)
                 tbl_command = tbl_item.get('command')
                 if col_commands and not tbl_command:
-                    tbl_item['command'] = f'ALTER TABLE "{tbl_item['schema_name']}"."{tbl_item['table_name']}" '
+                    tbl_item['command'] = f"""ALTER TABLE "{schema_name}"."{table_name}" """
                 commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
-
+                if index_commands:
+                    commandlist.append(index_commands)
         self.sql_commands['build_commands'] = '\n'.join(commandlist)
         return '\n'.join(self.sql_commands.values())
 
@@ -593,3 +701,19 @@ class SqlMigrator():
         build_commands = self.sql_commands.pop('build_commands',None)
         if build_commands:
             self.db.adapter.execute(build_commands,autoCommit=True)
+
+if __name__ == '__main__':
+
+    #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
+    #with open('testorm.json','w') as f:
+    #    f.write(json.dump(jsonorm))
+    app = GnrApp('dbsetup_tester')
+    mig = SqlMigrator(app.db)
+   #diff = compare_json({},mig.ormStructure)
+   #print('\n---from 0 to 1 \n',diff)
+    #diff = compare_json(mig_1.ormStructure,mig.ormStructure)
+    #print('\n---from 1 to 0',diff)
+    #print('orm mig1',mig_1.ormStructure)
+    mig.extractSql()
+    #mig.applyChanges()
+    #print('\n'.join([c["sql"] for c in mig.commands]))

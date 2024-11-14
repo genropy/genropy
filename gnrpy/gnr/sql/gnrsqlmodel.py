@@ -645,7 +645,8 @@ class DbModelSrc(GnrStructData):
                           sql_formula=sql_formula, py_method=py_method,
                           virtual_column=True, variant=variant,**kwargs)
         modelobj = self.root._dbmodel.obj
-        if modelobj:
+        if self.root._dbmodel.db.auto_static_enabled and  modelobj:
+            #to check maybe this feature is no longer necessary
             tblname = self.parentNode.label
             pkgname = self.parentNode.parentNode.parentNode.label
             virtual_columns = modelobj[pkgname]['tables'][tblname]['virtual_columns']
@@ -1217,6 +1218,12 @@ class DbTableObj(DbModelObj):
         self._handle_variant_columns(virtual_columns=virtual_columns)
         self.db.currentEnv[vc_key] = virtual_columns
         return virtual_columns
+    
+    @property
+    def composite_columns(self):
+        return Bag([(colname,colobj) \
+                    for colname,colobj in self['virtual_columns'].items() \
+                        if colobj.attributes.get('composed_of')])
 
     @property
     def static_virtual_columns(self):
