@@ -90,13 +90,16 @@ class Form(BaseComponent):
         pass
 
     def objectResource_template(self,bc):
-        bc.roundedGroup(title='!![en]Template management').templateChunk(template='^#FORM.record.data',
-                                       editable=True,
-                                       height='100%',
-                                       min_height='400px',
-                                       table='^#FORM.record.tbl',
-                                       selfsubscribe_onChunkEdit='this.form.save();',
-                                       padding='5px')
+        bc.roundedGroup(title='!![en]Template management').templateChunk(
+                                        template='^#FORM.record.data',
+                                        editable=True,
+                                        height='100%',
+                                        min_height='400px',
+                                        table='^#FORM.record.tbl',
+                                        selfsubscribe_onChunkEdit='this.form.save();',
+                                        emailChunk='^#FORM.record.is_mail',
+                                        padding='5px', 
+                                        overflow_y='auto')
 
     def objectResource_dash_groupby(self,bc):
         pass
