@@ -10,7 +10,6 @@ import os
 import hashlib
 import tempfile
 import shutil
-from subprocess import call
         
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from jsmin import jsmin
@@ -26,7 +25,7 @@ class GnrWebJSTools(GnrBaseProxy):
         return self.compress_js(jsfiles)
         
     def compress_js(self, jsfiles):
-        seite = self.page.site
+        site = self.page.site
         ts = str(max([os.path.getmtime(fname) for fname in jsfiles]))
         key = '-'.join(jsfiles)
         cpfile = '%s.js' % hashlib.md5((key + ts).encode()).hexdigest()

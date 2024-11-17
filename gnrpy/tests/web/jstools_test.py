@@ -1,6 +1,5 @@
 import sys
 import os.path
-import pytest
 from collections import defaultdict
 
 import gnr.web.gnrwebpage as gwp
