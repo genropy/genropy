@@ -18,6 +18,21 @@ def nested_defaultdict():
     return defaultdict(nested_defaultdict)
 
 
+def camel_to_snake(camel_str):
+    """
+    Convert a camelCase string to snake_case.
+    
+    Args:
+        camel_str (str): The string in camelCase format.
+    
+    Returns:
+        str: The string converted to snake_case.
+    """
+    # Replace uppercase letters with _ followed by lowercase, except at the start
+    snake_str = re.sub(r'(?<!^)([A-Z])', r'_\1', camel_str)
+    return snake_str.lower()
+
+
 
 def compare_json(json1, json2):
     """Compara due strutture JSON e ritorna le differenze."""
@@ -45,6 +60,10 @@ def measure_time(func):
     return wrapper
 
 
+
+def clean_attributes(attributes):
+    return {k:v for k,v in attributes.items() if v not in (None,{},False,[],'', "NO ACTION")}
+    
 
  
 def hashed_name(schema, table, columns, obj_type='idx'):
@@ -112,56 +131,107 @@ class OrmExtractor:
             'entity_name':table_name,
             "attributes":{"pkeys":pkeys},
             "columns": {},
+            "relations":{},
             "constraints": constraints,
             "indexes": indexes
         }
         for colobj in tblobj.columns.values():
-            self.fill_json_column(colobj,constraints=constraints,indexes=indexes)
+            self.fill_json_column(colobj)
         for compositecol in tblobj.composite_columns.values():
-            pass
+            self.handle_relations_and_indexes(compositecol)
 
-    def fill_json_column(self,colobj,constraints=None,indexes=None):
+    def fill_json_column(self,colobj):
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
         colattr = colobj.attributes
         attributes = self.convert_colattr(colattr)
         table_json = self.schemas[schema_name]['tables'][table_name]
         column_name = colobj.sqlname
+        pkeys = table_json['attributes']['pkeys']
+        if pkeys and (column_name in pkeys.split(',')):
+            attributes['notnull'] = '_auto_'
         table_json['columns'][colobj.sqlname] = {"entity":"column",
                                                 "schema_name":schema_name,
                                                 "table_name":table_name,
                                                 "entity_name":column_name,
                                                 "attributes":attributes}
+        self.handle_relations_and_indexes(colobj)
+    
+    def handle_relations_and_indexes(self,colobj):
+        table_name = colobj.table.sqlname
+        schema_name = colobj.table.pkg.sqlname
+        colattr = colobj.attributes
         joiner =  colobj.relatedColumnJoiner()
         indexed = colattr.get('indexed')
-        if joiner and joiner.get('mode')=='foreignkey':
-            pass
-            #constraint = {k[0:-4]:v for k,v in joiner.keys() if k.endswith('_sql')}
-            #constraint['related_field'] = joiner['one_relation'] #'alfa.ricetta.codice
-            #constraints[joiner['many_reltion']] = constraint
-            #print('joiner',joiner)
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        if joiner and joiner.get('foreignkey'):
+            relation_json = self.handle_column_relation(colobj=colobj,joiner=joiner)
+            table_json["relations"][relation_json["entity_name"]] = relation_json
         if indexed:
-            indexed_json = self.handle_indexed(colobj=colobj,indexed=indexed)
-            index_name = hashed_name(schema=schema_name,table=table_name,columns=list(indexed_json.keys()))
-            indexes[index_name] = {
-                "entity":"index",
-                "entity_name":index_name,
-                "schema_name":schema_name,
-                "table_name":table_name,
-                "attributes":indexed_json
-            }
+            indexed_json = self.handle_column_indexed(colobj=colobj,indexed=indexed)
+            table_json["indexes"][indexed_json["entity_name"]] = indexed_json
 
-    def handle_indexed(self,colobj,indexed=None):
+
+    def statement_converter(self, command):
+        if not command: return None
+        command = command.upper()
+        if command in ('R', 'RESTRICT'):
+            return 'RESTRICT'
+        elif command in ('C', 'CASCADE'):
+            return 'CASCADE'
+        elif command in ('N', 'NO ACTION'):
+            return 'NO ACTION'
+        elif command in ('SN', 'SETNULL', 'SET NULL'):
+            return 'SET NULL'
+        elif command in ('SD', 'SETDEFAULT', 'SET DEFAULT'):
+            return 'SET DEFAULT'
+            
+
+    def handle_column_relation(self,colobj,joiner=None):
+        columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
+        table_name = colobj.table.sqlname
+        schema_name = colobj.table.pkg.sqlname
+        hashed_entity_name = hashed_name(schema=schema_name,table=table_name,columns=columns,obj_type='fk')
+        attributes = {camel_to_snake(k[0:-4]):self.statement_converter(v) for k,v in joiner.items() if k.endswith('_sql')}
+        attributes['constraint_name'] = hashed_entity_name
+        attributes['columns'] = columns
+        related_field = joiner['one_relation'] #'alfa.ricetta.codice
+        related_table,related_column = related_field.rsplit('.',1)
+        rel_colobj = colobj.db.table(related_table).column(related_column)
+        attributes['related_columns'] = (rel_colobj.attributes.get('composed_of') or rel_colobj.name).split(',')
+        attributes['related_table'] = rel_colobj.table.sqlname
+        attributes['related_schema'] = rel_colobj.table.pkg.sqlname
+        attributes['constraint_name'] = hashed_entity_name
+        attributes['constraint_type'] = "FOREIGN KEY"
+        result = {"entity": "relation",
+                    "entity_name": hashed_entity_name,
+                    "schema_name": schema_name,
+                    "table_name": table_name,
+                    "attributes":attributes}
+        return result
+    
+    def handle_column_indexed(self,colobj,indexed=None):
         indexed = {} if indexed in (True,'Y') else dict(indexed)
         with_options = dictExtract(indexed,'with_',pop=True)
         sorting = indexed.pop('sorting',None)
         columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
         sorting = sorting.split(',') if sorting else [None] * len(columns)
-        return dict(
+        table_name = colobj.table.sqlname
+        schema_name = colobj.table.pkg.sqlname
+        hashed_entity_name = hashed_name(schema=schema_name,table=table_name,columns=columns)
+        attributes = dict(
             columns=dict(zip(columns,sorting)),
             with_options=with_options,
+            index_name=hashed_entity_name,
             **indexed
         )
+        result = {"entity": "index",
+                    "entity_name": hashed_entity_name,
+                    "schema_name": schema_name,
+                    "table_name": table_name,
+                    "attributes":clean_attributes(attributes)}
+        return result
+        
 
     def convert_colattr(self,colattr):
         result =  {k:v for k,v in colattr.items() if k in self.col_json_keys and v is not None}
@@ -216,12 +286,12 @@ class DbExtractor(object):
             'entity_name':self.db.dbname
             }
         }
-        self.json_schemas = self.json_structure["root"]['schemas']        
-        self.pkeys_dict = defaultdict(list)
-        if self.application_schemas:
-            infodict = self.get_info_from_db()
-            for k,v in infodict.items():
-                getattr(self,f'process_{k}')(v)
+        self.json_schemas = self.json_structure["root"]['schemas']  
+        infodict = self.get_info_from_db()
+        if infodict is False:
+            return {}
+        for k,v in infodict.items():
+            getattr(self,f'process_{k}')(v)
         return self.json_structure
             
 
@@ -229,12 +299,13 @@ class DbExtractor(object):
         result = {}
         try:
             self.connect()
-            adapter = self.db.adapter
-            result["base_structure"] = adapter.struct_get_schema_info(schemas=self.application_schemas)
-            result["constraints"] = adapter.struct_get_constraints(schemas=self.application_schemas)
-            result["indexes"] = adapter.struct_get_indexes(schemas=self.application_schemas)
+            if self.application_schemas:
+                adapter = self.db.adapter
+                result["base_structure"] = adapter.struct_get_schema_info(schemas=self.application_schemas)
+                result["constraints"] = adapter.struct_get_constraints(schemas=self.application_schemas)
+                result["indexes"] = adapter.struct_get_indexes(schemas=self.application_schemas)
         except GnrNonExistingDbException:
-            result = {}
+            result = False
         finally:
             self.close_connection()
         return result
@@ -248,8 +319,6 @@ class DbExtractor(object):
             is_nullable = c.pop('_pg_is_nullable')
             column_name = c.pop('name')
             colattr = {k:v for k,v in c.items()  if k in self.col_json_keys and v is not None}
-            if colattr.get('notnull') is False:
-                colattr.pop('notnull')
             if schema_name not in self.json_schemas:
                 self.json_schemas[schema_name] = {
                     "metadata": {},
@@ -287,7 +356,10 @@ class DbExtractor(object):
             table_json = self.json_schemas[schema_name]["tables"][table_name]
             primary_key_const = d.pop("PRIMARY KEY",{})
             if primary_key_const:
-                table_json['attributes']['pkeys'] = ','.join(primary_key_const["columns"])
+                pkeys = primary_key_const["columns"]
+                table_json['attributes']['pkeys'] = ','.join(pkeys)
+                for col in pkeys:
+                    table_json['columns'][col]['attributes']['notnull'] = '_auto_'
             unique = d.pop("UNIQUE",{})
             multiple_unique = dict(unique)
             for k,v in unique.items():
@@ -297,9 +369,24 @@ class DbExtractor(object):
                     self.json_schemas[schema_name]["tables"][table_name]['columns'][columns[0]]['attributes']['unique'] = True
             if multiple_unique:
                 d['UNIQUE'] = multiple_unique
-            table_json['relations'] = d.pop('FOREIGN KEY',{})
+            self.process_table_relations(schema_name,table_name,d.pop('FOREIGN KEY',{}))
             d.pop('CHECK',None) # avoid for now
+            for v in d.values():
+                v['entity'] = 'constraint'
+                v['entity_name'] = v['constraint_name']
             table_json['constraints'] = d
+
+    def process_table_relations(self,schema_name,table_name,foreign_keys_dict):
+        relations = self.json_schemas[schema_name]["tables"][table_name]['relations']
+        for entity_name,entity_attributes in foreign_keys_dict.items():
+            entity_attributes = clean_attributes(entity_attributes)
+            hashed_entity_name = hashed_name(schema=schema_name,table=table_name,
+                                             columns=entity_attributes['columns'],obj_type='fk')
+            relations[hashed_entity_name] = {"entity":"relation",
+                                             "entity_name":hashed_entity_name,
+                                             "schema_name":schema_name,
+                                             "table_name":table_name,
+                                             "attributes":entity_attributes}
             
 
     def process_indexes(self,indexes_dict):
@@ -307,9 +394,16 @@ class DbExtractor(object):
             schema_name,table_name  = tablepath
             d = dict(index_dict)
             table_json = self.json_schemas[schema_name]["tables"][table_name]
-            table_json['indexes'] = {k:v for k,v in d.items() if not v.get('constraint_type')}
-
-
+            for index_name,index_attributes in d.items():
+                if index_attributes.get('constraint_type'):
+                    continue
+                hashed_entity_name = hashed_name(schema=schema_name,table=table_name,columns=index_attributes['columns'])
+                index_attributes = clean_attributes(index_attributes)
+                index_attributes['index_name'] = index_name
+                table_json['indexes'][hashed_entity_name] = {"table_name":table_name,
+                                        "schema_name":schema_name,
+                                        "entity_name":hashed_entity_name,
+                                        "entity":"index","attributes":index_attributes}
 class SqlMigrator():
     def __init__(self,db):
         self.db = db
@@ -349,13 +443,20 @@ class SqlMigrator():
                         ('dictionary_item_removed','removed'),
                         ('values_changed','changed'),('type_changes','changed')):
             for change in diff.get(key,[]):
+                if change.t2=='_auto_':
+                    #auto-set for alignment to sql
+                    continue
                 kw = dict(item=None)
+                pathlist = change.path(output_format='list')
+                if 'attributes' in pathlist:
+                    change = self.get_changed_entity(change)
+                    evt = 'changed'
+                    #if add or remove attribute it will be handled as a change of the entity
                 if evt == 'added':
                     kw['entity'] = change.t2['entity']
                     kw['entity_name'] = change.t2['entity_name']
                     kw['item'] = change.t2
                     kw['msg'] = 'Added {entity} {entity_name}: {item}'.format(**kw)
-
                 elif evt == 'removed':
                     kw['action'] = 'REMOVE'
                     kw['entity'] = change.t1['entity']
@@ -364,9 +465,8 @@ class SqlMigrator():
                     kw['msg'] = 'Removed {entity} {entity_name}: {item}'.format(**kw)
 
                 if evt=='changed':
-                    pathlist = change.path(output_format='list')
                     kw['changed_attribute'] = change.path(output_format='list')[-1]
-                    changed_entity = change.up.up.t2
+                    changed_entity = self.get_changed_entity(change)
                     kw['entity'] = changed_entity['entity']
                     kw['entity_name'] = changed_entity['entity_name']
                     kw['newvalue'] = change.t2
@@ -375,6 +475,12 @@ class SqlMigrator():
                     kw['msg'] = 'Changed {changed_attribute} in {entity} {entity_name} from {oldvalue} to {newvalue}'.format(**kw)
                 yield evt,kw
 
+    def get_changed_entity(self,change):
+        changed_entity = change.t2
+        while not isinstance(changed_entity,dict) or ('entity' not in changed_entity):
+            change = change.up
+            changed_entity = change.t2
+        return changed_entity
         
     def schema_tables(self,schema_name):
         return self.commands['db']['schemas'][schema_name]['tables']
@@ -416,6 +522,13 @@ class SqlMigrator():
         indexes_dict = table_dict['indexes'] 
         indexes_dict[item['entity_name']]['command'] = self.createIndexSql(item)
 
+    def added_relation(self, item=None,**kwargs):
+        pass
+
+    def added_constraint(self, item=None,**kwargs):
+        pass
+
+
     def changed_table(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
         """
         Handles changes in table attributes, such as primary keys and unique constraints.
@@ -435,6 +548,15 @@ class SqlMigrator():
     def changed_index(self, item=None,**kwargs):
         pass
 
+
+    def changed_relation(self, item=None,**kwargs):
+        pass
+
+    def changed_constraint(self, item=None,**kwargs):
+        pass
+
+
+
     def removed_db(self, **kwargs):
         return f'removed db {kwargs}'
 
@@ -448,6 +570,12 @@ class SqlMigrator():
         return f'removed column {kwargs}'
 
     def removed_index(self, item=None,**kwargs):
+        pass
+
+    def removed_relation(self, item=None,**kwargs):
+        pass
+
+    def removed_constraint(self, item=None,**kwargs):
         pass
 
 
@@ -519,6 +647,7 @@ class SqlMigrator():
         index_name = index_item.get("entity_name", "")
         attributes = index_item.get("attributes", {})
         return self.db.adapter.struct_create_index_sql(schema_name=index_item['schema_name'],
+                                                       table_name = index_item['table_name'],
                                                        columns=attributes.get("columns"),
                                                        index_name=index_name,
                                                        method=attributes.get("method"),
@@ -601,10 +730,15 @@ if __name__ == '__main__':
     
     app = GnrApp('dbsetup_tester')
     mig = SqlMigrator(app.db)
-    mig.extractSql()
+    mig.toSql()
 
     with open('testsqlextractor.json','w') as f:
         f.write(json.dumps(mig.sqlStructure))
+
+    with open('testormextractor.json','w') as f:
+        f.write(json.dumps(mig.ormStructure))
+
+    print(mig.diff)
 
    #diff = compare_json({},mig.ormStructure)
    #print('\n---from 0 to 1 \n',diff)

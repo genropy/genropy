@@ -47,7 +47,7 @@ from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator, DbA
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
-
+DEFAULT_INDEX_METHOD = 'btree'
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 #IN_TO_ANY = re.compile(r'([$]\w+|[@][\w|@|.]+)\s*(NOT)?\s*(IN ([:]\w+))')
 #IN_TO_ANY = re.compile(r'(?P<what>\w+.\w+)\s*(?P<not>NOT)?\s*(?P<inblock>IN\s*(?P<value>[:]\w+))',re.IGNORECASE)
@@ -681,10 +681,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 c.column_default
             FROM
                 information_schema.schemata s
-            JOIN
+            LEFT JOIN
                 information_schema.tables t
                 ON s.schema_name = t.table_schema
-            JOIN
+            LEFT JOIN
                 information_schema.columns c
                 ON t.table_schema = c.table_schema AND t.table_name = c.table_name
             WHERE
@@ -736,12 +736,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 tc.table_name AS table_name,
                 tc.constraint_name AS constraint_name,
                 tc.constraint_type AS constraint_type,
-                kcu.column_name AS column_name,
+                string_agg(kcu.column_name, ',' ORDER BY kcu.ordinal_position) AS columns, -- Stringa di colonne
                 rc.update_rule AS on_update,
                 rc.delete_rule AS on_delete,
                 ccu.table_schema AS related_schema,
                 ccu.table_name AS related_table,
-                ccu.column_name AS related_column,
+                string_agg(ccu.column_name, ',' ORDER BY kcu.ordinal_position) AS related_columns, -- Stringa di colonne referenziate
                 ch.check_clause AS check_clause
             FROM
                 information_schema.table_constraints AS tc
@@ -756,14 +756,17 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 AND tc.constraint_schema = rc.constraint_schema
             LEFT JOIN
                 information_schema.constraint_column_usage AS ccu
-                ON tc.constraint_name = ccu.constraint_name
-                AND tc.constraint_schema = ccu.constraint_schema
+                ON rc.unique_constraint_name = ccu.constraint_name
+                AND rc.unique_constraint_schema = ccu.constraint_schema
             LEFT JOIN
                 information_schema.check_constraints AS ch
                 ON tc.constraint_name = ch.constraint_name
                 AND tc.constraint_schema = ch.constraint_schema
             WHERE
                 tc.constraint_schema = ANY(%s)
+            GROUP BY
+                tc.constraint_schema, tc.table_name, tc.constraint_name, tc.constraint_type,
+                rc.update_rule, rc.delete_rule, ccu.table_schema, ccu.table_name, ch.check_clause
             ORDER BY
                 tc.constraint_schema, tc.table_name, tc.constraint_name;
         """
@@ -773,55 +776,47 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         query = self.struct_get_constraints_sql()
         constraints = defaultdict(lambda: defaultdict(dict))
         
+        def parse_string_agg(string_agg_value):
+            """Convert string_agg result to a list."""
+            return string_agg_value.split(',') if string_agg_value else []
+        
         for row in self.raw_fetch(query, (schemas,)):
-            (schema_name, table_name, constraint_name, constraint_type, column_name, 
-            on_update, on_delete, related_schema, related_table, related_column, check_clause) = row
+            (schema_name, table_name, constraint_name, constraint_type, columns, 
+            on_update, on_delete, related_schema, related_table, related_columns, check_clause) = row
+            
+            # Convert columns and related_columns from string to list
+            parsed_columns = parse_string_agg(columns)
+            parsed_related_columns = parse_string_agg(related_columns)
             
             # Key for schema and table
             table_key = (schema_name, table_name)
             
             if constraint_type == "PRIMARY KEY":
-                # For PRIMARY KEY, structure without an intermediate level for the constraint name
                 if "PRIMARY KEY" not in constraints[table_key]:
                     constraints[table_key]["PRIMARY KEY"] = {
                         "constraint_name": constraint_name,
                         "constraint_type": "PRIMARY KEY",
-                        "columns": [],
-                        "on_update": on_update,
-                        "on_delete": on_delete,
-                        "related_schema": related_schema,
-                        "related_table": related_table,
-                        "related_column": related_column,
-                        "check_clause": check_clause
+                        "columns": parsed_columns,
+                        "on_update": None,
+                        "on_delete": None,
+                        "related_schema": None,
+                        "related_table": None,
+                        "related_columns": None,
+                        "check_clause": None
                     }
-                # Add columns for the primary key if present
-                if column_name:
-                    constraints[table_key]["PRIMARY KEY"]["columns"].append(column_name)
             else:
-                # For other constraints, structure with an intermediate level for the constraint name
                 if constraint_name not in constraints[table_key][constraint_type]:
                     constraints[table_key][constraint_type][constraint_name] = {
                         "constraint_name": constraint_name,
                         "constraint_type": constraint_type,
-                        "columns": [],
+                        "columns": parsed_columns,
                         "on_update": on_update,
                         "on_delete": on_delete,
                         "related_schema": related_schema,
                         "related_table": related_table,
-                        "related_column": related_column,
+                        "related_columns": parsed_related_columns,
                         "check_clause": check_clause
                     }
-                # Add columns to the constraint, if any
-                if column_name:
-                    constraints[table_key][constraint_type][constraint_name]["columns"].append(column_name)
-        
-        # Clean up any empty column lists for CHECK constraints with no specific columns
-        for table_constraints in constraints.values():
-            for constraint_type, constraint_dict in table_constraints.items():
-                if constraint_type == "CHECK":
-                    for constraint_name, constraint_info in constraint_dict.items():
-                        if not constraint_info["columns"]:
-                            constraint_info["columns"] = None
         
         return constraints
 
@@ -871,7 +866,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             if index_name not in indexes[table_key]:
                 indexes[table_key][index_name] = {
                     "is_unique": is_unique,
-                    "method": index_method,
+                    "method": index_method if index_method != DEFAULT_INDEX_METHOD else None,
                     "tablespace": tablespace,
                     "where": where_clause,
                     "with_options": {},

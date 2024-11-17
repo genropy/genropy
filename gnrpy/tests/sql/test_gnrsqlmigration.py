@@ -120,7 +120,6 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "recipy_type" character varying(2) ;\nCREATE INDEX idx_a540c475 ON "alfa"."alfa_recipe" USING btree (recipy_type) ;'
         self.checkChanges(check_value)
         
-class Tappo:
     def test_05_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
@@ -137,9 +136,7 @@ class Tappo:
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" DROP CONSTRAINT IF EXISTS alfa_recipe_pkey;\nALTER TABLE "alfa"."alfa_recipe" ADD PRIMARY KEY (code);'
         self.checkChanges(check_value)
 
-
     def test_05c_create_table_withMultiplePkey(self):
-        """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row', pkey='composite_key')
         tbl.column('recipe_code', size=':12')
@@ -149,21 +146,22 @@ class Tappo:
         tbl.column('ingredient_id',dtype='L')
         check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) , "recipe_line" bigint , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
         self.checkChanges(check_value)
+        
 
 
-    #def test_06_add_foreign_key_singlecol(self):
-    #    """
-    #    Tests adding a foreign key constraint to a column.
-    #    
-    #    If the foreign key references a non-primary key field, an index
-    #    should be automatically added to the referenced field to improve
-    #    performance.
-    #    """
-    #    pkg = self.src.package('alfa')
-    #    tbl = pkg.table('recipe_row')
-    #    # add to the column recipe_code the relatio to the table recipe
-    #    tbl.column('recipe_code', size=':12').relation('alfa.recipe.code', mode='foreignkey')
-    #    self.checkChanges('?')
+    def test_06_add_foreign_key_singlecol(self):
+        """
+        Tests adding a foreign key constraint to a column.
+        
+        If the foreign key references a non-primary key field, an index
+        should be automatically added to the referenced field to improve
+        performance.
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe_row')
+        # add to the column recipe_code the relatio to the table recipe
+        tbl.column('recipe_code', size=':12').relation('alfa.recipe.code', mode='foreignkey')
+        self.checkChanges('?')
 
         
 class ToDo:
