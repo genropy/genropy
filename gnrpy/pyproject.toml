@@ -123,10 +123,6 @@ gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
 version = {attr = "gnr.VERSION"}
 readme = {file = ["README.md"]}
 
-[tool.setuptools.package-data]
-"gnr.web" = ['*.jar']
-"gnr.web.gnrwebpage_proxy" = ['*.jar']
-
 [tool.setuptools]
 include-package-data = true
 
