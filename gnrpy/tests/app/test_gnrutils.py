@@ -1,9 +1,12 @@
 import os
 import os.path
-from gnr.app import gnrutils as gu
 import pytest
 
-class TestGnrAppInsights(object):
+from gnr.app import gnrutils as gu
+from common import BaseGnrAppTest
+
+
+class TestGnrAppInsights(BaseGnrAppTest):
     def test_dataset(self):
         g = gu.GnrAppInsightDataset("baba")
         assert g.app == "baba"

@@ -52,6 +52,14 @@ def main():
     
     r = insights.retrieve()
 
+    RED = 31
+    GREEN = 32
+    YELLOW = 33
+    BLUE = 34
+    
+    def get_coloured(text, colour):
+        return f"\033[{colour}m{text}\033[0m"
+    
     for section, data in r.items():
         section_title = section.replace("_", " ").capitalize()
         print(section_title)
@@ -63,7 +71,12 @@ def main():
             ids_max_length = max([len(x) for x in component_data.keys()])
             for package in sorted(component_data.keys()):
                 p = component_data[package]
-                print(f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})")
+                out = f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})"
+                if options.instance_name in package:
+                    out = get_coloured(out, 32)
+                else:
+                    out = get_coloured(out, YELLOW)
+                print(out)
             print("")
 
 if __name__ == "__main__":
