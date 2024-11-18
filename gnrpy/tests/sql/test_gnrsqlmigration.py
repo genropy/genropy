@@ -7,17 +7,33 @@ import re
 
 def normalize_sql(sql):
     """
-    Normalizes SQL by removing extra whitespace and standardizing line breaks.
-    
+    Normalizes SQL by removing extra whitespace, standardizing spacing around symbols, 
+    and ensuring consistent formatting.
+
     Parameters:
         sql (str): The SQL string to normalize.
-    
+
     Returns:
         str: Normalized SQL string.
     """
-    # Remove extra spaces and newlines
-    sql = re.sub(r'\s+', ' ', sql)  # Replaces multiple spaces/newlines with a single space
+    # Replace multiple spaces and newlines with a single space
+    sql = re.sub(r'\s+', ' ', sql)
+
+    # Remove spaces around opening parentheses
+    sql = re.sub(r'\s*\(\s*', '(', sql)
+
+    # Remove spaces around closing parentheses
+    sql = re.sub(r'\s*\)\s*', ')', sql)
+
+    # Ensure a single space after commas
+    sql = re.sub(r'\s*,\s*', ', ', sql)
+
+    # Ensure no space before a semicolon
+    sql = re.sub(r'\s*;\s*', ';', sql)
+
+    # Trim leading and trailing spaces
     return sql.strip()
+
 class TestGnrSqlMigration(BaseGnrSqlTest):
     """
     Test suite for SQL migration operations in Genropy.
@@ -54,7 +70,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
             password=cls.pg_conf.get("password")
         )
 
-    def checkChanges(self, expected_value=None):
+    def checkChanges(self, expected_value=None,apply_only=False):
         """
         Validates the expected SQL changes against actual changes.
         
@@ -66,14 +82,16 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         """
         self.db.startup()
         self.migrator.toSql()
-        
+        if apply_only:
+            self.migrator.applyChanges()
+            return
         if expected_value == '?':
             expected_changes = self.migrator.getChanges()
             print('Expected value:', expected_changes)
             return
         normalized_expected_value = normalize_sql(expected_value)
         changes = self.migrator.getChanges()
-        normalized_changes = normalize_sql(expected_value)
+        normalized_changes = normalize_sql(changes)
         if normalized_changes != normalized_expected_value:
             print('Actual changes:', changes)
             print('ORM Structure:', self.migrator.ormStructure)
@@ -117,7 +135,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe')
         tbl.column('recipy_type',size=':2',indexed=True)
-        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "recipy_type" character varying(2) ;\nCREATE INDEX idx_a540c475 ON "alfa"."alfa_recipe" USING btree (recipy_type) ;'
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" ADD COLUMN "recipy_type" character varying(2);CREATE INDEX idx_490f54d9 ON "alfa"."alfa_recipe" USING btree(recipy_type);'
         self.checkChanges(check_value)
         
     def test_05_create_table_withpkey(self):
@@ -144,12 +162,24 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.compositeColumn('composite_key',columns='recipe_code,recipe_line')
         tbl.column('description')
         tbl.column('ingredient_id',dtype='L')
-        check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) , "recipe_line" bigint , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
+        check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) NOT NULL , "recipe_line" bigint NOT NULL , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
         self.checkChanges(check_value)
-        
 
+    def test_06_prepare_table(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe_row_annotation', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('description')
+        tbl.column('recipe_code', size=':12').relation('alfa.recipe.code',mode='foreignkey')
+        tbl.column('recipe_line',dtype='L')
+        tbl.compositeColumn('recipe_row_reference',columns='recipe_code,recipe_line')
 
-    def test_06_add_foreign_key_singlecol(self):
+        tbl = pkg.table('author', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('name',size=':45',unique=True)
+        self.checkChanges(apply_only=True)
+
+    def test_06a_add_relation_to_pk_single(self):
         """
         Tests adding a foreign key constraint to a column.
         
@@ -160,10 +190,68 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row')
         # add to the column recipe_code the relatio to the table recipe
-        tbl.column('recipe_code', size=':12').relation('alfa.recipe.code', mode='foreignkey')
-        self.checkChanges('?')
+        tbl.column('recipe_code').relation('alfa.recipe.code', mode='foreignkey')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_recipe_row" \nADD CONSTRAINT "fk_04a64b2e" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;')
+    
+    def test_06b_add_relation_to_pk_multi(self):
+        #prendo la compositecolumn recipe_row_ref) e a
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe_row_annotation')
+        tbl.column('recipe_row_reference').relation(
+            'alfa.recipe_row.composite_key',mode='foreignkey'
+        )
+        check_changes = 'ALTER TABLE "alfa"."alfa_recipe_row_annotation" \nADD CONSTRAINT "fk_cbe2056f" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
+        self.checkChanges(check_changes)
 
-        
+    def test_06c_add_relation_to_nopk_single(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('author_name',size=':44').relation('alfa.author.name', 
+                                                      mode='foreignkey')
+        check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "author_name" character varying(44) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_7f18eae7" FOREIGN KEY ("author_name") REFERENCES "alfa"."alfa_author" ("name") ON UPDATE CASCADE;;\nCREATE INDEX idx_44a37a95 ON "alfa"."alfa_recipe" USING btree (author_name) ;'
+        self.checkChanges(check_changes)
+
+
+
+class ZZZ:
+    def test_06d_add_relation_to_nopk_multi(self):
+        pass
+
+    def test_07a_create_table_with_relation_to_pk_single(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('product', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('description')
+        tbl.column('recipe_code').relation('alfa.recipe.code',mode='foreignkey')
+        tbl.column('secret_code',size='33',indexed=True)
+        check_value = 'CREATE TABLE "alfa"."alfa_product" ("id" serial8 NOT NULL , "description" text , "recipe_code" text , "secret_code" character(33) , PRIMARY KEY (id), CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE);'
+        self.checkChanges(check_value)
+
+    def test_07b_create_table_with_relation_to_pk_multi(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe_row_annotation', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('description')
+        tbl.column('recipe_code', size=':12').relation('alfa.recipe.code',mode='foreignkey')
+        tbl.column('recipe_line',dtype='L')
+        tbl.compositeColumn('recipe_row_reference',columns='recipe_code,recipe_line').relation(
+            'alfa.recipe_row.composite_key',mode='foreignkey'
+        )
+        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_annotation" ("id" serial8 NOT NULL , "description" text , "recipe_code" character varying(12) , "recipe_line" bigint , PRIMARY KEY (id), CONSTRAINT "fk_1be31ab2" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE, CONSTRAINT "fk_cbe2056f" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE);'
+        self.checkChanges(check_changes)
+
+    def test_07c_create_table_with_relation_to_nopk_single(self):
+        pass
+
+
+    def test_07d_create_table_with_relation_to_nopk_multi(self):
+        pass
+
+
+
+
+
+
 class ToDo:
 
     def test_06_modify_column_type(self):

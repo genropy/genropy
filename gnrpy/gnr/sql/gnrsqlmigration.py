@@ -10,7 +10,7 @@ from deepdiff import DeepDiff
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
-from pyparsing import col
+
 
 COL_JSON_KEYS = ("dtype","notnull","default","size","unique")
 
@@ -89,9 +89,6 @@ def hashed_name(schema, table, columns, obj_type='idx'):
 
 
 
-import jsmin
-from webob import year
-
 class OrmExtractor:
     col_json_keys =  COL_JSON_KEYS
 
@@ -104,6 +101,7 @@ class OrmExtractor:
             }
         }
         self.schemas = self.json_structure['root']['schemas']
+        self.deferred_indexes = []
 
     def fill_json_package(self,pkgobj):
         schema_name = pkgobj.sqlname
@@ -139,6 +137,7 @@ class OrmExtractor:
             self.fill_json_column(colobj)
         for compositecol in tblobj.composite_columns.values():
             self.handle_relations_and_indexes(compositecol)
+
 
     def fill_json_column(self,colobj):
         table_name = colobj.table.sqlname
@@ -197,7 +196,10 @@ class OrmExtractor:
         attributes['columns'] = columns
         related_field = joiner['one_relation'] #'alfa.ricetta.codice
         related_table,related_column = related_field.rsplit('.',1)
-        rel_colobj = colobj.db.table(related_table).column(related_column)
+        rel_tblobj = colobj.db.table(related_table)
+        rel_colobj = rel_tblobj.column(related_column)
+        
+
         attributes['related_columns'] = (rel_colobj.attributes.get('composed_of') or rel_colobj.name).split(',')
         attributes['related_table'] = rel_colobj.table.sqlname
         attributes['related_schema'] = rel_colobj.table.pkg.sqlname
@@ -208,6 +210,9 @@ class OrmExtractor:
                     "schema_name": schema_name,
                     "table_name": table_name,
                     "attributes":attributes}
+        if attributes['related_columns'] != rel_tblobj.pkeys:
+            self.deferred_indexes.append(colobj)
+
         return result
     
     def handle_column_indexed(self,colobj,indexed=None):
@@ -256,6 +261,12 @@ class OrmExtractor:
         """Generates the JSON structure of the database."""
         for pkg in self.db.packages.values():
             self.fill_json_package(pkg)
+        for colobj in self.deferred_indexes:
+            table_name = colobj.table.sqlname
+            schema_name = colobj.table.pkg.sqlname
+            table_json = self.schemas[schema_name]['tables'][table_name]
+            indexed_json = self.handle_column_indexed(colobj=colobj,indexed=True)
+            table_json["indexes"][indexed_json["entity_name"]] = indexed_json
         return self.json_structure
     
 class DbExtractor(object):
@@ -434,6 +445,13 @@ class SqlMigrator():
         self.extractOrm()
         self.setDiff()
         self.clearCommands()
+
+        with open('testsqlextractor.json','w') as f:
+            f.write(json.dumps(self.sqlStructure))
+
+        with open('testormextractor.json','w') as f:
+            f.write(json.dumps(self.ormStructure))
+
         for evt,kw in self.structChanges(self.diff):
             handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
             handler(**kw)
@@ -448,7 +466,8 @@ class SqlMigrator():
                     continue
                 kw = dict(item=None)
                 pathlist = change.path(output_format='list')
-                if 'attributes' in pathlist:
+                changed_attribute = self.get_changed_attribute(pathlist)
+                if changed_attribute:
                     change = self.get_changed_entity(change)
                     evt = 'changed'
                     #if add or remove attribute it will be handled as a change of the entity
@@ -456,23 +475,19 @@ class SqlMigrator():
                     kw['entity'] = change.t2['entity']
                     kw['entity_name'] = change.t2['entity_name']
                     kw['item'] = change.t2
-                    kw['msg'] = 'Added {entity} {entity_name}: {item}'.format(**kw)
                 elif evt == 'removed':
                     kw['action'] = 'REMOVE'
                     kw['entity'] = change.t1['entity']
                     kw['entity_name'] = change.t1['entity_name']
                     kw['item'] = change.t1
-                    kw['msg'] = 'Removed {entity} {entity_name}: {item}'.format(**kw)
-
                 if evt=='changed':
-                    kw['changed_attribute'] = change.path(output_format='list')[-1]
-                    changed_entity = self.get_changed_entity(change)
+                    changed_entity = change.t2
                     kw['entity'] = changed_entity['entity']
                     kw['entity_name'] = changed_entity['entity_name']
-                    kw['newvalue'] = change.t2
-                    kw['oldvalue'] = change.t1
+                    kw['changed_attribute'] = changed_attribute
+                    kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
+                    kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
                     kw['item'] = changed_entity
-                    kw['msg'] = 'Changed {changed_attribute} in {entity} {entity_name} from {oldvalue} to {newvalue}'.format(**kw)
                 yield evt,kw
 
     def get_changed_entity(self,change):
@@ -480,7 +495,24 @@ class SqlMigrator():
         while not isinstance(changed_entity,dict) or ('entity' not in changed_entity):
             change = change.up
             changed_entity = change.t2
-        return changed_entity
+        return change
+
+    def get_changed_attribute(self,pathlist):
+        """
+        Find the element that comes immediately after 'attributes' in the list.
+
+        Parameters:
+            pathlist (list): The list of strings to search.
+
+        Returns:
+            str: The element after 'attributes', or None if not found.
+        """
+        if 'attributes' in pathlist:
+            attr_index = pathlist.index('attributes')  # Find the index of 'attributes'
+            if attr_index < len(pathlist) - 1:         # Ensure there is a next element
+                return pathlist[attr_index + 1]
+        return None
+
         
     def schema_tables(self,schema_name):
         return self.commands['db']['schemas'][schema_name]['tables']
@@ -498,18 +530,39 @@ class SqlMigrator():
 
     def added_table(self, item=None,**kwargs):
         sqltablename = self.tableSqlName(item)
-        sqlfields = []
-        sqlconstraints = []
+        substatements = []
         for col in item['columns'].values():
-            sqlfields.append(self.columnSql(col))
-        for constr in item['constraints'].values():
-            sqlconstraints.append(self.constraintSql(constr))
+            substatements.append(self.columnSql(col))
         if item["attributes"]["pkeys"]:
-            sqlfields.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
-        sql = f"CREATE TABLE {sqltablename} ({', '.join(sqlfields)});"
+            substatements.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
+        for rel_item in item['relations'].values():
+            fkey_sql =  self.db.adapter.struct_foreign_key_sql(
+                fk_name=rel_item['entity_name'],
+                columns=rel_item['attributes']['columns'],
+                related_table=rel_item['attributes']['related_table'],
+                related_schema=rel_item['attributes']['related_schema'],
+                related_columns=rel_item['attributes']['related_columns'],
+                on_delete=rel_item['attributes'].get('on_delete'),
+                on_update=rel_item['attributes'].get('on_update')
+            )
+            substatements.append(fkey_sql)
+        for const_item in item['constraints'].values():  
+            const_sql = self.db.adapter.struct_constraint_sql(
+                schema_name=const_item['schema_name'],
+                table_name=const_item['table_name'],
+                constraint_name=const_item['entity_name'],
+                constraint_type=const_item['attributes']['constraint_type'],
+                columns=const_item['attributes']['columns']
+            )
+            substatements.append(const_sql)
+
+        sql = f"CREATE TABLE {sqltablename} ({', '.join(substatements)});"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
-        for item in item['indexes'].values():
-            self.added_index(item=item)
+
+                      
+
+        for index_item in item['indexes'].values():
+            self.added_index(item=index_item)
 
     def added_column(self, item=None,**kwargs):
         sql =  f'ADD COLUMN {self.columnSql(item)}'
@@ -522,12 +575,43 @@ class SqlMigrator():
         indexes_dict = table_dict['indexes'] 
         indexes_dict[item['entity_name']]['command'] = self.createIndexSql(item)
 
-    def added_relation(self, item=None,**kwargs):
-        pass
+    def added_relation(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle the addition of a new relation (foreign key).
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        relations_dict = table_dict['relations']
+        sql =  self.db.adapter.struct_foreign_key_sql(
+                fk_name=item['entity_name'],
+                columns=item['attributes']['columns'],
+                related_table=item['attributes']['related_table'],
+                related_schema=item['attributes']['related_schema'],
+                related_columns=item['attributes']['related_columns'],
+                on_delete=item['attributes'].get('on_delete'),
+                on_update=item['attributes'].get('on_update')
+            )
+        relations_dict[item['entity_name']] = {
+            "command":f'ADD {sql};'
+        }
 
-    def added_constraint(self, item=None,**kwargs):
-        pass
-
+    def added_constraint(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle the addition of a new constraint (e.g., UNIQUE).
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        constraints_dict = table_dict['constraints']
+        sql = self.db.adapter.struct_constraint_sql(
+                schema_name=item['schema_name'],
+                table_name=item['table_name'],
+                constraint_name=item['entity_name'],
+                constraint_type=item['attributes']['constraint_type'],
+                columns=item['attributes']['columns']
+            )
+        constraints_dict[item['entity_name']] = {
+            "command": f'ADD {sql};'
+        }
 
     def changed_table(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
         """
@@ -540,44 +624,142 @@ class SqlMigrator():
             add_pk_sql =  self.db.adapter.struct_add_table_pkey_sql(schema_name,table_name,newvalue)
             self.schema_tables(schema_name)[table_name]['command'] = f"{drop_pk_sql}\n{add_pk_sql}"
 
-    def changed_column(self,item=None,changed_attribute=None, oldvalue=None,newvalue=None,**kwargs):
-        if changed_attribute in ('size','dtype'):
-            return f'changed_column {changed_attribute}' #self.alterColumnType(item,changed_attribute=changed_attribute,oldvalue=oldvalue,newvalue=newvalue)
-        return
-    
-    def changed_index(self, item=None,**kwargs):
-        pass
 
 
-    def changed_relation(self, item=None,**kwargs):
-        pass
+    def changed_column(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
+        """
+        *autogenerated*
+        Handle changes to a column's attributes (e.g., size, dtype, notnull, unique).
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        columns_dict = table_dict['columns']
+        column_name = item['entity_name']
 
-    def changed_constraint(self, item=None,**kwargs):
-        pass
+        if changed_attribute == 'dtype' or changed_attribute == 'size':
+            # Handle changes to data type or size
+            new_sql_type = self.db.adapter.columnSqlType(dtype=newvalue, size=item['attributes'].get('size'))
+            columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column(
+                schema_name=item['schema_name'],
+                table_name=item['table_name'],
+                column_name=column_name,
+                new_sql_type=new_sql_type
+            )
+        elif changed_attribute == 'notnull':
+            # Handle changes to the NOT NULL constraint
+            if newvalue:
+                columns_dict[column_name]['command'] = self.db.adapter.struct_add_not_null(
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+                    column_name=column_name
+                )
+            else:
+                columns_dict[column_name]['command'] = self.db.adapter.struct_drop_not_null(
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+                    column_name=column_name
+                )
+        elif changed_attribute == 'unique':
+            # Handle changes to the UNIQUE constraint
+            if newvalue:
+                columns_dict[column_name]['command'] = self.db.adapter.struct_add_unique_constraint(
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+                    column_name=column_name
+                )
+            else:
+                columns_dict[column_name]['command'] = self.db.adapter.struct_drop_unique_constraint(
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+                    column_name=column_name
+                )
 
+    def changed_index(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle changes to an index.
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        indexes_dict = table_dict['indexes']
+        index_name = item['entity_name']
+        old_command = indexes_dict[index_name]['command']
+        new_command = self.createIndexSql(item)
+        indexes_dict[index_name]['command'] = f"DROP INDEX IF EXISTS {index_name};\n{new_command}"
 
+    def changed_relation(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle changes to a relation (foreign key).
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        relations_dict = table_dict['relations']
+        relation_name = item['entity_name']
+        old_command = relations_dict[relation_name]['command']
+        new_command = self.db.adapter.struct_foreign_key_sql(
+            schema_name=item['schema_name'],
+            table_name=item['table_name'],
+            fk_name=item['entity_name'],
+            columns=item['attributes']['columns'],
+            related_table=item['attributes']['related_table'],
+            related_schema=item['attributes']['related_schema'],
+            related_columns=item['attributes']['related_columns'],
+            on_delete=item['attributes'].get('on_delete'),
+            on_update=item['attributes'].get('on_update')
+        )
+        relations_dict[relation_name]['command'] = f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {relation_name};\n{new_command}"
 
-    def removed_db(self, **kwargs):
-        return f'removed db {kwargs}'
+    def changed_constraint(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle changes to a constraint.
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        constraints_dict = table_dict['constraints']
+        constraint_name = item['entity_name']
+        old_command = constraints_dict[constraint_name]['command']
+        new_command = self.db.adapter.struct_add_constraint_sql(
+            schema_name=item['schema_name'],
+            table_name=item['table_name'],
+            constraint_name=item['entity_name'],
+            constraint_type=item['attributes']['constraint_type'],
+            columns=item['attributes']['columns']
+        )
+        constraints_dict[constraint_name]['command'] = f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {constraint_name};\n{new_command}"
 
-    def removed_schema(self, **kwargs):
-        return f'removed schema {kwargs}'
-    
-    def removed_table(self, **kwargs):
-        return f'removed table {kwargs}'
+    def removed_index(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle the removal of an index.
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        indexes_dict = table_dict['indexes']
+        index_name = item['entity_name']
+        indexes_dict[index_name] = {
+            "command": f"DROP INDEX IF EXISTS {index_name};"
+        }
 
-    def removed_column(self, **kwargs):
-        return f'removed column {kwargs}'
+    def removed_relation(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle the removal of a relation (foreign key).
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        relations_dict = table_dict['relations']
+        relation_name = item['entity_name']
+        relations_dict[relation_name] = {
+            "command": f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {relation_name};"
+        }
 
-    def removed_index(self, item=None,**kwargs):
-        pass
-
-    def removed_relation(self, item=None,**kwargs):
-        pass
-
-    def removed_constraint(self, item=None,**kwargs):
-        pass
-
+    def removed_constraint(self, item=None, **kwargs):
+        """
+        *autogenerated*
+        Handle the removal of a constraint.
+        """
+        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
+        constraints_dict = table_dict['constraints']
+        constraint_name = item['entity_name']
+        constraints_dict[constraint_name] = {
+            "command": f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {constraint_name};"
+        }
 
     #def xxx(self,col):
     #    new_dtype = col.attributes['dtype']
@@ -703,13 +885,23 @@ class SqlMigrator():
             for table_name,tbl_item in tables.items():
                 col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
                 index_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['indexes'].values()])
+                relations_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['relations'].values()])
 
                 #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
                 #constrainList.append(constraints_commands)
                 tbl_command = tbl_item.get('command')
-                if col_commands and not tbl_command:
-                    tbl_item['command'] = f"""ALTER TABLE "{schema_name}"."{table_name}" """
-                commandlist.append(f"{tbl_item['command']}\n {col_commands};" if  col_commands else tbl_item['command'])
+                alter_table_command = f"""ALTER TABLE "{schema_name}"."{table_name}" """
+                if (col_commands or relations_commands) and not tbl_command:
+                    tbl_item['command'] = alter_table_command
+                if col_commands:
+                    commandlist.append(f"{tbl_item['command']}\n {col_commands};")
+                else:
+                    commandlist.append(tbl_item['command'])
+                if relations_commands:
+                    if col_commands and tbl_item['command']==alter_table_command:
+                        commandlist.append(f"{tbl_item['command']}\n {relations_commands};")
+                    else:
+                        commandlist.append(relations_commands)
                 if index_commands:
                     commandlist.append(index_commands)
         self.sql_commands['build_commands'] = '\n'.join(commandlist)

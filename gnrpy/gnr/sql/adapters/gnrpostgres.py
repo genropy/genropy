@@ -56,6 +56,7 @@ psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 import threading
 
 
+
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
                  'boolean': 'B', 'date': 'D',
@@ -779,18 +780,23 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         def parse_string_agg(string_agg_value):
             """Convert string_agg result to a list."""
             return string_agg_value.split(',') if string_agg_value else []
-        
+
+        def remove_duplicates_preserve_order(lst):
+            """Remove duplicates from a list while preserving order."""
+            seen = set()
+            return [x for x in lst if not (x in seen or seen.add(x))]
+
         for row in self.raw_fetch(query, (schemas,)):
             (schema_name, table_name, constraint_name, constraint_type, columns, 
             on_update, on_delete, related_schema, related_table, related_columns, check_clause) = row
-            
+
             # Convert columns and related_columns from string to list
-            parsed_columns = parse_string_agg(columns)
-            parsed_related_columns = parse_string_agg(related_columns)
-            
+            parsed_columns = remove_duplicates_preserve_order(parse_string_agg(columns))
+            parsed_related_columns = remove_duplicates_preserve_order(parse_string_agg(related_columns))
+
             # Key for schema and table
             table_key = (schema_name, table_name)
-            
+
             if constraint_type == "PRIMARY KEY":
                 if "PRIMARY KEY" not in constraints[table_key]:
                     constraints[table_key]["PRIMARY KEY"] = {
@@ -931,7 +937,79 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         # Return a clean, single-line SQL string
         return " ".join(sql.split())
-        
+
+
+    def struct_alter_column(self, schema_name, table_name, column_name, new_sql_type):
+        """
+        Generate SQL to alter the type of a column.
+        """
+        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" TYPE {new_sql_type};'
+
+    def struct_add_not_null(self, schema_name, table_name, column_name):
+        """
+        Generate SQL to add a NOT NULL constraint to a column.
+        """
+        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" SET NOT NULL;'
+
+    def struct_drop_not_null(self, schema_name, table_name, column_name):
+        """
+        Generate SQL to drop a NOT NULL constraint from a column.
+        """
+        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+
+    def struct_add_unique_constraint(self, schema_name, table_name, column_name):
+        """
+        Generate SQL to add a UNIQUE constraint to a column.
+        """
+        constraint_name = f"uq_{schema_name}_{table_name}_{column_name}"
+        return f'ALTER TABLE "{schema_name}"."{table_name}" ADD CONSTRAINT "{constraint_name}" UNIQUE ("{column_name}");'
+
+    def struct_drop_unique_constraint(self, schema_name, table_name, column_name):
+        """
+        Generate SQL to drop a UNIQUE constraint from a column.
+        """
+        constraint_name = f"uq_{schema_name}_{table_name}_{column_name}"
+        return f'ALTER TABLE "{schema_name}"."{table_name}" DROP CONSTRAINT IF EXISTS "{constraint_name}";'
+
+    def struct_create_index(self, schema_name, table_name, columns, index_name, method=None, with_options=None, tablespace=None, where=None):
+        """
+        Generate SQL to create an index.
+        """
+        columns_str = ', '.join(f'"{col}"' for col in columns)
+        options_str = f" WITH ({', '.join(f'{k}={v}' for k, v in with_options.items())})" if with_options else ""
+        tablespace_str = f" USING {tablespace}" if tablespace else ""
+        where_str = f" WHERE {where}" if where else ""
+        index_type = f" USING {method}" if method else ""
+        return f'CREATE INDEX "{index_name}" ON "{schema_name}"."{table_name}"{index_type} ({columns_str}){options_str}{tablespace_str}{where_str};'
+
+    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, on_delete=None, on_update=None):
+        """
+        Generate SQL to create a foreign key constraint.
+        """
+        columns_str = ', '.join(f'"{col}"' for col in columns)
+        related_columns_str = ', '.join(f'"{col}"' for col in related_columns)
+        on_delete_str = f" ON DELETE {on_delete}" if on_delete else ""
+        on_update_str = f" ON UPDATE {on_update}" if on_update else ""
+        return (
+            f'CONSTRAINT "{fk_name}" FOREIGN KEY ({columns_str}) '
+            f'REFERENCES "{related_schema}"."{related_table}" ({related_columns_str}){on_delete_str}{on_update_str}'
+        )
+
+    def struct_drop_table_pkey(self, schema_name, table_name):
+        """
+        Generate SQL to drop a primary key from a table.
+        """
+        return f'ALTER TABLE "{schema_name}"."{table_name}" DROP CONSTRAINT IF EXISTS "{table_name}_pkey";'
+
+    def struct_add_table_pkey(self, schema_name, table_name, columns):
+        """
+        Generate SQL to add a primary key to a table.
+        """
+        columns_str = ', '.join(f'"{col}"' for col in columns)
+        return f'ALTER TABLE "{schema_name}"."{table_name}" ADD PRIMARY KEY ({columns_str});'
+
+
+
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
 

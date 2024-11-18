@@ -587,6 +587,15 @@ class DbModelSrc(GnrStructData):
             name, dtype = name.split('::')
         if not 'columns' in self:
             self.child('column_list', 'columns')
+        vc = self.getNode(f'virtual_columns.{name}')
+        if vc:
+            colattr = dict(dtype=dtype, name_short=name_short, 
+                           name_long=name_long, name_full=name_full,
+                          comment=comment,
+                          unique=unique, indexed=indexed,
+                          group=group,**kwargs)
+            vc.attr.update({k:v for k,v in colattr.items() if v is not None})
+            return vc.value
         kwargs.update(variant_kwargs)
         kwargs.update(ext_kwargs)
         result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
