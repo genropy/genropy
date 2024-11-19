@@ -481,12 +481,6 @@ class SqlMigrator():
         self.setDiff()
         self.clearCommands()
 
-        with open('testsqlextractor.json','w') as f:
-            f.write(json.dumps(self.sqlStructure))
-
-        with open('testormextractor.json','w') as f:
-            f.write(json.dumps(self.ormStructure))
-
         for evt,kw in self.structChanges(self.diff):
             handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
             handler(**kw)
