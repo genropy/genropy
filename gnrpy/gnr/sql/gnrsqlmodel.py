@@ -158,6 +158,9 @@ class DbModel(object):
             cb()
         #bag sorgente pronta
         self.runOnBuildingCb()
+        if self.relations:
+            self.relations.clear()
+            #print('relations',self.relations)
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')

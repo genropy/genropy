@@ -5,7 +5,7 @@ import json
 import time
 import functools
 from collections import defaultdict
-
+from gnr.core.gnrstring import boolean
 from deepdiff import DeepDiff
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrdict import dictExtract
@@ -74,7 +74,7 @@ def hashed_name(schema, table, columns, obj_type='idx'):
     - schema (str): The name of the schema.
     - table (str): The name of the table.
     - columns (list): List of columns involved in the constraint or index.
-    - obj_type (str): Type of object ('idx' for index, 'fk' for foreign key constraint, etc.).
+    - obj_type (str): Type of object ('idx' for index, 'fk' for foreign key constraint,cst for other constraints etc.).
 
     Returns:
     - str: A unique name for the constraint or index.
@@ -154,7 +154,7 @@ class OrmExtractor:
                                                 "schema_name":schema_name,
                                                 "table_name":table_name,
                                                 "entity_name":column_name,
-                                                "attributes":attributes}
+                                                "attributes":clean_attributes(attributes)}
         self.handle_relations_and_indexes(colobj)
     
     def handle_relations_and_indexes(self,colobj):
@@ -238,7 +238,11 @@ class OrmExtractor:
         return result
     
     def handle_column_indexed(self,colobj,indexed=None):
-        indexed = {} if indexed in (True,'Y') else dict(indexed)
+        if not isinstance(indexed,dict):
+            indexed = boolean(indexed)
+            if not indexed:
+                return
+        indexed =  {} if indexed is True else dict(indexed) 
         with_options = dictExtract(indexed,'with_',pop=True)
         sorting = indexed.pop('sorting',None)
         columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
@@ -269,8 +273,8 @@ class OrmExtractor:
                 size = f'0{size}'
             if ':' in size:
                 dtype = 'A'
-            else:
-                dtype = 'C'
+            elif ',' not in size:
+                dtype = 'C'                
         if dtype in ('A','C') and not size:
             dtype = 'T'
         result['dtype'] = dtype
@@ -502,7 +506,28 @@ class SqlMigrator():
                     change = self.get_changed_entity(change)
                     evt = 'changed'
                     #if add or remove attribute it will be handled as a change of the entity
-                if evt == 'added':
+                if evt=='changed':
+                    
+                    if not changed_attribute:
+                        curr_entities = change.t2 or {}
+                        past_entities = change.t1 or {}
+                        for entity_node in curr_entities.values():
+                            kw['entity'] = entity_node['entity']
+                            kw['entity_name'] = entity_node['entity_name']
+                            kw['item'] = entity_node
+                            yield 'added',kw
+                        if past_entities:
+                            raise
+                        continue
+                    else:
+                        changed_entity = change.t2
+                        kw['entity'] = changed_entity['entity']
+                        kw['entity_name'] = changed_entity['entity_name']
+                        kw['changed_attribute'] = changed_attribute
+                        kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
+                        kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
+                        kw['item'] = changed_entity
+                elif evt == 'added':
                     kw['entity'] = change.t2['entity']
                     kw['entity_name'] = change.t2['entity_name']
                     kw['item'] = change.t2
@@ -511,14 +536,7 @@ class SqlMigrator():
                     kw['entity'] = change.t1['entity']
                     kw['entity_name'] = change.t1['entity_name']
                     kw['item'] = change.t1
-                if evt=='changed':
-                    changed_entity = change.t2
-                    kw['entity'] = changed_entity['entity']
-                    kw['entity_name'] = changed_entity['entity_name']
-                    kw['changed_attribute'] = changed_attribute
-                    kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
-                    kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
-                    kw['item'] = changed_entity
+                
                 yield evt,kw
 
     def get_changed_entity(self,change):
@@ -591,9 +609,6 @@ class SqlMigrator():
 
         sql = f"CREATE TABLE {sqltablename} ({', '.join(substatements)});"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
-
-                      
-
         for index_item in item['indexes'].values():
             self.added_index(item=index_item)
 
@@ -662,8 +677,6 @@ class SqlMigrator():
             add_pk_sql =  self.db.adapter.struct_add_table_pkey_sql(schema_name,table_name,newvalue)
             self.schema_tables(schema_name)[table_name]['command'] = f"{drop_pk_sql}\n{add_pk_sql}"
 
-
-
     def changed_column(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
         """
         *autogenerated*
@@ -676,52 +689,66 @@ class SqlMigrator():
         if changed_attribute == 'dtype' or changed_attribute == 'size':
             # Handle changes to data type or size
             new_sql_type = self.db.adapter.columnSqlType(dtype=newvalue, size=item['attributes'].get('size'))
-            columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column(
+            columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
+                column_name=column_name,
+                new_sql_type=new_sql_type,
                 schema_name=item['schema_name'],
                 table_name=item['table_name'],
-                column_name=column_name,
-                new_sql_type=new_sql_type
             )
         elif changed_attribute == 'notnull':
             # Handle changes to the NOT NULL constraint
             if newvalue:
-                columns_dict[column_name]['command'] = self.db.adapter.struct_add_not_null(
+                columns_dict[column_name]['command'] = self.db.adapter.struct_add_not_null_sql(
+                    column_name=column_name,
                     schema_name=item['schema_name'],
-                    table_name=item['table_name'],
-                    column_name=column_name
+                    table_name=item['table_name']
                 )
             else:
-                columns_dict[column_name]['command'] = self.db.adapter.struct_drop_not_null(
+                columns_dict[column_name]['command'] = self.db.adapter.struct_drop_not_null_sql(
+                    column_name=column_name,
                     schema_name=item['schema_name'],
                     table_name=item['table_name'],
-                    column_name=column_name
                 )
         elif changed_attribute == 'unique':
             # Handle changes to the UNIQUE constraint
             if newvalue:
-                columns_dict[column_name]['command'] = self.db.adapter.struct_add_unique_constraint(
+                columns = [column_name]
+                constraint_name = hashed_name(schema=item['schema_name'],table=item['table_name'],columns=columns,obj_type='cst')
+                sql = self.db.adapter.struct_constraint_sql(
+                    constraint_type='UNIQUE',
+                    constraint_name=constraint_name,
+                    columns=columns,
                     schema_name=item['schema_name'],
-                    table_name=item['table_name'],
-                    column_name=column_name
+                    table_name=item['table_name']
                 )
+                constraints_dict = table_dict['constraints']
+                constraints_dict[constraint_name] = {
+                    "command": f'ADD {sql}'
+                }
             else:
-                columns_dict[column_name]['command'] = self.db.adapter.struct_drop_unique_constraint(
+                columns = [column_name]
+                constraints_dict = table_dict['constraints']
+                constraint_name = hashed_name(schema=item['schema_name'],table=item['table_name'],columns=columns,obj_type='cst')
+                sql = self.db.adapter.struct_drop_constraint_sql(
+                    constraint_name=constraint_name,
                     schema_name=item['schema_name'],
                     table_name=item['table_name'],
-                    column_name=column_name
                 )
+                constraints_dict[constraint_name] = {"command":sql}
 
-    def changed_index(self, item=None, **kwargs):
+    def changed_index(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
         """
-        *autogenerated*
         Handle changes to an index.
         """
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         indexes_dict = table_dict['indexes']
-        index_name = item['entity_name']
-        old_command = indexes_dict[index_name]['command']
-        new_command = self.createIndexSql(item)
-        indexes_dict[index_name]['command'] = f"DROP INDEX IF EXISTS {index_name};\n{new_command}"
+        entity_name = item['entity_name']
+        if changed_attribute=='index_name':
+            sql = f"ALTER INDEX {oldvalue} RENAME TO {newvalue};"
+        else:
+            new_command = self.createIndexSql(item)
+            sql = f"DROP INDEX IF EXISTS {entity_name};\n{new_command}"
+        indexes_dict[entity_name]['command'] = sql
 
     def changed_relation(self, item=None, **kwargs):
         """
@@ -731,9 +758,8 @@ class SqlMigrator():
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         relations_dict = table_dict['relations']
         relation_name = item['entity_name']
-        old_command = relations_dict[relation_name]['command']
         relattr = item['attributes']
-        new_command = self.db.adapter.struct_foreign_key_sql(
+        add_sql = self.db.adapter.struct_foreign_key_sql(
             fk_name=item['entity_name'],
             columns=item['attributes']['columns'],
             related_table=relattr['related_table'],
@@ -744,7 +770,7 @@ class SqlMigrator():
             deferrable= relattr.get('deferrable'),
             initially_deferred = relattr.get('initially_deferred')
         )
-        relations_dict[relation_name]['command'] = f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {relation_name};\n{new_command}"
+        relations_dict[relation_name]['command'] = f"DROP CONSTRAINT {relation_name};\nADD {add_sql}"
 
     def changed_constraint(self, item=None, **kwargs):
         """
@@ -754,98 +780,20 @@ class SqlMigrator():
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         constraints_dict = table_dict['constraints']
         constraint_name = item['entity_name']
-        old_command = constraints_dict[constraint_name]['command']
-        new_command = self.db.adapter.struct_add_constraint_sql(
-            schema_name=item['schema_name'],
-            table_name=item['table_name'],
-            constraint_name=item['entity_name'],
-            constraint_type=item['attributes']['constraint_type'],
-            columns=item['attributes']['columns']
+        add_sql = self.db.adapter.struct_constraint_sql(
+                schema_name=item['schema_name'],
+                table_name=item['table_name'],
+                constraint_name=item['entity_name'],
+                constraint_type=item['attributes']['constraint_type'],
+                columns=item['attributes']['columns']
         )
-        constraints_dict[constraint_name]['command'] = f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {constraint_name};\n{new_command}"
+        constraints_dict[constraint_name]['command'] = f"DROP CONSTRAINT {constraint_name};\nADD {add_sql}"
 
-    def removed_index(self, item=None, **kwargs):
-        """
-        *autogenerated*
-        Handle the removal of an index.
-        """
+    def removed_column(self,item=None,**kwargs):
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
-        indexes_dict = table_dict['indexes']
-        index_name = item['entity_name']
-        indexes_dict[index_name] = {
-            "command": f"DROP INDEX IF EXISTS {index_name};"
-        }
+        entity_name = item['entity_name']
+        table_dict['columns'][entity_name]['command'] = f'DROP COLUMN "{entity_name}"'
 
-    def removed_relation(self, item=None, **kwargs):
-        """
-        *autogenerated*
-        Handle the removal of a relation (foreign key).
-        """
-        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
-        relations_dict = table_dict['relations']
-        relation_name = item['entity_name']
-        relations_dict[relation_name] = {
-            "command": f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {relation_name};"
-        }
-
-    def removed_constraint(self, item=None, **kwargs):
-        """
-        *autogenerated*
-        Handle the removal of a constraint.
-        """
-        table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
-        constraints_dict = table_dict['constraints']
-        constraint_name = item['entity_name']
-        constraints_dict[constraint_name] = {
-            "command": f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {constraint_name};"
-        }
-
-    #def xxx(self,col):
-    #    new_dtype = col.attributes['dtype']
-    #    if col.attributes.get('unaccent'):
-    #        self.unaccent = True
-    #    new_size = col.attributes.get('size')
-    #    new_unique = col.attributes.get('unique')
-    #    new_notnull = col.attributes.get('notnull')
-    #    old_dtype = dbcolumns[col.sqlname]['dtype']
-    #    old_size = dbcolumns[col.sqlname].get('size')
-    #    old_notnull = dbcolumns[col.sqlname].get('notnull')
-    #    if not 'pkey' in tblattr:
-    #        raise GnrSqlException(f'Missing pkey in table {tbl.fullname}')
-    #    if tblattr['pkey']==col.sqlname:
-    #        new_notnull = old_notnull
-    #    old_unique = self.unique_constraints['%s.%s.%s'%(tbl.sqlschema,tbl.sqlname,col.sqlname)]
-    #    if not self.unique_constraints and col.sqlname in columnsindexes:
-    #        if tblattr['pkey']==col.sqlname:
-    #            old_unique = new_unique
-    #        else:
-    #            old_unique = columnsindexes[col.sqlname].get('unique')
-    #    if new_dtype == 'A' and not new_size:
-    #        new_dtype = 'T'
-    #    if new_dtype == 'A' and not ':' in new_size:
-    #        new_dtype = 'C'
-    #    if new_size and ':' in new_size:
-    #        t1, t2 = new_size.split(':')
-    #        new_size = '%s:%s' % (t1 or '0', t2)
-    #    if new_size and new_dtype == 'N' and not ',' in new_size:
-    #        new_size = '%s,0' % new_size
-    #    if new_dtype in ('X', 'Z', 'P') and old_dtype == 'T':
-    #        pass
-    #    elif new_dtype=='serial' and old_dtype=='L':
-    #        pass
-    #    elif new_dtype in ('L','I') and old_dtype in ('L','I') and not self.db.adapter.allowAlterColumn:
-    #        pass
-    #    elif new_dtype != old_dtype or new_size != old_size or bool(old_unique)!=bool(new_unique) or bool(old_notnull)!=bool(new_notnull):
-    #        if (new_dtype != old_dtype or new_size != old_size):
-    #            change = self._alterColumnType(col, new_dtype, new_size=new_size)
-    #            self.changes.append(change)
-    #        if bool(old_unique)!=bool(new_unique):
-    #            self.changes.append(self._alterUnique(col,new_unique,old_unique))
-    #        if bool(old_notnull)!=bool(new_notnull):
-    #            self.changes.append(self._alterNotNull(col,new_notnull, old_notnull))
-#
-#
-    #    return f'changed column {kwargs}'
 
     def missing_handler(self,**kwargs):
         return f'missing {kwargs}'
@@ -877,31 +825,6 @@ class SqlMigrator():
                                                        where=attributes.get('where'))
         
         
-    
-    #def alterColumnType(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None):
-    #    """Prepare the sql statement for altering the type of a given column and return it"""
-    #    attributes = item['attributes']
-    #    size = attributes.get('size')
-    #    if size and size.startswith(':'):
-    #        size = f'0{size}'
-    #    sqlType = self.db.adapter.columnSqlType(attributes['dtype'], size)
-    #    rebuildColumn = None
-    #    if changed_attribute=='size' or (oldvalue in ('T','A','C')) and (newvalue in ('T','A','C')):
-    #        rebuildColumn = False
-    #        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
-    #        return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
-    #    else:
-    #        usedColumn = self.db.adapter.raw_fetch(f'SELECT COUNT(*) FROM {self.tableSqlName(item)};')
-    #        if usedColumn:
-    #            rebuildColumn = False
-    #        else:
-    #            rebuildColumn = True
-    #    if rebuildColumn:
-    #        return ',\n'.join([f'DROP COLUMN {item['entity_name']}'  ,f"ADD COLUMN {self.columnSql(item)}"])
-    #    else:
-    #        sqlType = self.db.adapter.columnSqlType(attributes['dtype'], attributes['size'])
-    #        return self.db.adapter.alterColumnSql(column=item['entity_name'], dtype=sqlType)
-        
     def tableSqlName(self,item=None):
         schema_name = item['schema_name']
         table_name = item['table_name'] 
@@ -923,14 +846,14 @@ class SqlMigrator():
                 commandlist.append(sql_command)
             for table_name,tbl_item in tables.items():
                 col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
-                index_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['indexes'].values()])
+                index_commands = '\n'.join([colitem['command'] for colitem in tbl_item['indexes'].values()])
                 relations_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['relations'].values()])
 
-                #constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
+                constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
                 #constrainList.append(constraints_commands)
                 tbl_command = tbl_item.get('command')
                 alter_table_command = f"""ALTER TABLE "{schema_name}"."{table_name}" """
-                if (col_commands or relations_commands) and not tbl_command:
+                if (col_commands or relations_commands or constraints_commands) and not tbl_command:
                     tbl_item['command'] = alter_table_command
                 if col_commands:
                     commandlist.append(f"{tbl_item['command']}\n {col_commands};")
@@ -941,6 +864,11 @@ class SqlMigrator():
                         commandlist.append(f"{tbl_item['command']}\n {relations_commands};")
                     else:
                         commandlist.append(relations_commands)
+                if constraints_commands:
+                    if col_commands and tbl_item['command']==alter_table_command:
+                        commandlist.append(f"{tbl_item['command']}\n {constraints_commands};")
+                    else:
+                        commandlist.append(constraints_commands)
                 if index_commands:
                     commandlist.append(index_commands)
         self.sql_commands['build_commands'] = '\n'.join(commandlist)
@@ -959,7 +887,7 @@ if __name__ == '__main__':
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
-    app = GnrApp('dbsetup_tester')
+    app = GnrApp('anaci_testdb')
     mig = SqlMigrator(app.db)
     mig.toSql()
 
@@ -968,8 +896,10 @@ if __name__ == '__main__':
 
     with open('testormextractor.json','w') as f:
         f.write(json.dumps(mig.ormStructure))
+    with open('testsql_migration.sql','w') as f:
+        f.write(mig.getChanges())
 
-    print(mig.diff)
+    mig.applyChanges()
 
    #diff = compare_json({},mig.ormStructure)
    #print('\n---from 0 to 1 \n',diff)

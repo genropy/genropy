@@ -679,7 +679,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 c.data_type,
                 c.character_maximum_length,
                 c.is_nullable,
-                c.column_default
+                c.column_default,
+                c.numeric_precision,
+                c.numeric_scale
             FROM
                 information_schema.schemata s
             LEFT JOIN
@@ -693,41 +695,68 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             ORDER BY
                 s.schema_name, t.table_name, c.ordinal_position;
         """
+    
     def struct_get_schema_info(self, schemas=None):
-        """Get a (list of) dict containing details about a column or all the columns of a table.
+        """
+        Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
-        Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
-        
-        columns = self.raw_fetch(self.struct_get_schema_info_sql(),(tuple(schemas),))
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'.
+        """
+        columns = self.raw_fetch(self.struct_get_schema_info_sql(), (tuple(schemas),))
         for schema_name, table_name, \
             column_name, data_type, \
-            char_max_length, is_nullable, column_default in columns:
-            col = dict(schema_name=schema_name,table_name=table_name,
-                       name=column_name,dtype = data_type,
-                    length=char_max_length,
-                        is_nullable=is_nullable,
-                        default= column_default)
+            char_max_length, is_nullable, column_default, \
+            numeric_precision, numeric_scale in columns:
+            
+            col = dict(
+                schema_name=schema_name,
+                table_name=table_name,
+                name=column_name,
+                dtype=data_type,
+                length=char_max_length,
+                is_nullable=is_nullable,
+                default=column_default,
+                numeric_precision=numeric_precision,
+                numeric_scale=numeric_scale
+            )
+            
             col = self._filterColInfo(col, '_pg_')
+            
+            # Gestione dei campi con default "nextval" per SERIAL
             if col['default'] and col['default'].startswith('nextval('):
                 col['_pg_default'] = col.pop('default')
-            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T') #for unrecognized types default dtype is T
-            if dtype=='L' and col.get('_pg_default'):
-                dtype = 'serial'
-                col['dtype'] = dtype
+            
+            # Mappatura del tipo di dato
+            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T')  # Default 'T' per tipi non riconosciuti
+            
+            # Gestione del tipo NUMERIC
             if dtype == 'N':
-                precision, scale = col.get('_pg_numeric_precision'), col.get('_pg_numeric_scale')
-                if precision:
-                    col['size'] = f'{precision},{scale}'
+                precision = col.pop('_pg_numeric_precision', None)
+                scale = col.pop('_pg_numeric_scale', None)
+                if precision is not None and scale is not None:
+                    col['size'] = f"{precision},{scale}"
+                elif precision is not None:  # Solo precisione
+                    col['size'] = f"{precision}"
+            
+            # Gestione del tipo ARRAY
             elif dtype == 'A':
-                size = col.pop('length',None)
+                size = col.pop('length', None)
                 if size:
-                    col['size'] = f'0:{size}'
+                    col['size'] = f"0:{size}"
                 else:
-                    dtype = col['dtype'] = 'T'
+                    dtype = col['dtype'] = 'T'  # Default a tipo sconosciuto
+            
+            # Gestione del tipo CHARACTER VARYING o simili
             elif dtype == 'C':
-                col['size'] = str(col.get('length'))
+                size = col.pop('length', None)
+                if size is not None:
+                    col['size'] = str(size)
+            
+            # Gestione SERIAL
+            if dtype == 'L' and col.get('_pg_default'):
+                col['dtype'] = 'serial'
+            
             yield col
-
     
 
     def struct_get_constraints_sql(self):
@@ -938,37 +967,30 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return " ".join(sql.split())
 
 
-    def struct_alter_column(self, schema_name, table_name, column_name, new_sql_type):
+    def struct_alter_column_sql(self, column_name=None, new_sql_type=None,**kwargs):
         """
         Generate SQL to alter the type of a column.
         """
-        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" TYPE {new_sql_type};'
+        return f'ALTER COLUMN "{column_name}" TYPE {new_sql_type}'
 
-    def struct_add_not_null(self, schema_name, table_name, column_name):
+    def struct_add_not_null_sql(self, column_name,**kwargs):
         """
         Generate SQL to add a NOT NULL constraint to a column.
         """
-        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" SET NOT NULL;'
+        return f'ALTER COLUMN "{column_name}" SET NOT NULL'
 
-    def struct_drop_not_null(self, schema_name, table_name, column_name):
+    def struct_drop_not_null_sql(self, column_name,**kwargs):
         """
         Generate SQL to drop a NOT NULL constraint from a column.
         """
-        return f'ALTER TABLE "{schema_name}"."{table_name}" ALTER COLUMN "{column_name}" DROP NOT NULL;'
+        return f'ALTER COLUMN "{column_name}" DROP NOT NULL'
 
-    def struct_add_unique_constraint(self, schema_name, table_name, column_name):
-        """
-        Generate SQL to add a UNIQUE constraint to a column.
-        """
-        constraint_name = f"uq_{schema_name}_{table_name}_{column_name}"
-        return f'ALTER TABLE "{schema_name}"."{table_name}" ADD CONSTRAINT "{constraint_name}" UNIQUE ("{column_name}");'
 
-    def struct_drop_unique_constraint(self, schema_name, table_name, column_name):
+    def struct_drop_constraint_sql(self, constraint_name, **kwargs):
         """
         Generate SQL to drop a UNIQUE constraint from a column.
         """
-        constraint_name = f"uq_{schema_name}_{table_name}_{column_name}"
-        return f'ALTER TABLE "{schema_name}"."{table_name}" DROP CONSTRAINT IF EXISTS "{constraint_name}";'
+        return f'DROP CONSTRAINT IF EXISTS "{constraint_name}"'
 
     def struct_create_index(self, schema_name, table_name, columns, index_name, method=None, with_options=None, tablespace=None, where=None):
         """
@@ -1013,7 +1035,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             f'{on_delete_str}{on_update_str}{deferrable_str}{initially_deferred_str}'
         )
     
-    def struct_constraint_sql(self,constraint_name, constraint_type, columns=None, check_clause=None):
+    def struct_constraint_sql(self,constraint_name=None, constraint_type=None, columns=None, check_clause=None,**kwargs):
         """
         Generate SQL to create a constraint of type UNIQUE or CHECK.
         

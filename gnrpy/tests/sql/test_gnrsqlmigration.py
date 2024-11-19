@@ -101,6 +101,8 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
             self.migrator.applyChanges()
             self.migrator.toSql()
             changes = self.migrator.getChanges()
+            if changes:
+                print('unexpected changes',changes)
             assert not changes, 'Failed to execute SQL command as expected.'
 
     def test_01_create_db(self):
@@ -130,14 +132,24 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "description" text;'
         self.checkChanges(check_value)
 
-    def test_04b_add_indexed_column(self):
+    def test_04d_add_numeric_column(self):
         """Tests adding a new column to an existing table."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe')
-        tbl.column('recipy_type',size=':2',indexed=True)
-        check_value = 'ALTER TABLE "alfa"."alfa_recipe" ADD COLUMN "recipy_type" character varying(2);CREATE INDEX idx_490f54d9 ON "alfa"."alfa_recipe" USING btree(recipy_type);'
+        tbl.column('cost',dtype='N',size='14,2')
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "cost" numeric(14,2) ;'
         self.checkChanges(check_value)
-        
+
+    def test_04b_add_indexed_columns(self):
+        """Tests adding a new column to an existing table."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('ins_ts',dtype='DH',indexed=True)
+        tbl.column('recipy_type',size=':2',indexed=True)
+
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "ins_ts" timestamp without time zone ,\nADD COLUMN "recipy_type" character varying(2) ;\nCREATE INDEX idx_f473bae1 ON "alfa"."alfa_recipe" USING btree (ins_ts) ;\nCREATE INDEX idx_490f54d9 ON "alfa"."alfa_recipe" USING btree (recipy_type) ;'
+        self.checkChanges(check_value)
+
     def test_04c_add_unique_multiple_constraint(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('restaurant', pkey='id')
@@ -148,6 +160,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
         check_value = 'CREATE TABLE "alfa"."alfa_restaurant" ("id" serial8 NOT NULL , "name" character varying(45) , "country" character(2) , "vat_number" character varying(30) , PRIMARY KEY (id), CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number"));'
         self.checkChanges(check_value)
+
 
 
     def test_05_create_table_withpkey(self):
@@ -189,6 +202,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('name',size=':45',unique=True)
+        tbl.column('tax_code',size=':45')
         self.checkChanges(apply_only=True)
 
     def test_06a_add_relation_to_pk_single(self):
@@ -223,8 +237,6 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "author_name" character varying(44) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_7f18eae7" FOREIGN KEY ("author_name") REFERENCES "alfa"."alfa_author" ("name") ON UPDATE CASCADE;;\nCREATE INDEX idx_44a37a95 ON "alfa"."alfa_recipe" USING btree (author_name) ;'
         self.checkChanges(check_changes)
 
-
-
     def test_06d_add_relation_to_nopk_multi(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe')
@@ -236,87 +248,76 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat) ;'
         self.checkChanges(check_changes)
 
-
-
-class ZZZ:
-
-
     def test_07a_create_table_with_relation_to_pk_single(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('product', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('description')
         tbl.column('recipe_code').relation('alfa.recipe.code',mode='foreignkey')
-        tbl.column('secret_code',size='33',indexed=True)
-        check_value = 'CREATE TABLE "alfa"."alfa_product" ("id" serial8 NOT NULL , "description" text , "recipe_code" text , "secret_code" character(33) , PRIMARY KEY (id), CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE);'
+        check_value = 'CREATE TABLE "alfa"."alfa_product" ("id" serial8 NOT NULL , "description" text , "recipe_code" text , PRIMARY KEY (id), CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE);'
         self.checkChanges(check_value)
 
     def test_07b_create_table_with_relation_to_pk_multi(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('recipe_row_annotation', pkey='id')
+        tbl = pkg.table('recipe_row_alternative', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('description')
+        tbl.column('vegan',dtype='B')
+        tbl.column('gluten_free',dtype='B')
         tbl.column('recipe_code', size=':12').relation('alfa.recipe.code',mode='foreignkey')
         tbl.column('recipe_line',dtype='L')
         tbl.compositeColumn('recipe_row_reference',columns='recipe_code,recipe_line').relation(
             'alfa.recipe_row.composite_key',mode='foreignkey'
         )
-        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_annotation" ("id" serial8 NOT NULL , "description" text , "recipe_code" character varying(12) , "recipe_line" bigint , PRIMARY KEY (id), CONSTRAINT "fk_1be31ab2" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE, CONSTRAINT "fk_cbe2056f" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE);'
+        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_alternative" ("id" serial8 NOT NULL , "description" text , "vegan" boolean , "gluten_free" boolean , "recipe_code" character varying(12) , "recipe_line" bigint , PRIMARY KEY (id), CONSTRAINT "fk_a2e10c8f" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE, CONSTRAINT "fk_b03ef3c2" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE);'
         self.checkChanges(check_changes)
 
-    def test_07c_create_table_with_relation_to_nopk_single(self):
-        pass
-
-
-    def test_07d_create_table_with_relation_to_nopk_multi(self):
-        pass
-
-
-
-
-
-
-class ToDo:
-
-    def test_06_modify_column_type(self):
+    def test_08a_modify_column_type(self):
         """Tests modifying the data type of an existing column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('ingredient')
         tbl.column('description', dtype='varchar', size=':50')
-        check_value = 'ALTER TABLE "alfa"."alfa_ingredient" ALTER COLUMN "description" SET DATA TYPE character varying(50);'
+        check_value = 'ALTER TABLE "alfa"."alfa_ingredient" \n ALTER COLUMN "description" TYPE character varying(50);'
         self.checkChanges(check_value)
 
-    def test_07_rename_column(self):
-        """Tests renaming an existing column."""
+    def test_08b_modify_column_type(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('ingredient')
-        tbl.rename_column('description', 'desc')
-        check_value = 'ALTER TABLE "alfa"."alfa_ingredient" RENAME COLUMN "description" TO "desc";'
+        tbl = pkg.table('recipe_row_alternative')
+        tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative" \n ALTER COLUMN "vegan" TYPE character(1);'
         self.checkChanges(check_value)
 
-    def test_08_rename_table(self):
-        """Tests renaming an existing table."""
+    def test_08c_modify_column_add_unique(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('ingredient')
-        tbl.rename('ingredients')
-        check_value = 'ALTER TABLE "alfa"."alfa_ingredient" RENAME TO "alfa_ingredients";'
+        tbl = pkg.table('author')
+        tbl.column('tax_code',unique=True)
+        tbl.column('foo') #columns added for testing the right placement of ADD constraint
+        check_value = 'ALTER TABLE "alfa"."alfa_author" \n ADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author" \n ADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");'
         self.checkChanges(check_value)
 
-    def test_09_drop_column(self):
-        """Tests dropping an existing column from a table."""
+    def test_08c_modify_column_remove_unique(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('ingredients')
-        tbl.drop_column('desc')
-        check_value = 'ALTER TABLE "alfa"."alfa_ingredients" DROP COLUMN "desc";'
+        tbl = pkg.table('author')
+        tbl.column('tax_code',unique=False)
+        check_value = 'ALTER TABLE "alfa"."alfa_author" \nDROP CONSTRAINT IF EXISTS "cst_99206169"'
         self.checkChanges(check_value)
 
-    def test_10_drop_table(self):
-        """Tests dropping a table from the schema."""
+    def test_09a_remove_column(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('ingredients')
-        tbl.drop()
-        check_value = 'DROP TABLE "alfa"."alfa_ingredients";'
+        pkg.table('author')['columns'].pop('foo')
+        check_value = 'ALTER TABLE "alfa"."alfa_author" \n DROP COLUMN "foo";'
         self.checkChanges(check_value)
+
+    def test_09b_remove_relation(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe_row_alternative', pkey='id')
+        col = tbl.column('recipe_code')
+        col.pop('relation')
+        check_value = '?'
+        self.checkChanges(check_value)
+
+class ToDo:
+
 
     def test_11_add_foreign_key(self):
         """
