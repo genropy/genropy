@@ -137,6 +137,7 @@ class OrmExtractor:
             self.fill_json_column(colobj)
         for compositecol in tblobj.composite_columns.values():
             self.handle_relations_and_indexes(compositecol)
+            self.handle_multiple_unique_constraint(compositecol)
 
 
     def fill_json_column(self,colobj):
@@ -169,7 +170,25 @@ class OrmExtractor:
         if indexed:
             indexed_json = self.handle_column_indexed(colobj=colobj,indexed=indexed)
             table_json["indexes"][indexed_json["entity_name"]] = indexed_json
-
+    
+    def handle_multiple_unique_constraint(self,compositecol):
+        colattr = compositecol.attributes
+        if not colattr.get('unique'):
+            return
+        table_name = compositecol.table.sqlname
+        schema_name = compositecol.table.pkg.sqlname
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        columns = colattr.get('composed_of').split(',')
+        hashed_entity_name = hashed_name(schema=schema_name,table=table_name,columns=columns,obj_type='cst')
+        table_json['constraints'][hashed_entity_name] = {
+            "entity":"constraint",
+            "entity_name":hashed_entity_name,
+            "schema_name":schema_name,
+            "table_name":table_name,
+            "attributes":{"columns":columns,
+                          "constraint_name":hashed_entity_name,
+                          "constraint_type":'UNIQUE'}
+        }
 
     def statement_converter(self, command):
         if not command: return None
@@ -205,11 +224,14 @@ class OrmExtractor:
         attributes['related_schema'] = rel_colobj.table.pkg.sqlname
         attributes['constraint_name'] = hashed_entity_name
         attributes['constraint_type'] = "FOREIGN KEY"
+        attributes['deferrable'] = joiner.get('deferrable')
+        attributes['initially_deferred'] = joiner.get('initially_deferred') or joiner.get('deferred')
+
         result = {"entity": "relation",
                     "entity_name": hashed_entity_name,
                     "schema_name": schema_name,
                     "table_name": table_name,
-                    "attributes":attributes}
+                    "attributes":clean_attributes(attributes)}
         if attributes['related_columns'] != rel_tblobj.pkeys:
             self.deferred_indexes.append(colobj)
 
@@ -381,11 +403,20 @@ class DbExtractor(object):
             if multiple_unique:
                 d['UNIQUE'] = multiple_unique
             self.process_table_relations(schema_name,table_name,d.pop('FOREIGN KEY',{}))
-            d.pop('CHECK',None) # avoid for now
-            for v in d.values():
-                v['entity'] = 'constraint'
-                v['entity_name'] = v['constraint_name']
-            table_json['constraints'] = d
+            for constraint_type,constraints in d.items():
+                if constraint_type=='CHECK':
+                    #not managed. the only remaining type should be UNIQUE
+                    continue
+                for v in constraints.values():
+                    entity_name = v['constraint_name']
+                    table_json['constraints'][entity_name] = {
+                        "entity":"constraint",
+                        "entity_name":entity_name,
+                        "schema_name":schema_name,
+                        "table_name":table_name,
+                        "attributes":clean_attributes(v)
+                    }
+                
 
     def process_table_relations(self,schema_name,table_name,foreign_keys_dict):
         relations = self.json_schemas[schema_name]["tables"][table_name]['relations']
@@ -536,23 +567,25 @@ class SqlMigrator():
         if item["attributes"]["pkeys"]:
             substatements.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
         for rel_item in item['relations'].values():
+            relattr = rel_item['attributes']
             fkey_sql =  self.db.adapter.struct_foreign_key_sql(
                 fk_name=rel_item['entity_name'],
-                columns=rel_item['attributes']['columns'],
-                related_table=rel_item['attributes']['related_table'],
-                related_schema=rel_item['attributes']['related_schema'],
-                related_columns=rel_item['attributes']['related_columns'],
-                on_delete=rel_item['attributes'].get('on_delete'),
-                on_update=rel_item['attributes'].get('on_update')
+                columns=relattr['columns'],
+                related_table=relattr['related_table'],
+                related_schema=relattr['related_schema'],
+                related_columns=relattr['related_columns'],
+                on_delete=relattr.get('on_delete'),
+                on_update=relattr.get('on_update'),
+                deferrable= relattr.get('deferrable'),
+                initially_deferred = relattr.get('initially_deferred')
             )
             substatements.append(fkey_sql)
         for const_item in item['constraints'].values():  
+            constattr = const_item['attributes']
             const_sql = self.db.adapter.struct_constraint_sql(
-                schema_name=const_item['schema_name'],
-                table_name=const_item['table_name'],
-                constraint_name=const_item['entity_name'],
-                constraint_type=const_item['attributes']['constraint_type'],
-                columns=const_item['attributes']['columns']
+                const_item['entity_name'], constattr['constraint_type'],
+                  columns=constattr.get('columns'), 
+                  check_clause=constattr.get('check_clause')
             )
             substatements.append(const_sql)
 
@@ -582,15 +615,20 @@ class SqlMigrator():
         """
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         relations_dict = table_dict['relations']
+        relattr = item['attributes']
         sql =  self.db.adapter.struct_foreign_key_sql(
                 fk_name=item['entity_name'],
                 columns=item['attributes']['columns'],
-                related_table=item['attributes']['related_table'],
-                related_schema=item['attributes']['related_schema'],
-                related_columns=item['attributes']['related_columns'],
-                on_delete=item['attributes'].get('on_delete'),
-                on_update=item['attributes'].get('on_update')
+                related_table = relattr['related_table'],
+                related_schema = relattr['related_schema'],
+                related_columns = relattr['related_columns'],
+                on_delete = relattr.get('on_delete'),
+                on_update = relattr.get('on_update'),
+                deferrable= relattr.get('deferrable'),
+                initially_deferred = relattr.get('initially_deferred')
             )
+        
+        
         relations_dict[item['entity_name']] = {
             "command":f'ADD {sql};'
         }
@@ -694,16 +732,17 @@ class SqlMigrator():
         relations_dict = table_dict['relations']
         relation_name = item['entity_name']
         old_command = relations_dict[relation_name]['command']
+        relattr = item['attributes']
         new_command = self.db.adapter.struct_foreign_key_sql(
-            schema_name=item['schema_name'],
-            table_name=item['table_name'],
             fk_name=item['entity_name'],
             columns=item['attributes']['columns'],
-            related_table=item['attributes']['related_table'],
-            related_schema=item['attributes']['related_schema'],
-            related_columns=item['attributes']['related_columns'],
-            on_delete=item['attributes'].get('on_delete'),
-            on_update=item['attributes'].get('on_update')
+            related_table=relattr['related_table'],
+            related_schema=relattr['related_schema'],
+            related_columns=relattr['related_columns'],
+            on_delete=relattr.get('on_delete'),
+            on_update=relattr.get('on_update'),
+            deferrable= relattr.get('deferrable'),
+            initially_deferred = relattr.get('initially_deferred')
         )
         relations_dict[relation_name]['command'] = f"ALTER TABLE {item['schema_name']}.{item['table_name']} DROP CONSTRAINT {relation_name};\n{new_command}"
 

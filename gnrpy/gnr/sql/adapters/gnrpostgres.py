@@ -743,7 +743,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 ccu.table_schema AS related_schema,
                 ccu.table_name AS related_table,
                 string_agg(ccu.column_name, ',' ORDER BY kcu.ordinal_position) AS related_columns, -- Stringa di colonne referenziate
-                ch.check_clause AS check_clause
+                ch.check_clause AS check_clause,
+                tc.is_deferrable AS deferrable,
+                tc.initially_deferred AS initially_deferred
             FROM
                 information_schema.table_constraints AS tc
             LEFT JOIN
@@ -767,11 +769,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 tc.constraint_schema = ANY(%s)
             GROUP BY
                 tc.constraint_schema, tc.table_name, tc.constraint_name, tc.constraint_type,
-                rc.update_rule, rc.delete_rule, ccu.table_schema, ccu.table_name, ch.check_clause
+                rc.update_rule, rc.delete_rule, ccu.table_schema, ccu.table_name, ch.check_clause,
+                tc.is_deferrable, tc.initially_deferred
             ORDER BY
                 tc.constraint_schema, tc.table_name, tc.constraint_name;
         """
-
 
     def struct_get_constraints(self, schemas):
         query = self.struct_get_constraints_sql()
@@ -788,7 +790,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
         for row in self.raw_fetch(query, (schemas,)):
             (schema_name, table_name, constraint_name, constraint_type, columns, 
-            on_update, on_delete, related_schema, related_table, related_columns, check_clause) = row
+            on_update, on_delete, related_schema, related_table, related_columns, check_clause,
+            deferrable, initially_deferred) = row
 
             # Convert columns and related_columns from string to list
             parsed_columns = remove_duplicates_preserve_order(parse_string_agg(columns))
@@ -797,33 +800,29 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             # Key for schema and table
             table_key = (schema_name, table_name)
 
+            # Default constraint structure
+            constraint_dict = {
+                "constraint_name": constraint_name,
+                "constraint_type": constraint_type,
+                "columns": parsed_columns,
+                "on_update": on_update,
+                "on_delete": on_delete,
+                "related_schema": related_schema,
+                "related_table": related_table,
+                "related_columns": parsed_related_columns,
+                "check_clause": check_clause,
+                "deferrable": deferrable == "YES",  # Convert to boolean
+                "initially_deferred": initially_deferred == "YES"  # Convert to boolean
+            }
+
+            # Add constraints to the dictionary
             if constraint_type == "PRIMARY KEY":
                 if "PRIMARY KEY" not in constraints[table_key]:
-                    constraints[table_key]["PRIMARY KEY"] = {
-                        "constraint_name": constraint_name,
-                        "constraint_type": "PRIMARY KEY",
-                        "columns": parsed_columns,
-                        "on_update": None,
-                        "on_delete": None,
-                        "related_schema": None,
-                        "related_table": None,
-                        "related_columns": None,
-                        "check_clause": None
-                    }
+                    constraints[table_key]["PRIMARY KEY"] = constraint_dict
             else:
                 if constraint_name not in constraints[table_key][constraint_type]:
-                    constraints[table_key][constraint_type][constraint_name] = {
-                        "constraint_name": constraint_name,
-                        "constraint_type": constraint_type,
-                        "columns": parsed_columns,
-                        "on_update": on_update,
-                        "on_delete": on_delete,
-                        "related_schema": related_schema,
-                        "related_table": related_table,
-                        "related_columns": parsed_related_columns,
-                        "check_clause": check_clause
-                    }
-        
+                    constraints[table_key][constraint_type][constraint_name] = constraint_dict
+
         return constraints
 
     def struct_get_indexes_sql(self):
@@ -982,18 +981,65 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         index_type = f" USING {method}" if method else ""
         return f'CREATE INDEX "{index_name}" ON "{schema_name}"."{table_name}"{index_type} ({columns_str}){options_str}{tablespace_str}{where_str};'
 
-    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, on_delete=None, on_update=None):
+    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
+                           on_delete=None, on_update=None, deferrable=False, initially_deferred=False):
         """
         Generate SQL to create a foreign key constraint.
+
+        Parameters:
+            fk_name (str): The name of the foreign key constraint.
+            columns (list): List of columns in the current table.
+            related_table (str): The name of the related table.
+            related_schema (str): The schema of the related table.
+            related_columns (list): List of columns in the related table.
+            on_delete (str, optional): Action to perform on delete (e.g., CASCADE, SET NULL).
+            on_update (str, optional): Action to perform on update (e.g., CASCADE, SET NULL).
+            deferrable (bool, optional): Whether the constraint is deferrable (default: False).
+            initially_deferred (bool, optional): Whether the constraint is initially deferred (default: False).
+
+        Returns:
+            str: The SQL string to create the foreign key constraint.
         """
         columns_str = ', '.join(f'"{col}"' for col in columns)
         related_columns_str = ', '.join(f'"{col}"' for col in related_columns)
         on_delete_str = f" ON DELETE {on_delete}" if on_delete else ""
         on_update_str = f" ON UPDATE {on_update}" if on_update else ""
+        deferrable_str = " DEFERRABLE" if deferrable else ""
+        initially_deferred_str = " INITIALLY DEFERRED" if deferrable and initially_deferred else ""
+        
         return (
             f'CONSTRAINT "{fk_name}" FOREIGN KEY ({columns_str}) '
-            f'REFERENCES "{related_schema}"."{related_table}" ({related_columns_str}){on_delete_str}{on_update_str}'
+            f'REFERENCES "{related_schema}"."{related_table}" ({related_columns_str})'
+            f'{on_delete_str}{on_update_str}{deferrable_str}{initially_deferred_str}'
         )
+    
+    def struct_constraint_sql(self,constraint_name, constraint_type, columns=None, check_clause=None):
+        """
+        Generate SQL to create a constraint of type UNIQUE or CHECK.
+        
+        Parameters:
+            constraint_name (str): The name of the constraint.
+            constraint_type (str): The type of constraint ('UNIQUE', 'CHECK').
+            columns (list, optional): List of columns for the constraint (required for 'UNIQUE').
+            check_clause (str, optional): The condition for the 'CHECK' constraint.
+        
+        Returns:
+            str: The SQL string to create the constraint.
+        """
+        if constraint_type == "UNIQUE":
+            if not columns:
+                raise ValueError("Columns must be specified for a UNIQUE constraint.")
+            columns_str = ', '.join(f'"{col}"' for col in columns)
+            return f'CONSTRAINT "{constraint_name}" UNIQUE ({columns_str})'
+        
+        elif constraint_type == "CHECK":
+            if not check_clause:
+                raise ValueError("Check clause must be specified for a CHECK constraint.")
+            return f'CONSTRAINT "{constraint_name}" CHECK ({check_clause})'
+        
+        else:
+            raise ValueError(f"Unsupported constraint type: {constraint_type}")
+    
 
     def struct_drop_table_pkey(self, schema_name, table_name):
         """

@@ -138,6 +138,18 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" ADD COLUMN "recipy_type" character varying(2);CREATE INDEX idx_490f54d9 ON "alfa"."alfa_recipe" USING btree(recipy_type);'
         self.checkChanges(check_value)
         
+    def test_04c_add_unique_multiple_constraint(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('restaurant', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('name',size=':45')
+        tbl.column('country',size='2')
+        tbl.column('vat_number',size=':30')
+        tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
+        check_value = 'CREATE TABLE "alfa"."alfa_restaurant" ("id" serial8 NOT NULL , "name" character varying(45) , "country" character(2) , "vat_number" character varying(30) , PRIMARY KEY (id), CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number"));'
+        self.checkChanges(check_value)
+
+
     def test_05_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
@@ -213,9 +225,21 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
 
 
 
-class ZZZ:
     def test_06d_add_relation_to_nopk_multi(self):
-        pass
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('restaurant_vat',size=':30')
+        tbl.column('restaurant_country',size='2')
+
+        tbl.compositeColumn('restaurant_ref',columns='restaurant_country,restaurant_vat'
+                            ).relation('alfa.restaurant.international_vat', mode='foreignkey')
+        check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat) ;'
+        self.checkChanges(check_changes)
+
+
+
+class ZZZ:
+
 
     def test_07a_create_table_with_relation_to_pk_single(self):
         pkg = self.src.package('alfa')
