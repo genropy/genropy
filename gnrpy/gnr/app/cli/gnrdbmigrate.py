@@ -199,7 +199,7 @@ def main():
             app.db.closeConnection()
             continue
         migrator = SqlMigrator(app.db)
-        migrator.toSql()
+        migrator.prepareMigrationCommands()
         if options.check:
             check_db(migrator, options)
         elif options.import_file:

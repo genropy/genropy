@@ -209,7 +209,7 @@ class OrmExtractor:
         pkeys = table_json['attributes']['pkeys']
         if pkeys and (column_name in pkeys.split(',')):
             attributes['notnull'] = '_auto_'
-            #attributes.pop('unique',None)
+            attributes.pop('unique',None)
             attributes.pop('indexed',None)
         column_entity = new_column_item(schema_name,table_name,column_name,attributes=attributes)
         table_json['columns'][colobj.sqlname] = column_entity
@@ -304,7 +304,7 @@ class OrmExtractor:
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
         if tenant_schema and colobj.table.multi_tenant:
-            schema_name = table_name
+            schema_name = tenant_schema
         attributes = dict(
             columns=dict(zip(columns,sorting)),
             with_options=with_options,
@@ -1000,7 +1000,7 @@ def dbsetupComparison():
         f.write('\n'.join(app.db.model.modelChanges))
 
 def multiTenantTester():
-    app = GnrApp('ts2')
+    app = GnrApp('mtx_tester')
     mig = SqlMigrator(app.db)
     mig.prepareMigrationCommands()
     with open('ts2_multi_tenant_orm.json','w') as f:

@@ -161,7 +161,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);\nCREATE UNIQUE INDEX idx_91100f32 ON "alfa"."alfa_restaurant" USING btree (country, vat_number);'
         self.checkChanges(check_value)
 
-    def test_05_create_table_withpkey(self):
+    def test_05a_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('ingredient', pkey='id')
@@ -186,6 +186,15 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('description')
         tbl.column('ingredient_id',dtype='L')
         check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) NOT NULL , "recipe_line" bigint NOT NULL , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
+        self.checkChanges(check_value)
+
+    def test_05a_create_table_with_pkey_explicit_unique(self):
+        """Tests creating a table with a primary key column."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('company', pkey='code')
+        tbl.column('code', size=':30',unique=True)
+        tbl.column('description')
+        check_value = 'CREATE TABLE "alfa"."alfa_company"(\n "code" character varying(30) NOT NULL,\n "description" text,\n PRIMARY KEY (code)\n);'
         self.checkChanges(check_value)
 
     def test_06_prepare_table(self):
