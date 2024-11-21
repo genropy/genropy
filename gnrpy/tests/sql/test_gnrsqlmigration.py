@@ -158,10 +158,8 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('country',size='2')
         tbl.column('vat_number',size=':30')
         tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
-        check_value = 'CREATE TABLE "alfa"."alfa_restaurant" ("id" serial8 NOT NULL , "name" character varying(45) , "country" character(2) , "vat_number" character varying(30) , PRIMARY KEY (id), CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number"));'
+        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);\nCREATE UNIQUE INDEX idx_91100f32 ON "alfa"."alfa_restaurant" USING btree (country, vat_number);'
         self.checkChanges(check_value)
-
-
 
     def test_05_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
@@ -226,7 +224,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('recipe_row_reference').relation(
             'alfa.recipe_row.composite_key',mode='foreignkey'
         )
-        check_changes = 'ALTER TABLE "alfa"."alfa_recipe_row_annotation" \nADD CONSTRAINT "fk_cbe2056f" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
+        check_changes = 'CREATE INDEX idx_3e9365a8 ON "alfa"."alfa_recipe_row_annotation" USING btree (recipe_code, recipe_line);\nALTER TABLE "alfa"."alfa_recipe_row_annotation"\n ADD CONSTRAINT "fk_cbe2056f" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_06c_add_relation_to_nopk_single(self):
@@ -254,7 +252,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('id', dtype='serial')
         tbl.column('description')
         tbl.column('recipe_code').relation('alfa.recipe.code',mode='foreignkey')
-        check_value = 'CREATE TABLE "alfa"."alfa_product"\n("id" serial8 NOT NULL,\n "description" text,\n "recipe_code" text,\n PRIMARY KEY (id));\nALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_product"\n ADD CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
+        check_value = 'CREATE TABLE "alfa"."alfa_product"(\n "id" serial8 NOT NULL,\n "description" text,\n "recipe_code" text,\n PRIMARY KEY (id)\n);\nCREATE INDEX idx_78fd5e36 ON "alfa"."alfa_product" USING btree (recipe_code);\nALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_product"\n ADD CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
         self.checkChanges(check_value)
 
     def test_07b_create_table_with_relation_to_pk_multi(self):
@@ -269,7 +267,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.compositeColumn('recipe_row_reference',columns='recipe_code,recipe_line').relation(
             'alfa.recipe_row.composite_key',mode='foreignkey'
         )
-        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_alternative"\n("id" serial8 NOT NULL,\n "description" text,\n "vegan" boolean,\n "gluten_free" boolean,\n "recipe_code" character varying(12),\n "recipe_line" bigint,\n PRIMARY KEY (id));\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_a2e10c8f" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_b03ef3c2" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
+        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_alternative"(\n "id" serial8 NOT NULL,\n "description" text,\n "vegan" boolean,\n "gluten_free" boolean,\n "recipe_code" character varying(12),\n "recipe_line" bigint,\n PRIMARY KEY (id)\n);\nCREATE INDEX idx_17fca263 ON "alfa"."alfa_recipe_row_alternative" USING btree (recipe_code);\nCREATE INDEX idx_bd86c8b3 ON "alfa"."alfa_recipe_row_alternative" USING btree (recipe_code, recipe_line);\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_a2e10c8f" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_b03ef3c2" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_08a_modify_column_type(self):
@@ -292,7 +290,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=True)
         tbl.column('foo') #columns added for testing the right placement of ADD constraint
-        check_value = 'ALTER TABLE "alfa"."alfa_author" \n ADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author" \n ADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");'
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");\nCREATE UNIQUE INDEX idx_fbdb510e ON "alfa"."alfa_author" USING btree (tax_code);'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_remove_unique(self):

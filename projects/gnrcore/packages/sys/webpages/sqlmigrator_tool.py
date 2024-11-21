@@ -33,7 +33,7 @@ class GnrCustomWebPage(object):
     @public_method
     def getMigrationBag(self,instance_name=None,migrate=None):
         app = GnrApp(instance_name)
-        mig = SqlMigrator(app.db)
+        mig = SqlMigrator(app.db,ignore_constraint_name=True)
         result = Bag()
         mig.prepareMigrationCommands()
         if migrate:

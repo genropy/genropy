@@ -172,7 +172,7 @@ class OrmExtractor:
 
         self.json_structure = new_structure_root(self.db.dbname)
         self.schemas = self.json_structure['root']['schemas']
-        self.tenant_schema_tables = []
+        self.tenant_schema_tables = {}
         self.deferred_indexes = []
 
     def fill_json_package(self,pkgobj):
@@ -181,7 +181,7 @@ class OrmExtractor:
         for tblobj in pkgobj.tables.values():
             self.fill_json_table(tblobj)
             if tblobj.multi_tenant:
-                self.tenant_schema_tables.append(tblobj)
+                self.tenant_schema_tables[tblobj.fullname] = tblobj
 
     def fill_json_table(self,tblobj,tenant_schema=None):
         schema_name = tenant_schema or tblobj.pkg.sqlname
@@ -218,23 +218,23 @@ class OrmExtractor:
     def fill_json_relations_and_indexes(self,colobj,tenant_schema=None):
         colattr = colobj.attributes
         joiner =  colobj.relatedColumnJoiner()
-        indexed = colattr.get('indexed')
-        unique = colattr.get('unique')
+        indexed = colattr.get('indexed') or colattr.get('unique')
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         table_json = self.schemas[schema_name]['tables'][table_name]
         pkeys = table_json['attributes']['pkeys']
         is_in_pkeys =  pkeys and (colobj.name in pkeys.split(','))
-            
         if joiner:
             indexed = indexed or True
+            relation_info = self._relation_info_from_joiner(colobj,joiner,tenant_schema=tenant_schema)
+            related_to_pkeys = relation_info.pop('related_to_pkeys')
+            rel_colobj = relation_info.pop('rel_colobj')
             if joiner.get('foreignkey'):
-                self.fill_json_relation(colobj=colobj,joiner=joiner,tenant_schema=tenant_schema)
-        if indexed and not (is_in_pkeys and indexed is True):
+                self.fill_json_relation(colobj=colobj,attributes=relation_info,tenant_schema=tenant_schema)
+            if not related_to_pkeys:
+                self.deferred_indexes.append({"colobj":rel_colobj,"tenant_schema":tenant_schema})
+        if indexed and not is_in_pkeys:
             self.fill_json_column_index(colobj=colobj,indexed=indexed,tenant_schema=tenant_schema)
-        elif unique and not is_in_pkeys:
-            self.fill_json_column_index(colobj=colobj,indexed=dict(unique=True),
-                                        tenant_schema=tenant_schema)
 
 
     def fill_multiple_unique_constraint(self,compositecol,tenant_schema=None):
@@ -262,42 +262,49 @@ class OrmExtractor:
         elif command in ('SD', 'SETDEFAULT', 'SET DEFAULT'):
             return 'SET DEFAULT'
             
+    def _relation_info_from_joiner(self,colobj,joiner,tenant_schema=None):
+        result = {camel_to_snake(k[0:-4]):self.statement_converter(v) for k,v in joiner.items() if k.endswith('_sql')}
+        related_field = joiner['one_relation']
+        related_table,related_column = related_field.rsplit('.',1)
+        rel_tblobj = colobj.db.table(related_table)
+        rel_colobj = rel_tblobj.column(related_column)
+        result['related_columns'] = (rel_colobj.attributes.get('composed_of') or rel_colobj.name).split(',')
+        result['related_table'] = rel_tblobj.model.sqlname
+        related_schema = rel_tblobj.pkg.sqlname
+        if tenant_schema and rel_tblobj.multi_tenant:
+            related_schema = tenant_schema
+        result['related_schema'] = related_schema
+        result['deferrable'] = joiner.get('deferrable') or joiner.get('deferred')
+        result['initially_deferred'] = joiner.get('initially_deferred') or joiner.get('deferred')
+        result['related_to_pkeys'] = result['related_columns'] == rel_tblobj.pkeys
+        result['rel_colobj'] = rel_colobj
+        return result
 
-    def fill_json_relation(self,colobj,joiner=None,tenant_schema=None):
+    def fill_json_relation(self,colobj,attributes=None,tenant_schema=None):
         columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         hashed_entity_name = hashed_name(schema=schema_name,table=table_name,columns=columns,obj_type='fk')
-        attributes = {camel_to_snake(k[0:-4]):self.statement_converter(v) for k,v in joiner.items() if k.endswith('_sql')}
         attributes['constraint_name'] = hashed_entity_name
         attributes['columns'] = columns
-        related_field = joiner['one_relation'] #'alfa.ricetta.codice
-        related_table,related_column = related_field.rsplit('.',1)
-        rel_tblobj = colobj.db.table(related_table)
-        rel_colobj = rel_tblobj.column(related_column)
-        attributes['related_columns'] = (rel_colobj.attributes.get('composed_of') or rel_colobj.name).split(',')
-        attributes['related_table'] = rel_colobj.table.sqlname
-        attributes['related_schema'] = rel_colobj.table.pkg.sqlname
-        attributes['constraint_name'] = hashed_entity_name
         attributes['constraint_type'] = "FOREIGN KEY"
-        attributes['deferrable'] = joiner.get('deferrable') or joiner.get('deferred')
-        attributes['initially_deferred'] = joiner.get('initially_deferred') or joiner.get('deferred')
         relation_item = new_relation_item(schema_name,table_name,columns,attributes=attributes)
-        if attributes['related_columns'] != rel_tblobj.pkeys:
-            self.deferred_indexes.append({"colobj":colobj,"tenant_schema":tenant_schema})
         table_json = self.schemas[schema_name]['tables'][table_name]
         table_json["relations"][relation_item["entity_name"]] = relation_item
+        
     
     def fill_json_column_index(self,colobj,indexed=None,tenant_schema=None):
-        if colobj.name == 'sigla' and table_name=='glbl_provincia':
-            print(x)
         indexed =  {} if indexed is True else dict(indexed) 
+        if colobj.attributes.get('unique'):
+            indexed['unique'] = True
         with_options = dictExtract(indexed,'with_',pop=True)
         sorting = indexed.pop('sorting',None)
         columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
         sorting = sorting.split(',') if sorting else [None] * len(columns)
         table_name = colobj.table.sqlname
-        schema_name = tenant_schema or colobj.table.pkg.sqlname
+        schema_name = colobj.table.pkg.sqlname
+        if tenant_schema and colobj.table.multi_tenant:
+            schema_name = table_name
         attributes = dict(
             columns=dict(zip(columns,sorting)),
             with_options=with_options,
@@ -344,7 +351,7 @@ class OrmExtractor:
             return
         for tenant_schema in self.migrator.tenant_schemas:
             self.schemas[tenant_schema] = new_schema_item(tenant_schema)
-            for tblobj in self.tenant_schema_tables:
+            for tblobj in self.tenant_schema_tables.values():
                 self.fill_json_table(tblobj,tenant_schema=tenant_schema)
     
 class DbExtractor(object):
