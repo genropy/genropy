@@ -183,7 +183,8 @@ class GnrSqlDb(GnrObject):
             tenant_table = pkg.attributes.get('tenant_table') or tenant_table
         self._tenant_table = tenant_table
         return self._tenant_table
-        
+
+
     @property
     def reuse_relation_tree(self):
         if self.application:
@@ -403,6 +404,20 @@ class GnrSqlDb(GnrObject):
         else:
             return self.dbname
     
+    def getTenantSchemas(self):
+        if not self.tenant_table:
+            return []
+        tblobj = self.table(self.tenant_table)
+        tenant_column = tblobj.attributes.get('tenant_column') or 'tenant_schema'
+        f = tblobj.query(ignorePartition=True,subtable='*',
+                            where=f'${tenant_column} IS NOT NULL',
+                            columns=f'${tenant_column}').fetch()
+        return [r[tenant_column] for r in f]
+    
+    def getApplicationSchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values()]
+
+
     def usingRootstore(self):
         return  self.currentStorename == self.rootstore
 
