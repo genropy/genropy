@@ -20,6 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from decimal import Decimal
 import re
 import select
 from collections import defaultdict
@@ -703,6 +704,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Every other info stored in information_schema.columns is available with the prefix '_pg_'.
         """
         columns = self.raw_fetch(self.struct_get_schema_info_sql(), (tuple(schemas),))
+    
         for schema_name, table_name, \
             column_name, data_type, \
             char_max_length, is_nullable, column_default, \
@@ -722,14 +724,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             
             col = self._filterColInfo(col, '_pg_')
             
-            # Gestione dei campi con default "nextval" per SERIAL
             if col['default'] and col['default'].startswith('nextval('):
                 col['_pg_default'] = col.pop('default')
             
-            # Mappatura del tipo di dato
-            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T')  # Default 'T' per tipi non riconosciuti
             
-            # Gestione del tipo NUMERIC
+            dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T')  # Default 'T' per tipi non riconosciuti
+            if col.get('default'):
+                if '::' in col['default']:
+                    col['default'] = col['default'].split("::")[0].strip("'")
+                if dtype=='L':
+                    col['default'] = int(col['default'])
+                elif dtype=='N':
+                    col['default'] = Decimal(col['default'])
             if dtype == 'N':
                 precision = col.pop('_pg_numeric_precision', None)
                 scale = col.pop('_pg_numeric_scale', None)
@@ -960,11 +966,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         USING {method} ({column_list})
         {with_clause}
         {tablespace_clause}
-        {where_clause};
+        {where_clause}
         """
         
         # Return a clean, single-line SQL string
-        return " ".join(sql.split())
+        result = " ".join(sql.split())
+        return f'{result};'
 
 
     def struct_alter_column_sql(self, column_name=None, new_sql_type=None,**kwargs):
@@ -991,17 +998,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Generate SQL to drop a UNIQUE constraint from a column.
         """
         return f'DROP CONSTRAINT IF EXISTS "{constraint_name}"'
-
-    def struct_create_index(self, schema_name, table_name, columns, index_name, method=None, with_options=None, tablespace=None, where=None):
-        """
-        Generate SQL to create an index.
-        """
-        columns_str = ', '.join(f'"{col}"' for col in columns)
-        options_str = f" WITH ({', '.join(f'{k}={v}' for k, v in with_options.items())})" if with_options else ""
-        tablespace_str = f" USING {tablespace}" if tablespace else ""
-        where_str = f" WHERE {where}" if where else ""
-        index_type = f" USING {method}" if method else ""
-        return f'CREATE INDEX "{index_name}" ON "{schema_name}"."{table_name}"{index_type} ({columns_str}){options_str}{tablespace_str}{where_str};'
 
     def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
                            on_delete=None, on_update=None, deferrable=False, initially_deferred=False):
