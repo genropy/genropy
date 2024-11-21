@@ -35,11 +35,11 @@ class GnrCustomWebPage(object):
         app = GnrApp(instance_name)
         mig = SqlMigrator(app.db)
         result = Bag()
-        mig.toSql()
+        mig.prepareMigrationCommands()
         if migrate:
             mig.applyChanges()
             mig = SqlMigrator(instance_name)
-            mig.toSql()
+            mig.prepareMigrationCommands()
         result['sqlstructure'] = Bag(mig.sqlStructure)
         result['ormstructure'] = Bag(mig.ormStructure)
         result['diff'] = mig.getDiffBag()

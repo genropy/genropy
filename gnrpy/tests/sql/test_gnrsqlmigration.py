@@ -81,7 +81,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         SQL changes differ from `expected_value`, an assertion error will occur.
         """
         self.db.startup()
-        self.migrator.toSql()
+        self.migrator.prepareMigrationCommands()
         if apply_only:
             self.migrator.applyChanges()
             return
@@ -99,7 +99,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
             assert normalized_changes == normalized_expected_value, 'Mismatch in expected SQL commands.'
         else:
             self.migrator.applyChanges()
-            self.migrator.toSql()
+            self.migrator.prepareMigrationCommands()
             changes = self.migrator.getChanges()
             if changes:
                 print('unexpected changes',changes)
