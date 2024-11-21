@@ -8,11 +8,14 @@ from collections import defaultdict
 from gnr.core.gnrstring import boolean
 from deepdiff import DeepDiff
 from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 
 COL_JSON_KEYS = ("dtype","notnull","default","size","unique")
+
+GNR_DTYPE_CONVERTER = {'X':'T', 'Z':'T', 'P':'T'}
 
 def nested_defaultdict():
     return defaultdict(nested_defaultdict)
@@ -150,6 +153,7 @@ class OrmExtractor:
         pkeys = table_json['attributes']['pkeys']
         if pkeys and (column_name in pkeys.split(',')):
             attributes['notnull'] = '_auto_'
+            attributes.pop('unique',None)
         table_json['columns'][colobj.sqlname] = {"entity":"column",
                                                 "schema_name":schema_name,
                                                 "table_name":table_name,
@@ -224,7 +228,7 @@ class OrmExtractor:
         attributes['related_schema'] = rel_colobj.table.pkg.sqlname
         attributes['constraint_name'] = hashed_entity_name
         attributes['constraint_type'] = "FOREIGN KEY"
-        attributes['deferrable'] = joiner.get('deferrable')
+        attributes['deferrable'] = joiner.get('deferrable') or joiner.get('deferred')
         attributes['initially_deferred'] = joiner.get('initially_deferred') or joiner.get('deferred')
 
         result = {"entity": "relation",
@@ -268,6 +272,7 @@ class OrmExtractor:
         result =  {k:v for k,v in colattr.items() if k in self.col_json_keys and v is not None}
         size = result.pop('size',None)
         dtype = result.pop('dtype',None)
+        dtype = GNR_DTYPE_CONVERTER.get(dtype,dtype)
         if size:
             if size.startswith(':'):
                 size = f'0{size}'
@@ -350,13 +355,17 @@ class DbExtractor(object):
  
     def process_base_structure(self, base_structure):
         """Processes schema, table, and column metadata."""
+
+        for schema_name in self.application_schemas:
+            self.json_schemas[schema_name] = None
+
         for c in base_structure:
             schema_name = c.pop('_pg_schema_name')
             table_name = c.pop('_pg_table_name')
             is_nullable = c.pop('_pg_is_nullable')
             column_name = c.pop('name')
             colattr = {k:v for k,v in c.items()  if k in self.col_json_keys and v is not None}
-            if schema_name not in self.json_schemas:
+            if not self.json_schemas[schema_name]:
                 self.json_schemas[schema_name] = {
                     "metadata": {},
                     "tables": {},
@@ -366,16 +375,16 @@ class DbExtractor(object):
                 }
             if table_name and table_name not in self.json_schemas[schema_name]["tables"]:
                 self.json_schemas[schema_name]["tables"][table_name] = {
-                    "metadata": {},
+                    "attributes":{"pkeys":None},
+                    "entity":"table",
+                    "entity_name":table_name,
                     "columns": {},
                     "relations":{},
-                    "constraints": {},
                     "indexes": {},
-                    "entity":"table",
-                    "attributes":{"pkeys":None},
-                    "entity_name":table_name,
+                    "constraints": {},
+                    "schema_name":schema_name,
                     "table_name":table_name,
-                    "schema_name":schema_name
+                    "metadata": {},
                 }
             if column_name:
                 if is_nullable=='NO':
@@ -385,6 +394,10 @@ class DbExtractor(object):
                                                                                         "table_name":table_name,
                                                                                         "entity_name":column_name,
                                                                                             "attributes":colattr}
+        
+        for schema_name in self.application_schemas:
+            if not self.json_schemas[schema_name]:
+                self.json_schemas.pop(schema_name)
 
     def process_constraints(self,constraints_dict):
         for tablepath,constraints_by_type in constraints_dict.items():
@@ -472,6 +485,32 @@ class SqlMigrator():
         self.diff = DeepDiff(self.sqlStructure, self.ormStructure,
                               ignore_order=True,view='tree')
 
+    def getDiffBag(self):
+        result = Bag()
+        for reason,difflist in self.diff.items():
+            for diff_item in difflist:
+                diff_entity_item = self.get_diff_item_of_entity(diff_item).t2
+                pathlist = []
+                if diff_entity_item.get('schema_name'):
+                    pathlist.append(diff_entity_item['schema_name'])
+                if diff_entity_item.get('table_name'):
+                    pathlist.append(diff_entity_item['table_name'])
+                if diff_entity_item.get('column_name'):
+                    pathlist.append(diff_entity_item['column_name'])
+                pathlist.append(f"{diff_entity_item['entity']}_{diff_entity_item['entity_name']}")
+                pathlist.append(reason)
+                entity_node = result.getNode('.'.join(pathlist),autocreate=True)
+                changed_attribute = self.get_changed_attribute(diff_item)
+                kw = {'old':str(diff_item.t1),'new':str(diff_item.t2),
+                      'changed_attribute':changed_attribute}
+                if reason == 'type_changes':
+                    kw['old_type'] = str(type(diff_item.t1))
+                    kw['new_type'] = str(type(diff_item.t2))
+                entity_node.attr[diff_entity_item['entity']] = diff_entity_item['entity_name']
+                entity_node.attr[reason] = kw
+        return result
+
+
     def clearCommands(self):
         self.commands.pop('db',None) #rebuils
         
@@ -494,24 +533,34 @@ class SqlMigrator():
                     #auto-set for alignment to sql
                     continue
                 kw = dict(item=None)
-                pathlist = change.path(output_format='list')
-                changed_attribute = self.get_changed_attribute(pathlist)
+                changed_attribute = self.get_changed_attribute(change)
                 if changed_attribute:
-                    change = self.get_changed_entity(change)
+                    change = self.get_diff_item_of_entity(change)
                     evt = 'changed'
                     #if add or remove attribute it will be handled as a change of the entity
                 if evt=='changed':
                     
                     if not changed_attribute:
-                        curr_entities = change.t2 or {}
-                        past_entities = change.t1 or {}
-                        for entity_node in curr_entities.values():
+                        new_val = change.t2 or {} 
+                        old_val = change.t1 or {}
+                        action = 'added'
+                        if not new_val or str(new_val) == 'not present':
+                            action = 'removed'
+                            val = old_val
+                        else:
+                            action = 'added'
+                            val = new_val
+                        entity_nodes = []
+                        if val.get('entity'):
+                            entity_nodes = [val]
+                        else:
+                            entity_nodes = val.values()
+                        for entity_node in entity_nodes:
                             kw['entity'] = entity_node['entity']
                             kw['entity_name'] = entity_node['entity_name']
                             kw['item'] = entity_node
-                            yield 'added',kw
-                        if past_entities:
-                            raise
+                            yield action,kw
+                            
                         continue
                     else:
                         changed_entity = change.t2
@@ -533,23 +582,15 @@ class SqlMigrator():
                 
                 yield evt,kw
 
-    def get_changed_entity(self,change):
+    def get_diff_item_of_entity(self,change):
         changed_entity = change.t2
         while not isinstance(changed_entity,dict) or ('entity' not in changed_entity):
             change = change.up
             changed_entity = change.t2
         return change
 
-    def get_changed_attribute(self,pathlist):
-        """
-        Find the element that comes immediately after 'attributes' in the list.
-
-        Parameters:
-            pathlist (list): The list of strings to search.
-
-        Returns:
-            str: The element after 'attributes', or None if not found.
-        """
+    def get_changed_attribute(self,change):
+        pathlist = change.path(output_format='list')
         if 'attributes' in pathlist:
             attr_index = pathlist.index('attributes')  # Find the index of 'attributes'
             if attr_index < len(pathlist) - 1:         # Ensure there is a next element
@@ -575,23 +616,9 @@ class SqlMigrator():
         sqltablename = self.tableSqlName(item)
         substatements = []
         for col in item['columns'].values():
-            substatements.append(self.columnSql(col))
+            substatements.append(self.columnSql(col).strip())
         if item["attributes"]["pkeys"]:
             substatements.append(f'PRIMARY KEY ({item["attributes"]["pkeys"]})')
-        for rel_item in item['relations'].values():
-            relattr = rel_item['attributes']
-            fkey_sql =  self.db.adapter.struct_foreign_key_sql(
-                fk_name=rel_item['entity_name'],
-                columns=relattr['columns'],
-                related_table=relattr['related_table'],
-                related_schema=relattr['related_schema'],
-                related_columns=relattr['related_columns'],
-                on_delete=relattr.get('on_delete'),
-                on_update=relattr.get('on_update'),
-                deferrable= relattr.get('deferrable'),
-                initially_deferred = relattr.get('initially_deferred')
-            )
-            substatements.append(fkey_sql)
         for const_item in item['constraints'].values():  
             constattr = const_item['attributes']
             const_sql = self.db.adapter.struct_constraint_sql(
@@ -600,11 +627,13 @@ class SqlMigrator():
                   check_clause=constattr.get('check_clause')
             )
             substatements.append(const_sql)
-
-        sql = f"CREATE TABLE {sqltablename} ({', '.join(substatements)});"
+        joined_substatements = ',\n '.join(substatements)
+        sql = f"CREATE TABLE {sqltablename}(\n {joined_substatements}\n);"
         self.schema_tables(item['schema_name'])[item['table_name']]['command'] = sql
         for index_item in item['indexes'].values():
             self.added_index(item=index_item)
+        for rel_item in item['relations'].values():
+            self.added_relation(item=rel_item)
 
     def added_column(self, item=None,**kwargs):
         sql =  f'ADD COLUMN {self.columnSql(item)}'
@@ -639,7 +668,7 @@ class SqlMigrator():
         
         
         relations_dict[item['entity_name']] = {
-            "command":f'ADD {sql};'
+            "command":f'ADD {sql}'
         }
 
     def added_constraint(self, item=None, **kwargs):
@@ -789,6 +818,15 @@ class SqlMigrator():
         table_dict['columns'][entity_name]['command'] = f'DROP COLUMN "{entity_name}"'
 
 
+    def removed_index(self,item=None,**kwargs):
+        pass
+
+    def removed_relation(self,item=None,**kwargs):
+        pass
+
+    def removed_constraint(self,item=None,**kwargs):
+        pass
+
     def missing_handler(self,**kwargs):
         return f'missing {kwargs}'
 
@@ -799,7 +837,8 @@ class SqlMigrator():
         return self.db.adapter.columnSqlDefinition(col['entity_name'],
                                                    dtype=colattr['dtype'], size=colattr.get('size'),
                                                    notnull=colattr.get('notnull', False),
-                                                    unique=colattr.get('unique'),default=colattr.get('default'),
+                                                    unique=colattr.get('unique'),
+                                                    default=colattr.get('default'),
                                                     extra_sql=colattr.get('extra_sql'))
     
     def constraintSql(self,const_item):
@@ -825,48 +864,68 @@ class SqlMigrator():
         return f'{self.db.adapter.adaptSqlName(schema_name)}.{self.db.adapter.adaptSqlName(table_name)}'
 
     def getChanges(self):
+        """
+        Builds and returns the SQL commands needed to apply changes to the database schema.
+        
+        This method processes the commands defined in `self.commands`, including:
+        - Database creation commands
+        - Schema-level commands
+        - Table creation and modification commands (columns, indexes, constraints)
+        - Relationship commands (foreign keys)
+
+        The resulting SQL commands are stored in `self.sql_commands` and returned as a single concatenated string.
+        """
         commands = self.commands
         dbitem = commands['db']
         sql_command = dbitem.get('command')
-        schemas = dbitem.get('schemas',{})
+        schemas = dbitem.get('schemas', {})
+        
+        # Store database creation command
         if sql_command:
             self.sql_commands['db_creation'] = sql_command
-        commandlist = []
-        #constrainList = []
-        for schema_name,schema_item in schemas.items():
-            sql_command =schema_item.get('command')
-            tables = schema_item.get('tables',{})
-            if sql_command:
-                commandlist.append(sql_command)
-            for table_name,tbl_item in tables.items():
-                col_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['columns'].values()])
-                index_commands = '\n'.join([colitem['command'] for colitem in tbl_item['indexes'].values()])
-                relations_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['relations'].values()])
+        
+        command_list = []
+        relation_command_list = []
 
-                constraints_commands = ',\n'.join([colitem['command'] for colitem in tbl_item['constraints'].values()])
-                #constrainList.append(constraints_commands)
-                tbl_command = tbl_item.get('command')
-                alter_table_command = f"""ALTER TABLE "{schema_name}"."{table_name}" """
-                if (col_commands or relations_commands or constraints_commands) and not tbl_command:
-                    tbl_item['command'] = alter_table_command
-                if col_commands:
-                    commandlist.append(f"{tbl_item['command']}\n {col_commands};")
-                else:
-                    commandlist.append(tbl_item['command'])
-                if relations_commands:
-                    if col_commands and tbl_item['command']==alter_table_command:
-                        commandlist.append(f"{tbl_item['command']}\n {relations_commands};")
-                    else:
-                        commandlist.append(relations_commands)
-                if constraints_commands:
-                    if col_commands and tbl_item['command']==alter_table_command:
-                        commandlist.append(f"{tbl_item['command']}\n {constraints_commands};")
-                    else:
-                        commandlist.append(constraints_commands)
-                if index_commands:
-                    commandlist.append(index_commands)
-        self.sql_commands['build_commands'] = '\n'.join(commandlist)
-        return '\n'.join(self.sql_commands.values())
+        # Process each schema
+        for schema_name, schema_item in schemas.items():
+            schema_command = schema_item.get('command')
+            tables = schema_item.get('tables', {})
+
+            # Add schema-level command
+            if schema_command:
+                command_list.append(schema_command)
+
+            # Process each table in the schema
+            for table_name, tbl_item in tables.items():
+                alter_table_command = f'ALTER TABLE "{schema_name}"."{table_name}"'
+
+                col_commands = ',\n'.join(col['command'] for col in tbl_item['columns'].values())
+                constraint_commands = [con['command'] for con in tbl_item['constraints'].values()]
+                
+                #append to relation_command_list the foreign key constraints.
+                relation_command_list += [f"{alter_table_command}\n {rel['command']};" for rel in tbl_item['relations'].values()]
+
+                table_command = tbl_item.get('command')
+                if table_command:
+                    command_list.append(table_command)
+                # Add column commands
+                elif col_commands:
+                    command_list.append(f"{alter_table_command}\n{col_commands};")
+                # Add constraint commands
+                for constraint_sql in constraint_commands:
+                    #if the table has been created each constraint needs an alter table 
+                    command_list.append(f"{alter_table_command}\n{constraint_sql};")
+
+                # Add index commands
+                command_list+=[idx['command'] for idx in tbl_item['indexes'].values()]
+        
+        # Combine all commands
+        command_list += relation_command_list
+        self.sql_commands['build_commands'] = '\n'.join(command_list)
+        
+        # Return all SQL commands as a single string
+        return '\n'.join([v for v in self.sql_commands.values() if v])
 
     def applyChanges(self):
         self.getChanges()
@@ -881,7 +940,7 @@ if __name__ == '__main__':
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
-    app = GnrApp('anaci_testdb')
+    app = GnrApp('sandboxpg')
     mig = SqlMigrator(app.db)
     mig.toSql()
 
@@ -890,15 +949,10 @@ if __name__ == '__main__':
 
     with open('testormextractor.json','w') as f:
         f.write(json.dumps(mig.ormStructure))
-    with open('testsql_migration.sql','w') as f:
+    with open('sandbox_migration.sql','w') as f:
         f.write(mig.getChanges())
 
-    mig.applyChanges()
+    app.db.model.check()
 
-   #diff = compare_json({},mig.ormStructure)
-   #print('\n---from 0 to 1 \n',diff)
-    #diff = compare_json(mig_1.ormStructure,mig.ormStructure)
-    #print('\n---from 1 to 0',diff)
-    #print('orm mig1',mig_1.ormStructure)
-    #mig.applyChanges()
-    #print('\n'.join([c["sql"] for c in mig.commands]))
+    with open('sandbox_modelchecker.sql','w') as f:
+        f.write('\n'.join(app.db.model.modelChanges))

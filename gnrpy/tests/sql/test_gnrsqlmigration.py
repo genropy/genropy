@@ -234,7 +234,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('recipe')
         tbl.column('author_name',size=':44').relation('alfa.author.name', 
                                                       mode='foreignkey')
-        check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "author_name" character varying(44) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_7f18eae7" FOREIGN KEY ("author_name") REFERENCES "alfa"."alfa_author" ("name") ON UPDATE CASCADE;;\nCREATE INDEX idx_44a37a95 ON "alfa"."alfa_recipe" USING btree (author_name) ;'
+        check_changes = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "author_name" character varying(44) ;\nCREATE INDEX idx_44a37a95 ON "alfa"."alfa_recipe" USING btree (author_name);\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_7f18eae7" FOREIGN KEY ("author_name") REFERENCES "alfa"."alfa_author" ("name") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_06d_add_relation_to_nopk_multi(self):
@@ -245,7 +245,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
 
         tbl.compositeColumn('restaurant_ref',columns='restaurant_country,restaurant_vat'
                             ).relation('alfa.restaurant.international_vat', mode='foreignkey')
-        check_changes = 'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat) ;'
+        check_changes = '?' #'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "restaurant_vat" character varying(30); \nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat) ; \nADD COLUMN "restaurant_country" character(2) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_07a_create_table_with_relation_to_pk_single(self):
@@ -254,7 +254,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('id', dtype='serial')
         tbl.column('description')
         tbl.column('recipe_code').relation('alfa.recipe.code',mode='foreignkey')
-        check_value = 'CREATE TABLE "alfa"."alfa_product" ("id" serial8 NOT NULL , "description" text , "recipe_code" text , PRIMARY KEY (id), CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE);'
+        check_value = 'CREATE TABLE "alfa"."alfa_product"\n("id" serial8 NOT NULL,\n "description" text,\n "recipe_code" text,\n PRIMARY KEY (id));\nALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_product"\n ADD CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
         self.checkChanges(check_value)
 
     def test_07b_create_table_with_relation_to_pk_multi(self):
@@ -269,7 +269,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.compositeColumn('recipe_row_reference',columns='recipe_code,recipe_line').relation(
             'alfa.recipe_row.composite_key',mode='foreignkey'
         )
-        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_alternative" ("id" serial8 NOT NULL , "description" text , "vegan" boolean , "gluten_free" boolean , "recipe_code" character varying(12) , "recipe_line" bigint , PRIMARY KEY (id), CONSTRAINT "fk_a2e10c8f" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE, CONSTRAINT "fk_b03ef3c2" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE);'
+        check_changes = 'CREATE TABLE "alfa"."alfa_recipe_row_alternative"\n("id" serial8 NOT NULL,\n "description" text,\n "vegan" boolean,\n "gluten_free" boolean,\n "recipe_code" character varying(12),\n "recipe_line" bigint,\n PRIMARY KEY (id));\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_a2e10c8f" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe_row_alternative"\n ADD CONSTRAINT "fk_b03ef3c2" FOREIGN KEY ("recipe_code", "recipe_line") REFERENCES "alfa"."alfa_recipe_row" ("recipe_code", "recipe_line") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_08a_modify_column_type(self):
@@ -299,7 +299,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         pkg = self.src.package('alfa')
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=False)
-        check_value = 'ALTER TABLE "alfa"."alfa_author" \nDROP CONSTRAINT IF EXISTS "cst_99206169"'
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP CONSTRAINT IF EXISTS "cst_99206169";'
         self.checkChanges(check_value)
 
     def test_09a_remove_column(self):

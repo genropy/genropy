@@ -60,6 +60,7 @@ class TestHandler(BaseComponent):
             
 class TestHandlerBase(TestHandler):
     def main_root(self, root, **kwargs):
+        root.css('#mainWindow{overflow:auto !important;}')
         if self._call_args:
             if '*' in self._call_args:
                 self.testOnly = False
@@ -69,6 +70,7 @@ class TestHandlerBase(TestHandler):
         
 class TestHandlerFull(TestHandler):
     def main(self, root, **kwargs):
+        root.css('#mainWindow{overflow:auto !important;}')
         if self._call_args:
             if '*' in self._call_args:
                 self.testOnly = False
