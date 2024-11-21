@@ -5,7 +5,6 @@ import json
 import time
 import functools
 from collections import defaultdict
-from gnr.core.gnrstring import boolean
 from deepdiff import DeepDiff
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
@@ -86,7 +85,7 @@ def new_index_item(schema_name,table_name,columns,attributes=None,index_name=Non
                 "entity_name": hashed_entity_name,
                 "attributes":clean_attributes(attributes),
                 "schema_name": schema_name,
-                "table_name": table_name,
+                "table_name": table_name
                 }
 
 def nested_defaultdict():
@@ -173,7 +172,7 @@ class OrmExtractor:
 
         self.json_structure = new_structure_root(self.db.dbname)
         self.schemas = self.json_structure['root']['schemas']
-        self.tenant_schema = []
+        self.tenant_schema_tables = []
         self.deferred_indexes = []
 
     def fill_json_package(self,pkgobj):
@@ -181,7 +180,8 @@ class OrmExtractor:
         self.schemas[schema_name] = new_schema_item(schema_name)
         for tblobj in pkgobj.tables.values():
             self.fill_json_table(tblobj)
-            
+            if tblobj.multi_tenant:
+                self.tenant_schema_tables.append(tblobj)
 
     def fill_json_table(self,tblobj,tenant_schema=None):
         schema_name = tenant_schema or tblobj.pkg.sqlname
@@ -192,11 +192,11 @@ class OrmExtractor:
         self.schemas[schema_name]['tables'][table_name] = table_entity
         for colobj in tblobj.columns.values():
             self.fill_json_column(colobj,tenant_schema=tenant_schema)
+            self.fill_json_relations_and_indexes(colobj,tenant_schema=tenant_schema)
+
         for compositecol in tblobj.composite_columns.values():
-            self.handle_relations_and_indexes(compositecol,tenant_schema=tenant_schema)
-            self.handle_multiple_unique_constraint(compositecol,tenant_schema=tenant_schema)
-        if tblobj.multi_tenant:
-            self.tenant_schema.append(table_name)
+            self.fill_json_relations_and_indexes(compositecol,tenant_schema=tenant_schema)
+            self.fill_multiple_unique_constraint(compositecol,tenant_schema=tenant_schema)
 
 
     def fill_json_column(self,colobj,tenant_schema=None):
@@ -209,26 +209,35 @@ class OrmExtractor:
         pkeys = table_json['attributes']['pkeys']
         if pkeys and (column_name in pkeys.split(',')):
             attributes['notnull'] = '_auto_'
-            attributes.pop('unique',None)
+            #attributes.pop('unique',None)
+            attributes.pop('indexed',None)
         column_entity = new_column_item(schema_name,table_name,column_name,attributes=attributes)
         table_json['columns'][colobj.sqlname] = column_entity
-        self.handle_relations_and_indexes(colobj,tenant_schema=tenant_schema)
     
-    def handle_relations_and_indexes(self,colobj,tenant_schema=None):
-        table_name = colobj.table.sqlname
-        schema_name = tenant_schema or colobj.table.pkg.sqlname
+    
+    def fill_json_relations_and_indexes(self,colobj,tenant_schema=None):
         colattr = colobj.attributes
         joiner =  colobj.relatedColumnJoiner()
         indexed = colattr.get('indexed')
+        unique = colattr.get('unique')
+        table_name = colobj.table.sqlname
+        schema_name = tenant_schema or colobj.table.pkg.sqlname
         table_json = self.schemas[schema_name]['tables'][table_name]
-        if joiner and joiner.get('foreignkey'):
-            relation_json = self.handle_column_relation(colobj=colobj,joiner=joiner,tenant_schema=tenant_schema)
-            table_json["relations"][relation_json["entity_name"]] = relation_json
-        if indexed:
-            indexed_json = self.handle_column_indexed(colobj=colobj,indexed=indexed,tenant_schema=tenant_schema)
-            table_json["indexes"][indexed_json["entity_name"]] = indexed_json
-    
-    def handle_multiple_unique_constraint(self,compositecol,tenant_schema=None):
+        pkeys = table_json['attributes']['pkeys']
+        is_in_pkeys =  pkeys and (colobj.name in pkeys.split(','))
+            
+        if joiner:
+            indexed = indexed or True
+            if joiner.get('foreignkey'):
+                self.fill_json_relation(colobj=colobj,joiner=joiner,tenant_schema=tenant_schema)
+        if indexed and not (is_in_pkeys and indexed is True):
+            self.fill_json_column_index(colobj=colobj,indexed=indexed,tenant_schema=tenant_schema)
+        elif unique and not is_in_pkeys:
+            self.fill_json_column_index(colobj=colobj,indexed=dict(unique=True),
+                                        tenant_schema=tenant_schema)
+
+
+    def fill_multiple_unique_constraint(self,compositecol,tenant_schema=None):
         colattr = compositecol.attributes
         if not colattr.get('unique'):
             return
@@ -254,7 +263,7 @@ class OrmExtractor:
             return 'SET DEFAULT'
             
 
-    def handle_column_relation(self,colobj,joiner=None,tenant_schema=None):
+    def fill_json_relation(self,colobj,joiner=None,tenant_schema=None):
         columns = (colobj.attributes.get('composed_of') or colobj.name).split(',')
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
@@ -273,13 +282,15 @@ class OrmExtractor:
         attributes['constraint_type'] = "FOREIGN KEY"
         attributes['deferrable'] = joiner.get('deferrable') or joiner.get('deferred')
         attributes['initially_deferred'] = joiner.get('initially_deferred') or joiner.get('deferred')
-        result = new_relation_item(schema_name,table_name,columns,attributes=attributes)
+        relation_item = new_relation_item(schema_name,table_name,columns,attributes=attributes)
         if attributes['related_columns'] != rel_tblobj.pkeys:
             self.deferred_indexes.append({"colobj":colobj,"tenant_schema":tenant_schema})
-
-        return result
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        table_json["relations"][relation_item["entity_name"]] = relation_item
     
-    def handle_column_indexed(self,colobj,indexed=None,tenant_schema=None):
+    def fill_json_column_index(self,colobj,indexed=None,tenant_schema=None):
+        if colobj.name == 'sigla' and table_name=='glbl_provincia':
+            print(x)
         indexed =  {} if indexed is True else dict(indexed) 
         with_options = dictExtract(indexed,'with_',pop=True)
         sorting = indexed.pop('sorting',None)
@@ -292,7 +303,9 @@ class OrmExtractor:
             with_options=with_options,
             **indexed
         )
-        return new_index_item(schema_name,table_name,columns,attributes=attributes)
+        index_item = new_index_item(schema_name,table_name,columns,attributes=attributes)
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        table_json["indexes"][index_item["entity_name"]] = index_item
        
 
     def convert_colattr(self,colattr):
@@ -323,26 +336,25 @@ class OrmExtractor:
         for deferred_index_kw in self.deferred_indexes:
             colobj = deferred_index_kw['colobj']
             tenant_schema = deferred_index_kw['tenant_schema']
-            table_name = colobj.table.sqlname
-            schema_name = tenant_schema or colobj.table.pkg.sqlname
-            table_json = self.schemas[schema_name]['tables'][table_name]
-            indexed_json = self.handle_column_indexed(colobj=colobj,indexed=True,tenant_schema=tenant_schema)
-            table_json["indexes"][indexed_json["entity_name"]] = indexed_json
+            self.fill_json_column_index(colobj=colobj,indexed=True,tenant_schema=tenant_schema)
         return self.json_structure
     
     def add_tenant_schemas(self):
         if not self.migrator:
             return
-        for tenant in self.migrator.tenant_schemas:
-            pass
+        for tenant_schema in self.migrator.tenant_schemas:
+            self.schemas[tenant_schema] = new_schema_item(tenant_schema)
+            for tblobj in self.tenant_schema_tables:
+                self.fill_json_table(tblobj,tenant_schema=tenant_schema)
     
 class DbExtractor(object):
     col_json_keys =  COL_JSON_KEYS
     
-    def __init__(self,migrator=None, db=None):
+    def __init__(self,migrator=None, db=None,ignore_constraint_name=False):
         self.migrator = migrator
         self.db = db or self.migrator.db
         self.conn = None
+        self.ignore_constraint_name = ignore_constraint_name
 
     def connect(self):
         """Establishes the connection to the database."""
@@ -434,7 +446,7 @@ class DbExtractor(object):
             for multiple_unique_const in multiple_unique.values():
                 const_item = new_constraint_item(schema_name,table_name,multiple_unique_const['columns'],
                                     constraint_type='UNIQUE',
-                                    constraint_name=v['constraint_name'])
+                                    constraint_name=None if self.ignore_constraint_name else v['constraint_name'])
                 table_json['constraints'][const_item['entity_name']] = const_item
             #we do not handle CHECK constraints
             
@@ -442,8 +454,10 @@ class DbExtractor(object):
     def process_table_relations(self,schema_name,table_name,foreign_keys_dict):
         relations = self.json_schemas[schema_name]["tables"][table_name]['relations']
         for entity_attributes in foreign_keys_dict.values():
+            constraint_name = entity_attributes.pop('constraint_name',None)
             relation_item = new_relation_item(schema_name,table_name,columns=entity_attributes['columns'],
-                                              attributes=entity_attributes)
+                                              attributes=entity_attributes,
+                                              constraint_name=None if self.ignore_constraint_name else constraint_name)
             relations[relation_item['entity_name']] = relation_item
             
 
@@ -457,19 +471,29 @@ class DbExtractor(object):
                     continue
                 indexed_columns = list(index_attributes['columns'].keys())
                 index_item = new_index_item(schema_name,table_name,columns=indexed_columns,
-                                            attributes=index_attributes,index_name=index_name)
+                                            attributes=index_attributes,
+                                            index_name=None if self.ignore_constraint_name else index_name)
                 table_json['indexes'][index_item['entity_name']] = index_item
 
                 
 class SqlMigrator():
-    def __init__(self,db):
+    def __init__(self,db,ignore_constraint_name=False):
         self.db = db
         self.sql_commands = {'db_creation':None,'build_commands':None}
-        self.dbExtractor = DbExtractor(migrator=self)
+        self.dbExtractor = DbExtractor(migrator=self,ignore_constraint_name=ignore_constraint_name)
         self.ormExtractor = OrmExtractor(migrator=self)
 
 
+    
     def prepareMigrationCommands(self):
+        self.prepareStructures()
+        self.setDiff()
+        self.commands = nested_defaultdict()
+        for evt,kw in self.structChanges(self.diff):
+            handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
+            handler(**kw)
+ 
+    def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
         try:
             self.tenant_schemas = self.db.getTenantSchemas()
@@ -477,15 +501,6 @@ class SqlMigrator():
             self.tenant_schemas = []
         self.extractOrm()
         self.extractSql(schemas=self.application_schemas+self.tenant_schemas)
-        #self.extractSql(schemas=self.tenant_schemas)
-        #for tentant in self.tenant_schemas:
-        #    pass
-        self.setDiff()
-        self.commands = nested_defaultdict()
-        for evt,kw in self.structChanges(self.diff):
-            handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
-            handler(**kw)
- 
 
     def extractSql(self,schemas=None):
         self.sqlStructure = self.dbExtractor.get_json_struct(schemas=schemas)
@@ -821,6 +836,9 @@ class SqlMigrator():
         )
         constraints_dict[constraint_name]['command'] = f"DROP CONSTRAINT {constraint_name};\nADD {add_sql}"
 
+    def removed_table(self,item=None,**kwargs):
+        pass
+
     def removed_column(self,item=None,**kwargs):
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         entity_name = item['entity_name']
@@ -864,6 +882,7 @@ class SqlMigrator():
                                                        method=attributes.get("method"),
                                                        with_options=attributes.get("with_options"),
                                                        tablespace= attributes.get("tablespace"),
+                                                       unique=attributes.get('unique'),
                                                        where=attributes.get('where'))
         
         
@@ -976,12 +995,10 @@ def dbsetupComparison():
 def multiTenantTester():
     app = GnrApp('ts2')
     mig = SqlMigrator(app.db)
-    orm_extractor = mig.ormExtractor
-    json_struct = orm_extractor.get_json_struct()
+    mig.prepareMigrationCommands()
     with open('ts2_multi_tenant_orm.json','w') as f:
-        f.write(json.dumps(json_struct))
+        f.write(json.dumps(mig.ormStructure))
 
-    mig.extractSql(schemas=mig.application_schemas+mig.tenant_schemas)
     with open('ts2_multi_tenant_sql.json','w') as f:
         f.write(json.dumps(mig.sqlStructure))
 
