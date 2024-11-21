@@ -212,7 +212,7 @@ class SqlDbAdapter(object):
         :param colinfo: dict of column infos
         :param prefix: adapter specific prefix
         :returns: a new colinfo dict"""
-        standard_keys = ('name', 'default', 'notnull', 'dtype', 'position', 'length')
+        standard_keys = ('name','sqldefault', 'notnull', 'dtype', 'position', 'length')
         d = {k: v for k, v in colinfo.items() if k in standard_keys}
         d.update({f"{prefix}{k}": v for k, v in colinfo.items() if k not in standard_keys})
         return d

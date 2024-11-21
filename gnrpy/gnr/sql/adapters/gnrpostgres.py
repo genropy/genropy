@@ -717,25 +717,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 dtype=data_type,
                 length=char_max_length,
                 is_nullable=is_nullable,
-                default=column_default,
+                sqldefault=column_default,
                 numeric_precision=numeric_precision,
                 numeric_scale=numeric_scale
             )
-            
             col = self._filterColInfo(col, '_pg_')
-            
-            if col['default'] and col['default'].startswith('nextval('):
-                col['_pg_default'] = col.pop('default')
-            
-            
+            if col['sqldefault'] and col['sqldefault'].startswith('nextval('):
+                col['_pg_default'] = col.pop('sqldefault')
             dtype = col['dtype'] = self.typesDict.get(col['dtype'], 'T')  # Default 'T' per tipi non riconosciuti
-            if col.get('default'):
-                if '::' in col['default']:
-                    col['default'] = col['default'].split("::")[0].strip("'")
-                if dtype=='L':
-                    col['default'] = int(col['default'])
-                elif dtype=='N':
-                    col['default'] = Decimal(col['default'])
             if dtype == 'N':
                 precision = col.pop('_pg_numeric_precision', None)
                 scale = col.pop('_pg_numeric_scale', None)
