@@ -894,7 +894,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             # Inizializza il dizionario per l'indice se non esiste già
             if index_name not in indexes[table_key]:
                 indexes[table_key][index_name] = {
-                    "is_unique": is_unique,
+                    "unique": is_unique,
                     "method": index_method if index_method != DEFAULT_INDEX_METHOD else None,
                     "tablespace": tablespace,
                     "where": where_clause,
