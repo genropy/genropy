@@ -555,6 +555,7 @@ class SqlMigrator():
         self.commands.pop('db',None) #rebuils
         
 
+    
     def structChanges(self,diff):
         for key,evt in (('dictionary_item_added','added'),
                         ('dictionary_item_removed','removed'),
@@ -568,39 +569,17 @@ class SqlMigrator():
                 if changed_attribute:
                     change = self.get_diff_item_of_entity(change)
                     evt = 'changed'
-                    #if add or remove attribute it will be handled as a change of the entity
-                if evt=='changed':
-                    
-                    if not changed_attribute:
-                        new_val = change.t2 or {} 
-                        old_val = change.t1 or {}
-                        action = 'added'
-                        if not new_val or str(new_val) == 'not present':
-                            action = 'removed'
-                            val = old_val
-                        else:
-                            action = 'added'
-                            val = new_val
-                        entity_nodes = []
-                        if val.get('entity'):
-                            entity_nodes = [val]
-                        else:
-                            entity_nodes = val.values()
-                        for entity_node in entity_nodes:
-                            kw['entity'] = entity_node['entity']
-                            kw['entity_name'] = entity_node['entity_name']
-                            kw['item'] = entity_node
-                            yield action,kw
-                            
-                        continue
-                    else:
-                        changed_entity = change.t2
-                        kw['entity'] = changed_entity['entity']
-                        kw['entity_name'] = changed_entity['entity_name']
-                        kw['changed_attribute'] = changed_attribute
-                        kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
-                        kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
-                        kw['item'] = changed_entity
+                    changed_entity = change.t2
+                    kw['entity'] = changed_entity['entity']
+                    kw['entity_name'] = changed_entity['entity_name']
+                    kw['changed_attribute'] = changed_attribute
+                    kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
+                    kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
+                    kw['item'] = changed_entity
+                elif evt=='changed':
+                    #handle changed collection
+                    for evt,kw in self._structChanges_changed_collection(change):
+                        yield evt,kw
                 elif evt == 'added':
                     kw['entity'] = change.t2['entity']
                     kw['entity_name'] = change.t2['entity_name']
@@ -610,8 +589,32 @@ class SqlMigrator():
                     kw['entity'] = change.t1['entity']
                     kw['entity_name'] = change.t1['entity_name']
                     kw['item'] = change.t1
-                
                 yield evt,kw
+
+    def _structChanges_changed_collection(self,change):
+        new_val = change.t2 or {} 
+        old_val = change.t1 or {}
+        action = 'added'
+        if not new_val or str(new_val) == 'not present':
+            action = 'removed'
+            val = old_val
+        elif not old_val or str(old_val) == 'not present':
+            action = 'added'
+            val = new_val
+        else:
+            action = 'added'
+            val = {k:v for k,v in new_val.items() if k not in old_val}
+        entity_nodes = []
+        if val.get('entity'):
+            entity_nodes = [val]
+        else:
+            entity_nodes = val.values()
+        for entity_node in entity_nodes:
+            yield action,{
+                "entity":entity_node['entity'],
+                "entity_name":entity_node['entity_name'],
+                "item":entity_node
+            }
 
     def get_diff_item_of_entity(self,change):
         changed_entity = change.t2
