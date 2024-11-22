@@ -382,7 +382,13 @@ class GnrWebUtils(GnrBaseProxy):
                                             messageType='warning')
         else:
             for r in rows:
-                with tblobj.recordToUpdate(r[tblobj.pkey],insertMissing=True) as rec:
+                pkey = r.get(tblobj.pkey)
+                if not pkey: 
+                    recordkw = dict(r)
+                    recordkw.pop('_coerce_errors',None)
+                else:
+                    recordkw = dict(pkey=pkey)
+                with tblobj.recordToUpdate(insertMissing=True,**recordkw) as rec:
                     rec.update(r)
                 docommit=True
         if docommit:
