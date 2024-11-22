@@ -1090,6 +1090,68 @@ class GnrWhereTranslator(object):
             result.append('%s%s' % (negate, condition))
         return result, sqlArgs
 
+# new methods for sqlmigrator
+
+    def struct_get_schema_info(self, schemas=None):
+        """
+        Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'.
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_table_fullname_sql(self, schema_name, table_name):
+        """Returns the full table name with schema."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_table_pkey_sql(self, schema_name, table_name):
+        """Generates SQL to drop the primary key from a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_table_pkey_sql(self, schema_name, table_name, pkeys):
+        """Generates SQL to add a primary key to a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_schema_info_sql(self):
+        """Returns SQL to retrieve schema information."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_constraints_sql(self):
+        """Returns SQL to retrieve table constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_indexes_sql(self):
+        """Returns SQL to retrieve table indexes."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_create_index_sql(self, schema_name=None, table_name=None, columns=None, index_name=None, unique=None, **kwargs):
+        """Generates SQL to create an index."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
+        """Generates SQL to alter the type of a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to add a NOT NULL constraint to a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to drop a NOT NULL constraint from a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_constraint_sql(self, constraint_name, **kwargs):
+        """Generates SQL to drop a constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
+                               on_delete=None, on_update=None, **kwargs):
+        """Generates SQL to create a foreign key constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_constraint_sql(self, constraint_name=None, constraint_type=None, columns=None, check_clause=None, **kwargs):
+        """Generates SQL to create a constraint (e.g., UNIQUE, CHECK)."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
 
 class GnrDictRow(GnrNamedList):
     """A row object that allow by-column-name access to data, the capacity to add columns and alter data."""
