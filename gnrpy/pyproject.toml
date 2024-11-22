@@ -58,6 +58,7 @@ dependencies = [
 	     "reportlab",
 	     "caldav",
 	     "weasyprint",
+	     "deepdiff", # for gnr.sql migration
 	     ]
 
 [project.optional-dependencies]

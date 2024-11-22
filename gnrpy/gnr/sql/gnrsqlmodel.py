@@ -696,7 +696,7 @@ class DbModelSrc(GnrStructData):
             if dtype in ('A','C','T'):
                 val = f""" '"' ||  ${column} || '"' """
             elif dtype not in ('L','F','R','B'):
-                val = f""" '"' ||  ${column} || '\:\:{dtype}"' """ 
+                val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """ 
             chunks.append(f"""(CASE WHEN ${column} IS NULL THEN 'null' ELSE {val} END) """)
         sql_formula = " ||','||".join(chunks)
         sql_formula = f"'[' || {sql_formula} || ']' "

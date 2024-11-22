@@ -9,7 +9,7 @@
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
-from psycopg2.errors import UndefinedTable
+
 class ModelExtractor(object):
     """TODO"""
     def __init__(self, dbroot):

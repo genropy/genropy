@@ -1,5 +1,4 @@
-import os
-from gnr.sql.gnrsqlmigration import SqlMigrator,json_equal
+from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql.gnrsql import GnrSqlDb
 from .common import BaseGnrSqlTest
 

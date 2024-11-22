@@ -32,7 +32,6 @@ from decimal import Decimal
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 from gnr.core.gnrdate import decodeDatePeriod
 
