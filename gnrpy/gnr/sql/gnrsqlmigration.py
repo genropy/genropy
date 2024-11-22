@@ -6,6 +6,8 @@ import time
 import functools
 from collections import defaultdict
 from deepdiff import DeepDiff
+from deepdiff.helper import NotPresent
+
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
@@ -595,10 +597,10 @@ class SqlMigrator():
         new_val = change.t2 or {} 
         old_val = change.t1 or {}
         action = 'added'
-        if not new_val or str(new_val) == 'not present':
+        if not new_val or isinstance(new_val,NotPresent):
             action = 'removed'
             val = old_val
-        elif not old_val or str(old_val) == 'not present':
+        elif not old_val or isinstance(old_val,NotPresent):
             action = 'added'
             val = new_val
         else:
