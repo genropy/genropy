@@ -20,7 +20,7 @@ S_GNRINSTANCES = (os.environ.get('GNRINSTANCES') and os.path.split(os.environ.ge
 S_GNRHOME + ('data', 'instances'))
 GNRINSTANCES = os.path.join(*S_GNRINSTANCES)
 
-description = "create/update/check database models in Genro framework"
+description = "create/update/check database models in Genro framework NG"
 
 
 def site_name_to_path(gnr_config, site_name):
