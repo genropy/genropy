@@ -6,6 +6,7 @@ all packages in the gnr namespace, organize them in section and commands,
 and shift argv to let each script handle arguments by itself.
 """
 
+import time
 import os, os.path
 import sys
 from importlib import import_module
@@ -124,7 +125,14 @@ class CommandManager():
                 # sys.argv.pop(0)
                 # sys.argv.insert(0, cmd_impl[0].name)
                 cmd_module = cmd_impl[2]
+
+                # measure execution time
+                start_time = time.time()
                 cmd_module.main()
+                end_time = time.time() - start_time
+                
+                if "--timeit" in sys.argv:
+                    print(f"Total execution time: {end_time:.3f}s")
                 
             else:
                 print("Command not found! please run with --help")

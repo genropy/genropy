@@ -627,7 +627,8 @@ class SqlTable(GnrObject):
                         if record[k] and len(record[k])>max_size:
                             _coerce_errors.append(f'Max len exceeded for field {k} {record[k]} ({max_size})')
                             record[k] = None
-        record['_coerce_errors'] = ','.join(_coerce_errors)
+        if _coerce_errors:
+            record['_coerce_errors'] = ','.join(_coerce_errors)
 
 
 
