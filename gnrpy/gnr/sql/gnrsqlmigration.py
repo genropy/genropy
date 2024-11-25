@@ -13,6 +13,16 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
+ENTITY_TREE = {
+        'schemas':{
+            'tables':{
+                'columns':None,
+                'relations':None,
+                'constraints':None,
+                'indexes':None,
+            }
+        }
+}
 
 COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique")
 
@@ -123,6 +133,34 @@ def json_equal(json1, json2):
     return json1_str == json2_str
 
 
+def json_to_tree(data,key,entity_tree=None,parent=None):
+    if parent is None:
+        parent = Bag()
+    if not data:
+        return parent
+    entity_tree = entity_tree or ENTITY_TREE
+    entities = data[key]
+    for entity_item in entities.values():
+        content = Bag()
+        parent.addItem(entity_item['entity_name'],content,
+                    name=entity_item['entity_name'],
+                    entity=entity_item['entity'],
+                    _attributes=entity_item.get('attributes',{}))
+        if not entity_tree[key]:
+            continue
+        children_keys = list(entity_tree[key].keys())
+        single_children = len(children_keys)==1
+        for childname in children_keys:
+            collections = content
+            if not single_children:
+                collections = Bag()
+                content.addItem(childname,collections,name=childname)
+            json_to_tree(data[key][entity_item['entity_name']],key=childname,entity_tree=entity_tree[key],parent=collections)
+    return parent
+       
+
+
+
 
 def measure_time(func):
     @functools.wraps(func)
@@ -140,6 +178,8 @@ def measure_time(func):
 def clean_attributes(attributes):
     return {k:v for k,v in attributes.items() if v not in (None,{},False,[],'', "NO ACTION")}
     
+
+
 
  
 def hashed_name(schema, table, columns, obj_type='idx'):
@@ -486,11 +526,13 @@ class DbExtractor(object):
 
                 
 class SqlMigrator():
-    def __init__(self,db,ignore_constraint_name=False):
+    def __init__(self,db,ignore_constraint_name=False,
+                 exclude_readOnly=True,apply_permissions=None):
         self.db = db
         self.sql_commands = {'db_creation':None,'build_commands':None}
         self.dbExtractor = DbExtractor(migrator=self,ignore_constraint_name=ignore_constraint_name)
         self.ormExtractor = OrmExtractor(migrator=self)
+        self.apply_permissions = apply_permissions or {'added':True,'changed':True,'removed':False}
 
 
     
@@ -553,6 +595,14 @@ class SqlMigrator():
         return result
 
 
+    def jsonModelWithoutMeta(self,keys_to_remove=None):
+        if not (self.sqlStructure or self.ormStructure):
+            self.prepareStructures()
+        result = Bag()
+        result.addItem('orm',json_to_tree(self.ormStructure.get('root'),key='schemas'))
+        result.addItem('sql',json_to_tree(self.sqlStructure.get('root'),key='schemas'))
+        return result
+    
     def clearCommands(self):
         self.commands.pop('db',None) #rebuils
         
@@ -587,7 +637,6 @@ class SqlMigrator():
                     kw['entity_name'] = change.t2['entity_name']
                     kw['item'] = change.t2
                 elif evt == 'removed':
-                    kw['action'] = 'REMOVE'
                     kw['entity'] = change.t1['entity']
                     kw['entity_name'] = change.t1['entity_name']
                     kw['item'] = change.t1
@@ -1014,5 +1063,13 @@ def multiTenantTester():
     with open('ts2_multi_tenant_sql.json','w') as f:
         f.write(json.dumps(mig.sqlStructure))
 
+def testTree():
+    app = GnrApp('sandboxpg')
+    mig = SqlMigrator(app.db)
+    mig.prepareMigrationCommands()
+    res = mig.jsonModelWithoutMeta()
+    print(res)
+
 if __name__ == '__main__':
-    multiTenantTester()
+    testTree()
+    #multiTenantTester()
