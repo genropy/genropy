@@ -1062,6 +1062,120 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
 
 
+    def struct_get_extensions_sql(self):
+        return """
+        SELECT 
+            e.extname AS extension_name,     -- Name of the extension
+            e.extversion AS version,         -- Version of the extension
+            e.extrelocatable AS relocatable, -- Whether the extension is relocatable
+            e.extconfig AS config_tables,    -- Configuration tables of the extension
+            e.extcondition AS conditions,    -- Conditions associated with the extension
+            n.nspname AS schema_name         -- Schema associated with the extension objects
+        FROM 
+            pg_extension e
+        JOIN 
+            pg_namespace n ON e.extnamespace = n.oid
+        ORDER BY 
+            e.extname;
+        """
+
+    def struct_get_extensions(self):
+        query = self.struct_get_extensions_sql()
+        extensions = {}
+
+        # Execute the query and process the results
+        for row in self.raw_fetch(query, ()):
+            (extension_name, version, relocatable, config_tables, conditions, schema_name) = row
+            
+            # Add the extension details to the dictionary
+            extensions[extension_name] = {
+                "version": version,
+                "relocatable": relocatable,
+                "config_tables": config_tables or [],
+                "conditions": conditions or [],
+                "schema_name": schema_name  # Schema where the extension objects are created
+            }
+
+        return extensions
+    
+    def struct_create_extension_sql(self, extension_name, schema_name=None, version=None, cascade=False):
+        """
+        Generates the SQL to create an extension with optional schema, version, and cascade options.
+        """
+        # Schema clause
+        schema_clause = f"SCHEMA {schema_name}" if schema_name else ""
+        # Version clause
+        version_clause = f"VERSION '{version}'" if version else ""
+        # Cascade clause
+        cascade_clause = "CASCADE" if cascade else ""
+
+        # Compose the final SQL statement
+        sql = f"""
+        CREATE EXTENSION IF NOT EXISTS {extension_name}
+        {schema_clause}
+        {version_clause}
+        {cascade_clause};
+        """
+        
+        # Return a clean, single-line SQL string
+        return " ".join(sql.split())
+
+
+    def struct_get_event_triggers_sql(self):
+        return """
+        SELECT 
+            evtname AS trigger_name,         -- Name of the event trigger
+            evtevent AS event,              -- Event that fires the trigger (DDL command type)
+            evtowner::regrole AS owner,     -- Owner of the event trigger
+            obj_description(oid, 'pg_event_trigger') AS description, -- Description of the event trigger
+            evtfoid::regprocedure AS function_name, -- Function invoked by the trigger
+            evtenabled AS enabled_state,    -- Whether the trigger is enabled (O = enabled, D = disabled, R = replica)
+            evttags AS event_tags           -- Tags for the event trigger
+        FROM 
+            pg_event_trigger
+        ORDER BY 
+            trigger_name;
+        """
+
+
+    def struct_get_event_triggers(self):
+        query = self.struct_get_event_triggers_sql()
+        event_triggers = {}
+
+        # Execute the query and process the results
+        for row in self.raw_fetch(query, ()):
+            (trigger_name, event, owner, description, function_name, enabled_state, event_tags) = row
+            
+            # Add the event trigger details to the dictionary
+            event_triggers[trigger_name] = {
+                "event": event,
+                "owner": owner,
+                "description": description,
+                "function_name": function_name,
+                "enabled_state": enabled_state,
+                "event_tags": event_tags or []
+            }
+
+        return event_triggers
+    
+    def struct_create_event_trigger_sql(self, trigger_name, event, function_name, when=None, tags=None):
+        """
+        Generates the SQL to create an event trigger.
+        """
+        # WHEN clause
+        when_clause = f"WHEN TAG IN ({', '.join(f"'{tag}'" for tag in tags)})" if tags else ""
+        
+        # Compose the final SQL statement
+        sql = f"""
+        CREATE EVENT TRIGGER {trigger_name}
+        ON {event}
+        EXECUTE FUNCTION {function_name}
+        {when_clause};
+        """
+        
+        # Return a clean, single-line SQL string
+        return " ".join(sql.split())
+    
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
 

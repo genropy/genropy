@@ -32,7 +32,9 @@ def new_structure_root(dbname):
     return {'root':{
             'entity':'db',
             'entity_name':dbname,
-            'schemas':{}
+            'schemas':{},
+            'extensions':{},
+            'event_triggers':{}
             }
         }
 
@@ -527,14 +529,14 @@ class DbExtractor(object):
                 
 class SqlMigrator():
     def __init__(self,db,ignore_constraint_name=False,
-                 exclude_readOnly=True,apply_permissions=None):
+                 excludeReadOnly=True,
+                 removeDisabled=None):
         self.db = db
         self.sql_commands = {'db_creation':None,'build_commands':None}
         self.dbExtractor = DbExtractor(migrator=self,ignore_constraint_name=ignore_constraint_name)
         self.ormExtractor = OrmExtractor(migrator=self)
-        self.apply_permissions = apply_permissions or {'added':True,'changed':True,'removed':False}
-
-
+        self.excludeReadOnly = excludeReadOnly
+        self.removeDisabled = removeDisabled
     
     def prepareMigrationCommands(self):
         self.prepareStructures()
