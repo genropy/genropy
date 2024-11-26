@@ -200,9 +200,114 @@ class PgDbUtils:
         """
         return self._query_to_json(query)
 
+
+    # New methods using pg_stat_statements
+
+    def pgstats_top_queries(self, limit=10):
+        """
+        Returns the top N queries by total execution time.
+
+        :param limit: Number of queries to retrieve
+        :return: Top queries in JSON format
+        """
+        query = f"""
+        SELECT
+            query,
+            calls,
+            total_time,
+            mean_time,
+            rows
+        FROM pg_stat_statements
+        ORDER BY total_time DESC
+        LIMIT {limit};
+        """
+        return self._query_to_json(query)
+
+    def pgstats_most_called_queries(self, limit=10):
+        """
+        Returns the top N most called queries.
+
+        :param limit: Number of queries to retrieve
+        :return: Most called queries in JSON format
+        """
+        query = f"""
+        SELECT
+            query,
+            calls,
+            total_time,
+            mean_time,
+            rows
+        FROM pg_stat_statements
+        ORDER BY calls DESC
+        LIMIT {limit};
+        """
+        return self._query_to_json(query)
+
+    def pgstats_least_efficient_queries(self, limit=10):
+        """
+        Returns the top N least efficient queries (highest mean execution time).
+
+        :param limit: Number of queries to retrieve
+        :return: Least efficient queries in JSON format
+        """
+        query = f"""
+        SELECT
+            query,
+            calls,
+            total_time,
+            mean_time,
+            rows
+        FROM pg_stat_statements
+        ORDER BY mean_time DESC
+        LIMIT {limit};
+        """
+        return self._query_to_json(query)
+
+    def pgstats_query_io_statistics(self, limit=10):
+        """
+        Returns the top N queries by I/O usage.
+
+        :param limit: Number of queries to retrieve
+        :return: Query I/O statistics in JSON format
+        """
+        query = f"""
+        SELECT
+            query,
+            shared_blks_hit AS cache_hits,
+            shared_blks_read AS disk_reads,
+            shared_blks_dirtied AS dirty_blocks,
+            shared_blks_written AS written_blocks
+        FROM pg_stat_statements
+        ORDER BY shared_blks_read DESC
+        LIMIT {limit};
+        """
+        return self._query_to_json(query)
+
+    def pgstats_query_memory_statistics(self, limit=10):
+        """
+        Returns the top N queries by temporary memory usage.
+
+        :param limit: Number of queries to retrieve
+        :return: Query memory usage statistics in JSON format
+        """
+        query = f"""
+        SELECT
+            query,
+            temp_blks_read AS temp_blocks_read,
+            temp_blks_written AS temp_blocks_written,
+            total_time / calls AS avg_time_per_call
+        FROM pg_stat_statements
+        ORDER BY temp_blks_written DESC
+        LIMIT {limit};
+        """
+        return self._query_to_json(query)
+
+
     @classmethod 
-    def list_pgutils(self):
-        return {methodname[8:]:getattr(self,methodname).__doc__.split('\n')[1] for methodname in dir(self) if methodname.startswith('pgutils_')}
+    def list_pgutils(self,prefix=None):
+        return {methodname:getattr(self,methodname).__doc__.split('\n')[1] for methodname in dir(self) if methodname.startswith(f'{prefix}_')}
+
+
 
 if __name__ == '__main__':
     from gnr.app.gnrapp import GnrApp

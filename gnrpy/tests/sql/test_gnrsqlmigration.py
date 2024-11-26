@@ -50,7 +50,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         super().setup_class()
         cls.init()
         cls.src = cls.db.model.src
-        cls.migrator = SqlMigrator(cls.db)
+        cls.migrator = SqlMigrator(cls.db,removeDisabled=False)
         cls.db.dropDb(cls.dbname)
 
     @classmethod

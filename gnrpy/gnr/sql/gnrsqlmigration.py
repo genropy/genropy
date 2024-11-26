@@ -567,7 +567,7 @@ class SqlMigrator():
         self.extensions = extensions.split(',') if extensions else []
         self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
         self.dbExtractor = DbExtractor(migrator=self,ignore_constraint_name=ignore_constraint_name)
-        self.ormExtractor = OrmExtractor(migrator=self)
+        self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
     
