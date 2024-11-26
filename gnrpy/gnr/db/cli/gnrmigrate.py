@@ -198,7 +198,10 @@ def main():
             app.db.commit()
             app.db.closeConnection()
             continue
-        migrator = SqlMigrator(app.db)
+        extensions = app.db.application.config['db?extensions']
+        migrator = SqlMigrator(app.db,extensions=extensions,
+                               ignore_constraint_name=True,excludeReadOnly=True,
+                               removeDisabled=True)
         migrator.prepareMigrationCommands()
         if options.check:
             check_db(migrator, options)

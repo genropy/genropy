@@ -57,6 +57,7 @@ class GnrCustomWebPage(object):
                                      instance_name='=.pars.instance_name',
                                      connection_pars ='=.pars.conn',
                                      implementation='=.pars.implementation',
+                                     applyChanges='^main.applyChanges',
                                      _lockScreen=True)
         fb.dataRpc(self.runDbUtils,subscribe_dbUtilsRun=True,
                    instance_name='=.pars.instance_name',
@@ -80,6 +81,15 @@ class GnrCustomWebPage(object):
         bc = tc.borderContainer(title='JSON Structures',datapath='.structures')
         bc.roundedGroupFrame(region='center',width='50%',title='SQL').tree(storepath='.sql')
         bc.roundedGroupFrame(region='right',width='50%',title='Orm').tree(storepath='.orm')
+        frame = tc.framePane(title='Sql Commands')
+        frame.codemirror(value='^.structures.sql_commands',
+                                                        config_lineNumbers=True,config_mode='sql',
+                                config_indentUnit=4,config_keyMap='softTab',
+                                config_addon='search',
+                                height='100%',
+                                config_gutters=["CodeMirror-linenumbers"])
+        bar = frame.top.slotToolbar('*,applyChanges,5')
+        bar.applyChanges.slotButton('Apply',fire='main.applyChanges')
 
     def dbUtilsPane(self,parent,**kwargs):
         bc = parent.borderContainer(**kwargs)
@@ -95,11 +105,18 @@ class GnrCustomWebPage(object):
 
 
     @public_method
-    def getMigrationBag(self,instance_name=None,implementation=None,connection_pars=None):
+    def getMigrationBag(self,instance_name=None,implementation=None,connection_pars=None,applyChanges=False):
         db = self.getDbFromPars(instance_name=instance_name,implementation=implementation,connection_pars=connection_pars)
-        mig = SqlMigrator(db,ignore_constraint_name=True)
+        extensions = None
+        if instance_name:
+            extensions = db.application.config['db?extensions']
+        mig = SqlMigrator(db,ignore_constraint_name=True,extensions=extensions)
         result = Bag()
         mig.prepareMigrationCommands()
+        changes = mig.getChanges()
+        if changes and applyChanges:
+            mig.applyChanges()
+            return self.getMigrationBag(instance_name=instance_name,implementation=implementation,connection_pars=connection_pars)
         cleanModel = mig.jsonModelWithoutMeta()
         result['sql'] = Bag(mig.sqlStructure)
         result['orm'] = Bag(mig.ormStructure)
@@ -107,6 +124,8 @@ class GnrCustomWebPage(object):
         result['sql_clean'] = Bag(cleanModel['sql'])
         result['diff'] = mig.getDiffBag()
         result['commands_tree'] = Bag(mig.commands)
+        result['sql_commands'] = changes
+        
         return result
     
     

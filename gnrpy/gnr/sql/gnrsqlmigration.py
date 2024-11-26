@@ -205,12 +205,9 @@ def hashed_name(schema, table, columns, obj_type='idx'):
     Returns:
     - str: A unique name for the constraint or index.
     """
-    # Concatena i dettagli in una stringa univoca
-    columns_str = "_".join(columns)  # Unisci i nomi delle colonne
+    columns_str = "_".join(columns)  
     identifier = f"{schema}_{table}_{columns_str}_{obj_type}"
-    # Calcola l'hash e tronca a 8 caratteri
     hash_suffix = hashlib.md5(identifier.encode()).hexdigest()[:8]
-    # Costruisci il nome finale con prefisso e hash
     return f"{obj_type}_{hash_suffix}"
 
 class OrmExtractor:
@@ -220,8 +217,8 @@ class OrmExtractor:
         self.migrator = migrator
         self.db = db or self.migrator.db
         self.json_structure = new_structure_root(self.db.dbname)
-        if extensions:
-            for ext in self.j
+        self.json_meta = nested_defaultdict()
+        self.extensions = extensions or []
         self.schemas = self.json_structure['root']['schemas']
         self.tenant_schema_tables = {}
         self.deferred_indexes = []
@@ -233,6 +230,9 @@ class OrmExtractor:
             self.fill_json_table(tblobj)
             if tblobj.multi_tenant:
                 self.tenant_schema_tables[tblobj.fullname] = tblobj
+
+    def fill_json_extension(self,extension_name):
+        self.json_structure['root']['extensions'][extension_name] = new_extension_item(extension_name)
 
     def fill_json_table(self,tblobj,tenant_schema=None):
         schema_name = tenant_schema or tblobj.pkg.sqlname
@@ -255,8 +255,8 @@ class OrmExtractor:
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         colattr = colobj.attributes
         for auto_ext_attribute in self.db.adapter.struct_auto_extension_attributes():
-            if self.migrator and colattr.get(auto_ext_attribute) and auto_ext_attribute not in self.migrator.extensions:
-                self.migrator.extension.append(auto_ext_attribute)
+            if auto_ext_attribute not in self.extensions:
+                self.extensions.append(auto_ext_attribute)
         attributes = self.convert_colattr(colattr)
         table_json = self.schemas[schema_name]['tables'][table_name]
         column_name = colobj.sqlname
@@ -398,6 +398,8 @@ class OrmExtractor:
             colobj = deferred_index_kw['colobj']
             tenant_schema = deferred_index_kw['tenant_schema']
             self.fill_json_column_index(colobj=colobj,indexed=True,tenant_schema=tenant_schema)
+        for extension_name in self.extensions:
+            self.fill_json_extension(extension_name)
         return self.json_structure
     
     def add_tenant_schemas(self):
@@ -568,6 +570,7 @@ class SqlMigrator():
         self.ormExtractor = OrmExtractor(migrator=self)
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
+    
     
     def prepareMigrationCommands(self):
         self.prepareStructures()
@@ -815,6 +818,15 @@ class SqlMigrator():
             "command": f'ADD {sql};'
         }
 
+    def added_extension(self,item=None,**kwargs):
+        self.commands['db']['extensions'][item['entity_name']]['command'] = self.db.adapter.struct_create_extension_sql(
+                extension_name=item['entity_name']
+            )
+
+    def added_event_trigger(self,item=None,**kwargs):
+        pass
+
+
     def changed_table(self, item=None, changed_attribute=None, oldvalue=None, newvalue=None, **kwargs):
         """
         Handles changes in table attributes, such as primary keys and unique constraints.
@@ -1017,11 +1029,13 @@ class SqlMigrator():
         dbitem = commands['db']
         sql_command = dbitem.get('command')
         schemas = dbitem.get('schemas', {})
-        
+        extensions_sql_commands = [extension['command'] for extension in dbitem['extensions'].values()]
+
         # Store database creation command
         if sql_command:
             self.sql_commands['db_creation'] = sql_command
-        
+        if extensions_sql_commands:
+            self.sql_commands['extensions_commands'] = '\n'.join(extensions_sql_commands)
         command_list = []
         relation_command_list = []
 
@@ -1043,7 +1057,6 @@ class SqlMigrator():
         # Combine all commands
         command_list += relation_command_list
         self.sql_commands['build_commands'] = '\n'.join(command_list)
-        
         # Return all SQL commands as a single string
         return '\n'.join([v for v in self.sql_commands.values() if v])
     
@@ -1077,6 +1090,9 @@ class SqlMigrator():
         db_creation = self.sql_commands.pop('db_creation',None)
         if db_creation:
             self.db.adapter.execute(db_creation,manager=True)
+        extensions_commands = self.sql_commands.pop('extensions_commands',None)
+        if extensions_commands:
+            self.db.adapter.execute(extensions_commands,manager=True)
         build_commands = self.sql_commands.pop('build_commands',None)
         if build_commands:
             self.db.adapter.execute(build_commands,autoCommit=True)

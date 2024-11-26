@@ -1101,27 +1101,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
         return extensions
     
-    def struct_create_extension_sql(self, extension_name, schema_name=None, version=None, cascade=False):
+    def struct_create_extension_sql(self, extension_name):
         """
         Generates the SQL to create an extension with optional schema, version, and cascade options.
         """
-        # Schema clause
-        schema_clause = f"SCHEMA {schema_name}" if schema_name else ""
-        # Version clause
-        version_clause = f"VERSION '{version}'" if version else ""
-        # Cascade clause
-        cascade_clause = "CASCADE" if cascade else ""
-
-        # Compose the final SQL statement
-        sql = f"""
-        CREATE EXTENSION IF NOT EXISTS {extension_name}
-        {schema_clause}
-        {version_clause}
-        {cascade_clause};
-        """
+        return f"""CREATE EXTENSION IF NOT EXISTS {extension_name};"""
         
-        # Return a clean, single-line SQL string
-        return " ".join(sql.split())
 
 
     def struct_get_event_triggers_sql(self):
