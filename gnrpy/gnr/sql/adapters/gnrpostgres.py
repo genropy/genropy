@@ -1158,23 +1158,23 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
         return event_triggers
     
-    def struct_create_event_trigger_sql(self, trigger_name, event, function_name, when=None, tags=None):
-        """
-        Generates the SQL to create an event trigger.
-        """
-        # WHEN clause
-        when_clause = f"WHEN TAG IN ({', '.join(f"'{tag}'" for tag in tags)})" if tags else ""
-        
-        # Compose the final SQL statement
-        sql = f"""
-        CREATE EVENT TRIGGER {trigger_name}
-        ON {event}
-        EXECUTE FUNCTION {function_name}
-        {when_clause};
-        """
-        
-        # Return a clean, single-line SQL string
-        return " ".join(sql.split())
+    #def struct_create_event_trigger_sql(self, trigger_name, event, function_name, when=None, tags=None):
+    #    """
+    #    Generates the SQL to create an event trigger.
+    #    """
+    #    # WHEN clause
+    #    when_clause = f"WHEN TAG IN ({', '.join(f"'{tag}'" for tag in tags)})" if tags else ""
+    #    
+    #    # Compose the final SQL statement
+    #    sql = f"""
+    #    CREATE EVENT TRIGGER {trigger_name}
+    #    ON {event}
+    #    EXECUTE FUNCTION {function_name}
+    #    {when_clause};
+    #    """
+    #    
+    #    # Return a clean, single-line SQL string
+    #    return " ".join(sql.split())
     
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
