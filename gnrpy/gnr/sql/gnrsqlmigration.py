@@ -13,6 +13,8 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
+
+
 ENTITY_TREE = {
         'schemas':{
             'tables':{
@@ -44,11 +46,24 @@ def new_schema_item(schema_name):
             'entity_name':schema_name,
             'tables':{},
             'schema_name':schema_name,
-            'metadata':{}
+           
         }
+
+def new_extension_item(extension_name):
+    return {
+            'entity':'extension',
+            'entity_name':extension_name,
+            'attributes':{},
+        }
+def new_event_trigger_item(event_trigger_name):
+    return {
+            'entity':'event_trigger',
+            'entity_name':event_trigger_name,
+            'attributes':{},
+        }
+
 def new_table_item(schema_name,table_name):
     return {
-            "metadata": {},
             'entity':'table',
             'entity_name':table_name,
             "attributes":{"pkeys":None},
@@ -161,9 +176,6 @@ def json_to_tree(data,key,entity_tree=None,parent=None):
     return parent
        
 
-
-
-
 def measure_time(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -176,13 +188,9 @@ def measure_time(func):
     return wrapper
 
 
-
 def clean_attributes(attributes):
     return {k:v for k,v in attributes.items() if v not in (None,{},False,[],'', "NO ACTION")}
     
-
-
-
  
 def hashed_name(schema, table, columns, obj_type='idx'):
     """
@@ -205,16 +213,15 @@ def hashed_name(schema, table, columns, obj_type='idx'):
     # Costruisci il nome finale con prefisso e hash
     return f"{obj_type}_{hash_suffix}"
 
-
-
 class OrmExtractor:
     col_json_keys =  COL_JSON_KEYS
 
-    def __init__(self,migrator=None, db=None):
+    def __init__(self,migrator=None, db=None,extensions=None):
         self.migrator = migrator
         self.db = db or self.migrator.db
-
         self.json_structure = new_structure_root(self.db.dbname)
+        if extensions:
+            for ext in self.j
         self.schemas = self.json_structure['root']['schemas']
         self.tenant_schema_tables = {}
         self.deferred_indexes = []
@@ -247,6 +254,9 @@ class OrmExtractor:
         table_name = colobj.table.sqlname
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         colattr = colobj.attributes
+        for auto_ext_attribute in self.db.adapter.struct_auto_extension_attributes():
+            if self.migrator and colattr.get(auto_ext_attribute) and auto_ext_attribute not in self.migrator.extensions:
+                self.migrator.extension.append(auto_ext_attribute)
         attributes = self.convert_colattr(colattr)
         table_json = self.schemas[schema_name]['tables'][table_name]
         column_name = colobj.sqlname
@@ -424,6 +434,7 @@ class DbExtractor(object):
     def prepare_json_struct(self,schemas=None):
         """Generates the JSON structure of the database."""
         self.json_structure = new_structure_root(self.db.dbname)
+        self.json_meta = nested_defaultdict()
         self.json_schemas = self.json_structure["root"]['schemas']  
         infodict = self.get_info_from_db(schemas=schemas)
         if infodict is False:
@@ -442,6 +453,8 @@ class DbExtractor(object):
                 result["base_structure"] = adapter.struct_get_schema_info(schemas=schemas)
                 result["constraints"] = adapter.struct_get_constraints(schemas=schemas)
                 result["indexes"] = adapter.struct_get_indexes(schemas=schemas)
+                result['extensions'] = adapter.struct_get_extensions()
+                result['event_triggers'] = adapter.struct_get_event_triggers()
         except GnrNonExistingDbException:
             result = False
         finally:
@@ -526,13 +539,31 @@ class DbExtractor(object):
                                             index_name=None if self.ignore_constraint_name else index_name)
                 table_json['indexes'][index_item['entity_name']] = index_item
 
-                
+
+    def process_extensions(self,extensions,**kwargs):
+        for extension_name,extension_dict in extensions.items():
+            if extension_dict.get('schema_name') == 'pg_catalog':
+                continue
+            extension_dict = clean_attributes(extension_dict)
+            extension_item = new_extension_item(extension_name)
+            self.json_meta['root']['extension'] = extension_dict
+            self.json_structure["root"]['extensions'][extension_name] = extension_item 
+
+    def process_event_triggers(self,event_triggers,**kwargs):
+        for event_trigger_name,event_trigger_dict in event_triggers.items():
+            event_trigger_item = new_event_trigger_item(event_trigger_name)
+            event_trigger_item['attributes'].update(event_trigger_dict)
+            self.json_structure["root"]['event_triggers'][event_trigger_name] = event_trigger_item 
+
 class SqlMigrator():
-    def __init__(self,db,ignore_constraint_name=False,
+    def __init__(self,db,
+                 extensions=None,
+                 ignore_constraint_name=False,
                  excludeReadOnly=True,
-                 removeDisabled=None):
+                 removeDisabled=True):
         self.db = db
-        self.sql_commands = {'db_creation':None,'build_commands':None}
+        self.extensions = extensions.split(',') if extensions else []
+        self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
         self.dbExtractor = DbExtractor(migrator=self,ignore_constraint_name=ignore_constraint_name)
         self.ormExtractor = OrmExtractor(migrator=self)
         self.excludeReadOnly = excludeReadOnly
@@ -543,11 +574,19 @@ class SqlMigrator():
         self.setDiff()
         self.commands = nested_defaultdict()
         for evt,kw in self.structChanges(self.diff):
+            if evt=='removed' and self.removeDisabled:
+                continue
+            if kw.get('schema_name') in self.readOnly_schemas:
+                continue
+
             handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
             handler(**kw)
  
     def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
+        self.readOnly_schemas = self.db.readOnlySchemas()
+        if self.excludeReadOnly:
+            self.application_schemas = [schema for schema in self.application_schemas if schema not in self.readOnly_schemas]
         try:
             self.tenant_schemas = self.db.getTenantSchemas()
         except GnrNonExistingDbException:
@@ -915,6 +954,14 @@ class SqlMigrator():
         pass
 
     def removed_constraint(self,item=None,**kwargs):
+        pass
+
+
+
+    def removed_extension(self,item=None,**kwargs):
+        pass
+
+    def removed_event_trigger(self,item=None,**kwargs):
         pass
 
     def missing_handler(self,**kwargs):

@@ -659,6 +659,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
+    def struct_auto_extension_attributes(self):
+        return ['unaccent']
+
     def struct_table_fullname_sql(self,schema_name,table_name):
         return  f'"{schema_name}"."{table_name}"'
     

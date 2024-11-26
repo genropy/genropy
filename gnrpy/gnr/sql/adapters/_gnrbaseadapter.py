@@ -1092,6 +1092,10 @@ class GnrWhereTranslator(object):
 
 # new methods for sqlmigrator
 
+
+    def struct_auto_extension_attributes(self):
+        return []
+    
     def struct_get_schema_info(self, schemas=None):
         """
         Get a (list of) dict containing details about a column or all the columns of a table.

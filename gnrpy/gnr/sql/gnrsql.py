@@ -417,6 +417,9 @@ class GnrSqlDb(GnrObject):
     def getApplicationSchemas(self):
         return [pkg.sqlname for pkg in self.packages.values()]
 
+    def readOnlySchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values() if pkg.attributes.get('readOnly')]
+
 
     def usingRootstore(self):
         return  self.currentStorename == self.rootstore
