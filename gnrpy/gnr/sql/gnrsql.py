@@ -503,6 +503,7 @@ class GnrSqlDb(GnrObject):
             storename = self.rootstore
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
+        sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
@@ -529,7 +530,7 @@ class GnrSqlDb(GnrObject):
                     else:
                         cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
-
+                sql = f'-- {sql_comment}\n{sql}'
                 if isinstance(cursor, list):
                     # since sqlite won't support different cursors in different
                     # threads, we simply serialize the cursor execution
