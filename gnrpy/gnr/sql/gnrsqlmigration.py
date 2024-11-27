@@ -506,6 +506,8 @@ class DbExtractor(object):
             for k,v in unique.items():
                 columns = v['columns']
                 if len(columns)==1:
+                    if columns[0] == table_json['attributes']['pkeys']:
+                        continue
                     multiple_unique.pop(k)
                     self.json_schemas[schema_name]["tables"][table_name]['columns'][columns[0]]['attributes']['unique'] = True
             self.process_table_relations(schema_name,table_name,d.pop('FOREIGN KEY',{}))
