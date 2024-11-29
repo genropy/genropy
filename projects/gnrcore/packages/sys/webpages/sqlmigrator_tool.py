@@ -7,7 +7,6 @@
 from gnr.core.gnrdecorator import public_method
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
 
 class GnrCustomWebPage(object):
     py_requires="public:Public"

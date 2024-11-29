@@ -516,6 +516,7 @@ class GnrSqlDb(GnrObject):
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
             storename = self.rootstore
         with self.tempEnv(storename=storename):
+            sql = f'-- {sql_comment}\n{sql}'
             if _adaptArguments:
                 sql=sql.replace(r'\:',chr(1 ))
                 sql, sqlargs = self.adapter.prepareSqlText(sql, sqlargs)
@@ -530,7 +531,7 @@ class GnrSqlDb(GnrObject):
                     else:
                         cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
-                sql = f'-- {sql_comment}\n{sql}'
+                
                 if isinstance(cursor, list):
                     # since sqlite won't support different cursors in different
                     # threads, we simply serialize the cursor execution
