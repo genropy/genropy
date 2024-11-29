@@ -136,13 +136,6 @@ def camel_to_snake(camel_str):
     return snake_str.lower()
 
 
-
-def compare_json(json1, json2):
-    """Compara due strutture JSON e ritorna le differenze."""
-    diff = DeepDiff(json1, json2, ignore_order=True)
-    return diff
-
-
 def json_equal(json1, json2):
     """Confronta due JSON indipendentemente dall'ordine degli elementi."""
     json1_str = json.dumps(json1, sort_keys=True)
@@ -255,7 +248,7 @@ class OrmExtractor:
         schema_name = tenant_schema or colobj.table.pkg.sqlname
         colattr = colobj.attributes
         for auto_ext_attribute in self.db.adapter.struct_auto_extension_attributes():
-            if auto_ext_attribute not in self.extensions:
+            if colattr.get(auto_ext_attribute) and auto_ext_attribute not in self.extensions:
                 self.extensions.append(auto_ext_attribute)
         attributes = self.convert_colattr(colattr)
         table_json = self.schemas[schema_name]['tables'][table_name]
@@ -613,6 +606,7 @@ class SqlMigrator():
 
     def setDiff(self):
         self.diff = DeepDiff(self.sqlStructure, self.ormStructure,
+                             threshold_to_diff_deeper=0.0,
                               ignore_order=True,view='tree')
 
     def getDiffBag(self):
@@ -933,7 +927,8 @@ class SqlMigrator():
             deferrable= relattr.get('deferrable'),
             initially_deferred = relattr.get('initially_deferred')
         )
-        relations_dict[relation_name]['command'] = f"DROP CONSTRAINT {relation_name};\nADD {add_sql}"
+        relations_dict[f'rem_{relation_name}']['command'] = f"DROP CONSTRAINT {relation_name}"
+        relations_dict[f'add_{relation_name}']['command'] = f"ADD {add_sql}"
 
     def changed_constraint(self, item=None, **kwargs):
         """
@@ -950,7 +945,8 @@ class SqlMigrator():
                 constraint_type=item['attributes']['constraint_type'],
                 columns=item['attributes']['columns']
         )
-        constraints_dict[constraint_name]['command'] = f"DROP CONSTRAINT {constraint_name};\nADD {add_sql}"
+        constraints_dict[f'drop_{constraint_name}']['command'] = f"DROP CONSTRAINT {constraint_name};"
+        constraints_dict[f'add_{constraint_name}']['command'] = f"ADD {add_sql}"
 
     def removed_table(self,item=None,**kwargs):
         pass
