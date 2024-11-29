@@ -1,0 +1,201 @@
+{
+    "__del_ts": {
+        "attributes": {
+            "dtype": "DH"
+        },
+        "column_name": "__del_ts",
+        "entity": "column",
+        "entity_name": "__del_ts",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "__ins_ts": {
+        "attributes": {
+            "dtype": "DH"
+        },
+        "column_name": "__ins_ts",
+        "entity": "column",
+        "entity_name": "__ins_ts",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "__ins_user": {
+        "attributes": {
+            "dtype": "T"
+        },
+        "column_name": "__ins_user",
+        "entity": "column",
+        "entity_name": "__ins_user",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "__is_draft": {
+        "attributes": {
+            "dtype": "B"
+        },
+        "column_name": "__is_draft",
+        "entity": "column",
+        "entity_name": "__is_draft",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "__mod_ts": {
+        "attributes": {
+            "dtype": "DH"
+        },
+        "column_name": "__mod_ts",
+        "entity": "column",
+        "entity_name": "__mod_ts",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "anagrafica_id": {
+        "attributes": {
+            "dtype": "C",
+            "size": "22"
+        },
+        "column_name": "anagrafica_id",
+        "entity": "column",
+        "entity_name": "anagrafica_id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "data_documento": {
+        "attributes": {
+            "dtype": "D"
+        },
+        "column_name": "data_documento",
+        "entity": "column",
+        "entity_name": "data_documento",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "data_esecuzione": {
+        "attributes": {
+            "dtype": "D"
+        },
+        "column_name": "data_esecuzione",
+        "entity": "column",
+        "entity_name": "data_esecuzione",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "fornitore_id": {
+        "attributes": {
+            "dtype": "C",
+            "size": "22"
+        },
+        "column_name": "fornitore_id",
+        "entity": "column",
+        "entity_name": "fornitore_id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "id": {
+        "attributes": {
+            "dtype": "C",
+            "notnull": "_auto_",
+            "size": "22"
+        },
+        "column_name": "id",
+        "entity": "column",
+        "entity_name": "id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "importo": {
+        "attributes": {
+            "dtype": "N",
+            "size": "14,2"
+        },
+        "column_name": "importo",
+        "entity": "column",
+        "entity_name": "importo",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "mezzo_pagamento_id": {
+        "attributes": {
+            "dtype": "C",
+            "size": "22"
+        },
+        "column_name": "mezzo_pagamento_id",
+        "entity": "column",
+        "entity_name": "mezzo_pagamento_id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "motivo_rifiuto": {
+        "attributes": {
+            "dtype": "T"
+        },
+        "column_name": "motivo_rifiuto",
+        "entity": "column",
+        "entity_name": "motivo_rifiuto",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "numero_documento": {
+        "attributes": {
+            "dtype": "T"
+        },
+        "column_name": "numero_documento",
+        "entity": "column",
+        "entity_name": "numero_documento",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "progetto_primario_id": {
+        "attributes": {
+            "dtype": "C",
+            "size": "22"
+        },
+        "column_name": "progetto_primario_id",
+        "entity": "column",
+        "entity_name": "progetto_primario_id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "protocollo": {
+        "attributes": {
+            "dtype": "C",
+            "size": "7"
+        },
+        "column_name": "protocollo",
+        "entity": "column",
+        "entity_name": "protocollo",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "rifiuto_ts": {
+        "attributes": {
+            "dtype": "DH"
+        },
+        "column_name": "rifiuto_ts",
+        "entity": "column",
+        "entity_name": "rifiuto_ts",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "scrittura_id": {
+        "attributes": {
+            "dtype": "C",
+            "size": "22"
+        },
+        "column_name": "scrittura_id",
+        "entity": "column",
+        "entity_name": "scrittura_id",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    },
+    "validazione_ts": {
+        "attributes": {
+            "dtype": "DH"
+        },
+        "column_name": "validazione_ts",
+        "entity": "column",
+        "entity_name": "validazione_ts",
+        "schema_name": "ts_fatt",
+        "table_name": "ts_fatt_pagamento"
+    }
+}
