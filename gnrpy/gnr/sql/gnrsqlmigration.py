@@ -566,7 +566,6 @@ class SqlMigrator():
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
     
-    
     @property
     def diff(self):
         return dictdiffer.diff(self.sqlStructure or {'root':{}},self.ormStructure)

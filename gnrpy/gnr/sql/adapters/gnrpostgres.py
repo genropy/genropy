@@ -805,7 +805,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
         return """
-            SELECT
+           SELECT
                 tc.constraint_schema AS schema_name,
                 tc.table_name AS table_name,
                 tc.constraint_name AS constraint_name,
@@ -815,7 +815,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 rc.delete_rule AS on_delete,
                 ccu.table_schema AS related_schema,
                 ccu.table_name AS related_table,
-                ccu.column_name AS related_column
+                ccu.column_name AS related_column,
+                tc.is_deferrable AS deferrable,
+                tc.initially_deferred AS initially_deferred
             FROM
                 information_schema.table_constraints AS tc
             JOIN
@@ -891,7 +893,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         # Fetch foreign key constraints
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
             (schema_name, table_name, constraint_name, column_name, _, on_update,
-             on_delete, related_schema, related_table, related_column) = row
+            on_delete, related_schema, related_table, related_column,
+            deferrable, initially_deferred) = row
+
             table_key = (schema_name, table_name)
             if "FOREIGN KEY" not in constraints[table_key]:
                 constraints[table_key]["FOREIGN KEY"] = {}
@@ -904,6 +908,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     "on_delete": on_delete,
                     "related_schema": related_schema,
                     "related_table": related_table,
+                    "deferrable": deferrable == "YES",  # Convert to boolean
+                    "initially_deferred": initially_deferred == "YES",  # Convert to boolean
                     "related_columns": []
                 }
             constraints[table_key]["FOREIGN KEY"][constraint_name]["columns"].append(column_name)

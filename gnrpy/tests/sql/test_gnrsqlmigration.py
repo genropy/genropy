@@ -254,6 +254,23 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_changes = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
+
+    def test_06e_add_relation_to_pk_single_onDelete_setnull_deferred(self):
+        """
+        Tests adding a foreign key constraint to a column.
+        
+        If the foreign key references a non-primary key field, an index
+        should be automatically added to the referenced field to improve
+        performance.
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        # add to the column recipe_code the relatio to the table recipe
+        tbl.column('company_code').relation('alfa.company.code', mode='foreignkey',onDelete_sql='setnull')
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "company_code" text ;\nCREATE INDEX idx_6cbb7b70 ON "alfa"."alfa_recipe" USING btree (company_code);\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_f87f3ff6" FOREIGN KEY ("company_code") REFERENCES "alfa"."alfa_company" ("code") ON DELETE SET NULL ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED;'
+        self.checkChanges(check_value)
+    
+
     def test_07a_create_table_with_relation_to_pk_single(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('product', pkey='id')
