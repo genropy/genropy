@@ -251,7 +251,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
 
         tbl.compositeColumn('restaurant_ref',columns='restaurant_country,restaurant_vat'
                             ).relation('alfa.restaurant.international_vat', mode='foreignkey')
-        check_changes = '?' #'ALTER TABLE "alfa"."alfa_recipe" \n ADD COLUMN "restaurant_vat" character varying(30); \nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat) ; \nADD COLUMN "restaurant_country" character(2) ;\nALTER TABLE "alfa"."alfa_recipe" \n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
+        check_changes = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
         self.checkChanges(check_changes)
 
     def test_07a_create_table_with_relation_to_pk_single(self):
@@ -260,7 +260,7 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('id', dtype='serial')
         tbl.column('description')
         tbl.column('recipe_code').relation('alfa.recipe.code',mode='foreignkey')
-        check_value = 'CREATE TABLE "alfa"."alfa_product"(\n "id" serial8 NOT NULL,\n "description" text,\n "recipe_code" text,\n PRIMARY KEY (id)\n);\nCREATE INDEX idx_78fd5e36 ON "alfa"."alfa_product" USING btree (recipe_code);\nALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "restaurant_vat" character varying(30) ,\nADD COLUMN "restaurant_country" character(2) ;\nCREATE INDEX idx_f7e554d6 ON "alfa"."alfa_recipe" USING btree (restaurant_country, restaurant_vat);\nALTER TABLE "alfa"."alfa_product"\n ADD CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;\nALTER TABLE "alfa"."alfa_recipe"\n ADD CONSTRAINT "fk_8e2e04f3" FOREIGN KEY ("restaurant_country", "restaurant_vat") REFERENCES "alfa"."alfa_restaurant" ("country", "vat_number") ON UPDATE CASCADE;'
+        check_value = 'CREATE TABLE "alfa"."alfa_product"(\n "id" serial8 NOT NULL,\n "description" text,\n "recipe_code" text,\n PRIMARY KEY (id)\n);\nCREATE INDEX idx_78fd5e36 ON "alfa"."alfa_product" USING btree (recipe_code);\nALTER TABLE "alfa"."alfa_product"\n ADD CONSTRAINT "fk_ff154564" FOREIGN KEY ("recipe_code") REFERENCES "alfa"."alfa_recipe" ("code") ON UPDATE CASCADE;'
         self.checkChanges(check_value)
 
     def test_07b_create_table_with_relation_to_pk_multi(self):

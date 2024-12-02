@@ -756,101 +756,173 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             yield col
     
 
-    def struct_get_constraints_sql(self):
+    def get_primary_key_sql(self):
+        """Return the SQL query for fetching primary key constraints."""
         return """
             SELECT
                 tc.constraint_schema AS schema_name,
                 tc.table_name AS table_name,
                 tc.constraint_name AS constraint_name,
-                tc.constraint_type AS constraint_type,
-                string_agg(kcu.column_name, ',' ORDER BY kcu.ordinal_position) AS columns, -- Stringa di colonne
-                rc.update_rule AS on_update,
-                rc.delete_rule AS on_delete,
-                ccu.table_schema AS related_schema,
-                ccu.table_name AS related_table,
-                string_agg(ccu.column_name, ',' ORDER BY kcu.ordinal_position) AS related_columns, -- Stringa di colonne referenziate
-                ch.check_clause AS check_clause,
-                tc.is_deferrable AS deferrable,
-                tc.initially_deferred AS initially_deferred
+                kcu.column_name AS column_name,
+                kcu.ordinal_position AS ordinal_position
             FROM
                 information_schema.table_constraints AS tc
-            LEFT JOIN
+            JOIN
                 information_schema.key_column_usage AS kcu
                 ON tc.constraint_name = kcu.constraint_name
                 AND tc.constraint_schema = kcu.constraint_schema
                 AND tc.table_name = kcu.table_name
-            LEFT JOIN
+            WHERE
+                tc.constraint_type = 'PRIMARY KEY'
+                AND tc.constraint_schema = ANY(%s)
+            ORDER BY
+                kcu.ordinal_position;
+        """
+
+    def get_unique_constraint_sql(self):
+        """Return the SQL query for fetching unique constraints."""
+        return """
+            SELECT
+                tc.constraint_schema AS schema_name,
+                tc.table_name AS table_name,
+                tc.constraint_name AS constraint_name,
+                kcu.column_name AS column_name,
+                kcu.ordinal_position AS ordinal_position
+            FROM
+                information_schema.table_constraints AS tc
+            JOIN
+                information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.constraint_schema = kcu.constraint_schema
+                AND tc.table_name = kcu.table_name
+            WHERE
+                tc.constraint_type = 'UNIQUE'
+                AND tc.constraint_schema = ANY(%s)
+            ORDER BY
+                tc.constraint_name, kcu.ordinal_position;
+        """
+
+    def get_foreign_key_sql(self):
+        """Return the SQL query for fetching foreign key constraints."""
+        return """
+            SELECT
+                tc.constraint_schema AS schema_name,
+                tc.table_name AS table_name,
+                tc.constraint_name AS constraint_name,
+                kcu.column_name AS column_name,
+                kcu.ordinal_position AS ordinal_position,
+                rc.update_rule AS on_update,
+                rc.delete_rule AS on_delete,
+                ccu.table_schema AS related_schema,
+                ccu.table_name AS related_table,
+                ccu.column_name AS related_column
+            FROM
+                information_schema.table_constraints AS tc
+            JOIN
+                information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.constraint_schema = kcu.constraint_schema
+                AND tc.table_name = kcu.table_name
+            JOIN
                 information_schema.referential_constraints AS rc
                 ON tc.constraint_name = rc.constraint_name
                 AND tc.constraint_schema = rc.constraint_schema
-            LEFT JOIN
-                information_schema.constraint_column_usage AS ccu
+            JOIN
+                information_schema.key_column_usage AS ccu
                 ON rc.unique_constraint_name = ccu.constraint_name
                 AND rc.unique_constraint_schema = ccu.constraint_schema
-            LEFT JOIN
+                AND ccu.ordinal_position = kcu.position_in_unique_constraint
+            WHERE
+                tc.constraint_type = 'FOREIGN KEY'
+                AND tc.constraint_schema = ANY(%s)
+            ORDER BY
+                tc.constraint_name, kcu.ordinal_position;
+        """
+
+    def get_check_constraint_sql(self):
+        """Return the SQL query for fetching check constraints."""
+        return """
+            SELECT
+                tc.constraint_schema AS schema_name,
+                tc.table_name AS table_name,
+                tc.constraint_name AS constraint_name,
+                ch.check_clause AS check_clause
+            FROM
+                information_schema.table_constraints AS tc
+            JOIN
                 information_schema.check_constraints AS ch
                 ON tc.constraint_name = ch.constraint_name
                 AND tc.constraint_schema = ch.constraint_schema
             WHERE
-                tc.constraint_schema = ANY(%s)
-            GROUP BY
-                tc.constraint_schema, tc.table_name, tc.constraint_name, tc.constraint_type,
-                rc.update_rule, rc.delete_rule, ccu.table_schema, ccu.table_name, ch.check_clause,
-                tc.is_deferrable, tc.initially_deferred
-            ORDER BY
-                tc.constraint_schema, tc.table_name, tc.constraint_name;
+                tc.constraint_type = 'CHECK'
+                AND tc.constraint_schema = ANY(%s);
         """
 
     def struct_get_constraints(self, schemas):
-        query = self.struct_get_constraints_sql()
+        """Fetch all constraints and return them in a structured dictionary."""
         constraints = defaultdict(lambda: defaultdict(dict))
-        
-        def parse_string_agg(string_agg_value):
-            """Convert string_agg result to a list."""
-            return string_agg_value.split(',') if string_agg_value else []
 
-        def remove_duplicates_preserve_order(lst):
-            """Remove duplicates from a list while preserving order."""
-            seen = set()
-            return [x for x in lst if not (x in seen or seen.add(x))]
-
-        for row in self.raw_fetch(query, (schemas,)):
-            (schema_name, table_name, constraint_name, constraint_type, columns, 
-            on_update, on_delete, related_schema, related_table, related_columns, check_clause,
-            deferrable, initially_deferred) = row
-
-            # Convert columns and related_columns from string to list
-            parsed_columns = remove_duplicates_preserve_order(parse_string_agg(columns))
-            parsed_related_columns = remove_duplicates_preserve_order(parse_string_agg(related_columns))
-
-            # Key for schema and table
+        # Fetch primary key constraints
+        for row in self.raw_fetch(self.get_primary_key_sql(), (schemas,)):
+            schema_name, table_name, constraint_name, column_name, _ = row
             table_key = (schema_name, table_name)
+            if "PRIMARY KEY" not in constraints[table_key]:
+                constraints[table_key]["PRIMARY KEY"] = {
+                    "constraint_name": constraint_name,
+                    "constraint_type": "PRIMARY KEY",
+                    "columns": []
+                }
+            constraints[table_key]["PRIMARY KEY"]["columns"].append(column_name)
 
-            # Default constraint structure
-            constraint_dict = {
+        # Fetch unique constraints
+        for row in self.raw_fetch(self.get_unique_constraint_sql(), (schemas,)):
+            schema_name, table_name, constraint_name, column_name, _ = row
+            table_key = (schema_name, table_name)
+            if "UNIQUE" not in constraints[table_key]:
+                constraints[table_key]["UNIQUE"] = {}
+            if constraint_name not in constraints[table_key]["UNIQUE"]:
+                constraints[table_key]["UNIQUE"][constraint_name] = {
+                    "constraint_name": constraint_name,
+                    "constraint_type": "UNIQUE",
+                    "columns": []
+                }
+            constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
+
+        # Fetch foreign key constraints
+        for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
+            (schema_name, table_name, constraint_name, column_name, _, on_update,
+             on_delete, related_schema, related_table, related_column) = row
+            table_key = (schema_name, table_name)
+            if "FOREIGN KEY" not in constraints[table_key]:
+                constraints[table_key]["FOREIGN KEY"] = {}
+            if constraint_name not in constraints[table_key]["FOREIGN KEY"]:
+                constraints[table_key]["FOREIGN KEY"][constraint_name] = {
+                    "constraint_name": constraint_name,
+                    "constraint_type": "FOREIGN KEY",
+                    "columns": [],
+                    "on_update": on_update,
+                    "on_delete": on_delete,
+                    "related_schema": related_schema,
+                    "related_table": related_table,
+                    "related_columns": []
+                }
+            constraints[table_key]["FOREIGN KEY"][constraint_name]["columns"].append(column_name)
+            constraints[table_key]["FOREIGN KEY"][constraint_name]["related_columns"].append(related_column)
+
+        # Fetch check constraints
+        for row in self.raw_fetch(self.get_check_constraint_sql(), (schemas,)):
+            schema_name, table_name, constraint_name, check_clause = row
+            table_key = (schema_name, table_name)
+            if "CHECK" not in constraints[table_key]:
+                constraints[table_key]["CHECK"] = {}
+            constraints[table_key]["CHECK"][constraint_name] = {
                 "constraint_name": constraint_name,
-                "constraint_type": constraint_type,
-                "columns": parsed_columns,
-                "on_update": on_update,
-                "on_delete": on_delete,
-                "related_schema": related_schema,
-                "related_table": related_table,
-                "related_columns": parsed_related_columns,
-                "check_clause": check_clause,
-                "deferrable": deferrable == "YES",  # Convert to boolean
-                "initially_deferred": initially_deferred == "YES"  # Convert to boolean
+                "constraint_type": "CHECK",
+                "check_clause": check_clause
             }
 
-            # Add constraints to the dictionary
-            if constraint_type == "PRIMARY KEY":
-                if "PRIMARY KEY" not in constraints[table_key]:
-                    constraints[table_key]["PRIMARY KEY"] = constraint_dict
-            else:
-                if constraint_name not in constraints[table_key][constraint_type]:
-                    constraints[table_key][constraint_type][constraint_name] = constraint_dict
-
         return constraints
-
+    
     def struct_get_indexes_sql(self):
         return """
         SELECT

@@ -4,8 +4,8 @@ import hashlib
 import json
 import time
 import functools
+import dictdiffer
 from collections import defaultdict
-from deepdiff import DeepDiff
 from deepdiff.helper import NotPresent
 
 from gnr.app.gnrapp import GnrApp
@@ -567,18 +567,74 @@ class SqlMigrator():
         self.removeDisabled = removeDisabled
     
     
+    @property
+    def diff(self):
+        return dictdiffer.diff(self.sqlStructure or {'root':{}},self.ormStructure)
+
+    def dictDifferChanges(self):
+        for diffevent, path, difflist in self.diff: 
+            if isinstance(path,list):
+                pathlist = path
+            else:
+                pathlist = path.split('.') if path else []
+            attributes_index = self.get_attributes_index_in_path(pathlist)
+            if attributes_index>0:
+                kw = {}
+                item = self.get_item_from_pathlist(self.ormStructure,pathlist[:attributes_index])
+                old_attributes = self.get_item_from_pathlist(self.sqlStructure,pathlist[:attributes_index])['attributes']
+                new_attributes  = item['attributes']
+                changed_attributes = []
+                if diffevent in ('add','remove') and pathlist[-1]=='attributes':
+                    changed_attributes = [k for k,v in difflist if v!='_auto_']
+                else:
+                    changed_attributes = [pathlist[attributes_index+1]]
+                for changed_attribute in changed_attributes:
+                    kw['item'] = item
+                    kw['changed_attribute'] = changed_attribute
+                    kw['oldvalue'] = old_attributes.get(changed_attribute)
+                    kw['newvalue'] = new_attributes.get(changed_attribute)
+                    kw['entity'] = item['entity']
+                    kw['entity_name'] = item['entity_name']
+                    yield 'changed',kw
+            else:
+                collection = dict(difflist)
+                if collection.get('entity_name'):
+                    collection = {collection['entity_name']:collection}
+                for item in collection.values():
+                    kw = {}
+                    kw['item'] = item
+                    kw['entity'] = item['entity']
+                    kw['entity_name'] = item['entity_name']
+                    yield 'added' if diffevent=='add' else 'removed',kw
+        
+
+    def get_item_from_pathlist(self,d,pathlist):
+        if isinstance(pathlist,str):
+            pathlist = [pathlist]
+        for p in pathlist:
+            d = d[p]
+        return d
+                
+
+    def get_attributes_index_in_path(self,pathlist):
+        if 'attributes' in pathlist:
+            return pathlist.index('attributes')  # Find the index of 'attributes'
+        return -1
+
+
     def prepareMigrationCommands(self):
         self.prepareStructures()
-        self.setDiff()
         self.commands = nested_defaultdict()
-        for evt,kw in self.structChanges(self.diff):
+
+        for evt,kw in self.dictDifferChanges():
             if evt=='removed' and self.removeDisabled:
                 continue
-            if kw.get('schema_name') in self.readOnly_schemas:
+            item = kw['item']
+            if item.get('schema_name') in self.readOnly_schemas:
                 continue
-
             handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
             handler(**kw)
+
  
     def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
@@ -604,34 +660,22 @@ class SqlMigrator():
     def clearOrm(self):
         self.ormStructure = {}
 
-    def setDiff(self):
-        self.diff = DeepDiff(self.sqlStructure, self.ormStructure,
-                             threshold_to_diff_deeper=0.0,
-                              ignore_order=True,view='tree')
-
     def getDiffBag(self):
         result = Bag()
-        for reason,difflist in self.diff.items():
-            for diff_item in difflist:
-                diff_entity_item = self.get_diff_item_of_entity(diff_item).t2
-                pathlist = []
-                if diff_entity_item.get('schema_name'):
-                    pathlist.append(diff_entity_item['schema_name'])
-                if diff_entity_item.get('table_name'):
-                    pathlist.append(diff_entity_item['table_name'])
-                if diff_entity_item.get('column_name'):
-                    pathlist.append(diff_entity_item['column_name'])
-                pathlist.append(f"{diff_entity_item['entity']}_{diff_entity_item['entity_name']}")
-                pathlist.append(reason)
-                entity_node = result.getNode('.'.join(pathlist),autocreate=True)
-                changed_attribute = self.get_changed_attribute(diff_item)
-                kw = {'old':str(diff_item.t1),'new':str(diff_item.t2),
-                      'changed_attribute':changed_attribute}
-                if reason == 'type_changes':
-                    kw['old_type'] = str(type(diff_item.t1))
-                    kw['new_type'] = str(type(diff_item.t2))
-                entity_node.attr[diff_entity_item['entity']] = diff_entity_item['entity_name']
-                entity_node.attr[reason] = kw
+        for reason,kw in self.dictDifferChanges():
+            diff_entity_item = kw['item'] 
+            pathlist = []
+            if diff_entity_item.get('schema_name'):
+                pathlist.append(diff_entity_item['schema_name'])
+            if diff_entity_item.get('table_name'):
+                pathlist.append(diff_entity_item['table_name'])
+            if diff_entity_item.get('column_name'):
+                pathlist.append(diff_entity_item['column_name'])
+            pathlist.append(f"{diff_entity_item['entity']}_{diff_entity_item['entity_name']}")
+            pathlist.append(reason)
+            entity_node = result.getNode('.'.join(pathlist),autocreate=True)
+            entity_node.attr[diff_entity_item['entity']] = diff_entity_item['entity_name']
+            entity_node.attr[reason] = kw
         return result
 
 
@@ -645,83 +689,6 @@ class SqlMigrator():
     
     def clearCommands(self):
         self.commands.pop('db',None) #rebuils
-        
-
-    
-    def structChanges(self,diff):
-        for key,evt in (('dictionary_item_added','added'),
-                        ('dictionary_item_removed','removed'),
-                        ('values_changed','changed'),('type_changes','changed')):
-            for change in diff.get(key,[]):
-                if change.t2=='_auto_':
-                    #auto-set for alignment to sql
-                    continue
-                kw = dict(item=None)
-                changed_attribute = self.get_changed_attribute(change)
-                if changed_attribute:
-                    change = self.get_diff_item_of_entity(change)
-                    evt = 'changed'
-                    changed_entity = change.t2
-                    kw['entity'] = changed_entity['entity']
-                    kw['entity_name'] = changed_entity['entity_name']
-                    kw['changed_attribute'] = changed_attribute
-                    kw['newvalue'] = change.t2['attributes'].get(changed_attribute)
-                    kw['oldvalue'] = change.t1['attributes'].get(changed_attribute)
-                    kw['item'] = changed_entity
-                elif evt=='changed':
-                    #handle changed collection
-                    for evt,kw in self._structChanges_changed_collection(change):
-                        yield evt,kw
-                elif evt == 'added':
-                    kw['entity'] = change.t2['entity']
-                    kw['entity_name'] = change.t2['entity_name']
-                    kw['item'] = change.t2
-                elif evt == 'removed':
-                    kw['entity'] = change.t1['entity']
-                    kw['entity_name'] = change.t1['entity_name']
-                    kw['item'] = change.t1
-                yield evt,kw
-
-    def _structChanges_changed_collection(self,change):
-        new_val = change.t2 or {} 
-        old_val = change.t1 or {}
-        action = 'added'
-        if not new_val or isinstance(new_val,NotPresent):
-            action = 'removed'
-            val = old_val
-        elif not old_val or isinstance(old_val,NotPresent):
-            action = 'added'
-            val = new_val
-        else:
-            action = 'added'
-            val = {k:v for k,v in new_val.items() if k not in old_val}
-        entity_nodes = []
-        if val.get('entity'):
-            entity_nodes = [val]
-        else:
-            entity_nodes = val.values()
-        for entity_node in entity_nodes:
-            yield action,{
-                "entity":entity_node['entity'],
-                "entity_name":entity_node['entity_name'],
-                "item":entity_node
-            }
-
-    def get_diff_item_of_entity(self,change):
-        changed_entity = change.t2
-        while not isinstance(changed_entity,dict) or ('entity' not in changed_entity):
-            change = change.up
-            changed_entity = change.t2
-        return change
-
-    def get_changed_attribute(self,change):
-        pathlist = change.path(output_format='list')
-        if 'attributes' in pathlist:
-            attr_index = pathlist.index('attributes')  # Find the index of 'attributes'
-            if attr_index < len(pathlist) - 1:         # Ensure there is a next element
-                return pathlist[attr_index + 1]
-        return None
-
         
     def schema_tables(self,schema_name):
         return self.commands['db']['schemas'][schema_name]['tables']
