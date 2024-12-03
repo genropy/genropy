@@ -8,6 +8,10 @@ class GnrCliArgParse(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
         self.add_argument("--version", action="version",
                           version="%(prog)s "+VERSION)
+        self.add_argument("--timeit", action="store_true",
+                          dest="timeit",
+                          help="Report command execution time")
+        
         if not self.prog.startswith("gnr "):
             # FIXME: this is not efficient
             # since it needs to load the whole script tree

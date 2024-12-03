@@ -33,7 +33,6 @@ from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
-
 #IN_TO_ANY = re.compile(r'([$]\w+|[@][\w|@|.]+)\s*(NOT)?\s*(IN ([:]\w+))')
 #IN_TO_ANY = re.compile(r'(?P<what>\w+.\w+)\s*(?P<not>NOT)?\s*(?P<inblock>IN\s*(?P<value>[:]\w+))',re.IGNORECASE)
 
@@ -127,6 +126,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :returns: tuple (sql, kwargs)"""
         sqlargs = {}
         sqltext = self.adaptTupleListSet(sqltext,kwargs)
+        sqltext = sqltext.replace('{',chr(2)).replace('}',chr(3))
         def subArgs(m):
             key = m.group(1)
             sqlargs[key]=kwargs[key]
@@ -688,7 +688,11 @@ class GnrDictCursor(Cursor):
     def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
-        return super(GnrDictCursor, self).execute(sql.SQL(query).format(**params))
+        #if "-- GNRCOMMENT -" in query:
+        #    _,query = query.split("\n",1)
+        query = sql.SQL(query).format(**params).as_string(self.connection)
+        query = query.replace(chr(2),'{').replace(chr(3),'}')
+        return super(GnrDictCursor, self).execute(query)
         #return super(GnrDictCursor, self).execute(sql.SQL(query),params)
     
     def setConstraintsDeferred(self):

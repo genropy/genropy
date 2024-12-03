@@ -114,6 +114,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
@@ -156,15 +157,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def asTranslator(self, as_):
         return f'[{as_}]'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
         :param kwargs: schema, table
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
+        comment = kwargs.pop('comment', None)
         cursor = self.dbroot.execute(query, kwargs)
         result= cursor.fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
         
     def dbExists(self, dbname):

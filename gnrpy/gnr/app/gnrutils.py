@@ -2,12 +2,19 @@
 # -*- coding: utf-8 -*-
 
 # general utilities for GnrApp
+import re
 import os.path
 from collections import defaultdict
+import subprocess
 
 import gnr
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
+
+RED = 31
+GREEN = 32
+YELLOW = 33
+BLUE = 34
 
 class GnrAppInsightDataset(object):
     """
@@ -19,7 +26,123 @@ class GnrAppInsightDataset(object):
         
     def retrieve(self):
         return dict()
+
+    def pprint(self):
+        print(str(self.retrieve()))
+        
+    def get_coloured(self, text, colour):
+        return f"\033[{colour}m{text}\033[0m"
+        
+class GnrAppInsightGitMetrics(GnrAppInsightDataset):
+    """
+    Return a dictionary with git metrics regarding all
+    git repositories of packages composing a project
+    """
+    name = "Git Metrics for project"
     
+    def _run_git_command(self, command, repo_path):
+        result = subprocess.run(
+            ['git'] + command.split() + [repo_path],
+            cwd=repo_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if result.returncode != 0:
+            raise Exception(result.stderr.strip())
+        return result.stdout.strip()
+    
+    def _analyze_git_repo(self, repo_path):
+        contributor_output = self._run_git_command("shortlog -s -n --all", repo_path)
+        contrib_commits = defaultdict(int)
+        r = dict(contrib_commit=contrib_commits)
+        for line in contributor_output.splitlines():
+            match = re.match(r"^\s*(\d+)\s+(.+)$", line)
+            if match:
+                commit_count, author_name = match.groups()
+                commit_count = int(commit_count)
+                contrib_commits[author_name] += int(commit_count)
+                
+        commit_stats = self._run_git_command("log --pretty=tformat: --numstat", repo_path)
+        total_additions = 0
+        total_deletions = 0
+        file_metrics = defaultdict(lambda: {'additions': 0, 'deletions': 0})
+        
+        for line in commit_stats.splitlines():
+            parts = line.split()
+            if len(parts) == 3:
+                additions, deletions, file_name = parts
+                # Handle cases where additions or deletions are "-"
+                additions = int(additions) if additions != "-" else 0
+                deletions = int(deletions) if deletions != "-" else 0
+                total_additions += additions
+                total_deletions += deletions
+                file_metrics[file_name]['additions'] += additions
+                file_metrics[file_name]['deletions'] += deletions
+                
+        stats = dict(total_additions=total_additions,
+                     total_deletions=total_deletions,
+                     total_files=len(file_metrics))
+        
+        r['stats'] = stats
+        return r
+    
+    def retrieve(self):
+        project_folder = self.app.instanceFolder.split("instances")[0]
+
+        framework_base_dir = os.path.abspath(os.path.join(os.path.dirname(gnr.__file__), "..", ".."))+os.path.sep
+        framework_name = "genropy"
+        framework_data = self._analyze_git_repo(framework_base_dir)
+        
+        extra_packages = dict()
+        project_packages = dict()
+        
+        for package, obj in self.app.packages.items():
+            if obj.packageFolder.startswith(framework_base_dir):
+                # the package is from the framework, so same repository, don't analyze
+                continue
+
+            package_project = os.path.basename(os.path.abspath(os.path.join(obj.packageFolder, "..", "..")))
+            package_id = "{}.{}".format(package_project, obj.id)
+
+            p = self._analyze_git_repo(obj.packageFolder)
+            if obj.packageFolder.startswith(project_folder):
+                project_packages[package_id] = p
+            else:
+                extra_packages[package_id] = p
+            
+        global_counters = dict(framework={"genropy": framework_data},
+                               extra_packages = extra_packages,
+                               project_packages = project_packages
+                               )
+        return global_counters
+
+    def pprint(self):
+        print(self.name)
+        print("="*len(self.name))
+        r = self.retrieve()
+        for section, data in r.items():
+            section_title = section.replace("_", " ").capitalize()
+            print(section_title)
+            print("-"*len(section_title))
+            print(" ")
+            for project_component, component_data in data.items():
+                print(project_component)
+                print("-"*len(project_component))
+
+                print("Contributor Commits:")
+                name_col_size = max([len(k) for k in component_data['contrib_commit'].keys()])
+                for author, commits in component_data['contrib_commit'].items():
+                    print(f"{author:<{name_col_size}}: {commits}")
+
+                print("")
+                print("General stats")
+                for item, counter in component_data['stats'].items():
+                    print("{}: {}".format(item.replace("_", " ").capitalize(),
+                                          counter))
+                print('')
+            print("")
+
 class GnrAppInsightProjectComposition(GnrAppInsightDataset):
     """
     Creates a dictionary of the composition of the project
@@ -90,13 +213,32 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
                                project_cumulative = dict(project_cumulative_counters),
                                )
         return global_counters
-    
+
+    def pprint(self):
+        print(self.name)
+        print("="*len(self.name))
+        data = self.retrieve()
+        for project_component, component_data in data.items():
+            print(project_component.replace("_", " ").capitalize())
+            print("-"*len(project_component))
+            ids_max_length = max([len(x) for x in component_data.keys()])
+            for package in sorted(component_data.keys()):
+                p = component_data[package]
+                out = f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})"
+                if self.app.instanceName in package:
+                    out = self.get_coloured(out, 32)
+                else:
+                    out = self.get_coloured(out, YELLOW)
+                print(out)
+            print("")
+        
 class GnrAppInsights(object):
     """
     Creates a collections of insights about a GnrApp,
     provided its instance name
     """
-    insights = dict(project_composition=GnrAppInsightProjectComposition)
+    insights = dict(project_composition = GnrAppInsightProjectComposition,
+                    git_metrics = GnrAppInsightGitMetrics)
     
     def __init__(self, instance_name, insight_name=None):
         self.instance_name = instance_name
@@ -104,22 +246,28 @@ class GnrAppInsights(object):
         if insight_name and insight_name not in self.insights:
             raise Exception("The requested insight is not available")
         self.app = GnrApp(instance_name)
+
+    def _get_insight_to_process(self):
+        if self.insight_name:
+            to_process = {self.insight_name: self.insights[self.insight_name]}
+        else:
+            to_process = self.insights
+        return to_process
         
     def retrieve(self, as_bag=False):
         """
         Compute the requested insight (or all of them if not specified)
         returning the dictionary of data, or as a Bag if specified through "as_bag"
         """
-        if self.insight_name:
-            to_process = {self.insight_name: self.insights[self.insight_name]}
-        else:
-            to_process = self.insights
 
-        data = {k: v(self.app).retrieve() for k, v in to_process.items()}
+        data = {k: v(self.app).retrieve() for k, v in self._get_insight_to_process().items()}
         
         if as_bag:
             return Bag(data)
 
         return data
     
-        
+    def pprint(self):
+        for v in self._get_insight_to_process().values():
+            v(self.app).pprint()
+

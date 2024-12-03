@@ -100,6 +100,30 @@ def tracebackBag(limit=None):
     return Bag(root=result)
 
 
+def get_caller_info():
+    """
+    Get information about the actual caller, skipping decorator frames.
+    """
+    frame = sys._getframe(2)  # Start two levels up
+    while frame:
+        function_name = frame.f_code.co_name
+        module_name = frame.f_globals["__name__"]
+        
+        # Check if the frame is a decorator
+        # Skip frames where the function name is 'wrapper' (commonly used in decorators)
+        if function_name != "wrapper":
+            line_number = frame.f_lineno
+            return {
+                "line_number": line_number,
+                "function_name": function_name,
+                "module_name": module_name
+            }
+        
+        # Move up the stack
+        frame = frame.f_back
+
+    return None  
+
 class BaseProxy(object):
     def __init__(self, main):
         self.main=main

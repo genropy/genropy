@@ -110,7 +110,7 @@ class TestSqlDbAdapter():
 
 
     def test_filterColInfo(self):
-        valid_keys = ('name', 'default', 'notnull', 'dtype', 'position', 'length')
+        valid_keys = ('name', 'sqldefault', 'notnull', 'dtype', 'position', 'length')
         test_data = {v: f"{v}_val" for v in valid_keys}
         invalid_keys = ('superhero', 'weight', 'surname')
         test_data.update({v: f"{v}_val" for v in invalid_keys})
@@ -255,7 +255,7 @@ class TestSqlDbAdapter():
     
     def test_statements(self):
         r = self.adapter.string_agg("field", "separator")
-        assert "string_agg(" in r
+        assert "string_agg(" in r.lower()
         assert "field" in r
         assert "separator" in r
 

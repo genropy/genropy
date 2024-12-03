@@ -24,7 +24,8 @@ def main():
                         help="Show a list of insights")
 
     parser.add_argument("instance_name")
-    parser.add_argument("insight_name", nargs="?")
+    parser.add_argument("insight_name", nargs="?",
+                        default="project_composition")
     options = parser.parse_args()
 
     if options.list:
@@ -49,35 +50,9 @@ def main():
     title = f"Instance {options.instance_name} insights"
     print(title)
     print("="*len(title))
-    
-    r = insights.retrieve()
 
-    RED = 31
-    GREEN = 32
-    YELLOW = 33
-    BLUE = 34
+    insights.pprint()
     
-    def get_coloured(text, colour):
-        return f"\033[{colour}m{text}\033[0m"
-    
-    for section, data in r.items():
-        section_title = section.replace("_", " ").capitalize()
-        print(section_title)
-        print("-"*len(section_title))
-        print(" ")
-        for project_component, component_data in data.items():
-            print(project_component.replace("_", " ").capitalize())
-            print("-"*len(project_component))
-            ids_max_length = max([len(x) for x in component_data.keys()])
-            for package in sorted(component_data.keys()):
-                p = component_data[package]
-                out = f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})"
-                if options.instance_name in package:
-                    out = get_coloured(out, 32)
-                else:
-                    out = get_coloured(out, YELLOW)
-                print(out)
-            print("")
 
 if __name__ == "__main__":
     main()
