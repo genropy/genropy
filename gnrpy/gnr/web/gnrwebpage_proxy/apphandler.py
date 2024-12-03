@@ -347,13 +347,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         dbtable = '%s.%s' % (pkg, tbl)
         if not relation_value:
             kwargs['limit'] = 0
-        where = "$%s = :val_%s" % (related_field, related_field)
-        kwargs[str('val_%s' % related_field)] = relation_value
-        if condition:
-            where = ' ( %s ) AND ( %s ) ' % (where, condition)
-        query = self.db.query(dbtable, columns=columns, where=where,
-                              sqlContextName=sqlContextName, **kwargs)
 
+        
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=relation_value,where=condition,
+                                                    sqlContextName=sqlContextName, **kwargs)
         joinBag = None
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)

@@ -21,14 +21,16 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import json
 import os
 import re
 import threading
 from datetime import datetime, timedelta
 import pytz
+from functools import wraps
 from collections import defaultdict
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
+from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_info
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
@@ -40,6 +42,38 @@ from gnr.sql.gnrsql import GnrSqlException
 
 __version__ = '1.0b'
 
+
+
+def add_sql_comment(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        
+        # Get caller info and user info
+        info = {
+            "user": self_instance.db.currentEnv.get('user'),
+        }
+        # Add caller information
+        info.update(get_caller_info())
+        
+        # Check if `sql_comment` exists in kwargs
+        sql_comment = kwargs.get('sql_comment', None)
+        if sql_comment:
+            info['comment'] = sql_comment
+        info['sqlcommand'] = func.__name__
+        
+        # Create the updated sql_comment
+        self_instance.db.currentEnv['sql_comment'] = f'GNRCOMMENT - {json.dumps(info)}'
+        
+        # Call the original function with updated kwargs
+        return func(*args, **kwargs)
+    
+    return wrapper
 
 class RecordUpdater(object):
     """TODO
@@ -406,6 +440,11 @@ class SqlTable(GnrObject):
         return self.model.pkey
 
     @property
+    def pkeys(self):
+        """Return the pkey DbColumnObj object"""
+        return self.model.pkeys
+
+    @property
     def lastTS(self):
         """Return the lastTS DbColumnObj object"""
         return self.model.lastTS
@@ -579,6 +618,35 @@ class SqlTable(GnrObject):
                     customPermissions = customPermissions + permissions.split(',')
             self._availablePermissions = ','.join(uniquify(customPermissions))
         return self._availablePermissions
+    
+    def parseSerializedKey(self,key,field=None):
+        """
+        Parses a serialized primary key into a dictionary of key-value pairs.
+        Args:
+            pkey (str): The serialized primary key string.
+
+        Returns:
+            dict: A dictionary where the keys are the components of the primary key and the values are the corresponding values.
+        """
+        field = field or self.pkey
+        composed_of = self.column(field).attributes.get('composed_of')
+        pkeykeys = composed_of.strip('[]').split(',')
+        pkeyvalues = self.db.typeConverter.fromJson(key)
+        return dict(zip(pkeykeys,pkeyvalues))
+    
+    def relatedQueryPars(self,where=None,field=None,value=None,kwargs=None):
+        where = [where] if where else []
+        if value and self.column(field).attributes.get('composed_of'):
+            joinDict = self.parseSerializedKey(value,field=field)
+        else:
+            joinDict = {field:value}
+        for k,v in joinDict.items():
+            where.append(f'${k}=:rq_val_{k}')
+            kwargs[f'rq_val_{k}'] = v
+        return dict(where=' AND '.join(where), **kwargs)
+    
+    def relatedQuery(self,where=None,field=None,value=None,**kwargs):
+        return self.query(**self.relatedQueryPars(where=where,field=field,value=value,kwargs=kwargs))
 
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
@@ -587,7 +655,7 @@ class SqlTable(GnrObject):
         :param null: TODO"""
         converter = self.db.typeConverter
         _coerce_errors = []
-        for k in list(record.keys()):
+        for k in record.keys():
             if not k.startswith('@'):
                 if self.column(k) is None:
                     continue
@@ -1245,6 +1313,7 @@ class SqlTable(GnrObject):
         pass
 
     @extract_kwargs(jc=True)
+    @add_sql_comment
     def query(self, columns=None, where=None, order_by=None,
               distinct=None, limit=None, offset=None,
               group_by=None, having=None, for_update=False,
@@ -1703,37 +1772,41 @@ class SqlTable(GnrObject):
         :param nowait: boolean. TODO"""
         self.db.adapter.lockTable(self, mode, nowait)
 
-
+    @add_sql_comment
     def insert(self, record, **kwargs):
         """Insert a single record
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.insert(self, record, **kwargs)
         return record
-        
+
+    @add_sql_comment
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_insert(self, record, **kwargs)
         return record
-
-        
+    
+    @add_sql_comment
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
 
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_delete(self, record, **kwargs)
 
+    @add_sql_comment
     def insertMany(self, records, **kwargs):
         self.db.insertMany(self, records, **kwargs)
 
+    @add_sql_comment
     def raw_update(self,record=None,old_record=None,pkey=None,**kwargs):
         self.db.raw_update(self, record,old_record=old_record,pkey=pkey,**kwargs)
 
     def changePrimaryKeyValue(self, pkey=None,newpkey=None,**kwargs):
         self.db.adapter.changePrimaryKeyValue(self,pkey=pkey,newpkey=newpkey)
 
+    @add_sql_comment
     def delete(self, record, **kwargs):
         """Delete a single record from this table.
 
@@ -1804,7 +1877,7 @@ class SqlTable(GnrObject):
                             oldrec = dict(rel_rec)
                             rel_rec[mfld] = None
                             relatedTable.update(rel_rec,oldrec)
-
+    @add_sql_comment
     def update(self, record, old_record=None, pkey=None,**kwargs):
         """Update a single record
 
@@ -2014,8 +2087,12 @@ class SqlTable(GnrObject):
         on the current :ref:`database table <table>`"""
         return self.pkeyValue(record=record)
 
+    def compositeKey(self,record=None,field=None):
+        return self.db.typeConverter.toTypedJSON([record[key] for key in self.column(field).composed_of.split(',')])
 
     def pkeyValue(self,record=None):
+        if len(self.pkeys)>1:
+            return self.compositeKey(record,field=self.pkey)
         pkeyfield = self.model.pkey
         pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):

@@ -212,7 +212,7 @@ class SqlQueryCompiler(object):
             if fldalias == None:
                 raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
-            elif fldalias.relation_path: #resolve
+            elif fldalias.relation_path and not fldalias.composed_of:
                 #pathlist.append(fldalias.relation_path)
                 #newfieldpath = '.'.join(pathlist)        # replace the field alias with the column relation_path
                 # then call getFieldAlias again with the real path
@@ -322,7 +322,7 @@ class SqlQueryCompiler(object):
         manyrelation = False
         if joiner['mode'] == 'O':
             target_tbl = self.dbmodel.table(joiner['one_relation'])
-            target_column = joiner['one_relation'].split('.')[-1]
+            target_column = joiner['one_relation'].split('.')[-1]                
             from_tbl = self.dbmodel.table(joiner['many_relation'])
             from_column = joiner['many_relation'].split('.')[-1]
         else:
@@ -335,9 +335,21 @@ class SqlQueryCompiler(object):
         #target_sqltable = target_tbl.sqlname
         ignore_tenant = joiner.get('ignore_tenant')
         target_sqlfullname = target_tbl._get_sqlfullname(ignore_tenant=ignore_tenant)
-        target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
+        joinerList = []
+        target_sqlcolumn = None
         from_sqlcolumn = from_tbl.sqlnamemapper[from_column] if not joiner.get('virtual') else None
+        if from_sqlcolumn:
+            joinerList.append((from_sqlcolumn,target_tbl.sqlnamemapper[target_column]))
+        elif from_tbl.column(from_column).attributes.get('composed_of'):
+            from_columns = from_tbl.column(from_column).composed_of
+            target_columns = target_tbl.column(target_column).composed_of
+            if not target_columns:
+                raise  GnrSqlException('Relation with multikey works only with compositeColumns')
+            target_sqlcolumns = [target_tbl.sqlnamemapper[tc] for tc in target_columns.split(',')]
+            joinerList = list(zip([from_tbl.sqlnamemapper[from_column] for from_column in from_columns.split(',')], target_sqlcolumns))
         joindict = dict()
+        adaptedAlias = self.db.adapter.adaptSqlName(alias)
+        adaptedBaseAlias = self.db.adapter.adaptSqlName(basealias)
         if 'join_on' in joiner:
             joiner['cnd'] = joiner['join_on']
         if joiner.get('cnd'):
@@ -355,18 +367,17 @@ class SqlQueryCompiler(object):
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
             joiner['cnd'] = cnd
         elif (joiner.get('case_insensitive', False) == 'Y'):
-            cnd = 'lower(%s.%s) = lower(%s.%s)' % (alias, target_sqlcolumn, basealias, from_sqlcolumn)
+            cnd = f'lower({adaptedAlias}.{target_sqlcolumn}) = lower({adaptedBaseAlias}.{from_sqlcolumn})'
+        elif joinerList:
+            cnd = ' AND '.join([f'({adaptedBaseAlias}.{from_column})={adaptedAlias}.{target_sqlcolumn}' for from_column,target_sqlcolumn in joinerList])
         elif joiner.get('virtual'):
-            cnd = f'(${from_column})={self.db.adapter.adaptSqlName(alias)}.{target_sqlcolumn}'
-        else:
-            cnd = '%s.%s = %s.%s' % (self.db.adapter.adaptSqlName(alias), target_sqlcolumn, self.db.adapter.adaptSqlName(basealias), from_sqlcolumn)
+            cnd = f'(${from_column})={adaptedAlias}.{target_sqlcolumn}'
         if parent:
             cnd =COLRELFINDER.sub(lambda g:f'{parent}.'+g.group(0).replace('$',''),cnd)
         cnd = self.updateFieldDict(cnd, reldict=joindict)
         if joindict:
             for f in joindict.values():
                 self.getFieldAlias(f)
-            #print(x)
             self.cpl.relationDict.update(joindict)
         if self.joinConditions:
             from_fld, target_fld = self._tablesFromRelation(joiner)
@@ -385,7 +396,6 @@ class SqlQueryCompiler(object):
                 self.cpl.explodingColumns.append(self._currColKey)
             self._explodingTables.append(pw)
             self._explodingRows = True
-
         return alias, newpath
 
     def getJoinCondition(self, target_fld, from_fld, alias,relation=None):
@@ -566,6 +576,22 @@ class SqlQueryCompiler(object):
                 else:
                     new_col_list.append(col)
             columns = ','.join(new_col_list)
+
+
+        if count:               # if the query is executed in count mode...
+            order_by = ''       # sort has no meaning
+            if group_by:        # the number of rows is defined only from GROUP BY cols, so clean aggregate functions from columns.
+                columns = group_by # was 't0.%s' % self.tblobj.pkey        # ????
+            elif distinct:
+                pass            # leave columns as is to calculate distinct values
+            else:
+                columns = 'count(*) AS "gnr_row_count"'  # use the sql count function istead of load all data
+        elif addPkeyColumn and self.tblobj.pkey and not aggregate:
+            columns = columns + ',\n' + f'${self.tblobj.pkey} AS {self.db.adapter.asTranslator("pkey")}' 
+            columns = columns.lstrip(',')                                  
+        else:
+            columns = columns.strip('\n').strip(',')
+            
         # translate @relname.fldname in $_relname_fldname and add them to the relationDict
         currentEnv = self.db.currentEnv
         context_subtables = currentEnv.get('context_subtables',Bag()).getItem(self.tblobj.fullname)
@@ -639,19 +665,6 @@ class SqlQueryCompiler(object):
                 colPars[key] = self.getFieldAlias(self.cpl.relationDict[key])
             missingKeys = list(set(self.cpl.relationDict.keys()).difference(set(colPars.keys())))
 
-        if count:               # if the query is executed in count mode...
-            order_by = ''       # sort has no meaning
-            if group_by:        # the number of rows is defined only from GROUP BY cols, so clean aggregate functions from columns.
-                columns = group_by # was 't0.%s' % self.tblobj.pkey        # ????
-            elif distinct:
-                pass            # leave columns as is to calculate distinct values
-            else:
-                columns = 'count(*) AS "gnr_row_count"'  # use the sql count function istead of load all data
-        elif addPkeyColumn and self.tblobj.pkey and not aggregate:
-            columns = columns + ',\n' + '%s.%s AS %s' % (self.db.adapter.adaptSqlName(self.aliasCode(0)),self.db.adapter.adaptSqlName(self.tblobj.column(self.tblobj.pkey).sqlname),self.db.adapter.asTranslator('pkey'))  # when possible add pkey to all selections
-            columns = columns.lstrip(',')                                   # if columns was '', now it starts with ','
-        else:
-            columns = columns.strip('\n').strip(',')
 
         # replace $fldname with tn.fldname: finally the real SQL columns!
         columns = gnrstring.templateReplace(columns, colPars, safeMode=True)
@@ -715,8 +728,7 @@ class SqlQueryCompiler(object):
                              check the :ref:`relationdict` documentation section
         :param virtual_columns: TODO."""
         self.cpl = SqlCompiledQuery(self.tblobj.sqlfullname, relationDict=relationDict)
-
-        if not 'pkey' in self.cpl.relationDict and self.tblobj.pkey:
+        if 'pkey' not in self.cpl.relationDict and self.tblobj.pkey:
             self.cpl.relationDict['pkey'] = self.tblobj.pkey
         self.init(lazy=lazy, eager=eager)
         colPars = {}
@@ -725,7 +737,7 @@ class SqlQueryCompiler(object):
         if isinstance(virtual_columns, str):
             virtual_columns = gnrstring.splitAndStrip(virtual_columns, ',')
         for fieldname, value, attrs in self.relations.digest('#k,#v,#a'):
-            xattrs = dict([(k, v) for k, v in list(attrs.items()) if not k in ['tag', 'comment', 'table', 'pkg']])
+            xattrs = {k:v for k, v in attrs.items() if not k in ['tag', 'comment', 'table', 'pkg']}
             #if not (bagFields or (attrs.get('dtype') != 'X')):
             if attrs.get('dtype') == 'X' and not bagFields:
                 continue
@@ -746,7 +758,6 @@ class SqlQueryCompiler(object):
         self._handle_virtual_columns(virtual_columns)
         self.cpl.where = self._recordWhere(where=where)
         self.cpl.columns = ',\n       '.join(self.fieldlist)
-        #self.cpl.limit = 2
         self.cpl.for_update = for_update
         for key, value in list(joindict.items()):
             colPars[key] = self.getFieldAlias(value)
@@ -2223,18 +2234,9 @@ class SqlRelatedSelectionResolver(BagResolver):
     def load(self):
         """TODO"""
         pkg, tbl, related_field = self.target_fld.split('.')
-        dbtable = '%s.%s' % (pkg, tbl)
-
-        where = "$%s = :val_%s" % (related_field, related_field)
-
-        self.sqlparams = self.sqlparams or {}
-        self.sqlparams[str('val_%s' % related_field)] = self.relation_value
-        if self.condition:
-            where = '(%s) AND (%s)' % (where, self.condition)
-
-        query = SqlQuery(self.db.table(dbtable), columns=self.columns, where=where,
-                         joinConditions=self.joinConditions, sqlContextName=self.sqlContextName,
-                         bagFields=self.bagFields, **self.sqlparams)
+        dbtable = '%s.%s' % (pkg, tbl)  
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=self.relation_value,where=self.condition,
+                                                    sqlContextName=self.sqlContextName, **self.sqlparams)
         return query.selection().output(self.mode, recordResolver=(self.mode == 'grid'),virtual_columns=self.virtual_columns)
 
 class SqlRecord(object):
@@ -2249,6 +2251,10 @@ class SqlRecord(object):
                  checkPermissions=None,
                  aliasPrefix=None,
                  **kwargs):
+        if len(dbtable.pkeys)>1 and pkey.startswith('['):
+            sqlparams = sqlparams or {}
+            sqlparams.update(dbtable.parseSerializedKey(pkey))
+            pkey = None
         self.dbtable = dbtable
         self.pkey = pkey
         self.where = where
@@ -2269,7 +2275,7 @@ class SqlRecord(object):
         self.storename = _storename
         self.checkPermissions = checkPermissions
         self.aliasPrefix = aliasPrefix or 't'
-
+        
 
     def setJoinCondition(self, target_fld, from_fld, condition, one_one=False, **kwargs):
         """TODO
@@ -2304,7 +2310,7 @@ class SqlRecord(object):
         elif self.pkey is not None:
             where = '$pkey = :pkey'
         else:
-            where = ' AND '.join(['"%s0".%s=:%s' % (self.aliasPrefix,k, k) for k in list(self.sqlparams.keys())])
+            where = ' AND '.join([f'"{self.aliasPrefix}0".{k}=:{k}' for k in self.sqlparams.keys() if self.dbtable.column(k) is not None])
         compiler = SqlQueryCompiler(self.dbtable.model, sqlparams=self.sqlparams,
                                   joinConditions=self.joinConditions,
                                   sqlContextName=self.sqlContextName,aliasPrefix=self.aliasPrefix)

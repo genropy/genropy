@@ -81,6 +81,7 @@ class DbModel(object):
         self.db = db
         self.onBuildingCb = []
         self.src = DbModelSrc.makeRoot()
+        self.src.child('package_list', 'packages')
         self.src._dbmodel = self
         self.obj = None
         self.relations = Bag()
@@ -157,28 +158,15 @@ class DbModel(object):
             cb()
         #bag sorgente pronta
         self.runOnBuildingCb()
+        if self.relations:
+            self.relations.clear()
+            #print('relations',self.relations)
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')
             self.addRelation(many_relation_tuple, oneCol, **relation)
         self._columnsWithRelations.clear()
 
-
-
-    def resolveAlias(self, name):
-        """TODO
-
-        :param name: TODO
-        :returns: TODO
-        """
-        pkg, tbl, col_name = name.split('.')
-        pkg_name = pkg
-        pkg = self.obj[pkg]
-        tbl = pkg.table(tbl)
-        col = tbl.columns[col_name]
-        if col is None:
-            col = tbl.virtual_columns[col_name]
-        return (pkg.name, tbl.name, col.name)
 
     @extract_kwargs(resolver=True,meta=True)
     def addRelation(self, many_relation_tuple, oneColumn, mode=None,storename=None, one_one=None, onDelete=None, onDelete_sql=None,
@@ -218,7 +206,7 @@ class DbModel(object):
         try:
             many_pkg, many_table, many_field = many_relation_tuple
             many_relation = '.'.join(many_relation_tuple)
-            one_pkg, one_table, one_field = self.resolveAlias(oneColumn)
+            one_pkg, one_table, one_field = oneColumn.split('.')
             one_relation = '.'.join((one_pkg, one_table, one_field))
             if not (many_field and one_field):
                 logger.warning("pkg, table or field involved in the relation %s -> %s doesn't exist" % (
@@ -598,10 +586,21 @@ class DbModelSrc(GnrStructData):
         :param onInserting: This sets the method name which is triggered when a record is inserted.  useful for adding a code for example
         :param onUpdating: This sets the method name which is triggered when a record is updated
         :param onDeleting: This sets the method name which is triggered when a record is deleted"""
+        indexed = boolean(indexed) if indexed is not None else None
+        unique = boolean(unique) if unique is not None else None
         if '::' in name:
             name, dtype = name.split('::')
         if not 'columns' in self:
             self.child('column_list', 'columns')
+        vc = self.getNode(f'virtual_columns.{name}')
+        if vc:
+            colattr = dict(dtype=dtype, name_short=name_short, 
+                           name_long=name_long, name_full=name_full,
+                          comment=comment,
+                          unique=unique, indexed=indexed,
+                          group=group,**kwargs)
+            vc.attr.update({k:v for k,v in colattr.items() if v is not None})
+            return vc.value
         kwargs.update(variant_kwargs)
         kwargs.update(ext_kwargs)
         result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
@@ -660,7 +659,8 @@ class DbModelSrc(GnrStructData):
                           sql_formula=sql_formula, py_method=py_method,
                           virtual_column=True, variant=variant,**kwargs)
         modelobj = self.root._dbmodel.obj
-        if modelobj:
+        if self.root._dbmodel.db.auto_static_enabled and  modelobj:
+            #to check maybe this feature is no longer necessary
             tblname = self.parentNode.label
             pkgname = self.parentNode.parentNode.parentNode.label
             virtual_columns = modelobj[pkgname]['tables'][tblname]['virtual_columns']
@@ -687,6 +687,22 @@ class DbModelSrc(GnrStructData):
         :returns: an joinColumn
         """
         return self.virtual_column(name, join_column=True, **kwargs)
+
+
+    def compositeColumn(self, name, columns=None, static=True,**kwargs):
+        chunks = []
+        for column in columns.split(','):
+            dtype,val = self.column(column).attributes.get('dtype','T'),f'${column}'
+            if dtype in ('A','C','T'):
+                val = f""" '"' ||  ${column} || '"' """
+            elif dtype not in ('L','F','R','B'):
+                val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """ 
+            chunks.append(f"""(CASE WHEN ${column} IS NULL THEN 'null' ELSE {val} END) """)
+        sql_formula = " ||','||".join(chunks)
+        sql_formula = f"'[' || {sql_formula} || ']' "
+        return self.virtual_column(name, composed_of=columns, static=static,sql_formula=sql_formula,dtype='JS',**kwargs)
+
+
 
     def bagItemColumn(self, name, bagcolumn=None,itempath=None,dtype=None, **kwargs):
         """Insert an aliasColumn into a :ref:`table`, that is a column with a relation path.
@@ -732,6 +748,7 @@ class DbModelSrc(GnrStructData):
         """
         return self.virtual_column(name, sql_formula=sql_formula,select=select,exists=exists, dtype=dtype, **kwargs)
 
+    
     def pyColumn(self, name, py_method=None,**kwargs):
         """Insert a pyColumn into a table, that is TODO. The aliasColumn is a child of the table
         created with the :meth:`table()` method
@@ -774,7 +791,7 @@ class DbModelSrc(GnrStructData):
         child = self.child('index', 'indexes.%s' % name, columns=columns, unique=unique)
         return child
 
-    def relation(self, related_column, mode='relation', one_name=None,
+    def relation(self, related_column=None,related_table=None, mode='relation', one_name=None,
                  many_name=None, eager_one=None, eager_many=None, one_one=None, child=None,
                  one_group=None, many_group=None, onUpdate=None, onUpdate_sql='cascade', onDelete=None,
                  onDelete_sql=None, deferred=None, relation_name=None,onDuplicate=None, **kwargs):
@@ -818,10 +835,6 @@ class DbModelSrc(GnrStructData):
         if one_group is None and fkey_group and fkey_group!='_':
             self.attributes['group'] = '_'
             one_group = fkey_group
-        related_column = related_column.split('.')
-        if len(related_column)<3:
-            related_column = [self.getInheritedAttributes().get('pkg')]+related_column
-        related_column = '.'.join(related_column)
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
@@ -1088,6 +1101,15 @@ class DbTableObj(DbModelObj):
 
     sqlnamemapper = property(_get_sqlnamemapper)
 
+
+    def _get_pkeys(self):
+        if not self.pkey:
+            return []
+        if self.column(self.pkey).attributes.get('composed_of'):
+            return self.column(self.pkey).attributes.get('composed_of').split(',')
+        return [self.pkey]
+    pkeys = property(_get_pkeys)
+
     def _get_pkey(self):
         """property. Returns the table's pkey"""
         return self.attributes.get('pkey', '')
@@ -1210,6 +1232,12 @@ class DbTableObj(DbModelObj):
         self._handle_variant_columns(virtual_columns=virtual_columns)
         self.db.currentEnv[vc_key] = virtual_columns
         return virtual_columns
+    
+    @property
+    def composite_columns(self):
+        return Bag([(colname,colobj) \
+                    for colname,colobj in self['virtual_columns'].items() \
+                        if colobj.attributes.get('composed_of')])
 
     @property
     def static_virtual_columns(self):
@@ -1306,6 +1334,10 @@ class DbTableObj(DbModelObj):
                 elif colalias.relation_path:
                     name = colalias.relation_path
                 elif colalias.sql_formula or colalias.select or colalias.exists:
+                    return colalias
+                elif colalias.join_column:
+                    return colalias
+                elif colalias.composed_of:
                     return colalias
                 elif colalias.py_method:
                     return colalias
@@ -1658,10 +1690,13 @@ class DbBaseColumnObj(DbModelObj):
         return
 
     def _fillRelatedColumn(self, related_column):
-            relation_list = related_column.split('.')
-            if len(relation_list)==2:
-                return '.'.join([self.pkg.name]+relation_list)
-            return related_column
+        relation_list = related_column.split('.')
+        if len(relation_list) == 3:
+            pkg,tbl,column = relation_list
+        else:
+            tbl,column = relation_list
+            pkg = self.pkg.name
+        return f'{pkg}.{tbl}.{column}' 
 
 class DbColumnObj(DbBaseColumnObj):
     """TODO"""
@@ -1680,6 +1715,7 @@ class DbColumnObj(DbBaseColumnObj):
         column_relation = self.structnode.value['relation']
         if column_relation is not None:
             reldict = dict(column_relation.attributes)
+            
             reldict['related_column'] = self._fillRelatedColumn(reldict['related_column'])
             if 'cnd' in reldict:
                 reldict['mode'] = 'custom'
@@ -1768,10 +1804,20 @@ class DbVirtualColumnObj(DbBaseColumnObj):
 
     relation_path = property(_get_relation_path)
 
+    def _get_composed_of(self):
+        return self.attributes.get('composed_of')
+    composed_of = property(_get_composed_of)
+
+
+    def _get_join_column(self):
+        return self.attributes.get('join_column')
+    join_column = property(_get_join_column)
+
+
+
     def _get_sql_formula(self):
         """property. Returns the sql_formula"""
         return self.attributes.get('sql_formula')
-
     sql_formula = property(_get_sql_formula)
 
     def _get_select(self):

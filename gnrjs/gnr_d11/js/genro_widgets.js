@@ -700,7 +700,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(!kw.node){
             return;
         }
-        console.log('items',parent_lv)
         let nodeToUpdate = kw.node;
         while (parent_lv>1){
             nodeToUpdate = nodeToUpdate.getParentNode();

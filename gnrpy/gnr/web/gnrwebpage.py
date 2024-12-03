@@ -598,7 +598,7 @@ class GnrWebPage(GnrBaseWebPage):
         return AUTH_OK
     
     def _checkRootPage(self):
-        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage']
+        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
                 or not avatar_rootpage:

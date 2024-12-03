@@ -183,7 +183,8 @@ class GnrSqlDb(GnrObject):
             tenant_table = pkg.attributes.get('tenant_table') or tenant_table
         self._tenant_table = tenant_table
         return self._tenant_table
-        
+
+
     @property
     def reuse_relation_tree(self):
         if self.application:
@@ -403,6 +404,23 @@ class GnrSqlDb(GnrObject):
         else:
             return self.dbname
     
+    def getTenantSchemas(self):
+        if not self.tenant_table:
+            return []
+        tblobj = self.table(self.tenant_table)
+        tenant_column = tblobj.attributes.get('tenant_column') or 'tenant_schema'
+        f = tblobj.query(ignorePartition=True,subtable='*',
+                            where=f'${tenant_column} IS NOT NULL',
+                            columns=f'${tenant_column}').fetch()
+        return [r[tenant_column] for r in f]
+    
+    def getApplicationSchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values()]
+
+    def readOnlySchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values() if pkg.attributes.get('readOnly')]
+
+
     def usingRootstore(self):
         return  self.currentStorename == self.rootstore
 
@@ -485,6 +503,7 @@ class GnrSqlDb(GnrObject):
             storename = self.rootstore
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
+        sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
@@ -497,6 +516,7 @@ class GnrSqlDb(GnrObject):
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
             storename = self.rootstore
         with self.tempEnv(storename=storename):
+            sql = f'-- {sql_comment}\n{sql}'
             if _adaptArguments:
                 sql=sql.replace(r'\:',chr(1 ))
                 sql, sqlargs = self.adapter.prepareSqlText(sql, sqlargs)
@@ -511,7 +531,7 @@ class GnrSqlDb(GnrObject):
                     else:
                         cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
-
+                
                 if isinstance(cursor, list):
                     # since sqlite won't support different cursors in different
                     # threads, we simply serialize the cursor execution

@@ -2,7 +2,7 @@
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano
+# Copyright (c) : 2004 - 2007 Softwell sas - Milano 
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
@@ -20,14 +20,19 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from datetime import datetime
-from past.utils import old_div
-import re
 import datetime
+
+import re
+import pytz
+
+
+
+from decimal import Decimal
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
+
 from gnr.core.gnrdate import decodeDatePeriod
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
@@ -35,13 +40,13 @@ FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 class SqlDbAdapter(object):
     """Base class for sql adapters.
-
+    
     All the methods of this class can be overwritten for specific db adapters,
     but only a few must be implemented in a specific adapter."""
 
     typesDict = {'character varying': 'A', 'character': 'A', 'text': 'T',
-                 'boolean': 'B', 'date': 'D',
-                 'time without time zone': 'H',
+                 'boolean': 'B', 'date': 'D', 
+                 'time without time zone': 'H', 
                  'time with time zone': 'HZ',
                  'timestamp without time zone': 'DH',
                  'interval':'DT',
@@ -51,7 +56,7 @@ class SqlDbAdapter(object):
 
     revTypesDict = {'A': 'character varying', 'C': 'character', 'T': 'text',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
-                    'B': 'boolean', 'D': 'date',
+                    'B': 'boolean', 'D': 'date', 
                     'H': 'time without time zone',
                     'HZ': 'time without time zone',
                     'DH': 'timestamp without time zone',
@@ -75,8 +80,10 @@ class SqlDbAdapter(object):
         self.options = kwargs
         self._whereTranslator = None
 
+
     def use_schemas(self):
         return True
+    
 
     def connect(self, storename=None):
         """-- IMPLEMENT THIS --
@@ -98,7 +105,7 @@ class SqlDbAdapter(object):
 
     def listen(self, msg, timeout=None, onNotify=None, onTimeout=None):
         """-- IMPLEMENT THIS --
-        Listen for interprocess message 'msg'
+        Listen for interprocess message 'msg' 
         onTimeout callbacks are executed on every timeout, onNotify on messages.
         Callbacks returns False to stop, or True to continue listening.
         @param msg: name of the message to wait for
@@ -115,7 +122,6 @@ class SqlDbAdapter(object):
         @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
         raise NotImplementedException()
 
-    @classmethod
     def createdb(self, name, encoding=None):
         """-- IMPLEMENT THIS --
         Create a new database
@@ -144,7 +150,7 @@ class SqlDbAdapter(object):
         @param name: db name
         """
         raise NotImplementedException()
-
+    
     def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
                                 source_ssh_dbuser=None,source_ssh_dbpassword=None,
                                 source_ssh_dbhost=None,dest_dbname=None):
@@ -172,10 +178,10 @@ class SqlDbAdapter(object):
         :param kwargs: optional parameters, eg. for elType "columns" kwargs
                        could be {'schema':'public', 'table':'mytable'}"""
         raise NotImplementedException()
-
+        
     def relations(self):
         """-- IMPLEMENT THIS --
-        Get a list of all relations in the db and return it.
+        Get a list of all relations in the db and return it. 
         Each element of the list is a list (or tuple) with this elements:
         [foreign_constraint_name, many_schema, many_tbl, [many_col, ...],
         unique_constraint_name, one_schema, one_tbl, [one_col, ...]]"""
@@ -183,7 +189,7 @@ class SqlDbAdapter(object):
 
     def getPkey(self, table, schema):
         """-- IMPLEMENT THIS --
-
+        
         :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
                       (packageName is the name of the :ref:`package <packages>` to which the table
                       belongs to)
@@ -201,11 +207,11 @@ class SqlDbAdapter(object):
     def _filterColInfo(self, colinfo, prefix):
         """Utility method to be used by getColInfo implementations.
         Prepend each non-standard key in the colinfo dict with prefix.
-
+        
         :param colinfo: dict of column infos
         :param prefix: adapter specific prefix
         :returns: a new colinfo dict"""
-        standard_keys = ('name', 'default', 'notnull', 'dtype', 'position', 'length')
+        standard_keys = ('name','sqldefault', 'notnull', 'dtype', 'position', 'length')
         d = {k: v for k, v in colinfo.items() if k in standard_keys}
         d.update({f"{prefix}{k}": v for k, v in colinfo.items() if k not in standard_keys})
         return d
@@ -214,25 +220,25 @@ class SqlDbAdapter(object):
         """-- IMPLEMENT THIS --
         Get a (list of) dict containing details about all the indexes of a table.
         Each dict has those info: name, primary (bool), unique (bool), columns (comma separated string)
-
+        
         :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
                       (packageName is the name of the :ref:`package <packages>` to which the table
                       belongs to)
         :param schema: the schema name
         :returns: list of index infos"""
         raise NotImplementedException()
-
+        
     def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
-
+        
         Other info may be present with an adapter-specific prefix."""
         raise NotImplementedException()
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.
         Example: for a search condition using regex, sqlite wants 'REGEXP', while postgres wants '~*'
-
+        
         :param sql: the sql string to execute.
         :param  **kwargs: the params dict
         :returns: tuple (sql, kwargs)"""
@@ -248,15 +254,12 @@ class SqlDbAdapter(object):
             sqlargs.pop(k)
             sqlargs.update(dict([('%s%i' % (k, i), ov) for i, ov in enumerate(v)]))
             sql = re.sub(r':%s(\W|$)' % k, sqllist+'\\1', sql)
-
-
         return sql
 
     def schemaName(self, name):
         return self.dbroot.fixed_schema or name
-
-    @classmethod
-    def adaptSqlName(cls,name):
+        
+    def adaptSqlName(self,name):
         return name
 
     def adaptSqlSchema(self,name):
@@ -267,7 +270,7 @@ class SqlDbAdapter(object):
 
     def existsRecord(self, dbtable, record_data):
         """Test if a record yet exists in the db.
-
+        
         :param dbtable: specify the :ref:`database table <table>`. More information in the
                         :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
         :param record_data: a dict compatible object containing at least one entry for the pkey column of the table."""
@@ -301,7 +304,7 @@ class SqlDbAdapter(object):
 
     def setLocale(self,locale):
         pass
-
+        
     def ageAtDate(self, dateColumn, dateArg=None, timeUnit='day'):
         """Returns the sql clause to obtain the age of a dateColum measured as difference from the dateArg or the workdate
            And expressed with given timeUnit.
@@ -309,9 +312,9 @@ class SqlDbAdapter(object):
            @dateArg: name of the parameter that contains the reference date
            @timeUnit: year,month,week,day,hour,minute,second. Defaulted to day"""
         dateArg = dateArg or 'env_workdate'
-        timeUnitDict = dict(year=365 * 24 * 60 * 60, month=old_div(365 * 24 * 60 * 60, 12), week=7 * 24 * 60 * 60,
+        timeUnitDict = dict(year=365 * 24 * 60 * 60, month=int(365 * 24 * 60 * 60/ 12), week=7 * 24 * 60 * 60,
                             day=24 * 60 * 60, hour=60 * 60, minute=60, second=1)
-        return """CAST((EXTRACT (EPOCH FROM(cast(:%s as date))) -
+        return """CAST((EXTRACT (EPOCH FROM(cast(:%s as date))) -  
                         EXTRACT (EPOCH FROM(%s)))/%i as bigint)""" % (dateArg, dateColumn,
                                                                       timeUnitDict.get(timeUnit, None) or timeUnitDict[
                                                                                                           'day'])
@@ -351,7 +354,7 @@ class SqlDbAdapter(object):
         Delete items which name starts with '@': eager loaded relations don't have to be
         written as fields. Convert Bag values to xml, to be stored in text or blob fields.
         [Convert all fields names to lowercase ascii characters.] REMOVED
-
+        
         :param record_data: a dict compatible object
         :param tblobj: the :ref:`database table <table>` object
         """
@@ -378,11 +381,11 @@ class SqlDbAdapter(object):
         Lock a table
         """
         raise NotImplementedException()
-
+        
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
         All fields in record_data will be added: all keys must correspond to a column in the db.
-
+        
         :param dbtable: specify the :ref:`database table <table>`. More information in the
                         :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
         :param record_data: a dict compatible object
@@ -393,7 +396,7 @@ class SqlDbAdapter(object):
         data_keys = []
         for k,v in record_data.items():
             sqlcolname = tblobj.sqlnamemapper.get(k)
-            if not sqlcolname:
+            if not sqlcolname: 
                 # skip aliasColumns
                 continue
             sql_value = tblobj.column(k).attributes.get('sql_value')
@@ -422,24 +425,33 @@ class SqlDbAdapter(object):
         cursor = self.cursor(self.dbroot.connection)
         result = cursor.executemany(sql,records)
         return result
+    
+    def connection(self,manager=False):
+        return self._managerConnection() if manager else self.connect()
 
 
+    def execute(self,sql,sqlargs=None,manager=False,autoCommit=False):
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+        
+    def raw_fetch(self,sql,sqlargs=None,manager=False,autoCommit=False):
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+            return cursor.fetchall()
+                
+            
     def changePrimaryKeyValue(self, dbtable, pkey=None,newpkey=None,**kwargs):
         tblobj = dbtable.model
         pkeyColumn =  tblobj.sqlnamemapper[tblobj.pkey]
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
-    @property
-    def colcache(self):
-        if not hasattr(self, '_colcache'):
-            self._colcache = dict()
-        return self._colcache
-
     def update(self, dbtable, record_data, pkey=None,**kwargs):
-        """Update a record in the db.
+        """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
-
+        
         :param dbtable: specify the :ref:`database table <table>`. More information in the
                         :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
         :param record_data: a dict compatible object
@@ -452,11 +464,7 @@ class SqlDbAdapter(object):
             sqlcolname = tblobj.sqlnamemapper.get(k)
             sql_par_prefix = ':'
             if sqlcolname:
-                if sqlcolname in self.colcache:
-                    sql_value = self.colcache[sqlcolname]
-                else:
-                    sql_value = tblobj.column(k).attributes.get('sql_value')
-                    self.colcache[sqlcolname] = sql_value
+                sql_value = tblobj.column(k).attributes.get('sql_value')
                 if sql_value:
                     sql_par_prefix = ''
                     k = sql_value
@@ -472,20 +480,21 @@ class SqlDbAdapter(object):
     def delete(self, dbtable, record_data,**kwargs):
         """Delete a record from the db
         All fields in record_data will be added: all keys must correspond to a column in the db
-
+        
         :param dbtable: specify the :ref:`database table <table>`. More information in the
                         :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
         :param record_data: a dict compatible object containing at least one entry for the pkey column of the table
         """
         tblobj = dbtable.model
         record_data = self.prepareRecordData(record_data,tblobj=tblobj,**kwargs)
-        pkey = tblobj.pkey
-        sql = 'DELETE FROM %s WHERE %s=:%s;' % (tblobj.sqlfullname, tblobj.sqlnamemapper[pkey], pkey)
+        pkeys = tblobj.pkeys
+        where = ' AND '.join([f'{key}=:{key}' for key in pkeys])
+        sql = f'DELETE FROM {tblobj.sqlfullname} WHERE {where};'
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def sql_deleteSelection(self, dbtable, pkeyList):
         """Delete a selection from the table. It works only in SQL so no python trigger is executed
-
+        
         :param dbtable: specify the :ref:`database table <table>`. More information in the
                         :ref:`dbtable` section (:ref:`dbselect_examples_simple`)
         :param pkeyList: records to delete
@@ -514,7 +523,7 @@ class SqlDbAdapter(object):
         tblobj = dbtable.model
         columns = ', '.join(tblobj.columns.keys())
         sql = """INSERT INTO {dest_table}({columns})
-                 SELECT {columns} FROM {source_table};""".format(dest_table = tblobj.sqlfullname,
+                 SELECT {columns} FROM {source_table};""".format(dest_table = tblobj.sqlfullname, 
                                                         source_table = sqltablename,columns=columns)
         return self.dbroot.execute(sql, dbtable=dbtable.fullname)
 
@@ -524,7 +533,7 @@ class SqlDbAdapter(object):
 
     def vacuum(self, table='', full=False):
         """Perform analyze routines on the database
-
+        
         :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
                       (packageName is the name of the :ref:`package <packages>` to which the table
                       belongs to)
@@ -532,16 +541,9 @@ class SqlDbAdapter(object):
         self.dbroot.execute('VACUUM ANALYZE %s;' % table)
 
     def string_agg(self,fieldpath,separator):
-        return f"STRING_AGG({fieldpath},'{separator}')"
-
-    def cast_to_varchar(self,fieldpath,n=None):
-        if not n:
-            return f'CAST({fieldpath} AS TEXT)'
-        return f'CAST({fieldpath} AS VARCHAR({n}))'
+        return f"string_agg({fieldpath},'{separator}')"
 
     def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
-        o_pkg = self.adaptSqlName(o_pkg)
-        m_pkg = self.adaptSqlName(m_pkg)
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
         m_pkg, m_tbl, c_name, m_fld, o_pkg, o_tbl, o_fld)
         drop_statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s;' % (m_pkg, m_tbl, c_name)
@@ -615,17 +617,41 @@ class SqlDbAdapter(object):
             command = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
         self.dbroot.execute(command % (sqltable,sqlname))
 
-    def columnSqlDefinition(self, sqlname, dtype, size, notnull, pkey, unique,extra_sql=None):
+
+    def valueToSql(self, value):
+        if value is None:
+            return 'NULL'
+        if isinstance(value, (int, float, Decimal)):
+            return str(value)
+        elif isinstance(value, bool):
+            return str(int(value))
+        elif isinstance(value, str):
+            # Escaping single quotes to prevent SQL injection or query errors
+            strvalue = value.replace("'", "''")
+        elif isinstance(value, datetime):
+            txtformat = '%Y-%m-%d %H:%M:%S'
+            if value.tzinfo is not None:
+                value = value.astimezone(pytz.UTC)
+                txtformat = '%Y-%m-%d %H:%M:%S%z'
+            strvalue = value.strftime(txtformat)
+        else:
+            raise TypeError(f"Unsupported data type: {type(value)}")
+        return f"'{strvalue}'"
+
+    def columnSqlDefinition(self, sqlname, dtype=None, size=None, notnull=None, pkey=None, 
+                            unique=None,default=None,extra_sql=None):
         """Return the statement string for creating a table's column
         """
-        sql = '"%s" %s' % (sqlname, self.columnSqlType(dtype, size))
+        sql_list = [f'"{sqlname}" {self.columnSqlType(dtype, size)}'] 
         if notnull:
-            sql = sql + ' NOT NULL'
+            sql_list.append('NOT NULL')
         if pkey:
-            sql = sql + ' PRIMARY KEY'
+            sql_list.append('PRIMARY KEY')
         if unique:
-            sql = sql + ' UNIQUE'
-        return f"{sql} {extra_sql or ''}"
+            sql_list.append('UNIQUE')
+        if default:
+            sql_list.append(f'DEFAULT {self.valueToSql(default)}')
+        return f"{' '.join(sql_list)} {extra_sql or ''}"
 
     def columnSqlType(self, dtype, size=None):
         if dtype != 'N' and size:
@@ -689,7 +715,7 @@ class SqlDbAdapter(object):
 
         return "CREATE %sINDEX %s ON %s (%s);" % (unique, index_name, table_sql, columns)
 
-    @classmethod
+
     def createDbSql(self, dbname, encoding):
         pass
 
@@ -1064,6 +1090,72 @@ class GnrWhereTranslator(object):
             result.append('%s%s' % (negate, condition))
         return result, sqlArgs
 
+# new methods for sqlmigrator
+
+
+    def struct_auto_extension_attributes(self):
+        return []
+    
+    def struct_get_schema_info(self, schemas=None):
+        """
+        Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'.
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_table_fullname_sql(self, schema_name, table_name):
+        """Returns the full table name with schema."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_table_pkey_sql(self, schema_name, table_name):
+        """Generates SQL to drop the primary key from a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_table_pkey_sql(self, schema_name, table_name, pkeys):
+        """Generates SQL to add a primary key to a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_schema_info_sql(self):
+        """Returns SQL to retrieve schema information."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_constraints_sql(self):
+        """Returns SQL to retrieve table constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_indexes_sql(self):
+        """Returns SQL to retrieve table indexes."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_create_index_sql(self, schema_name=None, table_name=None, columns=None, index_name=None, unique=None, **kwargs):
+        """Generates SQL to create an index."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
+        """Generates SQL to alter the type of a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to add a NOT NULL constraint to a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to drop a NOT NULL constraint from a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_constraint_sql(self, constraint_name, **kwargs):
+        """Generates SQL to drop a constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
+                               on_delete=None, on_update=None, **kwargs):
+        """Generates SQL to create a foreign key constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_constraint_sql(self, constraint_name=None, constraint_type=None, columns=None, check_clause=None, **kwargs):
+        """Generates SQL to create a constraint (e.g., UNIQUE, CHECK)."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
 
 class GnrDictRow(GnrNamedList):
     """A row object that allow by-column-name access to data, the capacity to add columns and alter data."""
