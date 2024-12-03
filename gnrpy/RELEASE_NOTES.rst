@@ -6,6 +6,9 @@ Upcoming version
   about a specific GnrApp, with plugin support. Includes a new command
   line tool 'gnr app insights' to retrieve and show the statistics.
 
+* all CLI tools have a common --timeit options that measure the
+  execution time of the underlying command
+  
 Version 24.11.12
 ================
 
