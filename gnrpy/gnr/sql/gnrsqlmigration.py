@@ -6,8 +6,6 @@ import time
 import functools
 import dictdiffer
 from collections import defaultdict
-from deepdiff.helper import NotPresent
-
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
