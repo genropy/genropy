@@ -2,7 +2,7 @@
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
-# Copyright (c) : 2004 - 2007 Softwell sas - Milano 
+# Copyright (c) : 2004 - 2007 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari , Francesco Cavazzana
 #--------------------------------------------------------------------------
@@ -57,7 +57,7 @@ import threading
 
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
-                 'boolean': 'B', 'date': 'D', 
+                 'boolean': 'B', 'date': 'D',
                  'time without time zone': 'H',
                  'time with time zone': 'HZ',
                  'timestamp without time zone': 'DH',
@@ -74,9 +74,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
-                    'B': 'boolean', 'D': 'date', 
+                    'B': 'boolean', 'D': 'date',
                     'H': 'time without time zone',
-                    'HZ': 'time with time zone', 
+                    'HZ': 'time with time zone',
                     'DH': 'timestamp without time zone',
                     'DHZ': 'timestamp with time zone',
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
@@ -96,9 +96,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def connect(self, storename=None):
         """Return a new connection object: provides cursors accessible by col number or col name
-        
+
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
@@ -112,55 +113,71 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         finally:
             self._lock.release()
         return conn
-        
+
     def adaptTupleListSet(self,sql,sqlargs):
         for k,v in list(sqlargs.items()):
             if isinstance(v, list) or isinstance(v, set) or isinstance(v,tuple):
                 if not isinstance(v,tuple):
                     sqlargs[k] = tuple(v)
                 if len(v)==0:
-                    re_pattern = """((t\\d+)(_t\\d+)*.\\"?\\w+\\"?" +)(NOT +)*(IN) *:%s""" %k
+                    re_pattern = r"""((\"?t\d+)(_t\d+)*\"?.\"?\w+\"?" +)(NOT +)*(IN) *:%s""" %k
                     sql = re.sub(re_pattern,lambda m: 'TRUE' if m.group(4) else 'FALSE',sql,flags=re.I)
         return sql
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
         Replace the 'REGEXP' operator with '~*'.
-        
+
         :param sql: the sql string to execute.
         :param kwargs: the params dict
         :returns: tuple (sql, kwargs)
         """
         sql = self.adaptTupleListSet(sql,kwargs)
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
-        
-    def adaptSqlName(self,name):
+
+    @classmethod
+    def adaptSqlName(cls, name):
         return '"%s"' %name
 
+
     def _managerConnection(self):
-        dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port)
+        return self._classConnection(host=self.dbroot.host, 
+            port=self.dbroot.port,
+            user=self.dbroot.user, 
+            password=self.dbroot.password)
+
+    @classmethod
+    def _classConnection(cls, host=None, port=None,
+        user=None, password=None):
+        kwargs = dict(host=host, database='template1', user=user,
+                    password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
-        conn = self._managerConnection()
+    @classmethod
+    def _createDb(cls, dbname=None, host=None, port=None,
+        user=None, password=None, encoding='unicode'):
+        conn = cls._classConnection(host=host, user=user,
+            password=password, port=port)
         curs = conn.cursor()
         try:
-            curs.execute("""CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding))
+            curs.execute(cls.createDbSql(dbname, encoding))
             conn.commit()
         except:
-            raise DbAdapterException("Could not create database %s" % dbname)
+            raise DbAdapterException(f"Could not create database {dbname}")
         finally:
             curs.close()
             conn.close()
             curs = None
             conn = None
+
+    def createDb(self, dbname=None, encoding='unicode'):
+        if not dbname:
+            dbname = self.dbroot.get_dbname()
+        self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+            user=self.dbroot.user, password=self.dbroot.password)
 
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
@@ -170,16 +187,26 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sql = "LOCK %s IN %s MODE %s;" % (dbtable.model.sqlfullname, mode, nowait)
         self.dbroot.execute(sql)
 
-    def createDbSql(self, dbname, encoding):
-        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
+    @classmethod
+    def createDbSql(cls, dbname, encoding):
+        return f"""CREATE DATABASE "{dbname}" ENCODING '{encoding}';"""
 
-    def dropDb(self, name):
-        conn = self._managerConnection()
+    @classmethod
+    def _dropDb(cls, dbname=None, host=None, port=None,
+        user=None, password=None):
+        conn = cls._classConnection(host=host, user=user,
+            password=password, port=port)
         curs = conn.cursor()
-        curs.execute('DROP DATABASE IF EXISTS "%s";' % name)
+        curs.execute(f'DROP DATABASE IF EXISTS "{dbname}";')
         curs.close()
         conn.close()
-        
+        curs = None
+        conn = None
+
+    def dropDb(self, dbname=None):
+        self._dropDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+            user=self.dbroot.user, password=self.dbroot.password)
+
 
     def dropTable(self, dbtable,cascade=False):
         """Drop table"""
@@ -231,27 +258,32 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             filename = '%s%s' % (filename, file_extension)
         #args = ['pg_dump', dbname, '-U', self.dbroot.user, '-f', filename]+extras
         args = ['pg_dump',
-            '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' %pars, 
+            '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' %pars,
             '-f', filename]+dump_options
         callresult = call(args)
         return filename
-        
+
     def restore(self, filename,dbname=None):
         """-- IMPLEMENT THIS --
         Drop an existing database
-        
-        :param filename: db name"""
-        from subprocess import call
-        dbname = dbname or self.dbroot.dbname
-        from multiprocessing import cpu_count
 
+        :param filename: db name"""
+        self.restore_dump(filename=filename, 
+            dbname=dbname or self.dbroot.dbname, host=self.dbroot.host,
+            port=self.dbroot.port, user=self.dbroot.user,
+            password=self.dbroot.password)
+
+    @classmethod
+    def restore_dump(cls, filename=None, dbname=None, host=None,
+        port=None, user=None, password=None):
+        from subprocess import call
+        from multiprocessing import cpu_count
+        host = host or 'localhost'
+        port = port or '5432'
         if filename.endswith('.pgd'):
-            host = self.dbroot.host or 'localhost'
-            port = self.dbroot.port or '5432'
-            call(['pg_restore', f"""--dbname=postgresql://{self.dbroot.user}:{self.dbroot.password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
+            call(['pg_restore', f"""--dbname=postgresql://{user}:{password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
         else:
-            return call(['psql', "dbname=%s user=%s password=%s" % (dbname, self.dbroot.user, self.dbroot.password), '-f', filename])
-        
+            return call(['psql', f"postgresql://{user}:{password}@{host}:{port}/{dbname}", '-f', filename])
 
     def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
                                 source_dbuser=None,source_dbpassword=None,
@@ -274,7 +306,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 'host':self.dbroot.host or 'localhost',
                 'port':self.dbroot.port or '5432'
                 }
-        output = subprocess.check_output(('psql', 
+        output = subprocess.check_output(('psql',
                                         'dbname=%(dbname)s user=%(user)s password=%(password)s host=%(host)s port=%(port)s' %destdb),
                                         stdin=ps.stdout)
         ps.wait()
@@ -303,10 +335,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 result.append(dbname)
         return result
 
-    
+
     def createTableAs(self, sqltable, query, sqlparams):
         self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
-        
+
     def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
         """Perform analyze routines on the db"""
         self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -315,7 +347,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         else:
             self.dbroot.execute('VACUUM ANALYZE %s;' % table)
         self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
-    
+
     def setLocale(self,locale):
         pass
         #if not locale:
@@ -323,12 +355,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #if len(locale)==2:
         #    locale = '%s_%s' %(locale.lower(),locale.upper())
         #self.dbroot.execute("SET lc_time = '%s' " %locale.replace('-','_'))
-        
+
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
         onTimeout callbacks are executed on every timeout, onNotify on messages.
         Callbacks returns False to stop, or True to continue listening.
-        
+
         :param msg: name of the message to wait for
         :param timeout: seconds to wait for the message
         :param onNotify: function to execute on arrive of message
@@ -357,20 +389,20 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     while conn.notifies and listening and onNotify != None:
                         listening = onNotify(conn.notifies.pop())
         self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
-        
+
     def notify(self, msg, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
-        
+
         :param msg: name of the message to notify
         :param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
         self.dbroot.execute('NOTIFY %s;' % msg)
         if autocommit:
             self.dbroot.commit()
 
-            
-    def listElements(self, elType, **kwargs):
+
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
-        
+
         :param elType: one of the following: schemata, tables, columns, views.
         :param kwargs: schema, table
         :returns: list of object names"""
@@ -379,8 +411,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             result = self.dbroot.execute(query, kwargs).fetchall()
         except psycopg2.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
-        
+
     def dbExists(self, dbname):
         conn = self._managerConnection()
         curs = conn.cursor()
@@ -391,12 +425,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         curs = None
         conn = None
         return dbname in dbnames
-        
+
     def _list_databases(self):
         return 'SELECT datname FROM pg_catalog.pg_database;'
 
     def _list_schemata(self):
-        return """SELECT schema_name FROM information_schema.schemata 
+        return """SELECT schema_name FROM information_schema.schemata
               WHERE schema_name != 'information_schema' AND schema_name NOT LIKE 'pg_%%'"""
 
     def _list_tables(self):
@@ -414,9 +448,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def _list_columns(self):
         return """SELECT column_name as col
-                                  FROM information_schema.columns 
-                                  WHERE table_schema=:schema 
-                                  AND table_name=:table 
+                                  FROM information_schema.columns
+                                  WHERE table_schema=:schema
+                                  AND table_name=:table
                                   ORDER BY ordinal_position"""
 
 
@@ -449,14 +483,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return """DROP extension IF EXISTS %s;""" %extension
 
     def relations(self):
-        """Get a list of all relations in the db. 
+        """Get a list of all relations in the db.
         Each element of the list is a list (or tuple) with this elements:
         [foreign_constraint_name, many_schema, many_tbl, [many_col, ...], unique_constraint_name, one_schema, one_tbl, [one_col, ...]]
         @return: list of relation's details
         """
         sql = """SELECT r.constraint_name AS ref,
                 c1.table_schema AS ref_schema,
-                c1.table_name AS ref_tbl, 
+                c1.table_name AS ref_tbl,
                 mcols.column_name AS ref_col,
                 r.unique_constraint_name AS un_ref,
                 c2.table_schema AS un_schema,
@@ -465,18 +499,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 r.update_rule AS upd_rule,
                 r.delete_rule AS del_rule,
                 c1.initially_deferred AS init_defer
-                
+
                 FROM information_schema.referential_constraints AS r
                         JOIN information_schema.table_constraints AS c1
-                                ON c1.constraint_catalog = r.constraint_catalog 
+                                ON c1.constraint_catalog = r.constraint_catalog
                                         AND c1.constraint_schema = r.constraint_schema
-                                        AND c1.constraint_name = r.constraint_name 
+                                        AND c1.constraint_name = r.constraint_name
                         JOIN information_schema.table_constraints AS c2
-                                ON c2.constraint_catalog = r.unique_constraint_catalog 
+                                ON c2.constraint_catalog = r.unique_constraint_catalog
                                         AND c2.constraint_schema = r.unique_constraint_schema
                                         AND c2.constraint_name = r.unique_constraint_name
                         JOIN information_schema.key_column_usage as mcols
-                                ON mcols.constraint_schema = r.constraint_schema 
+                                ON mcols.constraint_schema = r.constraint_schema
                                         AND mcols.constraint_name= r.constraint_name
                         JOIN information_schema.key_column_usage as ucols
                                 ON ucols.constraint_schema = r.unique_constraint_schema
@@ -508,13 +542,13 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :param schema: schema name
         :return: list of columns wich are the primary key for the table"""
         sql = """SELECT k.column_name        AS col
-                FROM   information_schema.key_column_usage      AS k 
+                FROM   information_schema.key_column_usage      AS k
                 JOIN   information_schema.table_constraints     AS c
-                ON     c.constraint_catalog = k.constraint_catalog 
+                ON     c.constraint_catalog = k.constraint_catalog
                 AND    c.constraint_schema  = k.constraint_schema
-                AND    c.constraint_name    = k.constraint_name         
+                AND    c.constraint_name    = k.constraint_name
                 WHERE  k.table_schema       =:schema
-                AND    k.table_name         =:table 
+                AND    k.table_name         =:table
                 AND    c.constraint_type    ='PRIMARY KEY'
                 ORDER BY k.ordinal_position"""
         return [r['col'] for r in self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()]
@@ -522,7 +556,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def getIndexesForTable(self, table, schema):
         """Get a (list of) dict containing details about all the indexes of a table.
         Each dict has those info: name, primary (bool), unique (bool), columns (comma separated string)
-        
+
         :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
                       (packageName is the name of the :ref:`package <packages>` to which the table
                       belongs to)
@@ -530,9 +564,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         :returns: list of index infos"""
         sql = """SELECT indcls.relname AS name, indisunique AS unique, indisprimary AS primary, indkey AS columns
                     FROM pg_index
-               LEFT JOIN pg_class AS indcls ON indexrelid=indcls.oid 
-               LEFT JOIN pg_class AS tblcls ON indrelid=tblcls.oid 
-               LEFT JOIN pg_namespace ON pg_namespace.oid=tblcls.relnamespace 
+               LEFT JOIN pg_class AS indcls ON indexrelid=indcls.oid
+               LEFT JOIN pg_class AS tblcls ON indrelid=tblcls.oid
+               LEFT JOIN pg_namespace ON pg_namespace.oid=tblcls.relnamespace
                    WHERE nspname=:schema AND tblcls.relname=:table;"""
         indexes = self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()
         return indexes
@@ -542,9 +576,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
         sql = """SELECT constraint_type,column_name,tc.table_name,tc.table_schema,tc.constraint_name
-            FROM information_schema.table_constraints AS tc 
-            JOIN information_schema.constraint_column_usage AS cu 
-                ON cu.constraint_name=tc.constraint_name  
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.constraint_column_usage AS cu
+                ON cu.constraint_name=tc.constraint_name
                 WHERE constraint_type='UNIQUE'
                 %s%s;"""
         filtertable = ""
@@ -556,27 +590,27 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         result = self.dbroot.execute(sql % (filtertable,filterschema),
                                       dict(schema=schema,
                                            table=table)).fetchall()
-            
+
         res_bag = Bag()
         for row in result:
             row=dict(row)
             res_bag.setItem('%(table_schema)s.%(table_name)s.%(column_name)s'%row,row['constraint_name'])
         return res_bag
-            
+
     def getColInfo(self, table, schema, column=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""
         sql = """SELECT c1.column_name as name,
-                        c1.ordinal_position as position, 
-                        c1.column_default as default, 
-                        c1.is_nullable as notnull, 
-                        c1.data_type as dtype, 
+                        c1.ordinal_position as position,
+                        c1.column_default as default,
+                        c1.is_nullable as notnull,
+                        c1.data_type as dtype,
                         c1.character_maximum_length as length,
                         *
                       FROM information_schema.columns AS c1
-                      WHERE c1.table_schema=:schema 
-                      AND c1.table_name=:table 
+                      WHERE c1.table_schema=:schema
+                      AND c1.table_name=:table
                       %s
                       ORDER BY position"""
         filtercol = ""
@@ -613,7 +647,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return GnrWhereTranslatorPG(self.dbroot)
 
     def unaccentFormula(self, field):
-        return 'unaccent({prefix}{field})'.format(field=field, 
+        return 'unaccent({prefix}{field})'.format(field=field,
                                                   prefix = '' if field[0] in ('@','$') else '$')
 
 
@@ -675,7 +709,7 @@ class GnrDictCursor(_cursor):
         if psycopg2.__version__.startswith('2.0'):
             return super(GnrDictCursor, self).execute(query, vars, async_)
         return super(GnrDictCursor, self).execute(query, vars)
-    
+
     def setConstraintsDeferred(self):
         self.execute("SET CONSTRAINTS all DEFERRED;")
 
@@ -693,7 +727,7 @@ class GnrDictCursor(_cursor):
                     self.index[desc] = i
                     i+=1
             self._query_executed = 0
-    
+
 class GnrWhereTranslatorPG(GnrWhereTranslator):
     def op_similar(self, column, value, dtype, sqlArgs,tblobj):
         "!!Similar"

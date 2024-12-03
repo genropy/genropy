@@ -131,6 +131,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
+        kwargs.pop('implementation',None)
         dsn = kwargs.get('dsn') or kwargs.get('database')
         try:
             conn = pyodbc.connect(dsn=dsn)
@@ -138,10 +139,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             raise GnrNonExistingDbException(dsn)
         return DictConnectionWrapper(connection=conn)
 
-    def adaptSqlName(self,name):
+    @classmethod
+    def adaptSqlName(cls,name):
         return name
-        return '{name}'.format(name=name)
-
 
     def adaptSqlSchema(self,name):
         pass
@@ -192,6 +192,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pyodbc.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         pass
         #if not dbname:
@@ -202,6 +203,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #curs.close()
         #conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         pass
         #return """CREATE DATABASE "%s";""" % (dbname)
