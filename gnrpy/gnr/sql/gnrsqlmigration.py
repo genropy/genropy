@@ -6,11 +6,11 @@ import time
 import functools
 import dictdiffer
 from collections import defaultdict
+
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
-
 
 
 ENTITY_TREE = {
