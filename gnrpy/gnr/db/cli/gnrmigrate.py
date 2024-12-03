@@ -213,7 +213,6 @@ def main():
                 print('APPLYING CHANGES TO DATABASE...')
                 migrator.applyChanges()
                 print('CHANGES APPLIED TO DATABASE')
-            #app.db.model.checker.addExtesions()
         app.pkgBroadcast('onDbSetup,onDbSetup_*')
         if options.upgrade:
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')

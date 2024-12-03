@@ -198,7 +198,7 @@ class SqlModelChecker(object):
         f = tblobj.query(ignorePartition=True,subtable='*',where=f'${field} IS NOT NULL',columns=f'${field}').fetch()
         return ','.join([r[field] for r in f])
 
-    def addExtesions(self):
+    def addExtensions(self):
         try:
             extensions = self.db.application.config['db?extensions']
             if extensions:

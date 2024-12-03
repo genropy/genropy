@@ -207,7 +207,7 @@ def main():
                 print('APPLYING CHANGES TO DATABASE...')
                 app.db.model.applyModelChanges()
                 print('CHANGES APPLIED TO DATABASE')
-            app.db.model.checker.addExtesions()
+            app.db.model.checker.addExtensions()
         app.pkgBroadcast('onDbSetup,onDbSetup_*')
         if options.upgrade:
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')

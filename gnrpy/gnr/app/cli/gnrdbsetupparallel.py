@@ -117,7 +117,7 @@ def check_store(args):
             print('APPLYING CHANGES TO DATABASE...')
             app.db.model.applyModelChanges()
             print('CHANGES APPLIED TO DATABASE')
-        app.db.model.checker.addExtesions()
+        app.db.model.checker.addExtensions()
     app.db.closeConnection()
 
 def main():
