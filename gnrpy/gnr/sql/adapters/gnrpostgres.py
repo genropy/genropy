@@ -45,6 +45,8 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ
 
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql import AdapterCapabilities as Capabilities
+
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 DEFAULT_INDEX_METHOD = 'btree'
@@ -58,6 +60,11 @@ import threading
 
 
 class SqlDbAdapter(SqlDbBaseAdapter):
+    CAPABILITIES = {
+        Capabilities.MIGRATIONS,
+        Capabilities.VECTOR
+    }
+    
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
                  'boolean': 'B', 'date': 'D',
                  'time without time zone': 'H',

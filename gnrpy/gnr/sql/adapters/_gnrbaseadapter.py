@@ -21,13 +21,10 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import datetime
-
 import re
 import pytz
-
-
-
 from decimal import Decimal
+
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
@@ -38,12 +35,15 @@ from gnr.core.gnrdate import decodeDatePeriod
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
     All the methods of this class can be overwritten for specific db adapters,
     but only a few must be implemented in a specific adapter."""
 
+    CAPABILITIES = set()
+    
     typesDict = {'character varying': 'A', 'character': 'A', 'text': 'T',
                  'boolean': 'B', 'date': 'D', 
                  'time without time zone': 'H', 
@@ -81,6 +81,12 @@ class SqlDbAdapter(object):
         self._whereTranslator = None
 
 
+    def has_capability(self, capability):
+        """
+        Query the adapter for its capabilities
+        """
+        return capability in self.CAPABILITIES
+    
     def use_schemas(self):
         return True
     
@@ -628,7 +634,7 @@ class SqlDbAdapter(object):
         elif isinstance(value, str):
             # Escaping single quotes to prevent SQL injection or query errors
             strvalue = value.replace("'", "''")
-        elif isinstance(value, datetime):
+        elif isinstance(value, datetime.datetime):
             txtformat = '%Y-%m-%d %H:%M:%S'
             if value.tzinfo is not None:
                 value = value.astimezone(pytz.UTC)
