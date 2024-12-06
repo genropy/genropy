@@ -1,3 +1,6 @@
+import logging
+import sys
+
 from gnr.core import gnrlog as gl
 
 def test_formattermessage():
@@ -5,11 +8,7 @@ def test_formattermessage():
     assert res == "hello"
 
 def test_ColoredFormatter(caplog):
-    import logging
-    import sys, os
-    
     caplog.set_level(logging.DEBUG)
-
     fmt = gl.ColoredFormatter("%(message)s")
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(fmt)

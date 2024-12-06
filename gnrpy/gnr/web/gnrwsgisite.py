@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import io
@@ -8,7 +7,6 @@ import urllib.request, urllib.parse, urllib.error
 import httplib2
 import _thread
 import mimetypes
-import pickle
 import functools
 from time import time
 from collections import defaultdict
@@ -22,14 +20,13 @@ from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
+from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
 
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
-from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrdecorator import extract_kwargs
+from gnr.core.gnrdecorator import extract_kwargs,metadata
 
 from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.lib.services import ServiceHandler
@@ -47,7 +44,6 @@ try:
     from werkzeug import EnvironBuilder
 except ImportError:
     from werkzeug.test import EnvironBuilder
-from gnr.web.gnrheadlesspage import GnrHeadlessPage
 
 mimetypes.init()
 
@@ -222,11 +218,15 @@ class GnrWsgiSite(object):
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
+
+        # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
             try:
-                import psycopg2
+                import psycopg2 # noqa: F401
             except Exception:
                 pass
+
+            
         if self.default_uri[-1] != '/':
             self.default_uri += '/'
        
@@ -732,7 +732,7 @@ class GnrWsgiSite(object):
         """TODO
 
         :param pkg: the :ref:`package <packages>` object
-        :param \*path: TODO"""
+        :param *path: TODO"""
         return self.resource_loader.loadResource(*path, pkg=pkg)
 
     def get_path_list(self, path_info):
@@ -962,6 +962,19 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_beacon':
+            try:
+                method = request_kwargs.pop('method',None)
+                if method:
+                    handler = getattr(self,method,None)
+                    if handler and hasattr(handler,'beacon'):
+                        handler(**request_kwargs)
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1122,6 +1135,11 @@ class GnrWsgiSite(object):
         :param page: TODO"""
         pass
 
+    @metadata(beacon=True)
+    def onClosedPage(self, page_id=None):
+        "Drops page when closing"
+        self.register.drop_page(page_id)
+
     def cleanup(self):
         """clean up"""
         debugger = getattr(self.currentPage,'debugger',None)
@@ -1150,8 +1168,11 @@ class GnrWsgiSite(object):
         content_type = getattr(tool, 'content_type', 'text/plain')
         response.mimetype = content_type
         headers = getattr(tool, 'headers', [])
+        download_name = getattr(tool, 'download_name', None)
+        if download_name:
+            headers.append(("Content-Disposition", f"attachment; filename={download_name}"))
         for header_name, header_value in headers:
-            response.add_header(header_name, header_value)
+            response.headers[header_name] = header_value
         if isinstance(result, Response):
             response = result
         else:
@@ -1235,7 +1256,6 @@ class GnrWsgiSite(object):
         wsgiapp = self.dispatcher
         self.error_smtp_kwargs = None
         profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        gzip = boolean(options.gzip) if options else boolean(self.config['wsgi?gzip'])
         if profile:
             try:
                 from repoze.profile.profiler import AccumulatingProfileMiddleware
@@ -1250,27 +1270,19 @@ class GnrWsgiSite(object):
                    flush_at_shutdown=True,
                    path='/__profile__'
                   )
-
-        if self.debug:
-            pass
-            #wsgiapp = SafeEvalException(wsgiapp, debug=True)
-        else:
-            err_kwargs = dict(debug=True)
-            if 'debug_email' in self.config:
-                error_smtp_kwargs = self.config.getAttr('debug_email')
-                if error_smtp_kwargs.get('smtp_password'):
-                    error_smtp_kwargs['smtp_password'] = error_smtp_kwargs['smtp_password'].encode('utf-8')
-                if error_smtp_kwargs.get('smtp_username'):
-                    error_smtp_kwargs['smtp_username'] = error_smtp_kwargs['smtp_username'].encode('utf-8')
-                if 'error_subject_prefix' not in error_smtp_kwargs:
-                    error_smtp_kwargs['error_subject_prefix'] = '[%s] ' % self.site_name
-                error_smtp_kwargs['error_email'] = error_smtp_kwargs['error_email'].replace(';', ',').split(',')
-                if 'smtp_use_tls' in error_smtp_kwargs:
-                    error_smtp_kwargs['smtp_use_tls'] = (error_smtp_kwargs['smtp_use_tls'] in (True, 'true', 't', 'True', '1', 'TRUE'))
-                self.error_smtp_kwargs = dict(error_smtp_kwargs)
-                self.error_smtp_kwargs['error_email_from'] = self.error_smtp_kwargs.pop('from_address')
-                err_kwargs.update(error_smtp_kwargs)
-                #wsgiapp = ErrorMiddleware(wsgiapp, **err_kwargs)
+        if 'sentry' in self.config:
+            try:
+                import sentry_sdk
+                from sentry_sdk.integrations.wsgi import SentryWsgiMiddleware
+                from sentry_sdk import set_tags
+                set_tags({"genropy_instance": self.site_name})
+                sentry_sdk.init(
+                    dsn=self.config['sentry?pydsn'],
+                    traces_sample_rate=float(self.config['sentry?traces_sample_rate']) if self.config['sentry?traces_sample_rate'] else 1.0,
+                    profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
+                wsgiapp = SentryWsgiMiddleware(wsgiapp)
+            except Exception as e:
+                log.error(f"Sentry support has been disabled due to configuration errors: {e}")
         return wsgiapp
 
     def build_gnrapp(self, options=None):
@@ -1325,7 +1337,7 @@ class GnrWsgiSite(object):
 
         :param event: TODO
         :param page_id: the 22 characters page id"""
-        if self.connectionLogEnabled:
+        if self.connectionLogEnabled == 'A':
             self.db.table('adm.served_page').pageLog(event, page_id=page_id)
 
 

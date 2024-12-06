@@ -4,8 +4,6 @@
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
-
-import time
 import os
 import zipfile
 

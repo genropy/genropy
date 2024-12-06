@@ -4,12 +4,11 @@
 #  Created by Francesco Porcari on 2019-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
+import psutil
+import datetime
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-import psutil
-import datetime
-import re
 
 
 class GnrCustomWebPage(object):

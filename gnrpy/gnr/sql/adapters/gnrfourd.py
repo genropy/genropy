@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -21,16 +21,15 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import re
-
+import threading
 import fourd
 
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
-import threading
-import _thread
 
 class GnrFourDCursor(fourd.FourD_cursor):
     def __init__(self, *args, **kwargs):
@@ -115,6 +114,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
@@ -157,15 +157,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def asTranslator(self, as_):
         return f'[{as_}]'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
         :param kwargs: schema, table
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
+        comment = kwargs.pop('comment', None)
         cursor = self.dbroot.execute(query, kwargs)
         result= cursor.fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
         
     def dbExists(self, dbname):
@@ -286,7 +289,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         indexes = self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()
         return indexes
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         return Bag()
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull

@@ -75,8 +75,6 @@ class GnrWsgiWebApp(GnrApp):
         :param event: TODO
         :param old_record: TODO. """
         currentEnv = self.db.currentEnv
-        if currentEnv.get('hidden_transaction'):
-            return
         dbeventKey = 'dbevents_%s' %self.db.connectionKey()
         if not currentEnv.get('env_transaction_id'):
             self.db.updateEnv(env_transaction_id= getUuid())
@@ -103,24 +101,38 @@ class GnrWsgiWebApp(GnrApp):
         super(GnrWsgiWebApp, self).onDbCommitted()
         dbeventKey = 'dbevents_%s' %self.db.connectionKey()
         dbeventsDict= self.db.currentEnv.pop(dbeventKey,None)
+        if not dbeventsDict:
+            return
         dbevent_reason = self.db.currentEnv.pop('dbevent_reason',None)
-        if dbeventsDict:
-            page = self.site.currentPage
-            tables = [k for k,v in list(dbeventsDict.items()) if v]
+        hidden_transaction = self.db.currentEnv.get('hidden_transaction')
+        
+        page = self.site.currentPage
+        page_id = None
+        pagename = None
+        if page:
+            page_id = page.page_id
+            pagename = page.pagename
+        tables = [k for k,v in list(dbeventsDict.items()) if v]
+        if hidden_transaction:
+            if not page_id:
+                return
+            subscribed_tables = self.site.register.page(page_id).get('subscribed_tables')
+        else:
             subscribed_tables = self.site.getSubscribedTables(tables)
-            if subscribed_tables:
-                for table in set(tables).difference(subscribed_tables):
-                    dbeventsDict.pop(table)         
-                for table,dbevents in list(dbeventsDict.items()):
-                    dbeventsDict[table] = self._compress_dbevents(dbevents)
-                page_id = None
-                pagename = None
-                if page:
-                    page_id = page.page_id
-                    pagename = page.pagename
-                self.site.register.notifyDbEvents(dbeventsDict,register_name='page',
-                                                 origin_page_id=page_id,
-                                                 dbevent_reason=dbevent_reason or pagename)
+        if not subscribed_tables:
+            return
+        for table in set(tables).difference(subscribed_tables):
+            dbeventsDict.pop(table)         
+        for table,dbevents in list(dbeventsDict.items()):
+            dbeventsDict[table] = self._compress_dbevents(dbevents)
+
+        if self.db.currentEnv.get('hidden_transaction'):
+            page.notifyLocalDbEvents(dbeventsDict,origin_page_id=page_id,
+                                            dbevent_reason=dbevent_reason or pagename)
+        else:
+            self.site.register.notifyDbEvents(dbeventsDict,register_name='page',
+                                            origin_page_id=page_id,
+                                            dbevent_reason=dbevent_reason or pagename)
             self.db.updateEnv(env_transaction_id= None,dbevents=None)
 
     def _compress_dbevents(self,dbevents):

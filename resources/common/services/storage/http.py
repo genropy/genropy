@@ -1,14 +1,13 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-from gnr.lib.services.storage import StorageService
-from gnr.web.gnrbaseclasses import BaseComponent
 import os
 import tempfile
-import stat
-from gnr.core.gnrlang import getUuid
 import urllib.request
 from mimetypes import guess_extension
+
+from gnr.core.gnrlang import getUuid
+from gnr.lib.services.storage import StorageService
 
 class HttpTemporaryFilename(object):
     def __init__(self, url=None, keep=False):

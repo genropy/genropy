@@ -2,11 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,metadata
-
+from gnr.core.gnrdecorator import metadata
 
 class View(BaseComponent):
 
+    def th_groupedStruct(self,struct):
+        "Account View"
+        r = struct.view().rows()
+        r.fieldcell('@account_id.account_name', name='!!Account', width='20em')
+        r.cell('_grp_count', name='Cnt', width='4em', group_aggr='sum')
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('subject',width='auto')
@@ -30,9 +35,6 @@ class View(BaseComponent):
 
     def th_query(self):
         return dict(column='subject',op='contains', val='',runOnStart=False)
-    
-    def th_options(self):
-        return dict(partitioned=True)
 
     def th_top_upperbar(self,top):
         top.slotToolbar('5,sections@in_out,*,sections@sendingstatus',
@@ -59,7 +61,7 @@ class View(BaseComponent):
         r.fieldcell('send_date',width='8em')
         r.fieldcell('account_id',width='12em')
 
-    @metadata(isMain=True,_if='inout=="o"',_if_inout='^.in_out.current', variable_struct=True)
+    @metadata(isMain=True,_if='inout=="O"',_if_inout='^.in_out.current', variable_struct=True)
     def th_sections_sendingstatus(self):
         return [dict(code='drafts',caption='!!Drafts',condition="$__is_draft IS TRUE",includeDraft=True),
                 dict(code='to_send',caption='!!Ready to send',isDefault=True,condition='$send_date IS NULL AND $error_msg IS NULL'),
@@ -67,7 +69,10 @@ class View(BaseComponent):
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
-
+    def th_options(self):
+        return dict(groupable=dict(width='280px', closable='open'))
+    
+    
 class ViewOutOnly(View):
         
     def th_top_upperbar(self,top):
@@ -143,7 +148,6 @@ class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
 
     def attemptStruct(self,struct ):
-
         r = struct.view().rows()
         r.cell('tag',name='Tag', width='7em')
         r.cell('ts',name='Ts')

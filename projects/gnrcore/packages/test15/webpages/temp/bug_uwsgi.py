@@ -7,7 +7,6 @@
 "Test page description"
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 from datetime import datetime
 

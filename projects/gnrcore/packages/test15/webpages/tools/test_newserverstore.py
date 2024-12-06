@@ -5,13 +5,8 @@
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 """Messages"""
-from __future__ import print_function
-
 
 from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwsgisite_proxy.gnrsiteregister import RegisterResolver
-from gnr.core.gnrbag import Bag
-
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
@@ -29,4 +24,4 @@ class GnrCustomWebPage(object):
     def errormaker(self):
         item = self.site.register.newregister.get_item(self.page_id,'lazy',register_name='page')
         item['data'].setItem('pippo',33)
-        print(x)
+        raise Exception("x exception")

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -23,16 +23,15 @@
 import re
 import select
 
-from pg8000 import DBAPI
+from pg8000 import dbapi
 from pg8000.dbapi import require_open_cursor, require_open_connection, CursorWrapper, ConnectionWrapper
 from pg8000.interface import DataIterator, Cursor
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, GnrWhereTranslator
+
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 
-DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+dbapi.paramstyle = 'pyformat'
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(CursorWrapper):
     def __init__(self, *args, **kwargs):
@@ -127,13 +126,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
     def _managerConnection(self):
-        dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port)
+        return self._classConnection(host=self.dbroot.host, 
+            port=self.dbroot.port,
+            user=self.dbroot.user, 
+            password=self.dbroot.password)
+
+    @classmethod
+    def _classConnection(cls, host=None, port=None,
+        user=None, password=None):
+        kwargs = dict(host=host, database='template1', user=user,
+                    password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        #conn =  psycopg2.connect(**kwargs)
         conn = DictConnectionWrapper(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
     def createDb(self, name, encoding='unicode'):
@@ -155,12 +159,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
         """Perform analyze routines on the db"""
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         if full:
             self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
         else:
             self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
 
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
@@ -171,7 +173,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param onNotify: function to execute on arrive of message
         @param onTimeout: function to execute on timeout
         """
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         curs = self.dbroot.execute('LISTEN %s;' % msg)
         listening = True
         while listening:
@@ -182,7 +183,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 if curs.isready():
                     if onNotify != None:
                         listening = onNotify(curs.connection.notifies.pop())
-        self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
 
     def notify(self, msg, autocommit=False):
         """Notify a message to listener processes using the Postgres LISTEN - NOTIFY method.
@@ -192,13 +192,15 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         if autocommit:
             self.dbroot.commit()
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names.
         @param elType: one of the following: schemata, tables, columns, views.
         @param kwargs: schema, table
         @return: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         result = self.dbroot.execute(query, kwargs).fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_schemata(self):

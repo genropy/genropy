@@ -62,16 +62,23 @@ import pickle as pickle
 from datetime import datetime, timedelta
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+
 from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
+import os
 import os.path
 import logging
 import sys
 import re
 gnrlogger = logging.getLogger(__name__)
 
+
+class AllowMissingDict(dict):
+    def __missing__(self, key):
+        return "{"+key+"}"
+    
 def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
         return item_path
@@ -98,7 +105,7 @@ class BagDeprecatedCall(BagException):
     def __init__(self, errcode, message):
         self.errcode = errcode
         self.message = message
-        
+
 class BagNode(object):
     """BagNode is the element type which a Bag is composed of. That's why it's possible to say that a Bag
     is a collection of BagNodes. A BagNode is an object that gather within itself, three main things:
@@ -447,6 +454,9 @@ class Bag(GnrObject):
         self._del_subscribers = {}
         self._modified = None
         self._rootattributes = None
+
+        self._template_kwargs = kwargs.get("_template_kwargs", {})
+        
         source=source or kwargs
         if source:
             self.fillFrom(source)
@@ -1484,7 +1494,7 @@ class Bag(GnrObject):
                               +----------------------------+----------------------------------------------------------------------+
             
         :param _validators: it specifies the value's validators to set
-        :param \*\*kwargs: attributes AND/OR validators
+        :param **kwargs: attributes AND/OR validators
         
         Example:
         
@@ -1545,7 +1555,7 @@ class Bag(GnrObject):
         :param _updattr: boolean. TODO
         :param _validators: specify the value's validators to set
         :param _removeNullAttributes: boolean. If ``True``, remove the null attributes
-        :param \*\*kwargs: attributes AND/OR validators
+        :param **kwargs: attributes AND/OR validators
         
         Example:
         
@@ -1667,7 +1677,7 @@ class Bag(GnrObject):
         """Set a BagFormula resolver
         
         :param formula: a string that represents the expression with symbolic vars
-        :param \*\*kwargs: links between symbols and paths associated to their values"""
+        :param **kwargs: links between symbols and paths associated to their values"""
         self.setBackRef()
         if self._symbols == None:
             self._symbols = {}
@@ -1928,25 +1938,40 @@ class Bag(GnrObject):
                     else:
                         self.setItem(x[0], x[1])
 
-    def _fromSource(self, source, fromFile, mode):
+    def _fromSource(self, source, fromFile, mode, _template_kwargs=None):
         """Receive "mode" and "fromFile" and switch between the different
         modes calling _fromXml or _unpickle
         
         :param source: the source string or source URI
         :param fromFile: flag that says if source is eventually an URI
         :param mode: flag of the importation mode (XML, pickle or VCARD)
+        :param _template_kwargs: dict of default kwargs, defaulting to os.environ
         :returns: a Bag from _unpickle() method or from _fromXml() method"""
         if not source:
             return
         
         if mode == 'xml':
+            # FIXME: the commented code was introduce for docker
+            # variables, just it clashes with templates
+            #
+            # _template_kwargs = _template_kwargs or dict(os.environ)
+            # if isinstance(source, bytes):
+            #     encoding_match = re.search(b"encoding=['\"](.*?)['\"]", source[:50])
+            #     if encoding_match:
+            #         source = source.decode(encoding=encoding_match.group(1).decode().lower())
+            #     else:
+            #         source = source.decode()
+            # source = source.format_map(AllowMissingDict(_template_kwargs))
+
+            if self._template_kwargs:
+                source = source.format_map(self._template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
         elif mode == 'pickle':
             return self._unpickle(source, fromFile)
         elif mode == 'direct':
-            return Bag((os.path.basename(source).replace('.', '\.'), UrlResolver(source)))
+            return Bag((os.path.basename(source).replace('.', r'\.'), UrlResolver(source)))
         elif mode == 'isdir':
             source = source.rstrip('/')
             return Bag((os.path.basename(source), DirectoryResolver(source)))
@@ -1970,6 +1995,7 @@ class Bag(GnrObject):
         originalsource = source
         if (isinstance(source,bytes) and (source.startswith(b'<') or b'<?xml' in source)) or\
             (isinstance(source,str) and (source.startswith('<') or '<?xml' in source)):
+                    
             return source, False, 'xml'
         if len(source) > 300:
             #if source is longer than 300 chars it cannot be a path or an URI
@@ -1984,7 +2010,7 @@ class Bag(GnrObject):
             if os.path.exists(source):
                 if os.path.isfile(source):
                     fname, fext = os.path.splitext(source)
-                    fext = fext[1:]
+                    fext = fext[1:].lower()
                     if fext in ['pckl', 'pkl', 'pik']:
                         return source, True, 'pickle'
                     elif fext in ['xml', 'html', 'xhtml', 'htm']:

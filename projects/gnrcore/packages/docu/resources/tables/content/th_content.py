@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,customizable
+from gnr.core.gnrdecorator import customizable
 
 class View(BaseComponent):
 
@@ -62,7 +62,7 @@ class Form(BaseComponent):
     
     @customizable
     def contentMain(self, tc):
-        self.contentText(tc.borderContainer(title='!!Text', datapath='.record', overflow='hidden'))
+        self.contentText(tc.contentPane(title='!!Text', datapath='.record', overflow='hidden'))
         self.contentTemplate(tc.contentPane(title='!!Template', datapath='.record'))
         self.contentAttachments(tc.contentPane(title='!!Attachments'))
         return tc

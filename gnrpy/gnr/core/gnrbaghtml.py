@@ -7,6 +7,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 import os
+from pathlib import Path
 from gnr.core.gnrstring import toText,templateReplace
 
 from gnr.core.gnrhtml import GnrHtmlBuilder
@@ -307,14 +308,18 @@ class BagToHtml(object):
         locale = locale or self.locale
         encoding = locale or self.encoding
         return toText(obj, locale=locale, format=format, mask=mask, encoding=encoding, **kwargs)
-
+    
     def createHtml(self, filepath=None, body_attributes=None):
         """TODO
         :param filepath: the path where html will be saved"""
         if self.htmlContent and not self.htmlTemplate:
-            with open(filepath,'w') as f:
-                f.write(self.htmlContent)
-            return self.htmlContent
+            self.builder.body.div('%s::HTML' %self.htmlContent)
+            self.builder.toHtml()
+            path_obj = Path(filepath)
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            with path_obj.open('w') as f:
+                f.write(self.builder.html)
+            return self.builder.html
         self.main()
         if self.splittedPages:
             result = []

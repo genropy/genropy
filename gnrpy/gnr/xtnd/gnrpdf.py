@@ -4,8 +4,6 @@ from gnr.core.gnrlang import GnrException
 from reportlab.pdfgen import canvas
 
 from reportlab import lib as pdflib
-from reportlab.lib.units import inch
-from reportlab.lib.colors import pink, black, red, blue, green
 
 class GnrPdfElem(object):
     def __init__(self, obj, tag, tagType):
@@ -119,8 +117,8 @@ class GnrPdf(object):
             
     def _drawNode_textObject(self, node, attr, tag):
         textobject = canvas.beginText()
+        x, y = attr.get('y', 0), attr.get('y', 0)
         textobject.setTextOrigin(x, y)
-        
         self.canvas.drawText(textobject)
         
     def _drawNode_pane(self, node, attr, tag):

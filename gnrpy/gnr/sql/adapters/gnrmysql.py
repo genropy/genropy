@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -21,24 +21,16 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import re
-import select
-
 
 import MySQLdb
 from MySQLdb.cursors import DictCursor
 
-#from psycopg2.extras import DictConnection, DictCursor, DictCursorBase
-#from psycopg2.extensions import cursor as _cursor
-#from psycopg2.extensions import connection as _connection
-
-#from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
-
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrbag import Bag
 
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
@@ -47,7 +39,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'enum': 'A',
                  'boolean': 'B', 'date': 'D', 'time': 'H', 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
                  'integer': 'I', 'bigint': 'L','mediumint':'L', 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
-                 'bytea': 'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
+                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
 
     revTypesDict = {'A': 'varchar', 'T': 'text', 'C': 'char',
                     'X': 'text', 'P': 'text', 'Z': 'text',
@@ -62,25 +54,24 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
-        import MySQLdb
-        from MySQLdb.cursors import DictCursor
+
         dbroot = self.dbroot
         if dbroot.port:
             port = int(dbroot.port)
         else:
             port = 3306
-        #kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password, 
-        # port=dbroot.port, use_unicode=True, cursorclass=GnrDictCursor)
         kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password,
                       port=port , cursorclass=GnrDictCursor)
         kwargs = dict(
-                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
+                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters
         kwargs['charset'] = 'utf8'
-        #kwargs['connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
         return MySQLdb.connect(**kwargs)
 
-    #def adaptSqlName(self,name):
-    #    return '`%s`' %name 
+    def adaptSqlName(self,name):
+        return '`%s`' %name 
+
+    def cursor(self, name=None):
+        return self._managerConnection().cursor()
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
@@ -110,31 +101,36 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return sql
 
 
-    def getWhereTranslator(self):
-        return GnrWhereTranslator(self.dbroot)
+    #def getWhereTranslator(self):
+    #    return GnrWhereTranslator(self.dbroot)
 
-        #def _managerConnection(self):
-        #dbroot=self.dbroot
-        #kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user, 
-        #password=dbroot.password, port=dbroot.port)
-        #kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
-        #conn =  MySQLdb.connect(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        #return conn
+    def _managerConnection(self):
+        dbroot=self.dbroot
+        kwargs = dict(host=dbroot.host, database='mysql', user=dbroot.user, 
+                      password=dbroot.password, port=dbroot.port)
+        kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
+        print("KWARGS", kwargs)
+        conn =  MySQLdb.connect(autocommit=True, **kwargs)
+        return conn
+    
+    def createDb(self, name, encoding='unicode'):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                conn = self._managerConnection()
+                curs = conn.cursor()
+                try:
+                    curs.execute(f"CREATE DATABASE `{name}`;")
+                except:
+                    raise DbAdapterException(f"Could not create database {name}")
+                finally:
+                    curs.close()
+                    conn.close()
 
-        #def createDb(self, name, encoding='unicode'):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("CREATE DATABASE %s CHARSET '%s';" % (name, encoding))
-        #curs.close()
-        #conn.close()
 
-        #def dropDb(self, name):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("DROP DATABASE %s;" % name)
-        #curs.close()
-        #conn.close()
+    def dropDb(self, name):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                curs.execute(f"DROP DATABASE `{name}`")
 
         #def createTableAs(self, sqltable, query, sqlparams):
         #self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
@@ -181,7 +177,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return 'FOR UPDATE'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
@@ -192,6 +188,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             return []
         query = handler()
         result = self.dbroot.execute(query, kwargs).fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_schemata(self):
@@ -219,45 +217,51 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: list of relation's details
         """
-        return []
-        #sql = """SELECT r.constraint_name AS ref,
-        #c1.table_schema AS ref_schema,
-        #c1.table_name AS ref_tbl,
-        #mcols.column_name AS ref_col,
+        #return []
+        sql = """
+        SELECT r.constraint_name AS ref,
+        c1.table_schema AS ref_schema,
+        c1.table_name AS ref_tbl,
+        mcols.column_name AS ref_col,
 
-        #r.unique_constraint_name AS un_ref,
-        #c2.table_schema AS un_schema,
-        #c2.table_name AS un_tbl,
-        #ucols.column_name AS un_col
-
-        #FROM information_schema.referential_constraints AS r
-        #JOIN information_schema.table_constraints AS c1
-        #ON c1.constraint_catalog = r.constraint_catalog
-        #AND c1.constraint_schema = r.constraint_schema
-        #AND c1.constraint_name = r.constraint_name
-        #JOIN information_schema.table_constraints AS c2
-        #ON c2.constraint_catalog = r.unique_constraint_catalog
-        #AND c2.constraint_schema = r.unique_constraint_schema
-        #AND c2.constraint_name = r.unique_constraint_name
-        #JOIN information_schema.key_column_usage as mcols
-        #ON mcols.constraint_schema = r.constraint_schema
-        #AND mcols.constraint_name= r.constraint_name
-        #JOIN information_schema.key_column_usage as ucols
-        #ON ucols.constraint_schema = r.unique_constraint_schema
-        #AND ucols.constraint_name= r.unique_constraint_name
-        #"""
-        #ref_constraints = self.dbroot.execute(sql).fetchall()
-        #ref_dict = {}
-        #for (ref, schema, tbl, col, un_ref, un_schema, un_tbl, un_col) in ref_constraints:
-        #r = ref_dict.get(ref, None)
-        #if r:
-        #if not col in r[3]:
-        #r[3].append(col)
-        #if not un_col in r[7]:
-        #r[7].append(un_col)
-        #else:
-        #ref_dict[ref] = [ref, schema, tbl, [col], un_ref, un_schema, un_tbl, [un_col]]
-        #return ref_dict.values()
+        r.unique_constraint_name AS un_ref,
+        c2.table_schema AS un_schema,
+        c2.table_name AS un_tbl,
+        ucols.column_name AS un_col,
+        r.update_rule AS upd_rule,
+        r.delete_rule AS del_rule,
+        FALSE
+            
+        
+        FROM information_schema.referential_constraints AS r
+        JOIN information_schema.table_constraints AS c1
+        ON c1.constraint_catalog = r.constraint_catalog
+        AND c1.constraint_schema = r.constraint_schema
+        AND c1.constraint_name = r.constraint_name
+        JOIN information_schema.table_constraints AS c2
+        ON c2.constraint_catalog = r.unique_constraint_catalog
+        AND c2.constraint_schema = r.unique_constraint_schema
+        AND c2.constraint_name = r.unique_constraint_name
+        JOIN information_schema.key_column_usage as mcols
+        ON mcols.constraint_schema = r.constraint_schema
+        AND mcols.constraint_name= r.constraint_name
+        JOIN information_schema.key_column_usage as ucols
+        ON ucols.constraint_schema = r.unique_constraint_schema
+        AND ucols.constraint_name= r.unique_constraint_name
+        """
+        ref_constraints = self.dbroot.execute(sql).fetchall()
+        ref_dict = {}
+        for (ref, schema, tbl, col, un_ref, un_schema, un_tbl, un_col, upd_rule, del_rule, init_defer) in ref_constraints:
+            r = ref_dict.get(ref, None)
+            if r:
+                if not col in r[3]:
+                    r[3].append(col)
+                if not un_col in r[7]:
+                    r[7].append(un_col)
+            else:
+                ref_dict[ref] = [ref, schema, tbl, [col], un_ref, un_schema, un_tbl, [un_col],upd_rule, del_rule,
+                                 init_defer]
+        return ref_dict.values()
 
     def getPkey(self, table, schema):
         """TODO
@@ -289,8 +293,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #        @param table: table name
         #        @param schema: schema name
         #        @return: list of index infos"""
-        sql = """SELECT DISTINCT INDEX_NAME as name,(NON_UNIQUE IS TRUE) AS un,
-            (INDEX_NAME = 'PRIMARY') AS pri, COLUMN_NAME as columns 
+        sql = """SELECT DISTINCT INDEX_NAME as 'name',(NON_UNIQUE IS TRUE) AS 'unique',
+            (INDEX_NAME = 'PRIMARY') AS 'primary', COLUMN_NAME as 'columns' 
             FROM INFORMATION_SCHEMA.STATISTICS 
             WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table;"""
         indexes = self.dbroot.execute(sql, dict(schema=schema, table=table)).fetchall()
@@ -318,7 +322,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #statement = '%s %s' % (drop_statement,statement) # MSSQL doesn't support DEFERRED
         return statement
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_mysql_'"""
@@ -394,17 +398,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 col['size'] = str(col.get('length'))
         if column:
             result = result[0]
+        
         return result
 
 
-#class GnrDictConnection(DictConnection):
-#    """A connection that uses DictCursor automatically."""
-#    def cursor(self, name=None):
-#        if name:
-#            return _connection.cursor(self, name, cursor_factory=GnrDictCursor)
-#        else:
-#            return _connection.cursor(self, cursor_factory=GnrDictCursor)
-#
 class GnrDictCursor(DictCursor):
     def _post_get_result(self):
         _rows = self._fetch_row(0)

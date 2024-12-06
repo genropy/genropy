@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys
 import os
 import glob
-import logging
 from multiprocessing import Pool
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
 from gnr.app.gnrconfig import getGnrConfig
@@ -102,8 +99,7 @@ def check_db(app, options):
         print('STRUCTURE OK')
     return changes
 
-def import_db(filepath):
-    app = get_app()
+def import_db(app,filepath):
     app.db.importXmlData(filepath)
     app.db.commit()
 
@@ -114,14 +110,14 @@ def check_store(args):
     if options.check:
         check_db(app)
     elif options.import_file:
-        import_db(options.import_file)
+        import_db(app, options.import_file)
     else:
         changes = check_db(app)
         if changes:
             print('APPLYING CHANGES TO DATABASE...')
             app.db.model.applyModelChanges()
             print('CHANGES APPLIED TO DATABASE')
-        app.db.model.checker.addExtesions()
+        app.db.model.checker.addExtensions()
     app.db.closeConnection()
 
 def main():

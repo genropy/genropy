@@ -293,6 +293,18 @@ class FrameIndex(BaseComponent):
         )
         logomenu.menuline("!![en]Open Genro IDE",_tags='_DEV_').dataController('genro.framedIndexManager.openGnrIDE();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
+        
+        logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
+        logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                        'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
+        
+        logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController("""let current = genro.getData('gnr.developerToolsVisible');
+                                                                                         genro.setData('gnr.developerToolsVisible',!current);""") 
+        logomenu.menuline('!![en]Toggle dev items in current',_tags='_DEV_').dataController(
+                                                        """ let cg = genro._lastFocusedWindow.genro;
+                                                            let current = cg.getData('gnr.developerToolsVisible');
+                                                            cg.setData('gnr.developerToolsVisible',!current);""")
+        
         slot.dataController('dlg.show()', subscribe_application_info=True,
                             dlg =self.applicationInfoDialog(slot).js_widget)
         
@@ -303,10 +315,9 @@ class FrameIndex(BaseComponent):
             "dlg.hide()",
             dlg=dlg.js_widget
         )
-        rms = getRmsOptions()
+        rms = getRmsOptions() or {}
         customer_code = rms.get('customer_code') or 'UNLICENSED'
         pod_number = rms.get('code') or '-'
-
         box = dlg.div(padding='10px')
         top = box.div(style='display: flex;align-items: center;justify-content: space-evenly;')
         top.div("Created in Genropy",font_weight='bold')
@@ -341,6 +352,7 @@ class FrameIndex(BaseComponent):
                     m.menuline(r['title'],url=r['url'])
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
+        
 
     def helpdesk_userGroupDocumentation(self):
         if not self.avatar.group_code:
@@ -393,13 +405,16 @@ class FrameIndex(BaseComponent):
     def fi_slotbar_user_name(self,slot,**kwargs):
         slot.div(innerHTML='==user_name', user_name='^gnr.avatar.user_name', 
                  _class='iframeroot_pref')
+        
+    def fi_get_owner_name(self):
+        return '^gnr.app_preference.adm.instance_data.owner_name'
 
     @struct_method
     def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
         if not self.dbstore:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
-                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                    _owner_name=self.fi_get_owner_name(),
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
             if self.application.checkResourcePermission(self.pageAuthTags(method='preference'), self.userTags):
                 box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True)
@@ -457,7 +472,7 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_mobile(self,bc):
         wrapper = bc.borderContainer(region='center')
-        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('10,backbtn,*,selpagetitle,*,30',childname='underbar',
+        underbar = wrapper.contentPane(region='top',overflow='hidden').slotBar('*,backbtn,selpagetitle,20,*',childname='underbar',
                                                                             height='30px',color='white')
         backbtn = underbar.backbtn.lightbutton(_class="iconbox arrowBack",background_color='white',width='20px',height='20px',
                                      visible='^pageHistory?=#v && #v.length')

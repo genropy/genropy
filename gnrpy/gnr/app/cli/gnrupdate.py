@@ -2,11 +2,9 @@
 # encoding: utf-8
 import re
 import os
-
 from subprocess import Popen
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrconfig import gnrConfigPath, getGnrConfig,IniConfStruct
 from gnr.web.gnrdaemonhandler import GnrDaemonProxy

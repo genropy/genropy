@@ -1,4 +1,4 @@
-from gnr.core import gnrrlab
+from gnr.core import gnrrlab  # noqa: F401
 
 def test():
     pass

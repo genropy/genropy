@@ -6,10 +6,9 @@ import os
 import locale
 
 from decimal import Decimal
-import pytz
 from babel import numbers, dates, Locale
-from gnr.core.gnrlang import GnrException
 
+from gnr.core.gnrlang import GnrException
 
 def localize(obj, format=None, currency=None, locale=None):
     """TODO
@@ -28,6 +27,24 @@ def localize(obj, format=None, currency=None, locale=None):
         return handler(obj, locale, format=format, currency=currency)
     else:
         return str(obj)
+    
+def yearDecode(datestr,pivotYear=None):
+    """returns the year number as an int from a string of 2 or 4 digits:
+    if 2 digits is given century is added
+    :param datestr: the string including year"""
+    year = None
+    datestr = datestr.strip()
+    if datestr and datestr.isdigit():
+        year = int(datestr)
+        if len(datestr) == 2:
+            if pivotYear is None:
+                pivotYear = 20 
+            stryear = str(datetime.date.today().year)
+            century = int(stryear[:2])*100
+            cutoff = min(int(stryear[2:])+pivotYear,99)
+            year = century+year if year<cutoff else century - 100 + year
+    return year
+
 
 def formatHandler(obj):
     if isinstance(obj, str) and '::' in obj:
@@ -181,9 +198,8 @@ def parselocal_decimal(txt, locale):
     txt = txt.replace(loc['decimal'], '.')
     return Decimal(txt)
     
-def parselocal_date(txt, locale):
+def parselocal_date(txt, locale,pivotYear=None):
     """TODO
-    
     :param txt: TODO
     :param locale: the current locale (e.g: en, en_us, it)"""
     if txt.isdigit() and len(txt) in (6, 8): # is a date without separators: 101207
@@ -204,11 +220,7 @@ def parselocal_date(txt, locale):
                     w = 4
                     result[k] = int(txt[:w])
                 else:
-                    year = int(txt[:w])
-                    if year < 70:
-                        result[k] = 2000 + year
-                    else:
-                        result[k] = 1900 + year
+                    result[k] = yearDecode(txt,pivotYear=pivotYear)
             else:
                 result[k] = int(txt[:w])
             txt = txt[w:]
@@ -237,7 +249,7 @@ def parselocal_time(txt, locale):
     txt = ':'.join(txtlist[0:3])
     return dates.parse_time(txt, locale)
     
-def parselocal(txt, cls, locale=None):
+def parselocal(txt, cls, locale=None,**kwargs):
     """TODO
     
     :param txt: TODO
@@ -254,7 +266,7 @@ def parselocal(txt, cls, locale=None):
             locale = Locale(locale)
         else:
             locale = Locale()
-        return f(txt, locale)
+        return f(txt, locale,**kwargs)
         
 def getMonthNames(locale=None):
     """TODO
@@ -288,7 +300,8 @@ def defaultLocale():
     return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
 
 def currentLocale(locale=None):
-    return (locale or defaultLocale()).replace('-', '_')
+    r = (locale or defaultLocale()).replace('-', '_')
+    return r
     
     
 def getDateKeywords(keyword, locale=None):

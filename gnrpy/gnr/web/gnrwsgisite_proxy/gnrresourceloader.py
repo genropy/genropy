@@ -6,13 +6,13 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
-from gnr.core.gnrbag import Bag, DirectoryResolver
 import os
-import re
+
 import inspect
 import glob
 import logging
 
+from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlang import gnrImport, classMixin, cloneClass,clonedClassMixin
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrsys import expandpath
@@ -373,7 +373,7 @@ class ResourceLoader(object):
         
         :param kls: TODO
         :param resourceDirs: TODO
-        :param \*path: TODO"""
+        :param *path: TODO"""
         path = os.path.join(*path)
         drive, path = os.path.splitdrive(path)
         if ':' in path:
@@ -469,7 +469,7 @@ class ResourceLoader(object):
         """This method is used to mixin a component to a :ref:`webpage` at any time
         
         :param page: the target :ref:`webpage`
-        :param \* path: the path of the :ref:`component <components>`"""
+        :param * path: the path of the :ref:`component <components>`"""
         pkg=kwargs.pop('pkg', None)
         pkgOnly=kwargs.pop('pkgOnly', False)
         pluginId=kwargs.pop('pluginId', None)

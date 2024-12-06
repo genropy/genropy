@@ -29,14 +29,12 @@ import os
 import re
 import time
 from datetime import datetime
-from gnr.core.gnrdict import dictExtract
-
-from gnr.core.gnrlang import gnrImport
-
 import logging
-from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.core import gnrlist
 
+from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import gnrImport
+from gnr.core import gnrlist
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import uniquify
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip, toText, toJson,fromJson
@@ -349,13 +347,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         dbtable = '%s.%s' % (pkg, tbl)
         if not relation_value:
             kwargs['limit'] = 0
-        where = "$%s = :val_%s" % (related_field, related_field)
-        kwargs[str('val_%s' % related_field)] = relation_value
-        if condition:
-            where = ' ( %s ) AND ( %s ) ' % (where, condition)
-        query = self.db.query(dbtable, columns=columns, where=where,
-                              sqlContextName=sqlContextName, **kwargs)
 
+        
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=relation_value,where=condition,
+                                                    sqlContextName=sqlContextName, **kwargs)
         joinBag = None
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
@@ -908,7 +903,8 @@ class GnrWebAppHandler(GnrBaseProxy):
             keys = list(prevSelectedDict.keys())
             resultAttributes['prevSelectedIdx'] = [m['rowidx'] for m in [r for r in selection.data if r['pkey'] in keys]]
         if wherebag:
-            resultAttributes['whereAsPlainText'] = self.db.whereTranslator.toHtml(tblobj,wherebag)
+            
+            resultAttributes['whereAsPlainText'] = tblobj.whereTranslator.toHtml(tblobj,wherebag)
         resultAttributes['hardQueryLimitOver'] = hardQueryLimit and resultAttributes['totalrows'] == hardQueryLimit
         if self.page.pageStore().getItem('slaveSelections.%s' %selectionName):
             with self.page.pageStore() as store:
@@ -1446,8 +1442,9 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def insertRecord(self,table=None,record=None,**kwargs):
         tblobj = self.db.table(table)
-        newrecord = tblobj.newrecord()
-        newrecord.update(record)
+        newrecord = tblobj.newrecord(_fromRecord=record)
+        extra_items = {k:v for k,v in record.items()}
+        newrecord.update(extra_items)
         tblobj.insert(newrecord)
         self.db.commit()
         return newrecord[tblobj.pkey]
@@ -1543,7 +1540,8 @@ class GnrWebAppHandler(GnrBaseProxy):
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord, 
                        sqlContextName=sqlContextName,_storename=_storename,
-                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly)
+                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly,
+                       table=table)
         #if lock and not newrecord:
         if not newrecord and not readOnly:
             recInfo['_protect_write'] =  tblobj._islocked_write(record) or not tblobj.check_updatable(record,ignoreReadOnly=ignoreReadOnly)

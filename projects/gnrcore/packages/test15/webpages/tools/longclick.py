@@ -6,8 +6,6 @@
 
 "Test page description"
 
-from gnr.core.gnrbag import Bag
-
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
     dojo_source = True

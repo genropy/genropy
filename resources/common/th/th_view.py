@@ -4,7 +4,10 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from xml.sax import handler
+from dateutil import rrule
+from dateutil.relativedelta import relativedelta
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -64,7 +67,7 @@ class TableHandlerView(BaseComponent):
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
-        pkglist = list(self.db.packages.keys())
+        pkglist = list(self.db.packages.keys())+[None]
         for side in ('top','bottom','left','right'):
             hooks = self._th_hook(side,mangler=frameCode,asDict=True)
             for packagename,h in sorted([(getattr(handler,'__mixin_pkg',0),handler) for handler in hooks.values()],key=lambda x:pkglist.index(x[0])):
@@ -114,6 +117,7 @@ class TableHandlerView(BaseComponent):
                                 dockTo='dummyDock',datapath='.depending_relation_explorer')
         pane.remote(self._th_dependingRelationExplorerContent,th_root=th_root,table=gridattr['table'])
     
+
     @public_method
     def _th_dependingRelationExplorerContent(self,pane,th_root=None,table=None):
         bc = pane.borderContainer(nodeId=f'{th_root}_dep_tables_root')
@@ -594,6 +598,7 @@ class TableHandlerView(BaseComponent):
     def _th_section_from_type(self,tblobj,sections,condition=None,condition_kwargs=None,
                             all_begin=None,all_end=None,codePkey=False,include_inherited=None):
         rt = tblobj.column(sections).relatedTable() 
+        
         if rt:
             section_table = tblobj.column(sections).relatedTable().dbtable
             pkeyfield = section_table.pkey
@@ -601,6 +606,7 @@ class TableHandlerView(BaseComponent):
             condition_kwargs = condition_kwargs or dict()
             default_order_by = section_table.attributes.get('order_by','$%s' %caption_field)
             f = section_table.query(columns='*,$%s' %caption_field,where=condition,order_by=default_order_by,**condition_kwargs).fetch()
+            sectionCodeTransformer = slugify
         else:
             caption_field = 'description'
             pkeyfield = 'code'
@@ -608,6 +614,7 @@ class TableHandlerView(BaseComponent):
             for s in tblobj.column(sections).attributes['values'].split(','):
                 s = s.split(':')
                 f.append(dict(code=s[0],description=s[1] if len(s)==2 else s[0]))
+            sectionCodeTransformer = lambda txt: txt.replace('.','_')
         s = []
         sec_cond = '$%s=:s_id' %sections
         if include_inherited:
@@ -615,11 +622,11 @@ class TableHandlerView(BaseComponent):
         if all_begin is None and all_end is None:
             all_begin = True
         if all_begin:
-            s.append(dict(code='c_all_begin',caption='!!All' if all_begin is True else all_begin))
+            s.append(dict(code='_all_',caption='!!All' if all_begin is True else all_begin))
         for i,r in enumerate(f):
-            s.append(dict(code=slugify(r[pkeyfield],'_'),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
+            s.append(dict(code=sectionCodeTransformer(r[pkeyfield]),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
         if all_end:
-            s.append(dict(code='c_all_end',caption='!!All' if all_end is True else all_end))
+            s.append(dict(code='_all_',caption='!!All' if all_end is True else all_end))
         return s
 
 
@@ -844,9 +851,6 @@ class TableHandlerView(BaseComponent):
                             allPosition=None, 
                             **kwargs):
         sections = []
-        import datetime
-        from dateutil import rrule
-        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
         dtstart = dtstart.replace(day=1)
         default_date = dtstart

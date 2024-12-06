@@ -22,8 +22,7 @@
 Component for GridCustomizer:
 """
 from gnr.web.gnrbaseclasses import BaseComponent,page_proxy
-from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 DEFAULT_MD_MODE = 'STD'
@@ -104,7 +103,7 @@ class MasterDetail(BaseComponent):
         tc = parent.tabContainer(datapath=datapath or '.gridCustomizer',**kwargs)
         structures = self.getStructures(table=gridTable,resource=gridResource)
         tc.data('.base_structures',structures)
-        tc.dataController("""
+        tc.dataController(r"""
         if(this.form.isNewRecord()){
             return;
         }        

@@ -7,8 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 
-from past.utils import old_div
-
 import os
 import urllib.request, urllib.parse, urllib.error
 import io
@@ -19,7 +17,6 @@ from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlist import getReader
-from gnr.core.gnrstring import slugify
 from gnr.core.gnrlang import gnrImport, objectExtract
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrException
@@ -385,7 +382,14 @@ class GnrWebUtils(GnrBaseProxy):
                                             messageType='warning')
         else:
             for r in rows:
-                tblobj.importerInsertRow(r,import_mode=import_mode)
+                pkey = r.get(tblobj.pkey)
+                if not pkey: 
+                    recordkw = dict(r)
+                    recordkw.pop('_coerce_errors',None)
+                else:
+                    recordkw = dict(pkey=pkey)
+                with tblobj.recordToUpdate(insertMissing=True,**recordkw) as rec:
+                    rec.update(r)
                 docommit=True
         if docommit:
             self.page.db.commit()

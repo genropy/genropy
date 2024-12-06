@@ -59,7 +59,7 @@ def autocast(**cast_kwargs):
     return decore
 
 def public_method(*args,**metadata):
-    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`\s
+    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`
 
     :param func: the function to set as public method"""
     if metadata:
@@ -77,7 +77,7 @@ def public_method(*args,**metadata):
 
 
 def websocket_method(*args,**metadata):
-    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`\s
+    """A decorator. It can be used to mark methods/functions as :ref:`datarpc`
     :param func: the function to set as public method"""
     if metadata:
         def decore(func):
@@ -99,7 +99,7 @@ def extract_kwargs(_adapter=None,_dictkwargs=None,**extract_kwargs):
     :param _adapter: the adapter names for extracted attributes (prefixes for sub-families)
                      every adapter name defines a single extract kwargs sub-family
     :param _dictkwargs: a dict with the extracted kwargs
-    :param \*\*extract_kwargs: others kwargs
+    :param **extract_kwargs: others kwargs
 
     In the "extract_kwargs" definition line you have to follow this syntax::
 
@@ -147,7 +147,7 @@ def extract_kwargs(_adapter=None,_dictkwargs=None,**extract_kwargs):
     if _dictkwargs:
         extract_kwargs = _dictkwargs
     def decore(func):
-        def newFunc(self,*args, **kwargs):
+        def wrapper(self,*args, **kwargs):
             if _adapter:
                 adapter=getattr(self,_adapter)
                 if adapter:
@@ -163,8 +163,8 @@ def extract_kwargs(_adapter=None,_dictkwargs=None,**extract_kwargs):
                 curr.update(dictExtract(kwargs,'%s_' %extract_key,**dfltExtract))
                 kwargs[grp_key] = curr
             return func(self,*args,**kwargs)
-        newFunc.__doc__=func.__doc__
-        return newFunc
+        wrapper.__doc__=func.__doc__
+        return wrapper
     return decore
 
 
@@ -179,7 +179,7 @@ def customizable(func):
             if result is False:
                 return result
 
-    def newFunc(page,*args,**kwargs):
+    def wrapper(page,*args,**kwargs):
         oncalling_result = customize(page,'%s_oncalling_' %func.__name__,*args,**kwargs)
         if oncalling_result is False:
             return
@@ -187,7 +187,7 @@ def customizable(func):
         kwargs['_original_result'] = result
         customize(page,'%s_oncalled_' %func.__name__,*args,**kwargs)
         return result
-    return newFunc
+    return wrapper
 
 def oncalling(func):
     setattr(func,'mixin_as','%s_oncalling_#' %(func.__name__))
@@ -209,13 +209,13 @@ def deprecated(message=None):
     else:
         message = ''
     def decore(func):
-        def newFunc(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             warnings.warn("Call to deprecated function %s%s" % (func.__name__, message),
                           category=DeprecationWarning, stacklevel=2)
             return func(*args, **kwargs)
 
-        newFunc.__name__ = func.__name__
-        newFunc.__doc__ = func.__doc__
-        newFunc.__dict__.update(func.__dict__)
-        return newFunc
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        wrapper.__dict__.update(func.__dict__)
+        return wrapper
     return decore

@@ -40,17 +40,17 @@ def do_cprofile(profile_path=None):
 
 def callers(limit=10):
     def decore(func):
-        def newFunc(*fn_args, **fn_kwargs):
+        def wrapper(*fn_args, **fn_kwargs):
             import inspect
             stack = inspect.stack()
             print(func.__name__, ':')
             for f in stack[1:limit+1]:
                 print('\t%s:\t(%i) %s'% (f[3],f[2],f[1]))
             return func(*fn_args, **fn_kwargs)
-        newFunc.__name__ = func.__name__
-        newFunc.__doc__ = func.__doc__
-        newFunc.__dict__.update(func.__dict__)
-        return newFunc
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        wrapper.__dict__.update(func.__dict__)
+        return wrapper
     return decore
 
 def timer_call(time_list=None, print_time=True):

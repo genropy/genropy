@@ -23,3 +23,6 @@ docker/*
 .spyproject/
 .coverage
 
+.aider*
+gnrpy/tests/sql/_main_connection
+gnrpy/tests/_main_connection

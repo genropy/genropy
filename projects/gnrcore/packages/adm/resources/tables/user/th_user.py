@@ -90,7 +90,7 @@ class Form(BaseComponent):
     def loginFields(self, pane):
         fb = pane.div(margin_right='10px').formbuilder(cols=1, border_spacing='4px',colswidth='12em')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
-        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+        fb.passwordTextBox(value='^.md5pwd', lbl='Password',validate_notnull=True, validate_notnull_error='!!Required')
         fb.button('!!Reset password').dataRpc(self.login_confirmNewPassword, 
                                                 username='=.username', email='=.email')
         
@@ -151,9 +151,8 @@ class ExtUserForm(BaseComponent):
         fb = form.record.div(margin='5px',margin_right='15px').formbuilder(width='100%',
                             fld_width='100%',colswidth='auto')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Existing')
-        fb.textBox(value='^.md5pwd', lbl='Password', 
-                    type='password',validate_notnull=True, 
-                    validate_notnull_error='!!Required')
+        fb.passwordTextBox(value='^.md5pwd', lbl='Password', 
+                            validate_notnull=True, validate_notnull_error='!!Required')
         fb.field('group_code',hasDownArrow=True)
         fb.field('email', lbl='!!Email')
 
@@ -182,7 +181,7 @@ class FormSimple(BaseComponent):
         bc = form.center.borderContainer()
         fb = bc.contentPane(region='top',datapath='.record',margin_top='10px').mobileFormBuilder(cols=1)
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists')
-        fb.textBox(value='^.md5pwd', lbl='Password', type='password',validate_notnull=True, validate_notnull_error='!!Required')
+        fb.passwordTextBox(value='^.md5pwd', lbl='Password', validate_notnull=True, validate_notnull_error='!!Required')
         fb.field('status')
         fb.field('email', lbl='!!Email')
 

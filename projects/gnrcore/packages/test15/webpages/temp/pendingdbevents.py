@@ -6,7 +6,6 @@
 
 "Test page description"
 
-import datetime
 from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):

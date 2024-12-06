@@ -23,10 +23,11 @@
 
 import os
 import re
-import hashlib
+
 from gnr.app.gnrconfig import getGenroRoot
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
+from gnr.core.gnrlang import GnrException
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
 LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\6\)""")
@@ -145,6 +146,8 @@ class AppLocalizer(object):
                     locdict[lang] = base_to_translate
                     continue
                 if not locdict.get(lang):
+                    if not self.translator:
+                        raise GnrException('No translator service available. Please configure a traslator service')
                     translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
                     #items = list(safedict.items())
                     # self.utils.quickThermo(items, maxidx=len(items), labelcb=lambda t: t[0], title=f'!![en]Autotranslate terms in {lang}')
@@ -163,6 +166,8 @@ class AppLocalizer(object):
                 curr_translation = curr_translation.strip()
                 if not curr_translation or override:
                     base_term = n.attr.get('base')
+                    if not self.translator:
+                        raise GnrException('No translator service available. Please configure a traslator service')
                     translated = self.translator.translate(base_term, from_language=n.label[:2], to_language=language)
                     if translated and translated.lower()!=base_term.lower():
                         n.attr[language] = translated

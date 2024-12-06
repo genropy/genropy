@@ -2,18 +2,9 @@
 
 """Esempio"""
 
-from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Image, Paragraph, PageBreak , Flowable
-# from reportlab.graphics.shapes import Drawing
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
 from reportlab.rl_config import defaultPageSize
-from reportlab.lib.units import mm, cm
-# from reportlab.lib.styles import getSampleStyleSheet
 
 from gnr.core.gnrdecorator import public_method
-from io import BytesIO
-
 from gnr.xtnd.gnrrml import GnrPdf
 
 

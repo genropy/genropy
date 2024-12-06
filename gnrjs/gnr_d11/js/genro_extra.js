@@ -231,9 +231,8 @@ dojo.declare("gnr.widgets.qrscanner", gnr.widgets.baseHtml, {
         //console.log('aaa')
     }
 });
+
 dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
-
-
     constructor: function(application) {
         this._domtag = 'div';
     },
@@ -244,23 +243,28 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         if(value){
             editorAttrs.initialValue = value;
         }
-        
+        editorAttrs.usageStatistics = objectPop(editorAttrs,'usageStatistics') || false; //usageStatistics is false by default
         objectPopAll(attributes);
         return editorAttrs;
     },
 
     created:function(widget, savedAttrs, sourceNode){
         var that=this;
-        if (!(window.toastui && window.toastui.Editor)){
-            genro.dom.loadJs("https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js",
-                          function(){
-                            genro.dom.loadCss("https://uicdn.toast.com/editor/latest/toastui-editor.min.css",'tuieditor',
-                                function(){
-                                    that.ready = true;
-                                    that.initialize(widget,savedAttrs,sourceNode);
-                                }
-                            )
-                          });
+        var scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
+        var cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
+
+        var editorLoaded = window.toastui && window.toastui.Editor;
+
+        if (!editorLoaded) {
+            genro.dom.loadJs(scriptUrl, function() {
+                genro.dom.loadCss(cssUrl, 'tuieditor', function() {
+                    that.ready = true;
+                    that.initialize(widget, savedAttrs, sourceNode);
+                });
+            });
+        } else {
+            that.ready = true;
+            that.initialize(widget, savedAttrs, sourceNode);
         }
     },
 
@@ -268,16 +272,37 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         let editor_attrs = {...savedAttrs};
         editor_attrs.autofocus = editor_attrs.autofocus || false;
         objectPop(editor_attrs,'htmlpath');
-        let handler = window.toastui.Editor;
-        if (editor_attrs.viewer){
-            handler = window.toastui.Editor.factory;
+        
+        let editor;
+
+        if (editor_attrs.viewer) {
+            // Build viewer using factory
+            editor = window.toastui.Editor.factory({
+                el: widget,
+                ...editor_attrs
+            });
+        } else {
+            // Build editor
+            editor = new window.toastui.Editor({
+                el: widget,
+                ...editor_attrs
+            });
         }
-        let editor = new window.toastui.Editor({
-            el: widget,...editor_attrs
-        });
+        if(editor_attrs.removeToolbarItems){
+            editor_attrs.removeToolbarItems.forEach(function(item) {
+                editor.removeToolbarItem(item);
+            });
+        }
+        if(editor_attrs.insertToolbarItems){
+            editor_attrs.insertToolbarItems.forEach(function(item) {
+                editor.insertToolbarItem(item)
+            });
+        }
         this.setExternalWidget(sourceNode,editor);
         editor.addHook('keydown',function(){
             genro.callAfter(function(){
+                if(editor_attrs.maxLength){
+                    editor.gnr_checkMaxLength(editor,editor_attrs.maxLength)};
                 editor.gnr_onTyped();
                 editor.gnr_setInDatastore();
             },10,this,'typing');
@@ -313,8 +338,25 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     mixin_gnr_onPaste:function(){
         this.gnr_setInDatastore();
     },
+    
     mixin_gnr_onTyped:function(){
+    },
 
+    mixin_gnr_checkMaxLength:function(editor,maxLength){
+        let value = this.getMarkdown();
+        if (value.length > maxLength) {
+            this.setMarkdown(value);
+        }
+        editor.removeToolbarItem('remaining');
+        editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
+            name: 'remaining',
+            tooltip: 'Remaining characters',
+            text: `Remaining: ${(maxLength - value.length)}`,
+            action: null,
+            style:  {textAlign: 'right', right:'0', width:'auto', cursor:'pointer',
+                        cursor: 'auto', fontStyle: 'italic', fontSize: '.8em', background: 'none', border: 'none'}
+          });
+        
     },
 
     mixin_gnr_disabled:function(value){
@@ -437,7 +479,9 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
         cm.on('update',function(){
             sourceNode.delayedCall(function(){
                 var v = sourceNode.externalWidget.getValue();
-                sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                if(sourceNode.attr.value){
+                    sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
+                }
             },sourceNode.attr._delay || 500,'updatingContent')
         })
         let startValue = sourceNode.getAttributeFromDatasource('value');

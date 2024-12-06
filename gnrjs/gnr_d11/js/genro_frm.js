@@ -1694,7 +1694,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             if (((data.len() > 0) && (data.__isRealChange)) || (!result)) {
                 var result = result || new gnr.GnrBag();
                 var recordNode = record.getParentNode();
-                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields', true);
+                var resultattr = objectExtract(recordNode.attr, '_pkey,_newrecord,lastTS,mode,one_one,_invalidFields,table', true);
                 result.setItem(recordNode.label, data, resultattr);
                 result.__isRealChange = data.__isRealChange;
             }
@@ -2477,7 +2477,7 @@ dojo.declare("gnr.formstores.Base", null, {
         var handler,handler_type,method,actionKw,callbacks,defaultCb;
         var that = this;
         var rpcmethod;
-        dojo.forEach(['save','load','del'],function(action){
+        ['save','load','del'].forEach(function(action){
             actionKw = objectExtract(handlerKw,action+'_*');
             handler = objectUpdate({},that.handlers[action]);
             handler_type = objectPop(handler,'handler_type') || objectPop(handlerKw,action)||base_handler_type;

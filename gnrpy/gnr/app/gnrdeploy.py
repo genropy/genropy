@@ -2,15 +2,16 @@ import os
 import sys
 import site
 import glob
-
+import pathlib
 import shutil
 import random
 import string
+from collections import defaultdict
+
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlang import uniquify, GnrException
-from collections import defaultdict
+from gnr.core.gnrlang import GnrException
 from gnr.web.gnrmenu import MenuStruct
 from gnr.app.gnrconfig import IniConfStruct
 from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
@@ -146,7 +147,7 @@ def build_instanceconfig_xml(path=None,avoid_baseuser=None):
 def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None):
     siteconfig_bag = Bag()
     siteconfig_bag.setItem('wsgi', None, dict(debug=True, reload=True, port='8080'))
-    siteconfig_bag.setItem('gui', None, dict(css_theme='modern'))
+    siteconfig_bag.setItem('gui', None, dict(css_theme='mimi'))
     siteconfig_bag.setItem('jslib', None, dict(dojo_version='11', gnr_version='11'))
     siteconfig_bag.setItem('resources.common', None)
     siteconfig_bag.setItem('resources.js_libs', None)
@@ -219,8 +220,8 @@ def gnrdaemonServiceBuilder():
     print("""
 Gnrdaemon service created Now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 $ sudo systemctl start %(service_name)s
@@ -274,8 +275,8 @@ def gnrsiterunnerServiceBuilder():
     print("""
 Gnrsiterunner service created, now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 
@@ -1203,7 +1204,13 @@ class GunicornDeployBuilder(object):
         pars['max_requests_jitter'] = self.default_max_requests_jitter
         pars['chdir'] = self.site_path if os.path.exists(os.path.join(self.site_path,'root.py')) else self.instance_path
         conf_content = GUNICORN_DEFAULT_CONF_TEMPLATE %pars
-        print('write gunicorn file',self.gunicorn_conf_path)
+        print('Writing gunicorn conf file at',self.gunicorn_conf_path)
+
+        # ensure the directory exists before writing the file, to support
+        # older instances with new deploys
+        gunicorn_base_conf_dir = os.path.dirname(self.gunicorn_conf_path)
+        pathlib.Path(gunicorn_base_conf_dir).mkdir(parents=True, exist_ok=True)
+        
         with open(self.gunicorn_conf_path,'w') as conf_file:
             conf_file.write(conf_content)
 

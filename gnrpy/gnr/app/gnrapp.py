@@ -28,15 +28,16 @@ import locale
 import sys
 import types
 import importlib
+import importlib.metadata
+from packaging.requirements import Requirement
+from packaging.version import Version
 import os
 import hashlib
-import re
 import smtplib
 import time
 import glob
 import subprocess
 from collections import defaultdict
-import pkg_resources
 from email.mime.text import MIMEText
 
 from gnr.utils import ssmtplib
@@ -703,8 +704,9 @@ class GnrApp(object):
                     packages.setItem(pkgid, n.value, n.attr)
                 config['packages']  = packages
             return config
+        
         instance_config_path = os.path.join(self.instanceFolder, 'instanceconfig.xml')
-        base_instance_config = normalizePackages(Bag(instance_config_path))
+        base_instance_config = normalizePackages(Bag(instance_config_path, _template_kwargs=os.environ))
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
@@ -728,6 +730,16 @@ class GnrApp(object):
         self.base_lang = self.config['i18n?base_lang'] or 'en'
         self.catalog = GnrClassCatalog()
         self.localization = {}
+
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+
+        # check for packages python dependencies
+        self.check_package_dependencies()
+        if 'checkdepcli' in self.kwargs:
+            return
+
+
         
         if not forTesting:
             dbattrs = self.config.getAttr('db') or {}
@@ -756,14 +768,6 @@ class GnrApp(object):
                 shutil.rmtree(tempdir)
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
-        # check for packages python dependencies
-        self.check_package_dependencies()
-        if 'checkdepcli' in self.kwargs:
-            return
 
         
         for pkgid, apppkg in list(self.packages.items()):
@@ -825,7 +829,7 @@ class GnrApp(object):
             if missing:
                 log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                log.error(f"ERROR: wrong dependecies:")
+                log.error(f"ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     log.error(f"{requested} is requested, but {installed} found")
             
@@ -835,18 +839,21 @@ class GnrApp(object):
         for name in self.instance_packages_dependencies:
             if name:
                 try:
-                    pkg_resources.get_distribution(name)
-                except pkg_resources.DistributionNotFound:
+                    requirement = Requirement(name)
+                    package_name = requirement.name
+                    required_spec = requirement.specifier
+                    installed_version = Version(importlib.metadata.version(package_name))
+                    if not required_spec.contains(installed_version):
+                        wrong.append((name, installed_version))
+                except importlib.metadata.PackageNotFoundError:
                     missing.append(name)
-                except pkg_resources.VersionConflict as e:
-                    wrong.append((e.req, e.dist))
                 except Exception as e:
                     log.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
     def check_package_install_missing(self):
         missing, wrong = self.check_package_missing_dependencies()
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        return subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''

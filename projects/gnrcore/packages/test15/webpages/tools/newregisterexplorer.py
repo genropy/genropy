@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
-# untitled.py
 # Created by Francesco Porcari on 2011-04-07.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 "Test page description"
-from __future__ import division
-
-
 from past.utils import old_div
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import fromJson
+
 class GnrCustomWebPage(object):
     css_requires='csstest'
     def windowTitle(self):

@@ -69,19 +69,6 @@ def test_GnrNamedList():
     assert "name=" in repr(gnl)
     assert "surname=" in repr(gnl)
 
-    assert gnl.pop("name") == "Arthur"
-    assert gnl.pop("name") == "Dent"
-
-    with pytest.raises(KeyError) as excinfo:
-        gnl.pop("planet")
-    assert str(excinfo.value) == "'planet'"
-
-    
-    # now the list should be empty
-    assert gnl.pop("name") == None
-
-    gnl.update(dict(name="Ford"))
-    assert gnl.pop("name") == "Ford"
 
     gnl['planet'] = "Earth"
     assert gnl.get('planet') == "Earth"

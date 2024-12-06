@@ -25,7 +25,6 @@ Component for preference handling:
 """
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
 

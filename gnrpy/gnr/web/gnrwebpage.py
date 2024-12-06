@@ -52,11 +52,15 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrdecorator import public_method,deprecated
 from gnr.core.gnrclasses import GnrMixinNotFound
-from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+
+ # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
+
+
 from gnr.app.gnrlocalization import GnrLocString
 
 AUTH_OK = 0
@@ -125,7 +129,8 @@ class GnrWebPage(GnrBaseWebPage):
     proxy_class = GnrBaseProxy
     
     def __init__(self, site=None, request=None, response=None, request_kwargs=None, request_args=None,
-                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,_avoid_module_cache=None):
+                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,
+                 _avoid_module_cache=None):
         self._inited = False
         self._start_time = time()
         self._thread = _thread.get_ident()
@@ -146,7 +151,7 @@ class GnrWebPage(GnrBaseWebPage):
         dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
         self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
-        self.user_agent = request.user_agent.string or []
+        self.user_agent = getattr(request.user_agent, "string", [])
         self._environ = environ
         self._event_subscribers = {}
         self.forked = False # maybe redefine as _forked
@@ -159,7 +164,10 @@ class GnrWebPage(GnrBaseWebPage):
         self.called_url = request.url
         self.path_url = request.url_root
         self.request = GnrWebRequest(request)
+
+        # FIXME: strange default here - the whole ipv4 address space?
         self.user_ip = self.request.remote_addr or '0.0.0.0'
+        
         self.response = GnrWebResponse(response)
         self._request = self.request._request
         self._response = self.response._response
@@ -231,10 +239,12 @@ class GnrWebPage(GnrBaseWebPage):
             init_info = dict(request_kwargs=request_kwargs, request_args=request_args,
                           filepath=filepath, packageId=packageId, pluginId=pluginId,  basename=basename)
             self.page_item = self._register_new_page(kwargs=request_kwargs,class_info=class_info,init_info=init_info)
-
         self.isMobile = (self.connection.user_device.startswith('mobile')) or self.page_item['data']['pageArgs'].get('is_mobile')
         self.deviceScreenSize = self.connection.user_device.split(':')[1]
         self._inited = True
+        
+    def onPageRegistered(self,**kwargs):
+        pass
 
     def _T(self,value,lockey=None):
         return GnrLocString(value,lockey=lockey)
@@ -242,7 +252,7 @@ class GnrWebPage(GnrBaseWebPage):
     def onPreIniting(self, *request_args, **request_kwargs):
         """TODO"""
         pass
-        
+
     @property
     def pagename(self):
         return os.path.splitext(os.path.basename(self.filepath))[0].split(os.path.sep)[-1]
@@ -303,6 +313,7 @@ class GnrWebPage(GnrBaseWebPage):
         if self.wsk_enabled and not getattr(self,'system_page',False):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
+        self.onPageRegistered(**kwargs)
         return page_item
 
     def registerToAsyncServer(self,**kwargs):
@@ -418,16 +429,18 @@ class GnrWebPage(GnrBaseWebPage):
             self._db = self.application.db
             self._db.clearCurrentEnv()
             expirebag = self.globalStore().getItem('tables_user_conf_expire_ts')
-
             self._db.updateEnv(storename=self.dbstore, workdate=self.workdate, locale=self.locale,
                                 maxdate=datetime.date.max,mindate=datetime.date.min,
                                user=self.user, userTags=self.userTags, pagename=self.pagename,
-                               mainpackage=self.mainpackage,_user_conf_expirebag=expirebag)
+                               mainpackage=self.mainpackage,_user_conf_expirebag=expirebag,
+                               external_host=self.external_host)
+            
             self._db.setLocale()
             avatar = self.avatar
             if avatar:
                 self._db.updateEnv(_excludeNoneValues=True,**self.avatar.extra_kwargs)
             storeDbEnv = self.site.register.get_dbenv(self.page_id,register_name='page') if self.page_id else dict()
+            storeDbEnv.pop('workdate',None) #it does not override page workdate
             if len(storeDbEnv)>0:
                 self._db.updateEnv(**storeDbEnv.asDict(ascii=True))
             envPageArgs = dictExtract(self.pageArgs,'env_')
@@ -445,7 +458,10 @@ class GnrWebPage(GnrBaseWebPage):
         
     def _get_workdate(self):
         today = datetime.date.today()
-        if not getattr(self,'_workdate',None):
+        workdate = getattr(self,'_workdate',None)
+        custom_workdate = getattr(self,'_custom_workdate',None)
+        if workdate is None or (workdate!=today and not custom_workdate):
+            #if workdate != today check if is custom workdate
             with self.pageStore() as store:
                 rootenv = store.getItem('rootenv')
                 if not rootenv:
@@ -456,9 +472,11 @@ class GnrWebPage(GnrBaseWebPage):
                 if not custom_workdate:
                     workdate = datetime.date.today()
                     rootenv['workdate'] = workdate
+                else:
+                    self._custom_workdate = custom_workdate
                 self._workdate =  workdate
                 self._rootenv = rootenv
-        return self._workdate
+        return workdate
 
     def _set_workdate(self, workdate):
         self.pageStore().setItem('rootenv.workdate', workdate)
@@ -584,11 +602,12 @@ class GnrWebPage(GnrBaseWebPage):
         return AUTH_OK
     
     def _checkRootPage(self):
+        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
-                or not self.avatar.avatar_rootpage:
+                or not avatar_rootpage:
             return AUTH_OK
-        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if avatar_rootpage != self.request.path_info else AUTH_OK
         return result
         
     def pageAuthTags(self,method=None,**kwargs):
@@ -611,6 +630,48 @@ class GnrWebPage(GnrBaseWebPage):
             return None
         return handler or defaultCb or emptyCb
     
+    @public_method
+    def saveHelperValue(self,table=None,name=None,helpcode=None,value=None,customizationPackage=None):
+        relpath = f'helper/{name}.xml'
+        if table:
+            path = self.packageResourcePath(table,relpath,
+                                    forcedPackage=customizationPackage)
+        else:
+            path = self.getResource(relpath,pkg=customizationPackage or self.package)
+        data = Bag(path) if os.path.exists(path) else Bag()
+        data.setAttr(helpcode,{self.language:value})
+        data.toXml(path)
+    
+    @public_method
+    def getHelperData(self,table=None,name=None,**kwargs):
+        path = []
+        if table:
+            path.append(table)
+            name = name or 'default'
+        if name:
+            path.append(name)
+        if not hasattr(self,'_helpers'):
+            self._helpers = {}
+        path = '.'.join(path)
+        if path in self._helpers:
+            return self._helpers[path],{'path':path,'in_cache':True}
+        relpath = f'helper/{name}.xml'
+        def bagFromFile(filepath):
+            return Bag(filepath) if os.path.exists(filepath) else Bag()
+        if table:
+            data = bagFromFile(self.packageResourcePath(table,relpath))
+            customData = bagFromFile(self.packageResourcePath(table,relpath,
+                                    forcedPackage=self.package.name))
+            for n in customData:
+                d = dict(n.attr)
+                d['_custom_package'] = self.package.name
+                data.setAttr(n.label,d,_updattr=False)
+        else:
+            data = bagFromFile(self.getResource(relpath,pkg=self.package))
+        self._helpers[path] = data
+        return self._helpers[path],{'path':path,'in_cache':False}
+
+
     def mixinTableResource(self, table, path,**kwargs):
         """TODO
         
@@ -1136,11 +1197,10 @@ class GnrWebPage(GnrBaseWebPage):
                  raise exception
          return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
-    def build_arg_dict(self, _nodebug=False, _clocomp=False, **kwargs):
+    def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
         :param _nodebug: no debug mode
-        :param _clocomp: enable closure compile
         """
         gnr_static_handler = self.site.storage('gnr')
         gnrModulePath = gnr_static_handler.url(self.gnrjsversion)
@@ -1158,6 +1218,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
         self.getGoogleFonts(arg_dict)
+        self.getSentryJs(arg_dict)
         if self.debug_sql:
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
@@ -1188,14 +1249,10 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
         gnrimports = self.frontend.gnrjs_frontend()
-        #if _nodebug is False and _clocomp is False and (self.site.debug or self.isDeveloper()):
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
-        elif _nodebug is False and _clocomp is False and (self.isDeveloper()):
+        elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-        elif _clocomp or self.site.config['closure_compiler']:
-            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-            arg_dict['genroJsImport'] = [self.jstools.closurecompile(jsfiles)]
         else:
             if not self.site.compressedJsPath or self.site.debug:
                 jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
@@ -1245,6 +1302,18 @@ class GnrWebPage(GnrBaseWebPage):
         if google_fonts:
             arg_dict['google_fonts'] = google_fonts
         return arg_dict
+
+    def getSentryJs(self, arg_dict):
+        if self.site.config['sentry?js']:
+            arg_dict['sentryjs'] = self.site.config['sentry?js']
+            for ck in ['sample_rate', 'traces_sample_rate', 'profiles_sample_rate',
+                       'replays_session_sample_rate', 'replays_on_error_sample_rate']:
+                cv = self.site.config.get(f"sentry?{ck}")
+                if cv is None:
+                    cv = "0.0"
+                arg_dict[f'sentry_{ck}'] = cv
+        return arg_dict
+
 
     def mtimeurl(self, *args):
         """TODO"""
@@ -1955,6 +2024,18 @@ class GnrWebPage(GnrBaseWebPage):
         self.setInClientData_legacy(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
                         fired=fired, reason=reason, replace=replace,public=public,**kwargs)
 
+    def notifyLocalDbEvents(self,dbeventsDict=None,origin_page_id=None,dbevent_reason=None):
+        for table,dbevents in list(dbeventsDict.items()):
+            if not dbevents:
+                continue
+            table_code = table.replace('.', '_')
+            self.addLocalDatachange('gnr.dbchanges.%s' %table_code, dbevents,attributes=dict(from_page_id=origin_page_id,dbevent_reason=dbevent_reason))
+
+
+    def addLocalDatachange(self, path, value=None, attributes=None, fired=False, reason=None, delete=False):
+        datachange = ClientDataChange(path, value, attributes=attributes, fired=fired,
+                                      reason=reason, delete=delete)
+        self.local_datachanges.append(datachange)
 
     def setInClientData_legacy(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
@@ -2060,6 +2141,10 @@ class GnrWebPage(GnrBaseWebPage):
             self.main_root(page, **kwargs)
             return (page, pageattr)
         page.data('gnr.windowTitle',windowTitle or self.windowTitle())
+        page.data('gnr.developerToolsVisible',False)
+        page.dataController("""
+                            genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
+                            developerToolsVisible='^gnr.developerToolsVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -2101,7 +2186,7 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.remote_db',self.site.remote_db)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
-        if has_adm:
+        if has_adm and not self.isGuest:
             page.dataRemote('gnr.user_preference', self.getUserPreference,username='^gnr.avatar.user',
                             _resolved=True,_resolved_username=self.user)
             page.dataRemote('gnr.app_preference', self.getAppPreference,_resolved=True)
@@ -2645,7 +2730,7 @@ class GnrWebPage(GnrBaseWebPage):
         return result
 
     @public_method
-    def saveSiteDocument(self,path=None,data=None):
+    def saveSiteDocument(self,path=None,data=None,**kwargs):
         snode = self.site.storageNode(path)
         if snode.ext == 'xml':
             with snode.open('wb') as f:
@@ -2653,7 +2738,7 @@ class GnrWebPage(GnrBaseWebPage):
         else:
             with snode.open('wb') as f:
                 f.write(data['content'])
-        return dict(path=path)
+        return dict(savedPkey=path,path=path)
 
     @property
     def permissionPars(self):
@@ -2886,7 +2971,6 @@ class GnrGenshiPage(GnrWebPage):
     """TODO"""
     def onPreIniting(self, request_args, request_kwargs):
         """TODO"""
-        from genshi.template import TemplateLoader
         request_kwargs['_plugin'] = 'genshi'
         request_kwargs['genshi_path'] = self.genshi_template()
         

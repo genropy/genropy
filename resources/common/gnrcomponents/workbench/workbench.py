@@ -21,7 +21,6 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import public_method
 
 class WorkbenchManager(BaseComponent):
     js_requires= 'gnrcomponents/workbench/workbench'

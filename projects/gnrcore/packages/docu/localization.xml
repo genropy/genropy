@@ -2,7 +2,7 @@
 <GenRoBag><menu path="menu.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
 <en_handbooks base="Handbooks" it="Manuali" en="Handbooks"></en_handbooks>
 <en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"></en_redirects>
-<en_docu_tables base="Docu tables" en="Docu tables" it="Tavoli Docu"></en_docu_tables></menu>
+<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"></en_docu_tables></menu>
 <model><_packages><orgn><annotation path="model/_packages/orgn/annotation.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation></annotation></orgn></_packages>
 <author path="model/author.py" ext="py"><en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"></en_author>
 <en_authors base="Authors" it="Autori"></en_authors>
@@ -86,7 +86,7 @@
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
-<en_line_wrapping base="Line wrapping" en="Line wrapping" it="Avvolgimento della linea"></en_line_wrapping>
+<en_line_wrapping base="Line wrapping" en="Line wrapping" it="A capo automatico"></en_line_wrapping>
 <en_quote base="Quote" en="Quote" it="Citazione"></en_quote>
 <en_parent base="Parent" de="Elternteil" en="Parent" fr="Mère" it="Genitore"></en_parent>
 <en_first_child base="First child" en="First child" it="Primo figlio"></en_first_child>

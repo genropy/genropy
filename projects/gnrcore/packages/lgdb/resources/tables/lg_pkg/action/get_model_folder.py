@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from collections import OrderedDict
 from gnr.core.gnrstring import flatten
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag

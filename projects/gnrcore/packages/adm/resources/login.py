@@ -83,7 +83,7 @@ class LoginComponent(BaseComponent):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
     def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
-        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
+        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
@@ -275,7 +275,7 @@ class LoginComponent(BaseComponent):
         data['group_selector_mandatory'] = False
         if avatar.extra_kwargs.get('multi_group'):
             other_groups = self.db.table('adm.user').readColumns(columns='$other_groups',pkey=avatar.user_id)
-            other_groups = [r for r in other_groups.split(',') if r]
+            other_groups = [r for r in other_groups.split(',') if r] if other_groups else []
             data['all_groups'] = [avatar.main_group_code] if avatar.main_group_code else []
             if other_groups:
                 data['all_groups'] = [avatar.main_group_code] + other_groups
@@ -297,7 +297,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!Lost password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE recover_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE recover_password;',
                                 datapath='lost_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -323,7 +323,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!New password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE set_new_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE set_new_password;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         if not gnrtoken:
@@ -372,7 +372,7 @@ class LoginComponent(BaseComponent):
                 padding='10px 10px 0px 10px',
                 color='#777',font_style='italic',
                 font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE otp_confirm;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE otp_confirm;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.otp_code',lbl='!![en]Code',font_size='1.2em',font_weight='bold')
@@ -429,7 +429,7 @@ class LoginComponent(BaseComponent):
         self.login_commonHeader(box,confirmUserTitle)
         self.login_commonHeader(sc.contentPane(),confirmUserTitle,self.loginPreference('check_email') or 'Please check your email')
         box.div(self.loginPreference('confirm_user_message'),padding='10px 10px 0px 10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE confirm_email;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE confirm_email;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -480,7 +480,7 @@ class LoginComponent(BaseComponent):
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='6px',onEnter='SET creating_new_user = true;',
+        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='6px',onEnter='SET creating_new_user = true;',
                                 width='100%',tdl_width='6em',fld_width='100%',row_height='3ex')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
@@ -605,7 +605,7 @@ class LoginComponent(BaseComponent):
         wtitle = '!!Screenlock'
         box.div(wtitle,_class='index_logintitle')  
         box.div('!!Insert password',text_align='center',font_size='.9em',font_style='italic')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.passwordTextBox(value='^.password',lbl='!!Password',row_hidden=False)

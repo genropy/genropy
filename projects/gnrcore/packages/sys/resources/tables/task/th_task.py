@@ -82,16 +82,11 @@ class Form(BaseComponent):
         fb = pane.formbuilder(cols=1, border_spacing='3px',lblpos='T',lblalign='left',
                             fldalign='left',lbl_font_size='.9em',lbl_font_weight='bold')
 
-        fb.div(rounded=4,background='white',padding='3px',
-            shadow='1px 1px 2px #666 inset',lbl='!!Month').field('month',tag='checkboxtext',cols=6,border_spacing='2px')
-        fb.div(rounded=4,background='white',padding='3px',
-            shadow='1px 1px 2px #666 inset',lbl='!!Day').field('day',tag='checkboxtext',cols=10,border_spacing='2px')
-        fb.div(rounded=4,background='white',padding='3px',
-            shadow='1px 1px 2px #666 inset',lbl='!!Weekday').field('weekday',tag='checkboxtext',cols=7,border_spacing='2px')
-        fb.div(rounded=4,background='white',padding='3px',
-            shadow='1px 1px 2px #666 inset',lbl='!!Hour').field('hour',tag='checkboxtext',cols=12,border_spacing='2px')
-        fb.div(rounded=4,background='white',padding='3px',
-            shadow='1px 1px 2px #666 inset',lbl='!!Minute').field('minute',tag='checkboxtext',cols=10,border_spacing='2px')
+        fb.field('month',tag='checkboxtext',cols=6,border_spacing='2px')
+        fb.field('day',tag='checkboxtext',cols=10,border_spacing='2px')
+        fb.field('weekday',tag='checkboxtext',cols=7,border_spacing='2px')
+        fb.field('hour',tag='checkboxtext',cols=12,border_spacing='2px')
+        fb.field('minute',tag='checkboxtext',cols=10,border_spacing='2px')
         
 
     def th_options(self):

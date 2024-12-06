@@ -2,10 +2,9 @@
 
 # Copyright (c) 2012 Softwell. All rights reserved.
 
+import os
+
 from gnr.web.gnrwebpage import BaseComponent
-from redbaron import RedBaron
-from gnr.core.gnrbag import Bag
-import os 
 from gnr.core.gnrdecorator import public_method
 
 class THResourceEditor(BaseComponent):
@@ -82,32 +81,3 @@ class THResourceEditor(BaseComponent):
         packagepath = self.getPackagePath(project,package)
         th_resource_basepath = os.path.join(packagepath,'resources','tables')
         respath = os.path.join(th_resource_basepath,tablename,'th_%s.py' %tablename)
-       #table = pkey
-       #red = self.get_redbaron(os.path.join(os.path.join(self.getPackagePath(project,package),'model','%s.py' %table)))
-       #resultAttr = dict(_pkey=pkey,_newrecord=False,project=project,package=package)
-       #record = Bag()
-       #record['name'] = table
-       #record['_sysFields'] = self.handleSysFields(red)
-       #config_db = red.find('def','config_db')
-       #if config_db:
-       #    targs,tkwargs = self.parsBaronNodeCall(config_db.find('name','table').parent[2])
-       #    record.update(tkwargs)
-       #    columnsvalue = Bag()
-       #    for colNode in red.find_all('name','column'):
-       #        cbag = self._loadColumnBag(colNode)
-       #        cbag['tag'] = 'column'
-       #        columnsvalue[cbag['name']] = cbag
-       #    for colNode in red.find_all('name','aliasColumn'):
-       #        cbag = self._getColBag(colNode,'relation_path')
-       #        cbag['tag'] = 'aliasColumn'
-       #        columnsvalue.setItem(cbag['name'],cbag,_customClasses='aliasColumnRow')
-       #    for colNode in red.find_all('name','formulaColumn'):
-       #        cbag = self._getColBag(colNode,'sql_formula')
-       #        cbag['tag'] = 'formulaColumn'
-       #        columnsvalue.setItem(cbag['name'],cbag,_customClasses='formulaColumnRow')
-       #    for colNode in red.find_all('name','pyColumn'):
-       #        cbag = self._getColBag(colNode,'py_method')
-       #        cbag['tag'] = 'pyColumn'
-       #        columnsvalue.setItem(cbag['name'],cbag,_customClasses='pyColumnRow')
-       #    record.setItem('_columns',columnsvalue,_sendback=True)
-        #return record,resultAttr

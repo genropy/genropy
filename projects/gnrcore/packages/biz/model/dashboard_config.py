@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from gnr.core.gnrbag import Bag
-
 class Table(object):
     def config_db(self,pkg):
         tbl=pkg.table('dashboard_config', pkey='id', name_long='!!Dash configurations', name_plural='!!Dash configurations')

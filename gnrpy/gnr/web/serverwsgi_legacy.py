@@ -1,6 +1,5 @@
 
 
-import glob
 from datetime import datetime
 import os
 import sys
@@ -16,7 +15,6 @@ from werkzeug.serving import run_simple
 from werkzeug.debug.tbtools import get_current_traceback, render_console_html
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
-from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging, log_styles
 from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver

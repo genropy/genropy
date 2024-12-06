@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import DirectoryResolver
-from gnr.core.gnrdecorator import public_method
-
 class GnrCustomWebPage(object):
     py_requires = 'public:Public,gnrcomponents/framegrid:FrameGrid,gnrcomponents/gnride/gnride'
 

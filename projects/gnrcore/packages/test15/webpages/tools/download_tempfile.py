@@ -7,8 +7,6 @@
 "Test page description"
 
 from gnr.core.gnrdecorator import public_method
-import mimetypes
-
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"

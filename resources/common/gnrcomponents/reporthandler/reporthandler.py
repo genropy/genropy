@@ -21,9 +21,6 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrbag import Bag
-
 
 class ReportHandler(BaseComponent):
     py_requires='th/th:TableHandler'
@@ -145,7 +142,7 @@ class ReportHandler(BaseComponent):
         grid = frame.grid
         grid.data('.table',table)
         grid.dragAndDrop(dropCodes='fieldvars')
-        grid.dataController("""var caption = data.fullcaption;
+        grid.dataController(r"""var caption = data.fullcaption;
                                 var field = data.fieldpath;
                                 var pkey = field.replace(/\W/g,'_');
                                 var dtype = data.dtype;

@@ -15,10 +15,8 @@ import boto3
 import botocore
 from smart_open import open as so_open
 
-from gnr.lib.services.storage import StorageService,StorageNode,StorageResolver
+from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class S3LocalFile(object):
     def __init__(self, mode='rb', bucket=None, key=None, s3_session=None):
@@ -325,7 +323,7 @@ class Service(StorageService):
                 kwargs['mode'] = 'r'
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
-            transport_params={'session':self._session}, **kwargs)
+            transport_params={'session':self._session, 'client': self._client}, **kwargs)
 
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket

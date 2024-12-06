@@ -31,11 +31,11 @@ class TestGnrLang():
 
     def test_position(self):
         r = gl.position("h", "hello")
-        assert r is 0
+        assert r == 0
         r = gl.position("x", "hello")
-        assert r is -1
+        assert r == -1
         r = gl.position("hi", ["hello", "hi", "aye"])
-        assert r is 1
+        assert r == 1
 
         with pytest.raises(AttributeError):
             r = gl.position("g", gl.position)
@@ -47,8 +47,8 @@ class TestGnrLang():
     def test_args(self):
         r = gl.args(1,2,3,a=1,b=2,c=3)
         assert r[0] == (1,2,3)
-        assert r[1].get('a', None) is 1
-        assert r[1].get('b', None) is 2
+        assert r[1].get('a', None) == 1
+        assert r[1].get('b', None) == 2
         assert 'd' not in r[1]
         
     def test_optArgs(self):
@@ -64,16 +64,16 @@ class TestGnrLang():
         assert not r
         
     def test_boolean(self):
-        assert gl.boolean("T") is True
-        assert gl.boolean("F") is False
-        assert gl.boolean("t") is True
-        assert gl.boolean("f") is False
-        assert gl.boolean("Y") is True
-        assert gl.boolean("N") is False
-        assert gl.boolean(True) is True
-        assert gl.boolean(False) is False
-        assert gl.boolean([1]) is True
-        assert gl.boolean([]) is False
+        assert gl.boolean("T") == True
+        assert gl.boolean("F") == False
+        assert gl.boolean("t") == True
+        assert gl.boolean("f") == False
+        assert gl.boolean("Y") == True
+        assert gl.boolean("N") == False
+        assert gl.boolean(True) == True
+        assert gl.boolean(False) == False
+        assert gl.boolean([1]) == True
+        assert gl.boolean([]) == False
 
     def test_getmixincount(self):
         a = gl.getmixincount()
@@ -105,11 +105,11 @@ class TestGnrLang():
 
     def test_GnrSilentException(self):
         e = gl.GnrSilentException(topic=1)
-        assert e.topic is 1
+        assert e.topic == 1
 
     def test_BaseProxy(self):
         e = gl.BaseProxy(1)
-        assert e.main is 1
+        assert e.main == 1
 
     def test_tracebackBag(self):
         r = gl.tracebackBag()
