@@ -250,6 +250,7 @@ class FrameGridTools(BaseComponent):
                         grid_configurable=True,configurable=False,margin=None,pbl_classes=True,**kwargs):
         self._th_mixinResource(groupedTh,table=table,resourceName=groupedThViewResource,defaultClass='View')
         tree_nodeId = f'{groupedTh}_grouper_tree'
+        static_kwargs = dictExtract(kwargs,'static_',pop=True)
         gth = pane.groupByTableHandler(table=table,frameCode=f'{groupedTh}_grouper',
                             configurable=configurable,
                             grid_configurable=grid_configurable,
@@ -328,9 +329,13 @@ class FrameGridTools(BaseComponent):
             tree_downbar.modemb.multiButton(value='^.output',values='grid:Flat,tree:Hierarchical')
             #self._grouperConfMenu(bar.confMenu,frameCode=fcode)
         else:
-            gth.top.bar.replaceSlots('#','*,viewsSelect,*',height='22px',border_bottom='1px solid silver')
+            static_slots = '*,viewsSelect,*'
+            static_searchOn = static_kwargs.get('searchOn',False)
+            if static_searchOn:
+                static_slots = '2,viewsSelect,*,searchOn,2'
+            gth.top.bar.replaceSlots('#',static_slots,height='22px',border_bottom='1px solid silver')
             gth.dataController("""gth.widget.setRegionVisible('top',(resource_structs && resource_structs.len()>1));""", gth=gth,
-                                    resource_structs='^.grid.resource_structs')
+                                    resource_structs='^.grid.resource_structs',static_searchOn=static_searchOn,_if='!static_searchOn')
             
     def _grouperConfMenu(self,pane,frameCode=None):
         pane.menudiv(iconClass='iconbox gear',_tags='admin',
