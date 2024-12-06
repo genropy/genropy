@@ -23,7 +23,7 @@ Enhancements
     * Autovacuum status monitoring.
     * Top and least-efficient queries statistics.
 
-* **Database Schema Adaptations**:
+* **Database Schema**:
   * Updated PostgreSQL adapter to handle `DEFERRABLE` and `INITIALLY
     DEFERRED` constraints.
   * Added support for extension management in migration commands.
@@ -32,8 +32,11 @@ Enhancements
   * Introduced SQL comment decorators for better traceability in SQL execution.
   * Standardized decorator patterns across the codebase for clarity.
 
-* **New Psycopg3 support**: Introduce 'postgres3' database adapter
-  which uses the psycopg3 driver.
+* **Database adapters**:
+  * Added support for capabilities declaration inside of database
+    adapter, in order to conditionally execute specific tasks base on such
+    specific capabilities.
+  * Introduced 'postgres3' database adapter which uses the psycopg3 driver.
   
 Bug Fixes
 ---------

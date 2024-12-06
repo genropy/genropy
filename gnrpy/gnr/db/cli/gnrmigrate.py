@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import sys
 import os
 import glob
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsqlmigration import SqlMigrator
+from gnr.sql import AdapterCapabilities
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
 from gnr.app.gnrconfig import getGnrConfig
@@ -74,7 +76,6 @@ def get_app(options):
         
     gnr_config = getGnrConfig(config_path=config_path, set_environment=True)
     instance_name = options.instance
-    print('instance_name',instance_name)
     if instance_name:
         if '.' in instance_name:
             instance_name, storename = instance_name.split('.')
@@ -184,6 +185,10 @@ def main():
 
     
     app, storename = get_app(options)
+    if not app.db.adapter.has_capability(AdapterCapabilities.MIGRATIONS):
+        print(f"The instance '{options.instance}' is using a database adapter which doesn't support migrations")
+        sys.exit(1)
+
     errordb = []
     if storename == '*':
         stores = [None] + sorted(app.db.dbstores.keys())
