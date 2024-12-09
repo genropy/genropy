@@ -22,6 +22,15 @@
 
 import re
 
+# pymysql is a pure python driver with
+# compatibility with MySQLdb driver, useful in
+# testing environments
+try:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+except:
+    pass
+
 import MySQLdb
 from MySQLdb.cursors import DictCursor
 
