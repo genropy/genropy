@@ -68,7 +68,7 @@ developer = [
 	  "pytest", "pytest-cov", "graphviz",
 	  "build", "twine","ipython",
 	  "psycopg2-binary","psycopg",
-	  "pymysql",
+	  "pymysql", "pymssql",
    	  "testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 
