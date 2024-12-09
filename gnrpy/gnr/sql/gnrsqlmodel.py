@@ -35,6 +35,7 @@ from gnr.sql.gnrsqlutils import SqlModelChecker, ModelExtractor
 from gnr.sql.gnrsqltable import SqlTable
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable, GnrSqlMissingColumn, GnrSqlRelationError
+from gnr.sql import AdapterCapabilities
 
 logger = logging.getLogger(__name__)
 
@@ -1090,7 +1091,7 @@ class DbTableObj(DbModelObj):
         
     def _get_sqlfullname(self,ignore_tenant=None):
         """property. Returns the table's sqlfullname"""
-        if not self.db.adapter.use_schemas():
+        if not self.db.adapter.has_capability(AdapterCapabilities.SCHEMAS):
             return self.adapted_sqlname
         else: 
             return '%s.%s' % (self.db.adapter.adaptSqlName(self._get_sqlschema(ignore_tenant)), self.adapted_sqlname) if self._get_sqlschema(ignore_tenant) else self.adapted_sqlname

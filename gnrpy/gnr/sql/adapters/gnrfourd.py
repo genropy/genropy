@@ -24,10 +24,11 @@ import re
 import threading
 import fourd
 
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
+from gnr.sql import AdapterCapabilities as Capabilities
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
@@ -97,14 +98,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'O': 'VK_BLOB'}
 
     _lock = threading.Lock()
-
+    
     def __init__(self, *args, **kwargs):
         #self._lock = threading.Lock()
 
         super(SqlDbAdapter, self).__init__(*args, **kwargs)
-
-    def use_schemas(self):
-        return False
 
     def defaultMainSchema(self):
         return 'DEFAULT_SCHEMA'

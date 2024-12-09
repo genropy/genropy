@@ -22,14 +22,19 @@
 
 import re
 from decimal import Decimal
+
 from pymssql import _mssql
 import pymssql
 from pymssql import Connection, Cursor
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
+
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql import AdapterCapabilities as Capabilities
+
+
 #DBAPI.paramstyle = 'pyformat'
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
@@ -97,8 +102,9 @@ class DictConnectionWrapper(Connection):
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'nvarchar': 'A', 'nchar': 'C', 'ntext': 'T',
                  'BIT': 'B', 'datetime': 'D', 'datetime': 'H', 'datetime': 'DH',
-                 'datetime': 'DH', 'decimal':'N',
-                 'int': 'I', 'bigint': 'L', 'smallint': 'I','tinyint': 'I', 'real': 'R', 'float': 'R', 'binary': 'O'}
+                 'datetime': 'DH', 'decimal':'N', 'int': 'I',
+                 'bigint': 'L', 'smallint': 'I','tinyint': 'I',
+                 'real': 'R', 'float': 'R', 'binary': 'O'}
 
     revTypesDict = {'A': 'nvarchar', 'T': 'ntext', 'C': 'nchar',
                     'X': 'ntext', 'P': 'ntext', 'Z': 'ntext', 'serial':'int',
@@ -106,7 +112,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'B': 'BIT', 'D': 'datetime', 'H': 'datetime', 'DH': 'datetime',
                     'I': 'int', 'L': 'bigint', 'R': 'real', 'O': 'binary'}
 
-
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     def defaultMainSchema(self):
         return 'dbo'
 

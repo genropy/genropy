@@ -29,6 +29,7 @@ from pg8000.interface import DataIterator, Cursor
 
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.core.gnrlist import GnrNamedList
+from gnr.sql import AdapterCapabilities as Capabilities
 
 dbapi.paramstyle = 'pyformat'
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
@@ -99,7 +100,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea'}
 
-
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     def defaultMainSchema(self):
         return 'public'
 

@@ -31,6 +31,7 @@ import sqlite3 as pysqlite
 
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
@@ -54,14 +55,17 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'integer', 'L': 'bigint', 'R': 'real', 'N': 'numeric',
                     'serial': 'serial8'}
 
-    support_multiple_connections = False
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+        }
+    
     paramstyle = 'named'
     allowAlterColumn=False
 
     def defaultMainSchema(self):
         return 'main'
 
-    def regexp(self, expr, item):
+    def _regexp(self, expr, item):
         r = re.compile(expr, re.U)
         return r.match(item) is not None
 
@@ -76,7 +80,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             if not os.path.isdir(dbdir):
                 os.makedirs(dbdir)
         conn = pysqlite.connect(dbpath, detect_types=pysqlite.PARSE_DECLTYPES | pysqlite.PARSE_COLNAMES, timeout=20.0,factory=GnrSqliteConnection)
-        conn.create_function("regexp", 2, self.regexp)
+        conn.create_function("regexp", 2, self._regexp)
         conn.row_factory = GnrDictRow
         curs = conn.cursor(GnrSqliteCursor)
         attached = [self.defaultMainSchema()]
@@ -86,14 +90,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                 if sqlschema:
                     if not sqlschema in attached:
                         attached.append(sqlschema)
-                        self.attach('%s.db' % os.path.join(os.path.dirname(dbpath), sqlschema), sqlschema, cursor=curs)
+                        self._attach('%s.db' % os.path.join(os.path.dirname(dbpath), sqlschema), sqlschema, cursor=curs)
         curs.close()
         return conn
 
     def cursor(self, connection, cursorname=None):
         return connection.cursor(GnrSqliteCursor)
 
-    def attach(self, filepath, name, cursor=None):
+    def _attach(self, filepath, name, cursor=None):
         """A special sqlite only method for attach external database file as a schema for the current one
         @param filepath: external sqlite db file
         @param name: name of the schema containing the external db
@@ -310,7 +314,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def createSchema(self, sqlschema):
         """Create a new database schema.
         sqlite specific implementation actually attach an external db file."""
-        self.attach(sqlschema + '.db', sqlschema)
+        self._attach(sqlschema + '.db', sqlschema)
 
     def createIndex(self, index_name, columns, table_sql, sqlschema=None, unique=None):
         """create a new index

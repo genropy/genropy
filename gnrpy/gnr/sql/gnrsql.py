@@ -1036,7 +1036,6 @@ class TempEnv(object):
         self.kwargs = kwargs
 
     def __enter__(self):
-        #if self.db.adapter.support_multiple_connections:
         currentEnv = self.db.currentEnv
         self.savedValues = dict()
         self.addedKeys = []
@@ -1048,9 +1047,7 @@ class TempEnv(object):
             currentEnv[k] = v
         return self.db
         
-        
     def __exit__(self, type, value, traceback):
-        #if self.db.adapter.support_multiple_connections:
         currentEnv = self.db.currentEnv
         for k,v in self.addedKeys:
             if currentEnv.get(k)==v:

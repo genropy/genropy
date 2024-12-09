@@ -27,10 +27,11 @@ from psycopg import Cursor, IsolationLevel
 from psycopg.rows import no_result
 from psycopg import sql
 from gnr.core.gnrlist import GnrNamedList
+from gnr.core.gnrbag import Bag
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql import AdapterCapabilities as Capabilities
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 #IN_TO_ANY = re.compile(r'([$]\w+|[@][\w|@|.]+)\s*(NOT)?\s*(IN ([:]\w+))')
@@ -46,10 +47,13 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                  'timestamp without time zone': 'DH',
                  'timestamp with time zone': 'DHZ',
                   'numeric': 'N', 'money': 'M',
-                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'bytea': 'O'}
+                 'integer': 'I', 'bigint': 'L',
+                 'smallint': 'I', 'double precision': 'R',
+                 'real': 'R', 'bytea': 'O'}
 
-    revTypesDict = {'A': 'character varying', 'T': 'text', 'C': 'character',
-                    'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',
+    revTypesDict = {'A': 'character varying', 'T': 'text',
+                    'C': 'character', 'X': 'text', 'P': 'text',
+                    'Z': 'text', 'N': 'numeric', 'M': 'money',
                     'B': 'boolean', 'D': 'date', 
                     'H': 'time without time zone',
                     'HZ': 'time with time zone', 
@@ -58,6 +62,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea'}
 
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     _lock = threading.Lock()
     paramstyle = 'pyformat'
 

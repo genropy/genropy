@@ -25,21 +25,25 @@ import re
 import MySQLdb
 from MySQLdb.cursors import DictCursor
 
+from gnr.core.gnrbag import Bag
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.core.gnrbag import Bag
+from gnr.sql import AdapterCapabilities as Capabilities
 
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 class SqlDbAdapter(SqlDbBaseAdapter):
-    typesDict = {'varchar': 'A', 'char': 'C', 'text': 'T', 'tinytext': 'T', 'mediumtext': 'T', 'longtext': 'T',
-                 'enum': 'A',
-                 'boolean': 'B', 'date': 'D', 'time': 'H', 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
-                 'integer': 'I', 'bigint': 'L','mediumint':'L', 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
-                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
+    typesDict = {'varchar': 'A', 'char': 'C', 'text': 'T',
+                 'tinytext': 'T', 'mediumtext': 'T', 'longtext': 'T',
+                 'enum': 'A', 'boolean': 'B', 'date': 'D', 'time': 'H',
+                 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
+                 'integer': 'I', 'bigint': 'L','mediumint':'L',
+                 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
+                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O',
+                 'float':'R', 'blob':'O', 'varbinary':'O'}
 
     revTypesDict = {'A': 'varchar', 'T': 'text', 'C': 'char',
                     'X': 'text', 'P': 'text', 'Z': 'text',
@@ -47,6 +51,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'int', 'L': 'bigint', 'R': 'real','N':'decimal',
                     'serial': 'serial', 'O': 'longblob'}
 
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     def defaultMainSchema(self):
         return ''
 
