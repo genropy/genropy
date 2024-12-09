@@ -9,7 +9,6 @@ from gnr.sql.adapters import _gnrbaseadapter as ba
 ADAPTER_DIR = os.path.dirname(gnr.sql.adapters.__file__)
 
 class TestAdapterInheritance():
-
     
     @classmethod
     def setup_class(cls):
@@ -25,14 +24,25 @@ class TestAdapterInheritance():
             except Exception as e:
                 cls.not_tested[implementation_name] = e
 
-    def _get_class_methods(self, cls):
+    def _get_class_methods_names(self, cls):
         return {method for method in dir(cls) if callable(getattr(cls, method)) and not method.startswith("_")}
-    
+
+    def _get_class_methods(self, cls):
+        return {getattr(cls, method) for method in dir(cls) if callable(getattr(cls, method)) and not method.startswith("_")}
+
+    def test_docstrings(self):
+        missing_docs = []
+        for method in self._get_class_methods(self.base_adapter):
+            if not method.__doc__:
+                missing_docs.append(method.__name__)
+
+        assert len(missing_docs) < 1, f"Base adapter public methods without documentation: {missing_docs}"
+        
     def test_methods(self):
-        base_adapter_methods = self._get_class_methods(self.base_adapter)
+        base_adapter_methods = self._get_class_methods_names(self.base_adapter)
         extra_method_recap = {}
         for adapter_name, adapter_class in self.all_adapters.items():
-            adapter_methods = self._get_class_methods(adapter_class)
+            adapter_methods = self._get_class_methods_names(adapter_class)
             not_found_in_base = adapter_methods - base_adapter_methods
             extra_method_recap[adapter_name] = not_found_in_base
 
