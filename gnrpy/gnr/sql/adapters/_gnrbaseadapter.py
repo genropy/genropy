@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import datetime
+import warnings
 import re
 import pytz
 from decimal import Decimal
@@ -78,14 +79,22 @@ class SqlDbAdapter(object):
         self._whereTranslator = None
 
     def adaptSqlName(self,name):
+        """
+        Adapt/fix a name if needed in a specific adapter/driver
+        """
         return name
 
     def adaptSqlSchema(self,name):
+        """
+        Adapt/fix a schema name if needed in a specific adapter/driver
+        """
         return self.schemaName(name)
 
-    def adaptTupleListSet(self,sql,sqlargs):
-        # iter over sqlargs, and if the value is an iterable (but not strings)
-        # search and replace in the sql query
+    def adaptTupleListSet(self, sql, sqlargs):
+        """
+        Iter over sqlargs, and if the value is an iterable (but not strings)
+        search and replace in the sql query
+        """
         
         for k, v in [(k, v) for k, v in list(sqlargs.items()) if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set)]:
             sqllist = '(%s) ' % ','.join([':%s%i' % (k, i) for i, ov in enumerate(v)])
@@ -95,9 +104,13 @@ class SqlDbAdapter(object):
         return sql
 
     def asTranslator(self, as_):
-        return '"%s"'%as_
+        """ Wrap string """
+        return '"%s"' % as_
 
-    def changePrimaryKeyValue(self, dbtable, pkey=None,newpkey=None,**kwargs):
+    def changePrimaryKeyValue(self, dbtable, pkey=None, newpkey=None, **kwargs):
+        """
+        Update a primary key of a table
+        """
         tblobj = dbtable.model
         pkeyColumn =  tblobj.sqlnamemapper[tblobj.pkey]
         sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
@@ -111,10 +124,19 @@ class SqlDbAdapter(object):
         @return: a new connection object"""
         raise NotImplementedException()
 
-    def connection(self,manager=False):
-        return self._managerConnection() if manager else self.connect()
+    def connection(self,manager=False, storename=None):
+        """
+        Return a connection object if existing in the connection manager,
+        otherwise return a newly created one
+        """
+        return self._managerConnection() if manager else self.connect(storename)
 
     def cursor(self, connection, cursorname=None):
+        """
+        Get a new cursor object from the connection. If
+        connection is a list, return a cursor list for
+        each connection listed.
+        """
         if isinstance(connection, list):
             if cursorname:
                 return [c.cursor(cursorname) for c in connection]
@@ -202,12 +224,18 @@ class SqlDbAdapter(object):
         """
         return capability in self.CAPABILITIES
 
-    def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
-                                source_ssh_dbuser=None,source_ssh_dbpassword=None,
-                                source_ssh_dbhost=None,dest_dbname=None):
-        raise NotImplementedException()
+    def importRemoteDb(self, source_dbname, source_ssh_host=None, source_ssh_user=None,
+                       source_ssh_dbuser=None, source_ssh_dbpassword=None,
+                       source_ssh_dbhost=None, dest_dbname=None):
+        """
+        Import a database dump from a remote device through an SSH
+        connection.
 
-    
+        FIXME: it should be implemented here, and once the dump has been
+        retrieved, use the restore methods which can be ovveridden by
+        specific adapters
+        """
+        raise NotImplementedException()
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
@@ -232,9 +260,12 @@ class SqlDbAdapter(object):
         """
         raise NotImplementedException()
 
-    def listRemoteDatabases(self,source_ssh_host=None,source_ssh_user=None,
-                            source_ssh_dbuser=None,source_ssh_dbpassword=None,
+    def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
+                            source_ssh_dbuser=None, source_ssh_dbpassword=None,
                             source_ssh_dbhost=None):
+        """
+        List all remotely available databases, through an SSH connection
+        """
         raise NotImplementedException()
 
     def lockTable(self, dbtable, mode, nowait):
@@ -276,6 +307,10 @@ class SqlDbAdapter(object):
         raise NotImplementedException()
 
     def schemaName(self, name):
+        """
+        Return the name of a schema, adapters can ovveride
+        this to fix the name if needed
+        """
         return self.dbroot.fixed_schema or name
 
 
@@ -433,13 +468,21 @@ class SqlDbAdapter(object):
         return result
 
     def sqlFireEvent(self, link_txt, path, column,**kwargs):
+        """
+        Returns a dict with javascript snippets
+
+        FIXME: not really sure that this belongs to a sql adapter object. 
+        """
         kw = dict(onclick= """genro.fireEvent(' ||quote_literal('%s')|| ',' ||quote_literal(%s)||')""" %(path, column),href="#" )
         kw.update(kw)
         result = """'<a %s >%s</a>'""" % (' '.join(['%s="%s"' %(k,v) for k,v in list(kw.items())]), link_txt)
         return result
 
-    def setLocale(self,locale):
-        pass
+    def setLocale(self, locale):
+        """-- IMPLEMENT THIS --
+        Set the locale in the database connection
+        """
+        warnings.warn("Database adapter doesn't provide setLocale() implementation")
         
     def ageAtDate(self, dateColumn, dateArg=None, timeUnit='day'):
         """Returns the sql clause to obtain the age of a dateColum measured as difference from the dateArg or the workdate
@@ -456,7 +499,11 @@ class SqlDbAdapter(object):
                                                                                                           'day'])
 
     def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
-                   group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):
+                   group_by=None, having=None, order_by=None, limit=None, offset=None,
+                   for_update=None,maintable_as=None):
+        """
+        Create the final SQL query text, aggregation all query's portions
+        """
         def _smartappend(x, name, value):
             if value:
                 x.append('%s %s' % (name, value))
@@ -481,11 +528,10 @@ class SqlDbAdapter(object):
         mode = '' if mode is True else mode
         return 'FOR UPDATE OF %s %s' %(maintable_as,mode)
 
-
     # FIXME: tblobj is allowed to be None (being the default) in the function prototype
     # but the implementation won't allow this value, searching for attributes related
     # to table object
-    def prepareRecordData(self, record_data, tblobj=None,blackListAttributes=None, **kwargs):
+    def prepareRecordData(self, record_data, tblobj=None, blackListAttributes=None, **kwargs):
         """Normalize a *record_data* object before actually execute an sql write command.
         Delete items which name starts with '@': eager loaded relations don't have to be
         written as fields. Convert Bag values to xml, to be stored in text or blob fields.
@@ -514,12 +560,28 @@ class SqlDbAdapter(object):
 
     
     # DML related methods
-    def execute(self,sql,sqlargs=None,manager=False,autoCommit=False):
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
         with connection.cursor() as cursor:
             cursor.execute(sql,sqlargs)
         
-    def raw_fetch(self,sql,sqlargs=None,manager=False,autoCommit=False):
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
         with connection.cursor() as cursor:
             cursor.execute(sql,sqlargs)
@@ -550,6 +612,9 @@ class SqlDbAdapter(object):
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def insertMany(self, dbtable, records,**kwargs):
+        """Insert multiple records at once
+        
+        """
         tblobj = dbtable.model
         pkeyColumn = tblobj.pkey
         for record in records:
@@ -660,10 +725,22 @@ class SqlDbAdapter(object):
         :param full: boolean. TODO"""
         self.dbroot.execute('VACUUM ANALYZE %s;' % table)
 
-    def string_agg(self,fieldpath,separator):
+    def string_agg(self, fieldpath, separator):
+        """
+        Returns a string_agg() SQL statement, which can be overriden if needed.
+        """
         return f"string_agg({fieldpath},'{separator}')"
 
-    def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
+    def addForeignKeySql(self, c_name,
+                         o_pkg, o_tbl, o_fld,
+                         m_pkg, m_tbl, m_fld,
+                         on_up, on_del, init_deferred):
+        """
+        Generate SQL statement to add a foreign key to a table
+
+        FiXME: instead of passing pkg/table name where, wouldn't it
+        be better to provide a table object which can provide its own name?
+        """
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
         m_pkg, m_tbl, c_name, m_fld, o_pkg, o_tbl, o_fld)
         drop_statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s;' % (m_pkg, m_tbl, c_name)
@@ -673,6 +750,12 @@ class SqlDbAdapter(object):
         return statement
 
     def addUniqueConstraint(self, pkg, tbl, fld):
+        """
+        Generate SQL statement to add a UNIQUE constraint on a pkg's table field
+        
+        FIXME: since this method generates a sql statement text, it should have
+        a 'sql' suffix in its name.
+        """
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'), fld, fld)
         return statement
 
@@ -707,14 +790,26 @@ class SqlDbAdapter(object):
             self.dbroot.execute('DROP SCHEMA %s CASCADE;' % sqlschema)
 
     def createTableAs(self, sqltable, query, sqlparams):
+        """
+        Create a new table in the current database
+        """
         self.dbroot.execute("CREATE TABLE %s AS %s;" % (sqltable, query), sqlparams)
 
-    def addColumn(self, sqltable, sqlname, dtype='T', size=None, notnull=None, pkey=None, unique=None):
+    def addColumn(self, sqltable, sqlname, dtype='T',
+                  size=None, notnull=None, pkey=None,
+                  unique=None):
+        """
+        Add a new column with specific attributes to a sql table
+        """
+        
         sqlcol = self.columnSqlDefinition(sqlname, dtype=dtype, size=size, notnull=notnull, pkey=pkey, unique=unique)
         self.dbroot.execute('ALTER TABLE %s ADD COLUMN %s' % (sqltable, sqlcol))
 
-    def renameColumn(self, sqltable, sqlname,sqlnewname):
-        #automag_deposito_sede_id_idx
+    def renameColumn(self, sqltable, sqlname, sqlnewname):
+        """
+        Rename a table's column in place 
+        """
+        
         kwargs = dict(sqltable=sqltable,sqlname=sqlname,sqlnewname=sqlnewname)
         tbl_flatname = sqltable.split('.')[1]
         kwargs['old_index_name'] = '%s_%s_idx' %(sqltable,sqlname)
@@ -739,6 +834,10 @@ class SqlDbAdapter(object):
 
 
     def valueToSql(self, value):
+        """
+        Data types casting for SQL queries
+        """
+        
         if value is None:
             return 'NULL'
         if isinstance(value, (int, float, Decimal)):
@@ -774,6 +873,10 @@ class SqlDbAdapter(object):
         return f"{' '.join(sql_list)} {extra_sql or ''}"
 
     def columnSqlType(self, dtype, size=None):
+        """
+        Get corresponding sql data type corresponding
+        to the provided genropy's data type
+        """
         if dtype != 'N' and size:
             if ':' in size:
                 size = size.split(':')[1]
@@ -786,13 +889,20 @@ class SqlDbAdapter(object):
             return self.revTypesDict[dtype]
 
     def alterColumnSql(self, table, column, dtype):
+        """
+        Generate a SQL statement to alter a table's column definition
+        """
         return 'ALTER TABLE %s ALTER TABLE %s TYPE %s' % (table, column, dtype)
 
-    def dropEmptyTables(self,schema=None):
+    def dropEmptyTables(self, schema=None):
+        """
+        Iter all tables in the current db and drop table if
+        the record count is zero.
+        """
         tables = self.listElements('tables',schema=schema)
         for tbl in tables:
             tblfullname = '%s.%s' %(schema,tbl)
-            if not self.dbroot.execute("""SELECT COUNT(*) FROM %s""" %tblfullname).fetchone()[0]:
+            if not self.dbroot.execute(f"""SELECT COUNT(*) FROM {tblfullname}""").fetchone()[0]:
                 self.dropTable(tblfullname,cascade=True)
 
     def dropTable(self, dbtable,cascade=False):
@@ -850,15 +960,28 @@ class SqlDbAdapter(object):
         raise NotImplementedException("This method must be implemented in the subclass.")
 
     def unaccentFormula(self, field):
+        """
+        FIXME: document this
+        """
         return field
 
     @property
     def whereTranslator(self):
+        """
+        Return the Where Translator object used by the driver
+        as a property, caching internally the creation of the object
+        
+        """
         if not self._whereTranslator:
             self._whereTranslator = self.getWhereTranslator()
         return self._whereTranslator
 
+    
     def getWhereTranslator(self):
+        """-- IMPLEMENT THIS --
+
+        Return the Where Translator object for the specific adapter
+        """
         return GnrWhereTranslator(self.dbroot)
 
     
@@ -1204,14 +1327,6 @@ class GnrWhereTranslator(object):
         "!!Regular expression"
         return '%s ~* :%s' % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
-
-   #def whereFromText(self, table, whereTxt, customColumns=None):
-   #    result = []
-   #    sqlArgs = {}
-   #    tblobj = self.db.table(table)
-   #    pattern = '(AND|OR)'
-   #    whereList = re.compile(pattern).split(whereTxt)
-   #    condList = [cond for cond in whereList if cond not in ('AND', 'OR')]
 
     def unaccentTpl(self,tblobj,column,token,mask=None):
         if not mask:
