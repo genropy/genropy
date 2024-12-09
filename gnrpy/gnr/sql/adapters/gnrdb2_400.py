@@ -29,7 +29,6 @@ from gnr.core.gnrbag import Bag
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
-from gnr.sql import AdapterCapabilities as Capabilities
 
 #DBAPI.paramstyle = 'pyformat'
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")

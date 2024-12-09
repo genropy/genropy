@@ -1,10 +1,8 @@
 import warnings
-import pytest
 import glob
 import os.path
 import gnr.sql.adapters
 import importlib
-import pprint
 
 from gnr.sql.adapters import _gnrbaseadapter as ba
 
