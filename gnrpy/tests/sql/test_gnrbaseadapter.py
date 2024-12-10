@@ -103,7 +103,7 @@ class TestSqlDbAdapter():
 
         for args, methods in cover_methods.items():
             for method in methods:
-                with pytest.raises(ba.NotImplementedException):
+                with pytest.raises(ba.AdapterMethodNotImplemented):
                     getattr(self.adapter, method)(*args)
 
 

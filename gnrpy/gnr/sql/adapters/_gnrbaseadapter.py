@@ -24,6 +24,7 @@ import datetime
 import warnings
 import re
 import pytz
+import inspect
 from decimal import Decimal
 
 
@@ -122,7 +123,7 @@ class SqlDbAdapter(object):
         Build and return a new connection object: ex. return dbapi.connect()
         The returned connection MUST provide cursors accessible by col number or col name (as list or as dict)
         @return: a new connection object"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def connection(self,manager=False, storename=None):
         """
@@ -152,21 +153,21 @@ class SqlDbAdapter(object):
         Drop an existing database
         @return: the name of the default schema
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def dropDb(self, name):
         """-- IMPLEMENT THIS --
         Drop an existing database
         @param name: db name
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def dump(self, filename,dbname=None,**kwargs):
         """-- IMPLEMENT THIS --
         Dump a database to a given path
         @param name: db name
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def existsRecord(self, dbtable, record_data):
         """Test if a record yet exists in the db.
@@ -187,7 +188,7 @@ class SqlDbAdapter(object):
         Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         A specific adapter can add to the dict other available infos"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def getIndexesForTable(self, table, schema):
         """-- IMPLEMENT THIS --
@@ -199,7 +200,7 @@ class SqlDbAdapter(object):
                       belongs to)
         :param schema: the schema name
         :returns: list of index infos"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def getPkey(self, table, schema):
         """-- IMPLEMENT THIS --
@@ -209,14 +210,14 @@ class SqlDbAdapter(object):
                       belongs to)
         :param schema: schema name
         :returns: list of columns which are the :ref:`primary key <pkey>` for the table"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         
         Other info may be present with an adapter-specific prefix."""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def has_capability(self, capability):
         """
@@ -235,7 +236,7 @@ class SqlDbAdapter(object):
         retrieved, use the restore methods which can be ovveridden by
         specific adapters
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
@@ -246,7 +247,7 @@ class SqlDbAdapter(object):
         :param elType: type of structure element to list
         :param kwargs: optional parameters, eg. for elType "columns" kwargs
                        could be {'schema':'public', 'table':'mytable'}"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def listen(self, msg, timeout=None, onNotify=None, onTimeout=None):
         """-- IMPLEMENT THIS --
@@ -258,7 +259,7 @@ class SqlDbAdapter(object):
         @param onNotify: function to execute on arrive of message
         @param onTimeout: function to execute on timeout
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
                             source_ssh_dbuser=None, source_ssh_dbpassword=None,
@@ -266,20 +267,20 @@ class SqlDbAdapter(object):
         """
         List all remotely available databases, through an SSH connection
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def lockTable(self, dbtable, mode, nowait):
         """-- IMPLEMENT THIS --
         Lock a table
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def notify(self, msg, autocommit=False):
         """-- IMPLEMENT THIS --
         Notify a message to listener processes.
         @param msg: name of the message to notify
         @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def prepareSqlText(self, sql, kwargs):
         """Subclass in adapter if you want to change some sql syntax or params types.
@@ -297,14 +298,14 @@ class SqlDbAdapter(object):
         Each element of the list is a list (or tuple) with this elements:
         [foreign_constraint_name, many_schema, many_tbl, [many_col, ...],
         unique_constraint_name, one_schema, one_tbl, [one_col, ...]]"""
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def restore(self, filename,dbname=None):
         """-- IMPLEMENT THIS --
         Restore a database from existing path
         @param name: db name
         """
-        raise NotImplementedException()
+        raise AdapterMethodNotImplemented()
 
     def schemaName(self, name):
         """
@@ -321,7 +322,7 @@ class SqlDbAdapter(object):
         Add a primary key to the provided table_name in schema_name
         using columns
         """
-        raise NotImplementedError("This method must be implemented in the subclass")
+        raise AdapterMethodNotImplemented()
 
     def struct_auto_extension_attributes(self):
         """
@@ -333,62 +334,62 @@ class SqlDbAdapter(object):
         """
         Generates the SQL to create an extension with optional schema, version, and cascade options.
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_constraint_sql(self, constraint_name=None,
                               constraint_type=None, columns=None,
                               check_clause=None, **kwargs):
         """Generates SQL to create a constraint (e.g., UNIQUE, CHECK)."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def struct_drop_table_pkey(self):
         """
         Generate SQL to drop a primary key from a table
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_constraints(self, schemas):
         """Fetch all constraints and return them in a structured dictionary."""
-        raise NotImplementedException("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_constraints_sql(self):
         """Returns SQL to retrieve table constraints."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_event_triggers(self):
         """
         Return the list of triggers 
         """
-        raise NotImplementedError("This method must be implemented in the subclass")
+        raise AdapterMethodNotImplemented("This method must be implemented in the subclass")
 
     def struct_get_event_triggers_sql(self):
         """
         Generate SQL code to retrieve all triggers
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_extensions(self):
         """
         Retreive the a dictionary of all available extensions
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_extensions_sql(self):
         """
         Generate the SQL code to retrieve the configured database
         extensions
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_indexes(self, schemas):
         """
         Return a dictionary of dictionary describe all the configured indexes
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_indexes_sql(self):
         """Returns SQL to retrieve table indexes."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def struct_get_schema_info(self, schemas=None):
         """
@@ -396,48 +397,48 @@ class SqlDbAdapter(object):
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'.
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_get_schema_info_sql(self):
         """Returns SQL to retrieve schema information."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def struct_table_fullname_sql(self, schema_name, table_name):
         """Returns the full table name with schema."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_drop_table_pkey_sql(self, schema_name, table_name):
         """Generates SQL to drop the primary key from a table."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_add_table_pkey_sql(self, schema_name, table_name, pkeys):
         """Generates SQL to add a primary key to a table."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_create_index_sql(self, schema_name=None, table_name=None, columns=None, index_name=None, unique=None, **kwargs):
         """Generates SQL to create an index."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
         """Generates SQL to alter the type of a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_add_not_null_sql(self, column_name, **kwargs):
         """Generates SQL to add a NOT NULL constraint to a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_drop_not_null_sql(self, column_name, **kwargs):
         """Generates SQL to drop a NOT NULL constraint from a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_drop_constraint_sql(self, constraint_name, **kwargs):
         """Generates SQL to drop a constraint."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
                                on_delete=None, on_update=None, **kwargs):
         """Generates SQL to create a foreign key constraint."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
 
     def _filterColInfo(self, colinfo, prefix):
@@ -957,7 +958,7 @@ class SqlDbAdapter(object):
         @param name: db name
         @param encoding: database text encoding
         """
-        raise NotImplementedException("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
 
     def unaccentFormula(self, field):
         """
@@ -989,36 +990,34 @@ class SqlDbAdapter(object):
         """
         Returns the SQL query for fetching primary key constraints
         """
-        raise NotImplementedError("This method must be implemented in the subclass")
+        raise AdapterMethodNotImplemented("This method must be implemented in the subclass")
     
     
     def dbExists(self, dbname):
         """
         Returns True if the database with the provided dbname exists.
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def get_check_constraint_sql(self):
         """Return the SQL query for fetching check constraints."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     
     def get_unique_constraint_sql(self): 
         """Return the SQL query for fetching unique constraints."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
+        raise AdapterMethodNotImplemented()
     
     def columnAdapter(self, columns):
         """
         Create adjustments for `columns` datatypes
         related to the specific driver
         """
-        raise NotImplementedError("This method must be implemented in the subclass.")
-        
-
+        raise AdapterMethodNotImplemented()
 
 
 class GnrWhereTranslator(object):
@@ -1386,5 +1385,15 @@ class GnrDictRow(GnrNamedList):
 class DbAdapterException(Exception):
     pass
 
-class NotImplementedException(Exception):
-    pass
+
+class AdapterMethodNotImplemented(Exception):
+    def __init__(self, message=None):
+        caller_function = inspect.stack()[1].function
+        if not message:
+            full_message = f"Method '{caller_function}' must be implemented in the adapter implementation."
+        else:
+            full_message = f"{caller_function}: {message}"
+        super().__init__(full_message)
+        self.__class__.__qualname__ = self.__class__.__name__
+
+AdapterMethodNotImplemented.__module__ = "__main__"

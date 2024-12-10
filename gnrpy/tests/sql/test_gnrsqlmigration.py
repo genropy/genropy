@@ -33,7 +33,7 @@ def normalize_sql(sql):
     # Trim leading and trailing spaces
     return sql.strip()
 
-class TestGnrSqlMigration(BaseGnrSqlTest):
+class BaseGnrSqlMigration(BaseGnrSqlTest):
     """
     Test suite for SQL migration operations in Genropy.
     Covers the creation of databases, schemas, tables, columns, 
@@ -51,23 +51,8 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         cls.init()
         cls.src = cls.db.model.src
         cls.migrator = SqlMigrator(cls.db,removeDisabled=False)
-        cls.db.dropDb(cls.dbname)
+        #cls.db.dropDb(cls.dbname)
 
-    @classmethod
-    def init(cls):
-        """
-        Initializes the test database connection with PostgreSQL settings.
-        """
-        cls.name = 'postgres'
-        cls.dbname = 'test_gnrsqlmigration'
-        cls.db = GnrSqlDb(
-            implementation='postgres',
-            host=cls.pg_conf.get("host"),
-            port=cls.pg_conf.get("port"),
-            dbname=cls.dbname,
-            user=cls.pg_conf.get("user"),
-            password=cls.pg_conf.get("password")
-        )
 
     def checkChanges(self, expected_value=None,apply_only=False):
         """
@@ -339,9 +324,43 @@ class TestGnrSqlMigration(BaseGnrSqlTest):
         check_value = '?'
         self.checkChanges(check_value)
 
+
+class _TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
+    @classmethod
+    def init(cls):
+        """
+        Initializes the test database connection with PostgreSQL settings.
+        """
+        cls.name = 'postgres'
+        cls.dbname = 'test_gnrsqlmigration'
+        cls.db = GnrSqlDb(
+            implementation='postgres',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
+    @classmethod
+    def init(cls):
+        """
+        Initializes the test database connection with PostgreSQL settings.
+        """
+        cls.name = 'postgres3'
+        cls.dbname = cls.pg_conf.get("database")
+        cls.db = GnrSqlDb(
+            implementation='postgres3',
+            host=cls.pg_conf.get("host"),
+            port=cls.pg_conf.get("port"),
+            dbname=cls.dbname,
+            user=cls.pg_conf.get("user"),
+            password=cls.pg_conf.get("password")
+        )
+
+
 class ToDo:
-
-
     def test_11_add_foreign_key(self):
         """
         Tests adding a foreign key constraint to a column.
