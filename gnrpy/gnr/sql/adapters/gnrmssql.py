@@ -143,10 +143,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def adaptSqlName(self,name):
         return '[{name}]'.format(name=name)
 
-    def cast_to_varchar(self,fieldpath,n=None):
-        if not n:
-            n = 'MAX'
-        return f'CAST({fieldpath} AS NVARCHAR({n}))'
+    # FIXME: this method seems to be unused
+    # def cast_to_varchar(self, fieldpath, n=None):
+    #     if not n:
+    #         n = 'MAX'
+    #     return f'CAST({fieldpath} AS NVARCHAR({n}))'
 
     def adaptSqlSchema(self,name):
         name = self.schemaName(name)

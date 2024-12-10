@@ -1,4 +1,3 @@
-import warnings
 import glob
 import os.path
 import gnr.sql.adapters
@@ -42,13 +41,13 @@ class TestAdapterInheritance():
         base_adapter_methods = self._get_class_methods_names(self.base_adapter)
         extra_method_recap = {}
         for adapter_name, adapter_class in self.all_adapters.items():
+            print(adapter_class, type(adapter_class))
             adapter_methods = self._get_class_methods_names(adapter_class)
             not_found_in_base = adapter_methods - base_adapter_methods
-            extra_method_recap[adapter_name] = not_found_in_base
-
+            if not_found_in_base:
+                extra_method_recap[adapter_name] = not_found_in_base
 
         found_extras = sum([len(v) for k, v in extra_method_recap.items()])
-        if found_extras > 0:
-            warnings.warn(f"Adapter public methods not found in base adapter: {extra_method_recap}")
+        assert found_extras < 1, f"Adapter public methods not found in base adapter: {extra_method_recap}"
             
     
