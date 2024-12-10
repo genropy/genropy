@@ -62,7 +62,8 @@ import threading
 class SqlDbAdapter(SqlDbBaseAdapter):
     CAPABILITIES = {
         Capabilities.MIGRATIONS,
-        Capabilities.VECTOR
+        Capabilities.VECTOR,
+        Capabilities.SCHEMAS
     }
     
     typesDict = {'character varying': 'A', 'character': 'C', 'text': 'T',
