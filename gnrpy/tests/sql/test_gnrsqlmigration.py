@@ -325,7 +325,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.checkChanges(check_value)
 
 
-class _TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
+class TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
     @classmethod
     def init(cls):
         """

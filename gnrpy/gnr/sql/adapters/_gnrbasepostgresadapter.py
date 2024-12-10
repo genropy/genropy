@@ -6,6 +6,8 @@ from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
+DEFAULT_INDEX_METHOD = 'btree'
+
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     CAPABILITIES = {
         Capabilities.MIGRATIONS,
@@ -541,7 +543,6 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 "constraint_type": "CHECK",
                 "check_clause": check_clause
             }
-
         return constraints
     
     def struct_get_indexes_sql(self):

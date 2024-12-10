@@ -46,7 +46,7 @@ from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
-DEFAULT_INDEX_METHOD = 'btree'
+
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
