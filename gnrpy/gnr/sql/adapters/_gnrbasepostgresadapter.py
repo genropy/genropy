@@ -543,6 +543,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 "constraint_type": "CHECK",
                 "check_clause": check_clause
             }
+
         return constraints
     
     def struct_get_indexes_sql(self):

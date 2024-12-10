@@ -336,8 +336,6 @@ class GnrDictCursor(Cursor):
     def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
-        #if "-- GNRCOMMENT -" in query:
-        #    _,query = query.split("\n",1)
         query = sql.SQL(query).format(**params).as_string(self.connection)
         query = query.replace(chr(2),'{').replace(chr(3),'}')
         return super(GnrDictCursor, self).execute(query)

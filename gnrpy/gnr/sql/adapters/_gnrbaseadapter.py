@@ -585,7 +585,7 @@ class SqlDbAdapter(object):
         
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
         with connection.cursor() as cursor:
-            cursor.execute(sql,sqlargs)
+            cursor.execute(sql, sqlargs)
             return cursor.fetchall()
                 
     def insert(self, dbtable, record_data,**kwargs):
