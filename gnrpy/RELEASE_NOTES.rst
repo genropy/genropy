@@ -37,6 +37,7 @@ Enhancements
     adapter, in order to conditionally execute specific tasks base on such
     specific capabilities.
   * Introduced 'postgres3' database adapter which uses the psycopg3 driver.
+  * Aligned adapters inheritance method and added test coverage for it
   
 Bug Fixes
 ---------
