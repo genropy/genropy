@@ -24,10 +24,10 @@ import re
 
 import pyodbc
 
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 #DBAPI.paramstyle = 'pyformat'
@@ -145,9 +145,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
     def adaptSqlSchema(self,name):
         pass
-
-    def use_schemas(self):
-        return False
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.

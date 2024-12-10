@@ -59,9 +59,7 @@ class TestSqlDbAdapter():
         assert "gnrsqlite" in all_adapters
         
     def test_basic_methods(self):
-        assert self.adapter.use_schemas() is True
         assert self.adapter.setLocale("it_IT") is None
-
         assert self.adapter.adaptSqlSchema("schema_name") == "schema_name"
         assert self.adapter.adaptSqlName("schema_name") == "schema_name"
         assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") == "fixed_schema"
@@ -95,8 +93,8 @@ class TestSqlDbAdapter():
             (): ['defaultMainSchema', 'relations',
                  'getTableConstraints'],
             ('arg1',): ['connect', 'listen',
-                        'notify', 'createdb',
-                        'dropdb', 'dump', 'restore',
+                        'notify', 'createDb',
+                        'dropDb', 'dump', 'restore',
                         'importRemoteDb', 'listRemoteDatabases',
                         'listElements'],
             ('arg1', 'arg2'): ['getPkey', 'getIndexesForTable'],

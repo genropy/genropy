@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import datetime
+import warnings
 import re
 import pytz
 from decimal import Decimal
@@ -40,8 +41,10 @@ class SqlDbAdapter(object):
     """Base class for sql adapters.
     
     All the methods of this class can be overwritten for specific db adapters,
-    but only a few must be implemented in a specific adapter."""
+    but only a few must be implemented in a specific adapter.
+    """
 
+    # the set of capabilities provided by the adapter
     CAPABILITIES = set()
     
     typesDict = {'character varying': 'A', 'character': 'A', 'text': 'T',
@@ -65,13 +68,8 @@ class SqlDbAdapter(object):
                     'I': 'integer', 'L': 'bigint', 'R': 'real',
                     'serial': 'serial8', 'O': 'bytea'}
 
-    # True if the database supports multiple connections. If False,
-    # switching environments will be a no-op::
-    #
-    #     with self.db.tempEnv(connectionName='system'):
-    #         # your code here
-    #         pass
-    support_multiple_connections = True
+
+    
     paramstyle = 'named'
     allowAlterColumn=True
 
@@ -80,16 +78,44 @@ class SqlDbAdapter(object):
         self.options = kwargs
         self._whereTranslator = None
 
+    def adaptSqlName(self,name):
+        """
+        Adapt/fix a name if needed in a specific adapter/driver
+        """
+        return name
 
-    def has_capability(self, capability):
+    def adaptSqlSchema(self,name):
         """
-        Query the adapter for its capabilities
+        Adapt/fix a schema name if needed in a specific adapter/driver
         """
-        return capability in self.CAPABILITIES
-    
-    def use_schemas(self):
-        return True
-    
+        return self.schemaName(name)
+
+    def adaptTupleListSet(self, sql, sqlargs):
+        """
+        Iter over sqlargs, and if the value is an iterable (but not strings)
+        search and replace in the sql query
+        """
+        
+        for k, v in [(k, v) for k, v in list(sqlargs.items()) if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set)]:
+            sqllist = '(%s) ' % ','.join([':%s%i' % (k, i) for i, ov in enumerate(v)])
+            sqlargs.pop(k)
+            sqlargs.update(dict([('%s%i' % (k, i), ov) for i, ov in enumerate(v)]))
+            sql = re.sub(r':%s(\W|$)' % k, sqllist+'\\1', sql)
+        return sql
+
+    def asTranslator(self, as_):
+        """ Wrap string """
+        return '"%s"' % as_
+
+    def changePrimaryKeyValue(self, dbtable, pkey=None, newpkey=None, **kwargs):
+        """
+        Update a primary key of a table
+        """
+        tblobj = dbtable.model
+        pkeyColumn =  tblobj.sqlnamemapper[tblobj.pkey]
+        sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
+        return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
+
 
     def connect(self, storename=None):
         """-- IMPLEMENT THIS --
@@ -98,7 +124,19 @@ class SqlDbAdapter(object):
         @return: a new connection object"""
         raise NotImplementedException()
 
+    def connection(self,manager=False, storename=None):
+        """
+        Return a connection object if existing in the connection manager,
+        otherwise return a newly created one
+        """
+        return self._managerConnection() if manager else self.connect(storename)
+
     def cursor(self, connection, cursorname=None):
+        """
+        Get a new cursor object from the connection. If
+        connection is a list, return a cursor list for
+        each connection listed.
+        """
         if isinstance(connection, list):
             if cursorname:
                 return [c.cursor(cursorname) for c in connection]
@@ -109,34 +147,14 @@ class SqlDbAdapter(object):
         else:
             return connection.cursor()
 
-    def listen(self, msg, timeout=None, onNotify=None, onTimeout=None):
+    def defaultMainSchema(self):
         """-- IMPLEMENT THIS --
-        Listen for interprocess message 'msg' 
-        onTimeout callbacks are executed on every timeout, onNotify on messages.
-        Callbacks returns False to stop, or True to continue listening.
-        @param msg: name of the message to wait for
-        @param timeout: seconds to wait for the message
-        @param onNotify: function to execute on arrive of message
-        @param onTimeout: function to execute on timeout
+        Drop an existing database
+        @return: the name of the default schema
         """
         raise NotImplementedException()
 
-    def notify(self, msg, autocommit=False):
-        """-- IMPLEMENT THIS --
-        Notify a message to listener processes.
-        @param msg: name of the message to notify
-        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
-        raise NotImplementedException()
-
-    def createdb(self, name, encoding=None):
-        """-- IMPLEMENT THIS --
-        Create a new database
-        @param name: db name
-        @param encoding: database text encoding
-        """
-        raise NotImplementedException()
-
-    def dropdb(self, name):
+    def dropDb(self, name):
         """-- IMPLEMENT THIS --
         Drop an existing database
         @param name: db name
@@ -149,130 +167,6 @@ class SqlDbAdapter(object):
         @param name: db name
         """
         raise NotImplementedException()
-
-    def restore(self, filename,dbname=None):
-        """-- IMPLEMENT THIS --
-        Restore a database from existing path
-        @param name: db name
-        """
-        raise NotImplementedException()
-    
-    def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
-                                source_ssh_dbuser=None,source_ssh_dbpassword=None,
-                                source_ssh_dbhost=None,dest_dbname=None):
-        raise NotImplementedException()
-
-    def listRemoteDatabases(self,source_ssh_host=None,source_ssh_user=None,
-                                source_ssh_dbuser=None,source_ssh_dbpassword=None,
-                                source_ssh_dbhost=None):
-        raise NotImplementedException()
-
-    def defaultMainSchema(self):
-        """-- IMPLEMENT THIS --
-        Drop an existing database
-        @return: the name of the default schema
-        """
-        raise NotImplementedException()
-
-    def listElements(self, elType, **kwargs):
-        """-- IMPLEMENT THIS --
-        Get a list of element names: elements can be any kind of structure supported by a specific db.
-        Usually an adapter accept as elType the following: schemata, tables, columns, views. Return
-        the list of object names
-
-        :param elType: type of structure element to list
-        :param kwargs: optional parameters, eg. for elType "columns" kwargs
-                       could be {'schema':'public', 'table':'mytable'}"""
-        raise NotImplementedException()
-        
-    def relations(self):
-        """-- IMPLEMENT THIS --
-        Get a list of all relations in the db and return it. 
-        Each element of the list is a list (or tuple) with this elements:
-        [foreign_constraint_name, many_schema, many_tbl, [many_col, ...],
-        unique_constraint_name, one_schema, one_tbl, [one_col, ...]]"""
-        raise NotImplementedException()
-
-    def getPkey(self, table, schema):
-        """-- IMPLEMENT THIS --
-        
-        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
-                      (packageName is the name of the :ref:`package <packages>` to which the table
-                      belongs to)
-        :param schema: schema name
-        :returns: list of columns which are the :ref:`primary key <pkey>` for the table"""
-        raise NotImplementedException()
-
-    def getColInfo(self, table, schema, column):
-        """-- IMPLEMENT THIS --
-        Get a (list of) dict containing details about a column or all the columns of a table.
-        Each dict has those info: name, position, default, dtype, length, notnull
-        A specific adapter can add to the dict other available infos"""
-        raise NotImplementedException()
-
-    def _filterColInfo(self, colinfo, prefix):
-        """Utility method to be used by getColInfo implementations.
-        Prepend each non-standard key in the colinfo dict with prefix.
-        
-        :param colinfo: dict of column infos
-        :param prefix: adapter specific prefix
-        :returns: a new colinfo dict"""
-        standard_keys = ('name','sqldefault', 'notnull', 'dtype', 'position', 'length')
-        d = {k: v for k, v in colinfo.items() if k in standard_keys}
-        d.update({f"{prefix}{k}": v for k, v in colinfo.items() if k not in standard_keys})
-        return d
-
-    def getIndexesForTable(self, table, schema):
-        """-- IMPLEMENT THIS --
-        Get a (list of) dict containing details about all the indexes of a table.
-        Each dict has those info: name, primary (bool), unique (bool), columns (comma separated string)
-        
-        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
-                      (packageName is the name of the :ref:`package <packages>` to which the table
-                      belongs to)
-        :param schema: the schema name
-        :returns: list of index infos"""
-        raise NotImplementedException()
-        
-    def getTableConstraints(self, table=None, schema=None):
-        """Get a (list of) dict containing details about a column or all the columns of a table.
-        Each dict has those info: name, position, default, dtype, length, notnull
-        
-        Other info may be present with an adapter-specific prefix."""
-        raise NotImplementedException()
-
-    def prepareSqlText(self, sql, kwargs):
-        """Subclass in adapter if you want to change some sql syntax or params types.
-        Example: for a search condition using regex, sqlite wants 'REGEXP', while postgres wants '~*'
-        
-        :param sql: the sql string to execute.
-        :param  **kwargs: the params dict
-        :returns: tuple (sql, kwargs)"""
-        sql = self.adaptTupleListSet(sql,kwargs)
-        return sql, kwargs
-
-    def adaptTupleListSet(self,sql,sqlargs):
-        # iter over sqlargs, and if the value is an iterable (but not strings)
-        # search and replace in the sql query
-        
-        for k, v in [(k, v) for k, v in list(sqlargs.items()) if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set)]:
-            sqllist = '(%s) ' % ','.join([':%s%i' % (k, i) for i, ov in enumerate(v)])
-            sqlargs.pop(k)
-            sqlargs.update(dict([('%s%i' % (k, i), ov) for i, ov in enumerate(v)]))
-            sql = re.sub(r':%s(\W|$)' % k, sqllist+'\\1', sql)
-        return sql
-
-    def schemaName(self, name):
-        return self.dbroot.fixed_schema or name
-        
-    def adaptSqlName(self,name):
-        return name
-
-    def adaptSqlSchema(self,name):
-        return self.schemaName(name)
-
-    def asTranslator(self, as_):
-        return '"%s"'%as_
 
     def existsRecord(self, dbtable, record_data):
         """Test if a record yet exists in the db.
@@ -287,6 +181,277 @@ class SqlDbAdapter(object):
                 dict(id=record_data[pkey]), dbtable=dbtable.fullname).fetchall()
         if result:
             return True
+
+    def getColInfo(self, table, schema, column):
+        """-- IMPLEMENT THIS --
+        Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        A specific adapter can add to the dict other available infos"""
+        raise NotImplementedException()
+
+    def getIndexesForTable(self, table, schema):
+        """-- IMPLEMENT THIS --
+        Get a (list of) dict containing details about all the indexes of a table.
+        Each dict has those info: name, primary (bool), unique (bool), columns (comma separated string)
+        
+        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
+                      (packageName is the name of the :ref:`package <packages>` to which the table
+                      belongs to)
+        :param schema: the schema name
+        :returns: list of index infos"""
+        raise NotImplementedException()
+
+    def getPkey(self, table, schema):
+        """-- IMPLEMENT THIS --
+        
+        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
+                      (packageName is the name of the :ref:`package <packages>` to which the table
+                      belongs to)
+        :param schema: schema name
+        :returns: list of columns which are the :ref:`primary key <pkey>` for the table"""
+        raise NotImplementedException()
+
+    def getTableConstraints(self, table=None, schema=None):
+        """Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        
+        Other info may be present with an adapter-specific prefix."""
+        raise NotImplementedException()
+
+    def has_capability(self, capability):
+        """
+        Query the adapter for its capabilities
+        """
+        return capability in self.CAPABILITIES
+
+    def importRemoteDb(self, source_dbname, source_ssh_host=None, source_ssh_user=None,
+                       source_ssh_dbuser=None, source_ssh_dbpassword=None,
+                       source_ssh_dbhost=None, dest_dbname=None):
+        """
+        Import a database dump from a remote device through an SSH
+        connection.
+
+        FIXME: it should be implemented here, and once the dump has been
+        retrieved, use the restore methods which can be ovveridden by
+        specific adapters
+        """
+        raise NotImplementedException()
+
+    def listElements(self, elType, **kwargs):
+        """-- IMPLEMENT THIS --
+        Get a list of element names: elements can be any kind of structure supported by a specific db.
+        Usually an adapter accept as elType the following: schemata, tables, columns, views. Return
+        the list of object names
+
+        :param elType: type of structure element to list
+        :param kwargs: optional parameters, eg. for elType "columns" kwargs
+                       could be {'schema':'public', 'table':'mytable'}"""
+        raise NotImplementedException()
+
+    def listen(self, msg, timeout=None, onNotify=None, onTimeout=None):
+        """-- IMPLEMENT THIS --
+        Listen for interprocess message 'msg' 
+        onTimeout callbacks are executed on every timeout, onNotify on messages.
+        Callbacks returns False to stop, or True to continue listening.
+        @param msg: name of the message to wait for
+        @param timeout: seconds to wait for the message
+        @param onNotify: function to execute on arrive of message
+        @param onTimeout: function to execute on timeout
+        """
+        raise NotImplementedException()
+
+    def listRemoteDatabases(self, source_ssh_host=None, source_ssh_user=None,
+                            source_ssh_dbuser=None, source_ssh_dbpassword=None,
+                            source_ssh_dbhost=None):
+        """
+        List all remotely available databases, through an SSH connection
+        """
+        raise NotImplementedException()
+
+    def lockTable(self, dbtable, mode, nowait):
+        """-- IMPLEMENT THIS --
+        Lock a table
+        """
+        raise NotImplementedException()
+
+    def notify(self, msg, autocommit=False):
+        """-- IMPLEMENT THIS --
+        Notify a message to listener processes.
+        @param msg: name of the message to notify
+        @param autocommit: dafault False, if specific implementation of notify uses transactions, commit the current transaction"""
+        raise NotImplementedException()
+
+    def prepareSqlText(self, sql, kwargs):
+        """Subclass in adapter if you want to change some sql syntax or params types.
+        Example: for a search condition using regex, sqlite wants 'REGEXP', while postgres wants '~*'
+        
+        :param sql: the sql string to execute.
+        :param  **kwargs: the params dict
+        :returns: tuple (sql, kwargs)"""
+        sql = self.adaptTupleListSet(sql,kwargs)
+        return sql, kwargs
+
+    def relations(self):
+        """-- IMPLEMENT THIS --
+        Get a list of all relations in the db and return it. 
+        Each element of the list is a list (or tuple) with this elements:
+        [foreign_constraint_name, many_schema, many_tbl, [many_col, ...],
+        unique_constraint_name, one_schema, one_tbl, [one_col, ...]]"""
+        raise NotImplementedException()
+
+    def restore(self, filename,dbname=None):
+        """-- IMPLEMENT THIS --
+        Restore a database from existing path
+        @param name: db name
+        """
+        raise NotImplementedException()
+
+    def schemaName(self, name):
+        """
+        Return the name of a schema, adapters can ovveride
+        this to fix the name if needed
+        """
+        return self.dbroot.fixed_schema or name
+
+
+    #### STRUCT RELATED METHODS (MIGRATIONS)
+    
+    def struct_add_table_pkey(self, schema_name, table_name, columns):
+        """
+        Add a primary key to the provided table_name in schema_name
+        using columns
+        """
+        raise NotImplementedError("This method must be implemented in the subclass")
+
+    def struct_auto_extension_attributes(self):
+        """
+        Return a list of automatically added extensions
+        """
+        return []
+
+    def struct_create_extension_sql(self):
+        """
+        Generates the SQL to create an extension with optional schema, version, and cascade options.
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_constraint_sql(self, constraint_name=None,
+                              constraint_type=None, columns=None,
+                              check_clause=None, **kwargs):
+        """Generates SQL to create a constraint (e.g., UNIQUE, CHECK)."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def struct_drop_table_pkey(self):
+        """
+        Generate SQL to drop a primary key from a table
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_constraints(self, schemas):
+        """Fetch all constraints and return them in a structured dictionary."""
+        raise NotImplementedException("This method must be implemented in the subclass.")
+
+    def struct_get_constraints_sql(self):
+        """Returns SQL to retrieve table constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_event_triggers(self):
+        """
+        Return the list of triggers 
+        """
+        raise NotImplementedError("This method must be implemented in the subclass")
+
+    def struct_get_event_triggers_sql(self):
+        """
+        Generate SQL code to retrieve all triggers
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_extensions(self):
+        """
+        Retreive the a dictionary of all available extensions
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_extensions_sql(self):
+        """
+        Generate the SQL code to retrieve the configured database
+        extensions
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_indexes(self, schemas):
+        """
+        Return a dictionary of dictionary describe all the configured indexes
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_indexes_sql(self):
+        """Returns SQL to retrieve table indexes."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def struct_get_schema_info(self, schemas=None):
+        """
+        Get a (list of) dict containing details about a column or all the columns of a table.
+        Each dict has those info: name, position, default, dtype, length, notnull
+        Every other info stored in information_schema.columns is available with the prefix '_pg_'.
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_get_schema_info_sql(self):
+        """Returns SQL to retrieve schema information."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def struct_table_fullname_sql(self, schema_name, table_name):
+        """Returns the full table name with schema."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_table_pkey_sql(self, schema_name, table_name):
+        """Generates SQL to drop the primary key from a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_table_pkey_sql(self, schema_name, table_name, pkeys):
+        """Generates SQL to add a primary key to a table."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_create_index_sql(self, schema_name=None, table_name=None, columns=None, index_name=None, unique=None, **kwargs):
+        """Generates SQL to create an index."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
+        """Generates SQL to alter the type of a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_add_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to add a NOT NULL constraint to a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_not_null_sql(self, column_name, **kwargs):
+        """Generates SQL to drop a NOT NULL constraint from a column."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_drop_constraint_sql(self, constraint_name, **kwargs):
+        """Generates SQL to drop a constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
+                               on_delete=None, on_update=None, **kwargs):
+        """Generates SQL to create a foreign key constraint."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+
+
+    def _filterColInfo(self, colinfo, prefix):
+        """Utility method to be used by getColInfo implementations.
+        Prepend each non-standard key in the colinfo dict with prefix.
+        
+        :param colinfo: dict of column infos
+        :param prefix: adapter specific prefix
+        :returns: a new colinfo dict"""
+        standard_keys = ('name','sqldefault', 'notnull', 'dtype', 'position', 'length')
+        d = {k: v for k, v in colinfo.items() if k in standard_keys}
+        d.update({f"{prefix}{k}": v for k, v in colinfo.items() if k not in standard_keys})
+        return d
+
 
     def rangeToSql(self, column, prefix, rangeStart=None, rangeEnd=None, includeStart=True, includeEnd=True):
         """Get the sql condition for an interval, in query args add parameters prefix_start, prefix_end"""
@@ -303,13 +468,21 @@ class SqlDbAdapter(object):
         return result
 
     def sqlFireEvent(self, link_txt, path, column,**kwargs):
+        """
+        Returns a dict with javascript snippets
+
+        FIXME: not really sure that this belongs to a sql adapter object. 
+        """
         kw = dict(onclick= """genro.fireEvent(' ||quote_literal('%s')|| ',' ||quote_literal(%s)||')""" %(path, column),href="#" )
         kw.update(kw)
         result = """'<a %s >%s</a>'""" % (' '.join(['%s="%s"' %(k,v) for k,v in list(kw.items())]), link_txt)
         return result
 
-    def setLocale(self,locale):
-        pass
+    def setLocale(self, locale):
+        """-- IMPLEMENT THIS --
+        Set the locale in the database connection
+        """
+        warnings.warn("Database adapter doesn't provide setLocale() implementation")
         
     def ageAtDate(self, dateColumn, dateArg=None, timeUnit='day'):
         """Returns the sql clause to obtain the age of a dateColum measured as difference from the dateArg or the workdate
@@ -326,7 +499,11 @@ class SqlDbAdapter(object):
                                                                                                           'day'])
 
     def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
-                   group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):
+                   group_by=None, having=None, order_by=None, limit=None, offset=None,
+                   for_update=None,maintable_as=None):
+        """
+        Create the final SQL query text, aggregation all query's portions
+        """
         def _smartappend(x, name, value):
             if value:
                 x.append('%s %s' % (name, value))
@@ -351,11 +528,10 @@ class SqlDbAdapter(object):
         mode = '' if mode is True else mode
         return 'FOR UPDATE OF %s %s' %(maintable_as,mode)
 
-
     # FIXME: tblobj is allowed to be None (being the default) in the function prototype
     # but the implementation won't allow this value, searching for attributes related
     # to table object
-    def prepareRecordData(self, record_data, tblobj=None,blackListAttributes=None, **kwargs):
+    def prepareRecordData(self, record_data, tblobj=None, blackListAttributes=None, **kwargs):
         """Normalize a *record_data* object before actually execute an sql write command.
         Delete items which name starts with '@': eager loaded relations don't have to be
         written as fields. Convert Bag values to xml, to be stored in text or blob fields.
@@ -382,12 +558,35 @@ class SqlDbAdapter(object):
             data_out[k] = None
         return data_out
 
-    def lockTable(self, dbtable, mode, nowait):
-        """-- IMPLEMENT THIS --
-        Lock a table
+    
+    # DML related methods
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
         """
-        raise NotImplementedException()
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
         
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+        
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+            return cursor.fetchall()
+                
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
         All fields in record_data will be added: all keys must correspond to a column in the db.
@@ -412,8 +611,10 @@ class SqlDbAdapter(object):
         sql = 'INSERT INTO %s(%s) VALUES (%s);' % (tblobj.sqlfullname, ','.join(sql_flds), ','.join(data_keys))
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
-
     def insertMany(self, dbtable, records,**kwargs):
+        """Insert multiple records at once
+        
+        """
         tblobj = dbtable.model
         pkeyColumn = tblobj.pkey
         for record in records:
@@ -431,28 +632,6 @@ class SqlDbAdapter(object):
         cursor = self.cursor(self.dbroot.connection)
         result = cursor.executemany(sql,records)
         return result
-    
-    def connection(self,manager=False):
-        return self._managerConnection() if manager else self.connect()
-
-
-    def execute(self,sql,sqlargs=None,manager=False,autoCommit=False):
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql,sqlargs)
-        
-    def raw_fetch(self,sql,sqlargs=None,manager=False,autoCommit=False):
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql,sqlargs)
-            return cursor.fetchall()
-                
-            
-    def changePrimaryKeyValue(self, dbtable, pkey=None,newpkey=None,**kwargs):
-        tblobj = dbtable.model
-        pkeyColumn =  tblobj.sqlnamemapper[tblobj.pkey]
-        sql = "UPDATE %s SET %s=:newpkey WHERE %s=:currpkey;" % (tblobj.sqlfullname, pkeyColumn,pkeyColumn)
-        return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
     def update(self, dbtable, record_data, pkey=None,**kwargs):
         """Update a record in the db. 
@@ -546,10 +725,22 @@ class SqlDbAdapter(object):
         :param full: boolean. TODO"""
         self.dbroot.execute('VACUUM ANALYZE %s;' % table)
 
-    def string_agg(self,fieldpath,separator):
+    def string_agg(self, fieldpath, separator):
+        """
+        Returns a string_agg() SQL statement, which can be overriden if needed.
+        """
         return f"string_agg({fieldpath},'{separator}')"
 
-    def addForeignKeySql(self, c_name, o_pkg, o_tbl, o_fld, m_pkg, m_tbl, m_fld, on_up, on_del, init_deferred):
+    def addForeignKeySql(self, c_name,
+                         o_pkg, o_tbl, o_fld,
+                         m_pkg, m_tbl, m_fld,
+                         on_up, on_del, init_deferred):
+        """
+        Generate SQL statement to add a foreign key to a table
+
+        FiXME: instead of passing pkg/table name where, wouldn't it
+        be better to provide a table object which can provide its own name?
+        """
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s)' % (
         m_pkg, m_tbl, c_name, m_fld, o_pkg, o_tbl, o_fld)
         drop_statement = 'ALTER TABLE %s.%s DROP CONSTRAINT IF EXISTS %s;' % (m_pkg, m_tbl, c_name)
@@ -559,6 +750,12 @@ class SqlDbAdapter(object):
         return statement
 
     def addUniqueConstraint(self, pkg, tbl, fld):
+        """
+        Generate SQL statement to add a UNIQUE constraint on a pkg's table field
+        
+        FIXME: since this method generates a sql statement text, it should have
+        a 'sql' suffix in its name.
+        """
         statement = 'ALTER TABLE %s.%s ADD CONSTRAINT un_%s_%s_%s UNIQUE (%s)' % (pkg, tbl, pkg, tbl.strip('"'), fld, fld)
         return statement
 
@@ -593,14 +790,26 @@ class SqlDbAdapter(object):
             self.dbroot.execute('DROP SCHEMA %s CASCADE;' % sqlschema)
 
     def createTableAs(self, sqltable, query, sqlparams):
+        """
+        Create a new table in the current database
+        """
         self.dbroot.execute("CREATE TABLE %s AS %s;" % (sqltable, query), sqlparams)
 
-    def addColumn(self, sqltable, sqlname, dtype='T', size=None, notnull=None, pkey=None, unique=None):
+    def addColumn(self, sqltable, sqlname, dtype='T',
+                  size=None, notnull=None, pkey=None,
+                  unique=None):
+        """
+        Add a new column with specific attributes to a sql table
+        """
+        
         sqlcol = self.columnSqlDefinition(sqlname, dtype=dtype, size=size, notnull=notnull, pkey=pkey, unique=unique)
         self.dbroot.execute('ALTER TABLE %s ADD COLUMN %s' % (sqltable, sqlcol))
 
-    def renameColumn(self, sqltable, sqlname,sqlnewname):
-        #automag_deposito_sede_id_idx
+    def renameColumn(self, sqltable, sqlname, sqlnewname):
+        """
+        Rename a table's column in place 
+        """
+        
         kwargs = dict(sqltable=sqltable,sqlname=sqlname,sqlnewname=sqlnewname)
         tbl_flatname = sqltable.split('.')[1]
         kwargs['old_index_name'] = '%s_%s_idx' %(sqltable,sqlname)
@@ -625,6 +834,10 @@ class SqlDbAdapter(object):
 
 
     def valueToSql(self, value):
+        """
+        Data types casting for SQL queries
+        """
+        
         if value is None:
             return 'NULL'
         if isinstance(value, (int, float, Decimal)):
@@ -660,6 +873,10 @@ class SqlDbAdapter(object):
         return f"{' '.join(sql_list)} {extra_sql or ''}"
 
     def columnSqlType(self, dtype, size=None):
+        """
+        Get corresponding sql data type corresponding
+        to the provided genropy's data type
+        """
         if dtype != 'N' and size:
             if ':' in size:
                 size = size.split(':')[1]
@@ -672,13 +889,20 @@ class SqlDbAdapter(object):
             return self.revTypesDict[dtype]
 
     def alterColumnSql(self, table, column, dtype):
+        """
+        Generate a SQL statement to alter a table's column definition
+        """
         return 'ALTER TABLE %s ALTER TABLE %s TYPE %s' % (table, column, dtype)
 
-    def dropEmptyTables(self,schema=None):
+    def dropEmptyTables(self, schema=None):
+        """
+        Iter all tables in the current db and drop table if
+        the record count is zero.
+        """
         tables = self.listElements('tables',schema=schema)
         for tbl in tables:
             tblfullname = '%s.%s' %(schema,tbl)
-            if not self.dbroot.execute("""SELECT COUNT(*) FROM %s""" %tblfullname).fetchone()[0]:
+            if not self.dbroot.execute(f"""SELECT COUNT(*) FROM {tblfullname}""").fetchone()[0]:
                 self.dropTable(tblfullname,cascade=True)
 
     def dropTable(self, dbtable,cascade=False):
@@ -723,19 +947,79 @@ class SqlDbAdapter(object):
 
 
     def createDbSql(self, dbname, encoding):
+        """-- IMPLEMENTS THIS --
+        """
         pass
 
+    def createDb(self, dbname, encoding=None):
+        """-- IMPLEMENT THIS --
+        Create a new database
+        @param name: db name
+        @param encoding: database text encoding
+        """
+        raise NotImplementedException("This method must be implemented in the subclass.")
+
     def unaccentFormula(self, field):
+        """
+        FIXME: document this
+        """
         return field
 
     @property
     def whereTranslator(self):
+        """
+        Return the Where Translator object used by the driver
+        as a property, caching internally the creation of the object
+        
+        """
         if not self._whereTranslator:
             self._whereTranslator = self.getWhereTranslator()
         return self._whereTranslator
 
+    
     def getWhereTranslator(self):
+        """-- IMPLEMENT THIS --
+
+        Return the Where Translator object for the specific adapter
+        """
         return GnrWhereTranslator(self.dbroot)
+
+    
+    def get_primary_key_sql(self):
+        """
+        Returns the SQL query for fetching primary key constraints
+        """
+        raise NotImplementedError("This method must be implemented in the subclass")
+    
+    
+    def dbExists(self, dbname):
+        """
+        Returns True if the database with the provided dbname exists.
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def get_check_constraint_sql(self):
+        """Return the SQL query for fetching check constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    
+    def get_unique_constraint_sql(self): 
+        """Return the SQL query for fetching unique constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def get_foreign_key_sql(self):
+        """Return the SQL query for fetching foreign key constraints."""
+        raise NotImplementedError("This method must be implemented in the subclass.")
+    
+    def columnAdapter(self, columns):
+        """
+        Create adjustments for `columns` datatypes
+        related to the specific driver
+        """
+        raise NotImplementedError("This method must be implemented in the subclass.")
+        
+
+
 
 class GnrWhereTranslator(object):
     def __init__(self, db):
@@ -1044,14 +1328,6 @@ class GnrWhereTranslator(object):
         return '%s ~* :%s' % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
 
-   #def whereFromText(self, table, whereTxt, customColumns=None):
-   #    result = []
-   #    sqlArgs = {}
-   #    tblobj = self.db.table(table)
-   #    pattern = '(AND|OR)'
-   #    whereList = re.compile(pattern).split(whereTxt)
-   #    condList = [cond for cond in whereList if cond not in ('AND', 'OR')]
-
     def unaccentTpl(self,tblobj,column,token,mask=None):
         if not mask:
             mask = ':%s'
@@ -1096,72 +1372,6 @@ class GnrWhereTranslator(object):
             result.append('%s%s' % (negate, condition))
         return result, sqlArgs
 
-# new methods for sqlmigrator
-
-
-    def struct_auto_extension_attributes(self):
-        return []
-    
-    def struct_get_schema_info(self, schemas=None):
-        """
-        Get a (list of) dict containing details about a column or all the columns of a table.
-        Each dict has those info: name, position, default, dtype, length, notnull
-        Every other info stored in information_schema.columns is available with the prefix '_pg_'.
-        """
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_table_fullname_sql(self, schema_name, table_name):
-        """Returns the full table name with schema."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_drop_table_pkey_sql(self, schema_name, table_name):
-        """Generates SQL to drop the primary key from a table."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_add_table_pkey_sql(self, schema_name, table_name, pkeys):
-        """Generates SQL to add a primary key to a table."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_get_schema_info_sql(self):
-        """Returns SQL to retrieve schema information."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_get_constraints_sql(self):
-        """Returns SQL to retrieve table constraints."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_get_indexes_sql(self):
-        """Returns SQL to retrieve table indexes."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_create_index_sql(self, schema_name=None, table_name=None, columns=None, index_name=None, unique=None, **kwargs):
-        """Generates SQL to create an index."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_alter_column_sql(self, column_name=None, new_sql_type=None, **kwargs):
-        """Generates SQL to alter the type of a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_add_not_null_sql(self, column_name, **kwargs):
-        """Generates SQL to add a NOT NULL constraint to a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_drop_not_null_sql(self, column_name, **kwargs):
-        """Generates SQL to drop a NOT NULL constraint from a column."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_drop_constraint_sql(self, constraint_name, **kwargs):
-        """Generates SQL to drop a constraint."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_foreign_key_sql(self, fk_name, columns, related_table, related_schema, related_columns, 
-                               on_delete=None, on_update=None, **kwargs):
-        """Generates SQL to create a foreign key constraint."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
-
-    def struct_constraint_sql(self, constraint_name=None, constraint_type=None, columns=None, check_clause=None, **kwargs):
-        """Generates SQL to create a constraint (e.g., UNIQUE, CHECK)."""
-        raise NotImplementedError("This method must be implemented in the subclass.")
 
 class GnrDictRow(GnrNamedList):
     """A row object that allow by-column-name access to data, the capacity to add columns and alter data."""

@@ -192,6 +192,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
             user=self.dbroot.user, password=self.dbroot.password)
 
+    @classmethod
+    def createDbSql(cls, dbname, encoding):
+        return f"""CREATE DATABASE "{dbname}" ENCODING '{encoding}';"""
+
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
             nowait = 'NO WAIT'
@@ -200,9 +204,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sql = "LOCK %s IN %s MODE %s;" % (dbtable.model.sqlfullname, mode, nowait)
         self.dbroot.execute(sql)
 
-    @classmethod
-    def createDbSql(cls, dbname, encoding):
-        return f"""CREATE DATABASE "{dbname}" ENCODING '{encoding}';"""
 
     @classmethod
     def _dropDb(cls, dbname=None, host=None, port=None,
@@ -276,18 +277,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         callresult = call(args)
         return filename
 
-    def restore(self, filename,dbname=None):
-        """-- IMPLEMENT THIS --
-        Drop an existing database
-
-        :param filename: db name"""
-        self.restore_dump(filename=filename, 
-            dbname=dbname or self.dbroot.dbname, host=self.dbroot.host,
-            port=self.dbroot.port, user=self.dbroot.user,
-            password=self.dbroot.password)
 
     @classmethod
-    def restore_dump(cls, filename=None, dbname=None, host=None,
+    def _restore_dump(cls, filename=None, dbname=None, host=None,
         port=None, user=None, password=None):
         from subprocess import call
         from multiprocessing import cpu_count
@@ -297,6 +289,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             call(['pg_restore', f"""--dbname=postgresql://{user}:{password}@{host}:{port}/{dbname}""" , '-j', str(cpu_count()),filename])
         else:
             return call(['psql', f"postgresql://{user}:{password}@{host}:{port}/{dbname}", '-f', filename])
+
+    def restore(self, filename,dbname=None):
+        self._restore_dump(filename=filename, 
+            dbname=dbname or self.dbroot.dbname, host=self.dbroot.host,
+            port=self.dbroot.port, user=self.dbroot.user,
+            password=self.dbroot.password)
 
     def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
                                 source_dbuser=None,source_dbpassword=None,
@@ -360,14 +358,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         else:
             self.dbroot.execute('VACUUM ANALYZE %s;' % table)
         self.dbroot.connection.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
-
-    def setLocale(self,locale):
-        pass
-        #if not locale:
-        #    return
-        #if len(locale)==2:
-        #    locale = '%s_%s' %(locale.lower(),locale.upper())
-        #self.dbroot.execute("SET lc_time = '%s' " %locale.replace('-','_'))
 
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
@@ -640,6 +630,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return iterator if not column else next(iterator)
 
     def columnAdapter(self,columns):
+        """
+        Create adjustments for `columns` datatypes
+        related to the specific driver
+        """
         for col in columns:
             col = dict(col)
             col = self._filterColInfo(col, '_pg_')
@@ -975,10 +969,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             desc_order, index_method, tablespace, where_clause, 
             with_options, ordinal_position, constraint_type) = row
             
-            # Chiave per schema e tabella
+            # Key for schema and table
             table_key = (schema_name, table_name)
             
-            # Inizializza il dizionario per l'indice se non esiste già
+            # Init a the value if the index for table doesn't exists yet
             if index_name not in indexes[table_key]:
                 indexes[table_key][index_name] = {
                     "unique": is_unique,
@@ -1151,6 +1145,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
 
     def struct_get_extensions_sql(self):
+        """
+        Generate the SQL code to retrieve the configured database
+        extensions
+        """
         return """
         SELECT 
             e.extname AS extension_name,     -- Name of the extension
@@ -1168,6 +1166,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """
 
     def struct_get_extensions(self):
+        """
+        Retreive the a dictionary of all available extensions
+        """
         query = self.struct_get_extensions_sql()
         extensions = {}
 
@@ -1195,6 +1196,9 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
 
     def struct_get_event_triggers_sql(self):
+        """
+        Generate SQL code to retrieve all triggers
+        """
         return """
         SELECT 
             evtname AS trigger_name,         -- Name of the event trigger
