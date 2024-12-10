@@ -54,8 +54,7 @@ psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     
-
-    def connect(self, storename=None,autoCommit=False):
+    def connect(self, storename=None, autoCommit=False):
         """Return a new connection object: provides cursors accessible by col number or col name
 
         :returns: a new connection object"""
