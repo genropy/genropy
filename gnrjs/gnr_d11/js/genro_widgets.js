@@ -4477,13 +4477,12 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
                      details['street_address_eng'] = (street_number ? `${street_number},` : '') + route_long;
                  }
                  if(details['subpremise']){
-                    street_number = details['subpremise']+'/'+street_number;
+                     street_number = details['subpremise'] + (street_number ? `/${street_number}` : '');
                  }
                  
                  var position=results[i].geometry.location;
                  details['position']=position.lat()+','+position.lng();
-                this.store.mainbag.setItem('root.r_' + i, null, details);
-
+                 this.store.mainbag.setItem('root.r_' + i, null, details);
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);
