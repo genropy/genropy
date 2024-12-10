@@ -364,6 +364,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     finalizePageUrl:function(kw){
         let urlPars = {};
         let urlkw = objectExtract(kw,'url_*',true);
+        objectExtract(urlkw,'level_offset');
         let baseurl = kw.webpage || kw.file || kw.filepath;
         if(this.dbstore && !kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
             if(baseurl.slice(1).split('/')[0]!=this.dbstore){
@@ -378,6 +379,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             urlPars.windowTitle = title;
         }
         urlPars = objectUpdate(urlPars,urlkw);
+        if(urlPars.newPanel){
+            objectExtract(urlPars,'newPanel,pageName,title');
+        }
         kw.url = genro.addParamsToUrl(baseurl,urlPars);
         kw.rootPageName = kw.pageName || kw.url.replace(/\W/g,'_');
     },
