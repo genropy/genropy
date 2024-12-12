@@ -9,7 +9,7 @@ from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
 from gnr.app.gnrconfig import getGnrConfig
-
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 
 enable_colored_logging()
 
@@ -105,8 +105,14 @@ def check_db(app, options):
     if options.remove_relations_only:
         return
 
-    changes = app.db.model.check()
-        
+    try:
+        changes = app.db.model.check()
+    except GnrSqlMissingTable as e:
+        if options.debug:
+            raise
+        print(f"{e} - exiting")
+        sys.exit(2)
+    
     if changes:
         if options.verbose:
             print('*CHANGES:\n%s' % '\n'.join(app.db.model.modelChanges))
