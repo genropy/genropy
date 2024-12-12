@@ -22,6 +22,8 @@
 
 import re
 import select
+from collections.abc import Mapping
+
 
 import psycopg
 from psycopg import Cursor, IsolationLevel
@@ -235,6 +237,31 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         return 'ALTER TABLE %s ALTER COLUMN %s TYPE %s  USING %s::%s' % (table, column, dtype,column,dtype)
 
 
+    def struct_get_schema_info_sql(self):
+        return """
+            SELECT
+                s.schema_name,
+                t.table_name,
+                c.column_name,
+                c.data_type,
+                c.character_maximum_length,
+                c.is_nullable,
+                c.column_default,
+                c.numeric_precision,
+                c.numeric_scale
+            FROM
+                information_schema.schemata s
+            LEFT JOIN
+                information_schema.tables t
+                ON s.schema_name = t.table_schema
+            LEFT JOIN
+                information_schema.columns c
+                ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+            WHERE
+                s.schema_name = ANY(%s)
+            ORDER BY
+                s.schema_name, t.table_name, c.ordinal_position;
+        """
 
             
     def getColInfo(self, table, schema, column=None):
@@ -336,9 +363,16 @@ class GnrDictCursor(Cursor):
     def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
-        query = sql.SQL(query).format(**params).as_string(self.connection)
+        if isinstance(params, Mapping):
+            query = sql.SQL(query).format(**params).as_string(self.connection)
+        else:
+            query = sql.SQL(query).format(params).as_string(self.connection)
+            
         query = query.replace(chr(2),'{').replace(chr(3),'}')
-        return super(GnrDictCursor, self).execute(query)
+        print("QUERY", query)
+        # print("PARAMS", params)
+        # print("FINAL QUERY", query)
+        return super(GnrDictCursor, self).execute(query)#, [params])
         #return super(GnrDictCursor, self).execute(sql.SQL(query),params)
     
     def setConstraintsDeferred(self):

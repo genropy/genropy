@@ -395,6 +395,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def struct_add_table_pkey_sql(self,schema_name,table_name,pkeys):
         sqltablename = self.struct_table_fullname_sql(schema_name,table_name)
         return f'ALTER TABLE {sqltablename} ADD PRIMARY KEY ({pkeys});'
+
     def struct_get_schema_info_sql(self):
         return """
             SELECT
