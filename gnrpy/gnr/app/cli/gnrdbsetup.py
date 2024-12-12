@@ -104,11 +104,8 @@ def check_db(app, options):
         print('Removed')
     if options.remove_relations_only:
         return
-    try:
-        changes = app.db.model.check()
-    except Exception as e:
-        print(f"{e}")
-        sys.exit(2)
+
+    changes = app.db.model.check()
         
     if changes:
         if options.verbose:
