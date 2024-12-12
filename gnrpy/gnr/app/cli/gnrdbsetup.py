@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
+import sys
 import os
 import glob
 
@@ -104,7 +104,12 @@ def check_db(app, options):
         print('Removed')
     if options.remove_relations_only:
         return
-    changes = app.db.model.check()
+    try:
+        changes = app.db.model.check()
+    except Exception as e:
+        print(f"{e}")
+        sys.exit(2)
+        
     if changes:
         if options.verbose:
             print('*CHANGES:\n%s' % '\n'.join(app.db.model.modelChanges))

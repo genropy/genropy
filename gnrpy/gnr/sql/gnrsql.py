@@ -881,8 +881,11 @@ class GnrSqlDb(GnrObject):
         :param tblname: the :ref:`database table <table>` name
         :param pkg: the :ref:`package <packages>` object"""
         srctbl = self.model.table(tblname, pkg=pkg)
+        if srctbl is None:
+            raise Exception(f"Table {tblname} is missing in code base, please check your instance configuration")
         if hasattr(srctbl,'dbtable'):
             return srctbl.dbtable
+        
         #during building model
         return srctbl._mixinobj
        
