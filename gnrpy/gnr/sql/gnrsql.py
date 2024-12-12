@@ -883,6 +883,7 @@ class GnrSqlDb(GnrObject):
         srctbl = self.model.table(tblname, pkg=pkg)
         if hasattr(srctbl,'dbtable'):
             return srctbl.dbtable
+        
         #during building model
         return srctbl._mixinobj
        
