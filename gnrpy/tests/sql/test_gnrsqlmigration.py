@@ -54,8 +54,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         cls.init()
         cls.src = cls.db.model.src
         cls.migrator = SqlMigrator(cls.db,removeDisabled=False)
-        #cls.db.dropDb(cls.dbname)
-        
+        cls.db.dropDb(cls.dbname)
             
     def checkChanges(self, expected_value=None,apply_only=False):
         """
@@ -356,7 +355,7 @@ class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
         Initializes the test database connection with PostgreSQL settings.
         """
         cls.name = 'postgres3'
-        cls.dbname = cls.pg_conf.get("database")
+        cls.dbname = 'test_gnrsqlmigration'
         cls.db = GnrSqlDb(
             implementation='postgres3',
             host=cls.pg_conf.get("host"),
