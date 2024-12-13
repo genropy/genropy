@@ -241,14 +241,6 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def createTableAs(self, sqltable, query, sqlparams):
         self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
 
-    def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
-        """Perform analyze routines on the db"""
-        self.dbroot.connection.isolation_level=IsolationLevel.READ_UNCOMMITTED
-        if full:
-            self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
-        else:
-            self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-        self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
 
     def dbExists(self, dbname):
         conn = self._managerConnection()

@@ -31,7 +31,6 @@ from psycopg.rows import no_result
 from psycopg import sql
 
 from gnr.core.gnrlist import GnrNamedList
-from gnr.sql.adapters._gnrbaseadapter import DbAdapterException
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 from gnr.sql import AdapterCapabilities as Capabilities
@@ -65,6 +64,15 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         conn = psycopg.connect(**kwargs)
         conn.cursor_factory = GnrDictCursor
         return conn
+
+    def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
+        """Perform analyze routines on the db"""
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_UNCOMMITTED
+        if full:
+            self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
+        else:
+            self.dbroot.execute('VACUUM ANALYZE %s;' % table)
+        self.dbroot.connection.isolation_level=IsolationLevel.READ_COMMITTED
         
     def adaptTupleListSet(self,sql,sqlargs):
         

@@ -43,7 +43,7 @@ from psycopg2.extensions import connection as _connection
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
 
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 
