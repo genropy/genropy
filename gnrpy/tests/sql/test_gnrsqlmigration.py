@@ -1,5 +1,8 @@
+import pytest
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.sql.adapters import gnrpostgres, gnrpostgres3
+from gnr.sql import AdapterCapabilities as Capabilities
 from .common import BaseGnrSqlTest
 
 import re
@@ -52,8 +55,8 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         cls.src = cls.db.model.src
         cls.migrator = SqlMigrator(cls.db,removeDisabled=False)
         #cls.db.dropDb(cls.dbname)
-
-
+        
+            
     def checkChanges(self, expected_value=None,apply_only=False):
         """
         Validates the expected SQL changes against actual changes.
@@ -325,6 +328,8 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.checkChanges(check_value)
 
 
+@pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
 class TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
     @classmethod
     def init(cls):
@@ -342,6 +347,8 @@ class TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
             password=cls.pg_conf.get("password")
         )
 
+@pytest.mark.skipif(gnrpostgres3.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
+                    reason="Adapter doesn't support migrations")
 class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
     @classmethod
     def init(cls):

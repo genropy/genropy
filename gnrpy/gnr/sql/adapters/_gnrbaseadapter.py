@@ -219,12 +219,20 @@ class SqlDbAdapter(object):
         Other info may be present with an adapter-specific prefix."""
         raise AdapterMethodNotImplemented()
 
-    def has_capability(self, capability):
+    @classmethod
+    def has_capability(cls, capability):
         """
-        Query the adapter for its capabilities
+        If the adapter has the requested capability
         """
-        return capability in self.CAPABILITIES
+        return capability in cls.CAPABILITIES
 
+    @classmethod
+    def not_capable(cls, capability):
+        """
+        If the adapter doesn't have the requested capability
+        """
+        return not cls.has_capability(capability)
+    
     def importRemoteDb(self, source_dbname, source_ssh_host=None, source_ssh_user=None,
                        source_ssh_dbuser=None, source_ssh_dbpassword=None,
                        source_ssh_dbhost=None, dest_dbname=None):

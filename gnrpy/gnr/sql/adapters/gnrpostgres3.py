@@ -34,13 +34,16 @@ from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbaseadapter import DbAdapterException
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
-
+from gnr.sql import AdapterCapabilities as Capabilities
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
-
+    CAPABILITIES = {
+        Capabilities.VECTOR,
+        Capabilities.SCHEMAS,
+    }
 
     def connect(self, storename=None, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
@@ -139,41 +142,16 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         
         return ' '.join(result)
 
-    def _managerConnection(self):
-        dbroot = self.dbroot
-        kwargs = dict(host=dbroot.host, dbname='template1', user=dbroot.user,
-                      password=dbroot.password, port=dbroot.port,autocommit=True)
+    @classmethod
+    def _classConnection(cls, host=None, port=None,
+                         user=None, password=None):
+
+        kwargs = dict(dbname='template1', host=host, port=port, user=user, password=password,
+                      autocommit=True)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         conn = psycopg.connect(**kwargs)
         conn.isolation_level=IsolationLevel.READ_UNCOMMITTED
         return conn
-
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
-        conn = self._managerConnection()
-        curs = conn.cursor()
-        try:
-            curs.execute("""CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding))
-        except:
-            raise DbAdapterException("Could not create database %s" % dbname)
-        finally:
-            curs.close()
-            conn.close()
-            curs = None
-            conn = None
-
-    @classmethod
-    def createDbSql(self, dbname, encoding):
-        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
-
-    def dropDb(self, name):
-        conn = self._managerConnection()
-        curs = conn.cursor()
-        curs.execute('DROP DATABASE IF EXISTS "%s";' % name)
-        curs.close()
-        conn.close()
-        
         
     def restore(self, filename,dbname=None):
         from subprocess import call
@@ -235,7 +213,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
     def alterColumnSql(self, table, column, dtype):
         return 'ALTER TABLE %s ALTER COLUMN %s TYPE %s  USING %s::%s' % (table, column, dtype,column,dtype)
-
 
     def struct_get_schema_info_sql(self):
         return """
@@ -363,14 +340,16 @@ class GnrDictCursor(Cursor):
     def execute(self, query, params=None, async_=0):
         self.index = {}
         self._query_executed = 1
+
+        print("QUERY", query)
+        print("PARAMS", params)
+
         if isinstance(params, Mapping):
             query = sql.SQL(query).format(**params).as_string(self.connection)
+            query = query.replace(chr(2),'{').replace(chr(3),'}')
         else:
-            query = sql.SQL(query).format(params).as_string(self.connection)
-            
-        query = query.replace(chr(2),'{').replace(chr(3),'}')
-        print("QUERY", query)
-        # print("PARAMS", params)
+            return super(GnrDictCursor, self).execute(query, [isinstance(x, tuple) and list(x) or x for x in params])
+
         # print("FINAL QUERY", query)
         return super(GnrDictCursor, self).execute(query)#, [params])
         #return super(GnrDictCursor, self).execute(sql.SQL(query),params)

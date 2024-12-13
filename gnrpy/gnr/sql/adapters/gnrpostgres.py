@@ -100,65 +100,15 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
 
-    def _managerConnection(self):
-        return self._classConnection(host=self.dbroot.host, 
-            port=self.dbroot.port,
-            user=self.dbroot.user, 
-            password=self.dbroot.password)
-
     @classmethod
     def _classConnection(cls, host=None, port=None,
-        user=None, password=None):
+                         user=None, password=None):
         kwargs = dict(host=host, database='template1', user=user,
                     password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
-
-    @classmethod
-    def _createDb(cls, dbname=None, host=None, port=None,
-        user=None, password=None, encoding='unicode'):
-        conn = cls._classConnection(host=host, user=user,
-            password=password, port=port)
-        curs = conn.cursor()
-        try:
-            curs.execute(cls.createDbSql(dbname, encoding))
-            conn.commit()
-        except:
-            raise DbAdapterException(f"Could not create database {dbname}")
-        finally:
-            curs.close()
-            conn.close()
-            curs = None
-            conn = None
-
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
-        self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
-            user=self.dbroot.user, password=self.dbroot.password)
-
-    @classmethod
-    def createDbSql(cls, dbname, encoding):
-        return f"""CREATE DATABASE "{dbname}" ENCODING '{encoding}';"""
-
-
-    @classmethod
-    def _dropDb(cls, dbname=None, host=None, port=None,
-        user=None, password=None):
-        conn = cls._classConnection(host=host, user=user,
-            password=password, port=port)
-        curs = conn.cursor()
-        curs.execute(f'DROP DATABASE IF EXISTS "{dbname}";')
-        curs.close()
-        conn.close()
-        curs = None
-        conn = None
-
-    def dropDb(self, dbname=None):
-        self._dropDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
-            user=self.dbroot.user, password=self.dbroot.password)
 
 
 

@@ -139,8 +139,56 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         callresult = call(args)
         return filename
 
+    def _managerConnection(self):
+        return self._classConnection(host=self.dbroot.host, 
+                                     port=self.dbroot.port,
+                                     user=self.dbroot.user, 
+                                     password=self.dbroot.password)
 
-    
+    @classmethod
+    def _createDb(cls, dbname=None, host=None, port=None,
+                  user=None, password=None, encoding='unicode'):
+        conn = cls._classConnection(host=host, user=user,
+                                    password=password, port=port)
+        curs = conn.cursor()
+        try:
+            curs.execute(cls.createDbSql(dbname, encoding))
+            conn.commit()
+        except:
+            raise DbAdapterException(f"Could not create database {dbname}")
+        finally:
+            curs.close()
+            conn.close()
+            curs = None
+            conn = None
+
+    @classmethod
+    def createDbSql(self, dbname, encoding):
+        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
+
+
+    def createDb(self, dbname=None, encoding='unicode'):
+        if not dbname:
+            dbname = self.dbroot.get_dbname()
+        self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+                       user=self.dbroot.user, password=self.dbroot.password)
+
+    @classmethod
+    def _dropDb(cls, dbname=None, host=None, port=None,
+        user=None, password=None):
+        conn = cls._classConnection(host=host, user=user,
+            password=password, port=port)
+        curs = conn.cursor()
+        curs.execute(f'DROP DATABASE IF EXISTS "{dbname}";')
+        curs.close()
+        conn.close()
+        curs = None
+        conn = None
+
+    def dropDb(self, dbname=None):
+        self._dropDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
+            user=self.dbroot.user, password=self.dbroot.password)
+
     def importRemoteDb(self, source_dbname,source_ssh_host=None,source_ssh_user=None,
                                 source_dbuser=None,source_dbpassword=None,
                                 source_dbhost=None,source_dbport=None,
