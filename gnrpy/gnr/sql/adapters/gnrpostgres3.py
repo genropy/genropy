@@ -28,7 +28,7 @@ from collections.abc import Mapping
 import psycopg
 from psycopg import Cursor, IsolationLevel
 from psycopg.rows import no_result
-from psycopg import sql, Connection
+from psycopg import sql
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
