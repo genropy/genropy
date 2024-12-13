@@ -38,6 +38,8 @@ from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
 
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
+
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
 
@@ -883,7 +885,8 @@ class GnrSqlDb(GnrObject):
         srctbl = self.model.table(tblname, pkg=pkg)
         if hasattr(srctbl,'dbtable'):
             return srctbl.dbtable
-        
+        if srctbl is None:
+            raise GnrSqlMissingTable(f"Missing package providing table {tblname}")
         #during building model
         return srctbl._mixinobj
        
