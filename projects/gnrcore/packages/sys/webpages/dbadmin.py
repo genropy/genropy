@@ -4,7 +4,7 @@
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from flask import json
+import json
 from gnr.core.gnrdecorator import public_method
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.core.gnrbag import Bag

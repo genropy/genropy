@@ -23,7 +23,6 @@
 import re
 import select
 
-
 try:
     import psycopg2
 except ImportError:
@@ -60,11 +59,12 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
-        #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
-        kwargs = dict(
-                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
-        kwargs[
-        'connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
+
+        # remove None parameters, psycopg can't handle them
+        kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
+        
+        # build a DictConnection: provides cursors accessible by col number or col name
+        kwargs['connection_factory'] = GnrDictConnection 
         self._lock.acquire()
         if 'port' in kwargs:
             kwargs['port'] = int(kwargs['port'])
@@ -103,14 +103,13 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     @classmethod
     def _classConnection(cls, host=None, port=None,
                          user=None, password=None):
+
         kwargs = dict(host=host, database='template1', user=user,
-                    password=password, port=port)
+                      password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         conn = psycopg2.connect(**kwargs)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
-
-
 
 
     @classmethod
@@ -249,26 +248,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                 col['size'] = str(col.get('length'))
             yield col
 
-
-    
-    #def struct_create_event_trigger_sql(self, trigger_name, event, function_name, when=None, tags=None):
-    #    """
-    #    Generates the SQL to create an event trigger.
-    #    """
-    #    # WHEN clause
-    #    when_clause = f"WHEN TAG IN ({', '.join(f"'{tag}'" for tag in tags)})" if tags else ""
-    #    
-    #    # Compose the final SQL statement
-    #    sql = f"""
-    #    CREATE EVENT TRIGGER {trigger_name}
-    #    ON {event}
-    #    EXECUTE FUNCTION {function_name}
-    #    {when_clause};
-    #    """
-    #    
-    #    # Return a clean, single-line SQL string
-    #    return " ".join(sql.split())
-    
 class GnrDictConnection(_connection):
     """A connection that uses DictCursor automatically."""
 

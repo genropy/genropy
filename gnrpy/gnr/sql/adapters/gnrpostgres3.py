@@ -28,7 +28,7 @@ from collections.abc import Mapping
 import psycopg
 from psycopg import Cursor, IsolationLevel
 from psycopg.rows import no_result
-from psycopg import sql
+from psycopg import sql, Connection
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.sql.adapters._gnrbasepostgresadapter import PostgresSqlDbBaseAdapter
@@ -38,11 +38,8 @@ from gnr.sql import AdapterCapabilities as Capabilities
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 
+
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
-    CAPABILITIES = {
-        Capabilities.VECTOR,
-        Capabilities.SCHEMAS,
-    }
 
     def connect(self, storename=None, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
@@ -50,18 +47,18 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
         kwargs.pop('implementation',None)
-
-        #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
-        kwargs = dict(
-                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
-        #kwargs[
-        #'cursor_factory'] = GnrDictCursor # build a DictConnection: provides cursors accessible by col number or col name
-        #self._lock.acquire()
+        # remove None parameters, psycopg can't handle them
+        kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         if 'port' in kwargs:
             kwargs['port'] = int(kwargs['port'])
+
         database = kwargs.pop('database', None)
         kwargs['dbname'] = kwargs.get('dbname') or database
-        conn = psycopg.connect(**kwargs)
+        kwargs['autocommit'] = True
+        try:
+            conn = psycopg.connect(**kwargs)
+        except psycopg.OperationalError:
+            raise GnrNonExistingDbException(self.dbroot.dbname)
         conn.cursor_factory = GnrDictCursor
         return conn
 
@@ -154,11 +151,11 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     def _classConnection(cls, host=None, port=None,
                          user=None, password=None):
 
-        kwargs = dict(dbname='template1', host=host, port=port, user=user, password=password,
-                      autocommit=True)
+        kwargs = dict(dbname='template1', host=host, port=port,
+                      user=user, password=password, autocommit=True)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
         conn = psycopg.connect(**kwargs)
-        conn.isolation_level=IsolationLevel.READ_UNCOMMITTED
+        #conn.isolation_level=IsolationLevel.READ_COMMITTED
         return conn
         
     def restore(self, filename,dbname=None):
@@ -295,9 +292,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             result = result[0]
         return result
 
-
-
-
 def gnrdict_row(cursor,):
     desc = cursor.description
     if desc is None:
@@ -349,18 +343,16 @@ class GnrDictCursor(Cursor):
         self.index = {}
         self._query_executed = 1
 
-        print("QUERY", query)
-        print("PARAMS", params)
-
         if isinstance(params, Mapping):
             query = sql.SQL(query).format(**params).as_string(self.connection)
             query = query.replace(chr(2),'{').replace(chr(3),'}')
         else:
-            return super(GnrDictCursor, self).execute(query, [isinstance(x, tuple) and list(x) or x for x in params])
+            q_params = params
+            if params is not None:
+                q_params = [isinstance(x, tuple) and list(x) or x for x in params]
+            return super(GnrDictCursor, self).execute(query, q_params)
 
-        # print("FINAL QUERY", query)
-        return super(GnrDictCursor, self).execute(query)#, [params])
-        #return super(GnrDictCursor, self).execute(sql.SQL(query),params)
+        return super(GnrDictCursor, self).execute(query)
     
     def setConstraintsDeferred(self):
         self.execute("SET CONSTRAINTS all DEFERRED;")
