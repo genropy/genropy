@@ -349,8 +349,11 @@ dojo.declare('gnr.GenroClient', null, {
             }
         });
         if(!genro._reloading){
-            var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
-            navigator.sendBeacon(url);
+            let urlObj = new URL(window.location.href);
+            if (!urlObj.searchParams.has("page_id")) {
+                var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
+                navigator.sendBeacon(url);
+            }
         }
         genro.publish('onClosePage');
         if (genro._data) {
