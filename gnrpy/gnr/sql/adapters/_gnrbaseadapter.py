@@ -20,18 +20,19 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import sys
 import datetime
 import warnings
 import re
-import pytz
+import shutil
 import inspect
 from decimal import Decimal
 
+import pytz
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
-
 from gnr.core.gnrdate import decodeDatePeriod
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
@@ -45,6 +46,10 @@ class SqlDbAdapter(object):
     but only a few must be implemented in a specific adapter.
     """
 
+    # list of executable names required to be installed on the host in order
+    # to have full functionality of the adapter
+    REQUIRED_EXECUTABLES = []
+    
     # the set of capabilities provided by the adapter
     CAPABILITIES = set()
     
@@ -79,6 +84,20 @@ class SqlDbAdapter(object):
         self.options = kwargs
         self._whereTranslator = None
 
+        self._check_required_executables()
+        
+
+    def _check_required_executables(self):
+        missing = []
+        for executable_name in self.REQUIRED_EXECUTABLES:
+            if shutil.which(executable_name) is None:
+                missing.append(executable_name)
+        
+        if len(missing):
+            missing_desc = ", ".join(missing)
+            print(f"WARNING: DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors.",
+                  file=sys.stderr)
+            
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
@@ -219,6 +238,7 @@ class SqlDbAdapter(object):
         Other info may be present with an adapter-specific prefix."""
         raise AdapterMethodNotImplemented()
 
+    
     @classmethod
     def has_capability(cls, capability):
         """

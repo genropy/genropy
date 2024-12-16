@@ -1,5 +1,6 @@
 import threading
 from collections import defaultdict
+import subprocess
 
 from gnr.core.gnrbag import Bag
 from gnr.sql import AdapterCapabilities as Capabilities
@@ -9,6 +10,8 @@ from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterExcept
 DEFAULT_INDEX_METHOD = 'btree'
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
+    REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
+    
     CAPABILITIES = {
         Capabilities.MIGRATIONS,
         Capabilities.VECTOR,
@@ -103,7 +106,6 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             quote_all_identifiers='--quote-all-identifiers',
             compress = '--compress='
         )
-        from subprocess import call
         dbname = dbname or self.dbroot.dbname
         pars = {'dbname':dbname,
                 'user':self.dbroot.user,
@@ -136,7 +138,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         args = ['pg_dump',
             '--dbname=postgresql://%(user)s:%(password)s@%(host)s:%(port)s/%(dbname)s' %pars, 
             '-f', filename]+dump_options
-        callresult = call(args)
+        callresult = subprocess.call(args)
         return filename
 
     def _managerConnection(self):
@@ -194,7 +196,6 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                                 source_dbhost=None,source_dbport=None,
                                 dest_dbname=None):
         dest_dbname = dest_dbname or source_dbname
-        import subprocess
         self.createDb(dbname=dest_dbname, encoding='unicode')
         srcdb = dict(user=source_dbuser or 'postgres',dbname=source_dbname,
                         password=source_dbpassword or 'postgres',
@@ -218,7 +219,6 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     def listRemoteDatabases(self,source_ssh_host=None,source_ssh_user=None,
                                 source_dbuser=None,source_dbpassword=None,
                                 source_dbhost=None,source_dbport=None):
-        import subprocess
         srcdb = dict(user=source_dbuser or 'postgres',
                         password=source_dbpassword or 'postgres',
                         host = source_dbhost or 'localhost',
