@@ -132,7 +132,7 @@ class CommandManager():
                 end_time = time.time() - start_time
                 
                 if "--timeit" in sys.argv:
-                    print(f"Total execution time: {end_time:.3f}s")
+                    print(f"Total execution time: {end_time:.3f}s", file=sys.stderr)
                 
             else:
                 print("Command not found! please run with --help")
