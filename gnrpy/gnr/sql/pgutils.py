@@ -306,12 +306,3 @@ class PgDbUtils:
     @classmethod 
     def list_pgutils(self,prefix=None):
         return {methodname:getattr(self,methodname).__doc__.split('\n')[1] for methodname in dir(self) if methodname.startswith(f'{prefix}_')}
-
-
-
-if __name__ == '__main__':
-    from gnr.app.gnrapp import GnrApp
-    erpy_softwell = GnrApp('erpy_softwell')
-    db_utils = PgDbUtils(erpy_softwell.db)
-    dbsize = db_utils.get_database_size()
-    print('dbsize',dbsize)
