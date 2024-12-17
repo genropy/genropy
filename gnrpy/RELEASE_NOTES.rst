@@ -4,6 +4,11 @@ Upcoming version
 Enhancements
 ------------
 
+* **New tools**:
+  * Added 'gnr dev bugreport <instance name>' to create a report of
+    the current environment the instance is using, for more complete
+    bug reports - please see `--help` for possible usage
+    
 * **Dependency Updates**:
   * Introduced dependency on 'dictdiffer' for handling SQL migration
     differences.
