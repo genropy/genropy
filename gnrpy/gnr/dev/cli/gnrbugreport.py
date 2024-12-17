@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import re
 import sys
 import shutil
 import os, os.path
@@ -106,8 +105,13 @@ def main():
         b = Bag(cdata)
         output = b.toXml()
     else:
-        output = "\n".join([f"{k}: {v}" for k, v in cdata.items()])
-
+        output = "\n".join([f"{k}: {v}" for k, v in cdata.items() if k != "packages"])
+        output += "\nPackages:\n"
+        for p, data in cdata['packages'].items():
+            output += f"{p}\n"
+            for attr, val in data.items():
+                output += f"  {attr}: {val}\n"
+                
     if options.paste:
         url = send_to_paste_service(output)
         print(f"Paste uploaded, please share the URL: {url}")
