@@ -161,7 +161,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             cb();
         }
         if(genro[plugin].init){
-            genro[plugin].init();
+            await genro[plugin].init();
         }
         return genro[plugin]
     },
