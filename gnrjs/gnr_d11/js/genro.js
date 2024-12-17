@@ -296,6 +296,13 @@ dojo.declare('gnr.GenroClient', null, {
         }
     },
 
+    plugin:async function(plugin){
+        if (!genro[plugin]){
+            await genro.dom.addPlugin(plugin)
+        }
+        return genro[plugin];
+    },
+
     safetry:function(cb){
         try{
             return cb();
