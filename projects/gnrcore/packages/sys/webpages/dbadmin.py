@@ -9,6 +9,7 @@ from gnr.core.gnrdecorator import public_method
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
+import gnr.sql
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.pgutils import PgDbUtils
 
@@ -23,7 +24,8 @@ class GnrCustomWebPage(object):
     def dbSelectorPane(self,parent,**kwargs):
         pane = parent.contentPane(**kwargs)
         fb = pane.formlet(cols=7)
-        fb.filteringSelect(value='^.implementation',values='postgres,sqlite,mysql,mssql,fourd,gnrinstance',
+        useable_implementations = ','.join(gnr.sql.ADAPTERS_BY_CAPABILITY['MIGRATIONS']) + ',gnrinstance'
+        fb.filteringSelect(value='^.implementation',values=useable_implementations,
                             lbl='Implementation',width='7em')
         fb.dataController("""
                           let hidden_uploader = true;
@@ -157,7 +159,7 @@ class GnrCustomWebPage(object):
         db = self.getDbFromPars(instance_name=instance_name,implementation=implementation,connection_pars=connection_pars)
         if not db:
             return
-        if db.implementation!='postgres':
+        if db.implementation not in ['postgres', 'postgres3']:
             return
         utils = PgDbUtils(db)
         l = json.loads(getattr(utils,methodname)())
