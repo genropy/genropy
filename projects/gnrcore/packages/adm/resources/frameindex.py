@@ -576,7 +576,11 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
-        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',connect_onclick='genro.openBrowserTab(genro.addParamsToUrl(window.location.href,{new_window:true}));')
+        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',
+                 connect_onclick="""
+                 let urlObj = new URL(window.location.href);
+                 urlObj.searchParams.delete("page_id");
+                 genro.openBrowserTab(urlObj.toString(),{new_window:true});""")
         
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):
