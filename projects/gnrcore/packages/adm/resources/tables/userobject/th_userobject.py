@@ -83,13 +83,26 @@ class Form(BaseComponent):
             objtype = obj['objtype']
             getattr(self,f'objectResource_{objtype}',self.objectResource_base)(sc.borderContainer(pageName=objtype))
 
-    def objectResource_base(self,bc):
-        pass
+    def objectResource_base(self,bc, **kwargs):
+        bc.contentPane(region='center').formbuilder().field('data')
 
-    def objectResource_query(self,bc):
-        pass
+    def objectResource_query(self,bc, **kwargs):
+        fb = bc.contentPane(region='center').formbuilder(cols=1)
+        fb.div('^#FORM.query_as_txt', height='100%', width='100%')
+        fb.dataRpc('#FORM.query_as_txt',self.translateWhere, query_object_id='^.id', 
+                                            objtype='=#FORM.record.objtype',
+                                            _if='objtype=="query"',
+                                            table='=#FORM.record.tbl')
+        
+    @public_method
+    def translateWhere(self, query_object_id=None, table=None, **kwargs):
+        if not query_object_id:
+            return
+        qobj= self.db.table('adm.userobject').record(query_object_id, mode='bag')
+        wherebag = qobj['data.where']
+        return self.db.whereTranslator.toHtml(table,wherebag) 
 
-    def objectResource_template(self,bc):
+    def objectResource_template(self,bc, **kwargs):
         bc.roundedGroup(title='!![en]Template management').templateChunk(
                                         template='^#FORM.record.data',
                                         editable=True,
@@ -101,7 +114,7 @@ class Form(BaseComponent):
                                         padding='5px', 
                                         overflow_y='auto')
 
-    def objectResource_dash_groupby(self,bc):
+    def objectResource_dash_groupby(self,bc, **kwargs):
         pass
 
     
@@ -120,7 +133,6 @@ class Form(BaseComponent):
         fb.field('private')
         fb.field('quicklist')
         fb.field('flags')
-        fb.field('data')
 
     def th_options(self):
         return dict(copypaste='*')
