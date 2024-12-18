@@ -59,9 +59,7 @@ class TestSqlDbAdapter():
         assert "gnrsqlite" in all_adapters
         
     def test_basic_methods(self):
-        assert self.adapter.use_schemas() is True
         assert self.adapter.setLocale("it_IT") is None
-
         assert self.adapter.adaptSqlSchema("schema_name") == "schema_name"
         assert self.adapter.adaptSqlName("schema_name") == "schema_name"
         assert self.adapter_fixed_schema.adaptSqlSchema("schema_name") == "fixed_schema"
@@ -95,8 +93,8 @@ class TestSqlDbAdapter():
             (): ['defaultMainSchema', 'relations',
                  'getTableConstraints'],
             ('arg1',): ['connect', 'listen',
-                        'notify', 'createdb',
-                        'dropdb', 'dump', 'restore',
+                        'notify', 'createDb',
+                        'dropDb', 'dump', 'restore',
                         'importRemoteDb', 'listRemoteDatabases',
                         'listElements'],
             ('arg1', 'arg2'): ['getPkey', 'getIndexesForTable'],
@@ -105,12 +103,12 @@ class TestSqlDbAdapter():
 
         for args, methods in cover_methods.items():
             for method in methods:
-                with pytest.raises(ba.NotImplementedException):
+                with pytest.raises(ba.AdapterMethodNotImplemented):
                     getattr(self.adapter, method)(*args)
 
 
     def test_filterColInfo(self):
-        valid_keys = ('name', 'default', 'notnull', 'dtype', 'position', 'length')
+        valid_keys = ('name', 'sqldefault', 'notnull', 'dtype', 'position', 'length')
         test_data = {v: f"{v}_val" for v in valid_keys}
         invalid_keys = ('superhero', 'weight', 'surname')
         test_data.update({v: f"{v}_val" for v in invalid_keys})
@@ -255,7 +253,7 @@ class TestSqlDbAdapter():
     
     def test_statements(self):
         r = self.adapter.string_agg("field", "separator")
-        assert "string_agg(" in r
+        assert "string_agg(" in r.lower()
         assert "field" in r
         assert "separator" in r
 

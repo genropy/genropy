@@ -700,7 +700,6 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
         if(!kw.node){
             return;
         }
-        console.log('items',parent_lv)
         let nodeToUpdate = kw.node;
         while (parent_lv>1){
             nodeToUpdate = nodeToUpdate.getParentNode();
@@ -4467,17 +4466,22 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
                      details[address_component.types[0]]=address_component.short_name;
                      details[address_component.types[0]+'_long']=address_component.long_name;
                  }
-                 
-                 details['street_address'] = details['route_long']+', '+(details['street_number']||'??');
-                 var street_number = details['street_number']||'??'; //subpremise
-                 if(details['subpremise']){
-                    street_number = details['subpremise']+'/'+street_number;
+                 let street_number = details['street_number'] || '';
+                 let route_long = details['route_long'] || '';
+                 if (!route_long) {
+                     details['street_address'] = '';
+                     details['street_address_eng'] = '';
+                 } else {
+                     details['street_address'] = route_long + (street_number ? `, ${street_number}` : '');
+                     details['street_address_eng'] = (street_number ? `${street_number},` : '') + route_long;
                  }
-                 details['street_address_eng'] = street_number+' '+details['route_long'];
+                 if(details['subpremise']){
+                     street_number = details['subpremise'] + (street_number ? `/${street_number}` : '');
+                 }
+                 
                  var position=results[i].geometry.location;
                  details['position']=position.lat()+','+position.lng();
-                this.store.mainbag.setItem('root.r_' + i, null, details);
-
+                 this.store.mainbag.setItem('root.r_' + i, null, details);
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);

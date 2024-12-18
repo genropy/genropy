@@ -24,10 +24,10 @@ import re
 import threading
 import fourd
 
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator
 
 RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
@@ -97,14 +97,11 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'O': 'VK_BLOB'}
 
     _lock = threading.Lock()
-
+    
     def __init__(self, *args, **kwargs):
         #self._lock = threading.Lock()
 
         super(SqlDbAdapter, self).__init__(*args, **kwargs)
-
-    def use_schemas(self):
-        return False
 
     def defaultMainSchema(self):
         return 'DEFAULT_SCHEMA'
@@ -114,6 +111,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
         :returns: a new connection object"""
         kwargs = self.dbroot.get_connection_params(storename=storename)
+        kwargs.pop('implementation',None)
         #kwargs = dict(host=dbroot.host, database=dbroot.dbname, user=dbroot.user, password=dbroot.password, port=dbroot.port)
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
@@ -156,15 +154,18 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def asTranslator(self, as_):
         return f'[{as_}]'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
         :param kwargs: schema, table
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
+        comment = kwargs.pop('comment', None)
         cursor = self.dbroot.execute(query, kwargs)
         result= cursor.fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
         
     def dbExists(self, dbname):

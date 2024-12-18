@@ -36,19 +36,19 @@ class Table(object):
                 continue
             tables = externaldb.adapter.listElements('tables', schema=schema)
             for tbl in tables:
-                primary_key = externaldb.adapter.getPkey(schema=legacy_schema, table=tbl)
+                primary_key = externaldb.adapter.getPkey(schema=legacy_schema, table=tbl) or None
                 lg_table.insert(lg_table.newrecord(lg_pkg=pkg_code,primary_key=primary_key,
                                             name=tbl,sqlname='{}.{}'.format(schema,tbl)))
             return
 
     def getLegacyDb(self,legacy_db):
         connection_params = self.db.application.config['legacy_db'].getAttr(legacy_db)
-        dbname=connection_params['dbname'] or connection_params['filename']
-        if connection_params['implementation']!='sqlite':
-            connection_params['host'] = connection_params['host'] or 'localhost'
-        return GnrSqlDb(implementation=connection_params['implementation'],
+        dbname=connection_params.get('dbname') or connection_params.get('filename')
+        if connection_params.get('implementation')!='sqlite':
+            connection_params['host'] = connection_params.get('host') or 'localhost'
+        return GnrSqlDb(implementation=connection_params.get('implementation'),
                             dbname=dbname,
-                            host=connection_params['host'],user=connection_params['user'],
-                            password = connection_params['password'],
-                            port=connection_params['port'])
+                            host=connection_params.get('host'),user=connection_params.get('user'),
+                            password = connection_params.get('password'),
+                            port=connection_params.get('port'))
 

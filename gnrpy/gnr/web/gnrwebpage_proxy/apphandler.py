@@ -347,13 +347,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         dbtable = '%s.%s' % (pkg, tbl)
         if not relation_value:
             kwargs['limit'] = 0
-        where = "$%s = :val_%s" % (related_field, related_field)
-        kwargs[str('val_%s' % related_field)] = relation_value
-        if condition:
-            where = ' ( %s ) AND ( %s ) ' % (where, condition)
-        query = self.db.query(dbtable, columns=columns, where=where,
-                              sqlContextName=sqlContextName, **kwargs)
 
+        
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=relation_value,where=condition,
+                                                    sqlContextName=sqlContextName, **kwargs)
         joinBag = None
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
@@ -906,7 +903,8 @@ class GnrWebAppHandler(GnrBaseProxy):
             keys = list(prevSelectedDict.keys())
             resultAttributes['prevSelectedIdx'] = [m['rowidx'] for m in [r for r in selection.data if r['pkey'] in keys]]
         if wherebag:
-            resultAttributes['whereAsPlainText'] = self.db.whereTranslator.toHtml(tblobj,wherebag)
+            
+            resultAttributes['whereAsPlainText'] = tblobj.whereTranslator.toHtml(tblobj,wherebag)
         resultAttributes['hardQueryLimitOver'] = hardQueryLimit and resultAttributes['totalrows'] == hardQueryLimit
         if self.page.pageStore().getItem('slaveSelections.%s' %selectionName):
             with self.page.pageStore() as store:

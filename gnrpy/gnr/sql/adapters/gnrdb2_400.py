@@ -24,10 +24,10 @@ import re
 
 import pyodbc
 
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 #DBAPI.paramstyle = 'pyformat'
@@ -131,6 +131,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
+        kwargs.pop('implementation',None)
         dsn = kwargs.get('dsn') or kwargs.get('database')
         try:
             conn = pyodbc.connect(dsn=dsn)
@@ -138,16 +139,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             raise GnrNonExistingDbException(dsn)
         return DictConnectionWrapper(connection=conn)
 
-    def adaptSqlName(self,name):
+    @classmethod
+    def adaptSqlName(cls,name):
         return name
-        return '{name}'.format(name=name)
-
 
     def adaptSqlSchema(self,name):
         pass
-
-    def use_schemas(self):
-        return False
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
@@ -192,6 +189,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pyodbc.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         pass
         #if not dbname:
@@ -202,6 +200,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #curs.close()
         #conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         pass
         #return """CREATE DATABASE "%s";""" % (dbname)

@@ -119,18 +119,51 @@ dojo.declare("gnr.GnrDomHandler", null, {
             e.onload = cb;
         }
     },
-    addPlugin: function(plugin,cb){
-        genro.dom.loadCss('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',null,null,genro.isDeveloper);
-        genro.dom.loadJs('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',function(){
-                genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
-                genro.wdg.updateWidgetCatalog();
-                if(cb){
-                    cb();
-                }
-                if(genro[plugin].init){
-                    genro[plugin].init();
-                }
-        },genro.isDeveloper);
+
+
+    loadResource: async function(url,noCache) {
+        let element;
+        const isJs = url.endsWith('.js');
+        const isCss = url.endsWith('.css');
+        if (!isJs && !isCss) {
+            throw new Error(`Unsupported file type: ${url}`);
+        }
+        if (noCache) {
+            const cacheBuster = `cachebuster=${new Date().getTime()}`;
+            url += (url.includes('?') ? '&' : '?') + cacheBuster;
+        }
+        if (isJs) {
+            element = document.createElement('script');
+            element.type = 'text/javascript';
+            element.src = url;
+        } else if (isCss) {
+            element = document.createElement('link');
+            element.rel = 'stylesheet';
+            element.href = url;
+        }
+        return new Promise((resolve, reject) => {
+            element.onload = () => resolve(`Resource loaded: ${url}`);
+            element.onerror = () => reject(new Error(`Failed to load resource: ${url}`));
+            document.head.appendChild(element);
+        });
+    },
+
+    addPlugin: async function(plugin,cb){
+        try {
+            await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',genro.isDeveloper);
+        } catch (error) {
+            console.log('No stylesheet for plugin ',plugin);
+        }
+        await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',genro.isDeveloper);
+        genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
+        genro.wdg.updateWidgetCatalog();
+        if(cb){
+            cb();
+        }
+        if(genro[plugin].init){
+            await genro[plugin].init();
+        }
+        return genro[plugin]
     },
 
     loadExternal:function(urlList,avoidCache){

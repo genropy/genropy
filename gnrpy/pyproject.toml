@@ -58,6 +58,7 @@ dependencies = [
 	     "reportlab",
 	     "caldav",
 	     "weasyprint",
+	     "dictdiffer", # for gnr.sql migration
 	     ]
 
 [project.optional-dependencies]
@@ -67,6 +68,7 @@ developer = [
 	  "pytest", "pytest-cov", "graphviz",
 	  "build", "twine","ipython",
 	  "psycopg2-binary","psycopg",
+	  "pymysql",
    	  "testing.postgresql" # needed for tests, assuming developers runs tests
 	    ]
 
@@ -122,10 +124,6 @@ gnrxml2py = 'gnr.dev.cli.gnrxml2py:main'
 [tool.setuptools.dynamic]
 version = {attr = "gnr.VERSION"}
 readme = {file = ["README.md"]}
-
-[tool.setuptools.package-data]
-"gnr.web" = ['*.jar']
-"gnr.web.gnrwebpage_proxy" = ['*.jar']
 
 [tool.setuptools]
 include-package-data = true

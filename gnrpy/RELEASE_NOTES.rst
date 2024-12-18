@@ -1,11 +1,77 @@
 Upcoming version
 ================
 
+Enhancements
+------------
+
+* **New tools**:
+  * Added 'gnr dev bugreport <instance name>' to create a report of
+    the current environment the instance is using, for more complete
+    bug reports - please see `--help` for possible usage
+    
+* **Dependency Updates**:
+  * Introduced dependency on 'dictdiffer' for handling SQL migration
+    differences.
+  * Removed all `deepdiff`-related tests, data, and dependencies.
+
+* **SQL Migration Improvements**:
+  * Improved handling of deferred relations and indexing for tenant schemas.
+  * Excluded unique constraints that overlap with primary keys.
+  * Added support for PostgreSQL extensions in migrations, including:
+    * Commands to create extensions.
+    * Integration with the migration framework.
+  * Added event triggers to the migration structure with preliminary support.
+
+* **PostgreSQL Utilities**:
+  * Introduced new utilities for monitoring PostgreSQL performance:
+    * Queries for most-used indexes and sequential scans.
+    * Autovacuum status monitoring.
+    * Top and least-efficient queries statistics.
+
+* **Database Schema**:
+  * Updated PostgreSQL adapter to handle `DEFERRABLE` and `INITIALLY
+    DEFERRED` constraints.
+  * Added support for extension management in migration commands.
+
+* **General Code Improvements**:
+  * Introduced SQL comment decorators for better traceability in SQL execution.
+  * Standardized decorator patterns across the codebase for clarity.
+
+* **Database adapters**:
+  * Added support for capabilities declaration inside of database
+    adapter, in order to conditionally execute specific tasks base on such
+    specific capabilities.
+  * Introduced 'postgres3' database adapter which uses the psycopg3 driver.
+  * Aligned adapters inheritance method and added test coverage for it
+  
+Bug Fixes
+---------
+
+* Resolved issues with unused imports that caused linting errors.
+
+Testing and Quality
+-------------------
+
+* Replaced the official PostgreSQL Docker image with `dockette/postgres` for compatibility with required extensions.
+* Enhanced unit tests for SQL migration features and removed obsolete test cases.
+
+Breaking Changes
+----------------
+
+* The dependency on `deepdiff` has been entirely removed in favor of `dictdiffer`. Update your environment accordingly.
+* Migration commands now explicitly require extensions to be declared.
+
+
+Version 24.12.03
+================
 * introduce gnr.app.gnrutils module, for GnrApp utilities. First
   utility is GnrAppInsights, which retrieve statistical information
   about a specific GnrApp, with plugin support. Includes a new command
   line tool 'gnr app insights' to retrieve and show the statistics.
 
+* all CLI tools have a common --timeit options that measure the
+  execution time of the underlying command
+  
 Version 24.11.12
 ================
 

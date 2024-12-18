@@ -22,14 +22,19 @@
 
 import re
 from decimal import Decimal
+
 from pymssql import _mssql
 import pymssql
 from pymssql import Connection, Cursor
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
+
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+from gnr.sql import AdapterCapabilities as Capabilities
+
+
 #DBAPI.paramstyle = 'pyformat'
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
@@ -43,12 +48,19 @@ class DictCursorWrapper(Cursor):
             self._build_index()
         return GnrNamedList(self.index, values=self.cursor.read_tuple())
 
-    def fetchall(self):
+    def old_fetchall(self):
         if self._query_executed:
             self._build_index()
         return [GnrNamedList(self.index, values=values) for values in [tuple([row[r] for r in sorted(row.keys(), key=lambda k:str(k)) if \
                     type(r) == int]) for row in self._source._conn]]
         #GnrNamedList(obj.index,values=obj.cursor.read_tuple())
+
+
+    def fetchall(self):
+        res = super(DictCursorWrapper, self).fetchall()
+        if self._query_executed:
+            self._build_index()
+        return [GnrNamedList(self.index, values=r) for r in res]
 
     def fetchmany(self, size=None):
         if size == None:
@@ -90,8 +102,9 @@ class DictConnectionWrapper(Connection):
 class SqlDbAdapter(SqlDbBaseAdapter):
     typesDict = {'nvarchar': 'A', 'nchar': 'C', 'ntext': 'T',
                  'BIT': 'B', 'datetime': 'D', 'datetime': 'H', 'datetime': 'DH',
-                 'datetime': 'DH', 'decimal':'N',
-                 'int': 'I', 'bigint': 'L', 'smallint': 'I','tinyint': 'I', 'real': 'R', 'float': 'R', 'binary': 'O'}
+                 'datetime': 'DH', 'decimal':'N', 'int': 'I',
+                 'bigint': 'L', 'smallint': 'I','tinyint': 'I',
+                 'real': 'R', 'float': 'R', 'binary': 'O'}
 
     revTypesDict = {'A': 'nvarchar', 'T': 'ntext', 'C': 'nchar',
                     'X': 'ntext', 'P': 'ntext', 'Z': 'ntext', 'serial':'int',
@@ -99,7 +112,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'B': 'BIT', 'D': 'datetime', 'H': 'datetime', 'DH': 'datetime',
                     'I': 'int', 'L': 'bigint', 'R': 'real', 'O': 'binary'}
 
-
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     def defaultMainSchema(self):
         return 'dbo'
 
@@ -116,15 +132,22 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #kwargs['charset']='utf8'
         #conn = pymssql.connect(**kwargs)
         kwargs['server']=kwargs.pop('host')
+        kwargs.pop('implementation', None)
         try:
             conn = _mssql.connect(**kwargs)
         except Exception as e:
+            raise
             raise GnrNonExistingDbException(kwargs['database'])
         return DictConnectionWrapper(conn, False, False)
         
     def adaptSqlName(self,name):
         return '[{name}]'.format(name=name)
 
+    # FIXME: this method seems to be unused
+    # def cast_to_varchar(self, fieldpath, n=None):
+    #     if not n:
+    #         n = 'MAX'
+    #     return f'CAST({fieldpath} AS NVARCHAR({n}))'
 
     def adaptSqlSchema(self,name):
         name = self.schemaName(name)
@@ -166,6 +189,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pymssql.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         if not dbname:
             dbname = self.dbroot.get_dbname()
@@ -175,6 +199,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         curs.close()
         conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         return """CREATE DATABASE "%s";""" % (dbname)
 
@@ -209,7 +234,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         @param autocommit: if False (default) you have to commit transaction, and the message is actually sent on commit"""
         pass
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names.
         @param elType: one of the following: schemata, tables, columns, views.
         @param kwargs: schema, table
@@ -220,6 +245,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             return []
         query = query_generator()
         result = self.dbroot.execute(query, kwargs).fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_enabled_extensions(self):
@@ -443,10 +470,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         
 
 class GnrWhereTranslator(GnrWhereTranslator_base):
-    def op_startswith(self, column, value, dtype, sqlArgs,tblobj):
+    def op_startswith(self, column, value, dtype, sqlArgs,tblobj, parname=None):
         "Starts with"
-        return '%s LIKE :%s' % (column, self.storeArgs('%s%%' % value, dtype, sqlArgs))
+        return '%s LIKE :%s' % (column, self.storeArgs('%s%%' % value, dtype, sqlArgs, parname=parname))
 
-    def op_contains(self, column, value, dtype, sqlArgs,tblobj):
+    def op_contains(self, column, value, dtype, sqlArgs,tblobj, parname=None):
         "Contains"
-        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs))
+        return '%s LIKE :%s' % (column, self.storeArgs('%%%s%%' % value, dtype, sqlArgs, parname=parname))

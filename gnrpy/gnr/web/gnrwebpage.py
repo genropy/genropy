@@ -129,7 +129,8 @@ class GnrWebPage(GnrBaseWebPage):
     proxy_class = GnrBaseProxy
     
     def __init__(self, site=None, request=None, response=None, request_kwargs=None, request_args=None,
-                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,_avoid_module_cache=None):
+                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,
+                 _avoid_module_cache=None):
         self._inited = False
         self._start_time = time()
         self._thread = _thread.get_ident()
@@ -150,7 +151,7 @@ class GnrWebPage(GnrBaseWebPage):
         dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
         self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
-        self.user_agent = request.user_agent.string or []
+        self.user_agent = getattr(request.user_agent, "string", [])
         self._environ = environ
         self._event_subscribers = {}
         self.forked = False # maybe redefine as _forked
@@ -163,7 +164,10 @@ class GnrWebPage(GnrBaseWebPage):
         self.called_url = request.url
         self.path_url = request.url_root
         self.request = GnrWebRequest(request)
+
+        # FIXME: strange default here - the whole ipv4 address space?
         self.user_ip = self.request.remote_addr or '0.0.0.0'
+        
         self.response = GnrWebResponse(response)
         self._request = self.request._request
         self._response = self.response._response
@@ -598,11 +602,12 @@ class GnrWebPage(GnrBaseWebPage):
         return AUTH_OK
     
     def _checkRootPage(self):
+        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
-                or not self.avatar.avatar_rootpage:
+                or not avatar_rootpage:
             return AUTH_OK
-        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if avatar_rootpage != self.request.path_info else AUTH_OK
         return result
         
     def pageAuthTags(self,method=None,**kwargs):
@@ -1192,11 +1197,10 @@ class GnrWebPage(GnrBaseWebPage):
                  raise exception
          return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
-    def build_arg_dict(self, _nodebug=False, _clocomp=False, **kwargs):
+    def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
         :param _nodebug: no debug mode
-        :param _clocomp: enable closure compile
         """
         gnr_static_handler = self.site.storage('gnr')
         gnrModulePath = gnr_static_handler.url(self.gnrjsversion)
@@ -1245,14 +1249,10 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
         gnrimports = self.frontend.gnrjs_frontend()
-        #if _nodebug is False and _clocomp is False and (self.site.debug or self.isDeveloper()):
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
-        elif _nodebug is False and _clocomp is False and (self.isDeveloper()):
+        elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-        elif _clocomp or self.site.config['closure_compiler']:
-            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-            arg_dict['genroJsImport'] = [self.jstools.closurecompile(jsfiles)]
         else:
             if not self.site.compressedJsPath or self.site.debug:
                 jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]

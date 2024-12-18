@@ -38,6 +38,8 @@ from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
 
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
+
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
 
@@ -115,6 +117,9 @@ class GnrSqlDb(GnrObject):
         :param application: TODO
         """
         self.implementation = self.dbpar(implementation)
+        self._currentEnv = {}
+        self._connections = {}
+        self.adapters = {}
         self.dbname = self.dbpar(dbname)
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
@@ -126,14 +131,12 @@ class GnrSqlDb(GnrObject):
         self.debugger = debugger
         self.application = application
         self.model = self.createModel()
-        self.adapter = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
-        self.whereTranslator = self.adapter.getWhereTranslator()
+        self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
         if main_schema is None:
             main_schema = self.adapter.defaultMainSchema()
         self.main_schema = main_schema
         self._connections = {}
         self.started = False
-        self._currentEnv = {}
         self.stores_handler = DbStoresHandler(self)
         self.exceptions = {
             'base':GnrSqlException,
@@ -153,6 +156,17 @@ class GnrSqlDb(GnrObject):
         return parvalue
 
     @property
+    def whereTranslator(self):
+        return self.adapter.whereTranslator 
+   
+    @property
+    def adapter(self):
+        implementation = self.currentEnv.get('currentImplementation') or self.implementation
+        if implementation not in self.adapters:
+            self.adapters[implementation] = importModule('gnr.sql.adapters.gnr%s' % implementation).SqlDbAdapter(self)
+        return self.adapters[implementation]
+        
+    @property
     def debug(self):
         """TODO"""
         return self.application and self.application.debug
@@ -171,7 +185,8 @@ class GnrSqlDb(GnrObject):
             tenant_table = pkg.attributes.get('tenant_table') or tenant_table
         self._tenant_table = tenant_table
         return self._tenant_table
-        
+
+
     @property
     def reuse_relation_tree(self):
         if self.application:
@@ -391,6 +406,23 @@ class GnrSqlDb(GnrObject):
         else:
             return self.dbname
     
+    def getTenantSchemas(self):
+        if not self.tenant_table:
+            return []
+        tblobj = self.table(self.tenant_table)
+        tenant_column = tblobj.attributes.get('tenant_column') or 'tenant_schema'
+        f = tblobj.query(ignorePartition=True,subtable='*',
+                            where=f'${tenant_column} IS NOT NULL',
+                            columns=f'${tenant_column}').fetch()
+        return [r[tenant_column] for r in f]
+    
+    def getApplicationSchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values()]
+
+    def readOnlySchemas(self):
+        return [pkg.sqlname for pkg in self.packages.values() if pkg.attributes.get('readOnly')]
+
+
     def usingRootstore(self):
         return  self.currentStorename == self.rootstore
 
@@ -441,9 +473,10 @@ class GnrSqlDb(GnrObject):
     def get_connection_params(self, storename=None):
         if storename and storename != self.rootstore and storename in self.dbstores:
             storeattr = self.dbstores[storename]
-            return dict(host=storeattr.get('host'),database=storeattr.get('database'),
+            return dict(host=storeattr.get('host'),database=storeattr.get('database') or storeattr.get('dbname'),
                         user=storeattr.get('user'),password=storeattr.get('password'),
-                        port=storeattr.get('port'))
+                        port=storeattr.get('port'),
+                        implementation=storeattr.get('implementation') or self.implementation)
         else:
             return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
     
@@ -472,6 +505,7 @@ class GnrSqlDb(GnrObject):
             storename = self.rootstore
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
+        sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
@@ -484,6 +518,7 @@ class GnrSqlDb(GnrObject):
         if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
             storename = self.rootstore
         with self.tempEnv(storename=storename):
+            sql = f'-- {sql_comment}\n{sql}'
             if _adaptArguments:
                 sql=sql.replace(r'\:',chr(1 ))
                 sql, sqlargs = self.adapter.prepareSqlText(sql, sqlargs)
@@ -496,8 +531,9 @@ class GnrSqlDb(GnrObject):
                             cursorname = 'c%s' % re.sub(r"\W", '_', getUuid())
                         cursor = self.adapter.cursor(self.connection, cursorname)
                     else:
+                        cenv = self.currentEnv
                         cursor = self.adapter.cursor(self.connection)
-
+                
                 if isinstance(cursor, list):
                     # since sqlite won't support different cursors in different
                     # threads, we simply serialize the cursor execution
@@ -849,6 +885,8 @@ class GnrSqlDb(GnrObject):
         srctbl = self.model.table(tblname, pkg=pkg)
         if hasattr(srctbl,'dbtable'):
             return srctbl.dbtable
+        if srctbl is None:
+            raise GnrSqlMissingTable(f"Missing package providing table {tblname}")
         #during building model
         return srctbl._mixinobj
        
@@ -1002,27 +1040,24 @@ class TempEnv(object):
         self.kwargs = kwargs
 
     def __enter__(self):
-        if self.db.adapter.support_multiple_connections:
-            currentEnv = self.db.currentEnv
-            self.savedValues = dict()
-            self.addedKeys = []
-            for k,v in list(self.kwargs.items()):
-                if k in currentEnv:
-                    self.savedValues[k] = currentEnv.get(k) 
-                else:
-                    self.addedKeys.append((k,v))
-                currentEnv[k] = v
+        currentEnv = self.db.currentEnv
+        self.savedValues = dict()
+        self.addedKeys = []
+        for k,v in self.kwargs.items():
+            if k in currentEnv:
+                self.savedValues[k] = currentEnv.get(k) 
+            else:
+                self.addedKeys.append((k,v))
+            currentEnv[k] = v
         return self.db
         
-        
     def __exit__(self, type, value, traceback):
-        if self.db.adapter.support_multiple_connections:
-            currentEnv = self.db.currentEnv
-            for k,v in self.addedKeys:
-                if currentEnv.get(k)==v:
-                    currentEnv.pop(k,None)
-            currentEnv.update(self.savedValues)
-            
+        currentEnv = self.db.currentEnv
+        for k,v in self.addedKeys:
+            if currentEnv.get(k)==v:
+                currentEnv.pop(k,None)
+        currentEnv.update(self.savedValues)
+        
 
 class TriggerStack(object):
     def __init__(self):
@@ -1064,9 +1099,13 @@ class DbStoresHandler(object):
         self.db = db
         if db.application:
             self.config_folder = os.path.join(db.application.instanceFolder, 'dbstores')
+            instance_dbstores = db.application.config['dbstores']
         else:
             self.config_folder = None
+            instance_dbstores = None
         self.dbstores = {}
+        if instance_dbstores:
+            self.dbstores = {n.label:n.attr for n in instance_dbstores}
         self.create_stores()
 
     def get_dbstore(self,storename):
