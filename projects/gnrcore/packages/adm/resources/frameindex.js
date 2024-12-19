@@ -260,11 +260,15 @@ dojo.declare("gnr.FramedIndexManager", null, {
 
     newModalPanel:function(kw){
         this.finalizePageUrl(kw);
+        let startKw =  objectExtract(kw,'start_*');
+        let openKw = kw.openKw || {};
+        objectUpdate(openKw,startKw)
+        openKw.topic = 'modal_page_open';
         let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
-                                                openKw:{'topic':'modal_page_open'}
+                                                openKw:openKw
                                                 });
     },
 
