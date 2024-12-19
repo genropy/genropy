@@ -13,9 +13,8 @@ class GnrCustomWebPage(object):
 
     def test_1_pasteFromClipboard_xlsx(self,pane):
         pane.button('Load clipboard',action="this.pasteFromClipboard('.clip','xlsx');")
-        pane.dataController("""
-            console.log('cliprows',clipObject);
-        """,clipObject='^.clip')
-       
+        
+        pane.quickGrid('^.clip',height='100px')
+
 
 
