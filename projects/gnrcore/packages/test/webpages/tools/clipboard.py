@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 "Clipboard"
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerBase"
