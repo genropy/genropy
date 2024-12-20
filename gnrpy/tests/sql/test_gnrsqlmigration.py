@@ -163,7 +163,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" DROP CONSTRAINT IF EXISTS alfa_recipe_pkey;\nALTER TABLE "alfa"."alfa_recipe" ADD PRIMARY KEY (code);'
         self.checkChanges(check_value)
 
-    def test_05c_create_table_withMultiplePkey(self):
+    def test_05c_create_table_withCompositePkey(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row', pkey='composite_key')
         tbl.column('recipe_code', size=':12')
