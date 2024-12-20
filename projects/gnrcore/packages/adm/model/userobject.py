@@ -45,10 +45,10 @@ class Table(object):
         packages = self.db.application.packages
         current_data = record['data']
         record['data'] = None
-        if not (record['tbl'] and packages[pkg]):
+        objtype = record['objtype']
+        if not (record['tbl'] and packages[pkg] and objtype):
             return resources
         tbl = record['tbl'].split('.')[1]
-        objtype = record['objtype']
         filename = '%s.xml' %(record['code'].lower().replace('.','_'))
         pkgkeys = list(packages.keys())
         page = self.db.currentPage
