@@ -640,7 +640,7 @@ class GnrSqlDb(GnrObject):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
 
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
-        self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
+        self.adapter.update(tblobj, record, pkey=pkey,old_record=old_record,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
         self._onDbChange(tblobj,'U',record=record,old_record=old_record,**kwargs)
         tblobj._doFieldTriggers('onUpdated', record, old_record=old_record)

@@ -662,7 +662,7 @@ class SqlDbAdapter(object):
         result = cursor.executemany(sql,records)
         return result
 
-    def update(self, dbtable, record_data, pkey=None,**kwargs):
+    def update(self, dbtable, record_data, pkey=None,old_record=None,**kwargs):
         """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
         
@@ -683,9 +683,12 @@ class SqlDbAdapter(object):
                     sql_par_prefix = ''
                     k = sql_value
                 sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
-        pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
-        if pkey:
+        if old_record:
+            pkeysDict = {k:old_record[k] for k in  tblobj.pkeys}
+        elif pkey:
             pkeysDict = tblobj.parseSerializedKey(pkey)
+        else:
+            pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
         where = []
         for i,k in enumerate(pkeysDict.keys()):
             parname = f'__pkey__{i}'
