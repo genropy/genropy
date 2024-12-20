@@ -116,11 +116,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         
         return sqltext, sqlargs
 
-    
-    def _selectForUpdate(self,maintable_as=None,**kwargs):
-        return 'FOR UPDATE'
-
-
     def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
                    group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):
         def _smartappend(x, name, value):
