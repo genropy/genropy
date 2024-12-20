@@ -137,7 +137,7 @@ class SqlDbAdapter(object):
         return self.dbroot.execute(sql, dbtable=dbtable.fullname,sqlargs=dict(currpkey=pkey,newpkey=newpkey))
 
 
-    def connect(self, storename=None):
+    def connect(self, storename=None, autoCommit=False, **kw):
         """-- IMPLEMENT THIS --
         Build and return a new connection object: ex. return dbapi.connect()
         The returned connection MUST provide cursors accessible by col number or col name (as list or as dict)

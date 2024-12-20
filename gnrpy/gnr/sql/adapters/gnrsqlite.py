@@ -69,7 +69,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         r = re.compile(expr, re.U)
         return r.match(item) is not None
 
-    def connect(self,storename=None,**kwargs):
+    def connect(self,storename=None, **kwargs):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         connection_parameters = self.dbroot.get_connection_params(storename=storename)

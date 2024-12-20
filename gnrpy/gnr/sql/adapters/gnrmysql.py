@@ -67,7 +67,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def defaultMainSchema(self):
         return ''
 
-    def connect(self, storename=None):
+    def connect(self, storename=None, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""

@@ -1057,6 +1057,7 @@ class SqlMigrator():
             self.db.adapter.execute(extensions_commands,manager=True)
         build_commands = self.sql_commands.pop('build_commands',None)
         if build_commands:
+            # FIXME: why the manager is not used in this case?
             self.db.adapter.execute(build_commands,autoCommit=True)
 
 

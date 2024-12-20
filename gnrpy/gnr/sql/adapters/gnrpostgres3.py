@@ -38,7 +38,7 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
-    def connect(self, storename=None, **kw):
+    def connect(self, storename=None, autoCommit=False, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
@@ -51,7 +51,8 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         database = kwargs.pop('database', None)
         kwargs['dbname'] = kwargs.get('dbname') or database
-        kwargs['autocommit'] = True
+        kwargs['autocommit'] = autoCommit
+        
         try:
             conn = psycopg.connect(**kwargs)
         except psycopg.OperationalError:
