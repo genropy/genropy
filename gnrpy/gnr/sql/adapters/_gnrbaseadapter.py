@@ -683,12 +683,16 @@ class SqlDbAdapter(object):
                     sql_par_prefix = ''
                     k = sql_value
                 sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
-        pkeyColumn = tblobj.pkey
+        pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
         if pkey:
-            pkeyColumn = '__pkey__'
-            record_data[pkeyColumn] = pkey
-        sql = 'UPDATE %s SET %s WHERE %s=:%s;' % (
-        tblobj.sqlfullname, ','.join(sql_flds), tblobj.sqlnamemapper[tblobj.pkey], pkeyColumn)
+            pkeysDict = tblobj.parseSerializedKey(pkey)
+        where = []
+        for i,k in enumerate(pkeysDict.keys()):
+            parname = f'__pkey__{i}'
+            where.append(f'{tblobj.sqlnamemapper[k]}=:{parname}')
+            record_data[parname] = pkeysDict[k]
+        where = ' AND '.join(where)
+        sql = f"UPDATE {tblobj.sqlfullname} SET {','.join(sql_flds)} WHERE {where};"
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def delete(self, dbtable, record_data,**kwargs):
