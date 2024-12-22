@@ -13,7 +13,7 @@ try:
 except ImportError:
     PROGRESS = None
 
-description = "copy files between tow storages"
+description = "copy files between two storages"
 
 def sync_to_service(site=None, from_storage=None, to_storage=None, skip_existing=True, skip_same_size=False):
     done_path = expandpath('~/.gnrstsync.%s.%s.%s'%(site, from_storage, to_storage))
