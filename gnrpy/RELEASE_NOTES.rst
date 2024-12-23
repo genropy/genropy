@@ -1,4 +1,9 @@
-Upcoming version
+Version 24.12.23
+================
+
+* Bugfix release, avoid deadlock on tasks 
+  
+Version 24.12.03
 ================
 
 * introduce gnr.app.gnrutils module, for GnrApp utilities. First
