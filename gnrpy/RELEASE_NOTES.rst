@@ -1,4 +1,4 @@
-Upcoming version
+Upcoming release
 ================
 
 Enhancements
@@ -61,6 +61,11 @@ Breaking Changes
 * The dependency on `deepdiff` has been entirely removed in favor of `dictdiffer`. Update your environment accordingly.
 * Migration commands now explicitly require extensions to be declared.
 
+Version 24.12.23
+================
+
+* Bugfix release, avoid deadlock on tasks 
+  
 
 Version 24.12.03
 ================
