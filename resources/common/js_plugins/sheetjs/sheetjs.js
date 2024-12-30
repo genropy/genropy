@@ -20,5 +20,18 @@ var genro_plugin_sheetjs = {
         return XLSX.utils.sheet_to_row_object_array(sheet);
     },
 
+    bagFromXLSXText:function(text){
+        let rows = this.rowsFromXLSXText(text);
+        let result = new gnr.GnrBag();
+        rows.forEach(function(r,idx){
+            let row = {};
+            for (let k in r){
+                row[k.replace('.',' ').trim().replace(/ /g, "_")] = r[k];
+            }
+            result.addItem('r_'+idx,new gnr.GnrBag(row));
+        });
+        return result;
+    }
+
 
 };

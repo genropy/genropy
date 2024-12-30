@@ -1698,7 +1698,25 @@ class DbBaseColumnObj(DbModelObj):
             tbl,column = relation_list
             pkg = self.pkg.name
         return f'{pkg}.{tbl}.{column}' 
+    
+    def relatedTable(self):
+        """Get the SqlTable that is related by the current column"""
+        joiner = self.relatedColumnJoiner()
+        if joiner:
+            return self.dbroot.model.table(joiner['one_relation'])
 
+    def relatedColumn(self):
+        """Get the SqlColumn that is related by the current column"""
+        joiner = self.relatedColumnJoiner()
+        if joiner:
+            return self.dbroot.model.column(joiner['one_relation'])
+
+    def relatedColumnJoiner(self):
+        """Get the SqlTable that is related by the current column"""
+        r = self.table.relations.getAttr('@%s' % self.name)
+        if r and r['joiner']['many_relation']==self.fullname:
+            return r['joiner']
+        
 class DbColumnObj(DbBaseColumnObj):
     """TODO"""
     sqlclass = 'column'
@@ -1731,24 +1749,9 @@ class DbColumnObj(DbBaseColumnObj):
             trigFunc = self.attributes.get(trigType)
             if trigFunc:
                 self.table._fieldTriggers.setdefault(trigType, []).append((self.name, trigFunc,trigger_table))
-                    
-    def relatedTable(self):
-        """Get the SqlTable that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return self.dbroot.model.table(r['joiner']['one_relation'])
 
-    def relatedColumn(self):
-        """Get the SqlColumn that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return self.dbroot.model.column(r['joiner']['one_relation'])
-
-    def relatedColumnJoiner(self):
-        """Get the SqlTable that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return r['joiner']
+      
+    
 
     def rename(self,newname):
         self.db.adapter.renameColumn(self.table.sqlname,self.sqlname,newname)
@@ -1780,24 +1783,6 @@ class DbVirtualColumnObj(DbBaseColumnObj):
             #if 'cnd' in reldict:
             #    reldict['mode'] = 'custom'
             self.dbroot.model._columnsWithRelations[(self.pkg.name, self.table.name, self.name)] = reldict
-
-    def relatedTable(self):
-        """Get the SqlTable that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return self.dbroot.model.table(r['joiner']['one_relation'])
-
-    def relatedColumn(self):
-        """Get the SqlColumn that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return self.dbroot.model.column(r['joiner']['one_relation'])
-
-    def relatedColumnJoiner(self):
-        """Get the SqlTable that is related by the current column"""
-        r = self.table.relations.getAttr('@%s' % self.name)
-        if r:
-            return r['joiner']
 
     def _get_relation_path(self):
         """property. Returns the :ref:`relation_path`"""

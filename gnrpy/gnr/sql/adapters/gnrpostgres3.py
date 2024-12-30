@@ -38,7 +38,7 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
-    def connect(self, storename=None, **kw):
+    def connect(self, storename=None, autoCommit=False, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
@@ -51,7 +51,8 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         database = kwargs.pop('database', None)
         kwargs['dbname'] = kwargs.get('dbname') or database
-        kwargs['autocommit'] = True
+        kwargs['autocommit'] = autoCommit
+        
         try:
             conn = psycopg.connect(**kwargs)
         except psycopg.OperationalError:
@@ -75,7 +76,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
                 if not isinstance(v,list):
                     v = list(v)
                 if len(v)==0:
-                    re_pattern = """((t\\d+)(_t\\d+)*.\\"?\\w+\\"?" +)(NOT +)*(IN) *:%s""" %k
+                    re_pattern = r"""((\"?t\d+)(_t\d+)*\"?.\"?\w+\"?" +)(NOT +)*(IN) *:%s""" %k
                     sql = re.sub(re_pattern,lambda m: 'TRUE' if m.group(4) else 'FALSE',sql,flags=re.I)
                 else:
                     
@@ -115,11 +116,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         sqltext= sqltext.replace('REGEXP', '~*')
         
         return sqltext, sqlargs
-
-    
-    def _selectForUpdate(self,maintable_as=None,**kwargs):
-        return 'FOR UPDATE'
-
 
     def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
                    group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):

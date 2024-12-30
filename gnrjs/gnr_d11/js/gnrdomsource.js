@@ -188,7 +188,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         let value = clipboardText;
         if(mode=='xlsx'){
             let sheetjs = await genro.plugin('sheetjs');
-            value = sheetjs.rowsFromXLSXText(clipboardText)
+            value = sheetjs.bagFromXLSXText(clipboardText);
         }else if(mode=='bag' && clipboardText[0]=='<'){
             value = new gnr.GnrBag(clipboardText);
         }
@@ -196,6 +196,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     copyInClipboard:function(path){
+        let value;
         if(path){
             value = this.getRelativeData(path);
         }else{
