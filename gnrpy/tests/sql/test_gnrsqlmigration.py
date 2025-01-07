@@ -144,7 +144,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('country',size='2')
         tbl.column('vat_number',size=':30')
         tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
-        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);\nCREATE UNIQUE INDEX idx_91100f32 ON "alfa"."alfa_restaurant" USING btree (country, vat_number);'
+        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);'
         self.checkChanges(check_value)
 
     def test_05a_create_table_withpkey(self):
