@@ -61,7 +61,8 @@ class SqlDbAdapter(object):
                  'interval':'DT',
                  'timestamp with time zone': 'DHZ',
                  'numeric': 'N', 'money': 'M',
-                 'integer': 'I', 'bigint': 'L', 'smallint': 'I', 'double precision': 'R', 'real': 'R', 'bytea': 'O'}
+                 'integer': 'I', 'bigint': 'L', 'smallint': 'I',
+                 'double precision': 'R', 'real': 'R', 'bytea': 'O'}
 
     revTypesDict = {'A': 'character varying', 'C': 'character', 'T': 'text',
                     'X': 'text', 'P': 'text', 'Z': 'text', 'N': 'numeric', 'M': 'money',

@@ -1,8 +1,8 @@
 import threading
 from collections import defaultdict
 import subprocess
-
 from gnr.core.gnrbag import Bag
+from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
@@ -462,6 +462,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 s.schema_name, t.table_name, c.ordinal_position;
         """
     
+    @time_measure
     def struct_get_schema_info(self, schemas=None):
         """
         Get a (list of) dict containing details about a column or all the columns of a table.
@@ -517,11 +518,11 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 col['dtype'] = 'serial'
             
             yield col
-    
+
+    @time_measure
     def struct_get_constraints(self, schemas):
         """Fetch all constraints and return them in a structured dictionary."""
         constraints = defaultdict(lambda: defaultdict(dict))
-
         # Fetch primary key constraints
         for row in self.raw_fetch(self.get_primary_key_sql(), (schemas,)):
             schema_name, table_name, constraint_name, column_name, _ = row
@@ -548,6 +549,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 }
             constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
 
+        
         # Fetch foreign key constraints
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
             (schema_name, table_name, constraint_name, column_name, _, on_update,
@@ -572,7 +574,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 }
             constraints[table_key]["FOREIGN KEY"][constraint_name]["columns"].append(column_name)
             constraints[table_key]["FOREIGN KEY"][constraint_name]["related_columns"].append(related_column)
-
+            
         # Fetch check constraints
         for row in self.raw_fetch(self.get_check_constraint_sql(), (schemas,)):
             schema_name, table_name, constraint_name, check_clause = row
@@ -617,7 +619,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         ORDER BY
             n.nspname, t.relname, i.relname, ordinal_position;
         """
-
+    
+    @time_measure
     def struct_get_indexes(self, schemas):
         query = self.struct_get_indexes_sql()
         indexes = defaultdict(lambda: defaultdict(dict))
@@ -821,7 +824,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         ORDER BY 
             e.extname;
         """
-
+    @time_measure
     def struct_get_extensions(self):
         """
         Retreive the a dictionary of all available extensions
@@ -871,7 +874,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             trigger_name;
         """
 
-
+    @time_measure
     def struct_get_event_triggers(self):
         query = self.struct_get_event_triggers_sql()
         event_triggers = {}
@@ -940,41 +943,51 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
-        return """
-           SELECT
-                tc.constraint_schema AS schema_name,
-                tc.table_name AS table_name,
-                tc.constraint_name AS constraint_name,
-                kcu.column_name AS column_name,
-                kcu.ordinal_position AS ordinal_position,
-                rc.update_rule AS on_update,
-                rc.delete_rule AS on_delete,
-                ccu.table_schema AS related_schema,
-                ccu.table_name AS related_table,
-                ccu.column_name AS related_column,
-                tc.is_deferrable AS deferrable,
-                tc.initially_deferred AS initially_deferred
-            FROM
-                information_schema.table_constraints AS tc
-            JOIN
-                information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.constraint_schema = kcu.constraint_schema
-                AND tc.table_name = kcu.table_name
-            JOIN
-                information_schema.referential_constraints AS rc
-                ON tc.constraint_name = rc.constraint_name
-                AND tc.constraint_schema = rc.constraint_schema
-            JOIN
-                information_schema.key_column_usage AS ccu
-                ON rc.unique_constraint_name = ccu.constraint_name
-                AND rc.unique_constraint_schema = ccu.constraint_schema
-                AND ccu.ordinal_position = kcu.position_in_unique_constraint
-            WHERE
-                tc.constraint_type = 'FOREIGN KEY'
-                AND tc.constraint_schema = ANY(%s)
-            ORDER BY
-                tc.constraint_name, kcu.ordinal_position;
+        return  """
+        SELECT
+        nsp1.nspname AS schema_name,
+        cls1.relname AS table_name,
+        con.conname AS constraint_name,
+        att1.attname AS column_name,
+        att1.attnum AS ordinal_position,
+        CASE con.confupdtype
+        WHEN 'a' THEN 'NO ACTION'
+        WHEN 'r' THEN 'RESTRICT'
+        WHEN 'c' THEN 'CASCADE'
+        WHEN 'n' THEN 'SET NULL'
+        WHEN 'd' THEN 'SET DEFAULT'
+        END AS on_update,
+        CASE con.confdeltype
+        WHEN 'a' THEN 'NO ACTION'
+        WHEN 'r' THEN 'RESTRICT'
+        WHEN 'c' THEN 'CASCADE'
+        WHEN 'n' THEN 'SET NULL'
+        WHEN 'd' THEN 'SET DEFAULT'
+        END AS on_delete,
+        nsp2.nspname AS related_schema,
+        cls2.relname AS related_table,
+        att2.attname AS related_column,
+        CASE con.condeferrable
+        WHEN TRUE THEN 'YES'
+        ELSE 'NO'
+        END AS deferrable,
+        CASE con.condeferred
+        WHEN TRUE THEN 'YES'
+        ELSE 'NO'
+        END AS initially_deferred
+        FROM
+        pg_constraint con
+        JOIN pg_class cls1 ON cls1.oid = con.conrelid
+        JOIN pg_namespace nsp1 ON nsp1.oid = cls1.relnamespace
+        JOIN pg_attribute att1 ON att1.attnum = ANY(con.conkey) AND att1.attrelid = con.conrelid
+        JOIN pg_class cls2 ON cls2.oid = con.confrelid
+        JOIN pg_namespace nsp2 ON nsp2.oid = cls2.relnamespace
+        JOIN pg_attribute att2 ON att2.attnum = ANY(con.confkey) AND att2.attrelid = con.confrelid
+        WHERE
+        con.contype = 'f' -- Only foreign keys
+        AND nsp1.nspname = ANY(%s)
+        ORDER BY
+        con.conname, att1.attnum;
         """
 
     def get_check_constraint_sql(self):
