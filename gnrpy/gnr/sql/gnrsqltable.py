@@ -1006,7 +1006,7 @@ class SqlTable(GnrObject):
                 sourceRecord.update(__del_ts=datetime.now(),__moved_related=moved_relations)
                 self.raw_update(sourceRecord,old_record=old_record)
             else:
-                self.delete(destRecord[self.pkey])
+                self.delete(sourceRecord[self.pkey])
 
 
     def hasRelations(self,recordOrPkey):
