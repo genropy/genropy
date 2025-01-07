@@ -3,13 +3,13 @@ import hashlib
 
 import json
 import time
-import functools
 import dictdiffer
 from collections import defaultdict
 
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
+from gnr.dev.decorator import time_measure
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
 
 
@@ -166,17 +166,6 @@ def json_to_tree(data,key,entity_tree=None,parent=None):
             json_to_tree(data[key][entity_item['entity_name']],key=childname,entity_tree=entity_tree[key],parent=collections)
     return parent
        
-
-def measure_time(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        duration = end_time - start_time
-        print(f"Execution time of {func.__name__}: {duration:.4f} seconds")
-        return result
-    return wrapper
 
 
 def clean_attributes(attributes):
@@ -423,7 +412,7 @@ class DbExtractor(object):
         self.prepare_json_struct(schemas=schemas)
         return self.json_structure
     
-    @measure_time
+    @time_measure
     def prepare_json_struct(self,schemas=None):
         """Generates the JSON structure of the database."""
         self.json_structure = new_structure_root(self.db.dbname)

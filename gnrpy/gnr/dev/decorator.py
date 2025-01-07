@@ -20,7 +20,9 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import inspect
 from time import time
+import functools
 
 def do_cprofile(profile_path=None):
     import cProfile
@@ -41,7 +43,7 @@ def do_cprofile(profile_path=None):
 def callers(limit=10):
     def decore(func):
         def wrapper(*fn_args, **fn_kwargs):
-            import inspect
+
             stack = inspect.stack()
             print(func.__name__, ':')
             for f in stack[1:limit+1]:
@@ -52,6 +54,18 @@ def callers(limit=10):
         wrapper.__dict__.update(func.__dict__)
         return wrapper
     return decore
+
+def time_measure(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time()
+        result = func(*args, **kwargs)
+        end_time = time()
+        duration = end_time - start_time
+        print(f"Execution time of {func.__name__}: {duration:.4f} seconds")
+        return result
+    return wrapper
+
 
 def timer_call(time_list=None, print_time=True):
     time_list = time_list or []
