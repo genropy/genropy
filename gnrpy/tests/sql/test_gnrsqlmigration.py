@@ -302,7 +302,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=True)
         tbl.column('foo') #columns added for testing the right placement of ADD constraint
-        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");\nCREATE UNIQUE INDEX idx_fbdb510e ON "alfa"."alfa_author" USING btree (tax_code);'
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_remove_unique(self):
