@@ -24,6 +24,8 @@ import inspect
 from time import time
 import functools
 
+import gnr
+
 def do_cprofile(profile_path=None):
     import cProfile
     profile_path = profile_path or 'stats.prf'
@@ -62,7 +64,8 @@ def time_measure(func):
         result = func(*args, **kwargs)
         end_time = time()
         duration = end_time - start_time
-        print(f"Execution time of {func.__name__}: {duration:.4f} seconds")
+        if gnr.GLOBAL_DEBUG:
+            print(f"Execution time of {func.__name__}: {duration:.4f} seconds")
         return result
     return wrapper
 

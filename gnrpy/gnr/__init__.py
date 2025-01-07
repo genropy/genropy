@@ -1,1 +1,2 @@
 VERSION = "24.12.23"
+GLOBAL_DEBUG = False

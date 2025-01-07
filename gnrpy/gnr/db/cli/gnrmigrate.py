@@ -5,6 +5,8 @@ import sys
 import os
 import glob
 
+import gnr
+
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsqlmigration import SqlMigrator
@@ -62,13 +64,14 @@ def instance_name_to_path(gnr_config, instance_name):
 
 def get_app(options):
     storename = None
-    debug = options.debug==True
+    gnr.GLOBAL_DEBUG = debug = options.debug == True
     if options.directory:
         instance_path = options.directory
         if os.path.isdir(instance_path):
             return GnrApp(instance_path, debug=debug)
         else:
             raise Exception("No valid instance provided")
+        
     if hasattr(options, 'config_path') and options.config_path:
         config_path = options.config_path
     else:
