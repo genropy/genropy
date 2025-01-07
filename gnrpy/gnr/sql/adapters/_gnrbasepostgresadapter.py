@@ -943,69 +943,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
-        q =  """
-           SELECT
-                tc.constraint_schema AS schema_name,
-                tc.table_name AS table_name,
-                tc.constraint_name AS constraint_name,
-                kcu.column_name AS column_name,
-                kcu.ordinal_position AS ordinal_position,
-                rc.update_rule AS on_update,
-                rc.delete_rule AS on_delete,
-                ccu.table_schema AS related_schema,
-                ccu.table_name AS related_table,
-                ccu.column_name AS related_column,
-                tc.is_deferrable AS deferrable,
-                tc.initially_deferred AS initially_deferred
-            FROM
-                information_schema.table_constraints AS tc,
-                information_schema.key_column_usage AS kcu,
-                information_schema.referential_constraints AS rc,
-                information_schema.key_column_usage AS ccu
-            WHERE
-                tc.constraint_name = kcu.constraint_name
-                AND tc.constraint_schema = kcu.constraint_schema
-                AND tc.table_name = kcu.table_name
-                AND tc.constraint_name = rc.constraint_name
-                AND tc.constraint_schema = rc.constraint_schema
-                AND rc.unique_constraint_name = ccu.constraint_name
-                AND rc.unique_constraint_schema = ccu.constraint_schema
-                AND ccu.ordinal_position = kcu.position_in_unique_constraint
-                AND tc.constraint_type = 'FOREIGN KEY'
-                AND tc.constraint_schema = ANY(%s)
-
-            ORDER BY
-                tc.constraint_name, kcu.ordinal_position;
-        """
-        q = """
-        SELECT
-    nsp1.nspname AS schema_name,
-    cls1.relname AS table_name,
-    con.conname AS constraint_name,
-    att1.attname AS column_name,
-        1 AS ordinal_position,
-    con.confupdtype AS on_update,
-    con.confdeltype AS on_delete,
-    nsp2.nspname AS related_schema,
-    cls2.relname AS related_table,
-    att2.attname AS related_column,
-    con.condeferrable AS deferrable,
-    con.condeferred AS initially_deferred
-FROM
-    pg_constraint con
-    JOIN pg_class cls1 ON cls1.oid = con.conrelid
-    JOIN pg_namespace nsp1 ON nsp1.oid = cls1.relnamespace
-    JOIN pg_attribute att1 ON att1.attnum = ANY(con.conkey) AND att1.attrelid = con.conrelid
-    JOIN pg_class cls2 ON cls2.oid = con.confrelid
-    JOIN pg_namespace nsp2 ON nsp2.oid = cls2.relnamespace
-    JOIN pg_attribute att2 ON att2.attnum = ANY(con.confkey) AND att2.attrelid = con.confrelid
-WHERE
-    con.contype = 'f' -- Only foreign keys
-    AND nsp1.nspname = ANY(%s)
-ORDER BY
-    con.conname, att1.attnum;
-        """
-        q = """
+        return  """
         SELECT
         nsp1.nspname AS schema_name,
         cls1.relname AS table_name,
@@ -1051,8 +989,7 @@ ORDER BY
         ORDER BY
         con.conname, att1.attnum;
         """
-        return q
-    
+
     def get_check_constraint_sql(self):
         """Return the SQL query for fetching check constraints."""
         return """
