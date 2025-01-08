@@ -278,7 +278,6 @@ class DbModel(object):
             if self.debug:
                 raise
             logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
-            #print 'The relation %s - %s cannot be added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
 
     def checkRelationIndex(self, pkg, table, column):
         """TODO
