@@ -548,11 +548,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                     "columns": []
                 }
             constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
-
         
-        # Fetch foreign key constraints
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
-            (schema_name, table_name, constraint_name, column_name, _, on_update,
+            (schema_name, table_name, constraint_name, column_name, on_update,
             on_delete, related_schema, related_table, related_column,
             deferrable, initially_deferred) = row
 
@@ -943,53 +941,66 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
-        return  """
-        SELECT
-        nsp1.nspname AS schema_name,
-        cls1.relname AS table_name,
-        con.conname AS constraint_name,
-        att1.attname AS column_name,
-        att1.attnum AS ordinal_position,
-        CASE con.confupdtype
-        WHEN 'a' THEN 'NO ACTION'
-        WHEN 'r' THEN 'RESTRICT'
-        WHEN 'c' THEN 'CASCADE'
-        WHEN 'n' THEN 'SET NULL'
-        WHEN 'd' THEN 'SET DEFAULT'
-        END AS on_update,
-        CASE con.confdeltype
-        WHEN 'a' THEN 'NO ACTION'
-        WHEN 'r' THEN 'RESTRICT'
-        WHEN 'c' THEN 'CASCADE'
-        WHEN 'n' THEN 'SET NULL'
-        WHEN 'd' THEN 'SET DEFAULT'
-        END AS on_delete,
-        nsp2.nspname AS related_schema,
-        cls2.relname AS related_table,
-        att2.attname AS related_column,
-        CASE con.condeferrable
-        WHEN TRUE THEN 'YES'
-        ELSE 'NO'
-        END AS deferrable,
-        CASE con.condeferred
-        WHEN TRUE THEN 'YES'
-        ELSE 'NO'
-        END AS initially_deferred
+        q = """
+        SELECT DISTINCT
+            nsp1.nspname AS schema_name,
+            cls1.relname AS table_name,
+            con.conname AS constraint_name,
+            att1.attname AS column_name,  
+            CASE con.confupdtype
+                WHEN 'a' THEN 'NO ACTION'
+                WHEN 'r' THEN 'RESTRICT'
+                WHEN 'c' THEN 'CASCADE'
+                WHEN 'n' THEN 'SET NULL'
+                WHEN 'd' THEN 'SET DEFAULT'
+            END AS on_update,
+            CASE con.confdeltype
+                WHEN 'a' THEN 'NO ACTION'
+                WHEN 'r' THEN 'RESTRICT'
+                WHEN 'c' THEN 'CASCADE'
+                WHEN 'n' THEN 'SET NULL'
+                WHEN 'd' THEN 'SET DEFAULT'
+            END AS on_delete,
+            nsp2.nspname AS related_schema,
+            cls2.relname AS related_table,
+            att2.attname AS related_column,
+            CASE con.condeferrable
+                WHEN TRUE THEN 'YES'
+                ELSE 'NO'
+            END AS deferrable,
+            CASE con.condeferred
+                WHEN TRUE THEN 'YES'
+                ELSE 'NO'
+            END AS initially_deferred
         FROM
-        pg_constraint con
-        JOIN pg_class cls1 ON cls1.oid = con.conrelid
-        JOIN pg_namespace nsp1 ON nsp1.oid = cls1.relnamespace
-        JOIN pg_attribute att1 ON att1.attnum = ANY(con.conkey) AND att1.attrelid = con.conrelid
-        JOIN pg_class cls2 ON cls2.oid = con.confrelid
-        JOIN pg_namespace nsp2 ON nsp2.oid = cls2.relnamespace
-        JOIN pg_attribute att2 ON att2.attnum = ANY(con.confkey) AND att2.attrelid = con.confrelid
+            pg_constraint con
+        JOIN
+            pg_class cls1 ON cls1.oid = con.conrelid
+        JOIN
+            pg_namespace nsp1 ON nsp1.oid = cls1.relnamespace
+        JOIN
+            LATERAL UNNEST(con.conkey) WITH ORDINALITY AS fk(colnum, ord)
+            ON TRUE
+        JOIN
+            pg_attribute att1 ON att1.attnum = fk.colnum AND att1.attrelid = con.conrelid
+        JOIN
+            pg_class cls2 ON cls2.oid = con.confrelid
+        JOIN
+            pg_namespace nsp2 ON nsp2.oid = cls2.relnamespace
+        JOIN
+            LATERAL UNNEST(con.confkey) WITH ORDINALITY AS ref(colnum, ord)
+            ON fk.ord = ref.ord
+        JOIN
+            pg_attribute att2 ON att2.attnum = ref.colnum AND att2.attrelid = con.confrelid
         WHERE
-        con.contype = 'f' -- Only foreign keys
-        AND nsp1.nspname = ANY(%s)
+            con.contype = 'f' -- Only foreign keys
+            AND nsp1.nspname = ANY(%s)
         ORDER BY
-        con.conname, att1.attnum;
-        """
+            con.conname;"""
 
+        return q
+
+    
     def get_check_constraint_sql(self):
         """Return the SQL query for fetching check constraints."""
         return """
