@@ -2,7 +2,6 @@ import re
 import hashlib
 
 import json
-import time
 import dictdiffer
 from collections import defaultdict
 
