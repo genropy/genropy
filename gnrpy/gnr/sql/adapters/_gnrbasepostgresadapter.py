@@ -78,6 +78,12 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         return '"%s"' %name
 
     
+    def setLocale(self, locale):
+        """
+        There is no direct way to set a locale in a connection, only
+        in DDL statements
+        """
+        pass
     
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
