@@ -273,7 +273,7 @@ class AttachManager(BaseComponent):
             height=height or '300px',
             closable_label=title,
             closable=closable or 'close', 
-            closable__class='drawer_allegati'
+            closable__class='attachment_drawer'
         )
         th = bottom.attachmentViewer(preview=False,margin='5px',margin_top=0,title=title,**kwargs)
         th.view.grid_envelope.attributes['border'] = '1px solid silver'
