@@ -527,7 +527,8 @@ class AttachManager(BaseComponent):
                 _store='^.store',
                 _flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
-        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
+        frame.form.store.handler("load", virtual_columns='$full_external_url')
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,15,copyUrl,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
                                         hidden='^.form.viewerMode?=#v!="image"',
                                         intermediateChanges=True, width='15em',default_value=1)
@@ -535,6 +536,9 @@ class AttachManager(BaseComponent):
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
         fb.textbox(value='^.description',lbl='!!Description')
+        bar.copyUrl.lightbutton(_class='iconbox copy', hidden='^.form.controller.is_newrecord',tip='!!Copy attachment url',
+                    action="""console.log(full_external_url);genro.textToClipboard(full_external_url,_T('!![en]Copy and paste attachment url'));""",
+                    full_external_url='^.form.record.full_external_url')
         frame.parametersForm = fb
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
