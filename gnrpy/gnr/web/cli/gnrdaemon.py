@@ -35,10 +35,6 @@ def getOptions():
     parser.add_argument('--polltimeout',type=float,
                     help="Use multiplexed server poll timeout")
 
-    parser.add_argument('-d', '--debug',
-                    action='store_false',
-                    help="Debug mode")
-
     parser.add_argument('-c', '--compression',
                     action='store_false',
                     help="Enable compression")
