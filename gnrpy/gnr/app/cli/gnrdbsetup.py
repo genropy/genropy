@@ -160,11 +160,6 @@ def main():
                         action='store_true',
                         help="Remove relations")
     
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        action='store_true',
-                        help="Debug mode")
-    
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance identified by supplied name")

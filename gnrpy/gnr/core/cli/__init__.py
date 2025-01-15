@@ -1,6 +1,7 @@
 import argparse
 import platform
 ESC = '\033['
+
 from gnr import VERSION
 
 class GnrCliArgParse(argparse.ArgumentParser):
@@ -11,6 +12,13 @@ class GnrCliArgParse(argparse.ArgumentParser):
         self.add_argument("--timeit", action="store_true",
                           dest="timeit",
                           help="Report command execution time")
+        self.add_argument("--loglevel", 
+                          dest="loglevel",
+                          help="Startup log level")
+        self.add_argument("--debug",
+                          action="store_true",
+                          dest="debug",
+                          help="Enable DEBUG log level")
         
         if not self.prog.startswith("gnr "):
             # FIXME: this is not efficient
@@ -28,3 +36,8 @@ class GnrCliArgParse(argparse.ArgumentParser):
                 print(deprecation_warning_mesg)
 
         
+    def parse_args(self, *args, **kw):
+        options =  super().parse_args(*args, **kw)
+        import gnr
+        gnr.GLOBAL_DEBUG = options.debug
+        return options
