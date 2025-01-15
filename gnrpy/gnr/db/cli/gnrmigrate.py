@@ -13,7 +13,7 @@ from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql import AdapterCapabilities
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.core.gnrconfig import getGnrConfig
 
 
 enable_colored_logging()

@@ -33,7 +33,7 @@ from werkzeug.wrappers import Response, Request
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrlog import enable_colored_logging, log_styles
-from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
+from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract

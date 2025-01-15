@@ -22,7 +22,7 @@ from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceExc
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
 from gnr.core.gnrdecorator import public_method, deprecated
-from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
+from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean

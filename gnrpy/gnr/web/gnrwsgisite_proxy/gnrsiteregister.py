@@ -32,7 +32,7 @@ import logging
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
-from gnr.app.gnrconfig import gnrConfigPath
+from gnr.core.gnrconfig import gnrConfigPath
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False

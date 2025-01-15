@@ -6,6 +6,10 @@ from enum import Enum, auto
 from collections import defaultdict
 
 from gnr.core.gnrlang import importModule
+from gnr.core.gnrlog import root_logger
+import logging
+
+logger = logging.getLogger("gnr.sql")
 
 class AdapterCapabilities(Enum):
     MIGRATIONS = auto()

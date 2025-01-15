@@ -16,7 +16,7 @@ from werkzeug.debug.tbtools import get_current_traceback, render_console_html
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
 from gnr.core.gnrlog import enable_colored_logging, log_styles
-from gnr.app.gnrconfig import getGnrConfig, gnrConfigPath
+from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"

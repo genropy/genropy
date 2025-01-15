@@ -24,11 +24,10 @@
 import os
 import urllib.parse
 
-from gnr.app.gnrconfig import gnrConfigPath
+from gnr.core.gnrconfig import gnrConfigPath,getRmsOptions,setRmsOptions
 from gnr.core.gnrbag import Bag,NetBag
 from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import PathResolver
-from gnr.app.gnrconfig import getRmsOptions,setRmsOptions
 from gnr.lib.services import BaseServiceType
 
 class ServiceType(BaseServiceType):

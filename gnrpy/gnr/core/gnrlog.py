@@ -1,6 +1,7 @@
 import sys, logging
 import platform
 ESC = '\033['
+from gnr.core.loghandlers.postgresqlhandler import PostgresLogHandler
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))
 
@@ -50,7 +51,18 @@ class ColoredFormatter(logging.Formatter):
 FORMAT = "[$BOLD%(name)-20s$RESET][%(levelname)-18s]  %(message)s ($BOLD%(filename)s$RESET:%(lineno)d)"
 COLOR_FORMAT = formatter_message(FORMAT, True)
 
-root_logger = None
+logging.basicConfig(level=logging.INFO)
+root_logger = logging.getLogger()
+root_logger.addHandler(logging.StreamHandler(sys.stdout))
+db_settings = dict(
+    dbname="log",
+    user="postgres",
+    password="",
+    host="localhost"
+    )
+root_logger.addHandler(PostgresLogHandler(db_settings))
+root_logger.info("Starting up")
+
 
 def enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
     """Enable colored logging

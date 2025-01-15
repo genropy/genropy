@@ -49,9 +49,10 @@ from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
+from gnr.core.gnrconfig import getGnrConfig
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.app.gnrlocalization import AppLocalizer
-from gnr.app.gnrconfig import getGnrConfig
+
 log = logging.getLogger(__name__)
 
 class GnrRestrictedAccessException(GnrException):
