@@ -1,3 +1,4 @@
+import threading
 import logging
 import queue
 
@@ -6,7 +7,8 @@ class GnrBaseLoggingHandler(logging.Handler):
     Base class for thread-based logging handler, don't use this handler directly.
     """
 
-    def __init__(self, **settings):
+    def __init__(self, level=logging.NOTSET, **settings):
+        logging.Handler.__init__(self)
         queue_size = settings.get("queue_size", 1000)
         self.settings = settings
         self.queue = queue.Queue(queue_size)

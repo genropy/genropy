@@ -58,13 +58,12 @@ class GnrPostgresqlLoggingHandler(GnrBaseLoggingHandler):
 
     def initialize(self):
         self.table_name = self.settings.get("table_name")
-        self.db_config = self.settings.get("db_config")
 
         # Initialize PostgreSQL connection pool
         self.connection_pool = psycopg2.pool.SimpleConnectionPool(
             minconn=1,
             maxconn=5,
-            **db_config
+            **self.settings
         )
 
     def _process_record(self, log_entry):
