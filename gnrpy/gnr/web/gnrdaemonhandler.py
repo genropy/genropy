@@ -3,7 +3,6 @@
 #
 
 from datetime import datetime
-import logging
 from multiprocessing import Process, log_to_stderr, get_logger, Manager
 import atexit
 import os

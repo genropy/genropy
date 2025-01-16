@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import pickle
 import os
 import shutil
@@ -31,6 +30,7 @@ import locale
 from time import time
 from multiprocessing.pool import ThreadPool
 
+from gnr.sql import logger
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrlang import GnrObject
@@ -43,7 +43,6 @@ from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
 
-gnrlogger = logging.getLogger(__name__)
 
 def in_triggerstack(func):
     """TODO"""
@@ -550,7 +549,7 @@ class GnrSqlDb(GnrObject):
                     self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable,delta_time=time()-t_0)
             
             except Exception as e:
-                gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
+                logger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
                 self.rollback()
                 raise
 

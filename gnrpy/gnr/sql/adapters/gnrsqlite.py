@@ -25,18 +25,16 @@ import os, re, time
 import datetime
 import pprint
 import decimal
-import logging
 
 import sqlite3 as pysqlite
 
+from gnr.sql import logger
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
-
-logger = logging.getLogger(__name__)
 
 class GnrSqliteConnection(pysqlite.Connection):
     pass
@@ -352,7 +350,6 @@ class GnrSqliteCursor(pysqlite.Cursor):
     index = property(_get_index)
 
     def execute(self, sql, params=None, *args, **kwargs):
-        global logger
         if params:
             if isinstance(params, str):
                 params = str(params)

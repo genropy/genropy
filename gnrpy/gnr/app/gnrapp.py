@@ -22,7 +22,6 @@
 
 import tempfile
 import atexit
-import logging
 import shutil
 import locale
 import sys
@@ -45,6 +44,7 @@ from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
+from gnr.app import logger
 
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
@@ -53,7 +53,6 @@ from gnr.core.gnrconfig import getGnrConfig
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.app.gnrlocalization import AppLocalizer
 
-log = logging.getLogger(__name__)
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -405,7 +404,7 @@ class GnrPackage(object):
         try:
             self.main_module = gnrImport(os.path.join(self.packageFolder, 'main.py'),avoidDup=True)
         except Exception as e:
-            log.exception(e)
+            logger.exception(e)
             raise GnrImportException(
                     "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
         self.pkgMixin = GnrMixinObj()
@@ -762,7 +761,7 @@ class GnrApp(object):
             dbattrs['dbname'] = os.path.join(tempdir, 'testing')
             # We have to use a directory, because genro sqlite adapter will creare a sqlite file for each package
                 
-            logging.info('Testing database dir: %s', tempdir)
+            logger.info('Testing database dir: %s', tempdir)
             
             @atexit.register
             def removeTemporaryDirectory():
@@ -813,7 +812,7 @@ class GnrApp(object):
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
-        log.info("Checking python dependencies")
+        logger.info("Checking python dependencies")
         instance_deps = defaultdict(list)
         for a, p in self.packages.items():
             requirements_file = os.path.join(p.packageFolder, "requirements.txt")
@@ -828,11 +827,11 @@ class GnrApp(object):
         if not 'checkdepcli' in self.kwargs:
             missing, wrong = self.check_package_missing_dependencies()
             if missing:
-                log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
+                logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                log.error(f"ERROR: wrong dependencies:")
+                logger.error(f"ERROR: wrong dependencies:")
                 for requested, installed in wrong:
-                    log.error(f"{requested} is requested, but {installed} found")
+                    logger.error(f"{requested} is requested, but {installed} found")
             
     def check_package_missing_dependencies(self):
         missing = []
@@ -849,7 +848,7 @@ class GnrApp(object):
                 except importlib.metadata.PackageNotFoundError:
                     missing.append(name)
                 except Exception as e:
-                    log.error(f"ERROR on {name}: {e}")
+                    logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
     def check_package_install_missing(self):
@@ -1406,7 +1405,7 @@ class GnrApp(object):
             externaldb.importModelFromDb()
             externaldb.model.build()
             setattr(self,'legacy_db_%s' %name,externaldb)
-            log.info('got externaldb',name)
+            logger.info('got externaldb',name)
         return externaldb
 
     def importFromLegacyDb(self,packages=None,legacy_db=None,thermo_wrapper=None,thermo_wrapper_kwargs=None, intermediate_commits=False):
@@ -1435,7 +1434,7 @@ class GnrApp(object):
         if not legacy_db:
             return
         if destbl.query().count():
-            log.info('do not import again',tbl)
+            logger.info('do not import again',tbl)
             return
         
    
@@ -1457,7 +1456,7 @@ class GnrApp(object):
         try:
             oldtbl = sourcedb.table(table_legacy_name)
         except Exception:
-            log.error('missing table in legacy',table_legacy_name)
+            logger.error('missing table in legacy',table_legacy_name)
         if not oldtbl:
             return
         q = oldtbl.query(columns=columns,addPkeyColumn=False,bagFields=True)
@@ -1480,7 +1479,7 @@ class GnrApp(object):
             if rows:
                 destbl.insertMany(rows)
         sourcedb.closeConnection()
-        log.info('imported',tbl)
+        logger.info('imported',tbl)
 
     def getAuxInstance(self, name=None,check=False):
         """TODO

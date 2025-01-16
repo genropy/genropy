@@ -29,7 +29,6 @@ import os
 import re
 import time
 from datetime import datetime
-import logging
 
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
@@ -43,8 +42,6 @@ from gnr.web.gnrwebstruct import cellFromField
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 from gnr.sql.gnrsql import GnrSqlException
 
-
-gnrlogger = logging.getLogger(__name__)
 
 
 ESCAPE_SPECIAL = re.compile(r'[\[\\\^\$\.\|\?\*\+\(\)\]\{\}]')

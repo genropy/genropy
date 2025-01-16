@@ -29,9 +29,6 @@ import os
 import sys
 import traceback
 import urllib.request, urllib.parse, urllib.error
-import logging
-
-gnrlogger = logging.getLogger(__name__)
 
 try:
     import json
@@ -43,8 +40,9 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson
 from gnr.core import gnrdate
-
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
+from gnr.web import logger
+
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1

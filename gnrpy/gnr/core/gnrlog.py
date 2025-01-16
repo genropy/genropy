@@ -89,7 +89,9 @@ def init_logging_system(conf_bag=None):
     # load loggers config
     loggers = defaultdict(list)
     for logger in logging_conf.get("loggers", []):
-        loggers[logger.label].append(logger.attr)
+        if logger.strip():
+            print("LOGGER", logger, type(logger))
+            loggers[logger.label].append(logger.attr)
 
     for logger, conf_handlers in loggers.items():
         if logger == 'root':
@@ -142,17 +144,11 @@ FORMAT = "[$BOLD%(name)-20s$RESET][%(levelname)-18s]  %(message)s ($BOLD%(filena
 COLOR_FORMAT = formatter_message(FORMAT, True)
 
 
-# db_settings = dict(
-#     dbname="log",
-#     user="postgres",
-#     password="",
-#     host="localhost"
-#     )
-#root_logger.addHandler(PostgresLogHandler(db_settings))
 
+def enable_colored_logging(*args, **kw):
+    pass
 
-
-def enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
+def _enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
     """Enable colored logging
     
     :param stream: TODO
