@@ -49,8 +49,6 @@ def getOptions():
     parser.add_argument('-l', '--size_limit', type=int,
                     help="Size limit")
 
-    parser.add_argument('-L', '--loglevel', type=int,
-                    help="Log level")
     arguments= parser.parse_args()
 
     return arguments.__dict__
