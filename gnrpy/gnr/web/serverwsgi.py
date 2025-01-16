@@ -199,10 +199,6 @@ class Server(object):
                             dest='reload',
                             action='store_false',
                             help="Do not use auto-restart file monitor")
-        parser.add_argument('--debug',
-                            dest='debug',
-                            action='store_true',
-                            help="Use weberror debugger")
         parser.add_argument('--nodebug',
                             dest='debug',
                             action='store_false',

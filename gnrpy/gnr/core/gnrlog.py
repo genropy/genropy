@@ -69,17 +69,22 @@ def init_logging_system(conf_bag=None):
     config = getGnrConfig()
     logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
     if not logging_conf:
-        # use a classic default configuration, log to stdout
+        # no configuration at all, use a classic default configuration
+        # with logging on stdout
         root_logger.addHandler(logging.StreamHandler(sys.stdout))
         logging.basicConfig(level=logging.WARNING)
-
+        return root_logger
+    
     # load handler config
     handlers = dict()
     for handler in logging_conf.get("handlers", []):
         if "impl" not in handler.attr:
             raise Exception(f"Logging handler {handler.label} is missing impl detail")
         handler_impl = handler.attr.pop("impl")
-        handlers[handler.label] = (_load_handler(handler_impl), handler.attr)
+        try:
+            handlers[handler.label] = (_load_handler(handler_impl), handler.attr)
+        except ValueError as e:
+            print(f"Logging handler '{handler.label}' with implementation '{handler_impl}' cannot be loaded", file=sys.stderr)
     
     # load loggers config
     loggers = defaultdict(list)
