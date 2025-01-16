@@ -5,6 +5,8 @@ from psycopg2 import pool
 
 from gnr.core.loghandlers.basehandler import GnrBaseLoggingHandler
 
+__all__ = ['GnrPostgresqlLoggingHandler']
+
 class GnrPostgresqlLoggingHandler(GnrBaseLoggingHandler):
     _initial_sql = """CREATE TABLE IF NOT EXISTS log(
     Created text,

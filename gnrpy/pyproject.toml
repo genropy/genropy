@@ -134,6 +134,7 @@ packages = [
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',
+    	    'gnr.core.loghandlers',
 	    'gnr.db',
 	    'gnr.db.cli',
 	    'gnr.dev',
