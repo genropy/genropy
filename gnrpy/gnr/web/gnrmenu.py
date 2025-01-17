@@ -310,10 +310,10 @@ class MenuResolver(BagResolver):
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('titleCounter') and attributes.get('table'):
+            if attributes.get('titleCounter') and attributes.get('table') and attributes.get('titleCounter_condition'):
                 self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
                 attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
-                                                                                 where=attributes['titleCounter_condition'])
+                                                                                 where=attributes.get('titleCounter_condition'))
             result.setItem(node.label, value, attributes)
         return result
 
