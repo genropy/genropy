@@ -73,7 +73,7 @@ class AttachManagerViewBase(BaseComponent):
 class AttachManagerView(AttachManagerViewBase):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('full_external_url',hidden=True)
+        #r.fieldcell('full_external_url',hidden=True)
         r.fieldcell('_row_count',counter=True,hidden=True)
         #tbl.column('filepath' ,name_long='!!Filepath')
         r.fieldcell('description',edit=True,width='20em')
@@ -81,7 +81,10 @@ class AttachManagerView(AttachManagerViewBase):
         if hasattr(r.tblobj,'atc_types'):
             r.fieldcell('atc_type',edit=True,name='Type')
         if hasattr(r.tblobj,'atc_download'):
-            r.fieldcell('atc_download',edit=True,name='DL')
+            r.fieldcell('atc_download',edit=True,name='Open')
+        r.fieldcell('full_external_url', name='DL', width='2.5em',
+               template='<a href="$full_external_url" target="_blank"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
+        
         r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
                     format_buttonclass='copy iconbox',
                     format_isbutton=True,
