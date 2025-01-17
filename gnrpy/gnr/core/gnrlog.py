@@ -71,7 +71,7 @@ def init_logging_system(conf_bag=None):
     if not logging_conf:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
-        root_logger.addHandler(logging.StreamHandler(sys.stdout))
+        #root_logger.addHandler(logging.StreamHandler(sys.stdout))
         logging.basicConfig(level=logging.DEBUG)#WARNING)
         return root_logger
     
@@ -89,8 +89,7 @@ def init_logging_system(conf_bag=None):
     # load loggers config
     loggers = defaultdict(list)
     for logger in logging_conf.get("loggers", []):
-        if logger.strip():
-            print("LOGGER", logger, type(logger))
+        if logger.label.strip():
             loggers[logger.label].append(logger.attr)
 
     for logger, conf_handlers in loggers.items():
@@ -109,6 +108,17 @@ def init_logging_system(conf_bag=None):
     # configuration completed
     root_logger.info("Logging infrastrucure loaded")
     return root_logger
+
+def set_global_level(level):
+    global root_logger
+    root_logger.setLevel(level)
+    for k, v in root_logger.manager.loggerDict.items():
+        try:
+            v.setLevel(level)
+        except AttributeError:
+            # ignore PlaceHolder loggers            
+            pass
+
 
 
 def formatter_message(message, use_color=True):

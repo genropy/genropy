@@ -34,6 +34,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrdate import decodeDatePeriod
+from gnr.sql import logger
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
@@ -96,8 +97,7 @@ class SqlDbAdapter(object):
         
         if len(missing):
             missing_desc = ", ".join(missing)
-            print(f"WARNING: DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors.",
-                  file=sys.stderr)
+            logger.warning(f"DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors."),
             
     def adaptSqlName(self,name):
         """
