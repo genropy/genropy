@@ -304,13 +304,14 @@ class MenuResolver(BagResolver):
             warning = self.checkLegacyNode(node)
             if warning:
                 self._page.log(f'AppMenu Changed tag in node {self.path}.{node.label}: {warning}')
-            handler = getattr(self,f'nodeType_{node.attr["tag"]}')
+            menuTag = node.attr["tag"]
+            handler = getattr(self,f'nodeType_{menuTag}')
             try:
                 value,attributes = handler(node)
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('titleCounter') and attributes.get('table') and attributes.get('titleCounter_condition'):
+            if attributes.get('titleCounter') and menuTag!='tableBranch':
                 self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
                 attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
                                                                                  where=attributes.get('titleCounter_condition'))
@@ -527,6 +528,7 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
+        kwargs.pop('titleCounter',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
