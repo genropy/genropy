@@ -28,11 +28,12 @@ import re
 import sys
 from datetime import datetime
 from collections import defaultdict
-import logging
+
 from gnr.core.gnrbag import Bag,BagResolver
 from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrconfig import gnrConfigPath
+from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
@@ -77,11 +78,11 @@ def remotebag_wrapper(func):
 
 class BaseRemoteObject(object):
     def onSizeExceeded(self, msg_size, method, vargs, kwargs):
-        logging.info('[%i-%i-%i %i:%i:%i]-----%s-----'%((time.localtime()[:6])+(self.__class__.__name__.upper(),)))
-        logging.info('Message size:', msg_size)
-        logging.info('Method :', method)
-        logging.info('vargs, kwargs', vargs, kwargs)
-        logging.info('**********')
+        logger.info('[%i-%i-%i %i:%i:%i]-----%s-----'%((time.localtime()[:6])+(self.__class__.__name__.upper(),)))
+        logger.info('Message size:', msg_size)
+        logger.info('Method :', method)
+        logger.info('vargs, kwargs', vargs, kwargs)
+        logger.info('**********')
 
 #------------------------------- REMOTEBAG server SIDE ---------------------------
 class RemoteStoreBagHandler(BaseRemoteObject):
@@ -637,7 +638,7 @@ class SiteRegister(BaseRemoteObject):
                 proxy.on_reloader_restart(sitename=self.sitename)
 
     def on_site_stop(self):
-        print('site stopped')
+        logger.info('site stopped')
 
     def checkCachedTables(self,table):
         for register in (self.page_register,self.connection_register,self.user_register):
@@ -718,7 +719,7 @@ class SiteRegister(BaseRemoteObject):
 
     def pages(self, connection_id=None,user=None,index_name=None, filters=None,include_data=None):
         if index_name:
-            logging.info('call subscribed_table_pages instead of pages')
+            logger.info('call subscribed_table_pages instead of pages')
             return self.subscribed_table_pages(index_name)
         return self.page_register.pages(connection_id=connection_id,user=user,filters=filters,include_data=include_data)
 
@@ -1015,12 +1016,12 @@ class SiteRegisterClient(object):
                 self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
                 self.siteregisterserver_uri = params.get('main_uri')
                 self.siteregister_uri = params.get('register_uri')
-                logging.info(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
+                logger.info(f"URIS: \nmain - {self.siteregisterserver_uri}\n{self.siteregister_uri}")
                 sitedaemon_bag=None
                 self.initSiteRegister()
                 return
             else:
-                logging.info('no sitedaemon process')
+                logger.info('no sitedaemon process')
         if 'sockets' in daemonconfig:
             if daemonconfig['sockets'].lower() in ('t','true','y') :
                 daemonconfig['sockets'] = os.path.join(gnrConfigPath(),'sockets')
@@ -1046,7 +1047,7 @@ class SiteRegisterClient(object):
             while not self.checkSiteRegisterServerUri(daemonProxy):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
                     raise Exception('GnrDaemon timout')
-        logging.info('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
+        logger.info('creating proxy',self.siteregister_uri,self.siteregisterserver_uri)
         self.initSiteRegister()
     
     def initSiteRegister(self):
@@ -1055,7 +1056,6 @@ class SiteRegisterClient(object):
             self.siteregister._pyroHmacKey = self.hmac_key
         self.remotebag_uri =self.siteregister_uri.replace(':SiteRegister@',':RemoteData@')
         self.siteregister.setConfiguration(cleanup = self.site.custom_config.getAttr('cleanup'))
-        #print('fine init')
 
 
     def checkSiteRegisterServerUri(self,daemonProxy):
@@ -1177,19 +1177,19 @@ class SiteRegisterClient(object):
 ############################## TO DO #######################################
 
     def _debug(self,mode,name,*args,**kwargs):
-        print('external_%s' %mode,name,'ARGS',args,'KWARGS',kwargs)
+        logger.debug('external_%s' %mode,name,'ARGS',args,'KWARGS',kwargs)
 
     def dump(self):
         """TODO"""
         self.siteregister.dump()
-        print('DUMP REGISTER %s' %self.site.site_name)
+        logger.debug('DUMP REGISTER %s' %self.site.site_name)
 
     def load(self):
         result = self.siteregister.load()
         if result:
-            print('SITEREGISTER %s LOADED' %self.site.site_name)
+            logger.info('SITEREGISTER %s LOADED' % self.site.site_name)
         else:
-            print('UNABLE TO LOAD REGISTER %s' %self.site.site_name)
+            logger.info('UNABLE TO LOAD REGISTER %s' % self.site.site_name)
 
     def __getattr__(self,name):
         h = getattr(self.siteregister,name)
@@ -1219,11 +1219,11 @@ class GnrSiteRegisterServer(object):
         self.daemon.requestLoop(self.running)
 
     def stop(self,saveStatus=False):
-        print('stopping',saveStatus)
+        logger.info('stopping %s', saveStatus)
         if saveStatus:
-            print('SAVING STATUS',self.storage_path)
+            logger.info('SAVING STATUS',self.storage_path)
             self.siteregister.dump()
-            print('SAVED STATUS STATUS')
+            logger.info('SAVED STATUS STATUS')
         self._running = False
 
     def start(self,port=None,host=None,socket=None,hmac_key=None,compression=None,multiplex=None,
@@ -1253,9 +1253,9 @@ class GnrSiteRegisterServer(object):
         self.siteregister = SiteRegister(self,sitename=self.sitename,storage_path=self.storage_path)
         autorestore = autorestore and os.path.exists(self.storage_path)
         self.main_uri = self.daemon.register(self,'SiteRegisterServer')
-        print('autorestore',autorestore,os.path.exists(self.storage_path))
+        logger.info('autorestore %s',autorestore,os.path.exists(self.storage_path))
         self.register_uri = self.daemon.register(self.siteregister,'SiteRegister')
-        print("uri=",self.main_uri)
+        logger.info("uri=%s",self.main_uri)
         if self.gnr_daemon_uri:
             with Pyro4.Proxy(self.gnr_daemon_uri) as proxy:
                 if not OLD_HMAC_MODE:
@@ -1286,6 +1286,7 @@ class ServerStore(object):
             time.sleep(self.retry_delay)
             k += 1
             if k>self.max_retry:
+                # FIXME: use logger
                 print((
                     "-- [%i-%i-%i %i:%i:%i] -- UNABLE TO LOCK STORE : %s  ITEM %s " % (time.localtime()[:6]+(self.register_name,self.register_item_id))), file=sys.stderr)
 
@@ -1295,7 +1296,6 @@ class ServerStore(object):
 
     def __exit__(self, type, value, tb):
         self.siteregister.unlock_item(self.register_item_id,reason=self.thread_id,register_name=self.register_name)
-        #print 'locked',self.register_name,self.register_item_id,'time to lock',self.success_locking_time-self.start_locking_time,'locking time',time.time()-self.success_locking_time
 
     def reset_datachanges(self):
         return self.siteregister.reset_datachanges(self.register_item_id,register_name=self.register_name)

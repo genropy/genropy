@@ -5,25 +5,26 @@ import os
 import sys
 import re
 import atexit
-import logging
+
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web import logger
+from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
+from gnr.app.gnrdeploy import PathResolver
+
 from werkzeug.serving import run_simple
 from werkzeug.debug.tbtools import get_current_traceback, render_console_html
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
-from gnr.core.gnrlog import enable_colored_logging, log_styles
-from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
-from gnr.app.gnrdeploy import PathResolver
+
+
 
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
 
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
 
 wsgi_options = dict(
         port=8080,
@@ -86,8 +87,7 @@ class GnrDebuggedApplication(DebuggedApplication):
             request = Request(environ)
             debug_url = '%sconsole?error=%i'%(request.host_url, traceback.id)
 
-            print('{color_blue}Error occurred, debug on: {style_underlined}{debug_url}{nostyle}'.format(
-                                                                    debug_url=debug_url, **log_styles()))
+            logger.error(f"Error occurred, debug on {debug_url}")
 
             try:
                 start_response('500 INTERNAL SERVER ERROR', [
@@ -152,18 +152,8 @@ class Server(object):
     This command serves a genropy web application.
     """
 
-    LOGGING_LEVELS = {'notset': logging.NOTSET,
-                      'debug': logging.DEBUG,
-                      'info': logging.INFO,
-                      'warning': logging.WARNING,
-                      'error': logging.ERROR,
-                      'critical': logging.CRITICAL}
 
     parser = GnrCliArgParse(description=summary)
-    parser.add_argument('-L', '--log-level', dest="log_level", metavar="LOG_LEVEL",
-                      help="Logging level",
-                      choices=list(LOGGING_LEVELS.keys()),
-                      default="warning")
     parser.add_argument('--log-file',
                       dest='log_file',
                       metavar='LOG_FILE',
@@ -176,10 +166,6 @@ class Server(object):
                       dest='reload',
                       action='store_false',
                       help="Do not use auto-restart file monitor")
-    parser.add_argument('--nodebug',
-                      dest='debug',
-                      action='store_false',
-                      help="Don't use weberror debugger")
     parser.add_argument('--profile',
                       dest='profile',
                       action='store_true',
@@ -279,7 +265,6 @@ class Server(object):
                 sys.argv.insert(0, cmdline)
                 
         self.options = self.parser.parse_args()
-        enable_colored_logging(level=self.LOGGING_LEVELS[self.options.log_level])
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
         else:
@@ -407,8 +392,7 @@ class Server(object):
             site_options= dict(_config=self.siteconfig,_gnrconfig=self.gnr_config,
                 counter=getattr(self.options, 'counter', None),
                 noclean=self.options.noclean, options=self.options)
-            print('[{now}]\t{color_blue}Starting Tornado server - listening on {style_underlined}http://{host}:{port}{nostyle}'.format(
-                                host=host, port=port, now=now, **log_styles()))
+            logger.info(f"Starting Tornado server - listening on {host}:{port}")
             server=GnrAsyncServer(port=port,instance=site_name,
                 web=True, autoreload=self.options.reload, site_options=site_options)
             server.start()
@@ -436,8 +420,8 @@ class Server(object):
                 ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                 extra_info.append(f'SSL mode: On {ssl_context}')
                 localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
-            print('[{now}]\t{color_blue}Starting server - listening on {style_underlined}{localhost}:{port}{nostyle}\t{color_yellow}{extra_info}{nostyle}'.format( 
-                            localhost=localhost, port=port, now=now, extra_info=', '.join(extra_info), **log_styles()))
+            logger.info(f"Starting server - listening on {localhost}:{port}\t{extra_info}")
+            
             run_simple(host, port, gnrServer, use_reloader=self.reloader, threaded=True,
                 reloader_type='stat', ssl_context=ssl_context)
 

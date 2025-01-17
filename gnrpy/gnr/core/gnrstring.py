@@ -25,13 +25,10 @@ import re
 import pickle
 import zipfile
 import io
-import logging
 import datetime
 import json
-
 from decimal import Decimal
 
-logger = logging.getLogger(__name__)
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile(r'\W+')
 NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]

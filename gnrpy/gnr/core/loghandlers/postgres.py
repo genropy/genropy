@@ -1,6 +1,5 @@
 import os
 
-import psycopg2
 from psycopg2 import pool
 
 from gnr.core.loghandlers.basehandler import GnrBaseLoggingHandler
@@ -60,7 +59,7 @@ class GnrPostgresqlLoggingHandler(GnrBaseLoggingHandler):
         self.table_name = self.settings.get("table_name")
 
         # Initialize PostgreSQL connection pool
-        self.connection_pool = psycopg2.pool.SimpleConnectionPool(
+        self.connection_pool = pool.SimpleConnectionPool(
             minconn=1,
             maxconn=5,
             **self.settings

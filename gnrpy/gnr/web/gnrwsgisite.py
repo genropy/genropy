@@ -1,7 +1,6 @@
 import os
 import re
 import io
-import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
@@ -17,23 +16,21 @@ from werkzeug.wrappers import Request, Response
 from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
 
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
 from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
-
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
-
-from gnr.web.gnrwebreqresp import GnrWebRequest
+from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
-from gnr.core.gnrcrypto import AuthTokenGenerator
-
+from gnr.web import logger
+from gnr.web.gnrwebapp import GnrWsgiWebApp
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
@@ -51,7 +48,6 @@ OP_TO_LOG = {'x': 'y'}
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
-log = logging.getLogger(__name__)
 warnings.simplefilter("default")
 global GNRSITE
 
@@ -1006,8 +1002,8 @@ class GnrWsgiSite(object):
             except WSGIHTTPException as exc:
                 return exc(environ, start_response)
             except Exception as exc:
-                log.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
-                log.exception(str(exc))
+                logger.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
+                logger.exception(str(exc))
                 raise
 
             if not (page and page._call_handler):
@@ -1282,7 +1278,7 @@ class GnrWsgiSite(object):
                     profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
-                log.error(f"Sentry support has been disabled due to configuration errors: {e}")
+                logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
         return wsgiapp
 
     def build_gnrapp(self, options=None):

@@ -22,19 +22,17 @@
 
 import functools
 import re
-import logging
 import datetime
 import calendar
 import copy
 import bisect
+from dateutil import rrule
+
+from babel import dates
 import pytz
 
 from gnr.core import gnrlocale
 from gnr.core.gnrstring import splitAndStrip, anyWordIn, wordSplit, toText
-from dateutil import rrule
-from babel import dates
-
-logger = logging.getLogger(__name__)
 
 def cmp(x, y):
         return (x > y) - (x < y)

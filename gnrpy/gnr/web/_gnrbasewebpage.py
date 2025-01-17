@@ -41,8 +41,6 @@ from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson
 from gnr.core import gnrdate
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
-from gnr.web import logger
-
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1

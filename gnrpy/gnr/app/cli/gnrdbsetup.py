@@ -6,12 +6,9 @@ import glob
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
-
-enable_colored_logging()
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)

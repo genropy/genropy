@@ -1,4 +1,3 @@
-import logging
 from gnr.core import gnrlog
 
 logger = gnrlog.init_logging_system()

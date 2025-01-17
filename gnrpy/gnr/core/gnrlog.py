@@ -72,7 +72,7 @@ def init_logging_system(conf_bag=None):
         # no configuration at all, use a classic default configuration
         # with logging on stdout
         root_logger.addHandler(logging.StreamHandler(sys.stdout))
-        logging.basicConfig(level=logging.WARNING)
+        logging.basicConfig(level=logging.DEBUG)#WARNING)
         return root_logger
     
     # load handler config

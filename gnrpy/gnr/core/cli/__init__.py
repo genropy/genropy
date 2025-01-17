@@ -1,3 +1,4 @@
+import logging
 import argparse
 import platform
 ESC = '\033['
@@ -12,8 +13,19 @@ class GnrCliArgParse(argparse.ArgumentParser):
         self.add_argument("--timeit", action="store_true",
                           dest="timeit",
                           help="Report command execution time")
+
+        LOGGING_LEVELS = {'notset': logging.NOTSET,
+                          'debug': logging.DEBUG,
+                          'info': logging.INFO,
+                          'warning': logging.WARNING,
+                          'error': logging.ERROR,
+                          'critical': logging.CRITICAL}
+
         self.add_argument("--loglevel", 
                           dest="loglevel",
+                          metavar="LOG_LEVEL",
+                          choices=list(LOGGING_LEVELS.keys()),
+                          default="warning",
                           help="Startup log level")
         self.add_argument("--debug",
                           action="store_true",
