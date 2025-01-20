@@ -347,6 +347,8 @@ class SqlQueryCompiler(object):
                 raise  GnrSqlException('Relation with multikey works only with compositeColumns')
             target_sqlcolumns = [target_tbl.sqlnamemapper[tc] for tc in target_columns.split(',')]
             joinerList = list(zip([from_tbl.sqlnamemapper[from_column] for from_column in from_columns.split(',')], target_sqlcolumns))
+        else:
+            target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
         joindict = dict()
         adaptedAlias = self.db.adapter.adaptSqlName(alias)
         adaptedBaseAlias = self.db.adapter.adaptSqlName(basealias)

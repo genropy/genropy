@@ -840,7 +840,17 @@ class PackageMaker(object):
         # will be reminded by its presence that dependencies can be added
         # in this file
         open(os.path.join(self.package_path, 'requirements.txt'), "w").close()
-        
+
+        # create an placeholder README.md file, since it's a policy
+        # that has been established to have a README for each package
+        # refs #83
+        with open(os.path.join(self.package_path, 'README.md'), "w") as readme_fp:
+            head = f"Package '{self.package_name}'"
+            readme_fp.write(head)
+            readme_fp.write("\n")
+            readme_fp.write("="*len(head))
+            
+            
         sqlprefixstring = ''
         if not os.path.exists(self.main_py_path):
             if self.sqlprefix is not None:

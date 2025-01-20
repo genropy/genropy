@@ -798,12 +798,12 @@ class SqlMigrator():
 
         if changed_attribute == 'dtype' or changed_attribute == 'size':
             # Handle changes to data type or size
-            new_sql_type = self.db.adapter.columnSqlType(dtype=newvalue, size=item['attributes'].get('size'))
+            new_sql_type = self.db.adapter.columnSqlType(dtype=item['attributes']['dtype'], size=item['attributes'].get('size'))
             columns_dict[column_name]['command'] = self.db.adapter.struct_alter_column_sql(
                 column_name=column_name,
                 new_sql_type=new_sql_type,
                 schema_name=item['schema_name'],
-                table_name=item['table_name'],
+                table_name=item['table_name']
             )
         elif changed_attribute == 'notnull':
             # Handle changes to the NOT NULL constraint
