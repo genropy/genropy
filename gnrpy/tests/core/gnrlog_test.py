@@ -1,5 +1,4 @@
 import logging
-import sys
 
 from gnr.core import gnrlog as gl
 from gnr.core.gnrbag import Bag

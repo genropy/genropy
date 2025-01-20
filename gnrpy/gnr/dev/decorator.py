@@ -24,7 +24,6 @@ import inspect
 from time import time
 import functools
 
-import gnr
 from gnr.core.gnrlang import thlocal
 from gnr.dev import logger
 

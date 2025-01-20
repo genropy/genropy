@@ -28,7 +28,6 @@
 #
 # This is just a minor modification to the smtplib code by Dragon De Monsyn.
 import smtplib, socket
-from sys import stderr
 from gnr.utils import logger
 
 __version__ = "1.00"

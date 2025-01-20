@@ -5,6 +5,10 @@ from collections import defaultdict
 
 from gnr.core.gnrconfig import getGnrConfig
 
+# other loggers, hardcoded for the moment
+werkzeug_logger = logging.getLogger("werkzeug")
+werkzeug_logger.setLevel(logging.WARNING)
+
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -59,6 +63,7 @@ def init_logging_system(conf_bag=None):
         _load_logging_configuration(logging_conf)
     if conf_bag:
         _load_logging_configuration(conf_bag.get("logging"))
+
 
     # configuration completed
     root_logger.info("Logging infrastrucure loaded")
