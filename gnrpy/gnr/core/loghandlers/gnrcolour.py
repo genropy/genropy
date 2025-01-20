@@ -30,7 +30,7 @@ class ColouredFormatter(logging.Formatter):
         
 
 class GnrColourStreamHandler(logging.StreamHandler):
-    def __init__(self, stream):
+    def __init__(self, stream=None):
         super().__init__(stream)
         if hasattr(self.stream, 'isatty') and self.stream.isatty():
             self.setFormatter(
