@@ -9,6 +9,10 @@ def main():
     p = GnrCliArgParse(
         description=description
     )
+    p.add_argument("-l", "--logger", dest="logger_name",
+                       default="gnr.dev",
+                       help='The logger name to test')
+    
     options = p.parse_args()
 
     levels = [
@@ -19,8 +23,8 @@ def main():
         "exception",
         "critical",
     ]
-
-    from gnr.dev import logger
+    import logging
+    logger = logging.getLogger(options.logger_name)
 
     for l in levels:
         getattr(logger, l)(f"This is a {l} level message")
