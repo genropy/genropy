@@ -51,8 +51,8 @@ def init_logging_system(conf_bag=None):
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
-        handler = logging.StreamHandler(sys.stdout)
         root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
+        root_logger.setLevel(logging.WARNING)
         return root_logger
 
     if logging_conf:

@@ -1,5 +1,6 @@
 import platform
 import logging
+import os.path
 
 class ColouredFormatter(logging.Formatter):
     """
@@ -20,6 +21,10 @@ class ColouredFormatter(logging.Formatter):
         self.use_colour = platform.system() in ['Linux', 'Darwin']
         
     def format(self, record):
+        splitter = f"{os.path.sep}packages{os.path.sep}"
+        if splitter in record.pathname:
+            record.module = record.pathname.split(splitter)[-1]
+
         log_msg = super().format(record)
         if self.use_colour and record.levelno in self.COLORS:
             # Apply color based on the log level
@@ -35,7 +40,7 @@ class GnrColourStreamHandler(logging.StreamHandler):
         if hasattr(self.stream, 'isatty') and self.stream.isatty():
             self.setFormatter(
                 ColouredFormatter(
-                    fmt="%(asctime)s: %(levelname)s: %(name)s - %(message)s",
+                    fmt="%(asctime)s: %(levelname)s: %(name)s.%(module)s - %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S"
                 )
             )
