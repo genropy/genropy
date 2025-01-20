@@ -419,6 +419,20 @@ class SqlDbAdapter(object):
     def struct_get_indexes_sql(self):
         """Returns SQL to retrieve table indexes."""
         raise AdapterMethodNotImplemented()
+
+    def struct_is_empty_column(self, schema_name=None,
+                               table_name=None, column_name=None):
+        """
+        Executes the SQL query to check if a column is empty.
+        """
+        raise AdapterMethodNotImplemented()
+    
+    def struct_is_empty_column_sql(self, schema_name=None,
+                                   table_name=None, column_name=None):
+        """
+        Generates SQL to check if a column is empty (contains no non-NULL values).
+        """
+        raise AdapterMethodNotImplemented()
     
     def struct_get_schema_info(self, schemas=None):
         """
