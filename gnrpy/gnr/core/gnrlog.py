@@ -5,8 +5,6 @@ from collections import defaultdict
 
 from gnr.core.gnrconfig import getGnrConfig
 
-root_logger = None
-
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -21,10 +19,9 @@ def init_logging_system(conf_bag=None):
     eventually override it using a custom conf_bag, if given. This function
     can be invoked also at runtime, to apply custom configurations on the fly.
 
-    Sample from siteconfig configuration:
-    
+    Here is a sample configuration to explain the capabilities:
+
 	<logging>
-	  
 	  <handlers>
 	    <pglocal impl="postgresql" db="log" user="postgres" host="localhost"/>
 	    <pgremote impl="postgresql" db="log" user="postgres" password="mysecret" host="remote.server.com"/>
@@ -47,19 +44,34 @@ def init_logging_system(conf_bag=None):
 	</logging>
     
     """
-    global root_logger
-
     root_logger = logging.getLogger()
     # load the configuration
     config = getGnrConfig()
     logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
-    if not logging_conf:
+    if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
         handler = logging.StreamHandler(sys.stdout)
         root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
         return root_logger
 
+    if logging_conf:
+        _load_logging_configuration(logging_conf)
+    if conf_bag:
+        _load_logging_configuration(conf_bag.get("logging"))
+
+    # configuration completed
+    root_logger.info("Logging infrastrucure loaded")
+    return root_logger
+
+
+def _load_logging_configuration(logging_conf):
+    """
+    Apply the logging configuration starting from Bag coming from siteconfig
+    or rather a custom one, which the user can place wherever he wants as long
+    as it's a Bag object.
+    """
+    
     # load handler config
     handlers = dict()
     for handler in logging_conf.get("handlers", []):
@@ -69,8 +81,9 @@ def init_logging_system(conf_bag=None):
         try:
             handlers[handler.label] = (_load_handler(handler_impl), handler.attr)
         except ValueError as e:
+            raise
             print(f"Logging handler '{handler.label}' with implementation '{handler_impl}' cannot be loaded", file=sys.stderr)
-    
+
     # load loggers config
     loggers = defaultdict(list)
     for logger in logging_conf.get("loggers", []):
@@ -79,9 +92,10 @@ def init_logging_system(conf_bag=None):
 
     for logger, conf_handlers in loggers.items():
         if logger == 'gnr':
-            l = root_logger
+            l = logging.getLogger()
         else:
             l = logging.getLogger(f"gnr.{logger}")
+            
         l.handlers = []
         for handler in conf_handlers:
             handler_key = handler.get("handler")
@@ -90,9 +104,6 @@ def init_logging_system(conf_bag=None):
             new_handler.setLevel(handler_level)
             l.addHandler(new_handler)
                          
-    # configuration completed
-    root_logger.info("Logging infrastrucure loaded")
-    return root_logger
 
 def set_gnr_log_global_level(level):
     """
