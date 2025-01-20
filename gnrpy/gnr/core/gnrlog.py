@@ -49,9 +49,13 @@ def init_logging_system(conf_bag=None):
     
     """
     root_logger = logging.getLogger()
-    # load the configuration
-    config = getGnrConfig()
-    logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
+    # load the site configuration
+    try:
+        config = getGnrConfig()
+        logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
+    except Exception as e:
+        logging_conf = None
+        
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
