@@ -14,24 +14,26 @@ def test_configuration():
     configuration = """
     <logging>
       <handlers> 
-	<pglocal impl="postgresql" db="log" user="postgres" host="localhost"/> 
-        <pgremote impl="postgresql" db="log" user="postgres" password="mysecret" host="remote.server.com"/> 
-        <tmpfile impl="file" filename="/tmp/mygenro.log"/> 
-        <mainlogfile impl="file" filename="/var/log/mygenro.log"/> 
-        <elastic impl="elk" host="elasticsearch.server.com" user="elastic" password="mysecret" index="mygenroapp"/> 
+	<standard impl="gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler"/>
       </handlers> 
-      <filters> 
-        <monitordude impl="user" username="badguy"/> 
-      </filters> 
       <loggers> 
-        <gnr handler="mainlogfile" level="ERROR"/> 
-        <sql handler="pgremote" level="INFO" filter="monitordude"/> 
-        <app handler="tmpfile" level="DEBUG"/> 
-        <web handler="pglocal" level="DEBUG"/> 
+        <sql handler="standard" level="WARNING"/>
+        <app handler="standard" level="DEBUG"/> 
+        <web handler="standard" level="INFO"/> 
       </loggers> 
     </logging>
     """
+    
+    conf_bag = Bag()
+    conf_bag.fromXml(source=configuration)
+    gl.init_logging_system(conf_bag=conf_bag)
 
-    conf_bag = Bag.fromXml(configuration)
-    print(conf_bag)
-    assert False
+    checks = [
+        ("sql", logging.WARNING),
+        ("app", logging.DEBUG),
+        ("web", logging.INFO)
+    ]
+    
+    for logger, level in checks:
+        l = logging.getLogger(f"gnr.{logger}")
+        assert l.handlers[0].level == level
