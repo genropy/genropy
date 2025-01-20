@@ -39,6 +39,7 @@ from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip, toText, toJson,fromJson
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebstruct import cellFromField
+from gnr.web import logger
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 from gnr.sql.gnrsql import GnrSqlException
 
@@ -329,7 +330,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         :param js_resolver_one: TODO
         :param sqlContextName: TODO"""
         if query_columns:
-            print('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
+            logger.error('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
         columns = columns or query_columns
         t = time.time()
         joinBag = None

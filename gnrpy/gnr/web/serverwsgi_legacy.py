@@ -1,11 +1,9 @@
-
-
+import time
 from datetime import datetime
 import os
 import sys
 import re
 import atexit
-
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
@@ -19,8 +17,6 @@ from werkzeug.serving import run_simple
 from werkzeug.debug.tbtools import get_current_traceback, render_console_html
 from werkzeug.debug import DebuggedApplication,_ConsoleFrame
 from werkzeug.wrappers import Response, Request
-
-
 
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
@@ -273,7 +269,7 @@ class Server(object):
 
         self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
         if self.site_name is None:
-                print("site name is required")
+                logger.error("site name is required")
                 sys.exit(1)
         
         if not self.site_name:
@@ -376,8 +372,7 @@ class Server(object):
                         target=run_sitedaemon, kwargs=sitedaemon_attr)
         sitedaemon_process.daemon = True
         sitedaemon_process.start()
-        print('sitedaemon started')
-        import time
+        logger.info('sitedaemon started')
         time.sleep(1)
 
     def serve(self):

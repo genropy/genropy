@@ -46,7 +46,7 @@ class Struct4D(object):
 
     def areaFolder(self, area):
         path = os.path.join(self.packages_folder, area)
-        print('areaFolder:', path)
+        logger.info('areaFolder:', path)
         if not os.path.isdir(path):
             os.mkdir(path)
         return path
@@ -182,7 +182,7 @@ class Struct4D(object):
                 target = '%s.%s.%s' % (sqltarget[0], sqltarget[1], sqltarget[2])
                 fld.relation(target)
             else:
-                print("Error: missing field \n%s" % str(fldbag['relate']))
+                logger.error("Missing field %s", (fldbag['relate']))
 
 
 class GnrAppSync4D(GnrApp):
@@ -336,7 +336,7 @@ class GnrAppSync4D(GnrApp):
         names.sort()
         for fname in names:
             fullname = os.path.join(folderpath, fname)
-            print('Reading: %s'%fullname)
+            logger.info('Reading: %s', fullname)
             self.importFile(fullname)
             dataOutPath = os.path.join(self.folder4dDataOut, folder)
             if not os.path.exists(dataOutPath):

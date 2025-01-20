@@ -44,8 +44,6 @@ except ImportError:
 
 mimetypes.init()
 
-OP_TO_LOG = {'x': 'y'}
-
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
 warnings.simplefilter("default")
@@ -152,15 +150,14 @@ class GnrWsgiSite(object):
         return self._guest_counter
 
     def log_print(self, msg, code=None):
-        """TODO
-
-        :param msg: add??
-        :param code: TODO"""
-        if getattr(self, 'debug', True):
-            if code and code in OP_TO_LOG:
-                print('***** %s : %s' % (code, msg))
-            elif not code:
-                print('***** OTHER : %s' % (msg))
+        """
+        Internal logging invocation 
+        :param msg: The log message
+        :param code: The method which invoked the log
+        """
+        if not code:
+            code = "OTHER"
+        logger.debug('%s: %s', code, msg)
 
     def setDebugAttribute(self, options):
         self.force_debug = False
@@ -272,7 +269,7 @@ class GnrWsgiSite(object):
         if counter == 0 and options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
-            print('End of import')
+            logger.info('End of import')
 
         cleanup = self.custom_config.getAttr('cleanup') or dict()
         self.cleanup_interval = int(cleanup.get('interval') or 120)
@@ -712,7 +709,7 @@ class GnrWsgiSite(object):
                                                       user_ip=user_ip,
                                                       user_agent=user_agent)
         except Exception as writingErrorException:
-            print('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
+            logger.exception('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
 
     @public_method
     def writeError(self, description=None,error_type=None, **kwargs):
@@ -721,7 +718,7 @@ class GnrWsgiSite(object):
             user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
             self.db.table('sys.error').writeError(description=description,error_type=error_type,user=user,user_ip=user_ip,user_agent=user_agent,**kwargs)
         except Exception as e:
-            print(str(e))
+            logger.exception(str(e))
             pass
 
     def loadResource(self, pkg, *path):
@@ -858,8 +855,7 @@ class GnrWsgiSite(object):
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
         if mandatory and result is None:
-            
-            print('Missing mandatory configuration item: %s' %path)
+            logger.warning('Missing mandatory configuration item: %s' %path)
         return result
     
     def pwa_config(self):
@@ -1107,8 +1103,9 @@ class GnrWsgiSite(object):
                 response.headers['X-%s' %k] = v
         if isinstance(result, str):
             #response.mimetype = kwargs.get('mimetype') or 'text/plain'
-            #print(f'response mimetipe {response.mimetype} content_type {response.content_type}')
+
             response.mimetype = kwargs.get('mimetype') or response.mimetype or 'text/plain'
+            logger.debug(f'response mimetipe {response.mimetype} content_type {response.content_type}')
             response.data=result # PendingDeprecationWarning: .unicode_body is deprecated in favour of Response.text
         
         elif isinstance(result, (bytes,str)):
@@ -1609,7 +1606,7 @@ class GnrWsgiSite(object):
             self.shellCall('convert','-density','300',filepath,'-depth','8',tifname)
             self.shellCall('tesseract', tifname, filename)
         except Exception:
-            print('missing tesseract in this installation')
+            logger.warning('missing tesseract in this installation')
             return
         result = ''
         if not os.path.isfile(txtname):

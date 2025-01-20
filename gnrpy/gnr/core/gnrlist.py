@@ -28,6 +28,7 @@ from functools import cmp_to_key
 import datetime
 import csv
 
+from gnr.core import logger
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
 
@@ -477,7 +478,7 @@ class XlsxReader(object):
                 elif self.compressEmptyRows:
                     if not last_line_empty:
                         last_line_empty = True
-                        print('b yield empty row')
+                        logger.debug('b yield empty row')
                         yield []
             else:
                 last_line_empty = False
@@ -520,8 +521,8 @@ class CsvReader(object):
         except ImportError:
             try:
                 import chardet # noqa: F401
-            except ImportError:
-                print('either cchardet or chardet are required to detect encoding')
+            except ImportError as e:
+                logger.exception('either cchardet or chardet are required to detect encoding')
                 return
         from chardet.universaldetector import UniversalDetector
         detector = UniversalDetector()
@@ -725,8 +726,7 @@ def getReader(file_path,filetype=None,**kwargs):
                 import openpyxl # noqa: F401
                 reader = XlsxReader(file_path,**kwargs)
             except ImportError: # pragma: no cover
-                import sys
-                print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
+                logger.exception("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n")
                 reader = XlsReader(file_path,**kwargs)
     elif ext=='.xml':
         reader = XmlReader(file_path,**kwargs)

@@ -1,4 +1,5 @@
 import sys
+import time
 from datetime import datetime
 import os
 import atexit
@@ -32,11 +33,12 @@ from werkzeug.wrappers import Response, Request
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
-from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
+from gnr.app.gnrdeploy import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
+from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 
 CONN_STRING_RE=r"(?P<ssh_user>\w*)\:?(?P<ssh_password>\w*)\@(?P<ssh_host>(\w|\.)*)\:?(?P<ssh_port>\w*)(\/?(?P<db_user>\w*)\:?(?P<db_password>\w*)\@(?P<db_host>(\w|\.)*)\:?(?P<db_port>\w*))?"
 CONN_STRING = re.compile(CONN_STRING_RE)
@@ -64,9 +66,6 @@ DNS_SD_PID = None
 
 
 def run_sitedaemon(sitename=None, sitepath=None, debug=None, storage_path=None, host=None, port=None, socket=None, hmac_key=None):
-    from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
-    import os
-    from gnr.core.gnrbag import Bag
     sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
     sitedaemon.start(host=host,socket=socket,hmac_key=hmac_key,port=port, run_now=False)
     sitedaemon_xml_path = os.path.join(sitepath,'sitedaemon.xml')
@@ -276,7 +275,7 @@ class Server(object):
 
         self.site_name = self.options.site_name_opt or self.options.site_name or os.getenv('GNR_CURRENT_SITE')
         if not self.site_name and not self.site_script:
-            print("site name is required")
+            logger.error("site name is required")
             sys.exit(1)
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
@@ -379,8 +378,7 @@ class Server(object):
                         target=run_sitedaemon, kwargs=sitedaemon_attr)
         sitedaemon_process.daemon = True
         sitedaemon_process.start()
-        print('sitedaemon started')
-        import time
+        logger.info('sitedaemon started')
         time.sleep(1)
 
     def serve(self):

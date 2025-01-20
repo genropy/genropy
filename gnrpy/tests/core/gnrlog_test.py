@@ -2,31 +2,36 @@ import logging
 import sys
 
 from gnr.core import gnrlog as gl
+from gnr.core.gnrbag import Bag
 
-def test_formattermessage():
-    res = gl.formatter_message("hello", use_color=False)
-    assert res == "hello"
+def test_global_level():
+    gl.set_gnr_log_global_level(logging.DEBUG)
 
-def test_ColoredFormatter(caplog):
-    caplog.set_level(logging.DEBUG)
-    fmt = gl.ColoredFormatter("%(message)s")
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(fmt)
-    logger = logging.getLogger("test1")
-    logger.addHandler(handler)
-    logger.log(msg="hello", level=logging.DEBUG)
-    assert "hello" in caplog.messages
-
+    logger = logging.getLogger("gnr")
+    assert logger.level == logging.DEBUG
     
-    gl.root_logger = None
-    gl.enable_colored_logging(stream=sys.stdout,
-                              level=logging.DEBUG, reset_handlers=True)
-    gl.root_logger.log(msg="hello2", level=logging.DEBUG)
-    assert "hello" in caplog.messages
+def test_configuration():
+    configuration = """
+    <logging>
+      <handlers> 
+	<pglocal impl="postgresql" db="log" user="postgres" host="localhost"/> 
+        <pgremote impl="postgresql" db="log" user="postgres" password="mysecret" host="remote.server.com"/> 
+        <tmpfile impl="file" filename="/tmp/mygenro.log"/> 
+        <mainlogfile impl="file" filename="/var/log/mygenro.log"/> 
+        <elastic impl="elk" host="elasticsearch.server.com" user="elastic" password="mysecret" index="mygenroapp"/> 
+      </handlers> 
+      <filters> 
+        <monitordude impl="user" username="badguy"/> 
+      </filters> 
+      <loggers> 
+        <gnr handler="mainlogfile" level="ERROR"/> 
+        <sql handler="pgremote" level="INFO" filter="monitordude"/> 
+        <app handler="tmpfile" level="DEBUG"/> 
+        <web handler="pglocal" level="DEBUG"/> 
+      </loggers> 
+    </logging>
+    """
 
-def test_logstyles():
-    l = gl.log_styles()
-    assert l['color_blue'] == '\033[94m'
-    assert 'color_blue' in l
-    assert 'style_underlined' in l
-    assert 'nostyle' in l
+    conf_bag = Bag.fromXml(configuration)
+    print(conf_bag)
+    assert False

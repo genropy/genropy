@@ -180,10 +180,10 @@ class GnrDaemon(object):
         self.siteregisters[sitename]['server_uri'] = server_uri
         self.siteregisters[sitename]['register_uri'] = register_uri
         self.siteregisters[sitename]['register_port'] = int(register_uri.split(':')[-1])
-        print('registered ',sitename,server_uri)
+        logger.info('Registered %s - %s',sitename,server_uri)
 
     def onRegisterStop(self,sitename=None):
-        print('onRegisterStop',sitename)
+        logger.debug("onRegisterStop for site %s", sitename)
         self.siteregisters.pop(sitename,None)
         process_dict = self.siteregisters_process.pop(sitename,None) or {}
         for name, process in list(process_dict.items()):
@@ -301,7 +301,7 @@ class GnrDaemon(object):
 
 
         else:
-            print('ALREADY EXISTING ',sitename)
+            logger.info("Site %s already existing", sitename)
 
     def pyroProxy(self,url):
         proxy = Pyro4.Proxy(url)
@@ -348,7 +348,7 @@ class GnrDaemon(object):
                 with self.pyroProxy(sitepars['server_uri']) as proxy:
                     proxy.stop(saveStatus=saveStatus)
             except Exception as e:
-                print(str(e))
+                logger.exception("Site register stop problem")
             self.onRegisterStop(k)
             result[k] = sitepars
         return result

@@ -22,7 +22,6 @@
 
 import os
 from datetime import datetime
-import time
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -89,7 +88,7 @@ class GnrAppTransactionAgent(GnrApp):
                        onTimeout=self.checkTransactions)
 
     def checkTransactions(self, notify=None):
-        print("Checking -- [%i-%i-%i %02i:%02i:%02i]" % (time.localtime()[:6]))
+        logger.debug("Checking")
         try:
             todo = True
             while todo:
@@ -142,7 +141,7 @@ class GnrAppTransactionAgent(GnrApp):
 
     def expandTransaction(self, transaction):
         trargs = {'id': transaction['id'], 'execution_start': datetime.now()}
-        print(transaction['id'])
+        logger.debug(transaction['id'])
         try:
             tablepath = transaction['maintable']
             data = Bag(transaction['data'])

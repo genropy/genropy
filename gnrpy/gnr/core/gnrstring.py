@@ -29,9 +29,12 @@ import datetime
 import json
 from decimal import Decimal
 
+from gnr.core import logger
+
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile(r'\W+')
 NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
+
 try:
     from string import Template
 
@@ -214,7 +217,7 @@ try:
             return self._gnrclasscatalog
 
         def object_pairs_hook(self, kv):
-            print('inside object_hook',kv)
+            logger.debug('inside object_hook %s',kv)
             #if isinstance(value,str):
             #    return self.gnrclasscatalog.fromTypedText(value)
             return kv

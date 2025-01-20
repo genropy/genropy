@@ -25,7 +25,6 @@ import _thread
 import Pyro4
 import os
 import re
-import sys
 from datetime import datetime
 from collections import defaultdict
 
@@ -638,7 +637,7 @@ class SiteRegister(BaseRemoteObject):
                 proxy.on_reloader_restart(sitename=self.sitename)
 
     def on_site_stop(self):
-        logger.info('site stopped')
+        logger.info('site %s stopped', self.sitename)
 
     def checkCachedTables(self,table):
         for register in (self.page_register,self.connection_register,self.user_register):
@@ -1253,7 +1252,7 @@ class GnrSiteRegisterServer(object):
         self.siteregister = SiteRegister(self,sitename=self.sitename,storage_path=self.storage_path)
         autorestore = autorestore and os.path.exists(self.storage_path)
         self.main_uri = self.daemon.register(self,'SiteRegisterServer')
-        logger.info('autorestore %s',autorestore,os.path.exists(self.storage_path))
+        logger.info('autorestore %s for %s', autorestore, os.path.exists(self.storage_path))
         self.register_uri = self.daemon.register(self.siteregister,'SiteRegister')
         logger.info("uri=%s",self.main_uri)
         if self.gnr_daemon_uri:
@@ -1286,10 +1285,9 @@ class ServerStore(object):
             time.sleep(self.retry_delay)
             k += 1
             if k>self.max_retry:
-                # FIXME: use logger
-                print((
-                    "-- [%i-%i-%i %i:%i:%i] -- UNABLE TO LOCK STORE : %s  ITEM %s " % (time.localtime()[:6]+(self.register_name,self.register_item_id))), file=sys.stderr)
-
+                logger.error("Unable to lock store: %s item %s",
+                             self.register_name,
+                             self.register_item_id)
                 raise GnrDaemonLocked()
         self.success_locking_time = time.time()
         return self

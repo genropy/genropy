@@ -82,3 +82,6 @@ class BaseGnrTest:
         """Teardown testing environment"""
         shutil.rmtree(cls.tmp_conf_dir)
         os.environ.pop("GENRO_GNRFOLDER")
+
+class BaseGnrAppTest(BaseGnrTest):
+    pass

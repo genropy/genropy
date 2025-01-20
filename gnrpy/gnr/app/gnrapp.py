@@ -39,20 +39,18 @@ import subprocess
 from collections import defaultdict
 from email.mime.text import MIMEText
 
-from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
-from gnr.app import logger
-
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
-from gnr.sql.gnrsql import GnrSqlDb
+from gnr.utils import ssmtplib
+from gnr.app.gnrdeploy import PathResolver
+from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
-
+from gnr.sql.gnrsql import GnrSqlDb
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -887,12 +885,12 @@ class GnrApp(object):
             dependencies=[('.'.join(n.value.split('.')[:-1]) , n.attr.get('deferred'))  for n in dest_tbl.relations_one if n.label in src_tbl.relations_one] 
             dependencies= set([t for t,d in dependencies if t!=dest_tbl.fullname and not( d and t in tables_to_import )])
             if dependencies.issubset(imported_tables):
-                print('\nIMPORTING',tbl)
+                logger.info('Importing %s', tbl)
                 dest_tbl.dbtable.importFromAuxInstance(source_instance, empty_before=False,raw_insert=True)
-                print('\nSTILL TO IMPORT',tables_to_import)
+                logger.info('Still to import %s', tables_to_import)
                 imported_tables.add(tbl)
             else:
-                print('\nCANT IMPORT',tbl,dependencies.difference(imported_tables))
+                logger.warning("Can't import %s - %s",tbl,dependencies.difference(imported_tables))
                 tables_to_import.append(tbl)
         
 

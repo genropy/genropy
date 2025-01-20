@@ -26,7 +26,7 @@ class ColouredFormatter(logging.Formatter):
             color = self.COLORS.get(record.levelno, self.RESET)
             return f"{color}{log_msg}{self.RESET}"
         else:
-            return f"{log_mesg}"
+            return f"{log_msg}"
         
 
 class GnrColourStreamHandler(logging.StreamHandler):

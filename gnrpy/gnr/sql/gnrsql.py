@@ -270,11 +270,11 @@ class GnrSqlDb(GnrObject):
             shutil.rmtree(extractpath)
 
     def _autoRestore_one(self,dbname=None,filepath=None,**kwargs):
-        print('drop',dbname)
+        logger.debug('drop %s',dbname)
         self.dropDb(dbname)
-        print('create',dbname)
+        logger.debug('create %s',dbname)
         self.createDb(dbname)
-        print('restore',dbname,filepath)
+        logger.debug('restore %s from %s ',dbname,filepath)
         self.restore(filepath,dbname=dbname,**kwargs)
 
 
@@ -823,8 +823,7 @@ class GnrSqlDb(GnrObject):
         if len(deferred)==0:
             return result
         for k,v in list(deferred.items()):
-            print('table ',k, end=' ')
-            print('\t\t blocked by',v)
+            logger.info("Table %s blocked by %s", k, v)
         raise GnrSqlException(description='Blocked dependencies')
 
 
