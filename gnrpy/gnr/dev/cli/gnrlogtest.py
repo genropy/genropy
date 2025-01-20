@@ -12,11 +12,11 @@ def main():
     options = p.parse_args()
 
     levels = [
-        "critical",
         "debug",
-        "error",
         "info",
-        "warning"
+        "warning",
+        "error",
+        "critical",
     ]
 
     from gnr.dev import logger
