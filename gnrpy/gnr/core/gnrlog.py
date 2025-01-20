@@ -1,28 +1,12 @@
 import sys
 import logging
-import platform
 import importlib
 from collections import defaultdict
 
 from gnr.core.gnrconfig import getGnrConfig
 
-ESC = '\033['
-
-BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))
-
-RESET_SEQ = f"{ESC}0m"
-COLOR_SEQ = f"{ESC}1;%dm"
-BOLD_SEQ = f"{ESC}1m"
-
-COLORS = {
-    'WARNING': YELLOW,
-    'INFO': WHITE,
-    'DEBUG': BLUE,
-    'CRITICAL': YELLOW,
-    'ERROR': RED
-}
-
 root_logger = None
+
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -54,7 +38,7 @@ def init_logging_system(conf_bag=None):
 	  </filters>
 	  
 	  <loggers>
-	    <root handler="mainlogfile" level="ERROR"/>
+	    <gnr handler="mainlogfile" level="ERROR"/>
 	    <sql handler="pgremote" level="INFO" filter="monitordude"/>
 	    <app handler="tmpfile" level="DEBUG"/>
 	    <web handler="pglocal" level="DEBUG"/>
@@ -64,6 +48,7 @@ def init_logging_system(conf_bag=None):
     
     """
     global root_logger
+
     root_logger = logging.getLogger()
     # load the configuration
     config = getGnrConfig()
@@ -71,10 +56,10 @@ def init_logging_system(conf_bag=None):
     if not logging_conf:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
-        #root_logger.addHandler(logging.StreamHandler(sys.stdout))
-        logging.basicConfig(level=logging.DEBUG)#WARNING)
+        handler = logging.StreamHandler(sys.stdout)
+        root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
         return root_logger
-    
+
     # load handler config
     handlers = dict()
     for handler in logging_conf.get("handlers", []):
@@ -93,7 +78,7 @@ def init_logging_system(conf_bag=None):
             loggers[logger.label].append(logger.attr)
 
     for logger, conf_handlers in loggers.items():
-        if logger == 'root':
+        if logger == 'gnr':
             l = root_logger
         else:
             l = logging.getLogger(f"gnr.{logger}")
@@ -109,77 +94,18 @@ def init_logging_system(conf_bag=None):
     root_logger.info("Logging infrastrucure loaded")
     return root_logger
 
-def set_global_level(level):
-    global root_logger
+def set_gnr_log_global_level(level):
+    """
+    Set the new logging level for all gnr* loggers
+    """
+    root_logger = logging.getLogger()
     root_logger.setLevel(level)
     for k, v in root_logger.manager.loggerDict.items():
+        if not k.startswith("gnr"):
+            continue 
         try:
             v.setLevel(level)
         except AttributeError:
             # ignore PlaceHolder loggers            
             pass
 
-
-
-def formatter_message(message, use_color=True):
-    """Change the format message. Return the message with the new format
-    
-    :param message: the message to be changed
-    :param use_color: boolean. If ``True``, add color to the message"""
-    if use_color and platform.system() in ['Linux', 'Darwin']:
-        message = message.replace("$RESET", RESET_SEQ).replace("$BOLD", BOLD_SEQ)
-    else:
-        message = message.replace("$RESET", "").replace("$BOLD", "")
-    return message
-    
-
-class ColoredFormatter(logging.Formatter):
-    """A formatter for the python :mod:`logging` module that colors the log messages depending on their severity"""
-    
-    def __init__(self, fmt, use_color=True):
-        logging.Formatter.__init__(self, fmt)
-        self.use_color = use_color
-        
-    def format(self, record):
-        """TODO
-        
-        :param record: TODO"""
-        levelname = record.levelname
-        if self.use_color and levelname in COLORS:
-            levelname_color = COLOR_SEQ % (30 + COLORS[levelname]) + levelname + RESET_SEQ
-            record.levelname = levelname_color
-        return logging.Formatter.format(self, record)
-        
-FORMAT = "[$BOLD%(name)-20s$RESET][%(levelname)-18s]  %(message)s ($BOLD%(filename)s$RESET:%(lineno)d)"
-COLOR_FORMAT = formatter_message(FORMAT, True)
-
-
-
-def enable_colored_logging(*args, **kw):
-    pass
-
-def _enable_colored_logging(stream=sys.stderr, level=None, reset_handlers=False):
-    """Enable colored logging
-    
-    :param stream: TODO
-    :param level: TODO"""
-    global root_logger
-    if not root_logger:
-        root_logger = logging.getLogger()
-        if reset_handlers:
-            root_logger.handlers = []
-        if len(root_logger.handlers) == 0:
-            hdlr = logging.StreamHandler(stream)
-            if hasattr(stream, 'isatty') and stream.isatty():
-                hdlr.setFormatter(ColoredFormatter(COLOR_FORMAT))
-            root_logger.addHandler(hdlr)
-    if level is not None:
-        root_logger.setLevel(level)
-
-def log_styles():
-    return dict(
-        color_blue = f"{ESC}94m" if platform.system() in ['Linux', 'Darwin'] else '',
-        color_yellow = f"{ESC}33m" if platform.system() in ['Linux', 'Darwin'] else '',
-        style_underlined = f"{ESC}4m" if platform.system() in ['Linux', 'Darwin'] else '',
-        nostyle = f"{ESC}0m" if platform.system() in ['Linux', 'Darwin'] else '',
-        )
