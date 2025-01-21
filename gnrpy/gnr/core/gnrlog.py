@@ -27,11 +27,12 @@ def init_logging_system(conf_bag=None):
 
 	<logging>
 	  <handlers>
-	    <pglocal impl="postgresql" db="log" user="postgres" host="localhost"/>
-	    <pgremote impl="postgresql" db="log" user="postgres" password="mysecret" host="remote.server.com"/>
-	    <tmpfile impl="file" filename="/tmp/mygenro.log"/>
-	    <mainlogfile impl="file" filename="/var/log/mygenro.log"/>
-	    <elastic impl="elk" host="elasticsearch.server.com" user="elastic" password="mysecret" index="mygenroapp"/>
+	    <pglocal impl="gnr.core.loghandlers.postgres.GnrPostgresqlLoggingHandler"
+               db="log" user="postgres" host="localhost"/>
+	    <pgremote impl="gnr.core.loghandlers.postgres.GnrPostgresqlLoggingHandler"
+               db="log" user="postgres" password="mysecret" host="remote.server.com"/>
+	    <tmpfile impl="logging.FileHandler" filename="/tmp/mygenro.log"/>
+	    <mainlogfile impl="logging.FileHandler" filename="/var/log/mygenro.log"/>
 	  </handlers>
 	  
 	  <filters>
