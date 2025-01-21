@@ -29,8 +29,8 @@ def init_logging_system(conf_bag=None):
 	  <handlers>
 	    <pglocal impl="gnr.core.loghandlers.postgres.GnrPostgresqlLoggingHandler"
                db="log" user="postgres" host="localhost"/>
-	    <pgremote impl="gnr.core.loghandlers.postgres.GnrPostgresqlLoggingHandler"
-               db="log" user="postgres" password="mysecret" host="remote.server.com"/>
+	    <gnrdb impl="gnr.core.loghandlers.gnrapp.GnrAppLoggingHandler" gnrapp_name="sandbox"
+    table_name="sys.log" />
 	    <tmpfile impl="logging.FileHandler" filename="/tmp/mygenro.log"/>
 	    <mainlogfile impl="logging.FileHandler" filename="/var/log/mygenro.log"/>
 	  </handlers>
@@ -41,7 +41,7 @@ def init_logging_system(conf_bag=None):
 	  
 	  <loggers>
 	    <gnr handler="mainlogfile" level="ERROR"/>
-	    <sql handler="pgremote" level="INFO" filter="monitordude"/>
+	    <sql handler="gnrdb" level="INFO" filter="monitordude"/>
 	    <app handler="tmpfile" level="DEBUG"/>
 	    <web handler="pglocal" level="DEBUG"/>
 	  </loggers>
