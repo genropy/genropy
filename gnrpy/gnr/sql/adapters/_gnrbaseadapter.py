@@ -418,6 +418,31 @@ class SqlDbAdapter(object):
     def struct_get_indexes_sql(self):
         """Returns SQL to retrieve table indexes."""
         raise AdapterMethodNotImplemented()
+
+    def struct_is_empty_column(self, schema_name=None, table_name=None, column_name=None):
+        """
+        Executes the SQL query to check if a column is empty.
+        """
+
+        # FIXME: since all arguments are mandatory, why default them to None and
+        # check later for their presence?
+
+        if not schema_name or not table_name or not column_name:
+            raise ValueError("schema_name, table_name, and column_name are required.")
+        
+        sql = self.struct_is_empty_column_sql(schema_name, table_name, column_name)
+        try:
+            result = self.raw_fetch(sql)
+            return result[0]['is_empty'] if result else False
+        except Exception as e:
+            raise RuntimeError(f"Error checking if column is empty: {e}")
+
+    def struct_is_empty_column_sql(self, schema_name=None,
+                                   table_name=None, column_name=None):
+        """
+        Generates SQL to check if a column is empty (contains no non-NULL values).
+        """
+        raise AdapterMethodNotImplemented()
     
     def struct_get_schema_info(self, schemas=None):
         """
