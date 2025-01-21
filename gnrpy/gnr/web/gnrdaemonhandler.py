@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-
+import warnings
 from datetime import datetime
 from multiprocessing import Process, Manager
 import atexit
 import os
 import time
+
+# temporarily silence deprecation warning since Pyro4
+# dismiss is on the way.
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+                        module="Pyro4.core")
 import Pyro4
 
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
