@@ -2,7 +2,7 @@ import threading
 import logging
 import queue
 
-class GnrBaseLoggingHandler(logging.Handler):
+class GnrQueueLoggingHandler(logging.Handler):
     """
     Base class for thread-based logging handler, don't use this handler directly.
     """
@@ -49,7 +49,7 @@ class GnrBaseLoggingHandler(logging.Handler):
                 print(f"Error processing log entry: {e}")
 
     def _process_record(self, log_entry):
-        raise NotImplementedError("Please don't use GnrBaseLoggingHandler directly!")
+        raise NotImplementedError("Please don't use GnrQueueLoggingHandler directly!")
 
     def close(self):
         self._stop_event.set()

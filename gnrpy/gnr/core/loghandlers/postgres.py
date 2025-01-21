@@ -2,11 +2,11 @@ import os
 
 from psycopg2 import pool
 
-from gnr.core.loghandlers.basehandler import GnrBaseLoggingHandler
+from gnr.core.loghandlers.queuehandler import GnrQueueLoggingHandler
 
 __all__ = ['GnrPostgresqlLoggingHandler']
 
-class GnrPostgresqlLoggingHandler(GnrBaseLoggingHandler):
+class GnrPostgresqlLoggingHandler(GnrQueueLoggingHandler):
     _initial_sql = """CREATE TABLE IF NOT EXISTS log(
     Created text,
     UserName text,
