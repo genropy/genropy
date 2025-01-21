@@ -3,7 +3,7 @@
 # Based on Alpine
 ############################################################
 
-FROM python:3.11-slim
+FROM python:3.14.0a1-slim
 RUN apt-get update && apt-get -y full-upgrade &&  apt-get autoremove -y
 RUN pip install --upgrade pip
 RUN adduser --group --system --home /home/genro genro
