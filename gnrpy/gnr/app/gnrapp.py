@@ -810,7 +810,7 @@ class GnrApp(object):
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
-        logger.info("Checking python dependencies")
+        logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
         for a, p in self.packages.items():
             requirements_file = os.path.join(p.packageFolder, "requirements.txt")

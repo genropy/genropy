@@ -1046,7 +1046,7 @@ class SiteRegisterClient(object):
             while not self.checkSiteRegisterServerUri(daemonProxy):
                 if (time.time()-t_start)>DAEMON_TIMEOUT_START:
                     raise Exception('GnrDaemon timout')
-        logger.info(f'creating proxy {self.siteregister_uri} - {self.siteregisterserver_uri}')
+        logger.debug(f'creating proxy {self.siteregister_uri} - {self.siteregisterserver_uri}')
         self.initSiteRegister()
     
     def initSiteRegister(self):
