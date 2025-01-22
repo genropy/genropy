@@ -404,7 +404,6 @@ class Server(object):
             ssl_context = None
             localhost = 'http://127.0.0.1'
             if self.options.ssl:
-                from gnr.app.gnrconfig import gnrConfigPath
                 cert_path = os.path.join(gnrConfigPath(),'localhost.pem')
                 key_path = os.path.join(gnrConfigPath(),'localhost-key.pem')
                 if os.path.exists(cert_path) and os.path.exists(key_path):
