@@ -154,7 +154,7 @@ class SqlQueryCompiler(object):
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
-    def getFieldAlias(self, fieldpath, curr=None,basealias=None):
+    def getFieldAlias(self, fieldpath, curr=None,basealias=None, parent=None):
         """Internal method. Translate fields path and related fields path in a valid sql string for the column.
 
         It translates ``@relname.@rel2name.colname`` to ``t4.colname``.
@@ -203,7 +203,7 @@ class SqlQueryCompiler(object):
         newpath = []
         basealias = basealias or self.aliasCode(0)
         if pathlist:
-            alias, curr = self._findRelationAlias(list(pathlist), curr, basealias, newpath)
+            alias, curr = self._findRelationAlias(list(pathlist), curr, basealias, newpath, parent=parent)
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
@@ -217,7 +217,7 @@ class SqlQueryCompiler(object):
                 #newfieldpath = '.'.join(pathlist)        # replace the field alias with the column relation_path
                 # then call getFieldAlias again with the real path
                 return self.getFieldAlias(fldalias.relation_path, curr=curr,
-                                          basealias=alias)  # call getFieldAlias recursively
+                                          basealias=alias, parent='.'.join(pathlist))  # call getFieldAlias recursively
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
                 sql_formula = fldalias.sql_formula
                 attr = dict(fldalias.attributes)
