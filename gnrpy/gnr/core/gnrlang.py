@@ -107,7 +107,7 @@ def get_caller_info():
     frame = sys._getframe(2)  # Start two levels up
     while frame:
         function_name = frame.f_code.co_name
-        module_name = frame.f_globals["__name__"]
+        module_name = frame.f_globals["__name__"].replace(':', '_')
         
         # Check if the frame is a decorator
         # Skip frames where the function name is 'wrapper' (commonly used in decorators)
