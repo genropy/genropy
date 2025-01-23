@@ -1,5 +1,5 @@
 import os
-import sys
+
 from gnr.core.loghandlers.queuehandler import GnrQueueLoggingHandler
 from gnr.app.gnrapp import GnrApp
 
