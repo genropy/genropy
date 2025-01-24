@@ -10,6 +10,19 @@ class TestGnrLang():
         assert len(r2) == 22
         assert r1 != r2
 
+    def test_get_caller_info(self):
+
+        def t1():
+            return gl.get_caller_info()
+
+        r = t1()
+        for x in ['line_number', 'function_name',
+                  'module_name']:
+            assert x in r
+        assert r['function_name'] == 'test_get_caller_info'
+        assert r['module_name'] == 'gnrlang_test'
+        
+        
     def test_mintype_value(self):
         a = gl.MinType()
         assert (a <= -1) is True
