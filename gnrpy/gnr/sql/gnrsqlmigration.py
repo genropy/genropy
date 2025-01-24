@@ -22,16 +22,16 @@ ENTITY_TREE = {
             }
         }
 }
-
 COMPATIBLE_TYPES = {
-    "A": {"A", "T"},              # Text-like: character, varchar, text
-    "T": {"A", "T"},              # Text-like: text, varchar
-    "I": {"I", "L", "N"},         # Integer-like: int, bigint, numeric
+    "A": {"T", "C", "X", "Z", "P"},              # Text-like: character, varchar, text
+    "T": {"A", "C", "X", "Z", "P"},              # Text-like: text, varchar
+    "C": {"A", "T", "X", "Z", "P"},              # Text-like: character, varchar
+    "I": {"L", "N"},         # Integer-like: int, bigint, numeric
     "B": {"I"},                   # Boolean-like: boolean → int
-    "D": {"DH"},                  # Date-like: date → timestamp
-    "DH": {"D", "DH", "DHZ"},     # DateTime-like: timestamp → date, with/without tz
-    "N": {"N", "I", "L"},         # Numeric-like: numeric → integer, bigint
-    "L": {"I", "N"},              # BigInt-like: bigint → int, numeric
+    "D": {"DH", "DHZ"},                  # Date-like: date → timestamp
+    "DH": {"D", "DHZ"},     # DateTime-like: timestamp → date, with/without tz
+    "N": {"I", "L", "R"},         # Numeric-like: numeric → integer, bigint
+    "L": {"I", "N", "R"},              # BigInt-like: bigint → int, numeric
 }
 
 COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique")
@@ -835,7 +835,7 @@ class SqlMigrator():
                     self.added_column(item)
                     item['_rebuilt'] = True
                 else:
-                    raise GnrSqlException(f'Incompatible data type change in a non-empty column. Column {item["table_name"]}.{item["column_name"]} {oldvalue} {new_sql_type}') 
+                    raise GnrSqlException(f'Incompatible data type change in a non-empty column. Column {item["table_name"]}.{item["column_name"]} {oldvalue} {newvalue}') 
         elif changed_attribute == 'notnull':
             # Handle changes to the NOT NULL constraint
             if newvalue:
