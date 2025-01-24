@@ -537,11 +537,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/user_preference'});
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference')});
     },
 
     openAppPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/app_preference'});
+        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference')});
     },
 
     openHelpForCurrentIframe:function(){

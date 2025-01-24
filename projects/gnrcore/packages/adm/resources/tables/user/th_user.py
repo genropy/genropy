@@ -192,7 +192,7 @@ class FormProfile(BaseComponent):
         bc = form.center.borderContainer()
         top = bc.borderContainer(region='top',datapath='.record',margin_top='10px', height='170px' if self.isMobile else '130px')
         
-        fb = top.contentPane(region='center').mobileFormBuilder(cols=1 if self.isMobile else 2)
+        fb = top.contentPane(region='center').formlet(cols=1 if self.isMobile else 2)
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
@@ -212,7 +212,7 @@ class FormProfile(BaseComponent):
     def adm_profile_tabs(self,tc):
         self.authenticationsPane(tc.contentPane(title='!!Authentication'))
         frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
-        frame_preference.top.slotToolbar('*,stackButtons,*')
+        frame_preference.top.slotToolbar('*,stackButtons,*',_class='mobile_bar')
         frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 
     @customizable

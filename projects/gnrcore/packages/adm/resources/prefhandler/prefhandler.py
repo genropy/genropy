@@ -27,6 +27,7 @@ Component for preference handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
+from gnr.core.gnrlang import gnrImport
 
 
 class BasePreferenceTabs(BaseComponent):
@@ -196,4 +197,36 @@ class UserPrefHandler(BasePreferenceTabs):
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
         self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
     
-        
+
+class UserPrefMenu(BaseComponent):
+    @struct_method
+    def pm_userPrefMenu(self,parent,packages='*',iconClass=None):
+        if isinstance(packages,str):
+            packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        menu = parent.menudiv(iconClass='iconbox gear')
+
+        for pkgId in packages:
+            pkg = self.application.packages[pkgId]
+            if pkg.disabled:
+                continue
+            m = gnrImport(self.getResource('preference',pkg=pkg.id,ext='py'),importAs=f'Pref_{pkg.id}')
+            if not m:
+                continue
+            resource = getattr(m,'MenuUserPreference',None)
+            instance = resource() if resource else None
+            if not instance:
+                continue
+            instance._page = self
+            linescb = [r for r in dir(instance) if not r.startswith('_')]
+            if not linescb:
+                continue
+            m = menu.menuline(pkg.attributes['name_long']).menu()
+            for cbname in linescb:
+                h = getattr(instance,cbname)
+                tags = getattr(h,'tags',None)
+                if tags and not self.application.checkResourcePermission(tags, self.userTags):
+                    continue
+                pars = h()
+                m.menuline(h.__doc__).dataController(pars.pop('action'),**pars)
+        menu.menuline('-')
+        menu.menuline('User preferences',action='genro.framedIndexManager.openUserPreferences()')

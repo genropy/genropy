@@ -200,9 +200,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             var parentRatio = objectPop(kw,'parentRatio');
             var windowRatio = objectPop(kw,'windowRatio');
             var fullScreen = objectPop(kw,'fullScreen');
-
-            var dlg = root._('dialog',{title:kw.title,closable:kw.closable,nodeId:dialogId,
-                parentRatio:parentRatio,windowRatio:windowRatio,fullScreen:fullScreen});
+            var dlgKw = {title:kw.title,closable:kw.closable,nodeId:dialogId,
+                parentRatio:parentRatio,windowRatio:windowRatio,fullScreen:fullScreen};
+            objectUpdate(dlgKw,objectExtract(kw,'dlg_*'));
+            var dlg = root._('dialog',dlgKw);
             var iframekw = {src:kw.src,border:0,height:'100%',width:'100%',nodeId:iframeId};
             objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
             iframekw.selfsubscribe_close = "this.dialog.hide();";

@@ -16,6 +16,7 @@ class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
                    login:LoginComponent,
                    th/th:TableHandler,
+                   prefhandler/prefhandler:UserPrefMenu,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                    gnrcomponents/batch_handler/batch_handler:BatchMonitor,
                    gnrcomponents/chat_component/chat_component,
@@ -391,7 +392,9 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_settings(self,slot,**kwargs):
-        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+        if self.isGuest:
+            return
+        slot.userPrefMenu()
 
     @struct_method
     def fi_slotbar_refresh(self,slot,**kwargs):
