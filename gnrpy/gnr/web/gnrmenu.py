@@ -363,13 +363,13 @@ class MenuResolver(BagResolver):
             if nodeattr.get('pkg'):
                 nodeattr['tag'] = 'packageBranch'
                 return 'updateToPackageBranch'
-
-        if nodeTag=='webpage' and nodeattr.get('table'):
-            nodeattr['tag'] = 'thpage'
-            return 'thpage'
         if nodeTag=='thpage' and nodeattr.get('filepath'):
             nodeattr['tag'] = 'webpage'
 
+        if nodeTag=='webpage' and nodeattr.get('table') and not nodeattr.get('filepath'):
+            nodeattr['tag'] = 'thpage'
+            return 'thpage'
+        
         if nodeTag == 'lookups':
             lookup_manager = nodeattr.pop('lookup_manager',None)
             if lookup_manager is True:
