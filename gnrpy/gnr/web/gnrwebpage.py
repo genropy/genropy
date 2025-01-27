@@ -875,10 +875,12 @@ class GnrWebPage(GnrBaseWebPage):
             errdict = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
             err = [err for err in errdict.values() if err is not None]
             if err:
+                logger.error("Invalid login for user %s", login['user'])
                 login['error'] = ', '.join(err)
                 return (login, loginPars)
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
+            logger.info("User %s login", login['user'])
             self.site.connectionLog('open')
             login['message'] = ''
             loginPars = avatar.loginPars
@@ -888,6 +890,7 @@ class GnrWebPage(GnrBaseWebPage):
             except self.site.register.locked_exception:
                 pass
         else:
+            logger.error("Invalid login for user %s", login['user'])
             login['message'] = 'invalid login'
         return (login, loginPars)
 
