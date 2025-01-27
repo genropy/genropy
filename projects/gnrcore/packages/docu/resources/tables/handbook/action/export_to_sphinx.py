@@ -18,6 +18,7 @@ else:
     # might be around one day
     from urllib import urlopen
 
+from sphinx.cmd.build import main as sphinx_build_main
 import boto3
 
 from gnr.web.batch.btcbase import BaseResourceBatch
@@ -53,7 +54,7 @@ class Main(BaseResourceBatch):
         self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','default_conf.py').copy(self.page.site.storageNode(confSn))
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
-        html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + 'docs/' 
+        html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + '_documentation/' 
         #DP202111 Default url set to /docs
         self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
@@ -136,7 +137,10 @@ class Main(BaseResourceBatch):
             cssfile.write(customStyles.encode())
         with self.sourceDirNode.child(self.customJSPath).open('wb') as jsfile:
             jsfile.write(self.defaultJSCustomization().encode())
-        self.page.site.shellCall('sphinx-build', self.sourceDirNode.internal_path, self.resultNode.internal_path, *args)
+            
+
+        args = [self.sourceDirNode.internal_path, self.resultNode.internal_path] + args
+        sphinx_build_main(args)
 
     def post_process(self):     
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
