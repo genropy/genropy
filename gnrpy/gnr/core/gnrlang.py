@@ -108,6 +108,10 @@ def get_caller_info():
     while frame:
         function_name = frame.f_code.co_name
         module_name = frame.f_globals["__name__"]
+        if sys.platform == 'win32':
+            # the "C:/" in the module path causes trouble in the
+            # template, remove the semicolon accordingly
+            module_name = module_name.replace(':', '_')
         
         # Check if the frame is a decorator
         # Skip frames where the function name is 'wrapper' (commonly used in decorators)
