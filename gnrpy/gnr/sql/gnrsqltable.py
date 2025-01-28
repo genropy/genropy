@@ -1671,8 +1671,8 @@ class SqlTable(GnrObject):
         return self.db.dbevents[self.fullname]
 
 
-    def notifyDbUpdate(self,record):
-        self.db.notifyDbUpdate(self,record)
+    def notifyDbUpdate(self,record=None,where=None,**kwargs):
+        self.db.notifyDbUpdate(self,recordOrPkey=record,where=where,**kwargs)
 
     def touchRecords(self,_pkeys=None,_wrapper=None,_wrapperKwargs=None,
                     _notifyOnly=False,pkey=None,
