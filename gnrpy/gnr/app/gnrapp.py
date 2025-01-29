@@ -758,7 +758,7 @@ class GnrApp(object):
 
             # We have to use a directory, because genro sqlite adapter
             # will create a sqlite file for each package
-            logging.info('Testing database dir: %s', tempdir)
+            logger.info('Testing database dir: %s', tempdir)
 
             @atexit.register
             def removeTemporaryDirectory():
