@@ -736,8 +736,6 @@ class GnrApp(object):
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
-
-
         
         if not forTesting:
             dbattrs = self.config.getAttr('db') or {}
@@ -757,16 +755,17 @@ class GnrApp(object):
             dbattrs = {}
             dbattrs['implementation'] = 'sqlite'
             dbattrs['dbname'] = os.path.join(tempdir, 'testing')
-            # We have to use a directory, because genro sqlite adapter will creare a sqlite file for each package
-                
-            logger.info('Testing database dir: %s', tempdir)
-            
+
+            # We have to use a directory, because genro sqlite adapter
+            # will create a sqlite file for each package
+            logging.info('Testing database dir: %s', tempdir)
+
             @atexit.register
             def removeTemporaryDirectory():
                 shutil.rmtree(tempdir)
+                
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-
         
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()

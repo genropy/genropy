@@ -62,15 +62,20 @@ dependencies = [
 	     ]
 
 [project.optional-dependencies]
-pgsql = ["psycopg2-binary","psycopg"]
+pgsql = [
+  "psycopg2-binary",
+  "psycopg-binary"
+]
+
 mysql = ["mysqlclient"]
 developer = [
-	  "pytest", "pytest-cov", "graphviz",
-	  "build", "twine","ipython",
-	  "psycopg2-binary","psycopg",
-	  "pymysql",
-   	  "testing.postgresql" # needed for tests, assuming developers runs tests
-	    ]
+  "pytest", "pytest-cov", "graphviz",
+  "build", "twine","ipython",
+  "psycopg2-binary",
+  "psycopg-binary",
+  "pymysql",
+  "testing.postgresql" # needed for tests, assuming developers runs tests
+]
 
 [project.scripts]
 # gnr.core

@@ -24,6 +24,7 @@
 """
 Some useful operations on lists.
 """
+import os.path
 from functools import cmp_to_key
 import datetime
 import csv
@@ -258,7 +259,6 @@ class XlsReader(object):
     """Read an XLS file"""
     def __init__(self, docname,mainsheet=None,compressEmptyRows=None,allEmptyRows=None,**kwargs):
         import xlrd
-        import os.path
         self.XL_CELL_DATE = xlrd.XL_CELL_DATE
         self.xldate_as_tuple = xlrd.xldate_as_tuple
         self.docname = docname
@@ -363,9 +363,6 @@ class XlsxReader(object):
 
     def __init__(self, docname, mainsheet=None, compressEmptyRows=None, allEmptyRows=None, **kwargs):
         from openpyxl import load_workbook
-        import os.path
-    #    self.XL_CELL_DATE = xlrd.XL_CELL_DATE
-    #    self.xldate_as_tuple = xlrd.xldate_as_tuple
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
@@ -489,7 +486,6 @@ class CsvReader(object):
     """Read an csv file"""
     def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
                 encoding=None,**kwargs):
-        import os.path
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
@@ -716,10 +712,9 @@ class GnrNamedList(list):
 
 
 def getReader(file_path,filetype=None,**kwargs):
-    import os.path
-    filename,ext = os.path.splitext(file_path)
-    if filetype=='excel' or not filetype and ext in ('.xls','.xlsx'):
-        if ext=='.xls':
+    filename, ext = os.path.splitext(file_path)
+    if filetype == 'excel' or not filetype and ext in ('.xls','.xlsx'):
+        if ext == '.xls':
             reader = XlsReader(file_path,**kwargs)
         else: # .xlsx
             try:

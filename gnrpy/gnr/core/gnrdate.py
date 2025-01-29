@@ -20,6 +20,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import sys
 import functools
 import re
 import datetime
@@ -40,9 +41,13 @@ def cmp(x, y):
 def toDHZ(date,time,timezone=None):
     ts = datetime.datetime.combine(date,time)
     if timezone == 'LOCAL':
-        from pytz import reference as pytzref
-        localtz = pytzref.LocalTimezone()
-        timezone = localtz.tzname(ts)
+        if sys.platform == "win32":
+            from tzlocal.win32 import get_localzone_name
+            timezone = get_localzone_name()
+        else:
+            from pytz import reference as pytzref
+            localtz = pytzref.LocalTimezone()
+            timezone = localtz.tzname(ts)
     timezone = timezone or 'UTC'
     tz = pytz.timezone(timezone)
     #result =  tz.localize(ts) 
