@@ -2001,13 +2001,13 @@ class GnrWebPage(GnrBaseWebPage):
                 value['parent'] = parent
             self.setInClientData('gnr.publisher',value=value,page_id=page_id,fired=True)
 
-    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True):
+    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True, **kwargs):
         updater = Bag()
         for field in fields.split(','):
             updater[field] = record[field]
         self.clientPublish('setInClientRecord',table=tblobj.fullname,
                             pkey=record[tblobj.pkey],silent=silent,
-                            updater=updater)
+                            updater=updater, **kwargs)
         
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
