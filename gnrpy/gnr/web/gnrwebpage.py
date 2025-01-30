@@ -36,9 +36,16 @@ from base64 import b64decode
 import re
 import datetime
 
-from gnr.web._gnrbasewebpage import GnrBaseWebPage
+
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrbag import Bag, BagResolver
+from gnr.core.gnrdecorator import public_method,deprecated
+from gnr.core.gnrclasses import GnrMixinNotFound
+
+from gnr.web import logger
+from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
@@ -52,10 +59,6 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
-from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated
-from gnr.core.gnrclasses import GnrMixinNotFound
 
  # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
 from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
@@ -872,10 +875,12 @@ class GnrWebPage(GnrBaseWebPage):
             errdict = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
             err = [err for err in errdict.values() if err is not None]
             if err:
+                logger.error("Invalid login for user %s", login['user'])
                 login['error'] = ', '.join(err)
                 return (login, loginPars)
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
+            logger.info("User %s login", login['user'])
             self.site.connectionLog('open')
             login['message'] = ''
             loginPars = avatar.loginPars
@@ -885,6 +890,7 @@ class GnrWebPage(GnrBaseWebPage):
             except self.site.register.locked_exception:
                 pass
         else:
+            logger.error("Invalid login for user %s", login['user'])
             login['message'] = 'invalid login'
         return (login, loginPars)
 
@@ -2906,8 +2912,10 @@ class GnrWebPage(GnrBaseWebPage):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
-                                    args,kwargs)
+        logger.info(
+            f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg} %s %s',
+            args, kwargs
+        )
 
     ##### BEGIN: DEPRECATED METHODS ###
     @deprecated

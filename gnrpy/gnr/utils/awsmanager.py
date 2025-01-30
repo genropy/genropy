@@ -4,6 +4,7 @@ import inspect
 import botocore
 import sys
 
+from gnr.utils import logger
 
 InstanceTypes=['t1.micro','t2.nano','t2.micro','t2.small','t2.medium',
  't2.large','t2.xlarge','t2.2xlarge','t3.nano','t3.micro','t3.small',
@@ -592,7 +593,7 @@ def main():
     aws = AWSManager(region_name='eu-central-1')
     user = aws.IAM.create_user(username='user')
     keypairs = aws.IAM.create_user_key_pair(username='user')
-    print(keypairs)
+    logger.debug("keypairs %s", keypairs)
     bucket = aws.S3.create_s3_for_user(username='user', bucket='bucket',
         region_name='eu-west-1')
 
@@ -601,8 +602,8 @@ def main():
     #print aws.EC2.get_images()
     #print aws.EC2.get_instances()
     #print aws.EC2.get_vpcs()
-    print(aws.Route53.get_hosted_zones())
-    print(aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
+    logger.debug("Route53 hosted zones %s" , aws.Route53.get_hosted_zones())
+    logger.debug("Router53 RRs %s", aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
     #print aws.ELBV2.get_listeners(load_balancer_name='load-ld')
     #print(aws.ELBV2.get_target_groups())
     #ec2.create_ec2_instance(image_id='ami-1112223333',

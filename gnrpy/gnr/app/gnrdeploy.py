@@ -12,9 +12,10 @@ import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import GnrException
+from gnr.core.gnrconfig import IniConfStruct
+from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
+
 from gnr.web.gnrmenu import MenuStruct
-from gnr.app.gnrconfig import IniConfStruct
-from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
 
 class GnrConfigException(Exception):
     pass

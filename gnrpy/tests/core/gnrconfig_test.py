@@ -1,13 +1,13 @@
 """
-Tests for gnr.app.gnrconfig package
+Tests for gnr.core.gnrconfig package
 """
 import pytest
-import gnr.app.gnrconfig as gnrc
-from common import BaseGnrAppTest
+import gnr.core.gnrconfig as gnrc
+from common import BaseGnrTest
 
-class TestGnrConfig(BaseGnrAppTest):
+class TestGnrConfig(BaseGnrTest):
     """
-    unit tests for gnr.app.gnrconfig module
+    unit tests for gnr.core.gnrconfig module
     """
     def test_gnrconfigpath(self):
         """

@@ -31,6 +31,7 @@ from types import MethodType
 from io import IOBase
 from functools import total_ordering
 
+from gnr.core import logger
 from gnr.core.gnrdecorator import extract_kwargs # keep for compatibility
 
 try:
@@ -682,9 +683,9 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
 
     ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S: ')
     title = '%s - Error in %s' % (ts, proc_name)
-    print(title)
+    logger.error(title)
     tb_text = errorTxt()
-    print(tb_text.encode('ascii', 'ignore'))
+    logger.error(tb_text.encode('ascii', 'ignore'))
 
     if (host and to_address):
         try:
@@ -697,8 +698,7 @@ def errorLog(proc_name, host=None, from_address='', to_address=None, user=None, 
                      password=password
                      )
         except:
-            pass
+            logger.exception("While sending errroLog email")
+            
     return tb_text
 
-if __name__ == '__main__':
-    pass

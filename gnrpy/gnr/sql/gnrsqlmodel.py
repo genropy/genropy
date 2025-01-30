@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import copy
 import threading
 import re
@@ -36,8 +35,7 @@ from gnr.sql.gnrsqltable import SqlTable
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable, GnrSqlMissingColumn, GnrSqlRelationError
 from gnr.sql import AdapterCapabilities
-
-logger = logging.getLogger(__name__)
+from gnr.sql import logger
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
     itemlist = itempath.split('.')
@@ -161,7 +159,7 @@ class DbModel(object):
         self.runOnBuildingCb()
         if self.relations:
             self.relations.clear()
-            #print('relations',self.relations)
+            logger.debug('relations %s', self.relations)
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')

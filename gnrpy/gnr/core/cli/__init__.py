@@ -1,9 +1,22 @@
+import logging
 import argparse
 import platform
 ESC = '\033['
+
 from gnr import VERSION
+from gnr.core import gnrlog
 
 class GnrCliArgParse(argparse.ArgumentParser):
+    LOGGING_LEVELS = {
+        'notset': logging.NOTSET,
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'warn': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_argument("--version", action="version",
@@ -11,6 +24,18 @@ class GnrCliArgParse(argparse.ArgumentParser):
         self.add_argument("--timeit", action="store_true",
                           dest="timeit",
                           help="Report command execution time")
+
+
+        self.add_argument("--loglevel", 
+                          dest="loglevel",
+                          metavar="LOG_LEVEL",
+                          choices=list(self.LOGGING_LEVELS.keys()),
+                          default="warning",
+                          help="Startup log level")
+        self.add_argument("--debug",
+                          action="store_true",
+                          dest="debug",
+                          help="Enable DEBUG log level")
         
         if not self.prog.startswith("gnr "):
             # FIXME: this is not efficient
@@ -28,3 +53,10 @@ class GnrCliArgParse(argparse.ArgumentParser):
                 print(deprecation_warning_mesg)
 
         
+    def parse_args(self, *args, **kw):
+        options =  super().parse_args(*args, **kw)
+        import gnr
+        gnr.GLOBAL_DEBUG = options.debug
+        new_log_level = options.debug and "debug" or options.loglevel
+        gnrlog.set_gnr_log_global_level(self.LOGGING_LEVELS.get(new_log_level))
+        return options

@@ -27,6 +27,7 @@ import urllib.request, urllib.parse, urllib.error
 from time import sleep
 
 from gnr.core.gnrbag import Bag
+from gnr.web import logger
 
 CONNECTION_REFUSED = 61
 MAX_CONNECTION_ATTEMPT = 20 
@@ -124,13 +125,13 @@ class WsgiWebSocketHandler(WebSocketHandler):
                 self.socketConnection.request('POST',self.proxyurl,headers=headers, body=body)
                 error = False
                 if n!=MAX_CONNECTION_ATTEMPT:
-                    print('SUCCEED')
+                    logger.debug("SUCCEED")
                 self.close()
             except socket.error as e:
                 error = e.errno
                 if error == CONNECTION_REFUSED:
                     n -= 1
-                    print('attempting',n)
+                    logger.debug('attempting %s',n)
                     sleep(CONNECTION_ATTEMPT_DELAY)
                 else:
                     raise
@@ -159,12 +160,13 @@ class HTTPSocketConnection(http.client.HTTPConnection):
             self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             if has_timeout(self.timeout):
                 self.sock.settimeout(self.timeout)
-            if self.debuglevel > 0:
-                print("HTTPSocketConnection - connect: (%s) ************" % (self.socket_path))
+
+            logger.debug("HTTPSocketConnection - connect: (%s)", self.socket_path)
             self.sock.connect(self.socket_path)
+            
         except socket.error as msg:
-            if self.debuglevel > 0:
-                print("HTTPSocketConnection - connect fail: (%s)" % (self.socket_path))
+            logger.debug("HTTPSocketConnection - connect fail: (%s)", self.socket_path)
+            
             if self.sock:
                 self.sock.close()
             self.sock = None

@@ -297,7 +297,6 @@ class MenuResolver(BagResolver):
     def load(self):
         result = Bag()
         source = self.sourceBag[self.path]
-        node_attr = self.sourceBag.getAttr(self.path)
         for node in source:
             if not self.allowedNode(node):
                 continue

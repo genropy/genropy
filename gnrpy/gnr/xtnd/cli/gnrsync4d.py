@@ -20,11 +20,7 @@ def main():
     parser.add_argument('args',
                         action='append',
                         nargs="*")
-    parser.add_argument('-d', '--debug',
-                      dest='debug',
-                      action='store_true',
-                      help="Debug mode")
-    
+
     parser.add_argument('-instance',
                       help="Use command on instance")
     
