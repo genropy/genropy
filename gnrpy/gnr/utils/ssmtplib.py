@@ -1,4 +1,3 @@
-from __future__ import print_function
 # Author: Matt Butcher <mbutche@luc.edu>, Feb. 2007
 # License: MIT License (or, at your option, the GPL, v.2 or later as posted at
 # http://gnu.org).
@@ -29,6 +28,7 @@ from __future__ import print_function
 #
 # This is just a minor modification to the smtplib code by Dragon De Monsyn.
 import smtplib, socket
+from gnr.utils import logger
 
 __version__ = "1.00"
 
@@ -96,20 +96,19 @@ class SMTP_SSL(smtplib.SMTP):
                 except ValueError:
                     raise socket.error("nonnumeric port")
         if not port: port = SSMTP_PORT
-        if self.debuglevel > 0: print('connect:', (host, port), file=stderr)
+        logger.debug("Connect: %s:%s", host, port)
         msg = "getaddrinfo returns an empty list"
         self.sock = None
         for res in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
             af, socktype, proto, canonname, sa = res
             try:
                 self.sock = socket.socket(af, socktype, proto)
-                if self.debuglevel > 0: print('connect:', (host, port), file=stderr)
+                logger.debug("Connect: %s:%s", host, port)
                 self.sock.connect(sa)
                 # MB: Make the SSL connection.
                 sslobj = socket.ssl(self.sock, self.keyfile, self.certfile)
             except socket.error as msg:
-                if self.debuglevel > 0:
-                    print('connect fail:', (host, port), file=stderr)
+                logger.error("Connect fail: %s:%s", host, port)
                 if self.sock:
                     self.sock.close()
                 self.sock = None
@@ -125,7 +124,7 @@ class SMTP_SSL(smtplib.SMTP):
         self.file = smtplib.SSLFakeFile(sslobj);
         
         (code, msg) = self.getreply()
-        if self.debuglevel > 0: print("connect:", msg, file=stderr)
+        logger.debug("Connect: %s", msg)
         return (code, msg)
         
     def setkeyfile(self, keyfile):

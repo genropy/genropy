@@ -3660,6 +3660,10 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         let table;
         if(chunkNode.attr.datasource){
             table = genro.getDataNode(chunkNode.absDatapath(chunkNode.attr.datasource)).attr.table;
+            if(!table){
+                let componentNode = chunkNode.getParentNode();
+                table = componentNode.getAttributeFromDatasource('table');
+            }
         }else{
             table = chunkNode.getAttributeFromDatasource('table') || '';
         }
@@ -3964,11 +3968,11 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var dropAreaKw = {nodeId:nodeId,dropTarget:objectPop(kw,'dropTarget',true),
                           dropTypes:objectPop(kw,'dropTypes','Files'),
                          _class:'dropUploaderBoxInner',...objectExtract(kw,'dropArea_*')};
-        
+
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
-        var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick'
+        var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick'
         dropAreaKw[uploadhandler_key] = function(){
             if(gnrwdg.pendingHandlers.length){
                 genro.dlg.ask(_T("Abort upload"),

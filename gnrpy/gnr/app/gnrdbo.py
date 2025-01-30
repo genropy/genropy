@@ -4,10 +4,8 @@
 import datetime
 import warnings as warnings_module
 import os
-import shutil
 import pytz
 import mimetypes
-
 from collections import defaultdict
 
 from gnr.core.gnrlang import boolean
@@ -16,6 +14,7 @@ from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
+from gnr.app import logger
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -182,7 +181,10 @@ class GnrDboPackage(object):
                         rec_to_insert[field] = None
                 recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
-                print('inserisco record in',tblobj.name,tblobj.query().count())
+                logger.info('Inserting record into %s - %s',
+                            tblobj.name,
+                            tblobj.query().count()
+                            )
                 tblobj.insertMany(recordsToInsert)
         db.commit()
 
@@ -842,18 +844,7 @@ class TableBase(object):
             if k not in matched_cols:
                 errors.append(k)
         if errors:
-            return 'Missing %s' %','.join(errors)
-    
-    def importerInsertRow(self,row,import_mode=None):
-        record = self.importerRecordFromRow(row)
-        if import_mode=='insert_or_update':
-            self.insertOrUpdate(record)
-        else:
-            self.insert(record)
-    
-    def importerRecordFromRow(self,row):
-        return self.newrecord(**dict(row))
-
+            return 'Missing %s' %','.join(errors)        
 
     @public_method
     def pathFromPkey(self,pkey=None,dbstore=None,**kwargs):
@@ -946,7 +937,7 @@ class TableBase(object):
         if not getattr(record, '_notUserChange', None):
             record[fldname] = self.db.currentUser
 
-    def trigger_setAuditVersionIns(self, record, fldname):
+    def trigger_setAuditVersionIns(self, record, fldname,**kwargs):
         """TODO
         
         :param record: the record
@@ -1269,7 +1260,7 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
-                self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+                self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
         "Inside dbo"
@@ -1279,8 +1270,15 @@ class TableBase(object):
             for field in self.counterColumns():
                 self.assignCounterColumn(field=field,record=record)
 
+    def releaseCounterColumn(self,field=None,record=None):
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+
     def assignCounterColumn(self,field=None,record=None):
-        self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+        _tenant_schema = record.get('_tenant_schema')
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
@@ -1329,7 +1327,9 @@ class GnrDboTable(TableBase):
 
 
     def populateFromMasterDb(self,master_db=None,from_table=None,**kwargs):
-        print('populating %s from %s' %(self.fullname,from_table or ''))
+        logger.info('Populating %s from %s',
+                    self.fullname,
+                    from_table or '')
         descendingRelations = self.model.manyRelationsList(cascadeOnly=True)
         ascendingRelations = self.model.oneRelationsList(foreignkeyOnly=True)
         onPopulatingFromMasterDb = getattr(self,'onPopulatingFromMasterDb',None)
@@ -1344,12 +1344,11 @@ class GnrDboTable(TableBase):
             if r[self.pkey] in valuesset:
                 continue
             self.raw_insert(r)
-            print('.', end=' ')
             valuesset.add(r[self.pkey])
             for tbl,fkey in descendingRelations:
                 if tbl!=from_table and tbl!=self.fullname:
                     self.db.table(tbl).populateFromMasterDb(master_db,where='$%s=:fkey' %fkey, fkey=r[self.pkey])
-        print('\n')
+        logger.info("Completed")
 
 
     def populateAscendingRelationsFromMasterDb(self,record,master_db=None,ascendingRelations=None,foreignkeyOnly=None):
@@ -1457,7 +1456,7 @@ class AttachmentTable(GnrDboTable):
         model = self.db.model
         mastertbl =  model.src['packages.%s.tables.%s' %(pkgname,mastertblname)]
         mastertbl.attributes['atc_attachmenttable'] = '%s.%s' %(pkgname,tblname)
-        mastertbl_name_long = mastertbl.attributes.get('name_long')        
+        mastertbl_name_long = mastertbl.attributes.get('name_long')                
         tbl.attributes.setdefault('caption_field','description')
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
@@ -1467,12 +1466,17 @@ class AttachmentTable(GnrDboTable):
         #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
-                    onInserted='convertDocFile',
+                    onInserted='onInsertedAtc',
                     onInserting='checkExternalUrl')
+        tbl.column('filepath_hash', name_long='MD5 hash')
+        tbl.column('filepath_original_name', name_long='!![en]Original name')
+
         tbl.column('external_url', name_long='!![en]External url')
         tbl.column('description' ,name_long='!![en]Description')
         tbl.column('mimetype' ,name_long='!![en]Mimetype')
         tbl.column('text_content',name_long='!![en]Content')
+        #tbl.column('text_language',name_long='!![en]Text language')
+
         tbl.column('info' ,'X',name_long='!![en]Additional info')
         tbl.column('is_foreign_document','B',
                     name_long='!![en][Is foreign document]',
@@ -1506,7 +1510,6 @@ class AttachmentTable(GnrDboTable):
     def pyColumn_missing_file(self,record,**kwargs):
         sn = self.db.application.site.storageNode(record['filepath'])
         return not sn.exists
-    
     
 
     def onArchiveExport(self,records,files=None):
@@ -1637,7 +1640,7 @@ class AttachmentTable(GnrDboTable):
         if not record.get('description') and 'external_url' in record:
             record['description'] = record['external_url']
 
-    def trigger_convertDocFile(self,record,**kwargs):
+    def trigger_onInsertedAtc(self,record,**kwargs):
         if not record.get('filepath') or \
             record.get('is_foreign_document'):
             return
@@ -1838,7 +1841,7 @@ class Table_sync_event(TableBase):
         tsfield = tblobj.lastTs
         if tsfield and event != 'I':
             event_check_ts = old_record[tsfield] if event=='U' else record[tsfield]
-        print('TABLE TRIGGER SYNC')
+        logger.debug('Table trigger sync')
         event_record = dict(tablename=tblobj.fullname,event_type=event,
                     event_pkey=record[tblobj.pkey],
                     event_data=Bag(record),

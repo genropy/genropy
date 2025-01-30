@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 "MDEditor"
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
@@ -16,18 +14,19 @@ class GnrCustomWebPage(object):
         "MDEditor with viewer"
         pane.data('.mycontent','My *content*')
         pane.MDEditor(value='^.mycontent',height='300px',width='400px',viewer=True)
-        #Same result can be achieved with placeholder='My *content*'
 
     def test_2_parametric(self, pane):
         "MDEditor with parameters"
         bc = pane.borderContainer(height='800px',width='600px',border='1px solid silver')
         fb = bc.contentPane(region='top').formbuilder()
-        fb.textbox('^.initialEditType',lbl='initialEditType')
-        fb.textbox('^.initialValue',lbl='initialValue')
-        fb.textbox('^.previewStyle',lbl='previewStyle')
+        fb.filteringSelect('^.initialEditType',lbl='initialEditType', values='markdown,wysiwyg', default='markdown')
+        fb.textbox('^.initialValue',lbl='initialValue', default='This is a **markdown** text')
+        fb.filteringSelect('^.previewStyle',lbl='previewStyle', values='tab,vertical', default='tab')
         bc.contentPane(region='center',overflow='hidden').MDEditor(value='^.mycontent',height='100%',
                                                                    initialEditType='^.initialEditType',
-                                                                   previewStyle='^.previewStyle')
+                                                                   previewStyle='^.previewStyle', 
+                                                                   hideModeSwitch=True, 
+                                                                   placeholder='^.initialValue')
         
     def test_3_maxlen(self, pane):
         "MDEditor with maxLength"

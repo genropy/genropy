@@ -20,10 +20,10 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from __future__ import print_function
+import os.path
 
 from gnr.core.gnrbag import Bag
-import os.path
+from gnr.web import logger
 
 class DojoApiReader(object):
     discard = ['provides', 'resources', 'mixins']
@@ -40,7 +40,7 @@ class DojoApiReader(object):
             if isinstance(value, Bag):
                 value = self.convertObject(value)
             if location in self.apibag:
-                print('redefining object:', location)
+                logger.info('redefining object: %s', location)
             else:
                 self.write(location, value, attr)
                 self.apibag.setItem(location, value, attr)
@@ -48,7 +48,7 @@ class DojoApiReader(object):
     def write(self, location, obj, attr):
         destpath = [self.resultpath, 'objects'] + location.split('.') + 'obj.xml'
         if attr:
-            print(attr)
+            logger.debug(attr)
         destpath = os.path.join(**destpath)
         obj.toXml(destpath, autocreate=True)
 
@@ -65,7 +65,7 @@ class DojoApiReader(object):
             if isinstance(value, Bag):
                 value = self.convertItems(value)
             if label in result:
-                print('redefining:', label)
+                logger.info('redefining: %s', label)
             result.setItem(label, value, attr)
         return result
 
@@ -85,12 +85,3 @@ class DojoApiReader(object):
                 result.setItem(label, value, attr)
         return result
 
-
-if __name__ == '__main__':
-    obj = DojoApiReader("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/api.xml")
-    #obj.apibag.toXml("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/api_gnr.xml")
-    for k, v in list(obj.apibag.items()):
-        v.toXml("/Users/gpo/sviluppo/genro/dojo_libs/dojo_15/gnrapi/%s.xml" % k, autocreate=True)
-
-    print(list(obj.apibag.keys()))
-    print(x)

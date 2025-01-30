@@ -3,8 +3,7 @@ import sys
 import os
 import shutil
 from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.app.gnrdeploy import PathResolver
-from gnr.app.gnrconfig import gnrConfigPath
+from gnr.core.gnrconfig import gnrConfigPath
 
 class ProjectConverter(object):
     def __init__(self,projects=None):

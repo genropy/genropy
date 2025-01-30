@@ -7,8 +7,6 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
 
-from gnr.web.gnrwsgisite_proxy.gnrresourceloader import GnrMixinError
-from gnr.core.gnrdecorator import public_method
 class GnrCustomWebPage(object):
     """USER PREFERENCE BUILDER"""
     maintable = 'adm.user'

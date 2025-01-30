@@ -14,10 +14,6 @@ def main():
                         dest='verbose',
                         action='store_true',
                         help="Verbose mode")
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        action='store_true',
-                        help="Debug mode")
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance identified by supplied name")

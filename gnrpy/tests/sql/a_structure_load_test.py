@@ -23,7 +23,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.core.gnrbag import Bag
 
 from .common import BaseGnrSqlTest, configurePackage
 

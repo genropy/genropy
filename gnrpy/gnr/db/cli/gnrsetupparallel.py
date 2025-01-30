@@ -1,1 +1,1 @@
-from gnr.app.cli.gnrdbsetupparallel import *
+from gnr.app.cli.gnrdbsetupparallel import * # noqa: F401

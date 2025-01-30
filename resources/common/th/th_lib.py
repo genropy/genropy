@@ -8,7 +8,6 @@
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-import os
 
 class TableHandlerCommon(BaseComponent):
     def onLoadingRelatedMethod(self,table,sqlContextName=None):
@@ -46,19 +45,19 @@ class TableHandlerCommon(BaseComponent):
         condition_kwargs['_if'] = 'fkey && fkey!="*newrecord*" && fkey!="*norecord*"'
         relcondition,table,fkeyfield = self._th_relationExpand_one(tblrel,relation_attr,condition=condition,original_kwargs=original_kwargs,condition_kwargs=condition_kwargs,default_kwargs=default_kwargs)
         _foreignKeyFormPath = original_kwargs.get('_foreignKeyFormPath','=#FORM/parent/#FORM')
-        
         if tblrel.pkey!=relationKey:
             #relation is not on primary key
             default_kwargs[fkeyfield] = '%s.record.%s' %(_foreignKeyFormPath, relationKey)
             condition_kwargs['fkey'] = '=#FORM.record.%s' %relationKey
         else:
-            default_kwargs[fkeyfield] = '%s.pkey' %_foreignKeyFormPath
+            if ',' not in fkeyfield:
+                default_kwargs[fkeyfield] = '%s.pkey' %_foreignKeyFormPath
             condition_kwargs['fkey'] = '=#FORM.pkey'
         if (relation_attr.get('onDelete')=='setnull') or (relation_attr.get('onDelete_sql')=='setnull'):
             original_kwargs['store_unlinkdict'] = dict(one_name = relation_attr.get('one_rel_name',tblrel.name_plural),field=relation_attr['many_relation'].split('.')[-1])
         elif (relation_attr.get('onDelete')=='cascade'):
-            original_kwargs['store_excludeDraft'] = False
-            original_kwargs['store_excludeLogicalDeleted'] = False
+            original_kwargs.setdefault('store_excludeDraft', False)
+            original_kwargs.setdefault('store_excludeLogicalDeleted',False)
         for suffix,altrelation in relation_kwargs.items():
             alt_relation_attr = tblrel.model.relations.getAttr(altrelation, 'joiner')
             altcond,table,altfkey = self._th_relationExpand_one(tblrel,alt_relation_attr,condition=condition,condition_kwargs=condition_kwargs,suffix=suffix)
@@ -71,10 +70,22 @@ class TableHandlerCommon(BaseComponent):
         fkey = many.pop()
         table = str('.'.join(many))
         fkey = str(fkey)
-        condition_kwargs['_fkey_name_%s' %suffix if suffix else '_fkey_name'] = fkey
-        relcondition = '$%s=:fkey' %fkey                   
+        if self.db.table(table).column(fkey).attributes.get('composed_of'):
+            fkey = self.db.table(table).column(fkey).attributes.get('composed_of')
+            fkeys = fkey.split(',')
+            _foreignKeyFormPath = original_kwargs.get('_foreignKeyFormPath','=#FORM/parent/#FORM')
+            relpkeys = tblrel.column(tblrel.pkey).composed_of.split(',')
+            relcondition = []
+            for fkey_item,relpkey in zip(fkeys,relpkeys):
+                condition_kwargs[f'fkey_{relpkey}'] = f'=#FORM.record.{relpkey}'
+                relcondition.append(f'${fkey_item}=:fkey_{relpkey}')
+                default_kwargs[fkey_item] = f'{_foreignKeyFormPath}.record.{relpkey}'
+            relcondition = ' AND '.join(relcondition)
+        else:
+            condition_kwargs['_fkey_name_%s' %suffix if suffix else '_fkey_name'] = fkey
+            relcondition = '$%s=:fkey' %fkey                   
         return relcondition,table,fkey
-        
+            
     def _th_getResourceName(self,name=None,defaultModule=None,defaultClass=None):
         if not name:
             return '%s:%s' %(defaultModule,defaultClass)

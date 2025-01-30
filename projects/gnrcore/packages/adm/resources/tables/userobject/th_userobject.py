@@ -2,7 +2,6 @@
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class View(BaseComponent):
     def th_hiddencolumns(self):
@@ -16,18 +15,18 @@ class View(BaseComponent):
         r.fieldcell('tbl',width='20em')
         r.fieldcell('userid',width='6em')
         r.fieldcell('description',width='20em')
-        r.fieldcell('authtags',width='6em')
-        r.fieldcell('private',width='6em')
+        r.fieldcell('authtags',width='6em', name='!![en]Tags')
+        r.fieldcell('private',width='3em', tick=True, name='!![en]Priv.')
         r.fieldcell('flags',width='6em')
         r.fieldcell('required_pkg',width='10em')
-        r.fieldcell('__mod_ts',name='Local modTS',width='10em')
+        r.fieldcell('__mod_ts',name='Local modTS',width='8em')
         r.fieldcell('resource_status',width='20em')
 
         if self.isDeveloper():
             r.cell('save_as_resource',calculated=True,format_buttonclass='buttonInGrid',
                         format_isbutton='!!Make resource',
                         format_onclick="""PUBLISH save_uo_as_resource = {pkeys:this.widget.getSelectedPkeys().length? this.widget.getSelectedPkeys():[this.widget.rowByIndex($1.rowIndex)['_pkey']]};""",
-                        name=' ',width='10em')
+                        name=' ',width='8em')
 
     def th_order(self):
         return 'code'
@@ -42,7 +41,10 @@ class View(BaseComponent):
                         _lockScreen=True)
     
     def th_top_custom(self,top):
-        top.slotToolbar('2,sections@packages,*,sections@types,sections@systemuserobject',childname='upper',_position='<bar')
+        top.slotToolbar('2,sections@types,*,sections@systemuserobject,2',childname='upper',_position='<bar')
+
+    def th_bottom_custom(self,bottom):
+        bottom.slotToolbar('2,sections@packages,*')
 
     def th_sections_packages(self):
         return self.th_distinctSections(table='adm.userobject',field='pkg')
@@ -72,7 +74,52 @@ class View_query(BaseComponent):
 class Form(BaseComponent):
 
     def th_form(self, form):
-        pane = form.record
+        bc = form.center.borderContainer(datapath='.record')
+        self.objectParameters(bc.roundedGroup(title='!![en]Object parameters', region='top', height='320px'))
+        self.objectResourceForm(bc.stackContainer(region='center', selectedPage='^.objtype', margin='2px'))
+        
+    def objectResourceForm(self,sc):
+        for obj in self.db.table('adm.userobject').query(columns='$objtype',distinct=True).fetch():
+            objtype = obj['objtype']
+            getattr(self,f'objectResource_{objtype}',self.objectResource_base)(sc.borderContainer(pageName=objtype))
+
+    def objectResource_base(self,bc, **kwargs):
+        bc.contentPane(region='center').formbuilder().field('data')
+
+    def objectResource_query(self,bc, **kwargs):
+        fb = bc.contentPane(region='center').formbuilder(cols=1)
+        fb.div('^#FORM.query_as_txt', height='100%', width='100%')
+        fb.dataRpc('#FORM.query_as_txt',self.translateWhere, query_object_id='^.id', 
+                                            objtype='=#FORM.record.objtype',
+                                            _if='objtype=="query"',
+                                            table='=#FORM.record.tbl')
+        
+    @public_method
+    def translateWhere(self, query_object_id=None, table=None, **kwargs):
+        if not query_object_id:
+            return
+        qobj= self.db.table('adm.userobject').record(query_object_id, mode='bag')
+        wherebag = qobj['data.where']
+        return self.db.whereTranslator.toHtml(table,wherebag) 
+
+    def objectResource_template(self,bc, **kwargs):
+        bc.roundedGroup(title='!![en]Template management').templateChunk(
+                                        template='^#FORM.record.data',
+                                        editable=True,
+                                        height='100%',
+                                        min_height='400px',
+                                        table='^#FORM.record.tbl',
+                                        selfsubscribe_onChunkEdit='this.form.save();',
+                                        emailChunk='^#FORM.record.is_mail',
+                                        padding='5px', 
+                                        overflow_y='auto')
+
+    def objectResource_dash_groupby(self,bc, **kwargs):
+        pass
+
+    
+        
+    def objectParameters(self, pane):
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.field('code')
         fb.field('description')
@@ -86,7 +133,6 @@ class Form(BaseComponent):
         fb.field('private')
         fb.field('quicklist')
         fb.field('flags')
-        fb.field('data')
 
     def th_options(self):
         return dict(copypaste='*')

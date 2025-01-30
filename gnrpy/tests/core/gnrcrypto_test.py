@@ -2,7 +2,6 @@ import pytest
 import datetime
 import time
 from gnr.core import gnrcrypto as gc
-from urllib.parse import parse_qs, urlparse
 
 class TestGnrCrypto():
     def setup_class(cls):
@@ -39,38 +38,38 @@ class TestGnrCrypto():
         assert qs_param in r
 
         r2 = self.atg.verify_url(r, qs_param="wrong")
-        assert r2 is "not_valid"
+        assert r2 == "not_valid"
         
         r2 = self.atg.verify_url(r.replace(";", "@"), qs_param=qs_param)
-        assert r2 is "not_valid"
+        assert r2 == "not_valid"
 
         wrong_signature = list(r[:])
         wrong_signature[wrong_signature.index(";")+1] = "@"
         wrong_signature = "".join(wrong_signature)
         
         r2 = self.atg.verify_url(wrong_signature, qs_param=qs_param)
-        assert r2 is "not_valid"
+        assert r2 == "not_valid"
 
         r2 = self.atg.verify_url(r, qs_param=qs_param)
 
         # verify expiration
         time.sleep(2)
         r2 = self.atg.verify_url(r, qs_param=qs_param)
-        assert r2 is "expired"
+        assert r2 == "expired"
 
         # with date object
         r = self.atg.generate_url(self.url, expire_ts=datetime.date(2024,1,1))
         r2 = self.atg.verify_url(r)
-        assert r2 is "expired"
+        assert r2 == "expired"
 
         # with expire minutes - valid
         r = self.atg.generate_url(self.url, expire_minutes=200)
         r2 = self.atg.verify_url(r)
-        assert r2 is None
+        assert r2 == None
 
         # with expire minutes
         r = self.atg.generate_url(self.url, expire_minutes=0.01)
         time.sleep(1)
         r2 = self.atg.verify_url(r)
-        assert r2 is "expired"
+        assert r2 == "expired"
         

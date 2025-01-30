@@ -24,15 +24,14 @@
 """
 Some useful operations on lists.
 """
+import os.path
 from functools import cmp_to_key
 import datetime
 import csv
 
-
-from gnr.core.gnrlang import GnrException
+from gnr.core import logger
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import slugify
-from gnr.core.gnrexporter import BaseWriter
 
 # FIXME: what's this for?
 class FakeList(list):
@@ -260,7 +259,6 @@ class XlsReader(object):
     """Read an XLS file"""
     def __init__(self, docname,mainsheet=None,compressEmptyRows=None,allEmptyRows=None,**kwargs):
         import xlrd
-        import os.path
         self.XL_CELL_DATE = xlrd.XL_CELL_DATE
         self.xldate_as_tuple = xlrd.xldate_as_tuple
         self.docname = docname
@@ -365,9 +363,6 @@ class XlsxReader(object):
 
     def __init__(self, docname, mainsheet=None, compressEmptyRows=None, allEmptyRows=None, **kwargs):
         from openpyxl import load_workbook
-        import os.path
-    #    self.XL_CELL_DATE = xlrd.XL_CELL_DATE
-    #    self.xldate_as_tuple = xlrd.xldate_as_tuple
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
@@ -480,7 +475,7 @@ class XlsxReader(object):
                 elif self.compressEmptyRows:
                     if not last_line_empty:
                         last_line_empty = True
-                        print('b yield empty row')
+                        logger.debug('b yield empty row')
                         yield []
             else:
                 last_line_empty = False
@@ -491,7 +486,6 @@ class CsvReader(object):
     """Read an csv file"""
     def __init__(self, docname,dialect=None,delimiter=None,detect_encoding=False,
                 encoding=None,**kwargs):
-        import os.path
         self.docname = docname
         self.dirname = os.path.dirname(docname)
         self.basename, self.ext = os.path.splitext(os.path.basename(docname))
@@ -519,12 +513,12 @@ class CsvReader(object):
 
     def detect_encoding(self):
         try:
-            import cchardet as chardet
+            import cchardet as chardet # noqa: F401
         except ImportError:
             try:
-                import chardet
-            except ImportError:
-                print('either cchardet or chardet are required to detect encoding')
+                import chardet # noqa: F401
+            except ImportError as e:
+                logger.exception('either cchardet or chardet are required to detect encoding')
                 return
         from chardet.universaldetector import UniversalDetector
         detector = UniversalDetector()
@@ -718,18 +712,16 @@ class GnrNamedList(list):
 
 
 def getReader(file_path,filetype=None,**kwargs):
-    import os.path
-    filename,ext = os.path.splitext(file_path)
-    if filetype=='excel' or not filetype and ext in ('.xls','.xlsx'):
-        if ext=='.xls':
+    filename, ext = os.path.splitext(file_path)
+    if filetype == 'excel' or not filetype and ext in ('.xls','.xlsx'):
+        if ext == '.xls':
             reader = XlsReader(file_path,**kwargs)
         else: # .xlsx
             try:
-                import openpyxl
+                import openpyxl # noqa: F401
                 reader = XlsxReader(file_path,**kwargs)
             except ImportError: # pragma: no cover
-                import sys
-                print("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n", file=sys.stderr)
+                logger.exception("\n**ERROR Missing openpyxl: 'xlsx' import may not work properly\n")
                 reader = XlsReader(file_path,**kwargs)
     elif ext=='.xml':
         reader = XmlReader(file_path,**kwargs)

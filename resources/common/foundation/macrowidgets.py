@@ -21,13 +21,11 @@
 """
 Component for thermo:
 """
+import datetime
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrbag import Bag
-import datetime
-from gnr.web.gnrwebstruct import struct_method
-
 from gnr.core.gnrlocale import DATEKEYWORDS
 
 class MenuStackContainer(BaseComponent):

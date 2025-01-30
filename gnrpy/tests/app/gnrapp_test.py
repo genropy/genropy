@@ -2,7 +2,6 @@
 Tests for gnr.app package
 """
 import sys
-import os.path
 import _frozen_importlib
 import pytest
 
@@ -16,7 +15,7 @@ class TestGnrApp(BaseGnrAppTest):
     def setup_method(self, method):
         self.app_name = 'gnrdevelop'
         self.app = ga.GnrApp(self.app_name, forTesting=True)
- 
+
     def test_nullloader(self):
         """
         Tests for NullLoader

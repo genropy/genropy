@@ -257,7 +257,7 @@ class DocumentationViewer(BaseComponent):
                             _delay=1)
         bar = frame.top.slotBar('doccaption,*,editrst,nav_up,nav_down,3,nav_left,nav_right,10,searchSelect,5',height='24px',
                                 border_bottom='1px solid #3A4D65',toolbar=True,background='#DBDBDB')
-        bar.dataController("""
+        bar.dataController(r"""
             var n = tocroot.getNode(hierarchical_pkey.replace(/\//g, '.'));   
             var next_sibling_hname,prev_sibling_hname,parent_hname,first_child_hname;
             var parentNode = n.getParentNode();
@@ -494,9 +494,9 @@ class DocumentationViewer(BaseComponent):
 class ContentsComponent(BaseComponent):
     js_requires='docu_components'
     
-    def contentEditor(self, pane, value=None,htmlpath=None, **kwargs):
+    def contentEditor(self, pane, value=None,htmlpath=None,initialEditType='wysiwyg',**kwargs):
         pane.MDEditor(value=value,htmlpath=htmlpath, nodeId='contentMd', height='100%', previewStyle='vertical',
-                        initialEditType='wysiwyg', **kwargs)
+                        initialEditType=initialEditType, **kwargs)
         
     @customizable    
     def contentData(self, pane, **kwargs):

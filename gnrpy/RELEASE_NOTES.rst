@@ -1,8 +1,242 @@
-UPCOMING RELEASE
+Upcoming release
 ================
 
-* Introduced support for Sentry.io monitoring
+Enhancements
+------------
 
+* **New tools**:
+  * Added 'gnr dev bugreport <instance name>' to create a report of
+    the current environment the instance is using, for more complete
+    bug reports - please see `--help` for possible usage
+    
+* **Dependency Updates**:
+  * Introduced dependency on 'dictdiffer' for handling SQL migration
+    differences.
+  * Removed all `deepdiff`-related tests, data, and dependencies.
+
+* **SQL Migration Improvements**:
+  * Improved handling of deferred relations and indexing for tenant schemas.
+  * Excluded unique constraints that overlap with primary keys.
+  * Added support for PostgreSQL extensions in migrations, including:
+    * Commands to create extensions.
+    * Integration with the migration framework.
+  * Added event triggers to the migration structure with preliminary support.
+
+* **PostgreSQL Utilities**:
+  * Introduced new utilities for monitoring PostgreSQL performance:
+    * Queries for most-used indexes and sequential scans.
+    * Autovacuum status monitoring.
+    * Top and least-efficient queries statistics.
+
+* **Database Schema**:
+  * Updated PostgreSQL adapter to handle `DEFERRABLE` and `INITIALLY
+    DEFERRED` constraints.
+  * Added support for extension management in migration commands.
+
+* **General Code Improvements**:
+  * Introduced SQL comment decorators for better traceability in SQL execution.
+  * Standardized decorator patterns across the codebase for clarity.
+
+* **Database adapters**:
+  * Added support for capabilities declaration inside of database
+    adapter, in order to conditionally execute specific tasks base on such
+    specific capabilities.
+  * Introduced 'postgres3' database adapter which uses the psycopg3 driver.
+  * Aligned adapters inheritance method and added test coverage for it
+  
+Bug Fixes
+---------
+
+* Resolved issues with unused imports that caused linting errors.
+
+Testing and Quality
+-------------------
+
+* Replaced the official PostgreSQL Docker image with `dockette/postgres` for compatibility with required extensions.
+* Enhanced unit tests for SQL migration features and removed obsolete test cases.
+
+Breaking Changes
+----------------
+
+* The dependency on `deepdiff` has been entirely removed in favor of `dictdiffer`. Update your environment accordingly.
+* Migration commands now explicitly require extensions to be declared.
+
+Version 24.12.23
+================
+
+* Bugfix release, avoid deadlock on tasks 
+  
+
+Version 24.12.03
+================
+* introduce gnr.app.gnrutils module, for GnrApp utilities. First
+  utility is GnrAppInsights, which retrieve statistical information
+  about a specific GnrApp, with plugin support. Includes a new command
+  line tool 'gnr app insights' to retrieve and show the statistics.
+
+* all CLI tools have a common --timeit options that measure the
+  execution time of the underlying command
+  
+Version 24.11.12
+================
+
+Enhancements
+------------
+
+* Introduce linting for F401, with a full code check and cleanup
+
+* Tests can use a custom postgres database server using GNR_TEST_PG_*
+  env variables (HOST, PORT, USER, PASSWORD)
+
+Version 24.11.4
+===============
+
+Enhancements
+------------
+
+* **Bag Template System**: Introduced `_template_kwargs` in the `Bag`
+  class to allow template expansion using environment variables, and
+  updated tests for the `Bag` template system.
+
+* **Docker Image Workflow**: Added Docker image tagging for `develop`
+  and `master` branches using project versioning, modified the GitHub
+  Actions workflow for Docker image builds, adding branch name
+  extraction and version handling, fixed issues with tag formatting
+  and added platform-specific build configurations (amd64 and arm64).
+
+* **Python Version Compatibility**: Added support for Python 3.12 and
+  3.13 in test matrices, ensuring compatibility with newer versions,
+  updated package dependencies, adding `packaging` to support version
+  management.
+
+Bug Fixes
+-----
+* **Dependency Management**: Replaced `pkg_resources` with
+  `importlib.metadata` for package version handling to resolve
+  deprecation warnings on Python >= 3.12.
+
+* **Various Typos and Formatting Issues**: Corrected numerous typos in
+  code comments, log messages, and parameter documentation,
+  standardized usage of raw string literals in regular expressions,
+  addressed issues in the `gnrlocale.py` and `gnrlist_test.py` files
+  related to locale and list handling.
+
+* **GitHub Actions Updates**: Fixed issues in `set-output` commands to
+  use the `GITHUB_ENV` for exporting environment variables, corrected
+  misplaced steps and adjusted sequence in Docker and test workflows.
+
+* **Code Documentation**: Standardized parameter formatting in
+  documentation strings, ensuring compatibility with Sphinx and other
+  documentation tools, improved documentation for public methods and
+  their parameters.
+
+* **General Code Cleanup**: Removed unused imports and cleaned up
+  deprecated syntax, addressed escaping issues in code to enhance
+  readability and avoid conflicts in syntax highlighting, adjusted the
+  usage of `locale` in the `gnrlocale` module to resolve compatibility
+  issues with Babel.
+
+Testing and Validation
+----------------------
+
+* Enhanced GitHub Actions workflows to set environment variables for
+  locale settings during test execution.
+
+* Updated `pytest` configurations to include testing across modules
+  `core`, `sql`, `web`, `app`, and `xtnd`.
+
+
+Version 24.10.2
+===============
+
+Bug Fixes
+---------
+
+* Reverted recent warning suppression commit which introduced a regression
+  in formuleColumns
+  
+Version 24.10.1
+===============
+
+New Features
+------------
+
+* **Service defaultPrompt and contentEditor**: Added `initialEditType`
+  as a customizable parameter for `contentEditor` and `MDEditor`,
+  allowing for more flexible configuration of the initial editing
+  mode.
+* **FrameIndex**: Introduced `fi_get_owner_name` method to allow
+  dynamic retrieval of owner names in the frame index interface.
+* **PickerViewSimple**: Simplified picker views, providing a basic
+  picker layout without headers.
+* **Multibutton Enhancements**: Improved the multibutton widget,
+  adding support for customizable item widths and content overflow
+  management.
+
+Bug Fixes
+---------
+
+* **Pattern Fixes**: Corrected the masking behavior in SQL regular
+  expressions to properly handle special characters such as
+  parentheses, brackets, and backslashes across multiple SQL adapters
+  (DB2, PostgreSQL, MSSQL).
+* **Archive and Delete Fixes**: Enhanced the `archive_and_delete`
+  functionality, allowing deletion of archived records and managing
+  dependencies effectively.
+* **Hidden Transaction Behavior**: Adjusted the `hidden_transaction`
+  behavior to prevent triggering unwanted database event
+  notifications, ensuring smoother background operations.
+* **Smart Open Compatibility**: Resolved issues with smart file
+  opening in AWS S3 services by ensuring the correct session and
+  client parameters are passed.
+* **Modal Panel in FrameIndex**: Added the option to open modal panels
+  in the frame index, improving the flexibility of panel management
+  within the UI.
+* **MD Editor Fixes**: Resolved issues with the Markdown editor's
+  viewer mode, toolbar item removal, and proper character counting for
+  content limits.
+* **Gridbox LabeledBox**: Fixed issues with `GridboxLabeledBox`
+  alignment, ensuring proper layout behavior when used with flexbox
+  and formlet components.
+
+Cosmetic Improvements
+---------------------
+
+* **Gridbox**: Minor cosmetic adjustments for better handling of grid
+  layouts and labeled boxes, including improved spacing and field
+  background management.
+* **Picker**: Enhanced the picker interface by improving conditions
+  and subtable management in tree and grid-based picker views.
+* **Attachment Manager**: Updated the attachment manager to support
+  video previews for common formats like MP4 and AVI, providing a more
+  comprehensive file handling experience.
+
+Performance Improvements
+------------------------
+
+* **Fake Resize Handling**: Improved the window resizing mechanism to
+  ensure it only triggers when a visibility change occurs, reducing
+  unnecessary event dispatches and improving performance in
+  resize-intensive scenarios.
+* **Dependency Tree Fix**: Optimized dependency tree processing to
+  handle foreign key relations more efficiently, especially when
+  dealing with `setnull` on delete operations.
+
+General Improvements
+--------------------
+
+* **Database Notifications**: Improved the database notification
+  system to allow better control over event triggering during hidden
+  transactions, avoiding unnecessary notifications.
+* **Menu Generation**: Updated the table resource generation script
+  (`gnrmkthresource`) to allow regeneration of menus even if resources
+  already exist, ensuring the menu structure stays current, using the -m switch
+* **Login Group Management**: Fixed an issue where users with multiple
+  groups could not log in to their non-primary groups.
+* **Monitoring**: Introduced support for Sentry.io monitoring
+* deploybuilder will now create the 'config' subdirectory, to support
+  older instances without it
+  
 Version 24.5.30.2
 =================
 

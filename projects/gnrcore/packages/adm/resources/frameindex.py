@@ -5,12 +5,12 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import customizable
-from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
@@ -405,13 +405,16 @@ class FrameIndex(BaseComponent):
     def fi_slotbar_user_name(self,slot,**kwargs):
         slot.div(innerHTML='==user_name', user_name='^gnr.avatar.user_name', 
                  _class='iframeroot_pref')
+        
+    def fi_get_owner_name(self):
+        return '^gnr.app_preference.adm.instance_data.owner_name'
 
     @struct_method
     def fi_slotbar_owner_name(self,slot,**kwargs):
         box = slot.div(_class='iframeroot_pref')
         if not self.dbstore:
             box.lightButton(innerHTML='==_owner_name?dataTemplate(_owner_name,envbag):"Preferences";',
-                                    _owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                    _owner_name=self.fi_get_owner_name(),
                                     action='PUBLISH app_preference;',envbag='=gnr.rootenv', display='inline-block')
             if self.application.checkResourcePermission(self.pageAuthTags(method='preference'), self.userTags):
                 box.dataController("genro.framedIndexManager.openAppPreferences()",subscribe_app_preference=True)
@@ -573,7 +576,11 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
-        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',connect_onclick='genro.openBrowserTab(genro.addParamsToUrl(window.location.href,{new_window:true}));')
+        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',
+                 connect_onclick="""
+                 let urlObj = new URL(window.location.href);
+                 urlObj.searchParams.delete("page_id");
+                 genro.openBrowserTab(urlObj.toString(),{new_window:true});""")
         
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):

@@ -2,7 +2,6 @@
 
 from gnr.lib.services.remoteservice import RemoteService
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrbag import Bag
 
 class Service(RemoteService):
 

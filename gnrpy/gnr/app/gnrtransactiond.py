@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy app - see LICENSE for details
 # module gnrtransaction : Genro transaction agent from  4D db system.
@@ -21,19 +21,14 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
-from datetime import datetime, timedelta
-import time
+from datetime import datetime
 import logging
-
-gnrlogger = logging.getLogger('gnr')
-
 from logging.handlers import TimedRotatingFileHandler
-from logging import Formatter
-
-#gnrlogger = logging.getLogger('gnr.app.gnrtransactiond')
 
 from gnr.core.gnrlang import errorLog
 from gnr.core.gnrbag import Bag
+
+from gnr.app import logger
 from gnr.app.gnrapp import GnrApp
 
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
@@ -64,7 +59,7 @@ class GnrAppTransactionAgent(GnrApp):
             else:
                 credentials = None
             hdlr = logging.SMTPHandler(mailhost, fromaddr, toaddr, subject, credentials=credentials)
-            gnrlogger.addHandler(hdlr)
+            logger.addHandler(hdlr)
 
     def _startLog(self):
         logdir = os.path.join(self.instanceFolder, 'logs')
@@ -73,12 +68,11 @@ class GnrAppTransactionAgent(GnrApp):
         logfile = os.path.join(logdir, 'gnrtrdaemon.log')
         loghandler = TimedRotatingFileHandler(logfile, 'MIDNIGHT', 1, 28)
         loghandler.setLevel(logging.ERROR)
-        formatter = Formatter('%(asctime)s - %(name)-12s: %(levelname)-8s %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)-12s: %(levelname)-8s %(message)s')
         loghandler.setFormatter(formatter)
 
-        rootlogger = logging.getLogger('')
-        rootlogger.setLevel(logging.ERROR)
-        rootlogger.addHandler(loghandler)
+        logger.setLevel(logging.ERROR)
+        logger.addHandler(loghandler)
         if 'admin' in self.db.packages:
             self.db.package('admin').mailLog(self.processName)
 
@@ -94,7 +88,7 @@ class GnrAppTransactionAgent(GnrApp):
                        onTimeout=self.checkTransactions)
 
     def checkTransactions(self, notify=None):
-        print("Checking -- [%i-%i-%i %02i:%02i:%02i]" % (time.localtime()[:6]))
+        logger.debug("Checking")
         try:
             todo = True
             while todo:
@@ -103,7 +97,7 @@ class GnrAppTransactionAgent(GnrApp):
         except:
             config = self.config
             tb_text = errorLog(self.processName)
-            gnrlogger.error(tb_text)
+            logger.error(tb_text)
             raise
         return self.running
 
@@ -147,7 +141,7 @@ class GnrAppTransactionAgent(GnrApp):
 
     def expandTransaction(self, transaction):
         trargs = {'id': transaction['id'], 'execution_start': datetime.now()}
-        print(transaction['id'])
+        logger.debug(transaction['id'])
         try:
             tablepath = transaction['maintable']
             data = Bag(transaction['data'])
@@ -156,7 +150,7 @@ class GnrAppTransactionAgent(GnrApp):
             implementor = transaction['implementor']
             if implementor:
                 implementor = implementor.strip()
-            gnrlogger.info("%s -> %s" % (action, tablepath))
+            logger.info("%s -> %s" % (action, tablepath))
             if mode == 'import':
                 self.transaction4d.do_import(data, tablepath)
             elif mode == 'sync':
@@ -183,7 +177,7 @@ class GnrAppTransactionAgent(GnrApp):
             #self.db.execute("UPDATE gnr.gnr_transaction SET error_id=:err_id, execution_start=:ts_start, execution_end=:ts_end WHERE id=:id;", err_id=err_id, ts_end=ts_end, **trargs)
             self.db.table(self.transaction_tname).update(trargs)
             tb_text = errorLog(self.processName)
-            gnrlogger.error(tb_text)
+            logger.error(tb_text)
 
             #self.db.execute("INSERT INTO gnr.gnr_error (id, ts, data) VALUES (:id, :ts, :data);", id=err_id, ts=ts_end, data=tb_text)
 

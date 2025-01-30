@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 
-
+import sys
+import ctypes
 import datetime
 import os
 import locale
 
 from decimal import Decimal
-import pytz
 from babel import numbers, dates, Locale
-from gnr.core.gnrlang import GnrException
 
+from gnr.core.gnrlang import GnrException
 
 def localize(obj, format=None, currency=None, locale=None):
     """TODO
@@ -298,10 +298,15 @@ def getQuarterNames(locale=None):
     return d
 
 def defaultLocale():
-    return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
+    sys_locale = locale.getlocale()[0]
+    if sys.platform == 'win32':
+        windll = ctypes.windll.kernel32
+        sys_locale = locale.windows_locale[windll.GetUserDefaultUILanguage()]
+    return os.environ.get('GNR_LOCALE', sys_locale)
 
 def currentLocale(locale=None):
-    return (locale or defaultLocale()).replace('-', '_')
+    r = (locale or defaultLocale()).replace('-', '_')
+    return r
     
     
 def getDateKeywords(keyword, locale=None):

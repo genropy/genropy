@@ -1,10 +1,11 @@
 # encoding: utf-8
-from __future__ import print_function
 
 import os
-import hashlib
+
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method
+
+
 class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',name_plural='!![en]User Objects',rowcaption='$code,$objtype',broadcast='objtype')
@@ -24,8 +25,12 @@ class Table(object):
         tbl.column('flags', 'T', name_long='!![en]Flags')
         tbl.column('required_pkg', name_long='!![en]Required pkg')
         tbl.column('preview',name_long='!![en][it]Preview')
+        
         tbl.formulaColumn('system_userobject',"$code LIKE :scode",var_scode=r'\_\_%%',dtype='B')
         tbl.pyColumn('resource_status',name_long='!![en]Resources',required_columns='$data')
+        tbl.formulaColumn('is_mail', ":email ILIKE ANY(string_to_array($flags,','))", var_email='is_mail', dtype='B', static=True)
+        tbl.formulaColumn('is_row', ":row ILIKE ANY(string_to_array($flags,','))", var_row='is_row', dtype='B', static=True)
+        tbl.formulaColumn('is_print', ":print ILIKE ANY(string_to_array($flags,','))", var_print='is_print', dtype='B', static=True)
 
     
     def pyColumn_resource_status(self,record=None,**kwargs):
@@ -40,10 +45,10 @@ class Table(object):
         packages = self.db.application.packages
         current_data = record['data']
         record['data'] = None
-        if not (record['tbl'] and packages[pkg]):
+        objtype = record['objtype']
+        if not (record['tbl'] and packages[pkg] and objtype):
             return resources
         tbl = record['tbl'].split('.')[1]
-        objtype = record['objtype']
         filename = '%s.xml' %(record['code'].lower().replace('.','_'))
         pkgkeys = list(packages.keys())
         page = self.db.currentPage
@@ -109,11 +114,13 @@ class Table(object):
                     record['__ins_ts'] = None
                     record['__mod_ts'] = None
                     self.insert(record)
+                    
         for pkgid,pkgobj in list(self.db.application.packages.items()):
             table_resource_folder = os.path.join(pkgobj.packageFolder,'resources','tables') 
             d = DirectoryResolver(table_resource_folder,include='*.xml',callback=cbattr,processors=dict(xml=False))
             d().walk(cbwalk,_mode='deep')
-
+        self.db.commit()
+        
     def listUserObject(self, objtype=None,pkg=None, tbl=None, userid=None, authtags=None, onlyQuicklist=None, flags=None):
         onlyQuicklist = onlyQuicklist or False
         def checkUserObj(r):

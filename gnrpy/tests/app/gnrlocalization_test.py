@@ -1,6 +1,7 @@
 import pytest
 import gnr.app.gnrlocalization as gl
 import gnr.app.gnrapp as ga
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
 
 class TestGnrLocalization(BaseGnrAppTest):
@@ -31,7 +32,7 @@ class TestGnrLocalization(BaseGnrAppTest):
         # used also by languages
         with pytest.raises(AttributeError):
             assert al.translator is False
-        with pytest.raises(AttributeError):
+        with pytest.raises((AttributeError, GnrSqlMissingTable)):
             assert al.languages is False
 
         # forcing direct data injection to test properties

@@ -4,7 +4,10 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from xml.sax import handler
+from dateutil import rrule
+from dateutil.relativedelta import relativedelta
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -64,7 +67,7 @@ class TableHandlerView(BaseComponent):
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
-        pkglist = list(self.db.packages.keys())
+        pkglist = list(self.db.packages.keys())+[None]
         for side in ('top','bottom','left','right'):
             hooks = self._th_hook(side,mangler=frameCode,asDict=True)
             for packagename,h in sorted([(getattr(handler,'__mixin_pkg',0),handler) for handler in hooks.values()],key=lambda x:pkglist.index(x[0])):
@@ -848,9 +851,6 @@ class TableHandlerView(BaseComponent):
                             allPosition=None, 
                             **kwargs):
         sections = []
-        import datetime
-        from dateutil import rrule
-        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
         dtstart = dtstart.replace(day=1)
         default_date = dtstart

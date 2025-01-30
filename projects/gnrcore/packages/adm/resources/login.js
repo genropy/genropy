@@ -78,6 +78,7 @@ const LoginComponent = {
         genro.lockScreen(true,'login');
         let rpckw = {'rootenv':rootenv,login:login};
         genro.serverCall(rpcmethod,rpckw,function(result){
+            let rootenv = sourceNode.getRelativeData('gnr.rootenv');
             genro.lockScreen(false,'login');
             if (!result || result.error){
                 dlg.show();
@@ -101,9 +102,9 @@ const LoginComponent = {
                     return
                 }
                 if(doLogin){
-                    let avatar_rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                    if(avatar_rootpage && !standAlonePage){
-                        genro.gotoURL(genro.addParamsToUrl(avatar_rootpage,genro.startArgs));
+                    let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
+                    if(singlepage && !standAlonePage){
+                        genro.gotoURL(genro.addParamsToUrl(singlepage,genro.startArgs));
                     }else{
                         genro.pageReload();
                     }

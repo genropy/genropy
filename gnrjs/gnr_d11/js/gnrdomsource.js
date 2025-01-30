@@ -178,6 +178,38 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     fireNode: function(runKwargs,kw, trigger_reason) {
         return this.setDataNodeValue(runKwargs,kw,trigger_reason);
     },
+
+    pasteFromClipboard: async function(path,mode){
+        path = path || this.attr.value || this.attr.storepath || this.attr.innerHTML
+        const clipboardText = await navigator.clipboard.readText();
+        if(!clipboardText){
+            return;
+        }
+        let value = clipboardText;
+        if(mode=='xlsx'){
+            let sheetjs = await genro.plugin('sheetjs');
+            value = sheetjs.bagFromXLSXText(clipboardText);
+        }else if(mode=='bag' && clipboardText[0]=='<'){
+            value = new gnr.GnrBag(clipboardText);
+        }
+        this.setRelativeData(path,value);
+    },
+    
+    copyInClipboard:function(path){
+        let value;
+        if(path){
+            value = this.getRelativeData(path);
+        }else{
+            let attribute = this.attr.value && 'value' 
+            || this.attr.storepath && 'storepath' 
+            || 'innerHTML';
+            value = this.getAttributeFromDatasource(attribute);
+        }
+        if(value instanceof gnr.GnrBag){
+            value = value.toXml();
+        }
+        navigator.clipboard.writeText(value);
+    },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         if(nodeOrRunKwargs===null){
             nodeOrRunKwargs = {}
@@ -1559,10 +1591,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             labelWrapper.setHidden(hidden);
         }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
+        var statusChanged = false;
         targets.forEach(function(domNode){
+            let currenHidden = !genro.dom.isVisible(domNode);
+            statusChanged = currenHidden!=hidden;
             dojo.style(domNode, 'display', (hidden ? 'none' : ''));
         });
-        genro.fakeResize()
+        if(statusChanged){
+            genro.fakeResize()
+        }
     },
     
     updateRemoteContent:function(forceUpdate,async) {
@@ -1785,7 +1822,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         wrp_attr.helpcode = objectPop(attr,'helpcode');
         wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
         wrp_attr.tag = 'labledbox'
-        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row');
+        let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
         this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
         let original_label = this.label;
         this.label = wrp_attr._itemId || 'labled_'+original_label;

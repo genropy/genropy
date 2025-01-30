@@ -2,11 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,metadata
-
+from gnr.core.gnrdecorator import metadata
 
 class View(BaseComponent):
 
+    def th_groupedStruct(self,struct):
+        "Account View"
+        r = struct.view().rows()
+        r.fieldcell('@account_id.account_name', name='!!Account', width='20em')
+        r.cell('_grp_count', name='Cnt', width='4em', group_aggr='sum')
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('subject',width='auto')
@@ -30,9 +35,6 @@ class View(BaseComponent):
 
     def th_query(self):
         return dict(column='subject',op='contains', val='',runOnStart=False)
-    
-    def th_options(self):
-        return dict(partitioned=True)
 
     def th_top_upperbar(self,top):
         top.slotToolbar('5,sections@in_out,*,sections@sendingstatus',
@@ -67,7 +69,10 @@ class View(BaseComponent):
                 dict(code='sent',caption='!!Sent',includeDraft=False,condition='$send_date IS NOT NULL', struct='sent'),
                 dict(code='all',caption='!!All',includeDraft=True)]
 
-
+    def th_options(self):
+        return dict(groupable=dict(width='280px', closable='open'))
+    
+    
 class ViewOutOnly(View):
         
     def th_top_upperbar(self,top):
@@ -143,7 +148,6 @@ class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
 
     def attemptStruct(self,struct ):
-
         r = struct.view().rows()
         r.cell('tag',name='Tag', width='7em')
         r.cell('ts',name='Ts')

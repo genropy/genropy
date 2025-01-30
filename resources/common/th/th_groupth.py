@@ -22,7 +22,6 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 
 
@@ -209,6 +208,9 @@ class TableHandlerGroupBy(BaseComponent):
                                 if(condition){
                                     kwargs.condition = kwargs.condition? kwargs.condition +' AND '+condition:condition;
                                 }
+                                this.store.gridBroadcast(function(grid){
+                                    grid.selectionKeeper('save');
+                                })
                                 """,
                                 _excludeList="""columns,sortedBy,currentFilter,customOrderBy,row_count,hardQueryLimit,limit,liveUpdate,method,nodeId,selectionName,
                             selectmethod,sqlContextName,sum_columns,table,timeout,totalRowCount,userSets,_sections,
@@ -226,6 +228,9 @@ class TableHandlerGroupBy(BaseComponent):
                     }}else if(!grouper){{
                         SET #ANCHOR.details_pkeylist = null;
                     }}
+                    groupbystore.gridBroadcast(function(grid){{
+                                    grid.selectionKeeper('save');
+                                 }})
                     groupbystore.loadData();
                     """.format(linkedTo=linkedTo),
                 grid = frame.grid.js_widget,

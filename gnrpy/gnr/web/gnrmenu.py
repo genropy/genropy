@@ -297,19 +297,23 @@ class MenuResolver(BagResolver):
     def load(self):
         result = Bag()
         source = self.sourceBag[self.path]
-        node_attr = self.sourceBag.getAttr(self.path)
         for node in source:
             if not self.allowedNode(node):
                 continue
             warning = self.checkLegacyNode(node)
             if warning:
                 self._page.log(f'AppMenu Changed tag in node {self.path}.{node.label}: {warning}')
-            handler = getattr(self,f'nodeType_{node.attr["tag"]}')
+            menuTag = node.attr["tag"]
+            handler = getattr(self,f'nodeType_{menuTag}')
             try:
                 value,attributes = handler(node)
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
+            if attributes.get('titleCounter') and menuTag!='tableBranch':
+                self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
+                attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
+                                                                                 where=attributes.get('titleCounter_condition'))
             result.setItem(node.label, value, attributes)
         return result
 
@@ -358,13 +362,13 @@ class MenuResolver(BagResolver):
             if nodeattr.get('pkg'):
                 nodeattr['tag'] = 'packageBranch'
                 return 'updateToPackageBranch'
-
-        if nodeTag=='webpage' and nodeattr.get('table'):
-            nodeattr['tag'] = 'thpage'
-            return 'thpage'
         if nodeTag=='thpage' and nodeattr.get('filepath'):
             nodeattr['tag'] = 'webpage'
 
+        if nodeTag=='webpage' and nodeattr.get('table') and not nodeattr.get('filepath'):
+            nodeattr['tag'] = 'thpage'
+            return 'thpage'
+        
         if nodeTag == 'lookups':
             lookup_manager = nodeattr.pop('lookup_manager',None)
             if lookup_manager is True:
@@ -421,11 +425,14 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         return None,attributes
 
-    def checkExternalSite(self,attributes):
+    def checkContextParameters(self,attributes):
         externalSite = attributes.get('externalSite') or self.externalSite
         if externalSite:
             externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
             attributes['webpage'] = f"{externalSite}{attributes['webpage']}"
+        tenant_schema = attributes.pop('tenant_schema',None)
+        if  tenant_schema is not None:
+            attributes['url_env_tenant_schema'] = '_main_' if tenant_schema is False else tenant_schema
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
@@ -437,7 +444,7 @@ class MenuResolver(BagResolver):
         if webpage and self.basepath and not webpage.startswith('/'):
             attributes['webpage'] = f"{self.basepath}/{webpage}" 
         attributes['url_aux_instance'] = aux_instance
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         return None,attributes
 
     def nodeType_lookupBranch(self,node):
@@ -466,7 +473,7 @@ class MenuResolver(BagResolver):
         aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         attributes['url_th_from_package'] = attributes.get('pkg_menu')
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         attributes.setdefault('multipage',False)
@@ -481,14 +488,14 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         table = attributes['table']
         attributes['webpage'] = f'/sys/thpage/{table.replace(".","/")}'
-        for k in ('pkey','pageResource','formResource','viewResource'):
+        for k in ('pkey','pageResource','formResource','viewResource','subtable'):
             v = attributes.pop(k,None)
             if v is not None:
                 attributes[f'url_th_{k}'] = v
         aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         attributes['url_th_from_package'] = attributes.get('pkg_menu')
-        self.checkExternalSite(attributes)
+        self.checkContextParameters(attributes)
         if not aux_instance:
             attributes['url_th_from_package'] = attributes['url_th_from_package'] or self._page.package.name
         pkey = attributes.get('url_th_pkey') or attributes.get('start_pkey')
@@ -520,6 +527,7 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
+        kwargs.pop('titleCounter',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)

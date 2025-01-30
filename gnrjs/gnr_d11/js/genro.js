@@ -193,27 +193,20 @@ dojo.declare('gnr.GenroClient', null, {
                              '%'  : function(a, b) {return (a.indexOf(b) >= 0);},
                              '!%' : function(a, b) {return (a.indexOf(b) < 0);}
                              };
-        window.onbeforeunload = function(e) {
+        window.addEventListener('beforeunload', function (e) {
             genro._windowClosing = true;
-            var exit;
             if (genro.checkBeforeUnload && !genro._checkedUnload) {
-                exit = genro.checkBeforeUnload();
+                let exitStatus = genro.checkBeforeUnload();
+                if(!isNullOrBlank(exitStatus)){
+                    event.returnValue = exitStatus;
+                }
+                
             }
-            if (exit) {
-                return exit;
-            }
-            //if(!genro.root_page_id){
-            //    var rootenv = genro.getData('gnr.rootenv');
-            //    if(rootenv){
-            //        var b = new gnr.GnrBag();
-            //        b.setItem('rootenv',rootenv,{page_id:genro.page_id});
-            //        dojo.cookie(genro.getData('gnr.siteName')+'_dying_'+genro.getData('gnr.package')+'_'+genro.getData('gnr.pagename'),b.toXml(),{'expires':new Date((new Date().getTime()+2000))});
-            //    }
-            //}            
-        };
-        window.onunload = function(e) {
-            genro.onWindowUnload(e);
-        };
+        });
+        window.addEventListener('pagehide',function(){
+            genro.onWindowUnload();
+        });
+
         this.rpc = new gnr.GnrRpcHandler(this);
         this.src = new gnr.GnrSrcHandler(this);
         this.wdg = new gnr.GnrWdgHandler(this);
@@ -303,6 +296,13 @@ dojo.declare('gnr.GenroClient', null, {
         }
     },
 
+    plugin:async function(plugin){
+        if (!genro[plugin]){
+            await genro.dom.addPlugin(plugin)
+        }
+        return genro[plugin];
+    },
+
     safetry:function(cb){
         try{
             return cb();
@@ -355,7 +355,13 @@ dojo.declare('gnr.GenroClient', null, {
 
             }
         });
-        this.rpc.remoteCall('onClosePage', {sync:true});
+        if(!genro._reloading){
+            let urlObj = new URL(window.location.href);
+            if (!urlObj.searchParams.has("page_id")) {
+                var url = genro.makeUrl('/_beacon', {'method':'onClosedPage'});
+                navigator.sendBeacon(url);
+            }
+        }
         genro.publish('onClosePage');
         if (genro._data) {
             genro.saveContextCookie();
@@ -1126,7 +1132,10 @@ dojo.declare('gnr.GenroClient', null, {
         //setTimeout(dojo.hitch(genro.wdgById('pbl_root'), 'resize'), 100);
     },
     fakeResize:function(){
-        window.dispatchEvent(new Event('resize'));
+        genro.callAfter(()=>{
+            window.dispatchEvent(new Event('resize'))
+        },1,null,'resizing')
+        
     },
     callAfter: function(cb, timeout, scope,reason) {
         scope = scope || genro;
@@ -2182,6 +2191,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     pageReload:function(params,replaceParams) {
+        genro._reloading = true;
         if (params) {
             if (!replaceParams){
                 var oldparams = parseURL(window.location)['params'] || {};
@@ -2257,20 +2267,23 @@ dojo.declare('gnr.GenroClient', null, {
     openBrowserTab:function(url,params){
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,params);
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        
         //url = genro.dom.detectPdfViewer(url); #DP Merge error?
         window.open(url)
     },
     
     childBrowserTab:function(url,parent_page_id,params){
-        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id)});
         params = params || {};
         let _isPdf = objectPop(params,'_isPdf');
+        url = genro.addParamsToUrl(url,{_parent_page_id:(parent_page_id || genro.page_id),...params});
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
+        genro.bp(true)
         window.open(url);
     },
     

@@ -1,1 +1,1 @@
-import gnr.app.gnrtransactiond
+import gnr.app.gnrtransactiond  # noqa: F401

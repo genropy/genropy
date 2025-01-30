@@ -21,34 +21,66 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import json
 import os
 import re
-
+import threading
+from datetime import datetime, timedelta
+import pytz
+from functools import wraps
+from collections import defaultdict
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue
+from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_info
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
-#from gnr.sql.gnrsql_exceptions import GnrSqlException,GnrSqlSaveException, GnrSqlApplicationException
+from gnr.sql import logger
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
-from collections import defaultdict
-from datetime import datetime,timedelta
-import pytz
-import logging
-import threading
 
 
 __version__ = '1.0b'
-gnrlogger = logging.getLogger(__name__)
+
+
+
+def add_sql_comment(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        
+        # Get caller info and user info
+        info = {
+            "user": self_instance.db.currentEnv.get('user'),
+        }
+        # Add caller information
+        info.update(get_caller_info())
+        
+        # Check if `sql_comment` exists in kwargs
+        sql_comment = kwargs.get('sql_comment', None)
+        if sql_comment:
+            info['comment'] = sql_comment
+        info['sqlcommand'] = func.__name__
+        
+        # Create the updated sql_comment
+        self_instance.db.currentEnv['sql_comment'] = f'GNRCOMMENT - {json.dumps(info)}'
+        
+        # Call the original function with updated kwargs
+        return func(*args, **kwargs)
+    
+    return wrapper
 
 class RecordUpdater(object):
     """TODO
-    
+
     Example::
-    
+
         with self.recordToUpdate(pkey) as record:
             # do something
             pass"""
@@ -87,8 +119,8 @@ class RecordUpdater(object):
         self.oldrecord = oldrecord
         self.pkey = oldrecord.get(self.tblobj.pkey) if oldrecord else self.pkey
         return self.record
-        
-        
+
+
     def __exit__(self, exception_type, value, traceback):
         if not exception_type:
             if not self.record:
@@ -108,11 +140,11 @@ class RecordUpdater(object):
                     self.tblobj.insert(self.record)
                 else:
                     self.tblobj.update(self.record,self.oldrecord,pkey=self.pkey)
-        
+
 
 class GnrSqlSaveException(GnrSqlException):
     """Standard Genro SQL Save Exception
-    
+
     * **code**: GNRSQL-003
     * **description**: Genro SQL Save Exception
     """
@@ -122,7 +154,7 @@ class GnrSqlSaveException(GnrSqlException):
 
 class GnrSqlDeleteException(GnrSqlException):
     """Standard Genro SQL Delete Exception
-    
+
     * **code**: GNRSQL-004
     * **description**: Genro SQL Delete Exception
     """
@@ -132,7 +164,7 @@ class GnrSqlDeleteException(GnrSqlException):
 
 class GnrSqlProtectUpdateException(GnrSqlException):
     """Standard Genro SQL Save Exception
-    
+
     * **code**: GNRSQL-011
     * **description**: Genro SQL Save Exception
     """
@@ -142,7 +174,7 @@ class GnrSqlProtectUpdateException(GnrSqlException):
 
 class GnrSqlProtectDeleteException(GnrSqlException):
     """Standard Genro SQL Protect Delete Exception
-    
+
     * **code**: GNRSQL-012
     * **description**: Genro SQL Protect Delete Exception
     """
@@ -152,7 +184,7 @@ class GnrSqlProtectDeleteException(GnrSqlException):
 
 class GnrSqlProtectValidateException(GnrSqlException):
     """Standard Genro SQL Protect Validate Exception
-    
+
     * **code**: GNRSQL-013
     * **description**: Genro SQL Protect Validate Exception
     """
@@ -162,7 +194,7 @@ class GnrSqlProtectValidateException(GnrSqlException):
 
 class GnrSqlBusinessLogicException(GnrSqlException):
     """Standard Genro SQL Business Logic Exception
-    
+
     * **code**: GNRSQL-021
     * **description**: Genro SQL Business Logic Exception
     """
@@ -173,7 +205,7 @@ class GnrSqlBusinessLogicException(GnrSqlException):
 
 class GnrSqlStandardException(GnrSqlException):
     """Standard Genro SQL Business Logic Exception
-    
+
     * **code**: GNRSQL-021
     * **description**: Genro SQL Business Logic Exception
     """
@@ -183,7 +215,7 @@ class GnrSqlStandardException(GnrSqlException):
 
 class GnrSqlNotExistingColumnException(GnrSqlException):
     """Standard Genro SQL Business Logic Exception
-    
+
     * **code**: GNRSQL-022
     * **description**: Genro SQL Business Logic Exception
     """
@@ -191,7 +223,7 @@ class GnrSqlNotExistingColumnException(GnrSqlException):
     description = '!!Genro SQL Not Existing Column Exception'
     caption = "!!Column %(column)s not existing in table %(tablename)s "
 
-    
+
 EXCEPTIONS = {'save': GnrSqlSaveException,
               'delete': GnrSqlDeleteException,
               'protect_update': GnrSqlProtectUpdateException,
@@ -200,22 +232,24 @@ EXCEPTIONS = {'save': GnrSqlSaveException,
               'business_logic':GnrSqlBusinessLogicException,
               'standard':GnrSqlStandardException,
               'not_existing_column':GnrSqlNotExistingColumnException}
-              
+
 class SqlTable(GnrObject):
     """The base class for database :ref:`tables <table>`.
-    
+
     Your tables will inherit from it (altough it won't be explicit in your code, since it's
     done by GenroPy mixin machinery).
-    
+
     In your webpage, package or table methods, you can get a reference to a table by name it
     in this way::
-    
+
         self.db.table('packagename.tablename')
-    
+
     You can also get them from the application instance::
-    
+
         app = GnrApp('instancename')
-        app.db.table('packagename.tablename')"""
+        app.db.table('packagename.tablename')
+
+    """
     def __init__(self, tblobj):
         self._model = tblobj
         self.name = tblobj.name
@@ -228,13 +262,16 @@ class SqlTable(GnrObject):
             self.hierarchicalHandler = HierarchicalHandler(self)
         if tblobj.attributes.get('xtdtable'):
             self.xtd = XTDHandler(self)
-        
+
     def use_dbstores(self,**kwargs):
+        # package tables has to set an explicit returning
+        # value set to False if they want to contraint the
+        # usage of the root dbstore
         pass
 
     def exception(self, exception, record=None, msg=None, **kwargs):
         """TODO
-        
+
         :param exception: the exception raised.
         :param record: TODO.
         :param msg: TODO."""
@@ -249,38 +286,38 @@ class SqlTable(GnrObject):
             except:
                 rowcaption = 'Current Record'
         return exception(tablename=self.fullname,rowcaption=rowcaption,msg=msg,localizer=self.db.localizer, **kwargs)
-        
+
     def __repr__(self):
         return "<SqlTable %s>" % repr(self.fullname)
-        
+
     @property
     def model(self):
         """Return the corresponding DbTableObj object"""
         return self._model
-        
+
     @property
     def pkg(self):
         """Return the DbPackageObj object that contains the current table"""
         return self.model.pkg
-        
+
     @property
     def db(self):
         """Return the GnrSqlDb object"""
         return self.model.db
-        
+
     dbroot = db
-        
+
     def column(self, name,**kwargs):
         """Returns a :ref:`column` object.
-        
+
         :param name: A column's name or a :ref:`relation <relations>` starting from
                      the current :ref:`table`. (eg. ``@director_id.name``)"""
         result = self.model.column(name,**kwargs)
         return result
-        
+
     def subtable(self, name,**kwargs):
         """Returns a :ref:`column` object.
-        
+
         :param name: A column's name or a :ref:`relation <relations>` starting from
                      the current :ref:`table`. (eg. ``@director_id.name``)"""
         result = self.model.subtable(name,**kwargs)
@@ -288,7 +325,7 @@ class SqlTable(GnrObject):
 
     def fullRelationPath(self, name):
         """TODO
-        
+
         :param name: TODO"""
         return self.model.fullRelationPath(name)
 
@@ -341,7 +378,7 @@ class SqlTable(GnrObject):
                 if exp_ts and exp_ts> uc['ts']:
                     self._user_config = {'ts':datetime.now(),'config':{}}
         return self._user_config['config']
-        
+
 
     def getUserConfiguration(self,user_group=None,user=None):
         user_config = self.user_config.get((user_group,user))
@@ -354,7 +391,7 @@ class SqlTable(GnrObject):
 
     def getColumnPrintWidth(self, column):
         """Allow to find the correct width for printing and return it
-        
+
         :param column: the column to print"""
         if column.dtype in ['A', 'C', 'T', 'X', 'P']:
             size = column.attributes.get('size', None)
@@ -382,7 +419,7 @@ class SqlTable(GnrObject):
             result = gnrstring.guessLen(column.dtype,
                                         format=column.attributes.get('print_format', None),
                                         mask=column.attributes.get('print_mask', None))
-                                        
+
         namelong = column.attributes.get('name_short') or column.attributes.get('name_long', 'untitled')
         namelong = namelong.replace('!!','')
         if '\n' in namelong:
@@ -392,22 +429,27 @@ class SqlTable(GnrObject):
         else:
             headerlen = len(namelong)
         return max(result, headerlen)
-        
+
     @property
     def attributes(self):
         """TODO"""
         return self.model.attributes
-        
+
     @property
     def pkey(self):
         """Return the pkey DbColumnObj object"""
         return self.model.pkey
-        
+
+    @property
+    def pkeys(self):
+        """Return the pkey DbColumnObj object"""
+        return self.model.pkeys
+
     @property
     def lastTS(self):
         """Return the lastTS DbColumnObj object"""
         return self.model.lastTS
-        
+
     @property
     def logicalDeletionField(self):
         """Return the logicalDeletionField DbColumnObj object"""
@@ -416,33 +458,37 @@ class SqlTable(GnrObject):
     @property
     def multidb(self):
         return self.attributes.get('multidb',None)
+    
+    @property
+    def multi_tenant(self):
+        return self.model.multi_tenant
 
     @property
     def draftField(self):
         """Return the draftField DbColumnObj object"""
         return self.model.draftField
-        
+
     @property
     def noChangeMerge(self):
         """Return the noChangeMerge DbColumnObj object"""
         return self.model.noChangeMerge
-        
+
     @property
     def rowcaption(self):
         """Return the table's :ref:`rowcaption`"""
         return self.model.rowcaption
-    
+
 
     @property
     def newrecord_caption(self):
         """Return the table's :ref:`rowcaption`"""
         return self.model.newrecord_caption
-             
+
     @property
     def columns(self):
         """Returns the columns DbColumnListObj object"""
         return self.model.columns
-        
+
     @property
     def virtual_columns(self):
         """Returns the virtual columns DbColumnListObj object"""
@@ -452,17 +498,17 @@ class SqlTable(GnrObject):
     def relations(self):
         """Returns the relations DbColumnListObj object"""
         return self.model.relations
-        
+
     @property
     def indexes(self):
         """Returns the indexes DbIndexListObj object"""
         return self.model.indexes
-        
+
     @property
     def relations_one(self):
         """Return a Bag of relations that start from the current table"""
         return self.model.relations_one
-        
+
     @property
     def relations_many(self):
         """Return a bag of relations that point to the current table"""
@@ -470,7 +516,7 @@ class SqlTable(GnrObject):
 
     def removeLocalizationFromText(self,text):
         return re.sub("(?:!!)(?:\\[\\w*\\])?(.*)", "\\1", text)
-        
+
     def counterColumns(self):
         return
 
@@ -478,19 +524,18 @@ class SqlTable(GnrObject):
 
     def variantColumn_unaccent(self, field, **kwargs):
         sql_formula=self.db.adapter.unaccentFormula(field)
-        return dict(name='{field}_unaccent'.format(field=field), 
+        return dict(name='{field}_unaccent'.format(field=field),
                                             sql_formula=sql_formula,
                                             **kwargs)
-    
+
     def variantColumn_fill(self, field, side='r', size=0, char='_', **kwargs):
         sql_formula = "{side}pad(${field},{size},'{char}')".format(side=side,
                                                                 field=field,
                                                                 size=size,
                                                                 char=char)
-        return dict(name='{field}_{side}filled'.format(field=field,side=side), 
+        return dict(name='{field}_{side}filled'.format(field=field,side=side),
                                             sql_formula=sql_formula,
                                             **kwargs)
-
 
 
     def variantColumn_captions(self, field, related_table=None,caption_field=None,
@@ -510,7 +555,7 @@ class SqlTable(GnrObject):
 
 
     #def variantColumn_repaccent(self, field, **kwargs):
-    #    sql_formula= u"""unaccent(REGEXP_REPLACE(   
+    #    sql_formula= u"""unaccent(REGEXP_REPLACE(
     #                                REGEXP_REPLACE(
     #                                   REGEXP_REPLACE(
     #                                      REGEXP_REPLACE(
@@ -523,7 +568,7 @@ class SqlTable(GnrObject):
     #                            ,'ù','u''')
     #                            )""".format(field=field)
 
-    #    return dict(name='{field}_repaccent'.format(field=field), 
+    #    return dict(name='{field}_repaccent'.format(field=field),
     #                                        sql_formula=sql_formula,
     #                                        **kwargs)
 
@@ -535,7 +580,7 @@ class SqlTable(GnrObject):
 
     def variantColumn_age_day(self, field, dateArg=None, **kwargs):
         sql_formula=self.db.adapter.ageAtDate(field, dateArg=dateArg, timeUnit='day')
-        return dict(name='{field}_age_day'.format(field=field), 
+        return dict(name='{field}_age_day'.format(field=field),
                                             sql_formula=sql_formula,
                                             dtype='L',
                                             **kwargs)
@@ -551,14 +596,13 @@ class SqlTable(GnrObject):
         result = []
         f = self.query(columns='{sharefield} AS _shval'.format(sharefield=sharefield),distinct=True).fetch()
         for r in f:
-            shval = r['_shval'] 
+            shval = r['_shval']
             sql_formula = "(CASE WHEN {sharefield} ='{shval}' THEN ${field} ELSE 0 END)".format(sharefield=sharefield,shval=shval,field=field)
-            print('sql_formula',sql_formula)
             result.append(dict(name='{field}_{shval}'.format(field=field,shval=shval),
                             sql_formula=sql_formula,
                             var_shval=shval,dtype='N'))
         return result
-  
+
 
     @property
     def availablePermissions(self):
@@ -575,15 +619,44 @@ class SqlTable(GnrObject):
                     customPermissions = customPermissions + permissions.split(',')
             self._availablePermissions = ','.join(uniquify(customPermissions))
         return self._availablePermissions
+    
+    def parseSerializedKey(self,key,field=None):
+        """
+        Parses a serialized primary key into a dictionary of key-value pairs.
+        Args:
+            pkey (str): The serialized primary key string.
+
+        Returns:
+            dict: A dictionary where the keys are the components of the primary key and the values are the corresponding values.
+        """
+        field = field or self.pkey
+        composed_of = self.column(field).attributes.get('composed_of')
+        pkeykeys = composed_of.strip('[]').split(',')
+        pkeyvalues = self.db.typeConverter.fromJson(key)
+        return dict(zip(pkeykeys,pkeyvalues))
+    
+    def relatedQueryPars(self,where=None,field=None,value=None,kwargs=None):
+        where = [where] if where else []
+        if value and self.column(field).attributes.get('composed_of'):
+            joinDict = self.parseSerializedKey(value,field=field)
+        else:
+            joinDict = {field:value}
+        for k,v in joinDict.items():
+            where.append(f'${k}=:rq_val_{k}')
+            kwargs[f'rq_val_{k}'] = v
+        return dict(where=' AND '.join(where), **kwargs)
+    
+    def relatedQuery(self,where=None,field=None,value=None,**kwargs):
+        return self.query(**self.relatedQueryPars(where=where,field=field,value=value,kwargs=kwargs))
 
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
-        
+
         :param record: an object implementing dict interface as colname, colvalue
         :param null: TODO"""
         converter = self.db.typeConverter
         _coerce_errors = []
-        for k in list(record.keys()):
+        for k in record.keys():
             if not k.startswith('@'):
                 if self.column(k) is None:
                     continue
@@ -609,7 +682,7 @@ class SqlTable(GnrObject):
                     
                     if 'rjust' in colattr:
                         v = v.rjust(int(colattr['size']), colattr['rjust'])
-                        
+
                     elif 'ljust' in  colattr:
                         v = v.ljust(int(colattr['size']), colattr['ljust'])
                     record[k] = v
@@ -620,16 +693,17 @@ class SqlTable(GnrObject):
                     if size:
                         sizelist = colattr['size'].split(':')
                         max_size = int(sizelist[1] if len(sizelist)>1 else sizelist[0])
-                        if len(record[k])>max_size:
+                        if record[k] and len(record[k])>max_size:
                             _coerce_errors.append(f'Max len exceeded for field {k} {record[k]} ({max_size})')
                             record[k] = None
-        record['_coerce_errors'] = ','.join(_coerce_errors)
+        if _coerce_errors:
+            record['_coerce_errors'] = ','.join(_coerce_errors)
 
 
 
     def buildrecord(self, fields, resolver_one=None, resolver_many=None):
         """Build a new record and return it
-        
+
         :param fields: TODO
         :param resolver_one: TODO
         :param resolver_many: TODO"""
@@ -647,7 +721,7 @@ class SqlTable(GnrObject):
                         info['_from_fld'] = attrs['many_relation']
                         info['_target_fld'] = attrs['one_relation']
                         info['mode'] = attrs['mode']
-                        
+
                         if resolver_one is True:
                             pass # non posso fare il resolver python, il valore di link non c'è ancora
                         else:
@@ -669,13 +743,13 @@ class SqlTable(GnrObject):
                         v = Bag(v)
                     except:
                         pass
-                        
+
             newrecord.setItem(fld, v, info)
         return newrecord
-        
+
     def buildrecord_(self, fields):
         """TODO
-        
+
         :param fields: TODO"""
         newrecord = Bag()
         for fld in list(self.columns.keys()):
@@ -687,7 +761,7 @@ class SqlTable(GnrObject):
                     v = Bag(v)
                 except:
                     pass
-                    
+
             newrecord.setItem(fld, v, info)
         return newrecord
         
@@ -716,15 +790,15 @@ class SqlTable(GnrObject):
         return result
 
 
-    def newrecord(self, assignId=False, resolver_one=None, 
-                resolver_many=None, 
+    def newrecord(self, assignId=False, resolver_one=None,
+                resolver_many=None,
                 _fromRecord=None, **kwargs):
         """TODO
-        
+
         :param assignId: TODO
         :param resolver_one: TODO
         :param resolver_many: TODO"""
-        
+
         defaultValues = self.defaultValues() or {}
         if _fromRecord:
             defaultValues.update(self.recordCopy(_fromRecord))
@@ -775,10 +849,14 @@ class SqlTable(GnrObject):
         #else:
         #    return [l[0]['pkey'] for l in q.fetchGrouped('_duplicate_finder').values()]
 
-    
+
     def opTranslate(self,column,op,value,dtype=None,sqlArgs=None):
-        translator = self.db.adapter.getWhereTranslator()
-        return translator.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=self)
+        return self.whereTranslator.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=self)
+
+    @property
+    def whereTranslator(self):
+        with self.db.tempEnv(currentImplementation=self.dbImplementation):
+            return self.db.whereTranslator
 
     def cachedKey(self,topic):
         if self.multidb=='*' or not self.use_dbstores() is False:
@@ -820,13 +898,13 @@ class SqlTable(GnrObject):
                ignoreDuplicate=False, bagFields=True, joinConditions=None, sqlContextName=None,
                for_update=False, _storename=None,checkPermissions=False,aliasPrefix=None,**kwargs):
         """Get a single record of the table. It returns a SqlRecordResolver.
-        
+
         The record can be identified by:
-        
+
         * its primary key
         * one or more conditions passed as kwargs (e.g. username='foo')
         * a "where" condition
-         
+
         :param pkey: the record :ref:`primary key <pkey>`
         :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
         :param lazy: TODO
@@ -843,6 +921,11 @@ class SqlTable(GnrObject):
                                :meth:`setJoinCondition() <gnr.sql.gnrsqldata.SqlQuery.setJoinCondition()>` method
         :param sqlContextName: TODO
         :param for_update: TODO"""
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            _storename = packageStorename
+        else:
+            _storename = None
         record = SqlRecord(self, pkey=pkey, where=where,
                            lazy=lazy, eager=eager,
                            relationDict=relationDict,
@@ -924,8 +1007,8 @@ class SqlTable(GnrObject):
                 sourceRecord.update(__del_ts=datetime.now(),__moved_related=moved_relations)
                 self.raw_update(sourceRecord,old_record=old_record)
             else:
-                self.delete(destRecord[self.pkey])
-            
+                self.delete(sourceRecord[self.pkey])
+
 
     def hasRelations(self,recordOrPkey):
         return bool(self.currentRelations(recordOrPkey,checkOnly=True))
@@ -967,9 +1050,9 @@ class SqlTable(GnrObject):
             l.append('%s:%s' %(r[self.pkey],r[caption_field].replace(',',' ').replace(':',' ')))
 
         return ','.join(l)
-    
+
     def onArchivingRecord(self,record=None,archive_ts=None):
-        self.archiveRelatedRecords(record=record,archive_ts=archive_ts)            
+        self.archiveRelatedRecords(record=record,archive_ts=archive_ts)
 
     def archiveRelatedRecords(self,record=None,archive_ts=None):
         usingRootstore = self.db.usingRootstore()
@@ -982,9 +1065,9 @@ class SqlTable(GnrObject):
                     continue
                 if relatedTable.logicalDeletionField:
                     updater = {relatedTable.logicalDeletionField:archive_ts}
-                    relatedTable.batchUpdate(updater, 
+                    relatedTable.batchUpdate(updater,
                                             where='$%s = :pid' % mfld,
-                                            pid=record[ofld], 
+                                            pid=record[ofld],
                                             excludeDraft=False,
                                             excludeLogicalDeleted=False)
 
@@ -1143,7 +1226,7 @@ class SqlTable(GnrObject):
 
     def recordAs(self, record, mode='bag', virtual_columns=None,ignoreMissing=True):
         """Accept and return a record as a bag, dict or primary pkey (as a string)
-        
+
         :param record: a bag, a dict or a string (i.e. the record's pkey)
         :param mode: 'dict' or 'bag' or 'pkey'
         :param virtual_columns: TODO"""
@@ -1162,7 +1245,7 @@ class SqlTable(GnrObject):
             if pkey:
                 record = self.record(pkey=pkey, mode=mode,virtual_columns=virtual_columns)
         return record
-            
+
 
     def extendDefaultValues(self,newrecord=None):
         fkeysColsToRead = defaultdict(dict)
@@ -1220,7 +1303,7 @@ class SqlTable(GnrObject):
         """Override this method to assign defaults to new record. Return a dictionary - fill
         it with defaults"""
         return {colobj.name:colobj.attributes['default'] for colobj in self.columns.values() if 'default' in colobj.attributes}
-                
+
 
     def sampleValues(self):
         """Override this method to assign defaults to new record. Return a dictionary - fill
@@ -1231,6 +1314,7 @@ class SqlTable(GnrObject):
         pass
 
     @extract_kwargs(jc=True)
+    @add_sql_comment
     def query(self, columns=None, where=None, order_by=None,
               distinct=None, limit=None, offset=None,
               group_by=None, having=None, for_update=False,
@@ -1239,11 +1323,11 @@ class SqlTable(GnrObject):
               addPkeyColumn=True,
               subtable=None,
               ignoreTableOrderBy=False,ignorePartition=False, locale=None,
-              mode=None,_storename=None,checkPermissions=False,aliasPrefix=None, 
+              mode=None,_storename=None,checkPermissions=False,aliasPrefix=None,
               joinConditions=None,jc_kwargs=None,**kwargs):
         """Return a SqlQuery (a method of ``gnr/sql/gnrsqldata``) object representing a query.
         This query is executable with different modes.
-        
+
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
                         clause in the traditional sql query. For more information, check the
                         :ref:`sql_columns` section
@@ -1275,6 +1359,11 @@ class SqlTable(GnrObject):
                 one_one = True
                 rel = rel[0:-1]
             joinConditions[rel] = dict(condition=cond,params=dict(),one_one=one_one)
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            _storename = packageStorename
+        else:
+            _storename = None
         query = SqlQuery(self, columns=columns, where=where, order_by=order_by,
                          distinct=distinct, limit=limit, offset=offset,
                          group_by=group_by, having=having, for_update=for_update,
@@ -1288,17 +1377,22 @@ class SqlTable(GnrObject):
                          subtable=subtable,**kwargs)
         return query
 
+    @property
+    def dbImplementation(self):
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            return self.db.dbstores[packageStorename].get('implementation')
 
     def recordToUpdate(self, pkey=None,updater=None,**kwargs):
         """Return a TempEnv class"""
         return RecordUpdater(self, pkey=pkey,**kwargs)
-            
-    def batchUpdate(self, updater=None, _wrapper=None, _wrapperKwargs=None, 
+
+    def batchUpdate(self, updater=None, _wrapper=None, _wrapperKwargs=None,
                     autocommit=False,_pkeys=None,pkey=None,_raw_update=None,
                     _onUpdatedCb=None,updater_kwargs=None,for_update=None,
                     deferredTotalize=None,**kwargs):
         """A :ref:`batch` used to update a database. For more information, check the :ref:`batchupdate` section
-        
+
         :param updater: MANDATORY. It can be a dict() (if the batch is a :ref:`simple substitution
                         <batchupdate>`) or a method
         :param autocommit: boolan. If ``True``, perform the commit of the database (``self.db.commit()``)
@@ -1335,7 +1429,7 @@ class SqlTable(GnrObject):
             for t in deferredTotalize:
                 self.db.table(t).realignRelatedTotalizers()
         return updatedKeys
-    
+
     def _batchUpdate_rows(self,rows=None,updater=None,_raw_update=None,
                                 autocommit=None,
                                 updater_kwargs=None,
@@ -1343,7 +1437,7 @@ class SqlTable(GnrObject):
         updatedKeys = []
         pkeycol = self.pkey
         updatercb,updaterdict = None,None
-        commit_every = False 
+        commit_every = False
         if autocommit and autocommit is not True:
             commit_every = autocommit
             autocommit = False
@@ -1379,14 +1473,14 @@ class SqlTable(GnrObject):
         if autocommit:
             self.db.commit()
         return updatedKeys
-        
+
     def toXml(self,pkeys=None,path=None,where=None,rowcaption=None,columns=None,related_one_dict=None,**kwargs):
         where = '$%s IN :pkeys' %self.pkey if pkeys else where
         columns = columns or '*'
         if rowcaption:
             rowcaption = self.rowcaption if rowcaption is True else rowcaption
             fields,mask = self.rowcaptionDecode(rowcaption)
-            columns = '%s,%s' %(columns,','.join(fields))        
+            columns = '%s,%s' %(columns,','.join(fields))
         f = self.query(where=where,pkeys=pkeys,columns=columns,bagFields=True,**kwargs).fetch()
         result = Bag()
         for r in f:
@@ -1395,8 +1489,8 @@ class SqlTable(GnrObject):
         if path:
             result.toXml(path,autocreate=True)
         return result
-            
-    
+
+
     def recordToXml(self,record,path=None):
         result = Bag()
         for col in self.columns:
@@ -1404,7 +1498,7 @@ class SqlTable(GnrObject):
         if path:
             result.toXml(path,autocreate=True)
         return result
-            
+
     def fieldsChanged(self,fieldNames,record,old_record=None):
         if isinstance(fieldNames, str):
             fieldNames = fieldNames.split(',')
@@ -1417,7 +1511,7 @@ class SqlTable(GnrObject):
         handler = getattr(self,'aggregate_%s' %field,None)
         if handler:
             return handler(data)
-        dtype = fieldattr.get('dataType',None) or fieldattr.get('dtype','A') 
+        dtype = fieldattr.get('dataType',None) or fieldattr.get('dtype','A')
         aggregator = fieldattr.get('aggregator')
         aggregator = fieldattr.get('aggregator_record',aggregator) if not onSelection else fieldattr.get('aggregator_selection',aggregator)
         if aggregator==False:
@@ -1458,7 +1552,7 @@ class SqlTable(GnrObject):
 
     def readColumns(self, pkey=None, columns=None, where=None,subtable='*', **kwargs):
         """TODO
-        
+
         :param pkey: the record :ref:`primary key <pkey>`
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
                         clause in the traditional sql query. For more information, check the
@@ -1478,15 +1572,15 @@ class SqlTable(GnrObject):
         if len(row) == 1:
             row = row[0]
         return row
-        
+
     def sqlWhereFromBag(self, wherebag, sqlArgs=None, **kwargs):
         """TODO
-        
+
         :param wherebag: TODO
         :param sqlArgs: TODO
-        
+
         Not sure what this is, but here is the previous existing docstrings in all their glory::
-        
+
             <c_0 column="invoice_num" op="ISNULL" rem='without invoice' />
             <c_1 column="@anagrafica.provincia" op="IN" jc='AND'>MI,FI,TO</condition>
             <c_2 not="true::B" jc='AND'>
@@ -1496,22 +1590,22 @@ class SqlTable(GnrObject):
         if sqlArgs is None:
             sqlArgs = {}
         self.model.virtual_columns
-        result = self.db.whereTranslator(self, wherebag, sqlArgs, **kwargs)
+        result = self.whereTranslator(self, wherebag, sqlArgs, **kwargs)
         return result, sqlArgs
-    
+
 
 
     def frozenSelection(self, fpath):
         """Get a pickled selection and return it
-        
+
         :param fpath: TODO"""
         selection = self.db.unfreezeSelection(fpath)
         assert selection.dbtable == self, 'the frozen selection does not belong to this table'
         return selection
-        
+
     def checkPkey(self, record):
         """TODO
-        
+
         :param record: TODO"""
         pkeyValue = record.get(self.pkey)
         newkey = False
@@ -1521,7 +1615,7 @@ class SqlTable(GnrObject):
             if pkeyValue is not None:
                 record[self.pkey] = pkeyValue
         return newkey
-        
+
     def empty(self, truncate=None):
         """TODO"""
         self.db.adapter.emptyTable(self, truncate=None)
@@ -1529,22 +1623,23 @@ class SqlTable(GnrObject):
     def fillFromSqlTable(self, sqltablename):
         self.db.adapter.fillFromSqlTable(self, sqltablename)
 
-    def sql_deleteSelection(self, where=None,_pkeys=None, **kwargs):
+    def sql_deleteSelection(self, where=None,_pkeys=None,subtable=None, **kwargs):
         """Delete a selection from the table. It works only in SQL so no python trigger is executed
-        
+
         :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section
         :param **kwargs: optional arguments for the "where" attribute"""
         if where:
-            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,_pkeys=_pkeys,**kwargs).fetch()
+            todelete = self.query('$%s' % self.pkey, where=where, addPkeyColumn=False, for_update=True,excludeDraft=False ,
+                                  _pkeys=_pkeys,subtable=subtable,**kwargs).fetch()
             _pkeys = [x[0] for x in todelete] if todelete else None
         if _pkeys:
             self.db.adapter.sql_deleteSelection(self, pkeyList=_pkeys)
-            
+
     #Jeff added the support to deleteSelection for passing no condition so that all records would be deleted
     def deleteSelection(self, condition_field=None, condition_value=None, excludeLogicalDeleted=False, excludeDraft=False,condition_op='=',
                         where=None, _wrapper=None, _wrapperKwargs=None, **kwargs):
         """TODO
-        
+
         :param condition_field: TODO
         :param condition_value: TODO
         :param excludeLogicalDeleted: boolean. If ``True``, exclude from the query all the records that are
@@ -1577,14 +1672,14 @@ class SqlTable(GnrObject):
         return self.db.dbevents[self.fullname]
 
 
-    def notifyDbUpdate(self,record):
-        self.db.notifyDbUpdate(self,record)
-            
+    def notifyDbUpdate(self,record=None,where=None,**kwargs):
+        self.db.notifyDbUpdate(self,recordOrPkey=record,where=where,**kwargs)
+
     def touchRecords(self,_pkeys=None,_wrapper=None,_wrapperKwargs=None,
                     _notifyOnly=False,pkey=None,
                     order_by=None,method=None, columns=None,**kwargs):
         """TODO
-        
+
         :param where: the sql "WHERE" clause. For more information check the :ref:`sql_where` section"""
         if not 'where' in kwargs:
             if pkey:
@@ -1613,9 +1708,9 @@ class SqlTable(GnrObject):
             if doUpdate:
                 onUpdating = handler
                 handler = self.update
-        sel = self.query(addPkeyColumn=False, 
+        sel = self.query(addPkeyColumn=False,
                         for_update=for_update,
-                        columns=columns or '*', 
+                        columns=columns or '*',
                         order_by=order_by,**kwargs).fetch()
         if _wrapper:
             _wrapperKwargs = _wrapperKwargs or dict()
@@ -1640,23 +1735,23 @@ class SqlTable(GnrObject):
             columns = columns.split(',')
         for c in columns:
             record[c] = Bag(record.get(c))
-            
+
     def existsRecord(self, record):
         """Check if a record already exists in the table and return it (if it is not already in the keys)
         :param record: the record to be checked"""
         if not hasattr(record, 'keys'):
             record = {self.pkey: record}
         return self.db.adapter.existsRecord(self, record)
-    
+
     def checkDuplicate(self,excludeDraft=None,ignorePartition=None,**kwargs):
         """TODO"""
         where = ' AND '.join(['$%s=:%s' % (k, k) for k in kwargs.keys()])
         return self.query(where=where,excludeDraft=excludeDraft,
                         ignorePartition=ignorePartition,**kwargs).count()>0
-    
+
     def insertOrUpdate(self, record):
         """Insert a single record if it doesn't exist, else update it
-        
+
         :param record: a dictionary that represent the record that must be updated"""
         pkey = record.get(self.pkey)
         old_record = None
@@ -1670,55 +1765,59 @@ class SqlTable(GnrObject):
 
     def countRecords(self):
         return self.query(excludeLogicalDeleted=False,excludeDraft=False).count()
-            
+
     def lock(self, mode='ACCESS EXCLUSIVE', nowait=False):
         """TODO
-        
+
         :param mode: TODO
         :param nowait: boolean. TODO"""
         self.db.adapter.lockTable(self, mode, nowait)
 
-        
+    @add_sql_comment
     def insert(self, record, **kwargs):
         """Insert a single record
-        
+
         :param record: a dictionary representing the record that must be inserted"""
         self.db.insert(self, record, **kwargs)
         return record
-        
+
+    @add_sql_comment
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
-        
+
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_insert(self, record, **kwargs)
         return record
-
-        
+    
+    @add_sql_comment
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
-        
+
         :param record: a dictionary representing the record that must be inserted"""
         self.db.raw_delete(self, record, **kwargs)
 
+    @add_sql_comment
     def insertMany(self, records, **kwargs):
         self.db.insertMany(self, records, **kwargs)
 
+    @add_sql_comment
     def raw_update(self,record=None,old_record=None,pkey=None,**kwargs):
         self.db.raw_update(self, record,old_record=old_record,pkey=pkey,**kwargs)
-    
+
     def changePrimaryKeyValue(self, pkey=None,newpkey=None,**kwargs):
         self.db.adapter.changePrimaryKeyValue(self,pkey=pkey,newpkey=newpkey)
 
+    @add_sql_comment
     def delete(self, record, **kwargs):
         """Delete a single record from this table.
-        
+
         :param record: a dictionary, bag or pkey (string)"""
         if isinstance(record, str):
             record = self.record(pkey=record,for_update=True,ignoreMissing=True).output('dict')
             if not record:
                 return
         self.db.delete(self, record, **kwargs)
-    
+
     def updateRelated(self, record,old_record=None):
 
         for rel in self.relations_many:
@@ -1741,11 +1840,11 @@ class SqlTable(GnrObject):
                         for row in sel:
                             rel_rec = dict(row)
                             rel_rec[mfld] = record[ofld]
-                            relatedTable.update(rel_rec,old_record=dict(row))    
-                                        
+                            relatedTable.update(rel_rec,old_record=dict(row))
+
     def deleteRelated(self, record):
         """TODO
-        
+
         :param record: a dictionary, bag or pkey (string)"""
         usingRootstore = self.db.usingRootstore()
         for rel in self.relations_many:
@@ -1779,10 +1878,10 @@ class SqlTable(GnrObject):
                             oldrec = dict(rel_rec)
                             rel_rec[mfld] = None
                             relatedTable.update(rel_rec,oldrec)
-                            
+    @add_sql_comment
     def update(self, record, old_record=None, pkey=None,**kwargs):
         """Update a single record
-        
+
         :param record: TODO
         :param old_record: TODO
         :param pkey: the record :ref:`primary key <pkey>`"""
@@ -1790,15 +1889,21 @@ class SqlTable(GnrObject):
             pkey = old_record.get(self.pkey)
         if record.get(self.pkey) == pkey:
             pkey = None
-        self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
+        packageStorename = self.pkg.attributes.get('storename')
+        if packageStorename:
+            _storename = packageStorename
+        else:
+            _storename = None
+        with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
+            self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         return record
         
     def writeRecordCluster(self, recordCluster, recordClusterAttr, debugPath=None):
         """Receive a changeSet and execute insert, delete or update
-        
+
         :param recordCluster: TODO
         :param recordClusterAttr: TODO
-        :param debugPath: TODO"""                
+        :param debugPath: TODO"""
         main_changeSet, relatedOne, relatedMany = self._splitRecordCluster(recordCluster, debugPath=debugPath)
         isNew = recordClusterAttr.get('_newrecord')
         toDelete = recordClusterAttr.get('_deleterecord')
@@ -1850,13 +1955,13 @@ class SqlTable(GnrObject):
             rel_record = rel_tblobj.writeRecordCluster(rel_recordCluster, rel_recordClusterAttr)
             from_fld = joiner['many_relation'].split('.')[2]
             to_fld = joiner['one_relation'].split('.')[2]
-            main_record[from_fld] = rel_record[to_fld]  
+            main_record[from_fld] = rel_record[to_fld]
             recordClusterAttr['lastTS_%s' %rel_name] = str(rel_record[rel_tblobj.lastTS]) if rel_tblobj.lastTS else None
-          
+
         if self.attributes.get('invalidFields'):
             invalidFields_fld = self.attributes.get('invalidFields')
             main_record[invalidFields_fld] = gnrstring.toJsonJS(invalidFields) if invalidFields else None
-            
+
         if isNew:
             self.insert(main_record,blackListAttributes=blackListAttributes)
         elif main_changeSet:
@@ -1880,17 +1985,17 @@ class SqlTable(GnrObject):
                         sub_recordClusterNode.value[many_key] = relKey
                     many_tblobj.writeRecordCluster(sub_recordClusterNode.value, sub_recordClusterNode.getAttr())
         return main_record
-            
+
     def xmlDebug(self, data, debugPath, name=None):
         """TODO
-        
+
         :param data: TODO
         :param debugPath: TODO
         :param name: TODO"""
         name = name or self.name
         filepath = os.path.join(debugPath, '%s.xml' % name)
         data.toXml(filepath, autocreate=True)
-        
+
     def _splitRecordCluster(self, recordCluster, mainRecord=None, debugPath=None):
         relatedOne = {}
         relatedMany = {}
@@ -1911,15 +2016,16 @@ class SqlTable(GnrObject):
             for k, v in list(relatedMany.items()):
                 self.xmlDebug(v, debugPath, k)
         return recordCluster, relatedOne, relatedMany
-        
+
     def _doFieldTriggers(self, triggerEvent, record,**kwargs):
         trgFields = self.model._fieldTriggers.get(triggerEvent)
         if trgFields:
-            for fldname, trgFunc in trgFields:
+            for fldname, trgFunc,trigger_table in trgFields:
                 if callable(trgFunc):
                     trgFunc(record, fldname)
                 else:
-                    getattr(self, 'trigger_%s' % trgFunc)(record, fldname=fldname,**kwargs)
+                    ttable = self if not trigger_table else self.db.table(trigger_table)
+                    getattr(ttable, 'trigger_%s' % trgFunc)(record, fldname=fldname,tblname=self.fullname,**kwargs)
                 
     def _doExternalPkgTriggers(self, triggerEvent, record,**kwargs):
         if not self.db.application:
@@ -1929,7 +2035,6 @@ class SqlTable(GnrObject):
             avoid_trigger_par = self.db.currentEnv.get('avoid_trigger_%s' %pkg_id)
             if avoid_trigger_par:
                 if avoid_trigger_par=='*' or triggerEvent in avoid_trigger_par.split(','):
-                    print('avoiding trigger',triggerEvent)
                     continue
             trgFunc = getattr(self, trigger_name, None)
             if callable(trgFunc):
@@ -1950,7 +2055,7 @@ class SqlTable(GnrObject):
             if ':' in identifier:
                 wherelist = []
                 wherekwargs = dict()
-                
+
                 for cond in identifier.split(','):
                     cond = cond.strip()
                     codeField,codeVal = cond.split(':')
@@ -1983,8 +2088,12 @@ class SqlTable(GnrObject):
         on the current :ref:`database table <table>`"""
         return self.pkeyValue(record=record)
 
+    def compositeKey(self,record=None,field=None):
+        return self.db.typeConverter.toTypedJSON([record[key] for key in self.column(field).composed_of.split(',')])
 
     def pkeyValue(self,record=None):
+        if len(self.pkeys)>1:
+            return self.compositeKey(record,field=self.pkey)
         pkeyfield = self.model.pkey
         pkeycol = self.model.column(pkeyfield)
         if pkeycol.dtype in ('L', 'I', 'R'):
@@ -2007,8 +2116,8 @@ class SqlTable(GnrObject):
                 return record['__syscode']
         elif pkeycol.dtype in ('T','A','C') and pkeycol.attributes.get('size') in ('22',':22',None):
             return getUuid()
-        
-    def cleanWrongSysRecordPkeys(self):            
+
+    def cleanWrongSysRecordPkeys(self):
         f = self.query(for_update=True,where='$__syscode IS NOT NULL').fetch()
         for row in f:
             old_r = dict(row)
@@ -2018,7 +2127,7 @@ class SqlTable(GnrObject):
                 row[self.pkey] = validpkey
                 self.update(row,old_r,pkey=currpkey)
                 self.db.commit()
-            
+
     def baseViewColumns(self):
         """TODO"""
         allcolumns = self.model.columns
@@ -2026,18 +2135,18 @@ class SqlTable(GnrObject):
         if not result:
             result = [col for col, colobj in list(allcolumns.items()) if not colobj.isReserved]
         return ','.join(result)
-        
+
     def getResource(self, path):
         """TODO
-        
+
         :param path: TODO"""
         return self.db.getResource(self, path)
-        
+
         #---------- method to implement via mixin
     def onIniting(self):
         """Hook method called on... TODO"""
         pass
-        
+
     def onInited(self):
         """Hook method called on... TODO"""
         pass
@@ -2047,83 +2156,83 @@ class SqlTable(GnrObject):
         trigger_stack =  self.db.currentEnv.get('_trigger_stack')
         if trigger_stack:
             return trigger_stack.parentItem
-        
+
     def trigger_onInserting(self, record):
         """Hook method. Allow to act on *record* during the record insertion
-        
+
         :param record: the record"""
         #self.trigger_onUpdating(record) Commented out Miki 2009/02/24
         pass
-        
+
     def trigger_onInserted(self, record):
         """Hook method. Allow to act on *record* after the record insertion
-        
+
         :param record: the record"""
         #self.trigger_onUpdated(record) Commented out Miki 2009/02/24
         pass
-        
+
     def trigger_onUpdating(self, record, old_record=None):
         """Hook method. Allow to act on *record* and *old_record*
         during the record update
-        
+
         :param record: the new record
         :param old_record: the old record to be substituted by the new one"""
         pass
-        
+
     def trigger_onUpdated(self, record, old_record=None):
         """Hook method. Allow to act on *record* and *old_record*
         after the record update
-        
+
         :param record: the new record
         :param old_record: the old record to be substituted by the new one"""
         pass
-        
+
     def trigger_onDeleting(self, record):
         """Hook method. Allow to act on *record* during the record delete
-        
+
         :param record: the new record"""
         pass
-        
+
     def trigger_onDeleted(self, record):
         """Hook method. Allow to act on *record* after the record delete
-        
+
         :param record: the new record"""
         pass
-        
+
     def protect_update(self, record, old_record=None):
         """TODO
-        
+
         :param record: TODO
         :param old_record: TODO"""
         pass
-        
+
     def protect_delete(self, record):
         """TODO
-        
+
         :param record: TODO"""
         pass
-        
+
     def protect_validate(self, record, old_record=None):
         """TODO
-        
+
         :param record: TODO
         :param old_record: TODO"""
         pass
-        
+
     def diagnostic_errors(self, record, old_record=None):
         """TODO
-        
+
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
-    
+
     def diagnostic_warnings(self, record, old_record=None):
         """TODO
-        
+
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
 
 
@@ -2162,27 +2271,27 @@ class SqlTable(GnrObject):
 
     def check_updatable(self, record,ignoreReadOnly=None):
         """TODO
-        
+
         :param record: TODO"""
         try:
             self.protect_update(record,record)
             return True
         except EXCEPTIONS['protect_update']:
             return False
-            
+
     def check_deletable(self, record):
         """TODO
-        
+
         :param record: TODO"""
         try:
             self.protect_delete(record)
             return True
         except EXCEPTIONS['protect_delete']:
             return False
-            
+
     def columnsFromString(self, columns=None):
         """TODO
-        
+
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
                         clause in the traditional sql query. For more information, check the
                         :ref:`sql_columns` section"""
@@ -2194,31 +2303,31 @@ class SqlTable(GnrObject):
         for col in columns:
             if not col[0] in ('@','$','('):
                 col = '$%s' % col
-                #FIX 
+                #FIX
             result.append(col)
         return result
 
-        
+
     def getQueryFields(self, columns=None, captioncolumns=None):
         """TODO
-        
+
         :param columns: it represents the :ref:`columns` to be returned by the "SELECT"
                         clause in the traditional sql query. For more information, check the
                         :ref:`sql_columns` section
         :param captioncolumns: TODO"""
         columns = columns or self.model.queryfields or captioncolumns
         return self.columnsFromString(columns)
-        
+
     def rowcaptionDecode(self, rowcaption=None):
         """TODO
-        
+
         :param rowcaption: the textual representation of a record in a user query.
                            For more information, check the :ref:`rowcaption` section
         """
         rowcaption = rowcaption or self.rowcaption
         if not rowcaption:
             return [], ''
-            
+
         if ':' in rowcaption:
             fields, mask = rowcaption.split(':', 1)
         else:
@@ -2231,10 +2340,10 @@ class SqlTable(GnrObject):
 
     def newRecordCaption(self,record=None):
         return self.newrecord_caption
-        
+
     def recordCaption(self, record, newrecord=False, rowcaption=None):
         """TODO
-        
+
         :param record: TODO
         :param newrecord: boolean. TODO
         :param rowcaption: the textual representation of a record in a user query.
@@ -2256,16 +2365,16 @@ class SqlTable(GnrObject):
             else:
                 caption = mask % tuple([v for k, v in cols])
             return caption
-            
+
     def colToAs(self, col):
         """TODO
-        
+
         :param col: TODO"""
         return self.db.colToAs(col)
-        
+
     def relationName(self, relpath):
         """TODO
-        
+
         :param relpath: TODO"""
         relpath = self.model.resolveRelationPath(relpath)
         attributes = self.model.relations.getAttr(relpath)
@@ -2279,27 +2388,27 @@ class SqlTable(GnrObject):
             targettbl = '%s.%s' % (relpkg, reltbl)
             result = joiner.get('one_rel_name') or self.db.table(targettbl).name_long
         return result
-        
-    
+
+
     @deprecated
     def xmlDump(self, path):
         """TODO
-        
+
         :param path: TODO"""
         filepath = os.path.join(path, '%s_dump.xml' % self.name)
         records = self.query(excludeLogicalDeleted=False,excludeDraft=False).fetch()
         result = Bag()
-        
+
         for r in records:
             r = dict(r)
             pkey = r.pop('pkey')
             result['records.%s' % pkey.replace('.', '_')] = Bag(r)
         result.toXml(filepath, autocreate=True)
-    
+
     @deprecated
     def importFromXmlDump(self, path):
         """TODO
-        
+
         :param path: TODO"""
         if '.xml' in path:
             filepath = path
@@ -2312,7 +2421,7 @@ class SqlTable(GnrObject):
                 self.insert(record)
 
     def dependenciesTree(self,records=None,history=None,ascmode=False):
-        history = history or dict() 
+        history = history or dict()
         for rel in self.relations_one:
             mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
             opkg, otbl, ofld = rel.attr['one_relation'].split('.')
@@ -2323,13 +2432,14 @@ class SqlTable(GnrObject):
             one_history_set = history[tablename]['one']
             sel = relatedTable.query(columns='*', where='$%s IN :pkeys' %ofld,
                                          pkeys=list(set([r[mfld] for r in records])-one_history_set),
-                                         excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 one_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=True)
         #if ascmode:
         #    return history
- 
+
         for rel in self.relations_many:
             mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
             opkg, otbl, ofld = rel.attr['one_relation'].split('.')
@@ -2343,17 +2453,19 @@ class SqlTable(GnrObject):
             many_history_set = history[tablename]['many']
             sel = relatedTable.query(columns='*', where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
-                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False).fetch()
+                                         rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False,
+                                         subtable='*',
+                                         ignorePartition=True).fetch()
             if sel:
                 many_history_set.update([r[relatedTable.pkey] for r in sel])
                 relatedTable.dependenciesTree(sel,history=history,ascmode=False)
 
-        return history                    
-             
+        return history
+
     def copyToDb(self, dbsource, dbdest, empty_before=False, excludeLogicalDeleted=False, excludeDraft=False,
                  source_records=None, bagFields=True,source_tbl_name=None, raw_insert=None,_converters=None, **querykwargs):
         """TODO
-        
+
         :param dbsource: sourcedb
         :param dbdest: destdb
         :param empty_before: boolean. TODO
@@ -2386,10 +2498,10 @@ class SqlTable(GnrObject):
                     dest_tbl.insert(record)
             else:
                 dest_tbl.insertOrUpdate(record)
-    
+
     def copyToDbstore(self,pkey=None,dbstore=None,bagFields=True,empty_before=False,**kwargs):
         """TODO
-        
+
         :param pkey: the record :ref:`primary key <pkey>`
         :param dbstore: TODO
         :param bagFields: TODO"""
@@ -2402,11 +2514,11 @@ class SqlTable(GnrObject):
                 self.empty()
             for rec in records:
                 self.insertOrUpdate(rec)
-                
+
     def exportToAuxInstance(self, instance, empty_before=False, excludeLogicalDeleted=True,
                             excludeDraft=True, source_records=None, **querykwargs):
         """TODO
-        
+
         :param instance: the name of the instance
         :param empty_before: boolean. TODO
         :param excludeLogicalDeleted: boolean. If ``True``, exclude from the query all the records that are
@@ -2418,11 +2530,11 @@ class SqlTable(GnrObject):
         dest_db = instance.db
         self.copyToDb(self.db,dest_db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
                         excludeDraft=True,source_records=source_records,**querykwargs)
-                        
+
     def importFromAuxInstance(self, instance, empty_before=False, excludeLogicalDeleted=False,
                               excludeDraft=False, source_records=None,source_tbl_name=None, raw_insert=None, **querykwargs):
         """TODO
-        
+
         :param instance: the name of the instance
         :param empty_before: boolean. TODO
         :param excludeLogicalDeleted: boolean. If ``True``, exclude from the query all the records that are
@@ -2440,13 +2552,13 @@ class SqlTable(GnrObject):
             assert dest_version > src_version, 'table %s version conflict from %i to %i' %(self.fullname,src_version,dest_version)
             converters = ['_convert_%i_%i' %(x,x+1) for x in range(src_version,dest_version)]
             if [m for m in converters if not hasattr(self,m)]:
-                print('missing converter',self.fullname)
-                return 
+                logger.warning('Missing converter %s', self.fullname)
+                return
         self.copyToDb(source_db,self.db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
                       source_records=source_records,excludeDraft=excludeDraft,
                       raw_insert=raw_insert,
                       source_tbl_name=source_tbl_name,_converters=converters,**querykwargs)
-                      
+
     def getReleases(self):
         prefix = '_release_'
         parslist = []
@@ -2492,14 +2604,14 @@ class SqlTable(GnrObject):
             n+=1
         if commit:
             self.db.commit()
-                
 
 
 
-    def relationExplorer(self, omit='', prevRelation='', dosort=True, pyresolver=False, 
+
+    def relationExplorer(self, omit='', prevRelation='', dosort=True, pyresolver=False,
                         relationStack='',checkPermissions=None,**kwargs):
         """TODO
-        
+
         :param omit: TODO
         :param prevRelation: TODO
         :param dosort: boolean. TODO
@@ -2515,9 +2627,9 @@ class SqlTable(GnrObject):
                 targettbl = self.db.table('%s.%s' % (relpkg, reltbl))
                 return BagCbResolver(targettbl.relationExplorer, omit=omit,
                                      prevRelation=attributes['fieldpath'], dosort=dosort,
-                                     pyresolver=pyresolver,relationStack=relationStack, 
+                                     pyresolver=pyresolver,relationStack=relationStack,
                                      **kwargs)
-                                     
+
         def resultAppend(result, label, attributes, omit):
             if not self.db.application.allowedByPreference(**attributes):
                 return
@@ -2541,7 +2653,7 @@ class SqlTable(GnrObject):
                 attributes['group'] = gr[1:]
             if grin not in omit:
                 result.setItem(label, xvalue(attributes), attributes)
-                
+
         def convertAttributes(result, relnode, prevRelation, omit,relationStack):
             attributes = dict(relnode.getAttr())
             attributes['fieldpath'] = gnrstring.concat(prevRelation, relnode.label)
@@ -2563,15 +2675,15 @@ class SqlTable(GnrObject):
                     relkey = '%(many_relation)s/%(one_relation)s' %attributes
                 relkey = str(hash(relkey) & 0xffffffff)
                 if relkey in relationStack.split('|'):
-                    return 
+                    return
                 attributes['relationStack'] = gnrstring.concat(relationStack, relkey,'|')
             else:
                 if checkPermissions:
                     attributes.update(self.model.getColPermissions(relnode.label,**checkPermissions))
                 attributes['name_long'] = attributes.get('name_long') or relnode.label
             return attributes
-            
-            
+
+
         tblmodel = self.model
         result = Bag()
         for relnode in tblmodel.relations: # add columns relations
@@ -2579,16 +2691,16 @@ class SqlTable(GnrObject):
             if attributes:
                 if not attributes.get('user_forbidden'):
                     resultAppend(result, relnode.label, attributes, omit)
-            
         for vcolname, vcol in list(tblmodel.virtual_columns.items()):
             targetcol = self.column(vcolname)
             attributes = dict(targetcol.attributes)
+            attributes = dict()
             attributes.update(vcol.attributes)
             attributes['fieldpath'] = gnrstring.concat(prevRelation, vcolname)
             attributes['name_long'] = attributes.get('name_long') or vcolname
             attributes['dtype'] = attributes.get('dtype') or 'T'
             resultAppend(result, vcolname, attributes, omit)
-            
+
         for aliastbl in list(tblmodel.table_aliases.values()):
             relpath = tblmodel.resolveRelationPath(aliastbl.relation_path)
             attributes = dict(tblmodel.relations.getAttr(relpath))
@@ -2629,7 +2741,7 @@ class SqlTable(GnrObject):
 
     def setQueryCondition(self,condition_name,condition):
         self.db.currentEnv['env_%s_condition_%s' %(self.fullname.replace('.','_'),condition_name)] = condition
-    
+
     def onLogChange(self,evt,record,old_record=None):
         pass
 
@@ -2646,10 +2758,10 @@ class SqlTable(GnrObject):
         if title_field and f'${title_field}' not in collist:
             collist.append(f'${title_field}')
         return self.query(columns=','.join(collist),**kwargs).fetch()
-    
+
     def menu_dynamicMenuLine(self,record,**kwargs):
         return {}
-    
+
     @property
     def totalizers(self):
         totalizers = dictExtract(self.attributes,'totalizer_')
@@ -2663,7 +2775,7 @@ class SqlTable(GnrObject):
                         _raw=None,_ignore_totalizer=None,**kwargs):
         if _raw and _ignore_totalizer:
             return
-        deferredTotalize = self.db.currentEnv.get('deferredTotalize') 
+        deferredTotalize = self.db.currentEnv.get('deferredTotalize')
         if deferredTotalize and self.fullname in deferredTotalize:
             return
         if evt=='D':
@@ -2672,6 +2784,6 @@ class SqlTable(GnrObject):
         for tbl in self.totalizers:
             self.db.table(tbl).tt_totalize(record=record,old_record=old_record)
 
-            
+
 if __name__ == '__main__':
     pass

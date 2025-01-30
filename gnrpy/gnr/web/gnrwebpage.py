@@ -36,9 +36,16 @@ from base64 import b64decode
 import re
 import datetime
 
-from gnr.web._gnrbasewebpage import GnrBaseWebPage
+
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, tracebackBag
+from gnr.core.gnrbag import Bag, BagResolver
+from gnr.core.gnrdecorator import public_method,deprecated
+from gnr.core.gnrclasses import GnrMixinNotFound
+
+from gnr.web import logger
+from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
@@ -52,11 +59,11 @@ from gnr.web.gnrwebpage_proxy.utils import GnrWebUtils
 from gnr.web.gnrwebpage_proxy.pluginhandler import GnrWebPluginHandler
 from gnr.web.gnrwebpage_proxy.jstools import GnrWebJSTools
 from gnr.web.gnrwebstruct import GnrGridStruct
-from gnr.core.gnrlang import getUuid,gnrImport, GnrException, GnrSilentException, MandatoryException,tracebackBag
-from gnr.core.gnrbag import Bag, BagResolver
-from gnr.core.gnrdecorator import public_method,deprecated
-from gnr.core.gnrclasses import GnrMixinNotFound
-from gnr.web.gnrbaseclasses import BaseComponent # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+
+ # DO NOT REMOVE, old code relies on BaseComponent being defined in this file
+from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
+
+
 from gnr.app.gnrlocalization import GnrLocString
 
 AUTH_OK = 0
@@ -125,7 +132,8 @@ class GnrWebPage(GnrBaseWebPage):
     proxy_class = GnrBaseProxy
     
     def __init__(self, site=None, request=None, response=None, request_kwargs=None, request_args=None,
-                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,_avoid_module_cache=None):
+                 filepath=None, packageId=None, pluginId=None, basename=None, environ=None, class_info=None,
+                 _avoid_module_cache=None):
         self._inited = False
         self._start_time = time()
         self._thread = _thread.get_ident()
@@ -146,7 +154,7 @@ class GnrWebPage(GnrBaseWebPage):
         dbstore = self.temp_dbstore or self.base_dbstore
         self.dbstore = dbstore if dbstore != self.application.db.rootstore else None
         self.aux_instance =  request_kwargs.pop('_aux_instance',None) or None
-        self.user_agent = request.user_agent.string or []
+        self.user_agent = getattr(request.user_agent, "string", [])
         self._environ = environ
         self._event_subscribers = {}
         self.forked = False # maybe redefine as _forked
@@ -159,7 +167,10 @@ class GnrWebPage(GnrBaseWebPage):
         self.called_url = request.url
         self.path_url = request.url_root
         self.request = GnrWebRequest(request)
+
+        # FIXME: strange default here - the whole ipv4 address space?
         self.user_ip = self.request.remote_addr or '0.0.0.0'
+        
         self.response = GnrWebResponse(response)
         self._request = self.request._request
         self._response = self.response._response
@@ -231,10 +242,12 @@ class GnrWebPage(GnrBaseWebPage):
             init_info = dict(request_kwargs=request_kwargs, request_args=request_args,
                           filepath=filepath, packageId=packageId, pluginId=pluginId,  basename=basename)
             self.page_item = self._register_new_page(kwargs=request_kwargs,class_info=class_info,init_info=init_info)
-
         self.isMobile = (self.connection.user_device.startswith('mobile')) or self.page_item['data']['pageArgs'].get('is_mobile')
         self.deviceScreenSize = self.connection.user_device.split(':')[1]
         self._inited = True
+        
+    def onPageRegistered(self,**kwargs):
+        pass
 
     def _T(self,value,lockey=None):
         return GnrLocString(value,lockey=lockey)
@@ -242,7 +255,7 @@ class GnrWebPage(GnrBaseWebPage):
     def onPreIniting(self, *request_args, **request_kwargs):
         """TODO"""
         pass
-        
+
     @property
     def pagename(self):
         return os.path.splitext(os.path.basename(self.filepath))[0].split(os.path.sep)[-1]
@@ -303,6 +316,7 @@ class GnrWebPage(GnrBaseWebPage):
         if self.wsk_enabled and not getattr(self,'system_page',False):
             self.registerToAsyncServer(page_id=self.page_id,page_info=page_info,
                 class_info=class_info,init_info=init_info,mixin_set=[])
+        self.onPageRegistered(**kwargs)
         return page_item
 
     def registerToAsyncServer(self,**kwargs):
@@ -591,11 +605,12 @@ class GnrWebPage(GnrBaseWebPage):
         return AUTH_OK
     
     def _checkRootPage(self):
+        avatar_rootpage = self.avatar.avatar_rootpage or self.rootenv['singlepage'] if self.avatar else None
         if self.pageOptions.get('standAlonePage') \
             or self.root_page_id or not self.avatar \
-                or not self.avatar.avatar_rootpage:
+                or not avatar_rootpage:
             return AUTH_OK
-        result =  AUTH_FORBIDDEN if self.avatar.avatar_rootpage != self.request.path_info else AUTH_OK
+        result =  AUTH_FORBIDDEN if avatar_rootpage != self.request.path_info else AUTH_OK
         return result
         
     def pageAuthTags(self,method=None,**kwargs):
@@ -860,10 +875,12 @@ class GnrWebPage(GnrBaseWebPage):
             errdict = self.callPackageHooks('onAuthenticating',avatar,rootenv=rootenv)
             err = [err for err in errdict.values() if err is not None]
             if err:
+                logger.error("Invalid login for user %s", login['user'])
                 login['error'] = ', '.join(err)
                 return (login, loginPars)
             self.site.onAuthenticated(avatar)
             self.connection.change_user(avatar)
+            logger.info("User %s login", login['user'])
             self.site.connectionLog('open')
             login['message'] = ''
             loginPars = avatar.loginPars
@@ -873,6 +890,7 @@ class GnrWebPage(GnrBaseWebPage):
             except self.site.register.locked_exception:
                 pass
         else:
+            logger.error("Invalid login for user %s", login['user'])
             login['message'] = 'invalid login'
         return (login, loginPars)
 
@@ -1185,11 +1203,10 @@ class GnrWebPage(GnrBaseWebPage):
                  raise exception
          return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
-    def build_arg_dict(self, _nodebug=False, _clocomp=False, **kwargs):
+    def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
         :param _nodebug: no debug mode
-        :param _clocomp: enable closure compile
         """
         gnr_static_handler = self.site.storage('gnr')
         gnrModulePath = gnr_static_handler.url(self.gnrjsversion)
@@ -1238,14 +1255,10 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
         gnrimports = self.frontend.gnrjs_frontend()
-        #if _nodebug is False and _clocomp is False and (self.site.debug or self.isDeveloper()):
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
-        elif _nodebug is False and _clocomp is False and (self.isDeveloper()):
+        elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-        elif _clocomp or self.site.config['closure_compiler']:
-            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-            arg_dict['genroJsImport'] = [self.jstools.closurecompile(jsfiles)]
         else:
             if not self.site.compressedJsPath or self.site.debug:
                 jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
@@ -1994,13 +2007,13 @@ class GnrWebPage(GnrBaseWebPage):
                 value['parent'] = parent
             self.setInClientData('gnr.publisher',value=value,page_id=page_id,fired=True)
 
-    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True):
+    def setInClientRecord(self,tblobj=None,record=None,fields=None,silent=True, **kwargs):
         updater = Bag()
         for field in fields.split(','):
             updater[field] = record[field]
         self.clientPublish('setInClientRecord',table=tblobj.fullname,
                             pkey=record[tblobj.pkey],silent=silent,
-                            updater=updater)
+                            updater=updater, **kwargs)
         
     def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
@@ -2017,6 +2030,18 @@ class GnrWebPage(GnrBaseWebPage):
         self.setInClientData_legacy(path, value=value, attributes=attributes, page_id=page_id or self.page_id, filters=filters,
                         fired=fired, reason=reason, replace=replace,public=public,**kwargs)
 
+    def notifyLocalDbEvents(self,dbeventsDict=None,origin_page_id=None,dbevent_reason=None):
+        for table,dbevents in list(dbeventsDict.items()):
+            if not dbevents:
+                continue
+            table_code = table.replace('.', '_')
+            self.addLocalDatachange('gnr.dbchanges.%s' %table_code, dbevents,attributes=dict(from_page_id=origin_page_id,dbevent_reason=dbevent_reason))
+
+
+    def addLocalDatachange(self, path, value=None, attributes=None, fired=False, reason=None, delete=False):
+        datachange = ClientDataChange(path, value, attributes=attributes, fired=fired,
+                                      reason=reason, delete=delete)
+        self.local_datachanges.append(datachange)
 
     def setInClientData_legacy(self, path, value=None, attributes=None, page_id=None, filters=None,
                         fired=False, reason=None, replace=False,public=None,**kwargs):
@@ -2887,8 +2912,10 @@ class GnrWebPage(GnrBaseWebPage):
         mode = kwargs.pop('mode',None)
         mode = mode or 'log'
         self.clientPublish('gnrServerLog',msg=msg,args=args,kwargs=kwargs)
-        print(f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg}',
-                                    args,kwargs)
+        logger.info(
+            f'pagename:{self.pagename}-:page_id:{self.page_id} >>\n{msg} %s %s',
+            args, kwargs
+        )
 
     ##### BEGIN: DEPRECATED METHODS ###
     @deprecated
@@ -2952,7 +2979,6 @@ class GnrGenshiPage(GnrWebPage):
     """TODO"""
     def onPreIniting(self, request_args, request_kwargs):
         """TODO"""
-        from genshi.template import TemplateLoader
         request_kwargs['_plugin'] = 'genshi'
         request_kwargs['genshi_path'] = self.genshi_template()
         

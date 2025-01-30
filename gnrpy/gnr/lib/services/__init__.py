@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -26,16 +26,10 @@
 
 import os
 
-import sys
-
-from collections import OrderedDict
-from gnr.core.gnrlang import  gnrImport,clonedClassMixin
+from gnr.core.gnrlang import  gnrImport
 from datetime import datetime
 from gnr.core.gnrbag import Bag
-
-import logging
-log = logging.getLogger(__name__)
-
+from gnr.lib import logger
 
 PKGMARKER = '%spackages%s' %(os.sep,os.sep)
 
@@ -177,8 +171,8 @@ class BaseServiceType(object):
                         service_class = getattr(module,'Service',None) or getattr(module,'Main',None) #backward compatibility
                         self._implementations[implname] =  service_class
                     except ImportError as imperr:
-                        log.exception("Could not import %s"%impl)
-                        log.exception(str(imperr))
+                        logger.exception("Could not import %s"%impl)
+                        logger.exception(str(imperr))
                     
                     if not self.baseImplementation:
                         self.baseImplementation = implname
@@ -206,8 +200,8 @@ class BaseServiceType(object):
                     service_class = getattr(module,'Service',None) or getattr(module,'Main',None) #backward compatibility
                     result[implname] =  service_class
                 except ImportError as imperr:
-                    log.exception("Could not import %s"%impl)
-                    log.exception(str(imperr))
+                    logger.exception("Could not import %s"%impl)
+                    logger.exception(str(imperr))
                 if not baseImplementation:
                     baseImplementation = implname
         return result,baseImplementation

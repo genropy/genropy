@@ -1,14 +1,11 @@
-import json
 import os
 import re
 import io
-import logging
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import httplib2
 import _thread
 import mimetypes
-import pickle
 import functools
 from time import time
 from collections import defaultdict
@@ -19,24 +16,21 @@ from werkzeug.wrappers import Request, Response
 from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
 
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
 from gnr.core import gnrstring
-from gnr.core.gnrlang import deprecated,GnrException,GnrDebugException,tracebackBag,getUuid
-from gnr.core.gnrdecorator import public_method
-from gnr.app.gnrconfig import getGnrConfig,getEnvironmentItem
-
+from gnr.core.gnrlang import GnrException,GnrDebugException,tracebackBag,getUuid
+from gnr.core.gnrdecorator import public_method, deprecated
+from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
-from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrdecorator import extract_kwargs
-
-from gnr.web.gnrwebreqresp import GnrWebRequest
+from gnr.core.gnrdecorator import extract_kwargs,metadata
+from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
-from gnr.core.gnrcrypto import AuthTokenGenerator
-
+from gnr.web import logger
+from gnr.web.gnrwebapp import GnrWsgiWebApp
+from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
+from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
@@ -47,15 +41,11 @@ try:
     from werkzeug import EnvironBuilder
 except ImportError:
     from werkzeug.test import EnvironBuilder
-from gnr.web.gnrheadlesspage import GnrHeadlessPage
 
 mimetypes.init()
 
-OP_TO_LOG = {'x': 'y'}
-
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
-log = logging.getLogger(__name__)
 warnings.simplefilter("default")
 global GNRSITE
 
@@ -160,15 +150,14 @@ class GnrWsgiSite(object):
         return self._guest_counter
 
     def log_print(self, msg, code=None):
-        """TODO
-
-        :param msg: add??
-        :param code: TODO"""
-        if getattr(self, 'debug', True):
-            if code and code in OP_TO_LOG:
-                print('***** %s : %s' % (code, msg))
-            elif not code:
-                print('***** OTHER : %s' % (msg))
+        """
+        Internal logging invocation 
+        :param msg: The log message
+        :param code: The method which invoked the log
+        """
+        if not code:
+            code = "OTHER"
+        logger.debug('%s: %s', code, msg)
 
     def setDebugAttribute(self, options):
         self.force_debug = False
@@ -222,11 +211,15 @@ class GnrWsgiSite(object):
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
+
+        # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
             try:
-                import psycopg2
+                import psycopg2 # noqa: F401
             except Exception:
                 pass
+
+            
         if self.default_uri[-1] != '/':
             self.default_uri += '/'
        
@@ -276,7 +269,7 @@ class GnrWsgiSite(object):
         if counter == 0 and options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
-            print('End of import')
+            logger.info('End of import')
 
         cleanup = self.custom_config.getAttr('cleanup') or dict()
         self.cleanup_interval = int(cleanup.get('interval') or 120)
@@ -716,7 +709,7 @@ class GnrWsgiSite(object):
                                                       user_ip=user_ip,
                                                       user_agent=user_agent)
         except Exception as writingErrorException:
-            print('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
+            logger.exception('\n ####writingErrorException %s for exception %s' %(str(writingErrorException),str(exception)))
 
     @public_method
     def writeError(self, description=None,error_type=None, **kwargs):
@@ -725,14 +718,14 @@ class GnrWsgiSite(object):
             user, user_ip, user_agent = (page.user, page.user_ip, page.user_agent) if page else (None, None, None)
             self.db.table('sys.error').writeError(description=description,error_type=error_type,user=user,user_ip=user_ip,user_agent=user_agent,**kwargs)
         except Exception as e:
-            print(str(e))
+            logger.exception(str(e))
             pass
 
     def loadResource(self, pkg, *path):
         """TODO
 
         :param pkg: the :ref:`package <packages>` object
-        :param \*path: TODO"""
+        :param *path: TODO"""
         return self.resource_loader.loadResource(*path, pkg=pkg)
 
     def get_path_list(self, path_info):
@@ -862,8 +855,7 @@ class GnrWsgiSite(object):
     def configurationItem(self,path,mandatory=False):
         result = self.config[path]
         if mandatory and result is None:
-            
-            print('Missing mandatory configuration item: %s' %path)
+            logger.warning('Missing mandatory configuration item: %s' %path)
         return result
     
     def pwa_config(self):
@@ -962,6 +954,19 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
+        if first_segment == '_beacon':
+            try:
+                method = request_kwargs.pop('method',None)
+                if method:
+                    handler = getattr(self,method,None)
+                    if handler and hasattr(handler,'beacon'):
+                        handler(**request_kwargs)
+                self.cleanup()
+            except Exception as exc:
+                raise
+            finally:
+                self.cleanup()
+            return response(environ, start_response)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -993,8 +998,8 @@ class GnrWsgiSite(object):
             except WSGIHTTPException as exc:
                 return exc(environ, start_response)
             except Exception as exc:
-                log.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
-                log.exception(str(exc))
+                logger.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
+                logger.exception(str(exc))
                 raise
 
             if not (page and page._call_handler):
@@ -1098,8 +1103,9 @@ class GnrWsgiSite(object):
                 response.headers['X-%s' %k] = v
         if isinstance(result, str):
             #response.mimetype = kwargs.get('mimetype') or 'text/plain'
-            #print(f'response mimetipe {response.mimetype} content_type {response.content_type}')
+
             response.mimetype = kwargs.get('mimetype') or response.mimetype or 'text/plain'
+            logger.debug(f'response mimetipe {response.mimetype} content_type {response.content_type}')
             response.data=result # PendingDeprecationWarning: .unicode_body is deprecated in favour of Response.text
         
         elif isinstance(result, (bytes,str)):
@@ -1121,6 +1127,11 @@ class GnrWsgiSite(object):
 
         :param page: TODO"""
         pass
+
+    @metadata(beacon=True)
+    def onClosedPage(self, page_id=None):
+        "Drops page when closing"
+        self.register.drop_page(page_id)
 
     def cleanup(self):
         """clean up"""
@@ -1264,7 +1275,7 @@ class GnrWsgiSite(object):
                     profiles_sample_rate=float(self.config['sentry?profiles_sample_rate']) if self.config['sentry?profiles_sample_rate'] else 1.0)
                 wsgiapp = SentryWsgiMiddleware(wsgiapp)
             except Exception as e:
-                log.error(f"Sentry support has been disabled due to configuration errors: {e}")
+                logger.error(f"Sentry support has been disabled due to configuration errors: {e}")
         return wsgiapp
 
     def build_gnrapp(self, options=None):
@@ -1595,7 +1606,7 @@ class GnrWsgiSite(object):
             self.shellCall('convert','-density','300',filepath,'-depth','8',tifname)
             self.shellCall('tesseract', tifname, filename)
         except Exception:
-            print('missing tesseract in this installation')
+            logger.warning('missing tesseract in this installation')
             return
         result = ''
         if not os.path.isfile(txtname):

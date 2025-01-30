@@ -11,12 +11,11 @@ from paste import fileapp
 from paste.httpheaders import ETAG
 
 from gnr.core.gnrsys import expandpath
-from gnr.dev.decorator import callers
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
-from gnr.core.gnrlang import GnrDebugException
 from gnr.core.gnrlang import file_types
-
+from gnr.dev.decorator import callers
+from gnr.web import logger
 
 class StaticHandlerManager(object):
     """ This class handles the StaticHandlers"""
@@ -50,7 +49,7 @@ class StaticHandlerManager(object):
 
     @callers()
     def static_dispatcher(self, path_list, environ, start_response, download=False, **kwargs):
-        print('Calling static_dispatcher %s ' % path_list) 
+        logger.debug('Calling static_dispatcher %s', path_list) 
         handler = self.get(path_list[0][1:])
         if handler:
             result = handler.serve(path_list, environ, start_response, download=download, **kwargs)
@@ -184,9 +183,9 @@ class VolumesStaticHandler(StaticHandler):
 
     def path(self,volume,*args,**kwargs):
         vpath = self.volumes.get(volume,volume)
-        #print 'volumes',self.volumes,'volume'
+        logger.debug('volumes %s volume',self.volumes)
         result = expandpath(os.path.join(self.site.site_static_dir,vpath, *args))
-        #print 'aaa',result
+        logger.debug(result)
         return result
 
 class CloudStaticHandler(StaticHandler):
@@ -204,9 +203,9 @@ class CloudStaticHandler(StaticHandler):
 
     def path(self,volume,*args,**kwargs):
         vpath = self.volumes.get(volume,volume)
-        #print 'volumes',self.volumes,'volume'
+        logger.debug("volumes %s volume", self.volumes)
         result = expandpath(os.path.join(self.site.site_static_dir,vpath, *args))
-        #print 'aaa',result
+        logger.debug(result)
         return result
 
 class ExternalVolumesStaticHandler(VolumesStaticHandler):
@@ -220,7 +219,10 @@ class ExternalVolumesStaticHandler(VolumesStaticHandler):
         p = urlparse.urlparse(url)
         urlkwargs = dict(urlparse.parse_qsl(p.query))
         kwargs.update(urlkwargs)
-        print('URL:',url, '\nRESULT:',p.path.split('/')[1:], '\nkwargs', kwargs)
+        logger.debug("URL: %s RESULT %s kwargs %s",
+                     url,
+                     p.path.split('/')[1:],
+                     kwargs)
         return super(VolumesStaticHandler, self).serve(p.path.split('/')[1:],environ,start_response,download=download,**kwargs)
 
 

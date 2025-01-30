@@ -18,13 +18,14 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-from re import M
+
+import hashlib
+import os
+
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrstring import slugify
-import os
 
 
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
@@ -72,7 +73,7 @@ class AttachManagerViewBase(BaseComponent):
 class AttachManagerView(AttachManagerViewBase):
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('full_external_url',hidden=True)
+        #r.fieldcell('full_external_url',hidden=True)
         r.fieldcell('_row_count',counter=True,hidden=True)
         #tbl.column('filepath' ,name_long='!!Filepath')
         r.fieldcell('description',edit=True,width='20em')
@@ -80,7 +81,10 @@ class AttachManagerView(AttachManagerViewBase):
         if hasattr(r.tblobj,'atc_types'):
             r.fieldcell('atc_type',edit=True,name='Type')
         if hasattr(r.tblobj,'atc_download'):
-            r.fieldcell('atc_download',edit=True,name='DL')
+            r.fieldcell('atc_download',edit=True,name='Open')
+        r.fieldcell('full_external_url', name='DL', width='2.5em',
+               template='<a href="$full_external_url" target="_blank"><img src="/_rsrc/common/css_icons/svg/16/link_connected.svg" height="13px" /></a>')
+        
         r.cell('copyurl',calculated=True,name='Copy url',cellClasses='cellbutton',
                     format_buttonclass='copy iconbox',
                     format_isbutton=True,
@@ -272,7 +276,7 @@ class AttachManager(BaseComponent):
             height=height or '300px',
             closable_label=title,
             closable=closable or 'close', 
-            closable__class='drawer_allegati'
+            closable__class='attachment_drawer'
         )
         th = bottom.attachmentViewer(preview=False,margin='5px',margin_top=0,title=title,**kwargs)
         th.view.grid_envelope.attributes['border'] = '1px solid silver'
@@ -526,7 +530,8 @@ class AttachManager(BaseComponent):
                 _store='^.store',
                 _flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
-        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,*,previewZoom,externalUrl,2')
+        frame.form.store.handler("load", virtual_columns='$full_external_url')
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,15,copyUrl,*,previewZoom,externalUrl,2')
         bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
                                         hidden='^.form.viewerMode?=#v!="image"',
                                         intermediateChanges=True, width='15em',default_value=1)
@@ -534,6 +539,9 @@ class AttachManager(BaseComponent):
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
         fb.textbox(value='^.description',lbl='!!Description')
+        bar.copyUrl.lightbutton(_class='iconbox copy', hidden='^.form.controller.is_newrecord',tip='!!Copy attachment url',
+                    action="""console.log(full_external_url);genro.textToClipboard(full_external_url,_T('!![en]Copy and paste attachment url'));""",
+                    full_external_url='^.form.record.full_external_url')
         frame.parametersForm = fb
         fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
@@ -554,11 +562,18 @@ class AttachManager(BaseComponent):
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
 
+    def _handleFileHash(self,kwargs):
+        file_handle = kwargs.get('file_handle')
+        kwargs['filepath_original_name'] = os.path.basename(file_handle.filename)
+        kwargs['filepath_hash'] = hashlib.md5(file_handle.stream.read()).hexdigest()
+        file_handle.stream.seek(0)
+
     @public_method
     def onUploadingAttachment(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
+        self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
         uploaderId = kwargs.get('uploaderId')
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
@@ -590,6 +605,7 @@ class AttachManager(BaseComponent):
         pkey = kwargs.get('pkey')
         maintable_id = kwargs.get('maintable_id')
         filename = kwargs.get('filename')
+        self._handleFileHash(kwargs)
         attachment_tblobj =  self.db.table(attachment_table)
         atcNode = attachment_tblobj._getDestAttachmentNode(maintable_id=maintable_id,filename=filename)
         kwargs['uploadPath'] = atcNode.dirname

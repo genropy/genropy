@@ -8,12 +8,9 @@ import time
 from base64 import b32encode
 
 import pyotp
-import qrcode
 
 from gnr.lib.services import GnrBaseService
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrlang import GnrException
-
 
 class Main(GnrBaseService):
     def __init__(self, parent=None,secret=None,issuer_name=None,image=None,expiry_days=None,**kwargs):
@@ -58,6 +55,6 @@ class ServiceParameters(BaseComponent):
     def service_parameters(self,pane,datapath=None,**kwargs):
         fb = pane.formbuilder(datapath=datapath)
         fb.textbox(value='^.issuer_name',lbl='Issuer name')
-        fb.textbox(value='^.secret',lbl='Secret',type='password')
+        fb.passwordTextBox(value='^.secret',lbl='Secret')
         fb.textbox(value='^.image',lbl='Image url')
         fb.numberTextBox(value='^.expiry_days',lbl='Expiry days')

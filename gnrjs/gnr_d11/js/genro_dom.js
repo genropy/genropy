@@ -119,18 +119,51 @@ dojo.declare("gnr.GnrDomHandler", null, {
             e.onload = cb;
         }
     },
-    addPlugin: function(plugin,cb){
-        genro.dom.loadCss('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',null,null,genro.isDeveloper);
-        genro.dom.loadJs('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',function(){
-                genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
-                genro.wdg.updateWidgetCatalog();
-                if(cb){
-                    cb();
-                }
-                if(genro[plugin].init){
-                    genro[plugin].init();
-                }
-        },genro.isDeveloper);
+
+
+    loadResource: async function(url,noCache) {
+        let element;
+        const isJs = url.endsWith('.js');
+        const isCss = url.endsWith('.css');
+        if (!isJs && !isCss) {
+            throw new Error(`Unsupported file type: ${url}`);
+        }
+        if (noCache) {
+            const cacheBuster = `cachebuster=${new Date().getTime()}`;
+            url += (url.includes('?') ? '&' : '?') + cacheBuster;
+        }
+        if (isJs) {
+            element = document.createElement('script');
+            element.type = 'text/javascript';
+            element.src = url;
+        } else if (isCss) {
+            element = document.createElement('link');
+            element.rel = 'stylesheet';
+            element.href = url;
+        }
+        return new Promise((resolve, reject) => {
+            element.onload = () => resolve(`Resource loaded: ${url}`);
+            element.onerror = () => reject(new Error(`Failed to load resource: ${url}`));
+            document.head.appendChild(element);
+        });
+    },
+
+    addPlugin: async function(plugin,cb){
+        try {
+            await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',genro.isDeveloper);
+        } catch (error) {
+            console.log('No stylesheet for plugin ',plugin);
+        }
+        await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',genro.isDeveloper);
+        genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
+        genro.wdg.updateWidgetCatalog();
+        if(cb){
+            cb();
+        }
+        if(genro[plugin].init){
+            await genro[plugin].init();
+        }
+        return genro[plugin]
     },
 
     loadExternal:function(urlList,avoidCache){
@@ -1611,8 +1644,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var result = {};
         var style = whatDomNode.style;
         var whereposition = whereDomNode.style.position;
-        var deltax = viewport.l || viewport.x;
-        var deltay = viewport.t || viewport.y;
+        var deltax = isNullOrBlank(viewport.l)? viewport.x:viewport.l;
+        var deltay = isNullOrBlank(viewport.t)? viewport.y:viewport.t;
         var onlyX,onlyY;
         xRatio = xRatio || 0;
         yRatio = yRatio || 0;
@@ -1626,6 +1659,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         //    deltax = deltax +viewport.x;
         //    deltay = deltay + viewport.y;
         //}
+        
         if (!onlyY) {
             style.left = Math.floor((deltax + (viewport.w - mb.w)*(1+xRatio) / 2)) + "px";
         }

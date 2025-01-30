@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  index.py
 
 
-""" index.py """
-
-from gnr.core.gnrdecorator import public_method
-# --------------------------- GnrWebPage subclass ---------------------------
 class GnrCustomWebPage(object):
     dojo_source=True
     py_requires = """public:Public,th/th:TableHandler"""

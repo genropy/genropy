@@ -1,17 +1,13 @@
+import unittest
 
-from reportlab.lib.testutils import setOutDir,makeSuiteForClasses, outputfile, printLocation
+from reportlab.lib.testutils import setOutDir, makeSuiteForClasses
+from reportlab.lib.testutils import outputfile, printLocation
 setOutDir(__name__)
-import operator, string
 from reportlab.platypus import *
-#from reportlab import rl_config
-from reportlab.lib.styles import PropertySet, getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.platypus.paragraph import Paragraph
-#from reportlab.lib.utils import fp_str
-#from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus.flowables import PageBreak
-import os
-import unittest
 
 class TableTestCase(unittest.TestCase):
 

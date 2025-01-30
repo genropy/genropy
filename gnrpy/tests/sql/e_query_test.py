@@ -25,10 +25,8 @@
 """
 this test module focus on SqlQuery's methods
 """
-import os
-import datetime
 
-import pytest
+import datetime
 import logging
 
 gnrlogger = logging.getLogger('gnr')
@@ -38,9 +36,8 @@ gnrlogger.addHandler(hdlr)
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
-from gnr.core.gnrbag import Bag
 
-from .common import BaseGnrSqlTest, configurePackage
+from .common import BaseGnrSqlTest
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -126,6 +123,16 @@ class BaseSql(BaseGnrSqlTest):
                               sqlparams={'years': (2005, 2006)})
         result = query.count()
         assert result == 4
+
+    def test_not_in_statement(self):
+        query = self.db.query('video.movie',
+                              where='$year NOT IN :years',
+                              sqlparams={'years': (1960, 1975)})
+        result = query.count()
+        assert result == 9
+
+
+        
 
     def test_sqlparams_date(self):
         query = self.db.query('video.dvd',
@@ -215,9 +222,37 @@ class TestGnrSqlDb_postgres(BaseSql):
                           port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
                           user=cls.pg_conf.get("user"),
-                          password=''
+                          password=cls.pg_conf.get("password")
                           )
         
     init = classmethod(init)
 
+# FIXME: reintroduce Mysql tests ASAP
+# class TestGnrSqlDb_mysql(BaseSql):
+#     def init(cls):
+#         cls.name = 'mysql'
+#         cls.dbname = 'genrotest2'
+#         cls.db = GnrSqlDb(implementation='mysql',
+#                           host=cls.mysql_conf.get("host"),
+#                           dbname=cls.dbname,
+#                           user=cls.mysql_conf.get("user"),
+#                           password=cls.mysql_conf.get("password")
+#                           )
+
+#     init = classmethod(init)
+
+
+class TestGnrSqlDb_postgres3(BaseSql):
+    def init(cls):
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
+                          dbname=cls.dbname,
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
+                          )
+        
+    init = classmethod(init)
 

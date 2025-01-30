@@ -62,7 +62,9 @@ class GnrTaskScheduler(object):
                 self.exectbl.insert(self.exectbl.newrecord(task_id=t,exec_reason=reason,reasonkey=reasonkey))
                 taskToUpdate.append(t)
 
-        self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),_pkeys=taskToUpdate)
+        self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),
+                                 _pkeys=taskToUpdate,
+                                 for_update='SKIP LOCKED')
         self.checkAlive()
         self.db.commit()
     

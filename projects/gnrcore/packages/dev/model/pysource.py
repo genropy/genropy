@@ -25,4 +25,4 @@ class Table(object):
     def parseModule(self,hierarchical_name=None):
         filepath = import_module(hierarchical_name.replace('/','.')).__file__.replace('.pyc','.py')
         rb = self.get_redbaron(filepath)
-        print(x)
+        raise Exception("x exception")

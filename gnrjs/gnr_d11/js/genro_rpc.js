@@ -271,14 +271,20 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.aux_instance = genro.startArgs.aux_instance;
         }
         var req_dbstore = genro.getData('current.context_dbstore');
+        let tenant_schema = genro.getData('current.context_tenant_schema');
+
         if(sourceNode){
             req_dbstore = req_dbstore || sourceNode.inheritedAttribute('context_dbstore');
+            tenant_schema = tenant_schema || sourceNode.inheritedAttribute('context_tenant_schema');
         }
         if (req_dbstore){
             content.temp_dbstore = req_dbstore;
             //kw.url = '/'+req_dbstore+kw.url;
         }else if(req_dbstore===false){
             content.temp_dbstore = '_main_db';
+        }
+        if(!isNullOrBlank(tenant_schema)){
+            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         if (genro.startArgs._avoid_module_cache){
             content._avoid_module_cache = true;
@@ -650,13 +656,19 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             currParams._no_cache_ = genro.getCounter();
         }
         var req_dbstore = genro.getData('current.context_dbstore');
+        let tenant_schema = genro.getData('current.context_tenant_schema');
+
         if(sourceNode){
             req_dbstore = req_dbstore || sourceNode.inheritedAttribute('context_dbstore');
+            tenant_schema = tenant_schema || sourceNode.inheritedAttribute('context_tenant_schema');
         }
         if (req_dbstore){
             currParams.temp_dbstore = req_dbstore;
         }else if(req_dbstore===false){
             currParams.temp_dbstore = '_main_db';
+        }
+        if(!isNullOrBlank(tenant_schema)){
+            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         return objectUpdate(currParams, this.serializeParameters(genro.src.dynamicParameters(kwargs, sourceNode)));
     },

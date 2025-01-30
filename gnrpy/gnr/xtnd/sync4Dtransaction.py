@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrsqlclass : Genro transaction manager
@@ -21,14 +21,10 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import weakref
-
+import logging
 from datetime import datetime
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import boolean
-
-#from gnr.core.gnrlog import logging
-import logging
 
 gnrlogger = logging.getLogger(__name__)
 

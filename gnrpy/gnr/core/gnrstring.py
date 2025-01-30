@@ -25,21 +25,21 @@ import re
 import pickle
 import zipfile
 import io
-import logging
 import datetime
 import json
-
 from decimal import Decimal
 
-logger = logging.getLogger(__name__)
+from gnr.core import logger
+
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
-FLATTENER = re.compile('\W+')
+FLATTENER = re.compile(r'\W+')
 NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
+
 try:
     from string import Template
 
     class BagTemplate(Template):
-        idpattern = '[_a-z\@][_a-z0-9\.\@^]*'
+        idpattern = r'[_a-z\@][_a-z0-9\.\@^]*'
 
     class NoneIsBlankMapWrapper(object):
 
@@ -217,7 +217,7 @@ try:
             return self._gnrclasscatalog
 
         def object_pairs_hook(self, kv):
-            print('inside object_hook',kv)
+            logger.debug('inside object_hook %s',kv)
             #if isinstance(value,str):
             #    return self.gnrclasscatalog.fromTypedText(value)
             return kv
@@ -681,7 +681,7 @@ def split(path, sep='.'):
     result = []
     start = 0
     end = len(path)
-    myre = re.compile("([^\%s\'\"\(\[\)\]]*)(?:(?P<enditem>\%s|$)|(\')|(\")|(\()|(\[)|(\))|(\]))" % (sep, sep))
+    myre = re.compile(r"([^\%s\'\"\(\[\)\]]*)(?:(?P<enditem>\%s|$)|(\')|(\")|(\()|(\[)|(\))|(\]))" % (sep, sep))
     wch = []
     nextPos = start
     while start < end:
@@ -1021,8 +1021,8 @@ def slugify(value,sep='-'):
     import unicodedata
     value = str(value)
     value = unicodedata.normalize('NFKD', value)#.encode('ascii', 'ignore')
-    value = str(re.sub('[^\w\s-]', '', value).strip().lower())
-    return re.sub('[-\s]+', sep, value)
+    value = str(re.sub(r'[^\w\s-]', '', value).strip().lower())
+    return re.sub(r'[-\s]+', sep, value)
 
 def fromJson(obj):
     """TODO

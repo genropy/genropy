@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -21,33 +21,39 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import re
-import select
 
+# pymysql is a pure python driver with
+# compatibility with MySQLdb driver, useful in
+# testing environments
+try:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+except:
+    pass
 
 import MySQLdb
 from MySQLdb.cursors import DictCursor
 
-#from psycopg2.extras import DictConnection, DictCursor, DictCursorBase
-#from psycopg2.extensions import cursor as _cursor
-#from psycopg2.extensions import connection as _connection
-
-#from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_READ_COMMITTED
-
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
+from gnr.core.gnrbag import Bag
+from gnr.sql import logger
+from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.core.gnrbag import Bag
+from gnr.sql import AdapterCapabilities as Capabilities
 
 RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 class SqlDbAdapter(SqlDbBaseAdapter):
-    typesDict = {'varchar': 'A', 'char': 'C', 'text': 'T', 'tinytext': 'T', 'mediumtext': 'T', 'longtext': 'T',
-                 'enum': 'A',
-                 'boolean': 'B', 'date': 'D', 'time': 'H', 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
-                 'integer': 'I', 'bigint': 'L','mediumint':'L', 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
-                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O', 'float':'R', 'blob':'O', 'varbinary':'O'}
+    typesDict = {'varchar': 'A', 'char': 'C', 'text': 'T',
+                 'tinytext': 'T', 'mediumtext': 'T', 'longtext': 'T',
+                 'enum': 'A', 'boolean': 'B', 'date': 'D', 'time': 'H',
+                 'datetime': 'DH', 'tinyint': 'I', 'timestamp': 'DH',
+                 'integer': 'I', 'bigint': 'L','mediumint':'L',
+                 'smallint': 'I', 'int': 'I', 'double precision': 'R', 'real': 'R',
+                 'bytea': 'O', 'binary':'O', 'decimal':'N', 'longblob':'O',
+                 'float':'R', 'blob':'O', 'varbinary':'O'}
 
     revTypesDict = {'A': 'varchar', 'T': 'text', 'C': 'char',
                     'X': 'text', 'P': 'text', 'Z': 'text',
@@ -55,32 +61,35 @@ class SqlDbAdapter(SqlDbBaseAdapter):
                     'I': 'int', 'L': 'bigint', 'R': 'real','N':'decimal',
                     'serial': 'serial', 'O': 'longblob'}
 
+    CAPABILITIES = {
+        Capabilities.SCHEMAS
+    }
+    
     def defaultMainSchema(self):
         return ''
 
-    def connect(self, storename=None):
+    def connect(self, storename=None, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
-        import MySQLdb
-        from MySQLdb.cursors import DictCursor
+
         dbroot = self.dbroot
         if dbroot.port:
             port = int(dbroot.port)
         else:
             port = 3306
-        #kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password, 
-        # port=dbroot.port, use_unicode=True, cursorclass=GnrDictCursor)
         kwargs = dict(host=dbroot.host, db=dbroot.dbname, user=dbroot.user, passwd=dbroot.password,
                       port=port , cursorclass=GnrDictCursor)
         kwargs = dict(
-                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
+                [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters
         kwargs['charset'] = 'utf8'
-        #kwargs['connection_factory'] = GnrDictConnection # build a DictConnection: provides cursors accessible by col number or col name
         return MySQLdb.connect(**kwargs)
 
-    #def adaptSqlName(self,name):
-    #    return '`%s`' %name 
+    def adaptSqlName(self,name):
+        return '`%s`' %name 
+
+    def cursor(self, name=None):
+        return self._managerConnection().cursor()
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
@@ -110,31 +119,36 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return sql
 
 
-    def getWhereTranslator(self):
-        return GnrWhereTranslator(self.dbroot)
+    #def getWhereTranslator(self):
+    #    return GnrWhereTranslator(self.dbroot)
 
-        #def _managerConnection(self):
-        #dbroot=self.dbroot
-        #kwargs = dict(host=dbroot.host, database='template1', user=dbroot.user, 
-        #password=dbroot.password, port=dbroot.port)
-        #kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
-        #conn =  MySQLdb.connect(**kwargs)
-        #conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        #return conn
+    def _managerConnection(self):
+        dbroot=self.dbroot
+        kwargs = dict(host=dbroot.host, database='mysql', user=dbroot.user, 
+                      password=dbroot.password, port=dbroot.port)
+        kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
+        logger.debug("KWARGS %s", kwargs)
+        conn =  MySQLdb.connect(autocommit=True, **kwargs)
+        return conn
+    
+    def createDb(self, name, encoding='unicode'):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                conn = self._managerConnection()
+                curs = conn.cursor()
+                try:
+                    curs.execute(f"CREATE DATABASE `{name}`;")
+                except:
+                    raise DbAdapterException(f"Could not create database {name}")
+                finally:
+                    curs.close()
+                    conn.close()
 
-        #def createDb(self, name, encoding='unicode'):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("CREATE DATABASE %s CHARSET '%s';" % (name, encoding))
-        #curs.close()
-        #conn.close()
 
-        #def dropDb(self, name):
-        #conn = self._managerConnection()
-        #curs = conn.cursor()
-        #curs.execute("DROP DATABASE %s;" % name)
-        #curs.close()
-        #conn.close()
+    def dropDb(self, name):
+        with self._managerConnection() as conn:
+            with conn.cursor() as curs:
+                curs.execute(f"DROP DATABASE `{name}`")
 
         #def createTableAs(self, sqltable, query, sqlparams):
         #self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
@@ -181,7 +195,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def _selectForUpdate(self,maintable_as=None,**kwargs):
         return 'FOR UPDATE'
 
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType, comment=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
@@ -192,6 +206,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             return []
         query = handler()
         result = self.dbroot.execute(query, kwargs).fetchall()
+        if comment:
+            return [(r[0],None) for r in result]
         return [r[0] for r in result]
 
     def _list_schemata(self):
@@ -324,7 +340,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #statement = '%s %s' % (drop_statement,statement) # MSSQL doesn't support DEFERRED
         return statement
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_mysql_'"""
@@ -381,7 +397,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             col = self._filterColInfo(col, '_my_')
             coltype = self.typesDict.get(col['dtype'], None) #for unrecognized types default dtype is T
             if not coltype:
-                print('unrecognized column type: %s' % col['dtype'])
+                logger.warning('unrecognized column type: %s' , col['dtype'])
                 coltype = 'T'
             dtype = col['dtype'] = coltype
             col['notnull'] = (col['notnull'] == 'NO')
@@ -404,14 +420,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return result
 
 
-#class GnrDictConnection(DictConnection):
-#    """A connection that uses DictCursor automatically."""
-#    def cursor(self, name=None):
-#        if name:
-#            return _connection.cursor(self, name, cursor_factory=GnrDictCursor)
-#        else:
-#            return _connection.cursor(self, cursor_factory=GnrDictCursor)
-#
 class GnrDictCursor(DictCursor):
     def _post_get_result(self):
         _rows = self._fetch_row(0)

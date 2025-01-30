@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method, metadata
+from gnr.core.gnrdecorator import public_method
 from gnr.app.gnrlocalization import AppLocalizer
 import textwrap
 
@@ -170,7 +170,7 @@ class Table(object):
                     if h == 0:
                         pname = r['code']
                         if pname.endswith('_'):
-                            pname = '%s\_' %pname[0:-1]
+                            pname = r'%s\_' %pname[0:-1]
                         dtype = r['data_type']
                     else:
                         pname = ''

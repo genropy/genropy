@@ -20,21 +20,20 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import sys
 import functools
 import re
-import logging
 import datetime
 import calendar
 import copy
 import bisect
+from dateutil import rrule
+
+from babel import dates
 import pytz
 
 from gnr.core import gnrlocale
 from gnr.core.gnrstring import splitAndStrip, anyWordIn, wordSplit, toText
-from dateutil import rrule
-from babel import dates
-
-logger = logging.getLogger(__name__)
 
 def cmp(x, y):
         return (x > y) - (x < y)
@@ -42,9 +41,13 @@ def cmp(x, y):
 def toDHZ(date,time,timezone=None):
     ts = datetime.datetime.combine(date,time)
     if timezone == 'LOCAL':
-        from pytz import reference as pytzref
-        localtz = pytzref.LocalTimezone()
-        timezone = localtz.tzname(ts)
+        if sys.platform == "win32":
+            from tzlocal.win32 import get_localzone_name
+            timezone = get_localzone_name()
+        else:
+            from pytz import reference as pytzref
+            localtz = pytzref.LocalTimezone()
+            timezone = localtz.tzname(ts)
     timezone = timezone or 'UTC'
     tz = pytz.timezone(timezone)
     #result =  tz.localize(ts) 
@@ -226,7 +229,7 @@ def decodeOneDate(datestr, workdate=None, months=None, days=None,
             dateStart = workdate + datetime.timedelta(days[datestr] - workdate.weekday())
         elif datestr in def_days:
             dateStart = workdate + datetime.timedelta(def_days[datestr] - workdate.weekday())
-        elif re.match('\d{4}-\d{2}-\d{2}', datestr):                            # ISO date
+        elif re.match(r'\d{4}-\d{2}-\d{2}', datestr):                            # ISO date
             date_items = [int(el) for el in wordSplit(datestr)[0:3]]
             dateStart = datetime.date(*[int(el) for el in wordSplit(datestr)[0:3]])
         else:       

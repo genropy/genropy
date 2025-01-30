@@ -3,15 +3,13 @@
 # th_localita.py
 # Created by Francesco Porcari on 2011-03-31.
 # Copyright (c) 2011 Softwell. All rights reserved.
-from gnr.core.gnrbag import Bag
+
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import customizable,metadata,public_method
+from gnr.core.gnrdecorator import public_method
 
 class Form(BaseComponent):
     def th_form(self,form,**kwargs):
         pane = form.record
-        form.helperData()
         fb = pane.formbuilder(cols=1, margin_left='2em',border_spacing='5px')
         fb.field('nome', width='20em')
         fb.field('sigla',width='3em')
@@ -35,12 +33,6 @@ class View(BaseComponent):
     def th_query(self):
         return dict(column='nome',op='contains', val='')
 
-   #def th_sections_zone(self):
-   #    return [dict(code='nord',caption='!![it]Nord',condition='@regione.zona ILIKE :zona',condition_zona='%%Nord%%'),
-   #            dict(code='centro',caption='!![it]Centro',condition='@regione.zona=:zona',condition_zona='Centro'),
-   #            dict(code='sud',caption='!![it]Sud',condition='@regione.zona=:zona',condition_zona='Sud'),
-   #            dict(code='isole',caption='!![it]Isole',condition='@regione.zona=:zona',condition_zona='Isole')]
-                
     @public_method(remote_zona='^.zone.current')
     def sectionRegioni(self,zona=None):
         f = self.db.table('glbl.regione').query(where='$zona ILIKE :zona',zona=zona).fetch()
@@ -48,10 +40,6 @@ class View(BaseComponent):
 
     def th_top_custom(self,top):
         top.bar.replaceSlots('searchOn','searchOn,sections@zone,sections@reg',sections_reg_remote=self.sectionRegioni)
-
-
-
-
 
 class ViewFromRegione(BaseComponent):    
     def th_struct(self,struct):

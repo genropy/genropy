@@ -18,9 +18,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 try:
     import pyotp
 except ImportError:
@@ -50,7 +47,7 @@ class AppPref(object):
         fb = pane.formbuilder(cols=1)
         fb.textbox(value='^.url',lbl='!![en]Url',width='40em')
         fb.textbox(value='^.user',lbl='!![en]User',width='20em')
-        fb.textbox(value='^.password',lbl='!![en]Password',width='15em',type='password')
+        fb.passwordTextBox(value='^.password',lbl='!![en]Password',width='15em')
         fb.textbox(value='^.client_reference',lbl='!![en]Client reference')
         fb.textbox(value='^.documentation_url',lbl='!![en]Documentation url',width='40em')
         
@@ -86,8 +83,8 @@ class AppPref(object):
 class UserPref(object):
     
     def prefpane_adm(self, parent, **kwargs):
-        pane = parent.contentPane(**kwargs)
-        fb = pane.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
+        bc = parent.borderContainer(**kwargs)
+        fb = bc.contentPane(region='top').formlet(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
         if 'email' in self.db.packages:
             fb.dbselect(value='^.email_account_id',lbl='!![en]Account',dbtable='email.account',hasDownArrow=True)
         
@@ -96,9 +93,9 @@ class UserPref(object):
         fb.textbox(value='^.smtp_host', lbl='!![en]SMTP Host', dtype='T',disabled='^.email_account_id')
         fb.textbox(value='^.from_address', lbl='!![en]From address', dtype='T',disabled='^.email_account_id')
         fb.textbox(value='^.user', lbl='!![en]Username', dtype='T',disabled='^.email_account_id')
-        fb.textbox(value='^.password', lbl='!![en]Password', disabled='^.email_account_id', type='password')
+        fb.passwordTextBox(value='^.password', lbl='!![en]Password', disabled='^.email_account_id')
         fb.textbox(value='^.port', lbl='Port', disabled='^.email_account_id')
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', disabled='^.email_account_id')
         fb.textbox(value='^.system_bcc', lbl='System bcc',disabled='^.email_account_id')
-    
+

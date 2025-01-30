@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys, os
+import os
 import glob, grp
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.core.gnrconfig import getGnrConfig
 
 def site_name_to_path(site_name, gnr_config=None):
     path_list = []

@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys
 import os
 import glob
-import logging
 from multiprocessing import Pool
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
-
-enable_colored_logging()
+from gnr.core.gnrconfig import getGnrConfig
+from gnr.app.gnrapp import GnrApp
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)
@@ -102,8 +96,7 @@ def check_db(app, options):
         print('STRUCTURE OK')
     return changes
 
-def import_db(filepath):
-    app = get_app()
+def import_db(app,filepath):
     app.db.importXmlData(filepath)
     app.db.commit()
 
@@ -114,14 +107,14 @@ def check_store(args):
     if options.check:
         check_db(app)
     elif options.import_file:
-        import_db(options.import_file)
+        import_db(app, options.import_file)
     else:
         changes = check_db(app)
         if changes:
             print('APPLYING CHANGES TO DATABASE...')
             app.db.model.applyModelChanges()
             print('CHANGES APPLIED TO DATABASE')
-        app.db.model.checker.addExtesions()
+        app.db.model.checker.addExtensions()
     app.db.closeConnection()
 
 def main():
@@ -134,11 +127,6 @@ def main():
                         dest='verbose',
                         action='store_true',
                         help="Verbose mode")
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        default=False,
-                        action='store_true',
-                        help="Debug mode")
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance identified by supplied name")

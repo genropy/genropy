@@ -31,7 +31,7 @@ class GnrCustomWebPage(object):
             if store is None:
                 return 'Locked'
             elif doError:
-                print(x)
+                raise Exception('x exception')
             elif seconds:
                 sleep(seconds)
                 return 'done %s %s' %(self.getUuid(),seconds)
