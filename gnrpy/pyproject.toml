@@ -23,42 +23,43 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
 ]
 dependencies = [
-	     "tornado", # used for async
-	     "python-dateutil",
-	     "paste",
-	     "mako",
-	     "vobject",
-	     "pytz",
 	     "babel",
-	     "httplib2",
-	     "pyro4",
-	     "xlrd",
-	     "xlwt",
-	     "docutils",
-	     "redbaron",
-	     "future", # evaluate if needed
 	     "boto3",
-	     "smart_open",
+	     "caldav",
+	     "chardet",
+	     "dictdiffer", # for gnr.sql migration
+	     "docutils",
+	     "dulwich", # needed by gnrgit
+	     "future", # evaluate if needed
 	     "gunicorn",
-	     "supervisor",
+	     "httplib2",
+	     "jsmin",
 	     "lxml",
+	     "mako",
 	     "openpyxl",
+	     "packaging",
+	     "paramiko", # gnr.core.gnrssh
+	     "paste",
 	     "psutil",
+	     "pyro4",
+	     "python-dateutil",
+	     "pytz",
+	     "pyyaml",
+	     "redbaron",
+	     "reportlab",
+	     "requests",
 	     "simpleeval",
+	     "six", # evaluate if needed
+	     "smart_open",
+	     "supervisor",
+	     "tornado", # used for async
+	     "tzlocal",
+	     "vobject",
+	     "weasyprint",
 	     "webob",
 	     "werkzeug==2.3.8",
-	     "six", # evaluate if needed
-	     "tzlocal",
-	     "pyyaml",
-	     "chardet",
-	     "jsmin",
-	     "paramiko", # gnr.core.gnrssh
-	     "dulwich", # needed by gnrgit
-	     "packaging",
-	     "reportlab",
-	     "caldav",
-	     "weasyprint",
-	     "dictdiffer", # for gnr.sql migration
+	     "xlrd",
+	     "xlwt",
 	     ]
 
 [project.optional-dependencies]
