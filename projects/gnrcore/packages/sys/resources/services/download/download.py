@@ -3,14 +3,11 @@
 #
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
-
-
-from __future__ import division
-from __future__ import print_function
-from past.utils import old_div
-from gnr.lib.services import GnrBaseService                                                  
-import urllib.request, urllib.error, urllib.parse
 import os
+import urllib.request, urllib.error, urllib.parse
+
+from gnr.app import pkglog as logger
+from gnr.lib.services import GnrBaseService                                                  
 
 
 class Main(GnrBaseService):
@@ -33,7 +30,7 @@ class Main(GnrBaseService):
         with open(os.path.join(filepath), 'wb') as f:
             meta = u.info()
             file_size = int(meta.getheaders("Content-Length")[0])
-            print("Downloading: %s Bytes: %s" % (filename, file_size))
+            logger.info("Downloading: %s Bytes: %s", filename, file_size)
             file_size_dl = 0
             block_sz = 8192
             while True:
@@ -42,8 +39,8 @@ class Main(GnrBaseService):
                     break
                 file_size_dl += len(buffer)
                 f.write(buffer)
-                status = r"%10d  [%3.2f%%]" % (file_size_dl, old_div(file_size_dl * 100., file_size))
+                status = r"%10d  [%3.2f%%]" % (file_size_dl, int((file_size_dl * 100.) / file_size))
                 status = status + chr(8)*(len(status)+1)
-                print(status, end=' ')
+                logger.info(status, end=' ')
             f.close()
         return filepath
