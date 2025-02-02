@@ -316,7 +316,7 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
     logger.info('Creating virtual environment %s in %s' , name, venv_path)
     builder = EnvBuilder(with_pip=True)
 
-    if os.name == "nt" os sys.platform == 'win32':
+    if os.name == "nt" or sys.platform == 'win32':
         use_symlinks = False
     else:
         use_symlinks = True
