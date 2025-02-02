@@ -7,6 +7,7 @@ import shutil
 import random
 import string
 from collections import defaultdict
+from venv import EnvBuilder
 
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
@@ -14,6 +15,7 @@ from gnr.core.gnrsys import expandpath
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrconfig import IniConfStruct
 from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
+from gnr.app import logger
 
 from gnr.web.gnrmenu import MenuStruct
 
@@ -311,19 +313,17 @@ def activateVirtualEnv(path):
 def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None, 
     branch=None):
     venv_path = os.path.join(os.getcwd(), name)
-    print('Creating virtual environment %s in %s'%(name, venv_path))
-    try:
-        from venv import EnvBuilder
-        builder = EnvBuilder(with_pip=True)
-        if os.name == "nt":
-            use_symlinks = False
-        else:
-            use_symlinks = True
-        builder = EnvBuilder(with_pip=True, symlinks=use_symlinks)
-        builder.create(name)
-    except ImportError:
-        import virtualenv
-        virtualenv.cli_run([name])
+    logger.info('Creating virtual environment %s in %s' , name, venv_path)
+    builder = EnvBuilder(with_pip=True)
+
+    if os.name == "nt" os sys.platform == 'win32':
+        use_symlinks = False
+    else:
+        use_symlinks = True
+        
+    builder = EnvBuilder(with_pip=True, symlinks=use_symlinks)
+    builder.create(name)
+        
     gitrepos_path = os.path.join(venv_path, 'gitrepos')
     if not os.path.exists(gitrepos_path):
         os.makedirs(gitrepos_path)
@@ -340,23 +340,24 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
             prj_path = base_path_resolver.project_name_to_path(project)
             if prj_path:
                 destpath = os.path.join(projects_path, project)
-                print('Copying project %s from %s to %s'%(project, prj_path, destpath))
+                logger.info('Copying project %s from %s to %s', project, prj_path, destpath)
                 try:
                     shutil.copytree(prj_path, destpath)
                 except shutil.Error as e:
-                    print(e)
+                    logger.exception(e)
+
     if copy_genropy:
         newgenropy_path = os.path.join(gitrepos_path, 'genropy')
         
         genropy_path = base_gnr_config['gnr.environment_xml.environment.gnrhome?value']
         if genropy_path:
-            print('Copying genropy from %s to %s'%(genropy_path,newgenropy_path))
+            logger.info('Copying genropy from %s to %s', genropy_path,newgenropy_path)
             shutil.copytree(genropy_path,newgenropy_path)
             import subprocess
             curr_cwd = os.getcwd()
             if branch:
                 os.chdir(newgenropy_path)
-                print('Switching to branch %s'%branch)
+                logger.info('Switching to branch %s', branch)
                 subprocess.check_call(['git', 'stash'])
                 subprocess.check_call(['git', 'fetch'])
                 subprocess.check_call(['git', 'checkout', branch])
@@ -1054,7 +1055,7 @@ class ThPackageResourceMaker(object):
         name = 'th_%s.py'%table
         path = os.path.join(resourceFolder, name)
         if os.path.exists(path) and not self.option_force:
-            print('%s exist: will be skipped, use -f/--force to force replace' % name)
+            logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
         view_columns=[]
         form_columns=[]
@@ -1086,7 +1087,7 @@ class ThPackageResourceMaker(object):
             self.writeImports()
             self.writeViewClass(tbl_obj, view_columns)
             self.writeFormClass(tbl_obj, form_columns)
-            print('%s created' % name)
+            logger.info('%s created', name)
 
 ################################# DEPLOY CONF BUILDERS ################################
 
@@ -1215,7 +1216,7 @@ class GunicornDeployBuilder(object):
         pars['max_requests_jitter'] = self.default_max_requests_jitter
         pars['chdir'] = self.site_path if os.path.exists(os.path.join(self.site_path,'root.py')) else self.instance_path
         conf_content = GUNICORN_DEFAULT_CONF_TEMPLATE %pars
-        print('Writing gunicorn conf file at',self.gunicorn_conf_path)
+        logger.info('Writing gunicorn conf file at %s', self.gunicorn_conf_path)
 
         # ensure the directory exists before writing the file, to support
         # older instances with new deploys
