@@ -831,10 +831,10 @@ class SqlQueryCompiler(object):
         high_field = m.group(3)
 
         result = f"""
-                (({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
+                (({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<={high_field}) OR
                 ({low_field} IS NOT NULL AND {high_field} IS NULL AND {value_field}>={low_field}) OR
                 ({low_field} IS NOT NULL AND {high_field} IS NOT NULL AND
-                    {value_field} >= {low_field} AND {value_field} < {high_field}) OR
+                    {value_field} >= {low_field} AND {value_field} <= {high_field}) OR
                 ({low_field} IS NULL AND {high_field} IS NULL))
             """
         #TODO: verificare se inclusivo o meno su intervallo superiore
