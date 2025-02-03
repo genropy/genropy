@@ -51,6 +51,7 @@ COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
 COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
 
+BETWEENFINDER = re.compile(r"#BETWEEN\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
@@ -246,6 +247,7 @@ class SqlQueryCompiler(object):
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
+                sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
                 sql_formula = THISFINDER.sub(expandThis,sql_formula)
@@ -356,8 +358,10 @@ class SqlQueryCompiler(object):
             joiner['cnd'] = joiner['join_on']
         if joiner.get('cnd'):
             cnd = joiner.get('cnd')
+            cnd = BETWEENFINDER.sub(self.expandBetween, cnd)
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
         elif joiner.get('between'):
+            # TODO: Depreacate: use #BETWEEN instead
             value_field,low_field,high_field = joiner.get('between').split(';')
             cnd = f"""
                 ({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
@@ -599,6 +603,7 @@ class SqlQueryCompiler(object):
             subtable = context_subtables
         subtable = subtable or self.tblobj.attributes.get('default_subtable')
         if where:
+            where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
@@ -819,6 +824,22 @@ class SqlQueryCompiler(object):
         self.cpl.evaluateBagColumns.append(((asfld or fld).replace('$',''),True))
         return fld if not asfld else '{} AS {}'.format(fld, asfld)
 
+    def expandBetween(self, m):
+        # SQL  ... #BETWEEN($dataLavoro,$dataInizioValidita,$dataFineValidita) ...
+        value_field = m.group(1)
+        low_field = m.group(2)
+        high_field = m.group(3)
+
+        result = f"""
+                (({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<{high_field}) OR
+                ({low_field} IS NOT NULL AND {high_field} IS NULL AND {value_field}>={low_field}) OR
+                ({low_field} IS NOT NULL AND {high_field} IS NOT NULL AND
+                    {value_field} >= {low_field} AND {value_field} < {high_field}) OR
+                ({low_field} IS NULL AND {high_field} IS NULL))
+            """
+        #TODO: verificare se inclusivo o meno su intervallo superiore
+        return result
+
     def expandPeriod(self, m):
         """TODO
 
@@ -848,7 +869,7 @@ class SqlQueryCompiler(object):
         else:
             self.sqlparams[to_param] = date_to
             return ' %s <= :%s ' % (fld, to_param)
-
+    
     def _recordWhere(self, where=None): # usato da record resolver e record getter
         if where:
             self.updateFieldDict(where)
