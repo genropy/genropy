@@ -30,5 +30,5 @@ class GnrCustomWebPage(object):
         
     def test_3_maxlen(self, pane):
         "MDEditor with maxLength"
-        pane.MDEditor(value='^.mycontent',height='300px',width='400px',htmlpath='.mycontent_html',
+        pane.MDEditor(value='^.mycontent.text',height='300px',width='400px',htmlpath='.mycontent.html',
                       maxLength=1024, removeToolbarItems=['image', 'code'])
