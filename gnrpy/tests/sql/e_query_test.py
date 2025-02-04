@@ -37,7 +37,7 @@ from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsqldata import SqlQuery, SqlSelection
 from gnr.sql import gnrsqldata as gsd
 
-from .common import BaseGnrSqlTest
+from .common import BaseGnrSqlTest, configurePackage
 
 class BaseSql(BaseGnrSqlTest):
     @classmethod
@@ -48,7 +48,8 @@ class BaseSql(BaseGnrSqlTest):
 
         cls.db.createDb(cls.dbname)
         # read the structure of the db from xml file: this is the recipe only
-        cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        # cls.db.loadModel(cls.SAMPLE_XMLSTRUCT)
+        configurePackage(cls.db.packageSrc('video'))
 
         # build the python db structure from the recipe
         cls.db.startup()
@@ -140,6 +141,53 @@ class BaseSql(BaseGnrSqlTest):
         assert result[0][0] == datetime.date(2005, 4, 7)
 
     def test_between_syntax(self):
+        # test blank handling
+        query = self.db.query('video.location',
+                              order_by="$rating",
+                              columns='$id',
+                              where='#BETWEEN(  $rating  ,:lower, :upper     )',
+                              sqlparams={'lower': -1, 'upper': 0})
+        result = query.selection().output('list')
+        assert result[0][0] == 2
+        assert len(result) == 2
+
+        # test between using int
+        lower = -6
+        upper = 5
+        params_cases = [
+            {
+                "params": {"upper": None, "lower": None},
+                "expected": -8,
+                "n_records": 11
+            },
+            {
+                "params": {"upper": upper, "lower": None},
+                "expected": -8,
+                "n_records": 9
+            },
+            {
+                "params": {"upper": None, "lower": lower},
+                "expected": -6,
+                "n_records": 10
+            },
+            {
+                "params": {"upper": upper, "lower": lower},
+                "expected": -6,
+                "n_records": 8
+            }
+        ]
+        for params in params_cases:
+            query = self.db.query('video.location',
+                                  order_by="$rating",
+                                  columns='$rating',
+                                  where='#BETWEEN($rating, :lower, :upper)',
+                                  sqlparams=params.get("params"))
+            result = query.selection().output('list')
+            print('PARAMS', params.get("params"))
+            print('RESULT', result)
+            assert result[0][0] == params.get("expected")
+            assert len(result) == params.get("n_records")
+
         # test between using dates
         lower = datetime.date(2005,4,1)
         upper = datetime.date(2005,4,30)
@@ -180,42 +228,7 @@ class BaseSql(BaseGnrSqlTest):
             assert result[0][0] == params.get("expected")
             assert len(result) == params.get("n_records")
 
-        # test between using integers
-        lower = 1983
-        upper = 2004
-        params_cases = [
-            {
-                "params": {"upper": None, "lower": None},
-                "expected": 1960,
-                "n_records": 11
-            },
-            {
-                "params": {"upper": upper, "lower": None},
-                "expected": 1960,
-                "n_records": 7
-            },
-            {
-                "params": {"upper": None, "lower": lower},
-                "expected": 1983,
-                "n_records": 9
-            },
-            {
-                "params": {"upper": upper, "lower": lower},
-                "expected": 1983,
-                "n_records": 5
-            },
-        ]
-        for params in params_cases:
-            query = self.db.query("video.movie",
-                                  order_by="$year",
-                                  columns="$year",
-                                  where='#BETWEEN($year, :lower, :upper)',
-                                  sqlparams=params.get("params"))
-            result = query.selection().output('list')
-            assert result[0][0] == params.get("expected")
-            assert len(result) == params.get("n_records")
 
-            
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')
         #raise str(tbl.fields['@movie_id'].keys())
