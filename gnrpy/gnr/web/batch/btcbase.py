@@ -6,12 +6,9 @@
 #Created by Francesco Porcari on 2010-10-16
 #Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import print_function
-
-
-from gnr.core.gnrbag import Bag
 from datetime import datetime
 
+from gnr.core.gnrbag import Bag
 
 class BaseResourceBatch(object):
     """Base resource class to create a :ref:`batch`"""

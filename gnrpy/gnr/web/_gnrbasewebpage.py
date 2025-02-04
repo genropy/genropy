@@ -29,11 +29,7 @@ import os
 import sys
 import traceback
 import urllib.request, urllib.parse, urllib.error
-
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 from gnr.core.gnrbag import Bag, TraceBackResolver
 from gnr.core.gnrdecorator import public_method
