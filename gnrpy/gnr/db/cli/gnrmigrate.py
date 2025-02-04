@@ -5,8 +5,6 @@ import sys
 import os
 import glob
 
-import gnr
-
 from gnr.db import logger
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
