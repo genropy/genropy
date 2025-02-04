@@ -56,7 +56,6 @@ class Main(BaseResourceBatch):
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
         html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + '_documentation/' 
-        #DP202111 Default url set to /docs
         self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
