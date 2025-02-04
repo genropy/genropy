@@ -131,9 +131,6 @@ class BaseSql(BaseGnrSqlTest):
         result = query.count()
         assert result == 9
 
-
-        
-
     def test_sqlparams_date(self):
         query = self.db.query('video.dvd',
                               columns='$purchasedate',
@@ -142,6 +139,13 @@ class BaseSql(BaseGnrSqlTest):
         result = query.selection().output('list')
         assert result[0][0] == datetime.date(2005, 4, 7)
 
+    def test_between_syntax(self):
+        query = self.db.query('video.dvd',
+                              columns='$purchasedate',
+                              where='#BETWEEN($purchasedate, :d1, :d2)',
+                              sqlparams={'d1': datetime.date(2005, 4, 1), 'd2': datetime.date(2005, 4, 30)})
+        result = query.selection().output('list')
+        assert result[0][0] == datetime.date(2005, 4, 7)
 
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')
