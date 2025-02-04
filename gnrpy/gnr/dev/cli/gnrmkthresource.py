@@ -148,23 +148,95 @@ class ThResourceMaker(object):
             print('%s exist: will be skipped, use -f/--force to force replace' % name)
             return
         columns = []
-        max_size = 35
+
+        MIN_WIDTH = 2
+        MAX_WIDTH = 25
+        # Using a LUT because the math calc of em width from char size is less reliable
+        sizeWidthMap = {
+            1: 2,
+            2: 2,
+            3: 3,
+            4: 4,
+            5: 4,
+            6: 4,
+            7: 4,
+            8: 6,
+            9: 6,
+            10: 6,
+            11: 6,
+            12: 7,
+            13: 7,
+            14: 8,
+            15: 8,
+            16: 9,
+            17: 9,
+            18: 9,
+            19: 10,
+            20: 10,
+            21: 10,
+            22: 11,
+            23: 11,
+            24: 12,
+            25: 12,
+            26: 12,
+            27: 13,
+            28: 13,
+            29: 14,
+            30: 14,
+            31: 15,
+            32: 15,
+            33: 15,
+            34: 16,
+            35: 17,
+            36: 17,
+            37: 17,
+            38: 18,
+            39: 18,
+            40: 19,
+            41: 19,
+            42: 20,
+            43: 20,
+            44: 21,
+            45: 21,
+            46: 22,
+            47: 22,
+            48: 23,
+            49: 23,
+            50: 24
+        }
+
         tbl_obj =  self.app.db.table('%s.%s'%(package,table))
         for col_name in tbl_obj.columns:
+
+            # Skip id and internal columns
             if col_name=='id' or col_name.startswith('__'):
                 continue
+
+            # Get column attributes
             column = tbl_obj.columns[col_name]
-            if column.dtype=='A':
-                size = column.attributes.get('size','')
-                if size:
-                    if ':' in size:
-                        size =size.split(':')[1]
-                else:
-                    size=max_size
-                size = max(int(size),max_size)
-            else:
-                size = 7
-            columns.append((column.name,size))
+
+            width = 7   # Default width
+            if self.option_guess_size:
+                # Set column width size based on text lenght
+                if column.dtype=='A':
+                    sizeTxt = column.attributes.get('size','')
+                    if sizeTxt:
+                        if ':' in sizeTxt:
+                            size = int(sizeTxt.split(':')[1])
+                            if size < min(sizeWidthMap):
+                                width = MIN_WIDTH
+                            if size > max(sizeWidthMap):
+                                width = MAX_WIDTH
+                            size = sizeWidthMap[int(size)]
+                    else:
+                        # Long text columns
+                        width = MAX_WIDTH
+                elif column.dtype=='D':
+                    width = 6
+                elif column.dtype=='DH':
+                    width = 9
+            
+            columns.append((column.name,width))
 
         with open(path,'w') as out_file:
             self.writeHeaders(out_file)
