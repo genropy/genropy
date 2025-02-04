@@ -277,7 +277,7 @@ class DbModel(object):
                 raise
             logger.error('The relation %s - %s cannot be added: %s',
                          str('.'.join(many_relation_tuple)),
-                         str(oneColumn), e.description)
+                         str(oneColumn), getattr(e, "description", str(e)))
 
     def checkRelationIndex(self, pkg, table, column):
         """TODO
