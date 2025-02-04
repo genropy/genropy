@@ -140,13 +140,82 @@ class BaseSql(BaseGnrSqlTest):
         assert result[0][0] == datetime.date(2005, 4, 7)
 
     def test_between_syntax(self):
-        query = self.db.query('video.dvd',
-                              columns='$purchasedate',
-                              where='#BETWEEN($purchasedate, :d1, :d2)',
-                              sqlparams={'d1': datetime.date(2005, 4, 1), 'd2': datetime.date(2005, 4, 30)})
-        result = query.selection().output('list')
-        assert result[0][0] == datetime.date(2005, 4, 7)
+        # test between using dates
+        lower = datetime.date(2005,4,1)
+        upper = datetime.date(2005,4,30)
+        params_cases = [
+            {
+                "params": {"upper": None, "lower": None},
+                "expected": datetime.date(2004,3,5),
+                "n_records": 17
+            },
+            {
+                "params": {"upper": upper, "lower": None},
+                "expected": datetime.date(2004,3,5),
+                "n_records": 3
+            },
+            {
+                "params": {"upper": None, "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 15
+            },
+            {
+                "params": {"upper": upper, "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 1
+            },
+            {
+                "params": {"upper": datetime.date(2005,5,8), "lower": lower},
+                "expected": datetime.date(2005,4,7),
+                "n_records": 2
+            }
+        ]
+        for params in params_cases:
+            query = self.db.query('video.dvd',
+                                  order_by="$purchasedate",
+                                  columns='$purchasedate',
+                                  where='#BETWEEN($purchasedate, :lower, :upper)',
+                                  sqlparams=params.get("params"))
+            result = query.selection().output('list')
+            assert result[0][0] == params.get("expected")
+            assert len(result) == params.get("n_records")
 
+        # test between using integers
+        lower = 1983
+        upper = 2004
+        params_cases = [
+            {
+                "params": {"upper": None, "lower": None},
+                "expected": 1960,
+                "n_records": 11
+            },
+            {
+                "params": {"upper": upper, "lower": None},
+                "expected": 1960,
+                "n_records": 7
+            },
+            {
+                "params": {"upper": None, "lower": lower},
+                "expected": 1983,
+                "n_records": 9
+            },
+            {
+                "params": {"upper": upper, "lower": lower},
+                "expected": 1983,
+                "n_records": 5
+            },
+        ]
+        for params in params_cases:
+            query = self.db.query("video.movie",
+                                  order_by="$year",
+                                  columns="$year",
+                                  where='#BETWEEN($year, :lower, :upper)',
+                                  sqlparams=params.get("params"))
+            result = query.selection().output('list')
+            assert result[0][0] == params.get("expected")
+            assert len(result) == params.get("n_records")
+
+            
     def test_joinSimple(self):
         tbl = self.db.table('video.dvd')
         #raise str(tbl.fields['@movie_id'].keys())
