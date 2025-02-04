@@ -4,6 +4,7 @@
 import sys
 import os
 import glob
+import logging
 
 import gnr
 
@@ -62,11 +63,10 @@ def instance_name_to_path(gnr_config, instance_name):
 
 def get_app(options):
     storename = None
-    gnr.GLOBAL_DEBUG = debug = options.debug == True
     if options.directory:
         instance_path = options.directory
         if os.path.isdir(instance_path):
-            return GnrApp(instance_path, debug=debug)
+            return GnrApp(instance_path, debug=options.debug)
         else:
             raise Exception("No valid instance provided")
         
@@ -82,7 +82,7 @@ def get_app(options):
             instance_name, storename = instance_name.split('.')
         instance_path = instance_name_to_path(gnr_config, instance_name)
         if os.path.isdir(instance_path):
-            return GnrApp(instance_path, debug=debug), storename
+            return GnrApp(instance_path, debug=options.debug), storename
         else:
             raise Exception("No valid instance provided")
     if options.site:
@@ -91,7 +91,7 @@ def get_app(options):
             site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '', options.site)
         instance_path = os.path.join(site_path, 'instance')
         if os.path.isfile(os.path.join(instance_path, 'instanceconfig.xml')):
-            return GnrApp(instance_path,debug=debug), storename
+            return GnrApp(instance_path,debug=options.debug), storename
         else:
             raise "No valid instance provided"
     return GnrApp(os.getcwd()), storename
@@ -176,9 +176,10 @@ def main():
     parser.add_argument('--config',
                         dest='config_path',
                         help="gnrserve file path")
-    
-    options = parser.parse_args()
 
+    
+    parser.set_defaults(loglevel="info")
+    options = parser.parse_args()
     
     app, storename = get_app(options)
     if not app.db.adapter.has_capability(AdapterCapabilities.MIGRATIONS):
