@@ -14,7 +14,6 @@ class Table(object):
                                                                                 mode='foreignkey')
         tbl.column('toc_roots', name_long='!!Toc roots')
         tbl.column('language',size=':2',name_long='!!Base language').relation('adm.language.code')
-        tbl.column('sphinx_path', name_long='!!Sphinx path')
         tbl.column('is_local_handbook', dtype='B', name_long='!!Is local handbook')
         tbl.column('local_handbook_zip', name_long='!!Local handbook zip')
         tbl.column('version', name_long='!!Version')
@@ -27,6 +26,9 @@ class Table(object):
         tbl.column('custom_styles',name_long='!!Custom styles')
         tbl.column('examples_pars',dtype='X', name_long='!!Examples parameters')
         tbl.column('ogp_image', dtype='P', name_long='!!Handbook preview image')
+        
+        tbl.formulaColumn('sphinx_path', """CASE WHEN $is_local_handbook THEN 'documentation\\:local_handbooks/' || $name 
+                          ELSE 'documentation\\:handbooks/' || $name END""", name_long='!!Sphinx path')
 
     def trigger_onDeleted(self, record):
         for node in ['build','source']:
@@ -35,19 +37,3 @@ class Table(object):
                 continue
             for file in handbookNode.children():
                 file.delete()
-    
-    def trigger_onInserting(self, record):
-        self.checkSphinxPath(record)
-    
-    def trigger_onUpdating(self, record, old_record=None):
-        self.checkSphinxPath(record)
-    
-    def checkSphinxPath(self, record):
-        "Sets default path to handbooks if not specified"
-        if not record['name']:
-            return
-        if record['is_local_handbook']:
-            current_path = self.db.application.getPreference('.local_path', pkg='docu') or 'documentation:local_handbooks'
-        else:
-            current_path = self.db.application.getPreference('.sphinx_path', pkg='docu') or 'documentation:handbooks'
-        record['sphinx_path'] = current_path + '/' + record['name']

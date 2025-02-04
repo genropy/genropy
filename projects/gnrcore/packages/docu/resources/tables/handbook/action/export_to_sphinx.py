@@ -24,6 +24,7 @@ import boto3
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
 
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
@@ -40,7 +41,7 @@ class Main(BaseResourceBatch):
 
     def pre_process(self):
         self.handbook_id = self.batch_parameters['extra_parameters']['handbook_id']
-        self.handbook_record = self.tblobj.record(self.handbook_id).output('bag')
+        self.handbook_record = self.tblobj.record(self.handbook_id, virtual_columns='$sphinx_path').output('bag')
         self.doctable =self.db.table('docu.documentation')
         self.doc_data = self.doctable.getHierarchicalData(root_id=self.handbook_record['docroot_id'], condition='$is_published IS TRUE')['root']['#0']
         #DP202208 Temporary node to build files, moved after creation to definitive folder
@@ -55,7 +56,6 @@ class Main(BaseResourceBatch):
         theme = self.handbook_record['theme'] or 'sphinx_rtd_theme'
         theme_path = self.page.site.storageNode('rsrc:pkg_docu','sphinx_env','themes').internal_path
         html_baseurl = self.db.application.getPreference('.sphinx_baseurl',pkg='docu') or self.page.site.externalUrl('') + '_documentation/' 
-        #DP202111 Default url set to /docs
         self.handbook_url = html_baseurl + self.handbook_record['name'] + '/'
         extra_conf = """html_theme = '%s'\nhtml_theme_path = ['%s/']\nhtml_baseurl='%s'\nsitemap_url_scheme = '%s/{link}'"""%(theme, theme_path, html_baseurl,self.handbook_record['name'])
         with confSn.open('a') as confFile:
@@ -100,8 +100,6 @@ class Main(BaseResourceBatch):
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
-            if self.batch_parameters.get('skip_images'): 
-                continue
             #DP202112 Useful for local debugging
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
@@ -109,8 +107,9 @@ class Main(BaseResourceBatch):
                 try:
                     f.write(urlopen(source_url).read())
                 except:
-                    print('Image is missing',source_url)
+                    logger.debug("Missing file", source_url)
                     continue
+                    
         for relpath,source in self.examplesDict.items():
             if not source:
                 continue
@@ -377,8 +376,6 @@ class Main(BaseResourceBatch):
     
     def table_script_parameters_pane(self,pane,**kwargs):   
         fb = pane.formbuilder(cols=1, border_spacing='5px')
-        #DP202112 Useful for local debugging 
-        #fb.checkbox(lbl='Skip images', value='^.skip_images')
         if self.db.application.getPreference('.manage_redirects',pkg='docu'):
             fb.checkbox(label='!![en]Skip redirects', value='^.skip_redirects')
         if self.db.application.getPreference('.cloudfront_distribution_id',pkg='docu'):
