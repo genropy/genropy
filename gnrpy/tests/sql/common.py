@@ -1,9 +1,15 @@
+import sys
 import os
 import os.path
+import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
 
+excludewin32 = pytest.mark.skipif(sys.platform == "win32",
+                                  reason="testing.postgresl doesn't run on Windows")
+
+@excludewin32
 class BaseGnrSqlTest:
     """
     Base class for grn.sql testing

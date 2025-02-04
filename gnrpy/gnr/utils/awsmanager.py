@@ -1,10 +1,10 @@
-from __future__ import print_function
 import boto3
 import json
 import inspect
 import botocore
 import sys
 
+from gnr.utils import logger
 
 InstanceTypes=['t1.micro','t2.nano','t2.micro','t2.small','t2.medium',
  't2.large','t2.xlarge','t2.2xlarge','t3.nano','t3.micro','t3.small',
@@ -130,6 +130,15 @@ class BaseAwsService(object):
     def SQS(self):
         return self.service('sqs')
 
+    @property
+    def CE(self):
+        return self.service('ce')
+
+    @property
+    def CUR(self):
+        return self.service('cur')
+
+    
 class SQSManager(BaseAwsService):
     service_label = 'sqs'
 
@@ -431,7 +440,6 @@ class ELBV2Manager(BaseAwsService):
             Targets=[dict(Id=instance_id)])
 
 
-
 class Route53Manager(BaseAwsService):
     service_label='route53'
     def get_hosted_zones(self):
@@ -476,7 +484,103 @@ class Route53Manager(BaseAwsService):
         }
         r53.client.change_resource_record_sets(**parameters)
 
+class CostExplorerManager(BaseAwsService):
+    service_label='ce'
 
+    def get_cost_data(self, start_date, end_date,
+                      granularity='DAILY',
+                      query_filter={},
+                      group_by=None,
+                      metrics=['UnblendedCost']):
+        """
+        Retrieve cost data from Cost Explorer.
+
+        :param start_date: Start date (YYYY-MM-DD)
+        :param end_date: End date (YYYY-MM-DD)
+        :param granularity: Data granularity (DAILY or MONTHLY)
+        :param group_by: Dimensions to group results (default: SERVICE)
+        :param metrics: Metrics to include (default: UnblendedCost)
+        :return: Pandas DataFrame with cost data
+        """
+        try:
+            group_by = group_by or [{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
+            response = self.client.get_cost_and_usage(
+                TimePeriod={
+                    'Start': start_date,
+                    'End': end_date
+                },
+                Granularity=granularity,
+                Metrics=metrics,
+                GroupBy=group_by
+            )
+            records = []
+            for period in response['ResultsByTime']:
+                start_date = period['TimePeriod']['Start']
+                end_date = period['TimePeriod']['End']
+                for group in period.get('Groups', []):
+                    group_name = group['Keys'][0].split("$")[1] or "INTERNAL"
+                    amount = group['Metrics']['UnblendedCost']['Amount']
+                    unit = group['Metrics']['UnblendedCost']['Unit']
+                    records.append({
+                        'StartDate': start_date,
+                        'EndDate': end_date,
+                        'Group': group_name,
+                        'CostAmount': float(amount),
+                        'Unit': unit
+                    })
+            return records
+        except Exception as e:
+            raise
+            return f"Error fetching Cost Explorer data: {e}"
+
+class CostUsageReportManager(BaseAwsService):
+    service_label='cur'
+
+    def enable_report(self, report_name, time_unit='DAILY',
+                      data_format='TextORCsv', compression='GZIP',
+                      s3_bucket="cost_reports",
+                      s3_prefix=""):
+        """
+        Enable and configure the Cost and Usage Report (CUR).
+
+        :param report_name: Name of the report
+        :param time_unit: Time unit (DAILY or MONTHLY)
+        :param data_format: Report format (Parquet or TextORCsv)
+        :param compression: Compression type (GZIP or None)
+        :param s3_bucket: Name of the S3 bucket were to put reports
+        :return: Confirmation or error message
+        """
+        try:
+            self.client.put_report_definition(
+                ReportDefinition={
+                    'ReportName': report_name,
+                    'TimeUnit': time_unit,
+                    'Format': data_format,
+                    'Compression': compression,
+                    'S3Bucket': s3_bucket,
+                    'S3Prefix': s3_prefix,
+                    'S3Region': self.region_name,
+                    'AdditionalSchemaElements': ['RESOURCES']
+                }
+            )
+            return f"CUR '{report_name}' successfully enabled."
+        except Exception as e:
+            return f"Error enabling CUR: {e}"
+
+    def delete_report(self, report_name):
+        """
+        Delete an existing Cost and Usage Report.
+
+        :param report_name: Name of the CUR report to delete
+        :return: Confirmation or error message
+        """
+        try:
+            self.client.delete_report_definition(ReportName=report_name)
+            return f"CUR '{report_name}' successfully deleted."
+        except Exception as e:
+            return f"Error deleting CUR: {e}"
+        
+        
 class AWSManager(BaseAwsService):
     pass
     
@@ -486,10 +590,10 @@ service_classes = dict([(c.service_label,c) for c_name,c in inspect.getmembers(s
 
 
 def main():
-    aws = AWSManager(region_name='eu-west-1')
+    aws = AWSManager(region_name='eu-central-1')
     user = aws.IAM.create_user(username='user')
     keypairs = aws.IAM.create_user_key_pair(username='user')
-    print(keypairs)
+    logger.debug("keypairs %s", keypairs)
     bucket = aws.S3.create_s3_for_user(username='user', bucket='bucket',
         region_name='eu-west-1')
 
@@ -498,8 +602,8 @@ def main():
     #print aws.EC2.get_images()
     #print aws.EC2.get_instances()
     #print aws.EC2.get_vpcs()
-    print(aws.Route53.get_hosted_zones())
-    print(aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
+    logger.debug("Route53 hosted zones %s" , aws.Route53.get_hosted_zones())
+    logger.debug("Router53 RRs %s", aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
     #print aws.ELBV2.get_listeners(load_balancer_name='load-ld')
     #print(aws.ELBV2.get_target_groups())
     #ec2.create_ec2_instance(image_id='ami-1112223333',

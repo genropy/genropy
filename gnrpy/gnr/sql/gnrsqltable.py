@@ -34,6 +34,7 @@ from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_inf
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
+from gnr.sql import logger
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
@@ -1671,8 +1672,8 @@ class SqlTable(GnrObject):
         return self.db.dbevents[self.fullname]
 
 
-    def notifyDbUpdate(self,record):
-        self.db.notifyDbUpdate(self,record)
+    def notifyDbUpdate(self,record=None,where=None,**kwargs):
+        self.db.notifyDbUpdate(self,recordOrPkey=record,where=where,**kwargs)
 
     def touchRecords(self,_pkeys=None,_wrapper=None,_wrapperKwargs=None,
                     _notifyOnly=False,pkey=None,
@@ -2223,7 +2224,7 @@ class SqlTable(GnrObject):
 
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
 
     def diagnostic_warnings(self, record, old_record=None):
@@ -2231,7 +2232,7 @@ class SqlTable(GnrObject):
 
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
 
 
@@ -2551,7 +2552,7 @@ class SqlTable(GnrObject):
             assert dest_version > src_version, 'table %s version conflict from %i to %i' %(self.fullname,src_version,dest_version)
             converters = ['_convert_%i_%i' %(x,x+1) for x in range(src_version,dest_version)]
             if [m for m in converters if not hasattr(self,m)]:
-                print('missing converter',self.fullname)
+                logger.warning('Missing converter %s', self.fullname)
                 return
         self.copyToDb(source_db,self.db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
                       source_records=source_records,excludeDraft=excludeDraft,
@@ -2690,7 +2691,6 @@ class SqlTable(GnrObject):
             if attributes:
                 if not attributes.get('user_forbidden'):
                     resultAppend(result, relnode.label, attributes, omit)
-        #print(x)
         for vcolname, vcol in list(tblmodel.virtual_columns.items()):
             targetcol = self.column(vcolname)
             attributes = dict(targetcol.attributes)

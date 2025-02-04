@@ -7,6 +7,7 @@ gnrpy/build/
 logs.log
 pyro5.log
 dist
+\#*
 .eggs
 *.egg-info
 _static

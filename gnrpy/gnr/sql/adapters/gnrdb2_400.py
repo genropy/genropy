@@ -26,6 +26,7 @@ import pyodbc
 
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
@@ -156,7 +157,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sqlargs = []
         def subArgs(m):
             key = m.group(1)
-            print(m.group(2))
+            logger.debug("Subargs %s", m.group(2))
             sqlargs.append(kwargs[key])
             return '? '
         #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
@@ -306,11 +307,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return list(ref_dict.values())
 
     def getPkey(self, table, schema):
-        print(table)
         """
         @param table: table name
         @param schema: schema name
-        @return: list of columns which are the primary key for the table"""
+        @return: list of columns which are the primary key for the table
+        """
+        logger.debug("getPkey table %s", table)
         sql = """WITH xx (CST_NAME, CST_COL_CNT, CST_SCHEMA, CST_TABLE) AS
                 (
                     SELECT CONSTRAINT_NAME, CONSTRAINT_KEYS, CONSTRAINT_SCHEMA, TABLE_NAME FROM QSYS2.SYSCST A

@@ -35,6 +35,7 @@ import MySQLdb
 from MySQLdb.cursors import DictCursor
 
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow, DbAdapterException
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
@@ -126,7 +127,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(host=dbroot.host, database='mysql', user=dbroot.user, 
                       password=dbroot.password, port=dbroot.port)
         kwargs = dict([(k,v) for k,v in kwargs.items() if v != None])
-        print("KWARGS", kwargs)
+        logger.debug("KWARGS %s", kwargs)
         conn =  MySQLdb.connect(autocommit=True, **kwargs)
         return conn
     
@@ -396,7 +397,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             col = self._filterColInfo(col, '_my_')
             coltype = self.typesDict.get(col['dtype'], None) #for unrecognized types default dtype is T
             if not coltype:
-                print('unrecognized column type: %s' % col['dtype'])
+                logger.warning('unrecognized column type: %s' , col['dtype'])
                 coltype = 'T'
             dtype = col['dtype'] = coltype
             col['notnull'] = (col['notnull'] == 'NO')
