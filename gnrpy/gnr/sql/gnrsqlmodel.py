@@ -242,7 +242,7 @@ class DbModel(object):
             
             if one_relkey in self.relations:
                 old_relattr = dict(self.relations.getAttr(one_relkey))
-                raise GnrSqlRelationError('\nSame relation_name\n%s \n%s \n%s' %(old_relattr['many_relation'],many_relation,relation_name))
+                raise GnrSqlRelationError(f'Same relation_name "{relation_name}" in table {old_relattr['many_relation']} and {many_relation}')
             meta_kwargs.update(kwargs)
             self.relations.setItem(one_relkey, None, mode='M',
                                    many_relation=many_relation, many_rel_name=many_name, many_order_by=many_order_by,
@@ -272,10 +272,12 @@ class DbModel(object):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
 
-        except Exception:
+        except Exception as e:
             if self.debug:
                 raise
-            logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
+            logger.error('The relation %s - %s cannot be added: %s',
+                         str('.'.join(many_relation_tuple)),
+                         str(oneColumn), e.description)
 
     def checkRelationIndex(self, pkg, table, column):
         """TODO
