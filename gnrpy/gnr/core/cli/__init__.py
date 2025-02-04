@@ -1,3 +1,4 @@
+import os
 import logging
 import argparse
 import platform
@@ -26,12 +27,18 @@ class GnrCliArgParse(argparse.ArgumentParser):
                           help="Report command execution time")
 
 
+        log_level_default = "warning"
+        log_level_from_env = os.environ.get("GNR_LOGLEVEL", "").lower()
+        if log_level_from_env in self.LOGGING_LEVELS:
+            log_level_default = log_level_from_env
+        
         self.add_argument("--loglevel", 
                           dest="loglevel",
                           metavar="LOG_LEVEL",
                           choices=list(self.LOGGING_LEVELS.keys()),
-                          default="warning",
+                          default=log_level_default,
                           help="Startup log level")
+
         self.add_argument("--debug",
                           action="store_true",
                           dest="debug",
@@ -55,8 +62,6 @@ class GnrCliArgParse(argparse.ArgumentParser):
         
     def parse_args(self, *args, **kw):
         options =  super().parse_args(*args, **kw)
-        import gnr
-        gnr.GLOBAL_DEBUG = options.debug
         new_log_level = options.debug and "debug" or options.loglevel
         gnrlog.set_gnr_log_global_level(self.LOGGING_LEVELS.get(new_log_level))
         return options

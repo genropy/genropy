@@ -265,8 +265,10 @@ class Server(object):
         self.site_script = site_script
         self.server_description = server_description
         self.server_name = server_name
-        #self.remotesshdb = None
+
+        parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
+        
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
         else:

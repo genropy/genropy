@@ -446,7 +446,9 @@ class GnrWsgiSite(object):
 
     @property
     def storageTypes(self):
-        return ['_storage','_site','_dojo','_gnr','_conn','_pages','_rsrc','_pkg','_pages','_user','_vol']
+        return ['_storage','_site','_dojo','_gnr','_conn',
+                '_pages','_rsrc','_pkg','_pages',
+                '_user','_vol', '_documentation']
         
     def storageType(self, path_list=None):
         first_segment = path_list[0]
@@ -489,6 +491,8 @@ class GnrWsgiSite(object):
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
             exists = self.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs) 
             exists = exists and storageNode.exists
+
+        # WHY THIS?
         self.db.closeConnection()
         if not exists:
             if kwargs.get('_lazydoc'):
