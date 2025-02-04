@@ -100,7 +100,6 @@ class Main(BaseResourceBatch):
 
         self.createFile(pathlist=[], name='index', title=self.handbook_record['title'], rst='', tocstring=tocstring)
         for k,v in self.imagesDict.items():
-            #DP202112 Useful for local debugging
             source_url = self.page.externalUrl(v) if v.startswith('/') else v
             child = self.sourceDirNode.child(k)
             with child.open('wb') as f:
