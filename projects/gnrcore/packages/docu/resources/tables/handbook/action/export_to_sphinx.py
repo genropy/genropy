@@ -24,7 +24,7 @@ import boto3
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrbag import Bag
-from gnr.sql import logger
+from gnr.app import pkglog  import logger
 
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
