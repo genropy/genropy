@@ -4,7 +4,6 @@
 import sys
 import os
 import glob
-import logging
 
 import gnr
 
