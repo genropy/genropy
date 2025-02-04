@@ -242,7 +242,7 @@ class DbModel(object):
             
             if one_relkey in self.relations:
                 old_relattr = dict(self.relations.getAttr(one_relkey))
-                raise GnrSqlRelationError(f'Same relation_name "{relation_name}" in table {old_relattr['many_relation']} and {many_relation}')
+                raise GnrSqlRelationError(f"Same relation_name '{relation_name}' in table {old_relattr['many_relation']} and {many_relation}")
             meta_kwargs.update(kwargs)
             self.relations.setItem(one_relkey, None, mode='M',
                                    many_relation=many_relation, many_rel_name=many_name, many_order_by=many_order_by,
