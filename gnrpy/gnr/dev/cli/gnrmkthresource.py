@@ -128,6 +128,134 @@ class ThResourceMaker(object):
         self.write(out_file, "def th_options(self):", indent=1)
         self.write(out_file, "return dict(dialog_height='400px', dialog_width='600px')", indent=2)
 
+    def columnWidthEstimate(self, column):
+        """
+        Estimates the width of a column based on its data type (dtype) and specified size attributes.
+        
+        Description
+        -----------
+        For text columns ('A' or 'T'), it uses a conversion map
+        to determine the appropriate width. For date ('D') and datetime ('DH') columns, it returns
+        fixed widths. If the data type is not recognized, it returns a default width.
+
+        Parameters
+        ----------
+        column : Column
+            The column object containing attributes such as dtype and size.
+
+        Returns
+        -------
+        int
+            The calculated width of the column. 
+        """
+        # TODO: Review the LUT and evaluate the use of a formula.
+        # Note that the commented formulae seems to be less accurate than the LUT
+
+        MIN_WIDTH = 2
+        MAX_WIDTH = 25
+
+        sizeWidthMap = {
+            1: 2,
+            2: 2,
+            3: 3,
+            4: 4,
+            5: 4,
+            6: 5,
+            7: 5,
+            8: 6,
+            9: 6,
+            10: 6,
+            11: 6,
+            12: 7,
+            13: 7,
+            14: 8,
+            15: 8,
+            16: 9,
+            17: 9,
+            18: 10,
+            19: 10,
+            20: 10,
+            21: 11,
+            22: 11,
+            23: 11,
+            24: 12,
+            25: 12,
+            26: 12,
+            27: 13,
+            28: 13,
+            29: 14,
+            30: 14,
+            31: 15,
+            32: 15,
+            33: 15,
+            34: 16,
+            35: 17,
+            36: 17,
+            37: 18,
+            38: 18,
+            39: 18,
+            40: 19,
+            41: 19,
+            42: 20,
+            43: 20,
+            44: 21,
+            45: 21,
+            46: 22,
+            47: 22,
+            48: 23,
+            49: 23,
+            50: 24
+        }
+
+        match column.dtype:
+            case 'A' | 'T':
+                # Text columns
+                sizeTxt = column.attributes.get('size', '')
+                if sizeTxt:
+                    if ':' in sizeTxt:
+                        size = int(sizeTxt.split(':')[1])
+                        if size > max(sizeWidthMap):
+                            return MAX_WIDTH
+                        # LUT conversion
+                        return sizeWidthMap[size]
+                    
+                        # ChatGPT 4o conversion
+                        # return round(0.429 * size + 1.709)
+                    
+                        # ChatGPT o3-mini-high conversion
+                        # return round(0.45 * size + 1.55)
+
+                        # Deepseek conversion
+                        # return round(0.44 * size + 1.56)
+                    
+                        # Claude conversion
+                        # return floor(2.8 * size^0.45)
+                else:
+                    # Long text columns
+                    return MAX_WIDTH
+            case 'D':
+                # Date columns
+                return 6
+            case 'H':
+                # Time columns
+                return 4
+            case 'DH':
+                # DateTime columns
+                return 9
+            case 'DHZ':
+                # DateTime + TimeZone columns
+                return 12
+            case 'B':
+                # Boolean columns
+                return 3
+            case 'N' | 'L' | 'I' | 'R':
+                # Numeric columns
+                return 7
+            case 'X':
+                # Bag columns
+                return 10
+            case _:
+                return 7
 
     def createResourceFile(self, package, table):
         packageFolder = self.app.packages(package).packageFolder
@@ -149,62 +277,6 @@ class ThResourceMaker(object):
             return
         columns = []
 
-        MIN_WIDTH = 2
-        MAX_WIDTH = 25
-        # Using a LUT because the math calc of em width from char size is less reliable
-        sizeWidthMap = {
-            1: 2,
-            2: 2,
-            3: 3,
-            4: 4,
-            5: 4,
-            6: 4,
-            7: 4,
-            8: 6,
-            9: 6,
-            10: 6,
-            11: 6,
-            12: 7,
-            13: 7,
-            14: 8,
-            15: 8,
-            16: 9,
-            17: 9,
-            18: 9,
-            19: 10,
-            20: 10,
-            21: 10,
-            22: 11,
-            23: 11,
-            24: 12,
-            25: 12,
-            26: 12,
-            27: 13,
-            28: 13,
-            29: 14,
-            30: 14,
-            31: 15,
-            32: 15,
-            33: 15,
-            34: 16,
-            35: 17,
-            36: 17,
-            37: 17,
-            38: 18,
-            39: 18,
-            40: 19,
-            41: 19,
-            42: 20,
-            43: 20,
-            44: 21,
-            45: 21,
-            46: 22,
-            47: 22,
-            48: 23,
-            49: 23,
-            50: 24
-        }
-
         tbl_obj =  self.app.db.table('%s.%s'%(package,table))
         for col_name in tbl_obj.columns:
 
@@ -214,28 +286,10 @@ class ThResourceMaker(object):
 
             # Get column attributes
             column = tbl_obj.columns[col_name]
-
-            width = 7   # Default width
             if self.option_guess_size:
-                # Set column width size based on text lenght
-                if column.dtype=='A':
-                    sizeTxt = column.attributes.get('size','')
-                    if sizeTxt:
-                        if ':' in sizeTxt:
-                            size = int(sizeTxt.split(':')[1])
-                            if size < min(sizeWidthMap):
-                                width = MIN_WIDTH
-                            if size > max(sizeWidthMap):
-                                width = MAX_WIDTH
-                            size = sizeWidthMap[int(size)]
-                    else:
-                        # Long text columns
-                        width = MAX_WIDTH
-                elif column.dtype=='D':
-                    width = 6
-                elif column.dtype=='DH':
-                    width = 9
-            
+                width = self.columnWidthEstimate(column)
+            else:
+                width = 7
             columns.append((column.name,width))
 
         with open(path,'w') as out_file:
