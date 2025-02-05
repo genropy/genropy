@@ -248,7 +248,8 @@ class ThResourceMaker(object):
                 return sizeWidthMap[MAX_SIZE]
             # LUT conversion
             return sizeWidthMap[size]
-                        # ChatGPT 4o conversion
+            
+            # ChatGPT 4o conversion
             # return round(0.429 * size + 1.709)
 
             # ChatGPT o3-mini-high conversion
