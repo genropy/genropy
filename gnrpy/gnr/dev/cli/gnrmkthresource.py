@@ -5,8 +5,8 @@ from collections import defaultdict
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import uniquify
+from gnr.app.gnrapp import GnrApp
 from gnr.web.gnrmenu import MenuStruct
 from gnr.dev import logger
 
@@ -59,9 +59,9 @@ class ThResourceMaker(object):
         tables = uniquify(tables)
         if len(tables)>1 and (self.option_output or self.option_name):
             if self.option_name:
-                print('-n/--name option is incompatible with multiple table mode')
+                logger.error('-n/--name option is incompatible with multiple table mode')
             if self.option_name:
-                print('-o/--output option is incompatible with multiple table mode')
+                logger.error('-o/--output option is incompatible with multiple table mode')
             exit(-1)
         for pkg in list(self.pkg_tables.keys()):
             packageFolder = self.app.packages(pkg).packageFolder
@@ -70,12 +70,15 @@ class ThResourceMaker(object):
 
         for package,table in tables:
             logger.debug('Processing table %s.%s'%(package,table))
-            if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
-                logger.debug('Skipping lookup table %s.%s'%(package,table))
-                hasLookups=True
-                continue
-            else:
-                self.createResourceFile(pkg, table)
+            try:
+                if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
+                    logger.debug('Skipping lookup table %s.%s'%(package,table))
+                    hasLookups=True
+                    continue
+                else:
+                    self.createResourceFile(pkg, table)
+            except Exception as e:
+                logger.exception(str(e))
         if self.option_menu:
             for pkg in list(self.pkg_tables.keys()):
                 packageFolder = self.app.packages(pkg).packageFolder
@@ -99,19 +102,28 @@ class ThResourceMaker(object):
     
     def writeImports(self, out_file):
         self.write(out_file, "from gnr.web.gnrbaseclasses import BaseComponent")
-        self.write(out_file, "from gnr.core.gnrdecorator import public_method")
         self.write(out_file)
     
-    def writeViewClass(self, out_file, columns):
+    def writeViewClass(self, out_file, column_groups):
         self.write(out_file, "class View(BaseComponent):")
         self.write(out_file)
         self.write(out_file, "def th_struct(self,struct):", indent=1)
         self.write(out_file, 'r = struct.view().rows()', indent=2)
-        for column, size in columns:
-            if self.option_guess_size:
-                self.write(out_file, "r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+        for group, columns in column_groups.items():
+            if group:
+                self.write(out_file, f"{group}_cols = r.columnset('{group}', name='{group}')", indent = 2)
+                for column, size in columns:
+                    if self.option_guess_size:
+                        self.write(out_file, "%s_cols.fieldcell('%s', width='%iem')" % (group, column, size), indent=2)
+                    else:
+                        self.write(out_file, "%s_cols.fieldcell('%s')" % (group, column), indent=2)
             else:
-                self.write(out_file, "r.fieldcell('%s')"%column, indent=2)
+                for column, size in columns:
+                    if self.option_guess_size:
+                        self.write(out_file, "r.fieldcell('%s', width='%iem')"%(column,size), indent=2)
+                    else:
+                        self.write(out_file, "r.fieldcell('%s')"%column, indent=2)
+                    
         self.write(out_file)
         self.write(out_file, "def th_order(self):", indent=1)
         self.write(out_file, "return '%s'"%columns[0][0], indent=2)
@@ -284,8 +296,9 @@ class ThResourceMaker(object):
         name = self.option_name or 'th_%s.py'%table
         path = os.path.join(resourceFolder, name) if not self.option_output else self.option_output
         if os.path.exists(path) and not self.option_force:
-            print('%s exist: will be skipped, use -f/--force to force replace' % name)
+            logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
+        column_groups = defaultdict(list)
         columns = []
 
         tbl_obj =  self.app.db.table('%s.%s'%(package,table))
@@ -302,16 +315,16 @@ class ThResourceMaker(object):
                 width = self.columnWidthEstimate(column)
                 logger.debug(f'Estimated width for column {column.name}: {width}em')
             else:
-                width = 7
-            columns.append((column.name,width))
+                size = 7
+            columns.append((column.name,size))
 
         try:
             with open(path,'w') as out_file:
                 self.writeHeaders(out_file)
                 self.writeImports(out_file)
-                self.writeViewClass(out_file, columns)
+                self.writeViewClass(out_file, column_groups)
                 self.writeFormClass(out_file, columns)
-                print(f'{name} created, columns:', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
+                logger.info(f'{name} created, columns: %s', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
         except Exception as e:
             logger.exception(f'Error creating output file: {path}. Error: {e}')
 
