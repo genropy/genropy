@@ -8,6 +8,7 @@ from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import uniquify
 from gnr.web.gnrmenu import MenuStruct
+from gnr.dev import logger
 
 class ThResourceMaker(object):
     def __init__(self, options, args):
@@ -44,6 +45,10 @@ class ThResourceMaker(object):
     def makeResources(self):
         hasLookups=False
         tables=[]
+
+        if self.option_guess_size:
+            logger.debug('Guessing column width by data size: ACTIVE')
+
         for pkg, tbl_names in list(self.pkg_tables.items()):
             for tbl_name in tbl_names:
                 if tbl_name=='*':
@@ -64,7 +69,9 @@ class ThResourceMaker(object):
             self.packageMenus[pkg] = Bag(path) if os.path.exists(path) else Bag()
 
         for package,table in tables:
+            logger.debug('Processing table %s.%s'%(package,table))
             if 'lookup' in self.app.db.table('%s.%s'%(package,table)).attributes:
+                logger.debug('Skipping lookup table %s.%s'%(package,table))
                 hasLookups=True
                 continue
             else:
@@ -152,7 +159,8 @@ class ThResourceMaker(object):
         # Note that the commented formulae seems to be less accurate than the LUT
 
         MIN_WIDTH = 2
-        MAX_WIDTH = 25
+        MAX_SIZE = 50
+        DEFAULT_WIDTH = 7
 
         sizeWidthMap = {
             1: 2,
@@ -207,55 +215,58 @@ class ThResourceMaker(object):
             50: 24
         }
 
-        match column.dtype:
-            case 'A' | 'T':
-                # Text columns
+        def handleTextColumn(column):
+            try:
                 sizeTxt = column.attributes.get('size', '')
-                if sizeTxt:
-                    if ':' in sizeTxt:
-                        size = int(sizeTxt.split(':')[1])
-                        if size > max(sizeWidthMap):
-                            return MAX_WIDTH
-                        # LUT conversion
-                        return sizeWidthMap[size]
-                    
-                        # ChatGPT 4o conversion
-                        # return round(0.429 * size + 1.709)
-                    
-                        # ChatGPT o3-mini-high conversion
-                        # return round(0.45 * size + 1.55)
+            except Exception as e:
+                logger.warning(f'Unable to get size attribute for column {column.name}: {e}. Using default width.')
+                return DEFAULT_WIDTH
+            
+            if not sizeTxt:
+                logger.warning(f'No size attribute found for column {column.name}. Using default width.')
+                return DEFAULT_WIDTH
 
-                        # Deepseek conversion
-                        # return round(0.44 * size + 1.56)
-                    
-                        # Claude conversion
-                        # return floor(2.8 * size^0.45)
-                else:
-                    # Long text columns
-                    return MAX_WIDTH
-            case 'D':
-                # Date columns
-                return 6
-            case 'H':
-                # Time columns
-                return 4
-            case 'DH':
-                # DateTime columns
-                return 9
-            case 'DHZ':
-                # DateTime + TimeZone columns
-                return 12
-            case 'B':
-                # Boolean columns
-                return 3
-            case 'N' | 'L' | 'I' | 'R':
-                # Numeric columns
-                return 7
-            case 'X':
-                # Bag columns
-                return 10
-            case _:
-                return 7
+            if ':' in sizeTxt:
+                size = int(sizeTxt.split(':')[1])
+            else:
+                size = int(sizeTxt)
+
+            if size > max(sizeWidthMap):
+                logger.info(f'Column {column.name} has a size greater than the maximum. Topping to max handled value.')
+                return sizeWidthMap[MAX_SIZE]
+            # LUT conversion
+            return sizeWidthMap[size]
+                        # ChatGPT 4o conversion
+            # return round(0.429 * size + 1.709)
+
+            # ChatGPT o3-mini-high conversion
+            # return round(0.45 * size + 1.55)
+
+            # Deepseek conversion
+            # return round(0.44 * size + 1.56)
+
+            # Claude conversion
+            # return floor(2.8 * size^0.45)
+
+        typesHandler = {
+            'A': handleTextColumn,  # Varchar
+            'T': handleTextColumn,  # Text
+            'C': handleTextColumn,  # Chars
+            'D': 6,       # Date
+            'H': 4,       # Time
+            'DH': 9,      # DateTime
+            'DHZ': 12,    # DateTime + TimeZone
+            'B': 3,       # Boolean
+            'N': 7,       # Numeric
+            'L': 7,       # Numeric (long)
+            'I': 7,       # Numeric (int)
+            'R': 7,       # Numeric (float)
+            'X': 10,      # Bag
+        }
+        handler = typesHandler.get(column.dtype, 7)
+        if callable(handler):
+            return handler(column)
+        return handler
 
     def createResourceFile(self, package, table):
         packageFolder = self.app.packages(package).packageFolder
@@ -286,18 +297,23 @@ class ThResourceMaker(object):
 
             # Get column attributes
             column = tbl_obj.columns[col_name]
+            logger.debug(f'Processing column {column.name}')
             if self.option_guess_size:
                 width = self.columnWidthEstimate(column)
+                logger.debug(f'Estimated width for column {column.name}: {width}em')
             else:
                 width = 7
             columns.append((column.name,width))
 
-        with open(path,'w') as out_file:
-            self.writeHeaders(out_file)
-            self.writeImports(out_file)
-            self.writeViewClass(out_file, columns)
-            self.writeFormClass(out_file, columns)
-            print(f'{name} created, columns:', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
+        try:
+            with open(path,'w') as out_file:
+                self.writeHeaders(out_file)
+                self.writeImports(out_file)
+                self.writeViewClass(out_file, columns)
+                self.writeFormClass(out_file, columns)
+                print(f'{name} created, columns:', ', '.join([f'{x[0]} ({x[1]})' for x in columns]))
+        except Exception as e:
+            logger.exception(f'Error creating output file: {path}. Error: {e}')
 
 description = "create TableHandler resources automatically from model"
 
