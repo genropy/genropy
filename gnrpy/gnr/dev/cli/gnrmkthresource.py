@@ -315,8 +315,13 @@ class ThResourceMaker(object):
                 width = self.columnWidthEstimate(column)
                 logger.debug(f'Estimated width for column {column.name}: {width}em')
             else:
-                size = 7
-            columns.append((column.name,size))
+                width = 7
+            column_groups[column.attributes.get('group', '').replace(".","_")].append((column.name,width))
+            columns.append((column.name, width))
+
+        if not columns:
+            logger.error("Table %s does not contain any valid column", table)
+            return
 
         try:
             with open(path,'w') as out_file:
