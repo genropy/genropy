@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import importlib
@@ -60,7 +61,16 @@ def init_logging_system(conf_bag=None):
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
+        root_logger.handlers = []
         root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
+        auditor = logging.getLogger("gnr.audit")
+
+        # do not propagate messages from the audit to the root
+        # we want to keep this separated as default
+        auditor.propagate = False
+        auditor.handlers = []
+        auditor.addHandler(_load_handler("gnr.core.loghandlers.auditor.GnrAuditorHandler")(stream=sys.stdout))
+
         root_logger.setLevel(logging.WARNING)
         return root_logger
 
@@ -114,7 +124,29 @@ def _load_logging_configuration(logging_conf):
             new_handler.setLevel(handler_level)
             l.addHandler(new_handler)
                          
+def get_gnr_log_configuration(all_loggers=False):
+    def logger():
+        return dict(level=logging.NOTSET, handlers=[])
+    
+    logger_conf = defaultdict(logger)
 
+
+    root_logger = logging.getLogger()
+    logger_conf['root']['level'] = logging._levelToName[root_logger.level]
+    for h in getattr(root_logger, "handlers", []):
+        logger_conf['root']['handlers'].append(h.__class__.__name__)
+    
+    for k, v in sorted(root_logger.manager.loggerDict.items()):
+        if not all_loggers and not k.startswith("gnr"):
+            continue
+        logger_level = logging._levelToName[getattr(v, "level", 0)]
+        logger_conf[k]['level'] = logger_level
+        for h in getattr(v, "handlers", []):
+            logger_conf[k]['handlers'].append(h.__class__.__name__)
+
+    return logger_conf
+
+        
 def set_gnr_log_global_level(level):
     """
     Set the new logging level for all gnr* loggers
@@ -129,4 +161,47 @@ def set_gnr_log_global_level(level):
         except AttributeError:
             # ignore PlaceHolder loggers            
             pass
+
+
+
+class AuditLoggerFilter(logging.Filter):
+    def filter(self, record):
+        if not hasattr(record, 'user'):
+            record.user = os.environ.get("USER")
+        return True
+    
+
+class AuditLogger(object):
+    DEFAULT_LEVEL = logging.INFO
+    base_logger = 'gnr.audit'
+    method_groups = {
+        "user": "generic"
+    }
+    
+    def __init__(self):
+        
+        def get_logger(name):
+            l = logging.getLogger(name)
+            l.addFilter(AuditLoggerFilter())
+            return l
+        
+        _ = get_logger(self.base_logger)
+        
+        self.loggers = {
+            k: get_logger(f"{self.base_logger}.{v}.{k}") for k, v in self.method_groups.items()
+        }
+
+    def __getattr__(self, name):
+        name = name.lower()
+        if not name in self.method_groups:
+            raise AttributeError(f"'{name}' method is not logging statement")
+
+        def wrapper(*args, **kwargs):
+            return self.log(name, *args, **kwargs)
+        return wrapper
+
+    def log(self, statement, *args, **kwargs):
+        self.loggers.get(statement).log(self.DEFAULT_LEVEL, *args, **kwargs)
+
+        
 

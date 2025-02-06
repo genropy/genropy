@@ -40,7 +40,6 @@ from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
 
-
 __version__ = '1.0b'
 
 
@@ -57,7 +56,7 @@ def add_sql_comment(func):
         
         # Get caller info and user info
         info = {
-            "user": self_instance.db.currentEnv.get('user'),
+            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER")+"@cli"),
         }
         # Add caller information
         info.update(get_caller_info())
@@ -66,11 +65,11 @@ def add_sql_comment(func):
         sql_comment = kwargs.get('sql_comment', None)
         if sql_comment:
             info['comment'] = sql_comment
+            
         info['sqlcommand'] = func.__name__
-        
         # Create the updated sql_comment
         self_instance.db.currentEnv['sql_comment'] = f'GNRCOMMENT - {json.dumps(info)}'
-        
+        self_instance.db.currentEnv['sql_details'] = info
         # Call the original function with updated kwargs
         return func(*args, **kwargs)
     
