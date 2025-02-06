@@ -550,7 +550,9 @@ class DbModelSrc(GnrStructData):
         cg._destinationNode = self
         def _decorateChildAttributes(destination,tag,kwargs):
             kwargs['group'] = f'{name}.{len(destination)+1:03}'
-            kwargs['colgroup'] = cg
+            kwargs['colgroup_label'] = cg.parentNode.label
+            kwargs['colgroup_name_long'] = cg.attributes.get("name_long", kwargs['colgroup_label'])
+            
             for k,v in col_kwargs.items():
                 kwargs.setdefault(k,v)
         cg._decorateChildAttributes = _decorateChildAttributes

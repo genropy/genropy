@@ -319,14 +319,14 @@ class ThResourceMaker(object):
             else:
                 width = 7
 
-            col_group = column.attributes.get("colgroup", None)
+            col_group_label = column.attributes.get("colgroup_label", None)
 
-            if col_group is None:
+            if col_group_label is None:
                 col_group = ""
             else:
                 col_group = (
-                    col_group.parentNode.label,
-                    col_group.attributes.get("name_long", col_group.parentNode.label)
+                    col_group_label,
+                    column.attributes.get("colgroup_name_long")
                 )
 
             column_groups[col_group].append((column.name,width))
