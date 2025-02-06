@@ -44,7 +44,7 @@ class TestSqlStructure(BaseGnrSqlTest):
         pkg = self.db.package('video')
         assert isinstance(pkg, DbPackageObj)
         assert isinstance(pkg.tables, DbTableListObj)
-        assert list(pkg.tables.keys()) == ['people', 'cast', 'movie', 'dvd']
+        assert list(pkg.tables.keys()) == ['people', 'cast', 'movie', 'dvd', 'location']
         tbl = pkg.table('movie')
         assert isinstance(tbl, DbTableObj)
         assert pkg.tableSqlName(tbl) == 'video_movie'
