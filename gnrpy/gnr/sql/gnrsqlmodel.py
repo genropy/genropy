@@ -541,7 +541,7 @@ class DbModelSrc(GnrStructData):
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
 
     @extract_kwargs(col=True)
-    def colgroup(self, name,name_long=None, col_kwargs=None, **kwargs):
+    def colgroup(self, name, name_long=None, col_kwargs=None, **kwargs):
         self.attributes.setdefault(f'group_{name}',name_long or name)
         if not 'colgroups' in self:
             self.child('colgroup_list', 'colgroups')
@@ -550,6 +550,9 @@ class DbModelSrc(GnrStructData):
         cg._destinationNode = self
         def _decorateChildAttributes(destination,tag,kwargs):
             kwargs['group'] = f'{name}.{len(destination)+1:03}'
+            kwargs['colgroup_label'] = cg.parentNode.label
+            kwargs['colgroup_name_long'] = cg.attributes.get("name_long", kwargs['colgroup_label'])
+            
             for k,v in col_kwargs.items():
                 kwargs.setdefault(k,v)
         cg._decorateChildAttributes = _decorateChildAttributes
@@ -843,6 +846,7 @@ class DbModelSrc(GnrStructData):
         if one_group is None and fkey_group and fkey_group!='_':
             self.attributes['group'] = '_'
             one_group = fkey_group
+            self.attributes['one_group'] = one_group
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,
