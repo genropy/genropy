@@ -4,18 +4,14 @@
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
+from datetime import datetime,time,date
+import string
+import random
 
-
-from past.utils import old_div
-from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrnumber import decimalRound
-from datetime import datetime,time,date
-import string
-
-import random
+from gnr.web.batch.btcaction import BaseResourceAction
 
 caption = 'Create random records'
 tags = '_DEV_'
@@ -126,14 +122,14 @@ class Main(BaseResourceAction):
         elif dtype == 'D':
             return v.toordinal()
         elif dtype =='DH':
-            return old_div(int(v.strftime('%s')),60)
+            return int(v.strftime('%s')/60)
         elif dtype == 'N':
             return float(v)
         return v
 
     def convertFromNumber(self, v, dtype):
         if dtype=='H':
-            return time(old_div(v,60),v%60)
+            return time(int(v/60),v % 60)
         if dtype == 'D':
             return date.fromordinal(v)
         if dtype == 'DH':

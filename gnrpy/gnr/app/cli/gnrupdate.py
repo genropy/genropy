@@ -5,8 +5,8 @@ import os
 from subprocess import Popen
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrconfig import gnrConfigPath, getGnrConfig,IniConfStruct
 from gnr.app.gnrapp import GnrApp
-from gnr.app.gnrconfig import gnrConfigPath, getGnrConfig,IniConfStruct
 from gnr.web.gnrdaemonhandler import GnrDaemonProxy
 
 

@@ -1,24 +1,28 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-
+import warnings
 from datetime import datetime
-import logging
-from multiprocessing import Process, log_to_stderr, get_logger, Manager
+from multiprocessing import Process, Manager
 import atexit
 import os
 import time
+
+# temporarily silence deprecation warning since Pyro4
+# dismiss is on the way.
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+                        module="Pyro4.core")
 import Pyro4
 
 from gnr.web.gnrwsgisite_proxy.gnrsiteregister import GnrSiteRegisterServer
 from gnr.core.gnrlang import gnrImport
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
-from gnr.app.gnrconfig import gnrConfigPath
+from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
-from gnr.core.gnrlog import log_styles
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
 from gnr.web.gnrtask import GnrTaskScheduler
+from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
@@ -62,11 +66,11 @@ def getFullOptions(options=None):
     return env_options
 
 class GnrHeartBeat(object):
-    def __init__(self,site_url=None,interval=None,loglevel=None,**kwargs):
+    def __init__(self,site_url=None,interval=None,**kwargs):
         self.interval = interval
         self.site_url = site_url
         self.url = "%s/sys/heartbeat"%self.site_url
-        self.logger = get_logger()
+        self.logger = logger
         
     def start(self):
         os.environ['no_proxy'] = '*'
@@ -124,7 +128,7 @@ class GnrDaemon(object):
         self.cron_processes = dict()
         self.task_locks = dict()
         self.task_execution_dicts = dict()
-        self.logger = log_to_stderr()
+        self.logger = logger
 
 
     def start(self,use_environment=False,**kwargs):
@@ -135,9 +139,7 @@ class GnrDaemon(object):
     def do_start(self, host=None, port=None, socket=None, hmac_key=None,
                       debug=False,compression=False,timeout=None,
                       multiplex=False,polltimeout=None,use_environment=False, size_limit=None,
-                      sockets=None, loglevel=None, **kwargs):
-        self.loglevel = loglevel or logging.ERROR
-        self.logger.setLevel(self.loglevel)
+                      sockets=None, **kwargs):
         self.pyroConfig(host=host,port=port, socket=socket, hmac_key=hmac_key,debug=debug,
                         compression=compression,timeout=timeout,
                         multiplex=multiplex,polltimeout=polltimeout, size_limit=size_limit,
@@ -150,9 +152,9 @@ class GnrDaemon(object):
         if not OLD_HMAC_MODE:
             self.daemon._pyroHmacKey = self.hmac_key
         self.main_uri = self.daemon.register(self,'GnrDaemon')
-        self.logger.info("uri={}".format(self.main_uri))
-#        print "uri=",self.main_uri
-        print('{color_blue}Daemon is running{nostyle}'.format(**log_styles()))
+
+        self.logger.info(f"uri={self.main_uri}")
+        self.logger.info("Daemon is running")
         self.running = True
         atexit.register(self.stop)
         self.daemon.requestLoop(lambda : self.running)
@@ -183,10 +185,10 @@ class GnrDaemon(object):
         self.siteregisters[sitename]['server_uri'] = server_uri
         self.siteregisters[sitename]['register_uri'] = register_uri
         self.siteregisters[sitename]['register_port'] = int(register_uri.split(':')[-1])
-        print('registered ',sitename,server_uri)
+        logger.info('Registered %s - %s',sitename,server_uri)
 
     def onRegisterStop(self,sitename=None):
-        print('onRegisterStop',sitename)
+        logger.debug("onRegisterStop for site %s", sitename)
         self.siteregisters.pop(sitename,None)
         process_dict = self.siteregisters_process.pop(sitename,None) or {}
         for name, process in list(process_dict.items()):
@@ -304,7 +306,7 @@ class GnrDaemon(object):
 
 
         else:
-            print('ALREADY EXISTING ',sitename)
+            logger.info("Site %s already existing", sitename)
 
     def pyroProxy(self,url):
         proxy = Pyro4.Proxy(url)
@@ -351,7 +353,7 @@ class GnrDaemon(object):
                 with self.pyroProxy(sitepars['server_uri']) as proxy:
                     proxy.stop(saveStatus=saveStatus)
             except Exception as e:
-                print(str(e))
+                logger.exception("Site register stop problem")
             self.onRegisterStop(k)
             result[k] = sitepars
         return result

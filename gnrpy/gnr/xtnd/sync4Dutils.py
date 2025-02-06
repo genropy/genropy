@@ -2,9 +2,11 @@
 # Genro  
 # Copyright (c) 2004 Softwell sas - Milano see LICENSE for details
 # Author Giovanni Porcari, Francesco Cavazzana, Saverio Porcari, Francesco Porcari
-import os.path
-from gnr.core.gnrbag import Bag
 
+import os.path
+
+from gnr.core.gnrbag import Bag
+from gnr.xtnd import logger
 
 class Utils4D(object):
     def __init__(self,emptyAsNone=None):
@@ -120,7 +122,7 @@ def gnr4dNetBag (host4D, method, params=None):
 
     #xml = params.toXml(encoding='iso-8859-1')
     xml = str(params.toXml(mode4d=True, encoding='iso-8859-1'), encoding='iso-8859-1')
-    #print xml
+    logger.debug(xml)
     result = server.GNT_NetBags_Server(FourD_Arg1=xml)
     return Bag(result)
 
@@ -147,6 +149,3 @@ def gnr4dNetBag_ (host4D, method, params=None):
     result = server.service.GNT_NetBags_Server(FourD_Arg1=xml)
 
     return Bag(result)
-
-if __name__ == '__main__':
-    print(gnr4dNetBag('192.168.1.176:8080', 'ATestPy.Ping:pippo'))

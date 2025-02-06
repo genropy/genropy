@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import copy
 import threading
 import re
@@ -36,8 +35,7 @@ from gnr.sql.gnrsqltable import SqlTable
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable, GnrSqlMissingColumn, GnrSqlRelationError
 from gnr.sql import AdapterCapabilities
-
-logger = logging.getLogger(__name__)
+from gnr.sql import logger
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
     itemlist = itempath.split('.')
@@ -161,7 +159,7 @@ class DbModel(object):
         self.runOnBuildingCb()
         if self.relations:
             self.relations.clear()
-            #print('relations',self.relations)
+            logger.debug('relations %s', self.relations)
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')
@@ -244,7 +242,7 @@ class DbModel(object):
             
             if one_relkey in self.relations:
                 old_relattr = dict(self.relations.getAttr(one_relkey))
-                raise GnrSqlRelationError('\nSame relation_name\n%s \n%s \n%s' %(old_relattr['many_relation'],many_relation,relation_name))
+                raise GnrSqlRelationError(f"Same relation_name '{relation_name}' in table {old_relattr['many_relation']} and {many_relation}")
             meta_kwargs.update(kwargs)
             self.relations.setItem(one_relkey, None, mode='M',
                                    many_relation=many_relation, many_rel_name=many_name, many_order_by=many_order_by,
@@ -274,11 +272,12 @@ class DbModel(object):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
 
-        except Exception:
+        except Exception as e:
             if self.debug:
                 raise
-            logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
-            #print 'The relation %s - %s cannot be added'%(str('.'.join(many_relation_tuple)), str(oneColumn))
+            logger.error('The relation %s - %s cannot be added: %s',
+                         str('.'.join(many_relation_tuple)),
+                         str(oneColumn), getattr(e, "description", str(e)))
 
     def checkRelationIndex(self, pkg, table, column):
         """TODO
@@ -692,16 +691,24 @@ class DbModelSrc(GnrStructData):
 
     def compositeColumn(self, name, columns=None, static=True,**kwargs):
         chunks = []
+        composed_of = []
         for column in columns.split(','):
+            if column.startswith('$'):
+                column = column[1:]
             dtype,val = self.column(column).attributes.get('dtype','T'),f'${column}'
             if dtype in ('A','C','T'):
                 val = f""" '"' ||  ${column} || '"' """
             elif dtype not in ('L','F','R','B'):
                 val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """ 
+            composed_of.append(column)
             chunks.append(f"""(CASE WHEN ${column} IS NULL THEN 'null' ELSE {val} END) """)
+        composed_of = ','.join(composed_of)
+        if columns!=composed_of:
+            logger.warning(f"compositeColumn {name} has columns='{columns}'. It should be '{composed_of}'.")
+
         sql_formula = " ||','||".join(chunks)
         sql_formula = f"'[' || {sql_formula} || ']' "
-        return self.virtual_column(name, composed_of=columns, static=static,sql_formula=sql_formula,dtype='JS',**kwargs)
+        return self.virtual_column(name, composed_of=composed_of, static=static,sql_formula=sql_formula,dtype='JS',**kwargs)
 
 
 

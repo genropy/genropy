@@ -839,6 +839,22 @@ label.ghostlabel span {
     background: #777;
 }
 
+.attachment_drawer.slotbarOpener_horizontal{
+    top: -18px;
+    margin-left: -37px;
+    padding-top: 3px;
+    background: #888;
+    color: white;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    height: 15px;
+    text-align: center;
+    font-size: 1em;
+    width: 74px;
+    opacity: 1;
+    border: none;
+}
+
 .tundra .drawerFixed.dijitSplitter.dijitSplitterV{
     width: 0;
 }

@@ -314,13 +314,23 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     attachHooks:function(editor, editor_attrs, sourceNode){
+    // Usa il metodo ufficiale di Toast UI Editor per intercettare la perdita del focus
+        editor.on('blur', () => {
+            //console.log("📌 [DEBUG] Focus perso, salvo nel datastore...");
+            this.setInDatastore(editor, sourceNode);
+        });
+
+        // Se serve gestire anche quando prende focus
+        editor.on('focus', () => {
+            //console.log("📌 [DEBUG] Editor ha preso il focus.");
+        });
+
+        // Mantieni la gestione della lunghezza massima su keydown se necessario
         editor.addHook('keydown', () => {
             genro.callAfter(() => {
                 if (editor_attrs.maxLength) {
                     this.checkMaxLength(editor, editor_attrs.maxLength);
                 }
-                this.onTyped(editor);
-                this.setInDatastore(editor, sourceNode);
             }, 10, this, 'typing');
         });
     },
@@ -336,7 +346,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             name: 'remaining',
             tooltip: 'Remaining characters',
             text: `Remaining: ${(maxLength - value.length)}`,
-            style: { textAlign: 'right', fontStyle: 'italic', fontSize: '.8em' }
+            style: { textAlign: 'right', fontStyle: 'italic', fontSize: '.8em', cursor: 'auto', width: '75px', textAlign: 'center'}
         });
     },
     
@@ -346,7 +356,10 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     
     setInDatastore:function(editor, sourceNode){
         let value = editor.getMarkdown();
-        if (sourceNode.getAttributeFromDatasource('value') !== value) {
+        let currentValue = sourceNode.getAttributeFromDatasource('value');
+    
+        // Aggiorna il datastore SOLO se il valore è cambiato
+        if (currentValue !== value) {
             sourceNode.setAttributeInDatasource('value', value || null);
             const htmlpath = sourceNode.attr.htmlpath;
             if (htmlpath) {
@@ -354,7 +367,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             }
         }
     },
-
+    
     mixin_gnr_value:function(value,kw, trigger_reason){    
         this.setMarkdown(value || '');
     },

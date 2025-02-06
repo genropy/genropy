@@ -83,8 +83,8 @@ class AppPref(object):
 class UserPref(object):
     
     def prefpane_adm(self, parent, **kwargs):
-        pane = parent.contentPane(**kwargs)
-        fb = pane.div(margin_right='20px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
+        bc = parent.borderContainer(**kwargs)
+        fb = bc.contentPane(region='top').formlet(cols=1, border_spacing='6px', width='100%', fld_width='100%',colswidth='auto')
         if 'email' in self.db.packages:
             fb.dbselect(value='^.email_account_id',lbl='!![en]Account',dbtable='email.account',hasDownArrow=True)
         
@@ -98,4 +98,4 @@ class UserPref(object):
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', disabled='^.email_account_id')
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', disabled='^.email_account_id')
         fb.textbox(value='^.system_bcc', lbl='System bcc',disabled='^.email_account_id')
-    
+

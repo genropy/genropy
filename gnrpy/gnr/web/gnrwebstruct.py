@@ -22,12 +22,13 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from copy import copy
+
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,deprecated
-from copy import copy
 
 def _selected_defaultFrom(fieldobj=None,result=None):
     for c in fieldobj.table.columns.values():
@@ -1445,7 +1446,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             kwargs['_content'] = kwargs.pop('content')
         if not columns:
             if columnsFromView:
-                print('columnsFromView is deprecated')
+                raise DeprecationWarning('columnsFromView is deprecated')
                 columns = '=grids.%s.columns' % columnsFromView #it is the view id
             else:
                 columns = '*'
@@ -2934,4 +2935,3 @@ if __name__ == '__main__':
     fb.field('@card_id.name')
     fb.field('.address')
     a = root.toXml()
-    print(a)

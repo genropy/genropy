@@ -9,8 +9,6 @@ description = ""
 def getOptions():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename')
-    parser.add_argument('-L', '--loglevel', type=int,
-                       help="Log level")
     parser.add_argument('-I', '--interval', type=int,
                        help="Interval")
     parser.add_argument('-C', '--code', help="Code")

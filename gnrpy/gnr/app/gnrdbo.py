@@ -14,6 +14,7 @@ from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
+from gnr.app import logger
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -180,7 +181,10 @@ class GnrDboPackage(object):
                         rec_to_insert[field] = None
                 recordsToInsert.append(rec_to_insert)
             if recordsToInsert:
-                print('inserisco record in',tblobj.name,tblobj.query().count())
+                logger.info('Inserting record into %s - %s',
+                            tblobj.name,
+                            tblobj.query().count()
+                            )
                 tblobj.insertMany(recordsToInsert)
         db.commit()
 
@@ -1323,7 +1327,9 @@ class GnrDboTable(TableBase):
 
 
     def populateFromMasterDb(self,master_db=None,from_table=None,**kwargs):
-        print('populating %s from %s' %(self.fullname,from_table or ''))
+        logger.info('Populating %s from %s',
+                    self.fullname,
+                    from_table or '')
         descendingRelations = self.model.manyRelationsList(cascadeOnly=True)
         ascendingRelations = self.model.oneRelationsList(foreignkeyOnly=True)
         onPopulatingFromMasterDb = getattr(self,'onPopulatingFromMasterDb',None)
@@ -1338,12 +1344,11 @@ class GnrDboTable(TableBase):
             if r[self.pkey] in valuesset:
                 continue
             self.raw_insert(r)
-            print('.', end=' ')
             valuesset.add(r[self.pkey])
             for tbl,fkey in descendingRelations:
                 if tbl!=from_table and tbl!=self.fullname:
                     self.db.table(tbl).populateFromMasterDb(master_db,where='$%s=:fkey' %fkey, fkey=r[self.pkey])
-        print('\n')
+        logger.info("Completed")
 
 
     def populateAscendingRelationsFromMasterDb(self,record,master_db=None,ascendingRelations=None,foreignkeyOnly=None):
@@ -1836,7 +1841,7 @@ class Table_sync_event(TableBase):
         tsfield = tblobj.lastTs
         if tsfield and event != 'I':
             event_check_ts = old_record[tsfield] if event=='U' else record[tsfield]
-        print('TABLE TRIGGER SYNC')
+        logger.debug('Table trigger sync')
         event_record = dict(tablename=tblobj.fullname,event_type=event,
                     event_pkey=record[tblobj.pkey],
                     event_data=Bag(record),

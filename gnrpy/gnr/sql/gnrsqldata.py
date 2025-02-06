@@ -154,7 +154,7 @@ class SqlQueryCompiler(object):
         self.aliases = {self.tblobj.sqlfullname: self.aliasCode(0)}
         self.fieldlist = []
 
-    def getFieldAlias(self, fieldpath, curr=None,basealias=None):
+    def getFieldAlias(self, fieldpath, curr=None,basealias=None, parent=None):
         """Internal method. Translate fields path and related fields path in a valid sql string for the column.
 
         It translates ``@relname.@rel2name.colname`` to ``t4.colname``.
@@ -203,7 +203,7 @@ class SqlQueryCompiler(object):
         newpath = []
         basealias = basealias or self.aliasCode(0)
         if pathlist:
-            alias, curr = self._findRelationAlias(list(pathlist), curr, basealias, newpath)
+            alias, curr = self._findRelationAlias(list(pathlist), curr, basealias, newpath, parent=parent)
         else:
             alias = basealias
         curr_tblobj = self.db.table(curr.tbl_name, pkg=curr.pkg_name)
@@ -217,7 +217,7 @@ class SqlQueryCompiler(object):
                 #newfieldpath = '.'.join(pathlist)        # replace the field alias with the column relation_path
                 # then call getFieldAlias again with the real path
                 return self.getFieldAlias(fldalias.relation_path, curr=curr,
-                                          basealias=alias)  # call getFieldAlias recursively
+                                          basealias=alias, parent='.'.join(pathlist))  # call getFieldAlias recursively
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
                 sql_formula = fldalias.sql_formula
                 attr = dict(fldalias.attributes)
@@ -347,6 +347,8 @@ class SqlQueryCompiler(object):
                 raise  GnrSqlException('Relation with multikey works only with compositeColumns')
             target_sqlcolumns = [target_tbl.sqlnamemapper[tc] for tc in target_columns.split(',')]
             joinerList = list(zip([from_tbl.sqlnamemapper[from_column] for from_column in from_columns.split(',')], target_sqlcolumns))
+        else:
+            target_sqlcolumn = target_tbl.sqlnamemapper[target_column]
         joindict = dict()
         adaptedAlias = self.db.adapter.adaptSqlName(alias)
         adaptedBaseAlias = self.db.adapter.adaptSqlName(basealias)
@@ -499,8 +501,6 @@ class SqlQueryCompiler(object):
                     doreplace = v[1:] in self.tblobj.columns.keys() + self.tblobj.virtual_columns.keys()
                 if doreplace:
                     sql = re.sub(r'(:%s)(\W|$)' % k, lambda m: '%s%s' %(v,m.group(2)), sql)
-                #else:
-                #    print(x)
         return sql
 
     def compiledQuery(self, columns='', where='', order_by='',
@@ -1017,16 +1017,6 @@ class SqlQuery(object):
         test = " ".join([v for v in (columns, where, order_by, group_by, having) if v])
         rels = set(re.findall(r'\$(\w*)', test))
         params = set(re.findall(r'\:(\w*)', test))
-        #removed old features for setting fieldpath in relationDict
-       #for r in rels:                             # for each $name in the query
-       #    if r not in params:                    # if name is also present as :name skip
-       #        if r in self.sqlparams:            # if name is present in kwargs
-       #            if r not in self.relationDict: # if name is not yet defined in relationDict
-       #                parval = self.sqlparams.get(r)
-       #                if isinstance(parval,dict):
-       #                    continue
-       #                print('setting in relation dict',r)
-       #                self.relationDict[r] = self.sqlparams.pop(r)
 
         self.bagFields = bagFields or for_update
         self.querypars = dict(columns=columns, where=where, order_by=order_by,

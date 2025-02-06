@@ -5,13 +5,10 @@ import os
 import glob
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.core.gnrconfig import getGnrConfig
+from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
-
-enable_colored_logging()
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)
@@ -159,11 +156,6 @@ def main():
                         dest='remove_relations_only',
                         action='store_true',
                         help="Remove relations")
-    
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        action='store_true',
-                        help="Debug mode")
     
     parser.add_argument('-i', '--instance',
                         dest='instance',

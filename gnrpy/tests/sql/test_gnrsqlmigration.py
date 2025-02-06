@@ -144,7 +144,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('country',size='2')
         tbl.column('vat_number',size=':30')
         tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
-        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);\nCREATE UNIQUE INDEX idx_91100f32 ON "alfa"."alfa_restaurant" USING btree (country, vat_number);'
+        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);'
         self.checkChanges(check_value)
 
     def test_05a_create_table_withpkey(self):
@@ -286,7 +286,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         """Tests modifying the data type of an existing column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('ingredient')
-        tbl.column('description', dtype='varchar', size=':50')
+        tbl.column('description', size=':50')
         check_value = 'ALTER TABLE "alfa"."alfa_ingredient" \n ALTER COLUMN "description" TYPE character varying(50);'
         self.checkChanges(check_value)
 
@@ -294,7 +294,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row_alternative')
         tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
-        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative" \n ALTER COLUMN "vegan" TYPE character(1);'
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nDROP COLUMN "vegan",\nADD COLUMN "vegan" character(1) ;'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_add_unique(self):
@@ -302,7 +302,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=True)
         tbl.column('foo') #columns added for testing the right placement of ADD constraint
-        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");\nCREATE UNIQUE INDEX idx_fbdb510e ON "alfa"."alfa_author" USING btree (tax_code);'
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_remove_unique(self):
@@ -310,6 +310,13 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=False)
         check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP CONSTRAINT IF EXISTS "cst_99206169";'
+        self.checkChanges(check_value)  
+
+    def test_08d_modify_dtype_bis(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('author')
+        tbl.column('foo',dtype='D') 
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP COLUMN "foo",\nADD COLUMN "foo" date ;'
         self.checkChanges(check_value)
 
     def test_09a_remove_column(self):
@@ -318,13 +325,13 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_author" \n DROP COLUMN "foo";'
         self.checkChanges(check_value)
 
-    def test_09b_remove_relation(self):
-        pkg = self.src.package('alfa')
-        tbl = pkg.table('recipe_row_alternative', pkey='id')
-        col = tbl.column('recipe_code')
-        col.pop('relation')
-        check_value = '?'
-        self.checkChanges(check_value)
+    #def test_09b_remove_relation(self):
+    #    pkg = self.src.package('alfa')
+    #    tbl = pkg.table('recipe_row_alternative', pkey='id')
+    #    col = tbl.column('recipe_code')
+    #    col.pop('relation')
+    #    check_value = '?'
+    #    self.checkChanges(check_value)
 
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),

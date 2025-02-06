@@ -3,14 +3,10 @@
 import hashlib
 import base64
 import hmac
-import logging
 import datetime
 from urllib.parse import parse_qs, urlparse
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-FORMAT = '%(asctime)s  %(message)s'
-logging.basicConfig(format=FORMAT)
+from gnr.core import logger
 
 class AuthTokenError(Exception):
     """
@@ -39,7 +35,7 @@ class AuthTokenGenerator:
         return self._b64_encode(payload.digest()).decode()
 
     def generate(self, value, expire_ts=None):
-        log.info(f"Generating payload {value}")
+        logger.info(f"Generating payload {value}")
         payload = f"{value}"
         if expire_ts:
             payload = f"{payload}{self.payload_sep}{expire_ts}"
@@ -47,7 +43,7 @@ class AuthTokenGenerator:
         return f"{payload}{self.payload_sep}{signed_payload}"
     
     def verify(self, value):
-        log.info(f"Verifying payload {value}")
+        logger.info(f"Verifying payload {value}")
         if self.payload_sep not in value:
             raise AuthTokenError("Payload format error")
         
@@ -81,7 +77,7 @@ class AuthTokenGenerator:
         return f"{newurl}{self.payload_sep}{signature}"
 
     def verify_url(self, url, qs_param="_vld"):
-        log.info(f"Verifying url {url}")
+        logger.info(f"Verifying url {url}")
         signature_token = parse_qs(urlparse(url).query).get(qs_param, [''])[0]
         if not signature_token:
             return "not_valid"
