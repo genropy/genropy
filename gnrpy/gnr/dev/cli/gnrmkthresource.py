@@ -111,12 +111,12 @@ class ThResourceMaker(object):
         self.write(out_file, 'r = struct.view().rows()', indent=2)
         for group, columns in column_groups.items():
             if group:
-                self.write(out_file, f"{group}_cols = r.columnset('{group}', name='{group}')", indent = 2)
+                self.write(out_file, f"{group[0]}_col_group = r.columnset('{group[0]}', name='{group[1]}')", indent = 2)
                 for column, size in columns:
                     if self.option_guess_size:
-                        self.write(out_file, "%s_cols.fieldcell('%s', width='%iem')" % (group, column, size), indent=2)
+                        self.write(out_file, "%s_col_group.fieldcell('%s', width='%iem')" % (group[0], column, size), indent=2)
                     else:
-                        self.write(out_file, "%s_cols.fieldcell('%s')" % (group, column), indent=2)
+                        self.write(out_file, "%s_col_group.fieldcell('%s')" % (group[0], column), indent=2)
             else:
                 for column, size in columns:
                     if self.option_guess_size:
@@ -299,6 +299,7 @@ class ThResourceMaker(object):
         if os.path.exists(path) and not self.option_force:
             logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
+
         column_groups = defaultdict(list)
         columns = []
 
@@ -317,7 +318,18 @@ class ThResourceMaker(object):
                 logger.debug(f'Estimated width for column {column.name}: {width}em')
             else:
                 width = 7
-            column_groups[column.attributes.get('group', '').replace(".","_")].append((column.name,width))
+
+            col_group = column.attributes.get("colgroup", None)
+
+            if col_group is None:
+                col_group = ""
+            else:
+                col_group = (
+                    col_group.parentNode.label,
+                    col_group.attributes.get("name_long", col_group.parentNode.label)
+                )
+
+            column_groups[col_group].append((column.name,width))
             columns.append((column.name, width))
 
         if not columns:
