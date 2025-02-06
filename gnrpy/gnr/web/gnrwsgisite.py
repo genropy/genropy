@@ -3,7 +3,6 @@ import re
 import io
 import subprocess
 import urllib.request, urllib.parse, urllib.error
-import httplib2
 import _thread
 import mimetypes
 import functools
@@ -12,8 +11,11 @@ from collections import defaultdict
 from threading import RLock
 import warnings
 
+import requests
 from werkzeug.wrappers import Request, Response
-from webob.exc import WSGIHTTPException, HTTPInternalServerError, HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed, HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect
+from webob.exc import (WSGIHTTPException, HTTPInternalServerError,
+                       HTTPNotFound, HTTPForbidden, HTTPPreconditionFailed,
+                       HTTPClientError, HTTPMovedPermanently,HTTPTemporaryRedirect )
 
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
@@ -446,7 +448,9 @@ class GnrWsgiSite(object):
 
     @property
     def storageTypes(self):
-        return ['_storage','_site','_dojo','_gnr','_conn','_pages','_rsrc','_pkg','_pages','_user','_vol']
+        return ['_storage','_site','_dojo','_gnr','_conn',
+                '_pages','_rsrc','_pkg','_pages',
+                '_user','_vol', '_documentation']
         
     def storageType(self, path_list=None):
         first_segment = path_list[0]
@@ -489,6 +493,8 @@ class GnrWsgiSite(object):
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
             exists = self.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs) 
             exists = exists and storageNode.exists
+
+        # WHY THIS?
         self.db.closeConnection()
         if not exists:
             if kwargs.get('_lazydoc'):
@@ -694,10 +700,9 @@ class GnrWsgiSite(object):
             kwargs[k] = self.gnrapp.catalog.asTypedText(kwargs[k])
         urlargs = [url,method]+list(args)
         url = '/'.join(urlargs)
-        http = httplib2.Http()
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
-        response,content = http.request(url, 'POST', headers=headers, body=urllib.parse.urlencode(kwargs))
-        return self.gnrapp.catalog.fromTypedText(content)
+        response = requests.post(url, headers=headers, data=kwargs)
+        return self.gnrapp.catalog.fromTypedText(response.text)
 
     def writeException(self, exception=None, traceback=None):
         try:

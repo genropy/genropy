@@ -31,7 +31,6 @@ dependencies = [
 	     "docutils",
 	     "dulwich", # needed by gnrgit
 	     "gunicorn",
-	     "httplib2",
 	     "jsmin",
 	     "lxml",
 	     "mako",
