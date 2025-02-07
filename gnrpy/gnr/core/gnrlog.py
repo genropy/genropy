@@ -180,21 +180,25 @@ class AuditLogger(object):
     
     def __init__(self):
         
-        def get_logger(name):
-            l = logging.getLogger(name)
-            l.addFilter(AuditLoggerFilter())
-            return l
-        
-        _ = get_logger(self.base_logger)
+        _ = logging.getLogger(self.base_logger)
         
         self.loggers = {
-            k: get_logger(f"{self.base_logger}.{v}.{k}") for k, v in self.method_groups.items()
+            k: self._get_logger(k, v) for k, v in self.method_groups.items()
         }
 
+    def _get_logger(self, name, group="unknown"):
+        log_name = self._get_logger_name(name, group)
+        l = logging.getLogger(log_name)
+        l.addFilter(AuditLoggerFilter())
+        return l
+              
+    def _get_logger_name(self, statement, group):
+        return f"{self.base_logger}.{group}.{statement}"
+    
     def __getattr__(self, name):
         name = name.lower()
         if not name in self.method_groups:
-            raise AttributeError(f"'{name}' method is not logging statement")
+              self.loggers[name] = self._get_logger(name)
 
         def wrapper(*args, **kwargs):
             return self.log(name, *args, **kwargs)

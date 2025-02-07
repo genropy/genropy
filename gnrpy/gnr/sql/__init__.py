@@ -40,6 +40,8 @@ class SqlAuditLogger(AuditLogger):
         "delete": "modify",
         "alter": "modify",
         "select": "read",
+        "create": "modify",
+        "pragma": "read",
     }
     
 sqlauditlogger = SqlAuditLogger()

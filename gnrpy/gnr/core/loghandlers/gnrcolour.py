@@ -40,7 +40,7 @@ class GnrColourStreamHandler(logging.StreamHandler):
         if hasattr(self.stream, 'isatty') and self.stream.isatty():
             self.setFormatter(
                 ColouredFormatter(
-                    fmt="%(asctime)s: %(levelname)s: %(name)s.%(module)s - %(message)s",
+                    fmt="%(asctime)s: %(levelname)s: %(name)s/%(module)s - %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S"
                 )
             )
