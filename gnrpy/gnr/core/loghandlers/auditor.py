@@ -1,6 +1,4 @@
-import platform
 import logging
-import os.path
 from gnr.core.loghandlers.gnrcolour import ColouredFormatter
 
 class GnrAuditorHandler(logging.StreamHandler):
