@@ -505,7 +505,7 @@ class GnrSqlDb(GnrObject):
             storename = self.rootstore
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
-        sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user', {})
+        sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
         sql_details = self.currentEnv.get("sql_details", {})
         getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
         
