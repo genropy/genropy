@@ -172,7 +172,7 @@ class AuditLoggerFilter(logging.Filter):
     
 
 class AuditLogger(object):
-    DEFAULT_LEVEL = logging.INFO
+    DEFAULT_LEVEL = logging.DEBUG
     base_logger = 'gnr.audit'
     method_groups = {
         "user": "generic"
