@@ -46,6 +46,7 @@ from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrExcepti
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
+from gnr.core import gnrlog
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
@@ -644,6 +645,8 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
+            self.load_logging_conf()
+            
         sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
@@ -686,7 +689,26 @@ class GnrApp(object):
     def get_modulefinder(self):
         """TODO"""
         return GnrModuleFinder(self)
-        
+
+    def save_logging_conf(self, conf_bag, apply=False):
+        logger.debug("Saving new logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        with open(log_conf, "w") as wfp:
+            wfp.write(conf_bag.toXml())
+        if apply:
+            gnrlog.apply_dynamic_conf(conf_bag)
+    
+    def load_logging_conf(self):
+        logger.debug("Loading logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        if os.path.isfile(log_conf):
+            try:
+                c = Bag(log_conf)
+                gnrlog.apply_dynamic_conf(c)
+                logger.debug("Logging configuration loaded")
+            except:
+                logger.exception("Logging configuration error")
+                
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
