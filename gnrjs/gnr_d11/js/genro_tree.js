@@ -714,13 +714,16 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
         }
         delete this.sourceNode._savedExpandedStatus;
     },
-    mixin_expandAll:function(rootNode){
+    mixin_expandAll:function(rootNode, recurse){
         var that = this;
         var nodes = dojo.query('.dijitTreeExpando.dijitTreeExpandoClosed',rootNode.domNode);
         nodes.forEach(function(n){
-                var n = that.model.store.getIdentity(dijit.getEnclosingWidget(n).item);
-                var tn = that._itemNodeMap[n];
-                that._expandNode(tn);
+            var n = that.model.store.getIdentity(dijit.getEnclosingWidget(n).item);
+            var tn = that._itemNodeMap[n];
+            that._expandNode(tn);
+	    if(recurse) {
+		that.expandAll(n, recurse);
+	    }
         });
     },
 
