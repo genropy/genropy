@@ -1,6 +1,9 @@
 import os
 import sys
+import glob
 import logging
+import logging.handlers
+import inspect
 import importlib
 from collections import defaultdict
 
@@ -9,7 +12,6 @@ from gnr.core.gnrconfig import getGnrConfig
 # other loggers, hardcoded for the moment
 werkzeug_logger = logging.getLogger("werkzeug")
 werkzeug_logger.setLevel(logging.WARNING)
-
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -63,7 +65,7 @@ def init_logging_system(conf_bag=None):
         # with logging on stdout
         root_logger.handlers = []
         root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
-        auditor = logging.getLogger("gnr.audit")
+        auditor = logging.getLogger("gnraudit")
 
         # do not propagate messages from the audit to the root
         # we want to keep this separated as default
@@ -84,6 +86,26 @@ def init_logging_system(conf_bag=None):
     root_logger.info("Logging infrastrucure loaded")
     return root_logger
 
+def get_all_handlers():
+
+    stdlib_handlers = [
+        (f"{obj.__module__}.{obj.__qualname__}", obj.__qualname__) for name, obj in inspect.getmembers(logging.handlers, inspect.isclass)
+        if issubclass(obj, logging.Handler) and obj is not logging.Handler
+    ]
+    return stdlib_handlers
+
+def apply_dynamic_conf(conf_bag):
+    """
+    Apply the logging configuration from a Bag used in the UI to alter
+    dynamically the logging configuration state
+    """
+
+    def p(node):
+        logger_path = node.getAttr("path")
+        level = node.getAttr('level')
+        l = logging.getLogger(logger_path)
+        l.setLevel(level)
+    conf_bag.walk(p)
 
 def _load_logging_configuration(logging_conf):
     """
@@ -139,10 +161,12 @@ def get_gnr_log_configuration(all_loggers=False):
     for k, v in sorted(root_logger.manager.loggerDict.items()):
         if not all_loggers and not k.startswith("gnr"):
             continue
-        logger_level = logging._levelToName[getattr(v, "level", 0)]
+        logger_level = logging._levelToName.get(getattr(v, "level", 0), "CRITICAL")
         logger_conf[k]['level'] = logger_level
+        logger_conf[k]['propagate'] = getattr(v, 'propagate', True)
         for h in getattr(v, "handlers", []):
-            logger_conf[k]['handlers'].append(h.__class__.__name__)
+            q = f"{h.__module__}.{h.__class__.__qualname__}"
+            logger_conf[k]['handlers'].append(q)
 
     return logger_conf
 
@@ -151,17 +175,9 @@ def set_gnr_log_global_level(level):
     """
     Set the new logging level for all gnr* loggers
     """
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-    for k, v in root_logger.manager.loggerDict.items():
-        if not k.startswith("gnr"):
-            continue 
-        try:
-            v.setLevel(level)
-        except AttributeError:
-            # ignore PlaceHolder loggers            
-            pass
-
+    logger = logging.getLogger('gnr')
+    logger.debug("Settings global GNR logger configuration to %s", level)
+    logger.setLevel(level)
 
 
 class AuditLoggerFilter(logging.Filter):
@@ -173,7 +189,7 @@ class AuditLoggerFilter(logging.Filter):
 
 class AuditLogger(object):
     DEFAULT_LEVEL = logging.DEBUG
-    base_logger = 'gnr.audit'
+    base_logger = 'gnraudit'
     method_groups = {
         "user": "generic"
     }

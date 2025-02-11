@@ -426,6 +426,7 @@ class Server(object):
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
                     localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
+
                 logger.info(f"Starting server - listening on {localhost}:{port}\t%s", ",".join(extra_info))
 
             if not is_running_from_reloader():

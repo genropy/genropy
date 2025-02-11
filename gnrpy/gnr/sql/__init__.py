@@ -33,7 +33,7 @@ for implementation in AVAILABLE_DB_IMPLEMENTATIONS:
         pass
 
 class SqlAuditLogger(AuditLogger):
-    base_logger = "gnr.audit.sql"
+    base_logger = "gnraudit.sql"
     method_groups= {
         "insert": "modify",
         "update": "modify",

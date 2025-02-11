@@ -6,14 +6,14 @@ class ColouredFormatter(logging.Formatter):
     """
     A formatter for the python :mod:`logging` module
     that colors the log messages depending on their severity"""
-
-    COLORS = {
+    COLOURS = {
         logging.DEBUG: "\033[94m",    # Blue
         logging.INFO: "\033[92m",     # Green
         logging.WARNING: "\033[93m",  # Yellow
         logging.ERROR: "\033[91m",    # Red
         logging.CRITICAL: "\033[95m", # Magenta
     }
+
     RESET = "\033[0m"  # Reset color
 
     def __init__(self, *args, **kw):
@@ -26,9 +26,9 @@ class ColouredFormatter(logging.Formatter):
             record.module = record.pathname.split(splitter)[-1]
 
         log_msg = super().format(record)
-        if self.use_colour and record.levelno in self.COLORS:
+        if self.use_colour and record.levelno in self.COLOURS:
             # Apply color based on the log level
-            color = self.COLORS.get(record.levelno, self.RESET)
+            color = self.COLOURS.get(record.levelno, self.RESET)
             return f"{color}{log_msg}{self.RESET}"
         else:
             return f"{log_msg}"
