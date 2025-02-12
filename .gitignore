@@ -23,6 +23,7 @@ docker/*
 .python-version
 .spyproject/
 .coverage
+coverage.xml
 
 .aider*
 gnrpy/tests/sql/_main_connection
