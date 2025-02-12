@@ -53,12 +53,10 @@ def init_logging_system(conf_bag=None):
     """
     root_logger = logging.getLogger()
     # load the site configuration
-    try:
-        config = getGnrConfig()
-        logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
-    except Exception as e:
-        logging_conf = None
-        
+    
+    config = getGnrConfig()
+    logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
+    
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
@@ -117,13 +115,14 @@ def _load_logging_configuration(logging_conf):
     handlers = dict()
     for handler in logging_conf.get("handlers", []):
         if "impl" not in handler.attr:
-            raise Exception(f"Logging handler {handler.label} is missing impl detail")
+            raise ValueError(f"Logging handler {handler.label} is missing impl detail")
         handler_impl = handler.attr.pop("impl")
         try:
             handlers[handler.label] = (_load_handler(handler_impl), handler.attr)
         except ValueError as e:
+            print(f"Logging handler '{handler.label}' with implementation '{handler_impl}' cannot be loaded: {e}", file=sys.stderr)         
             raise
-            print(f"Logging handler '{handler.label}' with implementation '{handler_impl}' cannot be loaded", file=sys.stderr)
+
 
     # load loggers config
     loggers = defaultdict(list)
@@ -192,11 +191,10 @@ class AuditLogger(object):
     method_groups = {
         "user": "generic"
     }
-    
+
     def __init__(self):
-        
         _ = logging.getLogger(self.base_logger)
-        
+
         self.loggers = {
             k: self._get_logger(k, v) for k, v in self.method_groups.items()
         }
@@ -213,7 +211,7 @@ class AuditLogger(object):
     def __getattr__(self, name):
         name = name.lower()
         if not name in self.method_groups:
-              self.loggers[name] = self._get_logger(name)
+            self.loggers[name] = self._get_logger(name)
 
         def wrapper(*args, **kwargs):
             return self.log(name, *args, **kwargs)
