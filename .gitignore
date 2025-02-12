@@ -15,7 +15,10 @@ _static
 *.pyo
 *~
 gnrpy/.cache
+
 .vscode
+!.vscode/settings.json
+
 gnrpy/gnr/lib/.DS_Store
 gnrpy/gnr/lib/services/.DS_Store
 .DS_Store
