@@ -11,6 +11,7 @@ class Table(object):
         tbl.column('title',name_long='!!Title')
         tbl.column('docroot_id', size='22', name_long='!!Doc root').relation('documentation.id',
                                                                                 relation_name='handbooks',
+                                                                                onDelete='setnull',
                                                                                 mode='foreignkey')
         tbl.column('toc_roots', name_long='!!Toc roots')
         tbl.column('language',size=':2',name_long='!!Base language').relation('adm.language.code')
