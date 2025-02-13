@@ -15,7 +15,11 @@ _static
 *.pyo
 *~
 gnrpy/.cache
+
 .vscode
+!.vscode/settings.json
+!.vscode/tasks.json
+
 gnrpy/gnr/lib/.DS_Store
 gnrpy/gnr/lib/services/.DS_Store
 .DS_Store
@@ -23,6 +27,7 @@ docker/*
 .python-version
 .spyproject/
 .coverage
+coverage.xml
 
 .aider*
 gnrpy/tests/sql/_main_connection

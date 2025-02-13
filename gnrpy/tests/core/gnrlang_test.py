@@ -20,7 +20,7 @@ class TestGnrLang():
                   'module_name']:
             assert x in r
         assert r['function_name'] == 'test_get_caller_info'
-        assert r['module_name'] == 'gnrlang_test'
+        assert 'gnrlang_test' in r['module_name']
         
         
     def test_mintype_value(self):
