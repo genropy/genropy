@@ -35,6 +35,7 @@ from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
 from gnr.sql import logger
+from gnr.sql import ormauditlogger
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
@@ -74,6 +75,31 @@ def add_sql_comment(func):
         return func(*args, **kwargs)
     
     return wrapper
+
+def orm_audit_log(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        # prepare logging info
+        info = {
+            "pkg": self_instance.pkg.name,
+            "table": self_instance.name,
+            "command": func.__name__,
+            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER")+"@cli"),
+            "args": args[1:],
+            "kwargs": kwargs,
+            "caller_info": get_caller_info()
+        }
+        getattr(ormauditlogger, func.__name__)(info)
+        return func(*args, **kwargs)
+    
+    return wrapper
+
 
 class RecordUpdater(object):
     """TODO
@@ -1314,6 +1340,7 @@ class SqlTable(GnrObject):
 
     @extract_kwargs(jc=True)
     @add_sql_comment
+    @orm_audit_log
     def query(self, columns=None, where=None, order_by=None,
               distinct=None, limit=None, offset=None,
               group_by=None, having=None, for_update=False,
@@ -1773,6 +1800,7 @@ class SqlTable(GnrObject):
         self.db.adapter.lockTable(self, mode, nowait)
 
     @add_sql_comment
+    @orm_audit_log
     def insert(self, record, **kwargs):
         """Insert a single record
 
@@ -1781,6 +1809,7 @@ class SqlTable(GnrObject):
         return record
 
     @add_sql_comment
+    @orm_audit_log
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
 
@@ -1789,6 +1818,7 @@ class SqlTable(GnrObject):
         return record
     
     @add_sql_comment
+    @orm_audit_log
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
 
@@ -1796,10 +1826,12 @@ class SqlTable(GnrObject):
         self.db.raw_delete(self, record, **kwargs)
 
     @add_sql_comment
+    @orm_audit_log
     def insertMany(self, records, **kwargs):
         self.db.insertMany(self, records, **kwargs)
 
     @add_sql_comment
+    @orm_audit_log
     def raw_update(self,record=None,old_record=None,pkey=None,**kwargs):
         self.db.raw_update(self, record,old_record=old_record,pkey=pkey,**kwargs)
 
@@ -1807,6 +1839,7 @@ class SqlTable(GnrObject):
         self.db.adapter.changePrimaryKeyValue(self,pkey=pkey,newpkey=newpkey)
 
     @add_sql_comment
+    @orm_audit_log
     def delete(self, record, **kwargs):
         """Delete a single record from this table.
 
@@ -1878,6 +1911,7 @@ class SqlTable(GnrObject):
                             rel_rec[mfld] = None
                             relatedTable.update(rel_rec,oldrec)
     @add_sql_comment
+    @orm_audit_log
     def update(self, record, old_record=None, pkey=None,**kwargs):
         """Update a single record
 

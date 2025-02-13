@@ -43,5 +43,19 @@ class SqlAuditLogger(AuditLogger):
         "create": "modify",
         "pragma": "read",
     }
-    
+
+class OrmAuditLogger(AuditLogger):
+    base_logger = "gnraudit.orm"
+    method_groups= {
+        "query": "read",
+        "insert": "modify",
+        "insertMany": "modify",
+        "raw_insert": "modify",
+        "update": "modify",
+        "raw_update": "modify",
+        "delete": "modify",
+        "raw_delete": "modify",
+    }
+
 sqlauditlogger = SqlAuditLogger()
+ormauditlogger = OrmAuditLogger()
