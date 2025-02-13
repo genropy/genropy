@@ -45,7 +45,7 @@ class SqlAuditLogger(AuditLogger):
     }
 
 class OrmAuditLogger(AuditLogger):
-    base_logger = "gnr.audit.orm"
+    base_logger = "gnraudit.orm"
     method_groups= {
         "query": "read",
         "insert": "modify",
