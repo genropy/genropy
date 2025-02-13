@@ -18,6 +18,7 @@ gnrpy/.cache
 
 .vscode
 !.vscode/settings.json
+!.vscode/tasks.json
 
 gnrpy/gnr/lib/.DS_Store
 gnrpy/gnr/lib/services/.DS_Store
