@@ -1,0 +1,19 @@
+{
+    
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "GNR Daemon",
+            "type": "shell",
+            "command": "gnr",
+            "args": [
+                "web",
+                "daemon",
+                "--debug"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        }
+    ]
+}

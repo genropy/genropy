@@ -68,7 +68,8 @@ pgsql = [
 
 mysql = ["mysqlclient"]
 developer = [
-  "pytest", "pytest-cov", "graphviz",
+  "pytest", "pytest-cov", "graphviz", 
+  "flake8",
   "build", "twine","ipython",
   "psycopg2-binary",
   "psycopg",
