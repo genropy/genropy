@@ -314,18 +314,25 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     attachHooks:function(editor, editor_attrs, sourceNode){
-    // Usa il metodo ufficiale di Toast UI Editor per intercettare la perdita del focus
-        editor.on('blur', () => {
-            //console.log("📌 [DEBUG] Focus perso, salvo nel datastore...");
-            this.setInDatastore(editor, sourceNode);
-        });
+        let initialMarkdown = sourceNode.getAttributeFromDatasource('value'); // Salviamo l'originale
 
-        // Se serve gestire anche quando prende focus
         editor.on('focus', () => {
-            //console.log("📌 [DEBUG] Editor ha preso il focus.");
+            editor.__originalMarkdown = editor.getMarkdown(); // Salviamo la versione iniziale quando prende il focus
         });
 
-        // Mantieni la gestione della lunghezza massima su keydown se necessario
+        editor.on('blur', () => {
+            let newMarkdown = editor.getMarkdown();
+
+            // Controlliamo se il testo è stato realmente modificato
+            if (newMarkdown !== editor.__originalMarkdown) {
+                console.log("📌 Modifica rilevata, aggiorno il datastore...");
+                this.setInDatastore(editor, sourceNode);
+            } else {
+                console.log("📌 Nessuna modifica reale, non aggiorno.");
+            }
+        });
+
+        // Manteniamo la gestione della lunghezza massima
         editor.addHook('keydown', () => {
             genro.callAfter(() => {
                 if (editor_attrs.maxLength) {
