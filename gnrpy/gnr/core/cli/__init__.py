@@ -62,6 +62,6 @@ class GnrCliArgParse(argparse.ArgumentParser):
         
     def parse_args(self, *args, **kw):
         options =  super().parse_args(*args, **kw)
-        new_log_level = options.debug and "debug" or options.loglevel
+        new_log_level = options.loglevel
         gnrlog.set_gnr_log_global_level(self.LOGGING_LEVELS.get(new_log_level))
         return options
