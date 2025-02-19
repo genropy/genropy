@@ -364,13 +364,15 @@ class TableHandlerForm(BaseComponent):
                                  onSavedHandler=self._th_hook('onSaved',mangler=mangler))
         form._current_options = options
 
-    def _th_handleModalBar(self,form,mode=None,**kwargs):
+    def _th_handleModalBar(self,form,mode=None,dismissTitle=None,**kwargs):
         if mode=='navigation':
             if form.store.attributes.get('storeType') == 'Collection':
                 slots = 'dismissTitle,left_placeholder,*,right_placeholder,prevUp,nextDown'
             else:
                 slots = 'dismissTitle'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'
+            if dismissTitle:
+                kwargs['dismissTitle_back_title'] = dismissTitle
             form.top.slotBar(slots,height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
                              color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid silver'),
                             **kwargs)
