@@ -63,7 +63,10 @@ class GnrWebRequest(object):
         return self._request.relative_url(*args, **kwargs)
 
     def _get_remote_addr(self):
-        return self.get_header('X-Forwarded-For',self._request.remote_addr)
+        r_addr = self.get_header('X-Forwarded-For', self._request.remote_addr)
+        if "," in r_addr:
+            r_addr = r_addr.split(",")[-1].strip()
+        return r_addr
 
     remote_addr = property(_get_remote_addr)
 
