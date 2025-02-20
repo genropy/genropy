@@ -478,9 +478,10 @@ class GnrClassCatalog(object):
         :param data: TODO
         :returns: TODO
         """
-        return gnrstring.toTypedJSON(data)
-        
-
+        try:
+            return gnrstring.toTypedJSON(data)
+        except TypeError:
+            return "Object is not JSON serializable"
 
     def fromJson(self, data):
         """Add???
