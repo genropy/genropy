@@ -1134,14 +1134,14 @@ server {
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "Upgrade";
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header Host $http_host;
             proxy_set_header X-Forwarded-Proto $real_scheme;
             proxy_pass http://unix:%(gnrasync_socket_path)s;
         }
         %(supervisord_location)s
         location / {
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $real_scheme;
             proxy_set_header Host $http_host;
             proxy_redirect off;
@@ -1319,7 +1319,7 @@ class GunicornDeployBuilder(object):
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "Upgrade";
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header Host $http_host;
             proxy_set_header X-Forwarded-Proto $real_scheme;
             proxy_pass http://unix:%(supervisord_socket_path)s;
