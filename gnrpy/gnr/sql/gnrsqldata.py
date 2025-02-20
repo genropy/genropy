@@ -278,6 +278,8 @@ class SqlQueryCompiler(object):
         It is recursive to resolve paths like ``@rel.@rel2.@rel3.column``"""
         p = pathlist.pop(0)
         currNode = curr.getNode(p)
+        if not currNode:
+            raise GnrSqlMissingField(f"Relation {p} not found")
         joiner = currNode.attr['joiner']
         if joiner == None:
             tblalias = self.db.table(curr.tbl_name, pkg=curr.pkg_name).model.table_aliases[p]
