@@ -624,8 +624,9 @@ class GnrApp(object):
     >>> testgarden = GnrApp('testgarden')
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
-    def __init__(self, instanceFolder=None,custom_config=None, forTesting=False, 
-                debug=False, restorepath=None,enabled_packages=None,**kwargs):
+    def __init__(self, instanceFolder=None, custom_config=None,
+                 forTesting=False, debug=False, restorepath=None,
+                 enabled_packages=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
         self.debug=debug
@@ -635,8 +636,8 @@ class GnrApp(object):
         self.project_packages_path = None
         self.enabled_packages = enabled_packages
         if instanceFolder:
-            if '@' in instanceFolder:
-                instanceFolder,self.remote_db  = instanceFolder.split('@',1)
+            if ':' in instanceFolder:
+                instanceFolder,self.remote_db  = instanceFolder.split(':',1)
             self.instanceFolder = self.instance_name_to_path(instanceFolder)
             self.instanceName = os.path.basename(self.instanceFolder)
             project_packages_path = os.path.normpath(os.path.join(self.instanceFolder, '..', '..', 'packages'))
@@ -665,14 +666,16 @@ class GnrApp(object):
         if custom_config:
             self.config.update(custom_config)
         if self.remote_db:
-            remote_db_node = self.config.getNode('remote_db.%s' %self.remote_db)
-            remotedbattr = remote_db_node.attr
-            if remotedbattr and 'ssh_host' in remotedbattr:
-                db_node = self.config.getNode('db')
-                sshattr = dict(db_node.attr)
-                sshattr.update(remotedbattr)
-                sshattr['forwarded_port'] = sshattr.pop('port',None)
-                db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
+            remote_db_node = self.config.getNode(f'remote_db.{self.remote_db}')
+            if remote_db_node:
+                remotedbattr = remote_db_node.attr
+                if remotedbattr:
+                    db_node = self.config.getNode('db')
+                    if 'ssh_host' in remotedbattr:
+                        sshattr = dict(db_node.attr)
+                        sshattr.update(remotedbattr)
+                        sshattr['forwarded_port'] = sshattr.pop('port',None)
+                        db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
         if 'menu' not in self.config:
             self.config['menu'] = Bag()
             #------ application instance customization-------
@@ -765,7 +768,14 @@ class GnrApp(object):
             if dbattrs.get('dbname') == '_dummydb':
                 pass
             elif self.remote_db:
-                dbattrs.update(self.config.getAttr('remote_db.%s' %self.remote_db))
+                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+                if rdb:
+                    rconf = rdb.getAttr(self.remote_db)
+                    if rconf:
+                        logger.info("Using remote db: %s", self.remote_db)
+                        dbattrs.update(rconf)
+                    else:
+                        logger.error("Remote db %s does not exists", self.remote_db)
             elif dbattrs and dbattrs.get('implementation') == 'sqlite':
                 dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
                 if not os.path.isabs(dbname):

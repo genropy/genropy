@@ -229,7 +229,12 @@ class Server(object):
                             dest='gzip',
                             action='store_true',
                             help="Enable gzip compressions")
-
+        parser.add_argument('--remotedb',
+                            nargs="?",
+                            const=True,
+                            default=None,
+                            dest='remotedb',
+                            help="Use a remote db")
         parser.add_argument('--verbose',
                             dest='verbose',
                             action='store_true',
@@ -268,7 +273,6 @@ class Server(object):
 
         parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
-        
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
         else:
@@ -279,12 +283,25 @@ class Server(object):
         if not self.site_name and not self.site_script:
             logger.error("site name is required")
             sys.exit(1)
+
         if not self.site_name:
             self.site_name = os.path.basename(os.path.dirname(site_script))
+            
+        # the use --remotedb options is defined, use the instance name
+        # as a default remotedb name, if a value is provided, use it
+
+        if self.options.remotedb:
+            if self.options.remotedb is True:
+                self.site_name = f"{self.site_name}:{self.site_name}"
+            else:
+                self.site_name = f"{self.site_name}:{self.options.remotedb}"
+            
         self.remote_db = ''
         if self.site_name:
             if ':' in self.site_name:
                 self.site_name,self.remote_db  = self.site_name.split(':',1)
+
+
             if not self.gnr_config:
                 raise ServerException(
                         'Error: no ~/.gnr/ or /etc/gnr/ found')
@@ -387,7 +404,7 @@ class Server(object):
         port = int(self.options.port)
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host
-        site_name='%s:%s' %(self.site_name,self.remote_db) if self.remote_db else self.site_name
+        site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
         if self.options.tornado:
             host = '127.0.0.1' if self.options.host == '0.0.0.0' else self.options.host
 
@@ -404,10 +421,13 @@ class Server(object):
             if self.reloader and not is_running_from_reloader():
                 gnrServer='FakeApp'
             else:
-                gnrServer = GnrWsgiSite(self.site_script, site_name=site_name, _config=self.siteconfig,
-                                    _gnrconfig=self.gnr_config,
-                                    counter=getattr(self.options, 'counter', None), noclean=self.options.noclean,
-                                    options=self.options)
+                gnrServer = GnrWsgiSite(self.site_script,
+                                        site_name=site_name,
+                                        _config=self.siteconfig,
+                                        _gnrconfig=self.gnr_config,
+                                        counter=getattr(self.options, 'counter', None),
+                                        noclean=self.options.noclean,
+                                        options=self.options)
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
