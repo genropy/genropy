@@ -1138,7 +1138,7 @@ class GnrWsgiSite(object):
         pass
 
     @metadata(beacon=True)
-    def onClosedPage(self, page_id=None):
+    def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
 
