@@ -55,9 +55,10 @@ dependencies = [
 	     "vobject",
 	     "weasyprint",
 	     "webob",
-	     "werkzeug==2.3.8",
+	     "werkzeug>=2.3.8",
 	     "xlrd",
 	     "xlwt",
+		 "debugpy",
 	     ]
 
 [project.optional-dependencies]

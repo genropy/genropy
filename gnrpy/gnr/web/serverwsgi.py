@@ -196,7 +196,6 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
-
         parser.add_argument('--reload-interval',
                             dest='reload_interval',
                             default=1,
@@ -266,6 +265,15 @@ class Server(object):
                             dest='ssl',
                             action='store_true',
                             help="SSL")
+        
+        parser.add_argument('--debugpy',
+                    dest='debugpy',
+                    action='store_true',
+                    help="Enable Debugpy for remote debugging on port 5678, change port with --debugpy-port")
+        
+        parser.add_argument('--debugpy-port',
+                dest='debugpy_port',
+                help="Debugpy port (default: 5678)")
 
         self.site_script = site_script
         self.server_description = server_description
@@ -368,9 +376,15 @@ class Server(object):
         return instance_config
 
     def run(self):
-        self.reloader = not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
+        self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
+        self.debugpy_port = int(self.options.debugpy_port) if self.options.debugpy_port else 5678
+        self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        self.start_sitedaemon()
+        #self.start_sitedaemon()
+        if self.debugpy:
+            import debugpy
+            debugpy.listen(("localhost", self.debugpy_port))
+                      
         self.serve()
 
     def start_sitedaemon(self):
@@ -418,7 +432,7 @@ class Server(object):
             server.start()
         else:
             ssl_context = None
-            if self.reloader and not is_running_from_reloader():
+            if not self.debugpy and self.reloader and not is_running_from_reloader():
                 gnrServer='FakeApp'
             else:
                 gnrServer = GnrWsgiSite(self.site_script,
@@ -431,7 +445,9 @@ class Server(object):
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
-                if self.debug:
+                if self.debugpy:
+                    extra_info.append(f'Debugpy on port {self.debugpy_port}')
+                elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
                 localhost = 'http://127.0.0.1'
