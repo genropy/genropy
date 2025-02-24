@@ -1256,22 +1256,6 @@ class GnrWsgiSite(object):
     def build_wsgiapp(self, options=None):
         """Build the wsgiapp callable wrapping self.dispatcher with WSGI middlewares"""
         wsgiapp = self.dispatcher
-        self.error_smtp_kwargs = None
-        profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        if profile:
-            try:
-                from repoze.profile.profiler import AccumulatingProfileMiddleware
-            except ImportError:
-                AccumulatingProfileMiddleware = None
-            if AccumulatingProfileMiddleware:
-                wsgiapp = AccumulatingProfileMiddleware(
-                   wsgiapp,
-                   log_filename=os.path.join(self.site_path, 'site_profiler.log'),
-                   cachegrind_filename=os.path.join(self.site_path, 'cachegrind_profiler.out'),
-                   discard_first_request=True,
-                   flush_at_shutdown=True,
-                   path='/__profile__'
-                  )
         if 'sentry' in self.config:
             try:
                 import sentry_sdk

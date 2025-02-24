@@ -183,7 +183,7 @@ class Server(object):
         parser.add_argument('--nodebug',
                             dest='debug',
                             action='store_false',
-                            help="Don't use weberror debugger")
+                            help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
                             action='store_true',
@@ -196,11 +196,7 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
-        parser.add_argument('--reload-interval',
-                            dest='reload_interval',
-                            default=1,
-                            help="Seconds between checking files (low number can cause significant CPU usage)")
-
+        
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
@@ -486,7 +482,7 @@ class Server(object):
                     #extra_files=extra_files,
                     #exclude_patterns=exclude_patterns,
                     interval=1,
-                    reloader_type="stat",
+                    reloader_type="auto",
                 )
             else:
                 try:
