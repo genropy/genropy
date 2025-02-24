@@ -138,6 +138,13 @@ class BaseAwsService(object):
     def CUR(self):
         return self.service('cur')
 
+    @property
+    def SecretsManager(self):
+        return self.service('secretsmanager')
+    
+    @property
+    def ECS(self):
+        return self.service('ecs')
     
 class SQSManager(BaseAwsService):
     service_label = 'sqs'
@@ -533,6 +540,263 @@ class CostExplorerManager(BaseAwsService):
             raise
             return f"Error fetching Cost Explorer data: {e}"
 
+class SecretsManagerManager(BaseAwsService):
+    service_label = 'secretsmanager'
+
+    def create_secret(self, name, secret_value, description=None, tags=None):
+        """
+        Create a new secret in AWS Secrets Manager.
+
+        :param name: Name of the secret
+        :param secret_value: The secret value (string or dict)
+        :param description: Optional description of the secret
+        :param tags: Optional list of tags [{'Key': 'key', 'Value': 'value'}]
+        :return: ARN of the created secret
+        """
+        try:
+            params = {
+                'Name': name,
+                'SecretString': secret_value if isinstance(secret_value, str) else json.dumps(secret_value)
+            }
+            if description:
+                params['Description'] = description
+            if tags:
+                params['Tags'] = tags
+
+            response = self.client.create_secret(**params)
+            return response['ARN']
+        except Exception as e:
+            logger.error("Error creating secret: %s", str(e))
+            raise
+
+    def get_secret_value(self, secret_id, version_id=None, version_stage=None):
+        """
+        Retrieve the value of a secret.
+
+        :param secret_id: The secret ID or ARN
+        :param version_id: Optional specific version ID
+        :param version_stage: Optional version stage (e.g., 'AWSCURRENT')
+        :return: Secret value (decoded if JSON)
+        """
+        try:
+            params = {'SecretId': secret_id}
+            if version_id:
+                params['VersionId'] = version_id
+            if version_stage:
+                params['VersionStage'] = version_stage
+
+            response = self.client.get_secret_value(**params)
+            secret_string = response.get('SecretString')
+            
+            try:
+                return json.loads(secret_string)
+            except (json.JSONDecodeError, TypeError):
+                return secret_string
+        except Exception as e:
+            logger.error("Error getting secret value: %s", str(e))
+            raise
+
+    def update_secret(self, secret_id, secret_value, description=None):
+        """
+        Update an existing secret's value and optionally its description.
+
+        :param secret_id: The secret ID or ARN
+        :param secret_value: New secret value
+        :param description: Optional new description
+        :return: ARN and version ID of the updated secret
+        """
+        try:
+            params = {
+                'SecretId': secret_id,
+                'SecretString': secret_value if isinstance(secret_value, str) else json.dumps(secret_value)
+            }
+            if description:
+                params['Description'] = description
+
+            response = self.client.update_secret(**params)
+            return {
+                'ARN': response['ARN'],
+                'VersionId': response['VersionId']
+            }
+        except Exception as e:
+            logger.error("Error updating secret: %s", str(e))
+            raise
+
+    def delete_secret(self, secret_id, force_delete=False, recovery_window_days=30):
+        """
+        Delete a secret from Secrets Manager.
+
+        :param secret_id: The secret ID or ARN
+        :param force_delete: If True, immediately deletes without recovery window
+        :param recovery_window_days: Days before permanent deletion (7-30, ignored if force_delete=True)
+        :return: Deletion date
+        """
+        try:
+            params = {'SecretId': secret_id}
+            if force_delete:
+                params['ForceDeleteWithoutRecovery'] = True
+            else:
+                params['RecoveryWindowInDays'] = recovery_window_days
+
+            response = self.client.delete_secret(**params)
+            return response['DeletionDate']
+        except Exception as e:
+            logger.error("Error deleting secret: %s", str(e))
+            raise
+
+    def list_secrets(self, filters=None, max_results=100):
+        """
+        List secrets in the account.
+
+        :param filters: Optional list of filter dictionaries
+        :param max_results: Maximum number of results to return
+        :return: List of secret metadata
+        """
+        try:
+            params = {'MaxResults': max_results}
+            if filters:
+                params['Filters'] = filters
+
+            response = self.client.list_secrets(**params)
+            return response.get('SecretList', [])
+        except Exception as e:
+            logger.error("Error listing secrets: %s", str(e))
+            raise
+
+    def describe_secret(self, secret_id):
+        """
+        Get detailed metadata about a secret.
+
+        :param secret_id: The secret ID or ARN
+        :return: Secret metadata
+        """
+        try:
+            response = self.client.describe_secret(SecretId=secret_id)
+            return response
+        except Exception as e:
+            logger.error("Error describing secret: %s", str(e))
+            raise
+
+    def tag_secret(self, secret_id, tags):
+        """
+        Add or update tags for a secret.
+
+        :param secret_id: The secret ID or ARN
+        :param tags: List of tag dictionaries [{'Key': 'key', 'Value': 'value'}]
+        """
+        try:
+            self.client.tag_resource(
+                SecretId=secret_id,
+                Tags=tags
+            )
+        except Exception as e:
+            logger.error("Error tagging secret: %s", str(e))
+            raise
+
+    def rotate_secret(self, secret_id, rotation_lambda_arn, rotation_rules=None):
+        """
+        Configure automatic rotation for a secret.
+
+        :param secret_id: The secret ID or ARN
+        :param rotation_lambda_arn: ARN of the Lambda function that rotates the secret
+        :param rotation_rules: Dictionary with rotation rules {'AutomaticallyAfterDays': days}
+        """
+        try:
+            params = {
+                'SecretId': secret_id,
+                'RotationLambdaARN': rotation_lambda_arn,
+                'RotationRules': rotation_rules or {'AutomaticallyAfterDays': 30}
+            }
+            self.client.rotate_secret(**params)
+        except Exception as e:
+            logger.error("Error configuring secret rotation: %s", str(e))
+            raise
+
+class ECSManager(BaseAwsService):
+    service_label = 'ecs'
+
+    def list_clusters(self):
+        """Get list of ECS clusters with their details"""
+        try:
+            response = self.client.list_clusters()
+            clusters = []
+            if response['clusterArns']:
+                cluster_details = self.client.describe_clusters(clusters=response['clusterArns'])
+                for cluster in cluster_details['clusters']:
+                    clusters.append({
+                        'clusterArn': cluster['clusterArn'],
+                        'clusterName': cluster['clusterName'],
+                        'status': cluster['status'],
+                        'runningTasksCount': cluster['runningTasksCount'],
+                        'pendingTasksCount': cluster['pendingTasksCount'],
+                        'activeServicesCount': cluster['activeServicesCount']
+                    })
+            return clusters
+        except Exception as e:
+            logger.error("Error listing ECS clusters: %s", str(e))
+            return []
+
+    def list_services(self, cluster):
+        """Get list of services in a cluster"""
+        try:
+            response = self.client.list_services(cluster=cluster)
+            services = []
+            if response['serviceArns']:
+                service_details = self.client.describe_services(cluster=cluster, services=response['serviceArns'])
+                for service in service_details['services']:
+                    services.append({
+                        'serviceArn': service['serviceArn'],
+                        'serviceName': service['serviceName'],
+                        'status': service['status'],
+                        'desiredCount': service['desiredCount'],
+                        'runningCount': service['runningCount'],
+                        'pendingCount': service['pendingCount']
+                    })
+            return services
+        except Exception as e:
+            logger.error("Error listing ECS services: %s", str(e))
+            return []
+
+    def list_tasks(self, cluster, service=None):
+        """Get list of tasks in a cluster, optionally filtered by service"""
+        try:
+            kwargs = {'cluster': cluster}
+            if service:
+                kwargs['serviceName'] = service
+            response = self.client.list_tasks(**kwargs)
+            tasks = []
+            if response['taskArns']:
+                task_details = self.client.describe_tasks(cluster=cluster, tasks=response['taskArns'])
+                for task in task_details['tasks']:
+                    tasks.append({
+                        'taskArn': task['taskArn'],
+                        'taskDefinitionArn': task['taskDefinitionArn'],
+                        'lastStatus': task['lastStatus'],
+                        'desiredStatus': task['desiredStatus'],
+                        'cpu': task.get('cpu'),
+                        'memory': task.get('memory'),
+                        'createdAt': task['createdAt'].isoformat() if 'createdAt' in task else None,
+                        'startedAt': task['startedAt'].isoformat() if 'startedAt' in task else None
+                    })
+            return tasks
+        except Exception as e:
+            logger.error("Error listing ECS tasks: %s", str(e))
+            return []
+
+    def force_update_service(self, cluster, service):
+        """Force new deployment of a service"""
+        try:
+            self.client.update_service(
+                cluster=cluster,
+                service=service,
+                forceNewDeployment=True
+            )
+            return True
+        except Exception as e:
+            logger.error("Error forcing service update: %s", str(e))
+            return False
+
+
 class CostUsageReportManager(BaseAwsService):
     service_label='cur'
 
@@ -590,21 +854,30 @@ service_classes = dict([(c.service_label,c) for c_name,c in inspect.getmembers(s
 
 
 def main():
-    aws = AWSManager(region_name='eu-central-1')
-    user = aws.IAM.create_user(username='user')
-    keypairs = aws.IAM.create_user_key_pair(username='user')
-    logger.debug("keypairs %s", keypairs)
-    bucket = aws.S3.create_s3_for_user(username='user', bucket='bucket',
-        region_name='eu-west-1')
-
-    #print ec2.EC2.get_instances()
-    #print aws.EC2.get_key_pairs()
-    #print aws.EC2.get_images()
-    #print aws.EC2.get_instances()
-    #print aws.EC2.get_vpcs()
-    logger.debug("Route53 hosted zones %s" , aws.Route53.get_hosted_zones())
-    logger.debug("Router53 RRs %s", aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
-    #print aws.ELBV2.get_listeners(load_balancer_name='load-ld')
+    aws = AWSManager(region_name='eu-south-1')
+    #user = aws.IAM.create_user(username='user')
+    #keypairs = aws.IAM.create_user_key_pair(username='user')
+    #logger.debug("keypairs %s", keypairs)
+    #bucket = aws.S3.create_s3_for_user(username='user', bucket='bucket',
+    #    region_name='eu-west-1')
+    clusters = aws.ECS.list_clusters()
+    for cluster in clusters:
+        print(cluster)
+        services = aws.ECS.list_services(cluster=cluster['clusterName'])
+        for service in services:
+            print(service)
+            tasks = aws.ECS.list_tasks(cluster=cluster['clusterName'], service=service['serviceName'])
+            for task in tasks:
+                print(task)
+    #print(aws.ECS.list_clusters())
+    #print(ec2.EC2.get_instances())
+    #print(aws.EC2.get_key_pairs())
+    #print(aws.EC2.get_images())
+    #print(aws.EC2.get_instances())
+    #print(aws.EC2.get_vpcs())
+    print("Route53 hosted zones %s" , aws.Route53.get_hosted_zones())
+    #logger.debug("Router53 RRs %s", aws.Route53.get_resource_records(hosted_zone_id='/hostedzone/<ID>'))
+    #print(aws.ELBV2.get_listeners(load_balancer_name='load-ld'))
     #print(aws.ELBV2.get_target_groups())
     #ec2.create_ec2_instance(image_id='ami-1112223333',
     #    instance_name='test-site', file_system_id='fs-44333929')
