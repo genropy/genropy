@@ -45,12 +45,6 @@ class GnrCliArgParse(argparse.ArgumentParser):
                           help="Enable DEBUG log level")
         
         if not self.prog.startswith("gnr "):
-            # FIXME: this is not efficient
-            # since it needs to load the whole script tree
-            # to find the name. But since the old naming
-            # is deprecated, it will go away soon. Also,
-            # using the old name will make the script startup slower,
-            # encouraging the use of the new script naming scheme
             from gnr.core.cli.gnr import cmd
             new_name = cmd.lookup_new_name(self.prog)
             deprecation_warning_mesg = f" *** DEPRECATION WARNING: please use '{new_name}' script! *** "
