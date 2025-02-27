@@ -34,7 +34,7 @@ COMPATIBLE_TYPES = {
     "L": {"I", "N", "R"},              # BigInt-like: bigint → int, numeric
 }
 
-COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique")
+COL_JSON_KEYS = ("dtype","notnull","sqldefault","size","unique","extra_sql","generated_expression")
 
 GNR_DTYPE_CONVERTER = {'X':'T', 'Z':'T', 'P':'T'}
 
@@ -876,6 +876,8 @@ class SqlMigrator():
                     table_name=item['table_name'],
                 )
                 constraints_dict[constraint_name] = {"command":sql}
+        elif changed_attribute in ('generated_expression','extra_sql'):
+            return
 
     def changed_index(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
         """
@@ -989,7 +991,8 @@ class SqlMigrator():
                                                    notnull=colattr.get('notnull', False),
                                                     unique=colattr.get('unique'),
                                                     default=colattr.get('sqldefault'),
-                                                    extra_sql=colattr.get('extra_sql'))
+                                                    extra_sql=colattr.get('extra_sql'),
+                                                    generated_expression=colattr.get('generated_expression'))
     
     def constraintSql(self,const_item):
         pass
