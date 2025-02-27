@@ -214,11 +214,19 @@ class SqlQueryCompiler(object):
                 raise GnrSqlMissingField('Missing field %s in table %s.%s (requested field %s)' % (
                 fld, curr.pkg_name, curr.tbl_name, '.'.join(newpath)))
             elif fldalias.relation_path and not fldalias.composed_of:
+
+                # call getFieldAlias recursively
+                return self.getFieldAlias(fldalias.relation_path, curr=curr,
+                                          basealias=alias, parent='.'.join(pathlist)) 
+
+                ### FIXME: refs #120 - left to support investigation
                 #pathlist.append(fldalias.relation_path)
                 #newfieldpath = '.'.join(pathlist)        # replace the field alias with the column relation_path
                 # then call getFieldAlias again with the real path
-                return self.getFieldAlias(f"{'.'.join(pathlist)}.{fldalias.relation_path}", #curr=curr,
-                                          basealias=basealias), #parent='.'.join(pathlist))  # call getFieldAlias recursively
+                #return self.getFieldAlias(f"{'.'.join(pathlist)}.{fldalias.relation_path}", #curr=curr,
+                #                                          basealias=basealias), #parent='.'.join(pathlist))  # call getFieldAlias recursively
+
+                
             elif fldalias.sql_formula or fldalias.select or fldalias.exists:
                 sql_formula = fldalias.sql_formula
                 attr = dict(fldalias.attributes)
