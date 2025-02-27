@@ -10,33 +10,33 @@ import time
 import os, os.path
 import sys
 from importlib import import_module
-import pkgutil
 from collections import defaultdict
 import gnr
 
 class CommandManager():
     def __init__(self):
-        BASE_DIR = os.path.dirname(gnr.__file__)
+        self.BASE_DIR = os.path.dirname(gnr.__file__)
         self.script_tree = defaultdict(dict)
         self.argv = sys.argv[:]
         self.argv.pop(0)
-        # load all available CLI commands looking
-        # inside the 'gnr' namespace
-        for section in pkgutil.iter_modules(path=[BASE_DIR]):
-            package_cli_cmds = pkgutil.iter_modules(
-                path=[os.path.join(section.module_finder.path, section.name, "cli")])
-            for command in package_cli_cmds:
-                if command.ispkg==False:
-                    alter_name = command.name.startswith("gnr")
-                    command_name = command.name.replace("gnr", "")
-                    if command_name:
-                        try:
-                            self.script_tree[section.name][command_name] = (
-                                command, alter_name,
-                                self.load_module(section.name, command_name, alter_name)
+        self.load_script_tree()
+
+    def load_script_tree(self):
+        cli_files = []
+        for root, dirs, files in os.walk(self.BASE_DIR):
+            if 'cli' in dirs:
+                section = os.path.basename(root)
+                cli_folder = os.path.join(root, 'cli')
+                for fname in os.listdir(cli_folder):
+                    if fname.startswith('gnr') and fname.endswith('.py'):
+                        package_name = fname.replace(".py", "")
+                        alter_name  = package_name.startswith("gnr")
+                        command_name = package_name.replace("gnr", "")
+                        self.script_tree[section][command_name] = (
+                            package_name, alter_name,
+                            (section, command_name, alter_name)
                             )
-                        except:
-                            continue
+                        
                         
     def load_module(self, section, command, alter_name):
         if alter_name == True:
@@ -49,10 +49,14 @@ class CommandManager():
         print("The 'gnr' command is a management command to access all the command line")
         print(f"utilities provided by the framework - Version {gnr.VERSION}\n")
 
-        print("Available sections and commands:")
-        for section in self.script_tree.keys():
-            self.print_section_commands(section)
-
+        sections = self.script_tree.keys()
+        if sections:
+            print("Available sections and commands:")
+            for section in sections:
+                self.print_section_commands(section)
+        else:
+            print("No section/commands found, please check your Genropy installation")
+            
     def print_section_help(self, section):
         print(f"Usage: gnr {section} <command> [options]")
         print(f"Version: {gnr.VERSION}\n")
@@ -64,7 +68,7 @@ class CommandManager():
             print(f"\n\033[92m[{section}]\033[00m\n")
             for command, cmd_impl in self.script_tree[section].items():
                 missing_doc =  "\033[91mMISSING DESCRIPTION\033[00m"
-                description = getattr(cmd_impl[2], "description", "")
+                description = getattr(self.load_module(*cmd_impl[2]), "description", "")
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")
@@ -77,7 +81,7 @@ class CommandManager():
         new_name = old_name
         for section, commands in self.script_tree.items():
             for new_cmd_name, cmd_impl in commands.items():
-                if cmd_impl[0].name == old_name:
+                if cmd_impl[0] == old_name:
                     new_name = f"gnr {section} {new_cmd_name}"
                     break
         return new_name
@@ -124,7 +128,7 @@ class CommandManager():
                 # sys.argv.pop(0)
                 # sys.argv.pop(0)
                 # sys.argv.insert(0, cmd_impl[0].name)
-                cmd_module = cmd_impl[2]
+                cmd_module = self.load_module(*cmd_impl[2])
 
                 # measure execution time
                 start_time = time.time()
