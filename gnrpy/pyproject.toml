@@ -57,8 +57,7 @@ dependencies = [
 	     "webob",
 	     "werkzeug>=2.3.8",
 	     "xlrd",
-	     "xlwt",
-		 "debugpy",
+	     "xlwt"
 	     ]
 
 [project.optional-dependencies]
@@ -71,6 +70,7 @@ mysql = ["mysqlclient"]
 developer = [
   "pytest", "pytest-cov", "graphviz", 
   "flake8",
+  "debugpy",
   "build", "twine","ipython",
   "psycopg2-binary",
   "psycopg",
