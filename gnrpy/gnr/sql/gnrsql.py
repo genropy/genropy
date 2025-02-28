@@ -874,7 +874,14 @@ class GnrSqlDb(GnrObject):
             if len(result[pkg]) == 0:
                 result.pop(pkg)
         return result
-            
+    
+    @property
+    def tables(self):
+        for pkgobj in self.packages.values():
+            for tblobj in pkgobj.tables.values():
+                yield tblobj.dbtable
+
+
     def table(self, tblname, pkg=None):
         """Return a table object
         

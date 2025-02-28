@@ -619,7 +619,7 @@ class DbModelSrc(GnrStructData):
                 pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
                 handler = getattr(pkgobj,'ext_config',None)
                 if handler:
-                    extKwargs = {} if extKwargs is True else extKwargs
+                    extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}
                     tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
                     handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
                     return result
