@@ -606,25 +606,22 @@ class DbModelSrc(GnrStructData):
             return vc.value
         kwargs.update(variant_kwargs)
         kwargs.update(ext_kwargs)
-        result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
+        result = self.child('column', f'columns.{name}', dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
         if ext_kwargs:
-            for k,v in ext_kwargs.items():
-                pkg = [p for p in self.root._dbmodel.db.application.packages.keys() if k.startswith(p)]
-                if not pkg:
+            for pkgExt,extKwargs in ext_kwargs.items():
+                if pkgExt not in self.root._dbmodel.db.application.packages:
                     continue
-                pkg = pkg[0]
-                command = k[len(pkg)+1:]
-                if not isinstance(v,dict):
-                    v = {(command or pkg):v}
-                handlername = f'configColumn_{command}' if command else 'configColumn'
-                handler = getattr(self.root._dbmodel.db.application.packages[pkg],handlername,None)
+                pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
+                handler = getattr(pkgobj,'ext_config',None)
                 if handler:
-                    handler(self,colname=name,colattr=result.attributes,**v)
+                    extKwargs = {} if extKwargs is True else extKwargs
+                    tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
+                    handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
                     return result
         return result
 

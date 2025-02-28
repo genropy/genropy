@@ -636,8 +636,14 @@ class GnrApp(object):
         self.project_packages_path = None
         self.enabled_packages = enabled_packages
         if instanceFolder:
-            if ':' in instanceFolder:
-                instanceFolder,self.remote_db  = instanceFolder.split(':',1)
+            if ":" in instanceFolder:
+                if sys.platform == 'win32':
+                    if instanceFolder.count(':') > 1:
+                        _s = instanceFolder.split(":")
+                        instanceFolder = ":".join(_s[:2])
+                        self.remote_db = _s[-1]
+                else:
+                    instanceFolder,self.remote_db  = instanceFolder.split(':',1)
             self.instanceFolder = self.instance_name_to_path(instanceFolder)
             self.instanceName = os.path.basename(self.instanceFolder)
             project_packages_path = os.path.normpath(os.path.join(self.instanceFolder, '..', '..', 'packages'))

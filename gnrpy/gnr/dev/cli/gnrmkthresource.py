@@ -380,9 +380,10 @@ def main():
     parser.add_argument("-c", "--columns", dest="columns", default=2,
                         help="number of columns in Form")
 
-    parser.add_argument("args", nargs="*")
+    parser.add_argument("models", nargs="+",
+                        help="list of models in the form of packagename.modelname or project:packagename.modelname")
     options = parser.parse_args()
-    thresourcemaker = ThResourceMaker(options, options.args)
+    thresourcemaker = ThResourceMaker(options, options.models)
     thresourcemaker.makeResources()
         
 if __name__ == '__main__':

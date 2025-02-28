@@ -912,7 +912,7 @@ class SqlDbAdapter(object):
         return f"'{strvalue}'"
 
     def columnSqlDefinition(self, sqlname, dtype=None, size=None, notnull=None, pkey=None, 
-                            unique=None,default=None,extra_sql=None):
+                            unique=None,default=None,extra_sql=None,generated_expression=None):
         """Return the statement string for creating a table's column
         """
         sql_list = [f'"{sqlname}" {self.columnSqlType(dtype, size)}'] 
@@ -924,7 +924,13 @@ class SqlDbAdapter(object):
             sql_list.append('UNIQUE')
         if default:
             sql_list.append(f'DEFAULT {self.valueToSql(default)}')
-        return f"{' '.join(sql_list)} {extra_sql or ''}"
+        extra_sql = extra_sql or ''
+        if generated_expression:
+            always = ' ALWAYS' if generated_expression.get('always') else ''
+            stored = ' STORED' if generated_expression.get('stored') else ''
+            expression = generated_expression.get('expression')
+            extra_sql = f"GENERATED{always} AS ({expression}){stored} {extra_sql}"
+        return f"{' '.join(sql_list)} {extra_sql}".strip()
 
     def columnSqlType(self, dtype, size=None):
         """
