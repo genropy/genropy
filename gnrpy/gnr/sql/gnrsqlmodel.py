@@ -589,8 +589,10 @@ class DbModelSrc(GnrStructData):
         :param onInserting: This sets the method name which is triggered when a record is inserted.  useful for adding a code for example
         :param onUpdating: This sets the method name which is triggered when a record is updated
         :param onDeleting: This sets the method name which is triggered when a record is deleted"""
-        indexed = boolean(indexed) if indexed is not None else None
-        unique = boolean(unique) if unique is not None else None
+        if isinstance(indexed,str):
+            indexed = boolean(indexed)
+        if isinstance(unique,str):
+            unique = boolean(unique)
         if '::' in name:
             name, dtype = name.split('::')
         if not 'columns' in self:
