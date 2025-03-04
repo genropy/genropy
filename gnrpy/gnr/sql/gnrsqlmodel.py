@@ -589,6 +589,11 @@ class DbModelSrc(GnrStructData):
         :param onInserting: This sets the method name which is triggered when a record is inserted.  useful for adding a code for example
         :param onUpdating: This sets the method name which is triggered when a record is updated
         :param onDeleting: This sets the method name which is triggered when a record is deleted"""
+
+        # indexed can be a dictionary, in case you want to specify the method or other
+        # parameters of the index. Since boolean of a dict becomes True, use the default
+        # btree method for the index. boolean() is used for retro-compatibility with older
+        # models defined in XML, where you can find things like "indexed='y'"
         if isinstance(indexed,str):
             indexed = boolean(indexed)
         if isinstance(unique,str):
