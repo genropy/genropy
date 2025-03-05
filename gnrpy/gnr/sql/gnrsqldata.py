@@ -53,14 +53,13 @@ COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
 
 BETWEENFINDER = re.compile(r"#BETWEEN\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
+
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
-
 
 ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
 THISFINDER = re.compile(r'#THIS\.([\w\.@]+)')
-
 
 class SqlCompiledQuery(object):
     """SqlCompiledQuery is a private class used by the :class:`SqlQueryCompiler` class.
@@ -137,6 +136,7 @@ class SqlQueryCompiler(object):
         self._currColKey = None
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
+        self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
@@ -615,6 +615,8 @@ class SqlQueryCompiler(object):
         if where:
             where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
+            where = self.db.adapter.macro_expander.replace(where,'TSQUERY')
+
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
         if env_conditions:
@@ -643,6 +645,7 @@ class SqlQueryCompiler(object):
         having = self.updateFieldDict(having or '')
         columns = BAGEXPFINDER.sub(self.expandBag,columns)
         columns = BAGCOLSEXPFINDER.sub(self.expandBagcols,columns)
+        columns = self.db.adapter.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
 
         col_list = uniquify([col for col in gnrstring.split(columns, ',') if col])
         col_dict = OrderedDict()
@@ -694,6 +697,8 @@ class SqlQueryCompiler(object):
                 else:
                     where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
+        order_by = self.db.adapter.macro_expander.replace(order_by,'TSRANK')
+
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)
         #self.cpl.additional_joins.reverse()
@@ -879,7 +884,7 @@ class SqlQueryCompiler(object):
         else:
             self.sqlparams[to_param] = date_to
             return ' %s <= :%s ' % (fld, to_param)
-    
+        
     def _recordWhere(self, where=None): # usato da record resolver e record getter
         if where:
             self.updateFieldDict(where)

@@ -1,13 +1,74 @@
 import threading
+import re
 from collections import defaultdict
 import subprocess
 from gnr.core.gnrbag import Bag
 from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter,MacroExpander as BaseMacroExpander
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
 DEFAULT_INDEX_METHOD = 'btree'
+
+class MacroExpander(BaseMacroExpander):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {
+        'TSQUERY': re.compile(
+            r"#TSQUERY\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*(?:,\s*(?P<language>:[\w]+))?\s*\)"
+        ),
+        'TSRANK': re.compile(
+            r"#TSRANK\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*\[(?P<weights>[\d.,\s]*)\])?\s*(?:,\s*(?P<normalization>\d+))?\s*\)"
+        ),
+        'TSHEADLINE': re.compile(
+            r"#TSHEADLINE\s*\(\s*(?P<text>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*'(?P<config>[^']+)')?\s*\)"
+        )
+    }
+
+    def _expand_TSQUERY(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field containing the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+        self.querycompiler.sqlparams[f'tsquery_{tsv}_querystring'] = querystring
+        self.querycompiler.sqlparams[f'tsquery_{tsv}_language'] = language
+        return f"{tsv} @@ websearch_to_tsquery({language}, {querystring})"
+
+    def _expand_TSRANK(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        tsvector = m.group("tsv").strip()  # The field containing the ts_vector
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        weights = m.group("weights")  # The weight array
+        normalization = m.group("normalization") or "8"  # Default normalization factor
+
+        weights_sql = f"ARRAY[{weights}]" if weights else "NULL"
+
+        return f"ts_rank({weights_sql}, {tsvector}, websearch_to_tsquery({language_param}, {query_param}), {normalization})"
+
+    def _expand_TSHEADLINE(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("text").strip()  # The text field to highlight
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
+
+        return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
+
+    def replace(self, sql_text, macro):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        for m in macro.split(','):
+            if m in self.macros:
+                sql_text = self.finders[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+    
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
@@ -70,6 +131,10 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     }
 
 
+    @property
+    def macroExpander(self):
+        return MacroExpander
+    
     def defaultMainSchema(self):
         return 'public'
 

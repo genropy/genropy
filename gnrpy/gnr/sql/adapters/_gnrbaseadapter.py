@@ -38,6 +38,27 @@ from gnr.sql import logger
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+class MacroExpander:
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {}
+
+    def __init__(self,querycompiler):
+        self.querycompiler = querycompiler
+        
+    def replace(self, sql_text, macro):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        if macro not in self.macros:
+            return sql_text
+
+        return self.finders[macro].sub(getattr(self, f'_expand_{macro}'), sql_text)
+    
+
 
 class SqlDbAdapter(object):
     """Base class for sql adapters.
@@ -103,6 +124,10 @@ class SqlDbAdapter(object):
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
+    
+    @property
+    def macroExpander(self):
+        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """

@@ -452,6 +452,8 @@ class TableHandlerView(BaseComponent):
         table = frame.grid.attributes['table']
 
         b.rowchild(label='!!Reload',action="$2.widget.reload();")
+        if self.isDeveloper():
+            b.rowchild(label='!!Touch selected records',action="$2.widget.touchSelectedRows();")
         b.rowchild(label='-')
         b.rowchild(label='!!Show Archived Records',checked='^.#parent.showLogicalDeleted',
                                 action="""SET .#parent.showLogicalDeleted= !GET .#parent.showLogicalDeleted;
@@ -1642,7 +1644,7 @@ class THViewUtils(BaseComponent):
                   'less', 'lesseq', 'between', 'isnull', 'istrue', 'isfalse', 'nullorempty', 'in', 'regex')
         optype_dict = dict(alpha=['contains', 'startswith', 'equal', 'wordstart',
                                   'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
-                                  'greater', 'greatereq', 'less', 'lesseq', 'between'],
+                                  'greater', 'greatereq', 'less', 'lesseq', 'between','fulltext'],
                            alpha_phonetic = ['contains','similar', 'startswith', 'equal', 'wordstart',
                                   'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
                                   'greater', 'greatereq', 'less', 'lesseq', 'between'],

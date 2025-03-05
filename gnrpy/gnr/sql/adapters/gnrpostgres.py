@@ -50,7 +50,74 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
+import re
 
+import re
+
+class TsVectorCompiler:
+    # Regex patterns for each macro with improved support for quoted identifiers
+    finders = {
+        'tsquery': re.compile(
+            r"#TSQUERY\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*(?:,\s*(?P<language>:[\w]+))?\s*\)"
+        ),
+        'tsrank': re.compile(
+            r"#TSRANK\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*\[(?P<weights>[\d.,\s]*)\])?\s*(?:,\s*(?P<normalization>\d+))?\s*\)"
+        ),
+        'tsheadline': re.compile(
+            r"#TSHEADLINE\s*\(\s*(?P<text>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
+            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*'(?P<config>[^']+)')?\s*\)"
+        )
+    }
+
+    # Function mapping for expansion
+    expanders = {
+        'tsquery': '_expand_tsquery',
+        'tsrank': '_expand_tsrank',
+        'tsheadline': '_expand_tsheadline'
+    }
+
+    def _expand_tsquery(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field containing the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+
+        return f"{tsv} @@ websearch_to_tsquery({language}, {querystring})"
+
+    def _expand_tsrank(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        tsvector = m.group("tsv").strip()  # The field containing the ts_vector
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        weights = m.group("weights")  # The weight array
+        normalization = m.group("normalization") or "8"  # Default normalization factor
+
+        weights_sql = f"ARRAY[{weights}]" if weights else "NULL"
+
+        return f"ts_rank({weights_sql}, {tsvector}, websearch_to_tsquery({language_param}, {query_param}), {normalization})"
+
+    def _expand_tsheadline(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("text").strip()  # The text field to highlight
+        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
+
+        return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
+
+    def adapt(self, sql_text, finder):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        if finder not in self.finders:
+            raise ValueError(f"Unknown finder: {finder}")
+
+        return self.finders[finder].sub(getattr(self, self.expanders[finder]), sql_text)
+    
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     
     def connect(self, storename=None, autoCommit=False):
@@ -100,6 +167,37 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         return RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*'), kwargs
 
 
+    def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
+                   group_by=None, having=None, order_by=None, limit=None, offset=None,
+                   for_update=None,maintable_as=None):
+        """
+        Create the final SQL query text, aggregation all query's portions
+        """
+        def _smartappend(x, name, value):
+            if value:
+                x.append('%s %s' % (name, value))
+        maintable_as = maintable_as or 't0'
+        result = ['SELECT  %s%s' % (distinct, columns)]
+        result.append(' FROM %s AS %s' % (maintable, maintable_as))
+        joins = joins or []
+        for join in joins:
+            result.append('       %s' % join)
+        _smartappend(result, 'WHERE', where)
+        _smartappend(result, 'GROUP BY', group_by)
+        _smartappend(result, 'HAVING', having)
+        _smartappend(result, 'ORDER BY', order_by)
+        _smartappend(result, 'LIMIT', limit)
+        _smartappend(result, 'OFFSET', offset)
+        if for_update:
+            result.append(self._selectForUpdate(maintable_as=maintable_as,mode=for_update))
+        result = '\n'.join(result)
+
+        tscompiler = TsVectorCompiler()
+        result = tscompiler.adapt(result,'tsquery')
+        result = tscompiler.adapt(result,'tsrank')
+        result = tscompiler.adapt(result,'tsheadline')
+        return result
+    
     @classmethod
     def _classConnection(cls, host=None, port=None,
                          user=None, password=None):
