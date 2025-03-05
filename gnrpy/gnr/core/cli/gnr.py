@@ -28,13 +28,14 @@ class CommandManager():
                 section = os.path.basename(root)
                 cli_folder = os.path.join(root, 'cli')
                 for fname in os.listdir(cli_folder):
-                    if fname.startswith('gnr') and fname.endswith('.py'):
+                    if fname.endswith('.py') and not fname.startswith("_"):
                         package_name = fname.replace(".py", "")
                         alter_name  = package_name.startswith("gnr")
                         command_name = package_name.replace("gnr", "")
-                        self.script_tree[section][command_name] = (
-                            package_name, alter_name,
-                            (section, command_name, alter_name)
+                        if command_name:
+                            self.script_tree[section][command_name] = (
+                                package_name, alter_name,
+                                (section, command_name, alter_name)
                             )
                         
                         
@@ -52,7 +53,7 @@ class CommandManager():
         sections = self.script_tree.keys()
         if sections:
             print("Available sections and commands:")
-            for section in sections:
+            for section in sorted(sections):
                 self.print_section_commands(section)
         else:
             print("No section/commands found, please check your Genropy installation")
@@ -66,7 +67,7 @@ class CommandManager():
     def print_section_commands(self, section):
         if self.script_tree[section]:
             print(f"\n\033[92m[{section}]\033[00m\n")
-            for command, cmd_impl in self.script_tree[section].items():
+            for command, cmd_impl in sorted(self.script_tree[section].items()):
                 missing_doc =  "\033[91mMISSING DESCRIPTION\033[00m"
                 description = getattr(self.load_module(*cmd_impl[2]), "description", "")
                 if not description:
