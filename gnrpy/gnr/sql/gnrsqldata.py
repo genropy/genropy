@@ -615,7 +615,7 @@ class SqlQueryCompiler(object):
         if where:
             where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
-            where = self.db.adapter.macro_expander.replace(where,'TSQUERY')
+            where = self.macro_expander.replace(where,'TSQUERY')
 
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
@@ -645,7 +645,7 @@ class SqlQueryCompiler(object):
         having = self.updateFieldDict(having or '')
         columns = BAGEXPFINDER.sub(self.expandBag,columns)
         columns = BAGCOLSEXPFINDER.sub(self.expandBagcols,columns)
-        columns = self.db.adapter.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
+        columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
 
         col_list = uniquify([col for col in gnrstring.split(columns, ',') if col])
         col_dict = OrderedDict()
@@ -697,7 +697,7 @@ class SqlQueryCompiler(object):
                 else:
                     where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
-        order_by = self.db.adapter.macro_expander.replace(order_by,'TSRANK')
+        order_by = self.macro_expander.replace(order_by,'TSRANK')
 
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)

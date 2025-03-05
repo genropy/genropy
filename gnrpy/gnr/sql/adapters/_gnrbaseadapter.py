@@ -38,7 +38,7 @@ from gnr.sql import logger
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
-class MacroExpander:
+class MacroExpander(object):
     # Regex patterns for each macro with improved support for quoted identifiers
     
     macros = {}
@@ -56,10 +56,8 @@ class MacroExpander:
         if macro not in self.macros:
             return sql_text
 
-        return self.finders[macro].sub(getattr(self, f'_expand_{macro}'), sql_text)
+        return self.macros[macro].sub(getattr(self, f'_expand_{macro}'), sql_text)
     
-
-
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     

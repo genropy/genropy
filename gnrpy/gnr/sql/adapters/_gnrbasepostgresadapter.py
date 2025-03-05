@@ -32,8 +32,9 @@ class MacroExpander(BaseMacroExpander):
         tsv = m.group("tsv").strip()  # The field containing the ts_vector
         querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
         language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
-        self.querycompiler.sqlparams[f'tsquery_{tsv}_querystring'] = querystring
-        self.querycompiler.sqlparams[f'tsquery_{tsv}_language'] = language
+        channel_code = m.group('code') or tsv.replace('.','_').replace('@','_').replace('$','')
+        self.querycompiler.sqlparams[f'tsquery_{channel_code}_querystring'] = querystring
+        self.querycompiler.sqlparams[f'tsquery_{channel_code}_language'] = language
         return f"{tsv} @@ websearch_to_tsquery({language}, {querystring})"
 
     def _expand_TSRANK(self, m):
@@ -52,23 +53,18 @@ class MacroExpander(BaseMacroExpander):
         """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
         text_field = m.group("text").strip()  # The text field to highlight
         query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
-        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        if query_param.startswith('$') or query_param.startswith('@'):
+            tsvcol = query_param
+            channel_code = tsvcol.replace('.','_').replace('@','_').replace('$','')
+            query_param = f':tsquery_{channel_code}_querystring'
+            language_param = f':tsquery_{channel_code}_language'
+        else:
+            language_param = m.group("language") or "'simple'"  # Default language to 'simple'
         config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
 
         return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
 
-    def replace(self, sql_text, macro):
-        """Expands macros in the given SQL text.
 
-        :param sql_text: The SQL string containing macros.
-        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
-        :return: The SQL string with macros expanded.
-        """
-        for m in macro.split(','):
-            if m in self.macros:
-                sql_text = self.finders[m].sub(getattr(self, f'_expand_{m}'), sql_text)
-        return sql_text
-    
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
