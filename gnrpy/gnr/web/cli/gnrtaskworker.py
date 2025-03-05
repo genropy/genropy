@@ -4,7 +4,7 @@
 from gnr.web.gnrtask import GnrTaskWorker
 from gnr.core.cli import GnrCliArgParse
 
-description = ""
+description = "Start the task worker service"
 
 def getOptions():
     parser = GnrCliArgParse(description=description)

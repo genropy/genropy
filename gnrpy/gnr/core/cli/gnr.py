@@ -9,10 +9,12 @@ and shift argv to let each script handle arguments by itself.
 import time
 import os, os.path
 import sys
+import platform
 from importlib import import_module
 import importlib.util
 from pathlib import Path
 from collections import defaultdict
+
 import gnr
 
 class CommandManager():
@@ -117,10 +119,15 @@ class CommandManager():
         
     def print_section_commands(self, section):
         if self.script_tree[section]:
-            print(f"\n\033[92m[{section}]\033[00m\n")
-            for command, cmd_impl in sorted(self.script_tree[section].items()):
+            if platform.system() in ['Linux', 'Darwin']:
+                print(f"\n\033[92m[{section}]\033[00m\n")
                 missing_doc =  "\033[91mMISSING DESCRIPTION\033[00m"
-                description = getattr(self.load_module(*cmd_impl[2]), "description", "")
+            else:
+                print(f"[{section}]")
+                missing_doc = "MISSING DESCRIPTION"
+                
+            for command, cmd_impl in sorted(self.script_tree[section].items()):
+                description = getattr(self.load_module(*cmd_impl[2]), "description", "").capitalize()
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")
