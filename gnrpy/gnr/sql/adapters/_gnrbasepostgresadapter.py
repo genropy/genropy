@@ -14,28 +14,34 @@ class MacroExpander(BaseMacroExpander):
     # Regex patterns for each macro with improved support for quoted identifiers
     
     macros = {
-        'TSQUERY': re.compile(
-            r"#TSQUERY\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*(?:,\s*(?P<language>:[\w]+))?\s*\)"
-        ),
+        'TSQUERY':re.compile(
+                            r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                            r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # Primo parametro: colonna
+                            r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # Secondo parametro: può iniziare con `:`, `$` o `@`
+                            r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # Terzo parametro (opzionale), stesso pattern del secondo
+                            r"\)"
+                    ),
         'TSRANK': re.compile(
             r"#TSRANK\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
             r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*\[(?P<weights>[\d.,\s]*)\])?\s*(?:,\s*(?P<normalization>\d+))?\s*\)"
         ),
         'TSHEADLINE': re.compile(
-            r"#TSHEADLINE\s*\(\s*(?P<text>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
-            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*'(?P<config>[^']+)')?\s*\)"
+                r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
+                r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
+                r"\)"
         )
     }
 
     def _expand_TSQUERY(self, m):
         """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
-        tsv = m.group("tsv").strip()  # The field containing the ts_vector
+        tsv = m.group("tsv").strip()  # The field contining the ts_vector
         querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
         language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
-        channel_code = m.group('code') or tsv.replace('.','_').replace('@','_').replace('$','')
-        self.querycompiler.sqlparams[f'tsquery_{channel_code}_querystring'] = querystring
-        self.querycompiler.sqlparams[f'tsquery_{channel_code}_language'] = language
-        return f"{tsv} @@ websearch_to_tsquery({language}, {querystring})"
+        sqlparams = self.querycompiler.sqlparams
+        channel_code = m.group('querycode') or 'current'
+        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language}
+        return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
 
     def _expand_TSRANK(self, m):
         """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
@@ -51,17 +57,13 @@ class MacroExpander(BaseMacroExpander):
 
     def _expand_TSHEADLINE(self, m):
         """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
-        text_field = m.group("text").strip()  # The text field to highlight
-        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
-        if query_param.startswith('$') or query_param.startswith('@'):
-            tsvcol = query_param
-            channel_code = tsvcol.replace('.','_').replace('@','_').replace('$','')
-            query_param = f':tsquery_{channel_code}_querystring'
-            language_param = f':tsquery_{channel_code}_language'
-        else:
-            language_param = m.group("language") or "'simple'"  # Default language to 'simple'
+        text_field = m.group("textfield").strip()  # The text field to highlight
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
         config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
-
         return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
 
 

@@ -259,6 +259,7 @@ class SqlQueryCompiler(object):
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
                 sql_formula = THISFINDER.sub(expandThis,sql_formula)
+                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
                 sql_formula_var = dictExtract(attr,'var_')
                 if sql_formula_var:
                     prefix = str(id(fldalias))

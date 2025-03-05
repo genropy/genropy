@@ -53,10 +53,11 @@ class MacroExpander(object):
         :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
         :return: The SQL string with macros expanded.
         """
-        if macro not in self.macros:
-            return sql_text
-
-        return self.macros[macro].sub(getattr(self, f'_expand_{macro}'), sql_text)
+        for m in macro.split(','):
+            if m not in self.macros:
+                continue
+            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
     
 class SqlDbAdapter(object):
     """Base class for sql adapters.
