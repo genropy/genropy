@@ -10,6 +10,8 @@ import time
 import os, os.path
 import sys
 from importlib import import_module
+import importlib.util
+from pathlib import Path
 from collections import defaultdict
 import gnr
 
@@ -19,9 +21,43 @@ class CommandManager():
         self.script_tree = defaultdict(dict)
         self.argv = sys.argv[:]
         self.argv.pop(0)
-        self.load_script_tree()
-
-    def load_script_tree(self):
+        self.instance = None
+        if self.argv:
+            if self.argv[0].startswith("@"):
+                from gnr.app.gnrapp import GnrApp
+                # try loading the instance, if it
+                # doesn't exists, continue with the framework
+                # commands
+                try:
+                    self.instance = GnrApp(self.argv[0][1:])
+                    self.load_instance_script_tree()
+                except:
+                    raise
+                    pass
+                
+        if not self.instance:
+            self.load_framework_script_tree()
+        
+    def load_instance_script_tree(self):
+        cli_files = []
+        for section, package_path in self.instance.package_path.items():
+            PACKAGE_DIR = os.path.join(package_path, section)
+            for root, dirs, files in os.walk(PACKAGE_DIR):
+                if 'cli' in dirs:
+                    cli_folder = os.path.join(root, 'cli')
+                    for fname in os.listdir(cli_folder):
+                        if fname.endswith('.py') and not fname.startswith("_"):
+                            package_name = fname.replace(".py", "")
+                            alter_name  = package_name.startswith("gnr")
+                            command_name = package_name.replace("gnr", "")
+                            if command_name:
+                                self.script_tree[section][command_name] = (
+                                    package_name, alter_name,
+                                    (section, command_name, alter_name)
+                                )
+        self.argv.pop(0)
+        
+    def load_framework_script_tree(self):
         cli_files = []
         for root, dirs, files in os.walk(self.BASE_DIR):
             if 'cli' in dirs:
@@ -38,25 +74,40 @@ class CommandManager():
                                 (section, command_name, alter_name)
                             )
                         
-                        
     def load_module(self, section, command, alter_name):
-        if alter_name == True:
-            command = f'gnr{command}'
-        module_name = f'gnr.{section}.cli.{command}'
-        return import_module(module_name)
+        if self.instance:
+            module_path = Path(os.path.join(self.instance.package_path[section], section, "cli", f"{command}.py")).resolve()
+            spec = importlib.util.spec_from_file_location(command, module_path)
+            if spec is None:
+                raise ImportError(f"Cannot load module from {module_path}")
+    
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[command] = module
+            spec.loader.exec_module(module)
+            return module            
+        else:
+            if alter_name == True:
+                command = f'gnr{command}'
+            module_name = f'gnr.{section}.cli.{command}'
+            return import_module(module_name)
         
     def print_main_help(self):
         print("Usage: gnr <section> <command> [options]\n")
+        print("Or: gnr @instancename <package> <command> [options]\n")
         print("The 'gnr' command is a management command to access all the command line")
-        print(f"utilities provided by the framework - Version {gnr.VERSION}\n")
+        print(f"utilities provided by Genropy framework and projects - Version {gnr.VERSION}\n")
 
         sections = self.script_tree.keys()
         if sections:
-            print("Available sections and commands:")
+            if self.instance:
+                print(f"Available commands from instance {self.instance.instanceName} packages:")
+            else:
+                print(f"Available sections and commands:")
+                
             for section in sorted(sections):
                 self.print_section_commands(section)
         else:
-            print("No section/commands found, please check your Genropy installation")
+            print("No section/commands found.")
             
     def print_section_help(self, section):
         print(f"Usage: gnr {section} <command> [options]")
@@ -108,7 +159,7 @@ class CommandManager():
                 self.print_section_help(self.argv[0])
             else:
                 print("Command section not found! please run with --help")
-                
+
         if len(self.argv) > 1:
             if self.argv[0] not in self.script_tree:
                 print("Command section not found! please run with --help")
@@ -122,18 +173,23 @@ class CommandManager():
             if self.argv[1] in self.script_tree[self.argv[0]]:
                 cmd_impl = self.script_tree[self.argv[0]][self.argv[1]]
                 # trick argparse for command implementation
-                command_name = " ".join(sys.argv[:3])
-                sys.argv = sys.argv[3:]
+                if self.instance:
+                    command_name = " ".join(sys.argv[:4])
+                    sys.argv = sys.argv[4:]
+                else:
+                    command_name = " ".join(sys.argv[:3])
+                    sys.argv = sys.argv[3:]
                 sys.argv.insert(0, command_name)
-                # sys.argv.pop(0)
-                # sys.argv.pop(0)
-                # sys.argv.pop(0)
-                # sys.argv.insert(0, cmd_impl[0].name)
+                
                 cmd_module = self.load_module(*cmd_impl[2])
 
                 # measure execution time
                 start_time = time.time()
-                cmd_module.main()
+                if self.instance:
+                    cmd_module.main(self.instance)
+                else:
+                    cmd_module.main()
+                    
                 end_time = time.time() - start_time
                 
                 if "--timeit" in sys.argv:
