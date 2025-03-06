@@ -22,8 +22,9 @@ class MacroExpander(BaseMacroExpander):
                             r"\)"
                     ),
         'TSRANK': re.compile(
-            r"#TSRANK\s*\(\s*(?P<tsv>\"?[\w\.\@\$]+\"?(?:\s*\.\s*\"?[\w\.\@\$]+\"?)?)\s*,\s*(?P<querystring>:[\w]+)\s*"
-            r"(?:,\s*(?P<language>:[\w]+))?\s*(?:,\s*\[(?P<weights>[\d.,\s]*)\])?\s*(?:,\s*(?P<normalization>\d+))?\s*\)"
+            r"#TSRANK(?:_(?P<code>\w+))?"
+            r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
+            r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
         ),
         'TSHEADLINE': re.compile(
                 r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
@@ -40,20 +41,25 @@ class MacroExpander(BaseMacroExpander):
         language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
         sqlparams = self.querycompiler.sqlparams
         channel_code = m.group('querycode') or 'current'
-        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language}
+        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
         return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
 
     def _expand_TSRANK(self, m):
         """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
-        tsvector = m.group("tsv").strip()  # The field containing the ts_vector
-        query_param = m.group("querystring")  # The search text parameter (e.g., :querystring)
-        language_param = m.group("language") or "'simple'"  # Default language to 'simple'
-        weights = m.group("weights")  # The weight array
-        normalization = m.group("normalization") or "8"  # Default normalization factor
-
-        weights_sql = f"ARRAY[{weights}]" if weights else "NULL"
-
-        return f"ts_rank({weights_sql}, {tsvector}, websearch_to_tsquery({language_param}, {query_param}), {normalization})"
+        weights = m.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
+        normalization = m.group("normalization") or 8  # Default normalization factor
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        tsvector = tsquery_params['tsv']
+        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
+        if normalization:
+            result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        if weights:
+            result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        return result
 
     def _expand_TSHEADLINE(self, m):
         """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
@@ -63,7 +69,7 @@ class MacroExpander(BaseMacroExpander):
         tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
         query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
         language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
-        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
         return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
 
 
