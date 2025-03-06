@@ -6,7 +6,7 @@ from gnr.core.gnrremotebag import RemoteBagServer
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 
-description = ""
+description = "Start a remote bag server"
 
 def getOptions():
     parser = GnrCliArgParse(description=description)

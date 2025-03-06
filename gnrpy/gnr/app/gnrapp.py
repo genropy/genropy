@@ -367,7 +367,8 @@ class GnrPackagePlugin(object):
         
 class GnrPackage(object):
     """TODO"""
-    def __init__(self, pkg_id, application, path=None, filename=None, project=None,**pkgattrs):
+    def __init__(self, pkg_id, application,
+                 path=None, filename=None, project=None, **pkgattrs):
         self.id = pkg_id
         filename = filename or pkg_id
         self.application = application
@@ -376,7 +377,6 @@ class GnrPackage(object):
         # for path, which is the default value of the method
         # parameter, and no checks are being made on it.
         self.packageFolder = os.path.join(path, filename)
-        
         self.libPath = os.path.join(self.packageFolder, 'lib')
         sys.path.append(self.libPath)
         self.attributes = {}
@@ -405,7 +405,7 @@ class GnrPackage(object):
         except Exception as e:
             logger.exception(e)
             raise GnrImportException(
-                    "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
+                    "Cannot import package %s from %s: %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py'), str(e)))
         self.pkgMixin = GnrMixinObj()
         instanceMixin(self.pkgMixin, getattr(self.main_module, 'Package', None))
         
@@ -760,13 +760,15 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
+
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+
         
         if not forTesting:
             dbattrs = self.config.getAttr('db') or {}
@@ -849,14 +851,24 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for a, p in self.packages.items():
-            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in pkgid:
+                project, pkgid = pkgid.split(":")
+            else:
+                project = None
+            if not pkgattrs.get('path'):
+                path = self.pkg_name_to_path(pkgid,project)
+            if not os.path.isabs(path):
+                path = self.realPath(path)
+
+            requirements_file = os.path.join(path, pkgid, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(a)
+                            instance_deps[dep_name].append(pkgid
+                                                           )
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
