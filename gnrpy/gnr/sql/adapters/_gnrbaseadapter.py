@@ -1356,6 +1356,13 @@ class GnrWhereTranslator(object):
         "!!Contains"
         return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
 
+
+    def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
+        "!!Matches"
+        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+
+
+
     def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"
         return self.unaccentTpl(tblobj,column,'>')  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))

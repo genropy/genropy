@@ -254,12 +254,12 @@ class SqlQueryCompiler(object):
                         sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
+                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
                 sql_formula = THISFINDER.sub(expandThis,sql_formula)
-                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
                 sql_formula_var = dictExtract(attr,'var_')
                 if sql_formula_var:
                     prefix = str(id(fldalias))
@@ -272,7 +272,7 @@ class SqlQueryCompiler(object):
                 for key, value in list(subreldict.items()):
                     subColPars[key] = self.getFieldAlias(value, curr=curr, basealias=alias)
                 sql_formula = gnrstring.templateReplace(sql_formula, subColPars, safeMode=True)
-                return '( %s )' %sql_formula
+                return f'( {sql_formula} )' 
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -646,7 +646,6 @@ class SqlQueryCompiler(object):
         having = self.updateFieldDict(having or '')
         columns = BAGEXPFINDER.sub(self.expandBag,columns)
         columns = BAGCOLSEXPFINDER.sub(self.expandBagcols,columns)
-        columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
 
         col_list = uniquify([col for col in gnrstring.split(columns, ',') if col])
         col_dict = OrderedDict()
@@ -698,8 +697,6 @@ class SqlQueryCompiler(object):
                 else:
                     where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
-        order_by = self.macro_expander.replace(order_by,'TSRANK')
-
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)
         #self.cpl.additional_joins.reverse()
@@ -724,11 +721,11 @@ class SqlQueryCompiler(object):
                         # of rows returned by the query, but it is correct in terms of main table records.
                         # It is the right behaviour ???? Yes in some cases: see SqlSelection._aggregateRows
         self.cpl.distinct = distinct
-        self.cpl.columns = columns
+        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
         self.cpl.where = where
         self.cpl.group_by = group_by
         self.cpl.having = having
-        self.cpl.order_by = order_by
+        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update

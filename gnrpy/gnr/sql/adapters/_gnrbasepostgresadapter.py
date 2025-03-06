@@ -64,7 +64,7 @@ class MacroExpander(BaseMacroExpander):
         query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
         language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
         config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=3"
-        return f"ts_headline({language_param}, {text_field}, websearch_to_tsquery({language_param}, {query_param}), '{config}')"
+        return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
 
 
 

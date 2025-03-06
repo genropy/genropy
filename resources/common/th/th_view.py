@@ -1644,14 +1644,13 @@ class THViewUtils(BaseComponent):
                   'less', 'lesseq', 'between', 'isnull', 'istrue', 'isfalse', 'nullorempty', 'in', 'regex')
         optype_dict = dict(alpha=['contains', 'startswith', 'equal', 'wordstart',
                                   'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
-                                  'greater', 'greatereq', 'less', 'lesseq', 'between','fulltext'],
-                           alpha_phonetic = ['contains','similar', 'startswith', 'equal', 'wordstart',
-                                  'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
                                   'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            date=['equal', 'in', 'isnull', 'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            number=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'isnull', 'in'],
                            boolean=['istrue', 'isfalse', 'isnull'],
                            others=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'in'])
+        optype_dict['alpha_phonetic'] = ['similar'] + optype_dict['alpha']
+        optype_dict['alpha_fulltext'] = ['fulltext'] + optype_dict['alpha']
         queryModes = (('S','!!Search'),('U','!!Union'),('I','!!Intersect'),('D','!!Difference'))
         wt = self.db.whereTranslator
         for op,caption in queryModes:

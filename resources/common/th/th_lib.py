@@ -9,6 +9,7 @@ from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
+
 class TableHandlerCommon(BaseComponent):
     def onLoadingRelatedMethod(self,table,sqlContextName=None):
         return 'onLoading_%s' % table.replace('.', '_')
