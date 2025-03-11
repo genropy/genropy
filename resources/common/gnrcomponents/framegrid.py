@@ -240,8 +240,6 @@ class FrameGridTools(BaseComponent):
                                         **box_kwargs)
         if closable !='close':
             bc.data('.use_grouper',True)
-        if splitter:
-            view.grid_envelope.grid_pane.attributes['margin_left'] = '6px'
         inattr = view.getInheritedAttributes()
         bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
