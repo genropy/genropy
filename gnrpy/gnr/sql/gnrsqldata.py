@@ -53,14 +53,13 @@ COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
 
 BETWEENFINDER = re.compile(r"#BETWEEN\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
+
 BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
-
 
 ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
 THISFINDER = re.compile(r'#THIS\.([\w\.@]+)')
-
 
 class SqlCompiledQuery(object):
     """SqlCompiledQuery is a private class used by the :class:`SqlQueryCompiler` class.
@@ -137,6 +136,7 @@ class SqlQueryCompiler(object):
         self._currColKey = None
         self.aliasPrefix = aliasPrefix or 't'
         self.locale = locale
+        self.macro_expander = self.db.adapter.macroExpander(self)
 
     def aliasCode(self,n):
         return '%s%i' %(self.aliasPrefix,n)
@@ -254,6 +254,7 @@ class SqlQueryCompiler(object):
                         sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
+                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = BETWEENFINDER.sub(self.expandBetween, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
@@ -271,7 +272,7 @@ class SqlQueryCompiler(object):
                 for key, value in list(subreldict.items()):
                     subColPars[key] = self.getFieldAlias(value, curr=curr, basealias=alias)
                 sql_formula = gnrstring.templateReplace(sql_formula, subColPars, safeMode=True)
-                return '( %s )' %sql_formula
+                return f'( {sql_formula} )' 
             elif fldalias.py_method:
                 #self.cpl.pyColumns.append((fld,getattr(self.tblobj.dbtable,fldalias.py_method,None)))
                 self.cpl.pyColumns.append((fld,getattr(fldalias.table.dbtable,fldalias.py_method,None)))
@@ -615,6 +616,8 @@ class SqlQueryCompiler(object):
         if where:
             where = BETWEENFINDER.sub(self.expandBetween, where)
             where = PERIODFINDER.sub(self.expandPeriod, where)
+            where = self.macro_expander.replace(where,'TSQUERY')
+
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
         if env_conditions:
@@ -718,11 +721,11 @@ class SqlQueryCompiler(object):
                         # of rows returned by the query, but it is correct in terms of main table records.
                         # It is the right behaviour ???? Yes in some cases: see SqlSelection._aggregateRows
         self.cpl.distinct = distinct
-        self.cpl.columns = columns
+        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE')
         self.cpl.where = where
         self.cpl.group_by = group_by
         self.cpl.having = having
-        self.cpl.order_by = order_by
+        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK')
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
@@ -879,7 +882,7 @@ class SqlQueryCompiler(object):
         else:
             self.sqlparams[to_param] = date_to
             return ' %s <= :%s ' % (fld, to_param)
-    
+        
     def _recordWhere(self, where=None): # usato da record resolver e record getter
         if where:
             self.updateFieldDict(where)

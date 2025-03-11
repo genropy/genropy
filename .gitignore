@@ -32,3 +32,4 @@ coverage.xml
 .aider*
 gnrpy/tests/sql/_main_connection
 gnrpy/tests/_main_connection
+.qodo

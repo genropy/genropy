@@ -136,6 +136,12 @@ cursorZoom_plus{
     filter:blur(3px);
 }
 
+.FragmentDelimiter{
+    border:0;
+    height:1px;
+    background: #ddd;
+}
+
 .iskeepable{
 
 }
