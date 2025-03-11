@@ -38,7 +38,27 @@ from gnr.sql import logger
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+class MacroExpander(object):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {}
 
+    def __init__(self,querycompiler):
+        self.querycompiler = querycompiler
+        
+    def replace(self, sql_text, macro):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        for m in macro.split(','):
+            if m not in self.macros:
+                continue
+            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+    
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
@@ -103,6 +123,10 @@ class SqlDbAdapter(object):
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
+    
+    @property
+    def macroExpander(self):
+        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """
@@ -1331,6 +1355,13 @@ class GnrWhereTranslator(object):
     def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
         return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
+
+
+    def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
+        "!!Matches"
+        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+
+
 
     def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"

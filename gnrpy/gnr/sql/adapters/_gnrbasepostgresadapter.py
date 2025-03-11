@@ -1,13 +1,78 @@
 import threading
+import re
 from collections import defaultdict
 import subprocess
 from gnr.core.gnrbag import Bag
 from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter,MacroExpander as BaseMacroExpander
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
 DEFAULT_INDEX_METHOD = 'btree'
+
+class MacroExpander(BaseMacroExpander):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {
+        'TSQUERY':re.compile(
+                            r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                            r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # Primo parametro: colonna
+                            r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # Secondo parametro: può iniziare con `:`, `$` o `@`
+                            r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # Terzo parametro (opzionale), stesso pattern del secondo
+                            r"\)"
+                    ),
+        'TSRANK': re.compile(
+            r"#TSRANK(?:_(?P<code>\w+))?"
+            r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
+            r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
+        ),
+        'TSHEADLINE': re.compile(
+                r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
+                r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
+                r"\)"
+        )
+    }
+
+    def _expand_TSQUERY(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field contining the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+        sqlparams = self.querycompiler.sqlparams
+        channel_code = m.group('querycode') or 'current'
+        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
+        return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
+
+    def _expand_TSRANK(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        weights = m.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
+        normalization = m.group("normalization") or 8  # Default normalization factor
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        tsvector = tsquery_params['tsv']
+        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
+        if normalization:
+            result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        if weights:
+            result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        return result
+
+    def _expand_TSHEADLINE(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("textfield").strip()  # The text field to highlight
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
+        return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
+
+
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
@@ -70,6 +135,10 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     }
 
 
+    @property
+    def macroExpander(self):
+        return MacroExpander
+    
     def defaultMainSchema(self):
         return 'public'
 
