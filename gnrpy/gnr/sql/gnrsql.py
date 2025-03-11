@@ -881,6 +881,17 @@ class GnrSqlDb(GnrObject):
             for tblobj in pkgobj.tables.values():
                 yield tblobj.dbtable
 
+    def filteredTables(self,filterStr=None):
+        regex_pattern = None
+        if filterStr is not None:
+            patterns = filterStr.split(',')
+            regex_pattern = rf"^({'|'.join(re.escape(p) for p in patterns)})(\.|$)"
+        for tblobj in self.tables:
+            if regex_pattern is None or bool(re.match(regex_pattern, tblobj.fullname)):
+                yield tblobj
+
+
+
 
     def table(self, tblname, pkg=None):
         """Return a table object
