@@ -1,5 +1,4 @@
 import os
-import logging
 import argparse
 import platform
 ESC = '\033['
