@@ -12,6 +12,15 @@ from gnr.core.gnrconfig import getGnrConfig
 werkzeug_logger = logging.getLogger("werkzeug")
 werkzeug_logger.setLevel(logging.WARNING)
 
+LOGGING_LEVELS = {
+    'notset': logging.NOTSET,
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'warn': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -62,15 +71,17 @@ def init_logging_system(conf_bag=None):
     except:
         logging_conf = None
 
-
+    env_log_level= os.environ.get("GNR_LOGLEVEL", None)
+    
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
         root_logger.handlers = []
         default_handler_cls = "gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler"
         root_logger.addHandler(_load_handler(default_handler_cls)(stream=sys.stdout))
-        auditor = logging.getLogger("gnraudit")
+        root_logger.setLevel(LOGGING_LEVELS.get(env_log_level, logging.WARNING))
 
+        auditor = logging.getLogger("gnraudit")
         # do not propagate messages from the audit to the root
         # we want to keep this separated as default
         auditor.propagate = False
@@ -78,7 +89,6 @@ def init_logging_system(conf_bag=None):
         auditor_default_cls = "gnr.core.loghandlers.auditor.GnrAuditorHandler"
         auditor.addHandler(_load_handler(auditor_default_cls)(stream=sys.stdout))
 
-        root_logger.setLevel(logging.WARNING)
         return root_logger
 
     if logging_conf:
@@ -88,6 +98,11 @@ def init_logging_system(conf_bag=None):
 
     # configuration completed
     root_logger.info("Logging infrastrucure loaded")
+
+    # set the global level if defined in environment
+
+    if env_log_level is not None:
+        set_gnr_log_global_level(LOGGING_LEVELS.get(env_log_level))
     return root_logger
 
 
