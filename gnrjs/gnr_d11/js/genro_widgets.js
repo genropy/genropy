@@ -3266,6 +3266,10 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
     
     created: function(widget, savedAttrs, sourceNode) {
         var that = this;
+        widget.addEventListener("mousedown", function(event) {
+            event.preventDefault(); 
+            event.stopPropagation(); 
+        });
         dojo.connect(widget, 'onclick', function(e){
             that.clickHandler(sourceNode,e);
         });
