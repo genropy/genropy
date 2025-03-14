@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import pickle
 import os
 import shutil
@@ -31,6 +30,7 @@ import locale
 from time import time
 from multiprocessing.pool import ThreadPool
 
+from gnr.sql import logger
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrlang import GnrObject
@@ -43,7 +43,6 @@ from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
 
-gnrlogger = logging.getLogger(__name__)
 
 def in_triggerstack(func):
     """TODO"""
@@ -271,11 +270,11 @@ class GnrSqlDb(GnrObject):
             shutil.rmtree(extractpath)
 
     def _autoRestore_one(self,dbname=None,filepath=None,**kwargs):
-        print('drop',dbname)
+        logger.debug('drop %s',dbname)
         self.dropDb(dbname)
-        print('create',dbname)
+        logger.debug('create %s',dbname)
         self.createDb(dbname)
-        print('restore',dbname,filepath)
+        logger.debug('restore %s from %s ',dbname,filepath)
         self.restore(filepath,dbname=dbname,**kwargs)
 
 
@@ -550,7 +549,7 @@ class GnrSqlDb(GnrObject):
                     self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable,delta_time=time()-t_0)
             
             except Exception as e:
-                gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
+                logger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
                 self.rollback()
                 raise
 
@@ -824,8 +823,7 @@ class GnrSqlDb(GnrObject):
         if len(deferred)==0:
             return result
         for k,v in list(deferred.items()):
-            print('table ',k, end=' ')
-            print('\t\t blocked by',v)
+            logger.info("Table %s blocked by %s", k, v)
         raise GnrSqlException(description='Blocked dependencies')
 
 
@@ -876,7 +874,25 @@ class GnrSqlDb(GnrObject):
             if len(result[pkg]) == 0:
                 result.pop(pkg)
         return result
-            
+    
+    @property
+    def tables(self):
+        for pkgobj in self.packages.values():
+            for tblobj in pkgobj.tables.values():
+                yield tblobj.dbtable
+
+    def filteredTables(self,filterStr=None):
+        regex_pattern = None
+        if filterStr is not None:
+            patterns = filterStr.split(',')
+            regex_pattern = rf"^({'|'.join(re.escape(p) for p in patterns)})(\.|$)"
+        for tblobj in self.tables:
+            if regex_pattern is None or bool(re.match(regex_pattern, tblobj.fullname)):
+                yield tblobj
+
+
+
+
     def table(self, tblname, pkg=None):
         """Return a table object
         

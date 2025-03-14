@@ -5,12 +5,12 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import customizable
-from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,

@@ -231,10 +231,11 @@ class FrameGridTools(BaseComponent):
         default_closable.update(closable_kwargs)
         box_kwargs.setdefault('border_right','1px solid silver')
         box_kwargs.update(default_closable)
+        splitter = False if self.isMobile else splitter
         bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        splitter=False if self.isMobile else splitter,
+                                        splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **box_kwargs)
         if closable !='close':
@@ -432,7 +433,7 @@ class FrameGrid(BaseComponent):
         grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
                                             title=grid_kwargs.pop('title','!!Grid'),_class='gridRoundedEnvelope' if roundedEnvelope else None)
-        grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,
+        grid = envelope_bc.contentPane(region='center',childname='grid_pane').includedView(autoWidth=False,
                           storepath=storepath,datamode=datamode,
                           dynamicStorepath=dynamicStorepath,
                           datapath='.grid',

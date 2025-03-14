@@ -5,12 +5,9 @@ import glob
 from multiprocessing import Pool
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
-
-enable_colored_logging()
+from gnr.core.gnrconfig import getGnrConfig
+from gnr.app.gnrapp import GnrApp
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)
@@ -130,11 +127,6 @@ def main():
                         dest='verbose',
                         action='store_true',
                         help="Verbose mode")
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        default=False,
-                        action='store_true',
-                        help="Debug mode")
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance identified by supplied name")

@@ -207,8 +207,8 @@ class Service(StorageService):
             return
 
     def local_path(self, *args, **kwargs):
-        mode = kwargs.get('mode', 'r')
-        keep = kwargs.get('keep', False)
+        mode = kwargs.get('mode') or 'r'
+        keep = kwargs.get('keep') or False
         internalpath = self.internal_path(*args)
         if self.readonly:
             if 'b' in mode:

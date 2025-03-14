@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import sys
 import datetime
 import warnings
 import re
@@ -34,11 +33,32 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrdate import decodeDatePeriod
+from gnr.sql import logger
 
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+class MacroExpander(object):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {}
 
+    def __init__(self,querycompiler):
+        self.querycompiler = querycompiler
+        
+    def replace(self, sql_text, macro):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        for m in macro.split(','):
+            if m not in self.macros:
+                continue
+            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+    
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
@@ -96,14 +116,17 @@ class SqlDbAdapter(object):
         
         if len(missing):
             missing_desc = ", ".join(missing)
-            print(f"WARNING: DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors.",
-                  file=sys.stderr)
+            logger.warning(f"DB adapter required executables not found: {missing_desc}, please install to avoid runtime errors."),
             
     def adaptSqlName(self,name):
         """
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
+    
+    @property
+    def macroExpander(self):
+        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """
@@ -913,7 +936,7 @@ class SqlDbAdapter(object):
         return f"'{strvalue}'"
 
     def columnSqlDefinition(self, sqlname, dtype=None, size=None, notnull=None, pkey=None, 
-                            unique=None,default=None,extra_sql=None):
+                            unique=None,default=None,extra_sql=None,generated_expression=None):
         """Return the statement string for creating a table's column
         """
         sql_list = [f'"{sqlname}" {self.columnSqlType(dtype, size)}'] 
@@ -925,7 +948,13 @@ class SqlDbAdapter(object):
             sql_list.append('UNIQUE')
         if default:
             sql_list.append(f'DEFAULT {self.valueToSql(default)}')
-        return f"{' '.join(sql_list)} {extra_sql or ''}"
+        extra_sql = extra_sql or ''
+        if generated_expression:
+            always = ' ALWAYS' if generated_expression.get('always') else ''
+            stored = ' STORED' if generated_expression.get('stored') else ''
+            expression = generated_expression.get('expression')
+            extra_sql = f"GENERATED{always} AS ({expression}){stored} {extra_sql}"
+        return f"{' '.join(sql_list)} {extra_sql}".strip()
 
     def columnSqlType(self, dtype, size=None):
         """
@@ -1326,6 +1355,13 @@ class GnrWhereTranslator(object):
     def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
         return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
+
+
+    def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
+        "!!Matches"
+        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+
+
 
     def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"

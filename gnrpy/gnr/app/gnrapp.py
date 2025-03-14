@@ -22,7 +22,6 @@
 
 import tempfile
 import atexit
-import logging
 import shutil
 import locale
 import sys
@@ -40,19 +39,18 @@ import subprocess
 from collections import defaultdict
 from email.mime.text import MIMEText
 
-from gnr.utils import ssmtplib
-from gnr.app.gnrdeploy import PathResolver
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs
-
 from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrException
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
-from gnr.sql.gnrsql import GnrSqlDb
+from gnr.core.gnrconfig import getGnrConfig
+from gnr.utils import ssmtplib
+from gnr.app.gnrdeploy import PathResolver
+from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
-from gnr.app.gnrconfig import getGnrConfig
-log = logging.getLogger(__name__)
+from gnr.sql.gnrsql import GnrSqlDb
 
 class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
@@ -368,7 +366,8 @@ class GnrPackagePlugin(object):
         
 class GnrPackage(object):
     """TODO"""
-    def __init__(self, pkg_id, application, path=None, filename=None, project=None,**pkgattrs):
+    def __init__(self, pkg_id, application,
+                 path=None, filename=None, project=None, **pkgattrs):
         self.id = pkg_id
         filename = filename or pkg_id
         self.application = application
@@ -377,7 +376,6 @@ class GnrPackage(object):
         # for path, which is the default value of the method
         # parameter, and no checks are being made on it.
         self.packageFolder = os.path.join(path, filename)
-        
         self.libPath = os.path.join(self.packageFolder, 'lib')
         sys.path.append(self.libPath)
         self.attributes = {}
@@ -404,9 +402,9 @@ class GnrPackage(object):
         try:
             self.main_module = gnrImport(os.path.join(self.packageFolder, 'main.py'),avoidDup=True)
         except Exception as e:
-            log.exception(e)
+            logger.exception(e)
             raise GnrImportException(
-                    "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
+                    "Cannot import package %s from %s: %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py'), str(e)))
         self.pkgMixin = GnrMixinObj()
         instanceMixin(self.pkgMixin, getattr(self.main_module, 'Package', None))
         
@@ -625,8 +623,9 @@ class GnrApp(object):
     >>> testgarden = GnrApp('testgarden')
     >>> testgarden.db.table('showcase.person').query().count()
     12"""
-    def __init__(self, instanceFolder=None,custom_config=None, forTesting=False, 
-                debug=False, restorepath=None,enabled_packages=None,**kwargs):
+    def __init__(self, instanceFolder=None, custom_config=None,
+                 forTesting=False, debug=False, restorepath=None,
+                 enabled_packages=None, **kwargs):
         self.aux_instances = {}
         self.gnr_config = getGnrConfig(set_environment=True)
         self.debug=debug
@@ -636,8 +635,14 @@ class GnrApp(object):
         self.project_packages_path = None
         self.enabled_packages = enabled_packages
         if instanceFolder:
-            if '@' in instanceFolder:
-                instanceFolder,self.remote_db  = instanceFolder.split('@',1)
+            if ":" in instanceFolder:
+                if sys.platform == 'win32':
+                    if instanceFolder.count(':') > 1:
+                        _s = instanceFolder.split(":")
+                        instanceFolder = ":".join(_s[:2])
+                        self.remote_db = _s[-1]
+                else:
+                    instanceFolder,self.remote_db  = instanceFolder.split(':',1)
             self.instanceFolder = self.instance_name_to_path(instanceFolder)
             self.instanceName = os.path.basename(self.instanceFolder)
             project_packages_path = os.path.normpath(os.path.join(self.instanceFolder, '..', '..', 'packages'))
@@ -664,14 +669,16 @@ class GnrApp(object):
         if custom_config:
             self.config.update(custom_config)
         if self.remote_db:
-            remote_db_node = self.config.getNode('remote_db.%s' %self.remote_db)
-            remotedbattr = remote_db_node.attr
-            if remotedbattr and 'ssh_host' in remotedbattr:
-                db_node = self.config.getNode('db')
-                sshattr = dict(db_node.attr)
-                sshattr.update(remotedbattr)
-                sshattr['forwarded_port'] = sshattr.pop('port',None)
-                db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
+            remote_db_node = self.config.getNode(f'remote_db.{self.remote_db}')
+            if remote_db_node:
+                remotedbattr = remote_db_node.attr
+                if remotedbattr:
+                    db_node = self.config.getNode('db')
+                    if 'ssh_host' in remotedbattr:
+                        sshattr = dict(db_node.attr)
+                        sshattr.update(remotedbattr)
+                        sshattr['forwarded_port'] = sshattr.pop('port',None)
+                        db_node.attr['port'] = self.gnrdaemon.sshtunnel_port(**sshattr)
         if 'menu' not in self.config:
             self.config['menu'] = Bag()
             #------ application instance customization-------
@@ -731,14 +738,14 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
 
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
 
         
         if not forTesting:
@@ -747,7 +754,14 @@ class GnrApp(object):
             if dbattrs.get('dbname') == '_dummydb':
                 pass
             elif self.remote_db:
-                dbattrs.update(self.config.getAttr('remote_db.%s' %self.remote_db))
+                rdb = self.config.get(f"remote_db")#.{self.remote_db}")
+                if rdb:
+                    rconf = rdb.getAttr(self.remote_db)
+                    if rconf:
+                        logger.info("Using remote db: %s", self.remote_db)
+                        dbattrs.update(rconf)
+                    else:
+                        logger.error("Remote db %s does not exists", self.remote_db)
             elif dbattrs and dbattrs.get('implementation') == 'sqlite':
                 dbname = dbattrs.pop('filename',None) or dbattrs['dbname']
                 if not os.path.isabs(dbname):
@@ -759,16 +773,17 @@ class GnrApp(object):
             dbattrs = {}
             dbattrs['implementation'] = 'sqlite'
             dbattrs['dbname'] = os.path.join(tempdir, 'testing')
-            # We have to use a directory, because genro sqlite adapter will creare a sqlite file for each package
-                
-            logging.info('Testing database dir: %s', tempdir)
-            
+
+            # We have to use a directory, because genro sqlite adapter
+            # will create a sqlite file for each package
+            logger.info('Testing database dir: %s', tempdir)
+
             @atexit.register
             def removeTemporaryDirectory():
                 shutil.rmtree(tempdir)
+                
         dbattrs['application'] = self
         self.db = GnrSqlAppDb(debugger=getattr(self, 'sqlDebugger', None), **dbattrs)
-
         
         for pkgid, apppkg in list(self.packages.items()):
             apppkg.initTableMixinDict()
@@ -812,26 +827,36 @@ class GnrApp(object):
         self.packages[pkgid] = apppkg
 
     def check_package_dependencies(self):
-        log.info("Checking python dependencies")
+        logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for a, p in self.packages.items():
-            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in pkgid:
+                project, pkgid = pkgid.split(":")
+            else:
+                project = None
+            if not pkgattrs.get('path'):
+                path = self.pkg_name_to_path(pkgid,project)
+            if not os.path.isabs(path):
+                path = self.realPath(path)
+
+            requirements_file = os.path.join(path, pkgid, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(a)
+                            instance_deps[dep_name].append(pkgid
+                                                           )
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
             missing, wrong = self.check_package_missing_dependencies()
             if missing:
-                log.error(f"ERROR: missing dependencies: {', '.join(missing)}")
+                logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
             if wrong:
-                log.error(f"ERROR: wrong dependencies:")
+                logger.error(f"ERROR: wrong dependencies:")
                 for requested, installed in wrong:
-                    log.error(f"{requested} is requested, but {installed} found")
+                    logger.error(f"{requested} is requested, but {installed} found")
             
     def check_package_missing_dependencies(self):
         missing = []
@@ -848,7 +873,7 @@ class GnrApp(object):
                 except importlib.metadata.PackageNotFoundError:
                     missing.append(name)
                 except Exception as e:
-                    log.error(f"ERROR on {name}: {e}")
+                    logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
     def check_package_install_missing(self):
@@ -887,12 +912,12 @@ class GnrApp(object):
             dependencies=[('.'.join(n.value.split('.')[:-1]) , n.attr.get('deferred'))  for n in dest_tbl.relations_one if n.label in src_tbl.relations_one] 
             dependencies= set([t for t,d in dependencies if t!=dest_tbl.fullname and not( d and t in tables_to_import )])
             if dependencies.issubset(imported_tables):
-                print('\nIMPORTING',tbl)
+                logger.info('Importing %s', tbl)
                 dest_tbl.dbtable.importFromAuxInstance(source_instance, empty_before=False,raw_insert=True)
-                print('\nSTILL TO IMPORT',tables_to_import)
+                logger.info('Still to import %s', tables_to_import)
                 imported_tables.add(tbl)
             else:
-                print('\nCANT IMPORT',tbl,dependencies.difference(imported_tables))
+                logger.warning("Can't import %s - %s",tbl,dependencies.difference(imported_tables))
                 tables_to_import.append(tbl)
         
 
@@ -1405,7 +1430,7 @@ class GnrApp(object):
             externaldb.importModelFromDb()
             externaldb.model.build()
             setattr(self,'legacy_db_%s' %name,externaldb)
-            log.info('got externaldb',name)
+            logger.info('got externaldb',name)
         return externaldb
 
     def importFromLegacyDb(self,packages=None,legacy_db=None,thermo_wrapper=None,thermo_wrapper_kwargs=None, intermediate_commits=False):
@@ -1434,7 +1459,7 @@ class GnrApp(object):
         if not legacy_db:
             return
         if destbl.query().count():
-            log.info('do not import again',tbl)
+            logger.info('do not import again',tbl)
             return
         
    
@@ -1456,7 +1481,7 @@ class GnrApp(object):
         try:
             oldtbl = sourcedb.table(table_legacy_name)
         except Exception:
-            log.error('missing table in legacy',table_legacy_name)
+            logger.error('missing table in legacy',table_legacy_name)
         if not oldtbl:
             return
         q = oldtbl.query(columns=columns,addPkeyColumn=False,bagFields=True)
@@ -1479,7 +1504,7 @@ class GnrApp(object):
             if rows:
                 destbl.insertMany(rows)
         sourcedb.closeConnection()
-        log.info('imported',tbl)
+        logger.info('imported',tbl)
 
     def getAuxInstance(self, name=None,check=False):
         """TODO

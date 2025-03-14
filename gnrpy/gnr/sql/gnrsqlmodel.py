@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import copy
 import threading
 import re
@@ -36,8 +35,7 @@ from gnr.sql.gnrsqltable import SqlTable
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable, GnrSqlMissingColumn, GnrSqlRelationError
 from gnr.sql import AdapterCapabilities
-
-logger = logging.getLogger(__name__)
+from gnr.sql import logger
 
 def bagItemFormula(bagcolumn=None,itempath=None,dtype=None,kwargs=None):
     itemlist = itempath.split('.')
@@ -161,7 +159,7 @@ class DbModel(object):
         self.runOnBuildingCb()
         if self.relations:
             self.relations.clear()
-            #print('relations',self.relations)
+            logger.debug('relations %s', self.relations)
         self.obj = DbModelObj.makeRoot(self, self.src, sqldict)
         for many_relation_tuple, relation in self._columnsWithRelations.items():
             oneCol = relation.pop('related_column')
@@ -244,7 +242,7 @@ class DbModel(object):
             
             if one_relkey in self.relations:
                 old_relattr = dict(self.relations.getAttr(one_relkey))
-                raise GnrSqlRelationError('\nSame relation_name\n%s \n%s \n%s' %(old_relattr['many_relation'],many_relation,relation_name))
+                raise GnrSqlRelationError(f"Same relation_name '{relation_name}' in table {old_relattr['many_relation']} and {many_relation}")
             meta_kwargs.update(kwargs)
             self.relations.setItem(one_relkey, None, mode='M',
                                    many_relation=many_relation, many_rel_name=many_name, many_order_by=many_order_by,
@@ -274,10 +272,12 @@ class DbModel(object):
                 self.checkAutoStatic(one_pkg=one_pkg, one_table=one_table, one_field=one_field,
                                 many_pkg=many_pkg,many_table=many_table,many_field=many_field)
 
-        except Exception:
+        except Exception as e:
             if self.debug:
                 raise
-            logger.error('The relation %s - %s cannot be added', str('.'.join(many_relation_tuple)), str(oneColumn))
+            logger.error('The relation %s - %s cannot be added: %s',
+                         str('.'.join(many_relation_tuple)),
+                         str(oneColumn), getattr(e, "description", str(e)))
 
     def checkRelationIndex(self, pkg, table, column):
         """TODO
@@ -541,7 +541,7 @@ class DbModelSrc(GnrStructData):
         return self.child('subtable', f'subtables.{name}', condition=condition,**kwargs)
 
     @extract_kwargs(col=True)
-    def colgroup(self, name,name_long=None, col_kwargs=None, **kwargs):
+    def colgroup(self, name, name_long=None, col_kwargs=None, **kwargs):
         self.attributes.setdefault(f'group_{name}',name_long or name)
         if not 'colgroups' in self:
             self.child('colgroup_list', 'colgroups')
@@ -550,6 +550,9 @@ class DbModelSrc(GnrStructData):
         cg._destinationNode = self
         def _decorateChildAttributes(destination,tag,kwargs):
             kwargs['group'] = f'{name}.{len(destination)+1:03}'
+            kwargs['colgroup_label'] = cg.parentNode.label
+            kwargs['colgroup_name_long'] = cg.attributes.get("name_long", kwargs['colgroup_label'])
+            
             for k,v in col_kwargs.items():
                 kwargs.setdefault(k,v)
         cg._decorateChildAttributes = _decorateChildAttributes
@@ -586,8 +589,15 @@ class DbModelSrc(GnrStructData):
         :param onInserting: This sets the method name which is triggered when a record is inserted.  useful for adding a code for example
         :param onUpdating: This sets the method name which is triggered when a record is updated
         :param onDeleting: This sets the method name which is triggered when a record is deleted"""
-        indexed = boolean(indexed) if indexed is not None else None
-        unique = boolean(unique) if unique is not None else None
+
+        # indexed can be a dictionary, in case you want to specify the method or other
+        # parameters of the index. Since boolean of a dict becomes True, use the default
+        # btree method for the index. boolean() is used for retro-compatibility with older
+        # models defined in XML, where you can find things like "indexed='y'"
+        if isinstance(indexed,str):
+            indexed = boolean(indexed)
+        if isinstance(unique,str):
+            unique = boolean(unique)
         if '::' in name:
             name, dtype = name.split('::')
         if not 'columns' in self:
@@ -603,25 +613,22 @@ class DbModelSrc(GnrStructData):
             return vc.value
         kwargs.update(variant_kwargs)
         kwargs.update(ext_kwargs)
-        result = self.child('column', 'columns.%s' % name, dtype=dtype, size=size,
+        result = self.child('column', f'columns.{name}', dtype=dtype, size=size,
                           comment=comment, sqlname=sqlname,
                           name_short=name_short, name_long=name_long, name_full=name_full,
                           default=default, notnull=notnull, unique=unique, indexed=indexed,
                           group=group, onInserting=onInserting, onUpdating=onUpdating, onDeleting=onDeleting,
                           variant=variant,**kwargs)
         if ext_kwargs:
-            for k,v in ext_kwargs.items():
-                pkg = [p for p in self.root._dbmodel.db.application.packages.keys() if k.startswith(p)]
-                if not pkg:
+            for pkgExt,extKwargs in ext_kwargs.items():
+                if pkgExt not in self.root._dbmodel.db.application.packages:
                     continue
-                pkg = pkg[0]
-                command = k[len(pkg)+1:]
-                if not isinstance(v,dict):
-                    v = {(command or pkg):v}
-                handlername = f'configColumn_{command}' if command else 'configColumn'
-                handler = getattr(self.root._dbmodel.db.application.packages[pkg],handlername,None)
+                pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
+                handler = getattr(pkgobj,'ext_config',None)
                 if handler:
-                    handler(self,colname=name,colattr=result.attributes,**v)
+                    extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}
+                    tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
+                    handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
                     return result
         return result
 
@@ -843,6 +850,7 @@ class DbModelSrc(GnrStructData):
         if one_group is None and fkey_group and fkey_group!='_':
             self.attributes['group'] = '_'
             one_group = fkey_group
+            self.attributes['one_group'] = one_group
         return self.setItem('relation', self.__class__(), related_column=related_column, mode=mode,
                             one_name=one_name, many_name=many_name, one_one=one_one, child=child,
                             one_group=one_group, many_group=many_group, deferred=deferred,

@@ -24,8 +24,10 @@ import inspect
 from time import time
 import functools
 
-import gnr
+from gnr.core.gnrlang import thlocal
+from gnr.dev import logger
 
+    
 def do_cprofile(profile_path=None):
     import cProfile
     profile_path = profile_path or 'stats.prf'
@@ -45,11 +47,10 @@ def do_cprofile(profile_path=None):
 def callers(limit=10):
     def decore(func):
         def wrapper(*fn_args, **fn_kwargs):
-
             stack = inspect.stack()
-            print(func.__name__, ':')
+            logger.debug('%s:', func.__name__)
             for f in stack[1:limit+1]:
-                print('\t%s:\t(%i) %s'% (f[3],f[2],f[1]))
+                logger.debug('%s:\t(%i) %s', f[3],f[2],f[1])
             return func(*fn_args, **fn_kwargs)
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
@@ -64,8 +65,7 @@ def time_measure(func):
         result = func(*args, **kwargs)
         end_time = time()
         duration = end_time - start_time
-        if gnr.GLOBAL_DEBUG:
-            print(f"Execution time of {func.__name__}: {duration:.4f} seconds")
+        logger.debug(f"Execution time of {func.__name__}: {duration:.4f} seconds")
         return result
     return wrapper
 
@@ -98,7 +98,7 @@ def time_cost():
             t1 = time()
             res = func(*arg, **kw)
             t2 = time()
-            print('%s took %0.3f ms' % (func.__name__, (t2 - t1) * 1000.0))
+            logger.debug('%s took %0.3f ms' % (func.__name__, (t2 - t1) * 1000.0))
             return res
         return wrapper
     return decore
@@ -109,7 +109,7 @@ def debug_call(attribute_list=None, print_time=False):
     :param time_list: TODO. 
     :param print_time: boolean. TODO"""
     import _thread
-    from gnr.core.gnrlang import thlocal
+
     attribute_list=attribute_list or []
     def decore(func):
         def wrapper(*arg, **kw):
