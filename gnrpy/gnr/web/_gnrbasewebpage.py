@@ -536,7 +536,7 @@ class GnrBaseWebPage(GnrObject):
             self.db.commit()
         if 'caption' not in resultAttr:
             resultAttr['caption'] = tblobj.recordCaption(record, rowcaption=rowcaption)
-        pkey = record[tblobj.pkey]
+        pkey  = tblobj.pkeyValue(record)
         resultAttr['lastTS'] = str(record[tblobj.lastTS]) if tblobj.lastTS else None
         for k,v in list(recordClusterAttr.items()):
             if k.startswith('lastTS_'):
