@@ -230,3 +230,9 @@ class UserPrefMenu(BaseComponent):
                 m.menuline(h.__doc__).dataController(pars.pop('action'),**pars)
         menu.menuline('-')
         menu.menuline('User preferences',action='genro.framedIndexManager.openUserPreferences()')
+
+
+    @struct_method
+    def pm_userSettings(self,parent,packages='*',iconClass=None):
+        parent.slotButton('User settings',action='genro.framedIndexManager.openUserSettings()',
+                            iconClass='iconbox gear')

@@ -268,7 +268,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
-                                                openKw:openKw
+                                                openKw:openKw,...objectExtract(kw,'dlg_*',true,true)
                                                 });
     },
 
@@ -537,11 +537,19 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
+        //old
         this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference')});
     },
 
+
+    openUserSettings:function(){
+        //old
+        this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true});
+    },
+
     openAppPreferences:function(){
-        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference')});
+        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference'),
+        });
     },
 
     openHelpForCurrentIframe:function(){

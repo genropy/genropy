@@ -394,7 +394,7 @@ class FrameIndex(BaseComponent):
     def fi_slotbar_settings(self,slot,**kwargs):
         if self.isGuest:
             return
-        slot.userPrefMenu()
+        slot.userSettings()
 
     @struct_method
     def fi_slotbar_refresh(self,slot,**kwargs):
