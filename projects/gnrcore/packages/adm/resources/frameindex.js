@@ -544,7 +544,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
 
     openUserSettings:function(){
         //old
-        this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true});
+        this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px',xdlg__class:'hideDialogTitle'});
     },
 
     openAppPreferences:function(){

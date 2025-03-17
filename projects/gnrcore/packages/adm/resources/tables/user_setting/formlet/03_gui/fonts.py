@@ -8,11 +8,12 @@ info = {
 }
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
-        Verdana, Geneva, sans-serif
-        'Palatino Linotype', 'Book Antiqua', Palatino, serif
-        'Times New Roman', Times, serif
-        Roboto condensed
-        Fira Sans condensed"""
+Verdana, Geneva, sans-serif
+'Palatino Linotype', 'Book Antiqua', Palatino, serif
+'Times New Roman', Times, serif
+Roboto condensed
+Fira Sans condensed"""
+
 
 class Formlet(BaseComponent):
     py_requires = 'th/th'

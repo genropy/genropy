@@ -1511,6 +1511,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             kwargs['for_update'] = True
         captioncolumns = tblobj.rowcaptionDecode()[0]
         hasProtectionColumns = tblobj.hasProtectionColumns()
+        default_kwargs = default_kwargs or {}
 
         if captioncolumns or hasProtectionColumns:
             columns_to_add = (captioncolumns or [])+(['__protecting_reasons','__is_protected_row'] if hasProtectionColumns else [])
@@ -1525,7 +1526,6 @@ class GnrWebAppHandler(GnrBaseProxy):
                             _storename=_storename,**kwargs)
         if sqlContextName:
             self._joinConditionsFromContext(rec, sqlContextName)
-
         if pkey == '*newrecord*':
             record = rec.output('newrecord', resolver_one=js_resolver_one, resolver_many=js_resolver_many)
         elif pkey=='*sample*':
@@ -1533,8 +1533,16 @@ class GnrWebAppHandler(GnrBaseProxy):
             return record,dict(_pkey=pkey,caption='!!Sample data')
         else:
             record = rec.output('bag', resolver_one=js_resolver_one, resolver_many=js_resolver_many)
-        pkey = record[tblobj.pkey] or '*newrecord*'
-        newrecord = pkey == '*newrecord*'
+        if not record[tblobj.pkey]:
+            newrecord = True
+            if pkey and pkey!='*newrecord*':
+                default_kwargs.update(tblobj.parseSerializedKey(pkey))
+            pkey = '*newrecord*'
+
+        else:
+            pkey = record[tblobj.pkey] 
+            newrecord = False
+
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord, 
                        sqlContextName=sqlContextName,_storename=_storename,
@@ -1547,7 +1555,6 @@ class GnrWebAppHandler(GnrBaseProxy):
             if lock:
                 self._getRecord_locked(tblobj, record, recInfo)
         loadingParameters = loadingParameters or {}
-        default_kwargs = default_kwargs or {}
         loadingParameters.update(default_kwargs)
         if _eager_record_stack:
             loadingParameters['_eager_record_stack'] = _eager_record_stack

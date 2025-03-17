@@ -7,45 +7,68 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport
 
 
+
+class FormSetting(BaseComponent):
+    def th_form(self,form):
+        bar = form.top.slotBar('backTitle,*',height='30px',font_weight='bold',
+                color='var(--mainWindow-color)',border_bottom='1px solid silver')
+        btn = bar.backTitle.lightButton(action="this.form.dismiss();",
+                                       style='display:flex;align-items:center;',cursor='pointer')
+        btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
+        btn.div('^#ANCHOR.channel.grid.selected_caption?=#v|| "&nbsp;"')
+        form.record.contentPane().remote(self.settingManagerRemoteDispatcher,
+                                                        setting_code='^#FORM.record.setting_code',
+                                                       channel_code='=#ANCHOR.channel.grid.selectedId',
+                                                      table='=#FORM.controller.table')
+      # form.record.remote(self.settingManagerRemoteDispatcher,setting_code='^#FORM.record.setting_code',
+      #                                                 channel_code='=#ANCHOR.channel.grid.selectedId',
+      #                                                 table=table)
+
+    def th_options_showtoolbar(self):
+        return False
+
+
+    def th_options_autoSave(self):
+        return True
+
+    def th_options_firstAutoSave(self):
+        return True
+
+
+                            
+    @public_method
+    def settingManagerRemoteDispatcher(self,pane,setting_code=None,table=None,
+                                            channel_code=None,
+                                            mangling_code=None,**kwargs):
+        if not setting_code:
+            return
+
+        path = f'formlet/{channel_code}/{setting_code}'
+        self.mixinTableResource(table=table,path=path)
+        self.flt_main(pane.contentPane(datapath='#FORM.record'))
+
+
+
+
 @page_proxy
 class SettingManager(BaseComponent):
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler'
 
-    def setting_panel(self,parent,title=None,table=None,datapath=None,**kwargs):
-        if self.isMobile:
-            self.mobile_settings(parent,title=title,table=table,datapath=datapath,**kwargs)
-        else:
-            self.desktop_settings(parent,title=title,table=table,datapath=datapath,**kwargs)
+    def setting_panel(self,parent,title=None,table=None,datapath=None,frameCode=None,**kwargs):
+        frameCode = frameCode or f'sm_{table.replace(".","_")}'
 
+        frame = parent.framePane(frameCode=frameCode,datapath=datapath,design='sidebar',_anchor=True,rounded=8,**kwargs)
+        frame.data('.settings',self.get_setting_info(table=table))
+        frame.dataFormula('.channel.store','blocksettings',blocksettings='=.settings',_onBuilt=True)
+        sc = frame.center.stackContainer(selectedPage='^#ANCHOR.selectedPage')
+        self.channels_view(sc,title=title,pageName='channels_view')
+        self.formlets_view(sc,frameCode=f'V_{frameCode}',pageName='formlets_view',table=table)
+        self.formlets_form(sc,frameCode=f'V_{frameCode}',pageName='formlets_form',table=table)
 
-    def mobile_settings(self,parent,title=None,table=None,datapath=None,**kwargs):
-        pass
-
-    
-    def desktop_settings(self,parent,title=None,table=None,datapath=None,**kwargs):
-        bc = parent.borderContainer(datapath=datapath,design='sidebar',_anchor=True,**kwargs)
-        bc.data('.settings',self.get_setting_info(table=table))
-        bc.dataFormula('.channel.store','blocksettings',blocksettings='=.settings',_onBuilt=True)
-        frameCode = f'sm_{table.replace(".","_")}'
-        self.channels_view(bc,title=title,region='left',width='300px',border_right='1px solid silver',splitter=True)
-
-        sc = bc.stackContainer(region='center')
-        view = self.channels_formlets_view(sc,frameCode=f'V_{frameCode}',pageName='formlets_view')
-       
-        form = view.grid.linkedForm(
-            loadEvent='onRowClick',
-            formRoot=sc,
-            pageName='formlets_form',
-            frameCode=f'F_{frameCode}',
-            th_root=frameCode,
-            datapath='#ANCHOR.formlets.form',
-            childname='form')
-        view.dataController("""frm.abort();
-                                let formlets = settings.getItem(selectedId);
-                                SET #ANCHOR.formlets.view.store = formlets?formlets.deepCopy():new gnr.GnrBag();
-                                """,settings='=#ANCHOR.settings',
-                        selectedId='^#ANCHOR.channel.grid.selectedId',frm=form.js_form,_delay=1)
-        self.channels_formlets_form(form,table=table)
+        
+        #form = bc.thFormHandler(table=table,formResource='gnrcomponents/settingmanager:FormSetting',
+        #                    datapath='#ANCHOR.formlets.form')
+        
 
     def channels_view(self,parent,title=None,**kwargs):
         view = parent.contentPane(**kwargs).bagGrid(
@@ -56,14 +79,26 @@ class SettingManager(BaseComponent):
             grid_selected_caption='.selected_caption',
             struct=self.channel_struct
         )
-        view.top.bar.replaceSlots('#','10,vtitle,*,searchOn,2',_class='mobileTemplateGridTop',toolbar=False)
+        bar = view.top.bar.replaceSlots('#','10,backTitle,*,searchOn,2',_class='mobileTemplateGridTop',toolbar=False)
+        #btn = bar.backTitle.lightButton(action="genro.dom.windowMessage('parent',{'topic':'modal_page_close'});",
+        #                               style='display:flex;align-items:center;',cursor='pointer')
+        #btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
+        #bar.backTitle.div(title)
+
+
         view.attributes['_class'] = "mobileTemplateGrid templateGrid"
+        view.dataController("""let formlets = settings.getItem(selectedId);
+                                SET #ANCHOR.formlets.view.store = formlets?formlets.deepCopy():new gnr.GnrBag();
+                                SET #ANCHOR.selectedPage = 'formlets_view';
+                                """,settings='=#ANCHOR.settings',
+                        selectedId='^#ANCHOR.channel.grid.selectedId',#frm=form.js_form,
+                        _delay=1)
         return view
 
     
         
 
-    def channels_formlets_view(self,parent,frameCode=None,**kwargs):
+    def formlets_view(self,parent,frameCode=None,table=None,**kwargs):
         view = parent.contentPane(**kwargs).bagGrid(
             frameCode=frameCode,
             datapath='#ANCHOR.formlets.view',
@@ -71,24 +106,33 @@ class SettingManager(BaseComponent):
             roundedEnvelope=True,
             struct=self.formlet_struct
         )
-        bar = view.top.bar.replaceSlots('#','*,currtitle,*',_class='mobileTemplateGridTop',toolbar=False)
-        bar.currtitle.div('^#ANCHOR.channel.grid.selected_caption?=#v|| "&nbsp;"')
-        view.attributes['_class'] = "mobileTemplateGrid templateGrid"
-        return view
 
         
-    def channels_formlets_form(self,form,table=None,**kwargs):
-        bar = form.top.slotBar('backTitle,*',height='30px',font_weight='bold',
-                             color='var(--mainWindow-color)',border_bottom='1px solid silver')
-        btn = bar.backTitle.lightButton(action="this.form.dismiss();",
+        bar = view.top.bar.replaceSlots('#','10,backTitle,*,searchOn,2',_class='mobileTemplateGridTop',toolbar=False)
+
+        btn = bar.backTitle.lightButton(action="SET #ANCHOR.selectedPage = 'channels_view' ;",
                                        style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
-        btn.div('^#ANCHOR.channel.grid.selected_caption?=#v|| "&nbsp;"')
-        bc = form.center.borderContainer()
-        bc.contentPane(region='center').remote(self.remoteDispatcher,setting_code='^#FORM.pkey',
-                                                        channel_code='=#ANCHOR.channel.grid.selectedId',
-                                                        table=table)
+        btn.div('!![en]Back')
 
+        view.attributes['_class'] = "mobileTemplateGrid templateGrid"
+    
+        return view
+
+
+    def formlets_form(self,parent,frameCode=None,table=None,**kwargs):
+        form = parent.contentPane(**kwargs).thFormHandler(table=table,formResource='gnrcomponents/settingmanager/settingmanager:FormSetting')
+        parent.dataController("""
+                                frm.goToRecord(pkey)""",
+                            pkey='^#ANCHOR.formlets.view.grid.selectedId',frm=form.js_form,_delay=1)
+        form.dataController("SET #ANCHOR.selectedPage = 'formlets_form' ;",formsubscribe_onLoaded=True)
+        form.dataController("SET #ANCHOR.selectedPage = 'formlets_view' ;",formsubscribe_onDismissed=True)
+
+
+    @public_method
+    def saveSetting(self,record=None,table=None,setting_code=None,**kwargs):
+        self.db.table(table).setSettingData(setting_code=setting_code,data=record)
+        self.db.commit()
 
 
 
@@ -124,13 +168,6 @@ class SettingManager(BaseComponent):
                             format_onclick="this.publish('editrow',{pkey:this.widget.rowByIndex($1.rowIndex)._pkey,rowIndex:$1.rowIndex});",
                             format_isbutton=True
                             )
-                            
-    @public_method
-    def remoteDispatcher(self,pane,setting_code=None,table=None,channel_code=None,**kwargs):
-        if not setting_code:
-            return
-        data = self.db.table(table).getSettingData(setting_code=setting_code)
-        print(xx)
 
 
 
@@ -145,6 +182,7 @@ class SettingManager(BaseComponent):
                         path=f'tables/_packages/{pkg}/{tblname}/formlet')
         resources.update(resources_pkg)
         resources.update(resources_custom)
+        tblobj = self.db.table(table)
         for channelNode in resources:
             content = Bag()
             channel_attr = channelNode.attr
@@ -169,5 +207,5 @@ class SettingManager(BaseComponent):
                     continue
                 if setting_node.label=='__pycache__':
                     continue
-                content.addItem(info['code'],None,formlet_path=setting_node.attr['rel_path'],**info)
+                content.addItem(info['code'],None,_pkey=tblobj.getSettingPkey(**info),**info)
         return result
