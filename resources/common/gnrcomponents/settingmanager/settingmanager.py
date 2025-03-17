@@ -12,7 +12,8 @@ class FormSetting(BaseComponent):
     def th_form(self,form):
         bar = form.top.slotBar('backTitle,*',height='30px',font_weight='bold',
                 color='var(--mainWindow-color)',border_bottom='1px solid silver')
-        btn = bar.backTitle.lightButton(action="this.form.dismiss();",
+        bar.dataController("this.form.dismiss();",_fired='^#FORM.dismiss',_delay=1)
+        btn = bar.backTitle.lightButton(action="""FIRE #FORM.dismiss;""",
                                        style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
         btn.div('^#ANCHOR.channel.grid.selected_caption?=#v|| "&nbsp;"')
@@ -45,7 +46,7 @@ class FormSetting(BaseComponent):
 
         path = f'formlet/{channel_code}/{setting_code}'
         self.mixinTableResource(table=table,path=path)
-        self.flt_main(pane.contentPane(datapath='#FORM.record'))
+        self.flt_main(pane.contentPane(datapath='#FORM.record.setting_data'))
 
 
 
