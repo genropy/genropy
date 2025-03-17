@@ -5,6 +5,7 @@
 Create a Dockerfile for an instance, starting from a specific configuration file,
 and build the finale image
 """
+import sys
 import shutil
 import tempfile
 import datetime
@@ -22,7 +23,25 @@ class MultiStageDockerImageBuilder:
     def __init__(self, instance, options):
         self.instance = instance
         self.options = options
+
+        # check for required executables
+        require_executables = ['git','docker']
+        missing_execs = []
+        for executable in require_executables:
+            if shutil.which(executable) is None:
+                missing_execs.append(executable)
+
+        if missing_execs:
+            logger.error("Missing executables: %s - please install", ", ".join(missing_execs))
+            sys.exit(1)
+
+        # check if build configuration is present - in the future, the configuration
+        # could be passed as Bag to the constructor
         self.config_file = os.path.join(self.instance.instanceFolder, "build.xml")
+        self.main_repo_name = ""
+        if not os.path.exists(self.config_file):
+            logger.error(f'Build configuration for instance {self.instance.instanceName} does not exists')
+            sys.exit(1)
         self.dependencies = self.load_config()
 
     def load_config(self):
@@ -58,6 +77,8 @@ class MultiStageDockerImageBuilder:
         start_build_dir = os.getcwd()
         os.chdir(self.instance.instanceFolder)
         main_repo_url = subprocess.check_output(["git", "remote", "get-url", "origin"]).decode().strip()
+        # get the repo name, needed for gunicorn/supervisor templates
+        self.main_repo_name = main_repo_url.split("/")[-1].replace(".git", "")
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
         os.chdir(start_build_dir)
         code_repo = {
@@ -127,43 +148,43 @@ class MultiStageDockerImageBuilder:
                         
                 dockerfile.write("\n# Final customizations\n")
                 gunicorn_template = """
-import multiprocessing                                                                                                                  
-                                                                                                                                        
-bind = '0.0.0.0:8888'                                                                                                                   
-pidfile = '/home/genro/gunicorn_{instanceName}.pid'                                                                                            
-daemon = False                                                                                                                          
-workers = multiprocessing.cpu_count()                                                                                                   
-threads = 8                                                                                                                             
-loglevel = 'error'                                                                                                                      
-chdir = '/home/genro/genropy_projects/sandbox/instances/{instanceName}'                                                                      
-reload = False                                                                                                                          
-capture_output = True                                                                                                                   
-max_requests = 600                                                                                                                      
-max_requests_jitter = 50                                                                                                                
-timeout = 1800                                                                                                                          
+import multiprocessing
+bind = '0.0.0.0:8888'
+pidfile = '/home/genro/gunicorn_{instanceName}.pid'
+daemon = False
+workers = multiprocessing.cpu_count()
+threads = 8
+loglevel = 'error'
+chdir = '/home/genro/genropy_projects/{main_repo_name}/instances/{instanceName}'
+reload = False
+capture_output = True
+max_requests = 600
+max_requests_jitter = 50
+timeout = 1800
 graceful_timeout = 600      
                 """
                 with open("gunicorn.py", "w") as wfp:
-                    wfp.write(gunicorn_template.format(instanceName=self.instance.instanceName))
+                    wfp.write(gunicorn_template.format(instanceName=self.instance.instanceName,
+                                                       main_repo_name=self.main_repo_name))
                 dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
                 supervisor_template = """
-[program:dbsetup]                                                                                                                       
-autorestart=unexpected                                                                                                                  
-startsecs = 0                                                                                                                           
-exitcodes = 0                                                                                                                           
+[program:dbsetup]
+autorestart=unexpected
+startsecs = 0
+exitcodes = 0
 command=gnr db setup {instanceName}
-                                                                                                                                        
-[program:wsgiserver]                                                                                                                    
-command=gunicorn -c /home/genro/gunicorn.py root                                                                                        
-                                                                                                                                        
-[program:gnrasync]                                                                                                                      
-command=gnrasync -p 9999 {instanceName}                                                                                                      
-                                                                                                                                        
-[program:gnrtaskscheduler]                                                                                                              
+
+[program:wsgiserver]
+command=gunicorn -c /home/genro/gunicorn.py root
+
+[program:gnrasync]
+command=gnrasync -p 9999 {instanceName}
+
+[program:gnrtaskscheduler]
 command=gnrtaskscheduler {instanceName}
-                                                                                                                                        
-[program:gnrtaskworker]                                                                                                                 
+
+[program:gnrtaskworker]
 command=gnrtaskworker {instanceName}
                 """
                 with open("supervisord.conf", "w") as wfp:
@@ -184,12 +205,14 @@ command=gnrtaskworker {instanceName}
                 subprocess.run(build_command, check=True)
                 logger.info("Docker image built successfully.")
                 os.chdir(entry_dir)
+                
             if self.options.push:
+                # push the newly created image to the registry
                 image_push = f"{self.instance.instanceName}:{version_tag}"
                 image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
                 logger.info(f"Tagging image {image_push} to {image_push_url}")
                 subprocess.run(['docker','tag', image_push, image_push_url])
-                logger.info(f"Pushing image to {image_push_url}")
+                logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
                 
 def main():
