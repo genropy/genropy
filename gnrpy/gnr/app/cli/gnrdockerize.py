@@ -11,9 +11,9 @@ import tempfile
 import datetime
 import os
 import subprocess
-import xml.etree.ElementTree as ET
 
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app import logger
 
@@ -43,22 +43,24 @@ class MultiStageDockerImageBuilder:
         if not os.path.exists(self.config_file):
             logger.error(f'Build configuration for instance {self.instance.instanceName} does not exists')
             sys.exit(1)
-        self.dependencies = self.load_config()
+        self.config = self.load_config()
 
     def load_config(self):
         """Load and parse the XML configuration file."""
-        tree = ET.parse(self.config_file)
-        root = tree.getroot()
-        return root
+
+        b = Bag(self.config_file)
+        return Bag(self.config_file)
 
     def get_docker_images(self):
         """Get a list of Docker image dependencies."""
         docker_images = []
-        for image_elem in self.dependencies.find('docker_images').findall('image'):
+        
+        for i in self.config['dependencies'].get('docker_images', []):
+            image_conf = i.__dict__['_value']
             image = {
-                'name': image_elem.find('name').text,
-                'tag': image_elem.find('tag').text,
-                'description': image_elem.find('description').text if image_elem.find('description') is not None else 'No description'
+                'name': image_conf.get("name"),
+                'tag': image_conf.get("tag"),
+                'description': image_conf.get('description', "No description")
             }
             docker_images.append(image)
         return docker_images
@@ -66,11 +68,13 @@ class MultiStageDockerImageBuilder:
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
         git_repositories = []
-        for repo_elem in self.dependencies.find('git_repositories').findall('repository'):
+
+        for r in self.config['dependencies'].get('git_repositories', []):
+            repo_conf = r.__dict__['_value']
             repo = {
-                'url': repo_elem.find('url').text,
-                'branch_or_commit': repo_elem.find('branch_or_commit').text if repo_elem.find('branch_or_commit') is not None else 'master',
-                'description': repo_elem.find('description').text if repo_elem.find('description') is not None else 'No description'
+                'url': repo_conf.get('url'),
+                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                'description': repo_conf.get("description", "No description")
             }
             git_repositories.append(repo)
 
@@ -135,6 +139,13 @@ class MultiStageDockerImageBuilder:
                         image_labels[f'git:{repo_name}'] = f"@{commit}"
                     else:
                         image_labels[f'git:{repo_name}'] = f"{repo['branch_or_commit']}@{commit}"
+
+                    image_labels[f'git:{repo_name}:url'] = "{http_repo_url}/commit/{commit}".format(
+                        # awful hack to get https URL on github if the repository is cloned via ssh
+                        http_repo_url=repo['url'].replace("git@", "https://").replace(".git","").replace("github.com:", "github.com/"),
+                        commit=commit
+                    )
+                    
                     shutil.rmtree(".git")
                     # go back to original build directory
                     os.chdir(build_context_dir)
