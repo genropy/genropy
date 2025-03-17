@@ -2,10 +2,13 @@
 
 import os.path
 import glob
+import logging
 from enum import Enum, auto
 from collections import defaultdict
 
 from gnr.core.gnrlang import importModule
+
+logger = logging.getLogger("gnr.sql")
 
 class AdapterCapabilities(Enum):
     MIGRATIONS = auto()

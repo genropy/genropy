@@ -19,4 +19,7 @@
 <movie_id dtype="L" name_short="Mid" name_long="Movie id" tag="column"><relation _T="BAG" related_column="movie.id" mode="relation" onUpdate_sql="cascade"></relation></movie_id>
 <purchasedate _T="BAG" dtype="D" name_short="Pdt" name_long="Purchase date" tag="column"></purchasedate>
 <available _T="BAG" name_short="Avl" name_long="Available" tag="column"></available></columns></dvd>
+<location name_short="Loc" name_long="Location" pkey="id" pkg="video" fullname="video.location" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id>
+<name _T="BAG" name_short="Name" name_long="Name" tag="column"></name>
+<rating _T="BAG" dtype="I" name_short="Rt" name_long="Rating" tag="column"></rating></columns></location>
 <actor name_short="act" name_long="actor" pkey="id" pkg="video" fullname="video.actor" tag="table"><columns tag="column_list"><id _T="BAG" dtype="L" tag="column"></id></columns></actor></tables></video></packages></GenRoBag>

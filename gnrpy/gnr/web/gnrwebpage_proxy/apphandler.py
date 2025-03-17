@@ -29,7 +29,6 @@ import os
 import re
 import time
 from datetime import datetime
-import logging
 
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
@@ -40,11 +39,10 @@ from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip, toText, toJson,fromJson
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebstruct import cellFromField
+from gnr.web import logger
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 from gnr.sql.gnrsql import GnrSqlException
 
-
-gnrlogger = logging.getLogger(__name__)
 
 
 ESCAPE_SPECIAL = re.compile(r'[\[\\\^\$\.\|\?\*\+\(\)\]\{\}]')
@@ -332,7 +330,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         :param js_resolver_one: TODO
         :param sqlContextName: TODO"""
         if query_columns:
-            print('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
+            logger.error('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
         columns = columns or query_columns
         t = time.time()
         joinBag = None
@@ -1956,6 +1954,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
+
+    @public_method
+    def touchGridSelectedRows(self,table=None,pkeys=None):
+        self.db.table(table).touchRecords(_pkeys=pkeys)
+        self.db.commit()
+
     @public_method
     def updateCheckboxPkeys(self,table=None,field=None,changesDict=None):
         if not changesDict:

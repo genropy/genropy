@@ -163,19 +163,21 @@ def test_getReader():
             wfp.write("one,two,three\nfour,five,six")
         a = gl.getReader(filename)
         assert isinstance(a, gl.CsvReader)
+        a.filecsv.close()
 
         filename = os.path.join(tmpdir, 'test.tab')
         with open(filename, "w") as wfp:
             wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
         a = gl.getReader(filename)
         assert isinstance(a, gl.CsvReader)
-
+        a.filecsv.close()
+        
         filename = os.path.join(tmpdir, 'test.csv')
         with open(filename, "w") as wfp:
             wfp.write("one\ttwo\tthree\nfour\tfive\tsix")
         a = gl.getReader(filename, filetype="csv_auto")
         assert isinstance(a, gl.CsvReader)
-
+        a.filecsv.close()
 
         # Will fail with an emtpy file
         filename = os.path.join(tmpdir, 'test.xls')
@@ -183,12 +185,14 @@ def test_getReader():
             pass
         with pytest.raises(Exception):
             a = gl.getReader(filename, filetype="excel")
+            a.filecsv.close()
         filename = os.path.join(tmpdir, 'test.xlsx')
         with open(filename, "w") as wfp:
             pass
         with pytest.raises(Exception):
             a = gl.getReader(filename, filetype="excel")
-
+            a.filecsv.close()
+            
     test_dir = os.path.dirname(__file__)
     
     filename = os.path.join(test_dir, "data", "test.xls")

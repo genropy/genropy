@@ -9,6 +9,7 @@ from gnr.web.gnrwebpage import BaseComponent
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
+
 class TableHandlerCommon(BaseComponent):
     def onLoadingRelatedMethod(self,table,sqlContextName=None):
         return 'onLoading_%s' % table.replace('.', '_')
@@ -56,8 +57,8 @@ class TableHandlerCommon(BaseComponent):
         if (relation_attr.get('onDelete')=='setnull') or (relation_attr.get('onDelete_sql')=='setnull'):
             original_kwargs['store_unlinkdict'] = dict(one_name = relation_attr.get('one_rel_name',tblrel.name_plural),field=relation_attr['many_relation'].split('.')[-1])
         elif (relation_attr.get('onDelete')=='cascade'):
-            original_kwargs['store_excludeDraft'] = False
-            original_kwargs['store_excludeLogicalDeleted'] = False
+            original_kwargs.setdefault('store_excludeDraft', False)
+            original_kwargs.setdefault('store_excludeLogicalDeleted',False)
         for suffix,altrelation in relation_kwargs.items():
             alt_relation_attr = tblrel.model.relations.getAttr(altrelation, 'joiner')
             altcond,table,altfkey = self._th_relationExpand_one(tblrel,alt_relation_attr,condition=condition,condition_kwargs=condition_kwargs,suffix=suffix)

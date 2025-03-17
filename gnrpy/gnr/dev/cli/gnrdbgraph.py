@@ -122,7 +122,7 @@ def main():
     writeDigraph(instance, relations, options.remove_package_prefix, buf)
     if options.dump_digraph:
         print(buf.getvalue())
-    graphviz.communicate(buf.getvalue())
+    graphviz.communicate(buf.getvalue().encode('utf-8'))
     if options.auto_open:
         subprocess.call([f"open {output}"], shell=True)
 

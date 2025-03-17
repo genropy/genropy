@@ -38,7 +38,7 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
-    def connect(self, storename=None, **kw):
+    def connect(self, storename=None, autoCommit=False, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         
         :returns: a new connection object"""
@@ -51,7 +51,8 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         database = kwargs.pop('database', None)
         kwargs['dbname'] = kwargs.get('dbname') or database
-        kwargs['autocommit'] = True
+        kwargs['autocommit'] = autoCommit
+        
         try:
             conn = psycopg.connect(**kwargs)
         except psycopg.OperationalError:
@@ -95,6 +96,37 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         return sql
 
+    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns None
+        """
+        
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql,sqlargs)
+        connection.close()
+
+    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
+        """
+        Execute a sql statement on a new cursor from the connection of the selected
+        connection manager if provided, otherwise through a new connection.
+        sqlargs will be used for query params substitutions.
+
+        Returns all records returned by the SQL statement.
+        """
+        
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, sqlargs)
+            r = cursor.fetchall()
+            connection.close()
+            return r
+
+    
     def prepareSqlText(self, sqltext, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
         Replace the 'REGEXP' operator with '~*'
@@ -115,11 +147,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         sqltext= sqltext.replace('REGEXP', '~*')
         
         return sqltext, sqlargs
-
-    
-    def _selectForUpdate(self,maintable_as=None,**kwargs):
-        return 'FOR UPDATE'
-
 
     def compileSql(self, maintable, columns, distinct='', joins=None, where=None,
                    group_by=None, having=None, order_by=None, limit=None, offset=None, for_update=None,maintable_as=None):

@@ -22,8 +22,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-
-
 import Pyro4
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
@@ -32,6 +30,7 @@ if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
 
 OLD_HMAC_MODE = hasattr(Pyro4.config,'HMAC_KEY')
 
+from gnr.core import logger
 from gnr.core.gnrbag import Bag
 
 PYRO_HOST = 'localhost'
@@ -160,7 +159,7 @@ class RemoteBagServer(RemoteBagServerBase):
         if not OLD_HMAC_MODE:
             self.daemon._pyroHmacKey = PYRO_HMAC_KEY
         self.main_uri = self.daemon.register(self,'RemoteBagServer')
-        print("uri=",self.main_uri)
+        logger.debug("uri=%s", self.main_uri)
         self.daemon.requestLoop()
 
     def memberName(self):

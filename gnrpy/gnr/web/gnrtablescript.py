@@ -9,11 +9,13 @@ Copyright (c) 2009 Softwell Srl.
 
 import os.path
 import tempfile
+
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrhtml import GnrHtmlBuilder
 from gnr.core.gnrstring import toText
 from gnr.core.gnrlang import NotImplementedException
 from gnr.core.gnrstring import slugify
+from gnr.web import logger
 
 class TableScript(object):
     def __init__(self, page=None, resource_table=None, db=None, locale='en', tempFolder='', **kwargs):
@@ -391,7 +393,7 @@ class RecordToHtmlNew(RecordToHtmlPage):
 
     def gridLayout(self, grid):
         """must be overridden"""
-        print('gridLayout must be overridden')
+        logger.warning('gridLayout must be overridden')
 
     def gridHeader(self, row):
         """can be overridden"""
@@ -409,7 +411,7 @@ class RecordToHtmlNew(RecordToHtmlPage):
 
     def gridFooter(self, row):
         """can be overridden"""
-        print('gridFooter must be overridden')
+        logger.warning('gridFooter must be overridden')
 
     def fillBodyGrid(self):
         row = self.copyValue('body_grid').row()

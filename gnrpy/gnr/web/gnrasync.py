@@ -40,9 +40,11 @@ from tornado.httpserver import HTTPServer
 from tornado import queues
 
 from gnr.core.gnrbag import Bag,TraceBackResolver
+from gnr.core.gnrstring import fromJson
+from gnr.web import logger
 from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import AsyncWebSocketHandler
 from gnr.web.gnrwsgisite import GnrWsgiSite
-from gnr.core.gnrstring import fromJson
+
 
 
 
@@ -487,7 +489,7 @@ class SharedObject(object):
         data_column = self.sql_data_column
         with tblobj.recordToUpdate(self.shared_id) as record:
             if not self.data:
-                print('NO DATA IN SAVING', self.shared_id)
+                logger.error('NO DATA IN SAVING: %s', self.shared_id)
             record[data_column] = deepcopy(self.data)
             onSavingHandler=getattr(tblobj, 'shared_onSaving',None)
             if onSavingHandler:
@@ -531,7 +533,7 @@ class SharedObject(object):
         #print 'onUnsubscribePage',self.shared_id,page_id
     
     def onDestroy(self):
-        print('onDestroy',self.shared_id)
+        logger.debug('onDestroy %s', self.shared_id)
         if self.autoSave:
             self.save()
         
@@ -618,16 +620,16 @@ class SqlSharedObject(SharedObject):
 class SharedLogger(SharedObject):
     
     def onInit(self,**kwargs):
-        print('onInit',self.shared_id)
+        logger.debug('onInit %s', self.shared_id)
         
     def onSubscribePage(self,page_id):
-        print('onSubscribePage',self.shared_id,page_id)
+        logger.debug('onSubscribePage %s', self.shared_id,page_id)
         
     def onUnsubscribePage(self,page_id):
-        print('onUnsubscribePage',self.shared_id,page_id)
+        logger.debug('onUnsubscribePage %s', self.shared_id,page_id)
     
     def onDestroy(self):
-        print('onDestroy',self.shared_id)
+        logger.debug('onDestroy %s', self.shared_id)
     
    
 class SharedStatus(SharedObject):
@@ -844,7 +846,7 @@ class GnrBaseAsyncServer(object):
         return DelayedCall(self,delay,cb,*args,**kwargs)
         
     def scheduler(self,*args,**kwargs):
-        print('scheduler',args,kwargs)
+        logger.info('Scheduler args %s kw %s', args, kwargs)
 
     def externalCommand(self, command, data):
        # print 'receive externalCommand',command
@@ -864,11 +866,11 @@ class GnrBaseAsyncServer(object):
             #print 'Trying to retrieve page %s in gnrdaemon register' %page_id
             page = self.gnrsite.resource_loader.get_page_by_id(page_id)
             if not page:
-                print('     page %s not existing in gnrdaemon register' %page_id)
+                logger.warning('page %s not existing in gnrdaemon register', page_id)
                 return
             else:
-                pass
-                #print '     page %s restored succesfully from gnrdaemon register' %page_id
+                logger.info('page %s restored succesfully from gnrdaemon register', page_id)
+                
         page.asyncServer = self
         page.sharedObjects = set()
         self.pages[page.page_id] = page

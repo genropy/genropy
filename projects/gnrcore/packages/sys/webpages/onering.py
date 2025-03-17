@@ -6,13 +6,11 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
-from __future__ import division
 
-
-from past.utils import old_div
+import Pyro4
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-import Pyro4
+
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
@@ -417,7 +415,7 @@ class GnrCustomWebPage(object):
                 color = 'orange'
             else:
                 color = 'red'
-            c = dict(height=1+old_div(n['nc'],4),color=color)
+            c = dict(height=1+int(n['nc']/4),color=color)
             result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
         item['page_profile'] = '<div>%s</div>'  %''.join(result)
 

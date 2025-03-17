@@ -1,13 +1,78 @@
 import threading
+import re
 from collections import defaultdict
 import subprocess
-
 from gnr.core.gnrbag import Bag
+from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter,MacroExpander as BaseMacroExpander
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
 DEFAULT_INDEX_METHOD = 'btree'
+
+class MacroExpander(BaseMacroExpander):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {
+        'TSQUERY':re.compile(
+                            r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                            r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # Primo parametro: colonna
+                            r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # Secondo parametro: può iniziare con `:`, `$` o `@`
+                            r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # Terzo parametro (opzionale), stesso pattern del secondo
+                            r"\)"
+                    ),
+        'TSRANK': re.compile(
+            r"#TSRANK(?:_(?P<code>\w+))?"
+            r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
+            r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
+        ),
+        'TSHEADLINE': re.compile(
+                r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
+                r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
+                r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
+                r"\)"
+        )
+    }
+
+    def _expand_TSQUERY(self, m):
+        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+        tsv = m.group("tsv").strip()  # The field contining the ts_vector
+        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
+        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+        sqlparams = self.querycompiler.sqlparams
+        channel_code = m.group('querycode') or 'current'
+        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
+        return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
+
+    def _expand_TSRANK(self, m):
+        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+        weights = m.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
+        normalization = m.group("normalization") or 8  # Default normalization factor
+        channel_code = m.group('code') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        tsvector = tsquery_params['tsv']
+        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
+        if normalization:
+            result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        if weights:
+            result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+        return result
+
+    def _expand_TSHEADLINE(self, m):
+        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+        text_field = m.group("textfield").strip()  # The text field to highlight
+        channel_code = m.group('querycode') or 'current'
+        sqlparams = self.querycompiler.sqlparams
+        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
+        return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
+
+
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     REQUIRED_EXECUTABLES = ['psql','pg_dump', 'pg_restore']
@@ -70,6 +135,10 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     }
 
 
+    @property
+    def macroExpander(self):
+        return MacroExpander
+    
     def defaultMainSchema(self):
         return 'public'
 
@@ -78,6 +147,12 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         return '"%s"' %name
 
     
+    def setLocale(self, locale):
+        """
+        There is no direct way to set a locale in a connection, only
+        in DDL statements
+        """
+        pass
     
     def lockTable(self, dbtable, mode='ACCESS EXCLUSIVE', nowait=False):
         if nowait:
@@ -462,6 +537,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 s.schema_name, t.table_name, c.ordinal_position;
         """
     
+    @time_measure
     def struct_get_schema_info(self, schemas=None):
         """
         Get a (list of) dict containing details about a column or all the columns of a table.
@@ -517,11 +593,11 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 col['dtype'] = 'serial'
             
             yield col
-    
+
+    @time_measure
     def struct_get_constraints(self, schemas):
         """Fetch all constraints and return them in a structured dictionary."""
         constraints = defaultdict(lambda: defaultdict(dict))
-
         # Fetch primary key constraints
         for row in self.raw_fetch(self.get_primary_key_sql(), (schemas,)):
             schema_name, table_name, constraint_name, column_name, _ = row
@@ -547,10 +623,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                     "columns": []
                 }
             constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
-
-        # Fetch foreign key constraints
+        
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
-            (schema_name, table_name, constraint_name, column_name, _, on_update,
+            (schema_name, table_name, constraint_name, column_name, on_update,
             on_delete, related_schema, related_table, related_column,
             deferrable, initially_deferred) = row
 
@@ -572,7 +647,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                 }
             constraints[table_key]["FOREIGN KEY"][constraint_name]["columns"].append(column_name)
             constraints[table_key]["FOREIGN KEY"][constraint_name]["related_columns"].append(related_column)
-
+            
         # Fetch check constraints
         for row in self.raw_fetch(self.get_check_constraint_sql(), (schemas,)):
             schema_name, table_name, constraint_name, check_clause = row
@@ -617,7 +692,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         ORDER BY
             n.nspname, t.relname, i.relname, ordinal_position;
         """
-
+    
+    @time_measure
     def struct_get_indexes(self, schemas):
         query = self.struct_get_indexes_sql()
         indexes = defaultdict(lambda: defaultdict(dict))
@@ -700,6 +776,22 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         result = " ".join(sql.split())
         return f'{result};'
 
+    def struct_is_empty_column_sql(self, schema_name=None, table_name=None, column_name=None):
+        """
+        Generates SQL to check if a column is empty (contains no non-NULL values).
+        """
+        # FIXME: since all arguments are mandatory, why default them to None and
+        # check later for their presence?
+        if not schema_name or not table_name or not column_name:
+            raise ValueError("schema_name, table_name, and column_name are required.")
+        
+        return f"""
+        SELECT COUNT(*) = 0 AS is_empty
+        FROM "{schema_name}"."{table_name}"
+        WHERE "{column_name}" IS NOT NULL;
+        """
+
+    
 
     def struct_alter_column_sql(self, column_name=None, new_sql_type=None,**kwargs):
         """
@@ -821,7 +913,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         ORDER BY 
             e.extname;
         """
-
+    @time_measure
     def struct_get_extensions(self):
         """
         Retreive the a dictionary of all available extensions
@@ -871,7 +963,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             trigger_name;
         """
 
-
+    @time_measure
     def struct_get_event_triggers(self):
         query = self.struct_get_event_triggers_sql()
         event_triggers = {}
@@ -940,43 +1032,66 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def get_foreign_key_sql(self):
         """Return the SQL query for fetching foreign key constraints."""
-        return """
-           SELECT
-                tc.constraint_schema AS schema_name,
-                tc.table_name AS table_name,
-                tc.constraint_name AS constraint_name,
-                kcu.column_name AS column_name,
-                kcu.ordinal_position AS ordinal_position,
-                rc.update_rule AS on_update,
-                rc.delete_rule AS on_delete,
-                ccu.table_schema AS related_schema,
-                ccu.table_name AS related_table,
-                ccu.column_name AS related_column,
-                tc.is_deferrable AS deferrable,
-                tc.initially_deferred AS initially_deferred
-            FROM
-                information_schema.table_constraints AS tc
-            JOIN
-                information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.constraint_schema = kcu.constraint_schema
-                AND tc.table_name = kcu.table_name
-            JOIN
-                information_schema.referential_constraints AS rc
-                ON tc.constraint_name = rc.constraint_name
-                AND tc.constraint_schema = rc.constraint_schema
-            JOIN
-                information_schema.key_column_usage AS ccu
-                ON rc.unique_constraint_name = ccu.constraint_name
-                AND rc.unique_constraint_schema = ccu.constraint_schema
-                AND ccu.ordinal_position = kcu.position_in_unique_constraint
-            WHERE
-                tc.constraint_type = 'FOREIGN KEY'
-                AND tc.constraint_schema = ANY(%s)
-            ORDER BY
-                tc.constraint_name, kcu.ordinal_position;
-        """
+        q = """
+        SELECT DISTINCT
+            nsp1.nspname AS schema_name,
+            cls1.relname AS table_name,
+            con.conname AS constraint_name,
+            att1.attname AS column_name,  
+            CASE con.confupdtype
+                WHEN 'a' THEN 'NO ACTION'
+                WHEN 'r' THEN 'RESTRICT'
+                WHEN 'c' THEN 'CASCADE'
+                WHEN 'n' THEN 'SET NULL'
+                WHEN 'd' THEN 'SET DEFAULT'
+            END AS on_update,
+            CASE con.confdeltype
+                WHEN 'a' THEN 'NO ACTION'
+                WHEN 'r' THEN 'RESTRICT'
+                WHEN 'c' THEN 'CASCADE'
+                WHEN 'n' THEN 'SET NULL'
+                WHEN 'd' THEN 'SET DEFAULT'
+            END AS on_delete,
+            nsp2.nspname AS related_schema,
+            cls2.relname AS related_table,
+            att2.attname AS related_column,
+            CASE con.condeferrable
+                WHEN TRUE THEN 'YES'
+                ELSE 'NO'
+            END AS deferrable,
+            CASE con.condeferred
+                WHEN TRUE THEN 'YES'
+                ELSE 'NO'
+            END AS initially_deferred
+        FROM
+            pg_constraint con
+        JOIN
+            pg_class cls1 ON cls1.oid = con.conrelid
+        JOIN
+            pg_namespace nsp1 ON nsp1.oid = cls1.relnamespace
+        JOIN
+            LATERAL UNNEST(con.conkey) WITH ORDINALITY AS fk(colnum, ord)
+            ON TRUE
+        JOIN
+            pg_attribute att1 ON att1.attnum = fk.colnum AND att1.attrelid = con.conrelid
+        JOIN
+            pg_class cls2 ON cls2.oid = con.confrelid
+        JOIN
+            pg_namespace nsp2 ON nsp2.oid = cls2.relnamespace
+        JOIN
+            LATERAL UNNEST(con.confkey) WITH ORDINALITY AS ref(colnum, ord)
+            ON fk.ord = ref.ord
+        JOIN
+            pg_attribute att2 ON att2.attnum = ref.colnum AND att2.attrelid = con.confrelid
+        WHERE
+            con.contype = 'f' -- Only foreign keys
+            AND nsp1.nspname = ANY(%s)
+        ORDER BY
+            con.conname;"""
 
+        return q
+
+    
     def get_check_constraint_sql(self):
         """Return the SQL query for fetching check constraints."""
         return """

@@ -22,13 +22,15 @@
 
 import datetime
 import re
-from gnr.core import gnrstring
-from gnr.core.gnrdate import decodeDatePeriod
-from gnr.core.gnrlang import gnrImport, serializedFuncName
 from decimal import Decimal
 from dateutil.parser import parse as dateutil_parse
 import tzlocal  # from dateutil.tz import tzlocal
+
+from gnr.core import logger
 from gnr.core.gnrlang import GnrException
+from gnr.core import gnrstring
+from gnr.core.gnrdate import decodeDatePeriod
+from gnr.core.gnrlang import gnrImport, serializedFuncName
 
 ISO_MATCH = re.compile(r'\d{4}\W\d{1,2}\W\d{1,2}')
 
@@ -220,7 +222,7 @@ class GnrClassCatalog(object):
             try:
                 return self.fromJson(txt)
             except Exception as e:
-                print('error decoding json ',e)
+                logger.exception('error decoding json')
                 return txt
         
         f = self.parsers.get(clsname, None)
@@ -478,9 +480,10 @@ class GnrClassCatalog(object):
         :param data: TODO
         :returns: TODO
         """
-        return gnrstring.toTypedJSON(data)
-        
-
+        try:
+            return gnrstring.toTypedJSON(data)
+        except TypeError:
+            return "Object is not JSON serializable"
 
     def fromJson(self, data):
         """Add???

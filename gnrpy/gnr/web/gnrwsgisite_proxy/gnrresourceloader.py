@@ -10,7 +10,6 @@ import os
 
 import inspect
 import glob
-import logging
 
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlang import gnrImport, classMixin, cloneClass,clonedClassMixin
@@ -22,11 +21,7 @@ from gnr.web.gnrbaseclasses import BaseResource
 from gnr.web.gnrbaseclasses import BaseWebtool
 from gnr.core.gnrclasses import GnrMixinError,GnrMixinNotFound
 from gnr.core.gnrlang import uniquify
-
-
-log = logging.getLogger(__name__)
-
-
+from gnr.web import logger
 
 
 class ResourceLoader(object):
@@ -347,15 +342,15 @@ class ResourceLoader(object):
         :param safe: TODO"""
         project_resource_path = os.path.normpath(os.path.join(self.site_path, '..', '..', 'resources', res_id))
         if os.path.isdir(project_resource_path):
-            log.debug('resource_name_to_path(%s) -> %s (project)' % (repr(res_id),repr(project_resource_path)))
+            logger.debug('resource_name_to_path(%s) -> %s (project)' % (repr(res_id),repr(project_resource_path)))
             return project_resource_path
         if 'resources' in self.gnr_config['gnr.environment_xml']:
             for path in self.gnr_config['gnr.environment_xml'].digest('resources:#a.path'):
                 res_path = expandpath(os.path.join(path, res_id))
                 if os.path.isdir(res_path):
-                    log.debug('resource_name_to_path(%s) -> %s (gnr config)' % (repr(res_id), repr(res_path)))
+                    logger.debug('resource_name_to_path(%s) -> %s (gnr config)' % (repr(res_id), repr(res_path)))
                     return res_path
-        log.debug('resource_name_to_path(%s) not found.' % repr(res_id))
+        logger.debug('resource_name_to_path(%s) not found.' % repr(res_id))
         if safe:
             raise Exception('Error: resource %s not found' % res_id)
             

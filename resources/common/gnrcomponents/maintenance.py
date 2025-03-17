@@ -4,10 +4,9 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from past.utils import old_div
-from datetime import datetime
 import os
 import re
+from datetime import datetime
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
@@ -342,7 +341,7 @@ class MaintenancePlugin(BaseComponent):
                 color = 'orange'
             else:
                 color = 'red'
-            c = dict(height=1+old_div(n['nc'],4),color=color)
+            c = dict(height=1+int(n['nc']/4),color=color)
             result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
         item['page_profile'] = '<div>%s</div>'  %''.join(result)
 

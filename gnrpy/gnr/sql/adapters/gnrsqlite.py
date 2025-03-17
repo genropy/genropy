@@ -25,18 +25,16 @@ import os, re, time
 import datetime
 import pprint
 import decimal
-import logging
 
 import sqlite3 as pysqlite
 
+from gnr.sql import logger
 from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
 
-
-logger = logging.getLogger(__name__)
 
 class GnrSqliteConnection(pysqlite.Connection):
     pass
@@ -69,7 +67,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         r = re.compile(expr, re.U)
         return r.match(item) is not None
 
-    def connect(self,storename=None,**kwargs):
+    def connect(self,storename=None, **kwargs):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         connection_parameters = self.dbroot.get_connection_params(storename=storename)
@@ -352,7 +350,6 @@ class GnrSqliteCursor(pysqlite.Cursor):
     index = property(_get_index)
 
     def execute(self, sql, params=None, *args, **kwargs):
-        global logger
         if params:
             if isinstance(params, str):
                 params = str(params)
@@ -376,7 +373,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
             if str(e)=='disk I/O error':
                 count = 0
                 while count<5:
-                    print('retry sql read',count)
+                    logger.info('retry sql read %s', count)
                     time.sleep(1)
                     try:
                         c = pysqlite.Cursor.execute(self, sql, *args, **kwargs)

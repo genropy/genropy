@@ -1,1 +1,8 @@
-VERSION = "24.12.03"
+import logging
+from gnr.core import gnrlog
+
+VERSION = "24.12.23"
+
+gnrlog.init_logging_system()
+logger = logging.getLogger("gnr")
+

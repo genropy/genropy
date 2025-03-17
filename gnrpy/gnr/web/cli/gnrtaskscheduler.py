@@ -4,8 +4,7 @@
 from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrtask import GnrTaskScheduler
 
-
-description = ""
+description = "Start the task scheduler service"
 
 def getOptions():
     parser = GnrCliArgParse(description=description)
