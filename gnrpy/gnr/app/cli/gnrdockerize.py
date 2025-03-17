@@ -74,6 +74,7 @@ class MultiStageDockerImageBuilder:
             repo = {
                 'url': repo_conf.get('url'),
                 'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                'subfolder': repo_conf.get("subfolder", None),
                 'description': repo_conf.get("description", "No description")
             }
             git_repositories.append(repo)
@@ -89,7 +90,8 @@ class MultiStageDockerImageBuilder:
         code_repo = {
             'url': main_repo_url,
             'branch_or_commit': commit,
-            'description': self.instance.instanceName
+            'description': self.instance.instanceName,
+            'subfolder': None
             }
         
         git_repositories.append(code_repo)
@@ -105,7 +107,6 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-        
         with tempfile.TemporaryDirectory(dir=os.getcwd()) as build_context_dir:
             os.chdir(build_context_dir)
             self.dockerfile_path = os.path.join(build_context_dir, "Dockerfile")
@@ -150,13 +151,11 @@ class MultiStageDockerImageBuilder:
                     os.chdir(build_context_dir)
                     docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                     dockerfile.write(f"# {repo['description']}\n")
-                    dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
+                    if repo['subfolder']:
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
+                    else:
+                        dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
-                # Copy repositories from each build stage into the final image
-                for i in range(1, len(docker_images) + 1):
-                    for idx, repo in enumerate(git_repositories):
-                        dockerfile.write(f"COPY --from=build_stage{i} /{repo['url'].split('/')[-1]} /app/{repo['url'].split('/')[-1]}\n")
-                        
                 dockerfile.write("\n# Final customizations\n")
                 gunicorn_template = """
 import multiprocessing
