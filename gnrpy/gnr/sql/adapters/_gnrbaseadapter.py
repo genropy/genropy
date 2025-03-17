@@ -735,7 +735,7 @@ class SqlDbAdapter(object):
         if old_record:
             pkeysDict = {k:old_record[k] for k in  tblobj.pkeys}
         elif pkey:
-            pkeysDict = tblobj.parseSerializedKey(pkey)
+            pkeysDict = dbtable.parseSerializedKey(pkey)
         else:
             pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
         where = []

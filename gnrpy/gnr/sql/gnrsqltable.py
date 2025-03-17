@@ -631,7 +631,9 @@ class SqlTable(GnrObject):
         """
         field = field or self.pkey
         composed_of = self.column(field).attributes.get('composed_of')
-        pkeykeys = composed_of.strip('[]').split(',')
+        if not composed_of:
+            return {field:key}
+        pkeykeys = composed_of.strip('[]').split(',') 
         pkeyvalues = self.db.typeConverter.fromJson(key)
         return dict(zip(pkeykeys,pkeyvalues))
     
