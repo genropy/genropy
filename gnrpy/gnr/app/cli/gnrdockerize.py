@@ -115,7 +115,6 @@ class MultiStageDockerImageBuilder:
                 # Genropy image, which is our base image
                 dockerfile.write("FROM ghcr.io/genropy/genropy:develop as build_stage\n")
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
-                dockerfile.write("RUN apt-get update && apt-get install -y git\n")
                 dockerfile.write("USER genro\n\n")
             
                 for idx, repo in enumerate(git_repositories, start=1):
