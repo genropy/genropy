@@ -282,6 +282,9 @@ class FrameGridTools(BaseComponent):
         gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False)
         gth.dataController(f"""
             SET .selectedIndex = null;
+            if(!_use_grouper){{
+                grouper_grid.selection.unselectAll();
+            }}
             if(genro.nodeById(tree_nodeId)){{
                 SET #{tree_nodeId}.currentGroupPath = null;
             }}
@@ -292,11 +295,10 @@ class FrameGridTools(BaseComponent):
             }}else{{
                 groupedStore.store.loadData();
             }}
-        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId,grouper_grid=gth.grid.js_widget)   
         gth.grid.attributes['selfsubscribe_group_added_column'] = f"""
             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
             if(groupedStore.store.storeType!='VirtualSelection'){{
-                console.log('reload_grouper');
                 genro.nodeById('{groupedTh}_frame').fireEvent('.reloadGrouper',{{_addedColumn:$1.column}});
             }}
         """
