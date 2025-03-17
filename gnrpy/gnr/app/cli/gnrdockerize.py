@@ -18,6 +18,7 @@ from gnr.app.gnrapp import GnrApp
 from gnr.app import logger
 
 description = "Create a Docker image for the instance"
+gnr_cli_hide = True
 
 class MultiStageDockerImageBuilder:
     def __init__(self, instance, options):
