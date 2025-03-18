@@ -538,7 +538,7 @@ class GnrBaseWebPage(GnrObject):
             resultAttr['caption'] = tblobj.recordCaption(record, rowcaption=rowcaption)
         pkey = record[tblobj.pkey]
         if len(tblobj.pkeys)>1:
-            pkey = self.compositeKey(record,field=tblobj.pkey)
+            pkey = tblobj.compositeKey(record,field=tblobj.pkey)
         resultAttr['lastTS'] = str(record[tblobj.lastTS]) if tblobj.lastTS else None
         for k,v in list(recordClusterAttr.items()):
             if k.startswith('lastTS_'):
