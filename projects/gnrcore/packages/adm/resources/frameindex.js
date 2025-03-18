@@ -259,6 +259,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     newModalPanel:function(kw){
+        kw.url_modal_dialog = true;
         this.finalizePageUrl(kw);
         let startKw =  objectExtract(kw,'start_*');
         let openKw = kw.openKw || {};

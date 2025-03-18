@@ -14,7 +14,6 @@ class GnrCustomWebPage(object):
     """USER PREFERENCE BUILDER"""
     css_requires='gnrcomponents/settingmanager/settingmanager'
 
-    maintable = 'adm.user'
     py_requires = """public:Public,th/th:TableHandler"""
 
     def windowTitle(self):

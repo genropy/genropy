@@ -62,19 +62,23 @@ class ViewPicker(BaseComponent):
 
 class FormFromUserInfo(BaseComponent):
 
-    def th_form(self,form,**kwargs):
+    def th_form(self,form):
         fl = form.record.formlet(cols=2)
         fl.field('firstname')
-        fl.img(src='^.photo',crop_height='100px',crop_width='100px',
+        photo_size = '100px' if self.isMobile else '150px'
+        fl.img(src='^.photo',crop_height=photo_size,crop_width=photo_size,box_width=photo_size,
                     crop_border='2px dotted silver',crop_rounded=6,edit=True,
-                    placeholder=True,upload_folder='*',takePicture=True,rowspan=3)
-        
+                    placeholder=True,upload_folder='*',takePicture=True,rowspan=4,lbl='!![en]Photo')
         fl.field('lastname')
         fl.field('language')
-        fl.email('email',colspan=2)
+        fl.field('locale',tag='comboBox',values='en_EN:English,en_US:USA,it_IT:Italian')
+        fl.field('email',colspan=2)
 
     def th_options_autoSave(self):
         return True
+
+    def th_options_showtoolbar(self):
+        return False
 
 
 class FormUserSettings(BaseComponent):

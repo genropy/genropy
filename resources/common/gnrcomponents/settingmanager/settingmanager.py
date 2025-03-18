@@ -36,20 +36,6 @@ class _FormBase(BaseComponent):
 class FormSetting(BaseComponent):
     py_requires='gnrcomponents/settingmanager/settingmanager:_FormBase'
     def th_form(self,form):
-        form.dataFormula("#FORM.current_caption","pkey?caption:''",caption='=#ANCHOR.formlets.selected_caption',pkey='^#FORM.pkey')
-        if self.isMobile:
-            bar = form.top.slotBar('backButton,*,formletTitle,*,16',height='30px',font_weight='bold',
-                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
-            #bar.dataController("this.form.dismiss();",_fired='^#FORM.dismiss',_delay=1)
-            #btn = bar.backTitle.lightButton(action="""FIRE #FORM.dismiss;""",
-            #                           style='display:flex;align-items:center;',cursor='pointer')
-            #btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
-            #btn.div('!![en]Back')
-        else:
-            bar = form.top.slotBar('*,formletTitle,*',height='30px',font_weight='bold',
-                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
-            bar.formletTitle.div('^#FORM.current_caption')
-        
         form.record.contentPane().remote(self.settingManagerRemoteDispatcher,
                                                         fired='^#FORM.controller.loaded',
                                                        resource='=#ANCHOR.formlets.selected_resource',
@@ -90,17 +76,31 @@ class SettingManager(BaseComponent):
         if not self.isMobile:
             leftkw['width'] = '220px'
             leftkw['splitter'] = True
-            leftkw['border_right'] = '1px solid silver'
+            leftkw['border_right'] = '1px solid silver'            
         self.formlets_tree(bc,frameCode=f'V_{frameCode}',title=title,table=table,**leftkw)
         if legacy_store:
-            self.formlets_form_legacy_store(bc,frameCode=f'F_{frameCode}',table=table,region='center',legacy_store=legacy_store)
+            form = self.formlets_form_legacy_store(bc,frameCode=f'F_{frameCode}',table=table,region='center',legacy_store=legacy_store)
         else:
-            self.formlets_form(bc,frameCode=f'F_{frameCode}',table=table,region='center')
-
+            form = self.formlets_form(bc,frameCode=f'F_{frameCode}',table=table,region='center')
+        if self.isMobile:
+            form.dataController("""bc.setRegionVisible('left',false)""",formsubscribe_onLoaded=True,bc=bc.js_widget)
+            form.dataController("""bc.widget.setRegionVisible('left',true)
+                                    """,formsubscribe_onDismissed=True,bc=bc)
+        form.dataFormula("#FORM.current_caption","caption || '' ",caption='^#ANCHOR.formlets.selected_caption')
+        if self.isMobile:
+            bar = form.top.slotBar('backButton,5,formletTitle,*',height='30px',font_weight='bold',
+                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
+            btn = bar.backButton.lightButton(action="""this.form.dismiss();""",
+                                       style='display:flex;align-items:center;',cursor='pointer')
+            btn.div(_class="iconbox menu_gray_svg",height='25px')
+        else:
+            bar = form.top.slotBar('*,formletTitle,*',height='30px',font_weight='bold',
+                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
+        bar.formletTitle.div('^#FORM.current_caption')
     
     def formlets_tree(self,parent,title=None,**kwargs):
         frame = parent.framePane(**kwargs)
-        bar = frame.top.slotBar('5,*,searchOn,5',height='30px',font_weight='bold',
+        frame.top.slotBar('5,searchOn,*,5',height='30px',font_weight='bold',
                 color='var(--mainWindow-color)',border_bottom='1px solid silver')
         frame.center.contentPane().div(padding='10px').tree(
             storepath='#ANCHOR.settings',hideValues=True,
@@ -111,6 +111,11 @@ class SettingManager(BaseComponent):
             if(!node.attr.formlet_caption){
                 return 'setting_group';
             }
+            """,
+            connect_onClick="""
+                  if($2.item.attr.resource){
+                      FIRE #ANCHOR.formlets.load;
+                  }
             """,
             selectedLabelClass='selectedTreeNode',
             selected_pkey='#ANCHOR.formlets.selected_pkey',
@@ -126,28 +131,14 @@ class SettingManager(BaseComponent):
                                 frm.goToRecord(pkey)""",
                             pkey='^#ANCHOR.formlets.selected_pkey',frm=form.js_form,
                             _if='pkey',_delay=1)
+        return form
         #form.dataController("SET #ANCHOR.selectedPage = 'formlets_form' ;",formsubscribe_onLoaded=True)
         #form.dataController("SET #ANCHOR.selectedPage = 'formlets_view' ;",formsubscribe_onDismissed=True)
 
+        
 
     def formlets_form_legacy_store(self,parent,frameCode=None,table=None,legacy_store=None,**kwargs):
         form = parent.contentPane(**kwargs).frameForm(frameCode=frameCode,datapath='#ANCHOR.formlets.form')
-
-        form.dataFormula("#FORM.current_caption","caption || '' ",caption='^#ANCHOR.formlets.selected_caption')
-        if self.isMobile:
-            bar = form.top.slotBar('backButton,*,formletTitle,*,16',height='30px',font_weight='bold',
-                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
-            #bar.dataController("this.form.dismiss();",_fired='^#FORM.dismiss',_delay=1)
-            #btn = bar.backTitle.lightButton(action="""FIRE #FORM.dismiss;""",
-            #                           style='display:flex;align-items:center;',cursor='pointer')
-            #btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
-            #btn.div('!![en]Back')
-        else:
-            bar = form.top.slotBar('*,formletTitle,*',height='30px',font_weight='bold',
-                    color='var(--mainWindow-color)',border_bottom='1px solid silver')
-            bar.formletTitle.div('^#FORM.current_caption')
-
-
         form.formstore(handler='memory',autoSave=500)
         parent.dataController("""
                                 legacy_path = legacy_path || '_tempdata_'
@@ -157,15 +148,18 @@ class SettingManager(BaseComponent):
                                     legacy_path = legacy_store+'.'+legacy_path
                                 }
                                 frm.store.setLocationPath(legacy_path)
-                                frm.load();""",
+                                frm.load();
+                                """,
                             legacy_path='=#ANCHOR.formlets.legacy_path',
-                            resource='^#ANCHOR.formlets.selected_resource',
+                            resource='^#ANCHOR.formlets.load',
                             frm=form.js_form,
                             legacy_store=legacy_store,_delay=1)
         form.record.contentPane().remote(self.legacyRemoteDispatcher,
                                                         fired='^#FORM.controller.loaded',
                                                        resource='=#ANCHOR.formlets.selected_resource',
                                                       table=table)
+        return form
+
     @public_method
     def saveSetting(self,record=None,table=None,setting_code=None,**kwargs):
         self.db.table(table).setSettingData(setting_code=setting_code,data=record)
