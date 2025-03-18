@@ -1,11 +1,9 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import metadata
 
-info = {
-    "code":'shortcut',
-    "caption":"!![en]Keyboard shortcuts",
-    "iconClass":'keyboard'
-}
+
+
+info=dict(code='shortcut',caption='!![en]Keyboard shortcuts',legacy_path="sys.shortcuts")
 
 class Formlet(BaseComponent):
     def flt_main(self,pane):

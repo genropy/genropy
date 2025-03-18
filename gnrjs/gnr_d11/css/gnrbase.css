@@ -5223,14 +5223,6 @@ div[disabled='true'], div[disabled='disabled']{
     background: none;
 }
 
-.branchtree .dijitTreeLabel {
-    padding-left: 2px;
-    white-space: nowrap;
-}
-.treeGridCenter .branchtree .dijitTreeLabel {
-    padding-left: 0;
-}
-
 .branchtree.treeLongLabels .dijitTreeLabel {
     padding-left: 2px;
 

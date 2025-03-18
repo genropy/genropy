@@ -34,6 +34,7 @@ class GnrCustomWebPage(object):
         form.dataController("""
                                 this.form.load({destPkey:startKey,discardChange:true});
                                """,startKey=self.avatar.user_id,
+                               _onStart=True,
                             subscribe_changedStartArgs=True,
                             subscribe_modal_page_open=True)
         form.dataController("genro.dom.windowMessage('parent',{'topic':'modal_page_close'})",
