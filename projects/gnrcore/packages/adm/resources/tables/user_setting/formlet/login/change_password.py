@@ -1,6 +1,5 @@
-from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import metadata
 from gnr.core.gnrbag import Bag
+from gnr.web.gnrbaseclasses import BaseComponent
 
 info = {
     "caption":"!![en]Change password",

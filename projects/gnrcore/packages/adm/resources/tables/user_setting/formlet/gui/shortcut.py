@@ -1,7 +1,4 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import metadata
-
-
 
 info=dict(code='shortcut',caption='!![en]Keyboard shortcuts',editing_path="sys.shortcuts")
 

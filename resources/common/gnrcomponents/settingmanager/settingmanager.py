@@ -1,11 +1,9 @@
-import json
 import os
 
 from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrbaseclasses import BaseComponent,page_proxy
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport
-
+from gnr.web.gnrbaseclasses import BaseComponent,page_proxy
 
 class _FormBase(BaseComponent):
     @public_method
@@ -52,13 +50,6 @@ class FormSetting(BaseComponent):
 
     def th_options_firstAutoSave(self):
         return True
-
-
-                            
-
-
-
-
 
 @page_proxy
 class SettingManager(BaseComponent):

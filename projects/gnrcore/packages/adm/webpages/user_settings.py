@@ -6,9 +6,7 @@
 #  Created by Francesco Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 #
-from gnr.core.gnrlang import objectExtract
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import metadata,public_method
+from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     """USER PREFERENCE BUILDER"""

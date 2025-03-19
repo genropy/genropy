@@ -1,5 +1,4 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import metadata
 
 info = {
     "code":'user_info',
