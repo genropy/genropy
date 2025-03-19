@@ -4,7 +4,8 @@ from gnr.core.gnrdecorator import metadata
 
 info = {
     "caption":"!![en]Font configurations",
-    "iconClass":'fonts'
+    "iconClass":'fonts',
+    "editing_path":"sys.theme"
 }
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
@@ -24,9 +25,11 @@ class Formlet(BaseComponent):
        #fb.filteringSelect('^.device_mode',lbl='!![en]Device mode',
        #                values='std:Standard,mobile:Mobile,xmobile:Large mobile')
         #fb.checkbox(value='^.bordered_icons',label='Bordered icons')
-        fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
-        fb.filteringSelect(value='^.desktop.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
+        if not self.isMobile:
+            fb.comboBox(value='^.desktop.font_family',values=FONTFAMILIES,lbl='Desktop Font family')
+            fb.filteringSelect(value='^.desktop.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
                            default=1, lbl='!!Desktop Zoom', width='15em')
-        fb.filteringSelect(value='^.mobile.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
-                           default=1, lbl='!!Mobile Zoom', width='15em')
-        fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')
+        else:
+            fb.filteringSelect(value='^.mobile.zoom', values='0.8:Small,1:Medium,1.1:Large,1.25:Extra Large',
+                            default=1, lbl='!!Mobile Zoom', width='15em')
+            fb.comboBox(value='^.mobile.font_family',values=FONTFAMILIES,lbl='Mobile Font family')

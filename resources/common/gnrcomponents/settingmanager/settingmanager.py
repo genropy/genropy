@@ -15,20 +15,19 @@ class _FormBase(BaseComponent):
             return
 
         pkg,table = table.split('.')
-        result = self.mixinComponent('tables/%s/%s' %(table,resource),safeMode=True)
+        self.mixinComponent('tables/%s/%s' %(table,resource),safeMode=True)
         self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,resource),safeMode=True)
 
         self.flt_main(pane.contentPane(datapath='#FORM.record.setting_data'))
 
 
     @public_method
-    def legacyRemoteDispatcher(self,pane,table=None,
-                                            resource=None,resource_pkg=None,**kwargs):
+    def bagRemoteDispatcher(self,pane,table=None,resource=None,resource_pkg=None,**kwargs):
         if not resource:
             return
 
         pkg,table = table.split('.')
-        result = self.mixinComponent('tables/%s/%s' %(table,resource),safeMode=True)
+        self.mixinComponent('tables/%s/%s' %(table,resource),safeMode=True)
         self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,resource),safeMode=True)
         self.flt_main(pane)
 
@@ -66,7 +65,7 @@ class SettingManager(BaseComponent):
     css_requires='gnrcomponents/settingmanager/settingmanager'
     py_requires='gnrcomponents/framegrid:FrameGrid,gnrcomponents/formhandler:FormHandler,gnrcomponents/settingmanager/settingmanager:_FormBase'
 
-    def setting_panel(self,parent,title=None,table=None,datapath=None,frameCode=None,legacy_store=None,**kwargs):
+    def setting_panel(self,parent,title=None,table=None,datapath=None,frameCode=None,storepath=None,**kwargs):
         frameCode = frameCode or f'sm_{table.replace(".","_")}'
         frame = parent.framePane(frameCode=frameCode,datapath=datapath,design='sidebar',_anchor=True,rounded=8,**kwargs)
         frame.data('.settings',self.getSettingsData(table=table))
@@ -78,8 +77,8 @@ class SettingManager(BaseComponent):
             leftkw['splitter'] = True
             leftkw['border_right'] = '1px solid silver'            
         self.formlets_tree(bc,frameCode=f'V_{frameCode}',title=title,table=table,**leftkw)
-        if legacy_store:
-            form = self.formlets_form_legacy_store(bc,frameCode=f'F_{frameCode}',table=table,region='center',legacy_store=legacy_store)
+        if storepath:
+            form = self.formlets_form_storepath(bc,frameCode=f'F_{frameCode}',table=table,region='center',storepath=storepath)
         else:
             form = self.formlets_form(bc,frameCode=f'F_{frameCode}',table=table,region='center')
         if self.isMobile:
@@ -121,7 +120,7 @@ class SettingManager(BaseComponent):
             selected_pkey='#ANCHOR.formlets.selected_pkey',
             selected_formlet_caption='#ANCHOR.formlets.selected_caption',
             selected_resource='#ANCHOR.formlets.selected_resource',
-            selected_legacy_path='#ANCHOR.formlets.legacy_path'
+            selected_editing_path='#ANCHOR.formlets.editing_path'
         )
 
 
@@ -129,7 +128,9 @@ class SettingManager(BaseComponent):
         form = parent.contentPane(**kwargs).thFormHandler(table=table,formResource='gnrcomponents/settingmanager/settingmanager:FormSetting')
         parent.dataController("""
                                 frm.goToRecord(pkey)""",
-                            pkey='^#ANCHOR.formlets.selected_pkey',frm=form.js_form,
+                            pkey='=#ANCHOR.formlets.selected_pkey',frm=form.js_form,
+                            resource='^#ANCHOR.formlets.load',
+
                             _if='pkey',_delay=1)
         return form
         #form.dataController("SET #ANCHOR.selectedPage = 'formlets_form' ;",formsubscribe_onLoaded=True)
@@ -137,24 +138,24 @@ class SettingManager(BaseComponent):
 
         
 
-    def formlets_form_legacy_store(self,parent,frameCode=None,table=None,legacy_store=None,**kwargs):
+    def formlets_form_storepath(self,parent,frameCode=None,table=None,storepath=None,**kwargs):
         form = parent.contentPane(**kwargs).frameForm(frameCode=frameCode,datapath='#ANCHOR.formlets.form')
         form.formstore(handler='memory',autoSave=500)
         parent.dataController("""
-                                legacy_path = legacy_path || '_tempdata_'
-                                if(legacy_path=='_tempdata_'){
-                                    genro.setData(legacy_path,new gnr.GnrBag());
+                                editing_path = editing_path || '_tempdata_'
+                                if(editing_path=='_tempdata_'){
+                                    genro.setData(editing_path,new gnr.GnrBag());
                                 }else{
-                                    legacy_path = legacy_store+'.'+legacy_path
+                                    editing_path = storepath+'.'+editing_path
                                 }
-                                frm.store.setLocationPath(legacy_path)
+                                frm.store.setLocationPath(editing_path)
                                 frm.load();
                                 """,
-                            legacy_path='=#ANCHOR.formlets.legacy_path',
+                            editing_path='=#ANCHOR.formlets.editing_path',
                             resource='^#ANCHOR.formlets.load',
                             frm=form.js_form,
-                            legacy_store=legacy_store,_delay=1)
-        form.record.contentPane().remote(self.legacyRemoteDispatcher,
+                            storepath=storepath,_delay=1)
+        form.record.contentPane().remote(self.bagRemoteDispatcher,
                                                         fired='^#FORM.controller.loaded',
                                                        resource='=#ANCHOR.formlets.selected_resource',
                                                       table=table)

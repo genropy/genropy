@@ -1,5 +1,6 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import metadata
+from gnr.core.gnrbag import Bag
 
 info = {
     "caption":"!![en]Change password",
@@ -8,7 +9,8 @@ info = {
 class Formlet(BaseComponent):
     py_requires='login:LoginComponent'
     def flt_main(self,pane):
-        fb = pane.formlet(cols=1)
+        pane.data('change_pwd',Bag())
+        fb = pane.formlet(cols=1,datapath='change_pwd')
         fb.passwordTextBox(value='^.current_password',lbl='!!Password')
         fb.passwordTextBox(value='^.password',lbl='!!New password',
                     validate_remote=self.db.table('adm.user').validateNewPassword)
@@ -25,5 +27,6 @@ class Formlet(BaseComponent):
                         genro.dlg.floatingMessage(kwargs._box,{message:'Wrong password',messageType:'error',yRatio:.95});
                         return;
                     }
-                    genro.publish("closeNewPwd");genro.publish("openLogin")""")
+                    genro.dlg.floatingMessage(this.form.sourceNode,{message:'Password changed',messageType:'message',yRatio:.95});
+                    genro.setData('change_pwd',null)""")
 

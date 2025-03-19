@@ -86,7 +86,7 @@ class FormUserSettings(BaseComponent):
     def th_form(self,form):
         self.setting_manager.setting_panel(form.center.contentPane(),title='!![en]User settings',
                                             table='adm.user_setting',
-                                            legacy_store='#legacy_user_settings.record.preferences')
+                                            storepath='#legacy_user_settings.record.preferences')
 
     def th_options_showtoolbar(self):
         return False

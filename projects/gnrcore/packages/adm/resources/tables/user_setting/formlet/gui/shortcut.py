@@ -3,7 +3,7 @@ from gnr.core.gnrdecorator import metadata
 
 
 
-info=dict(code='shortcut',caption='!![en]Keyboard shortcuts',legacy_path="sys.shortcuts")
+info=dict(code='shortcut',caption='!![en]Keyboard shortcuts',editing_path="sys.shortcuts")
 
 class Formlet(BaseComponent):
     def flt_main(self,pane):
