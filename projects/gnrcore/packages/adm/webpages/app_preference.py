@@ -19,15 +19,13 @@ class GnrCustomWebPage(object):
         """APPLICATION PREFERENCE BUILDER"""
         form = root.frameForm(frameCode='app_preferences',store_startKey='_mainpref_',
                                 table=self.maintable,datapath='main',store=True,modal=True,**kwargs)
-        form.top.slotToolbar('*,stackButtons,*',
-                             stackButtons_stackNodeId='PREFROOT',_class='mobile_bar')
         form.dataController("""
             var tkw = _triggerpars.kw;
             if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
                 genro.mainGenroWindow.genro.publish({topic:'externalSetData',
                 iframe:'*'},{path:'gnr.app_preference.'+tkw.pathlist.slice(4).join('.'),value:tkw.value});
             }""",preference='^#FORM.record.data')
-        form.center.appPreferencesTabs(datapath='#FORM.record.data',margin='2px',wdg='stack')
+        form.center.appPreferencesTabs(datapath='#FORM.record.data',margin='2px',wdg='tab',tabPosition="left-h")
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',margin_bottom='2px',_class='slotbar_dialog_footer')
         bar.cancel.button('!!Cancel',action='this.form.abort();')
         bar.savebtn.button('!!Apply',action='this.form.publish("save"})')
