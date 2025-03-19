@@ -29,7 +29,7 @@ class _FormBase(BaseComponent):
         pkg,table = table.split('.')
         self.mixinComponent('tables/%s/%s' %(table,resource),safeMode=True)
         self.mixinComponent('tables/_packages/%s/%s/%s' %(pkg,table,resource),safeMode=True)
-        self.flt_main(pane)
+        self.flt_main(pane.contentPane(_workspace=True))
 
 
 class FormSetting(BaseComponent):
@@ -147,6 +147,7 @@ class SettingManager(BaseComponent):
                                     genro.setData(editing_path,new gnr.GnrBag());
                                 }else{
                                     editing_path = storepath+'.'+editing_path
+                                    editing_path = this.absDatapath(editing_path);
                                 }
                                 frm.store.setLocationPath(editing_path)
                                 frm.load();
