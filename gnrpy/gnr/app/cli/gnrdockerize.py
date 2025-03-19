@@ -68,8 +68,7 @@ class MultiStageDockerImageBuilder:
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
         git_repositories = []
-
-        for r in self.config['dependencies'].get('git_repositories', []):
+        for r in self.config.get('dependencies.git_repositories', []):
             repo_conf = r.__dict__['_value']
             repo = {
                 'url': repo_conf.get('url'),
@@ -102,7 +101,6 @@ class MultiStageDockerImageBuilder:
         Generate a multi-stage Dockerfile that clones and copies
         repositories from multiple Docker images.
         """
-        docker_images = self.get_docker_images()
         git_repositories = self.get_git_repositories()
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}

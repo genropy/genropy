@@ -1127,12 +1127,19 @@ class GnrWebAppHandler(GnrBaseProxy):
                     kwargs['_filteringPkeys'] = filteringPkeys
                 if filteringWhere:
                     where = filteringWhere if not where else ' ( %s ) AND ( %s ) ' %(filteringWhere, where)
+        
+        if countOnly:
+            columns = f"${tblobj.pkey}"
+            query = tblobj.query(columns=columns, where=where,
+                                distinct=True,
+                             order_by=order_by, limit=limit, offset=offset, group_by=f'${tblobj.pkey}', having=having,
+                             relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
+                             excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
+            return len(query.fetch())
         query = tblobj.query(columns=columns, distinct=distinct, where=where,
                              order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                              relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
                              excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
-        if countOnly:
-            return query.count()
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
         selection = query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
