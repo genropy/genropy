@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import importlib
@@ -9,6 +10,15 @@ from gnr.core.gnrconfig import getGnrConfig
 werkzeug_logger = logging.getLogger("werkzeug")
 werkzeug_logger.setLevel(logging.WARNING)
 
+LOGGING_LEVELS = {
+    'notset': logging.NOTSET,
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'warn': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
@@ -56,12 +66,14 @@ def init_logging_system(conf_bag=None):
         logging_conf = config['gnr.siteconfig.default_xml'].get("logging")
     except Exception as e:
         logging_conf = None
+
+    env_log_level= os.environ.get("GNR_LOGLEVEL", None)
         
     if not logging_conf and not conf_bag:
         # no configuration at all, use a classic default configuration
         # with logging on stdout
         root_logger.addHandler(_load_handler("gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler")(stream=sys.stdout))
-        root_logger.setLevel(logging.WARNING)
+        root_logger.setLevel(LOGGING_LEVELS.get(env_log_level, logging.WARNING))
         return root_logger
 
     if logging_conf:
@@ -72,6 +84,11 @@ def init_logging_system(conf_bag=None):
 
     # configuration completed
     root_logger.info("Logging infrastrucure loaded")
+
+    # set the global level if defined in environment
+
+    if env_log_level is not None:
+        set_gnr_log_global_level(LOGGING_LEVELS.get(env_log_level))
     return root_logger
 
 

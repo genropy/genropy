@@ -42,8 +42,8 @@ class CommandManager():
         
     def load_instance_script_tree(self):
         cli_files = []
-        for section, package_path in self.instance.package_path.items():
-            PACKAGE_DIR = os.path.join(package_path, section)
+        for section, package_obj in self.instance.packages.items():
+            PACKAGE_DIR = package_obj.packageFolder
             for root, dirs, files in os.walk(PACKAGE_DIR):
                 if 'cli' in dirs:
                     cli_folder = os.path.join(root, 'cli')
@@ -78,7 +78,8 @@ class CommandManager():
                         
     def load_module(self, section, command, alter_name):
         if self.instance:
-            module_path = Path(os.path.join(self.instance.package_path[section], section, "cli", f"{command}.py")).resolve()
+            package_path = self.instance.packages[section].packageFolder
+            module_path = Path(os.path.join(package_path, "cli", f"{command}.py")).resolve()
             spec = importlib.util.spec_from_file_location(command, module_path)
             if spec is None:
                 raise ImportError(f"Cannot load module from {module_path}")
@@ -127,7 +128,11 @@ class CommandManager():
                 missing_doc = "MISSING DESCRIPTION"
                 
             for command, cmd_impl in sorted(self.script_tree[section].items()):
-                description = getattr(self.load_module(*cmd_impl[2]), "description", "").capitalize()
+                l_module = self.load_module(*cmd_impl[2])
+                description = getattr(l_module, "description", "").capitalize()
+                gnr_cli_hide = getattr(l_module, "gnr_cli_hide", False)
+                if gnr_cli_hide:
+                    continue
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")

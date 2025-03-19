@@ -639,7 +639,7 @@ class GnrSqlDb(GnrObject):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
 
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
-        self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
+        self.adapter.update(tblobj, record, pkey=pkey,old_record=old_record,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
         self._onDbChange(tblobj,'U',record=record,old_record=old_record,**kwargs)
         tblobj._doFieldTriggers('onUpdated', record, old_record=old_record)
@@ -880,6 +880,17 @@ class GnrSqlDb(GnrObject):
         for pkgobj in self.packages.values():
             for tblobj in pkgobj.tables.values():
                 yield tblobj.dbtable
+
+    def filteredTables(self,filterStr=None):
+        regex_pattern = None
+        if filterStr is not None:
+            patterns = filterStr.split(',')
+            regex_pattern = rf"^({'|'.join(re.escape(p) for p in patterns)})(\.|$)"
+        for tblobj in self.tables:
+            if regex_pattern is None or bool(re.match(regex_pattern, tblobj.fullname)):
+                yield tblobj
+
+
 
 
     def table(self, tblname, pkg=None):

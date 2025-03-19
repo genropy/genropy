@@ -1961,6 +1961,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
+
+    @public_method
+    def touchGridSelectedRows(self,table=None,pkeys=None):
+        self.db.table(table).touchRecords(_pkeys=pkeys)
+        self.db.commit()
+
     @public_method
     def updateCheckboxPkeys(self,table=None,field=None,changesDict=None):
         if not changesDict:

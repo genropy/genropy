@@ -4,7 +4,7 @@
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 
-description = "will run a websocket server for <site_name> using tornado."
+description = "restore a database dump for an instance"
 
 def main():
     parser = GnrCliArgParse(description=description)
