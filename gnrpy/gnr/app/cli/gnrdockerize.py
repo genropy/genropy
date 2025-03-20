@@ -177,23 +177,47 @@ graceful_timeout = 600
                 dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
                 supervisor_template = """
+[supervisord]
+nodaemon = true
+                
 [program:dbsetup]
 autorestart=unexpected
 startsecs = 0
 exitcodes = 0
 command=gnr db setup {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
-[program:wsgiserver]
+
+[program:httpserver]
 command=gunicorn -c /home/genro/gunicorn.py root
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrasync]
 command=gnrasync -p 9999 {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
 command=gnrtaskscheduler {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrtaskworker]
 command=gnrtaskworker {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
                 """
                 with open("supervisord.conf", "w") as wfp:
                     wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))

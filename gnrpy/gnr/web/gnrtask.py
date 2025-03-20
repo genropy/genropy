@@ -123,11 +123,16 @@ class GnrTaskWorker(object):
                             batch_selection_savedQuery=task_execution['task_saved_query'])
         taskparameters = task_execution['task_parameters']
         with self.db.tempEnv(connectionName='execution'):
+            logger.info("Executing task %s.%s - %s", task_execution['table_table'],
+                        task_execution['table_table'],
+                        task_execution['table_name'],
+                        task_execution['table_command'])
             taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
     
     def start(self):
         while True:
             for te_pkey in self.taskToExecute():
+                logger.info("Starting task %s", te_pkey)
                 with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
                                                 virtual_columns="""$task_table,
                                                                     $task_name,
