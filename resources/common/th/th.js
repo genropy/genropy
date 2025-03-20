@@ -136,14 +136,14 @@ var th_sections_manager = {
             }
             variable_struct = sectionsbag.getItem('variable_struct');
             if(variable_struct){
-                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseView__';
+                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseview__';
             }
             current.split(',').forEach(function(curr){
                 dojo.addClass(viewDomNode,'sections_' + sections_name+'_' + curr);
             });
         });
         if(structToSet){
-            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseView__');
+            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseview__');
         }
     },
 
