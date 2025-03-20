@@ -259,6 +259,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     newModalPanel:function(kw){
+        kw.url_modal_dialog = true;
         this.finalizePageUrl(kw);
         let startKw =  objectExtract(kw,'start_*');
         let openKw = kw.openKw || {};
@@ -268,7 +269,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
-                                                openKw:openKw
+                                                openKw:openKw,...objectExtract(kw,'dlg_*',true,true)
                                                 });
     },
 
@@ -537,11 +538,20 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/user_preference'});
+        //old
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),dlg_closable:true});
+    },
+
+
+    openUserSettings:function(){
+        //old
+        this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px'});
     },
 
     openAppPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/app_preference'});
+        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true
+        });
     },
 
     openHelpForCurrentIframe:function(){

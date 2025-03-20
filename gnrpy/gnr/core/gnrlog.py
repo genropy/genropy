@@ -62,7 +62,7 @@ def init_logging_system(conf_bag=None):
         </loggers>
         </logging>
     """
-    root_logger = logging.getLogger()
+    root_logger = logging.getLogger('gnr')
     # load the site configuration
     
     try:
@@ -156,7 +156,7 @@ def _load_logging_configuration(logging_conf):
 
     for logger, conf_handlers in loggers.items():
         if logger == 'gnr':
-            clogger = logging.getLogger()
+            l = logging.getLogger('gnr')
         else:
             clogger = logging.getLogger(f"gnr.{logger}")
 
@@ -197,10 +197,18 @@ def set_gnr_log_global_level(level):
     """
     Set the new logging level for all gnr* loggers
     """
-    logger = logging.getLogger('gnr')
-    logger.debug("Settings global GNR logger configuration to %s", level)
-    logger.setLevel(level)
 
+    root_logger = logging.getLogger('gnr')
+    root_logger.debug("Settings global GNR logger configuration to %s", level)
+    root_logger.setLevel(level)
+    for k, v in root_logger.manager.loggerDict.items():
+        if not k.startswith("gnr."):
+            continue 
+        try:
+            v.setLevel(level)
+        except AttributeError:
+            # ignore PlaceHolder loggers            
+            pass
 
 class AuditLoggerFilter(logging.Filter):
     def filter(self, record):

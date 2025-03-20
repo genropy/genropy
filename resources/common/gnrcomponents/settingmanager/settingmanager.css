@@ -1,0 +1,22 @@
+.branchtree .branchtree_selected.dijitTreeLabel{
+    background-color: #3A4D65;
+    color: white;
+    padding-right: 15px;
+    border-radius: 0px 10px 10px 0px;
+}
+.settings_tree.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
+    line-height:20px;
+}
+
+
+.settings_tree.branchtree .dijitTreeExpando{
+    height: 18px;
+    width: 16px;
+    cursor: pointer;
+}
+
+.setting_group.selectedTreeNode{
+    font-weight: normal !important;
+}
