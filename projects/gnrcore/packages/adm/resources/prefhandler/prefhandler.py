@@ -27,6 +27,7 @@ Component for preference handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
+from collections import defaultdict
 from gnr.core.gnrlang import gnrImport
 
 
@@ -34,20 +35,31 @@ class BasePreferenceTabs(BaseComponent):
     def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,wdg='tab',**kwargs):
         if isinstance(packages,str):
             packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        packages = {pkgId:self.application.packages[pkgId] for pkgId in packages}
+        grouped_packages = defaultdict(list)
+        for pkgId,pkgObj in packages.items():
+            grouped_packages[pkgObj.attributes.get('prefgroup') or pkgObj.projectInfo['project?prefgroup'] or pkgObj.projectInfo['project?name'] or pkgId].append(pkgObj)
         tc = getattr(parent,f'{wdg}Container')(datapath=datapath,context_dbstore=context_dbstore,nodeId='PREFROOT',**kwargs)
-        for pkgId in packages:
-            pkg = self.application.packages[pkgId]
-            if pkg.disabled:
+        for pkgGroup,pkglist in grouped_packages.items():
+            if len(pkglist)==1:
+                self._fill_pkgpref(tc,pkglist[0],datapath=datapath)
                 continue
-            permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
-            auth = True
-            if permmissioncb:
-                auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
-            panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
-            if panecb and auth:
-                panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
-                        pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
+            innerTc = tc.tabContainer(title=pkgGroup,margin='2px')
+            for pkg in pkglist:
+                self._fill_pkgpref(innerTc,pkg,datapath=datapath)
         return tc
+
+    def _fill_pkgpref(self,tc,pkg,datapath=None):
+        if pkg.disabled:
+            return
+        permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
+        auth = True
+        if permmissioncb:
+            auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
+        panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
+        if panecb and auth:
+            panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
+                    pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
 
 
 

@@ -539,18 +539,18 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
     openUserPreferences:function(){
         //old
-        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),closable:true});
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),dlg_closable:true});
     },
 
 
     openUserSettings:function(){
         //old
         this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
-                            dlg_max_width:'600px',xdlg__class:'hideDialogTitle'});
+                            dlg_max_width:'600px'});
     },
 
     openAppPreferences:function(){
-        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference'),
+        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true
         });
     },
 
