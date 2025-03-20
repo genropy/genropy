@@ -91,7 +91,7 @@ def orm_audit_log(func):
             "pkg": self_instance.pkg.name,
             "table": self_instance.name,
             "command": func.__name__,
-            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER")+"@cli"),
+            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER", "")+"@cli"),
             "args": args[1:],
             "kwargs": kwargs,
             "caller_info": get_caller_info()
