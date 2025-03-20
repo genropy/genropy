@@ -23,7 +23,7 @@ def main():
     interval = options.pop('interval',None)
 
     w = GnrTaskWorker(sitename,code=code,interval=interval)
-    logger.info("Starting Task Worker for site: %s", sitename
+    logger.info("Starting Task Worker for site: %s", sitename)
     w.start()
     
 

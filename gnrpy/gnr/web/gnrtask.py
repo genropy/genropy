@@ -22,15 +22,16 @@
 
 #Copyright (c) 2019 Softwell. All rights reserved.
 
+import os
 from psutil import pid_exists
-from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
-from gnr.web.gnrwsgisite import GnrWsgiSite
-
 from datetime import datetime
 from time import sleep
 from random import randrange
-import os
+
+from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrbag import Bag
+from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web import logger
 
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
