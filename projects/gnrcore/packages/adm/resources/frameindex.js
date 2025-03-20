@@ -539,7 +539,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
     openUserPreferences:function(){
         //old
-        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference')});
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),closable:true});
     },
 
 
