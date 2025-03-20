@@ -2631,8 +2631,12 @@ div.dojoxDock {
     overflow: hidden;
 }
 
-._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar{
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar, ._common_d11 .hideDialogTitle .dijitDialogTitleBar{
     display:none;
+}
+
+._common_d11 .hideDialogTitle .dijitDialogPaneContent{
+    border-radius: 6px;
 }
 
 ._common_d11  .dijitTooltipFocusNode{
@@ -5217,14 +5221,6 @@ div[disabled='true'], div[disabled='disabled']{
 
 .branchtree .dijitTreeExpandoLeaf{
     background: none;
-}
-
-.branchtree .dijitTreeLabel {
-    padding-left: 2px;
-    white-space: nowrap;
-}
-.treeGridCenter .branchtree .dijitTreeLabel {
-    padding-left: 0;
 }
 
 .branchtree.treeLongLabels .dijitTreeLabel {

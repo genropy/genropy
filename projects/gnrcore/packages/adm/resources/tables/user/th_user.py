@@ -60,6 +60,41 @@ class ViewPicker(BaseComponent):
         r.fieldcell('username',name='Username',width='15em')
         r.fieldcell('group_code',name='Group',width='10em')
 
+class FormFromUserInfo(BaseComponent):
+
+    def th_form(self,form):
+        fl = form.record.formlet(cols=2)
+        fl.field('firstname')
+        photo_size = '100px' if self.isMobile else '150px'
+        fl.img(src='^.photo',crop_height=photo_size,crop_width=photo_size,box_width=photo_size,
+                    crop_border='2px dotted silver',crop_rounded=6,edit=True,
+                    placeholder=True,upload_folder='*',takePicture=True,rowspan=4,lbl='!![en]Photo')
+        fl.field('lastname')
+        fl.field('language')
+        fl.field('locale',tag='comboBox',values='en_EN:English,en_US:USA,it_IT:Italian')
+        fl.field('email',colspan=2)
+
+    def th_options_autoSave(self):
+        return True
+
+    def th_options_showtoolbar(self):
+        return False
+
+
+class FormUserSettings(BaseComponent):
+    py_requires ='gnrcomponents/settingmanager/settingmanager:SettingManager AS setting_manager'
+    def th_form(self,form):
+        self.setting_manager.setting_panel(form.center.contentPane(),title='!![en]User settings',
+                                            table='adm.user_setting',
+                                            storepath='#FORM.record.preferences')
+
+    def th_options_showtoolbar(self):
+        return False
+
+    def th_options_autoSave(self):
+        return True
+
+
 class Form(BaseComponent):
     py_requires="login:LoginComponent"
 
@@ -192,7 +227,7 @@ class FormProfile(BaseComponent):
         bc = form.center.borderContainer()
         top = bc.borderContainer(region='top',datapath='.record',margin_top='10px', height='170px' if self.isMobile else '130px')
         
-        fb = top.contentPane(region='center').mobileFormBuilder(cols=1 if self.isMobile else 2)
+        fb = top.contentPane(region='center').formlet(cols=1 if self.isMobile else 2)
         fb.field('firstname',lbl='!!Firstname')
         fb.field('lastname',lbl='!!Lastname')
         fb.field('username',lbl='!!Username',validate_nodup=True,validate_notnull_error='!!Exists',protected=True)
@@ -212,7 +247,7 @@ class FormProfile(BaseComponent):
     def adm_profile_tabs(self,tc):
         self.authenticationsPane(tc.contentPane(title='!!Authentication'))
         frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
-        frame_preference.top.slotToolbar('*,stackButtons,*')
+        frame_preference.top.slotToolbar('*,stackButtons,*',_class='mobile_bar')
         frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 
     @customizable
