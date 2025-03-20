@@ -97,10 +97,10 @@ class SettingManager(BaseComponent):
         frame = parent.framePane(**kwargs)
         frame.top.slotBar('5,searchOn,*,5', height='30px', font_weight='bold',
                 color='var(--mainWindow-color)', border_bottom='1px solid silver')
-        frame.center.contentPane().div(padding='10px').tree(
+        frame.center.contentPane().div(padding='20px').tree(
             storepath='#ANCHOR.settings', hideValues=True,
             _class='branchtree noIcon settings_tree',
-            font_size='1.2em', labelAttribute='caption',
+            labelAttribute='caption',
             openOnClick=True,
             getLabelClass="""
             if(!node.attr.formlet_caption){
