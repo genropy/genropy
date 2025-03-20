@@ -44,6 +44,13 @@ class GnrColourStreamHandler(logging.StreamHandler):
                     datefmt="%Y-%m-%d %H:%M:%S"
                 )
             )
+        else:
+            self.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s: %(levelname)s: %(name)s/%(module)s - %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S"
+                )
+            )
                 
 
         

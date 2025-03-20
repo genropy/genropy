@@ -115,6 +115,7 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write("FROM ghcr.io/genropy/genropy:develop as build_stage\n")
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
                 dockerfile.write("USER genro\n\n")
+                dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             
                 for idx, repo in enumerate(git_repositories, start=1):
                 
@@ -199,21 +200,21 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrasync]
-command=gnrasync -p 9999 {instanceName}
+command=gnr app async -p 9999 {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
-command=gnrtaskscheduler {instanceName}
+command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskworker]
-command=gnrtaskworker {instanceName}
+command=gnr web taskworker {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
