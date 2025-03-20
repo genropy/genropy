@@ -57,7 +57,8 @@ def add_sql_comment(func):
         
         # Get caller info and user info
         info = {
-            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER")+"@cli"),
+            "user": self_instance.db.currentEnv.get('user',
+                                                    os.environ.get("USER", "")+"@cli"),
         }
         # Add caller information
         info.update(get_caller_info())
