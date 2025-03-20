@@ -544,7 +544,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
 
 
     openUserSettings:function(){
-        //old
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+            this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings')});
+            return;
+        }
         this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
                             dlg_max_width:'600px'});
     },
