@@ -59,7 +59,7 @@ def init_logging_system(conf_bag=None):
 	</logging>
     
     """
-    root_logger = logging.getLogger()
+    root_logger = logging.getLogger('gnr')
     # load the site configuration
     try:
         config = getGnrConfig()
@@ -119,7 +119,7 @@ def _load_logging_configuration(logging_conf):
 
     for logger, conf_handlers in loggers.items():
         if logger == 'gnr':
-            l = logging.getLogger()
+            l = logging.getLogger('gnr')
         else:
             l = logging.getLogger(f"gnr.{logger}")
             
@@ -136,10 +136,10 @@ def set_gnr_log_global_level(level):
     """
     Set the new logging level for all gnr* loggers
     """
-    root_logger = logging.getLogger()
+    root_logger = logging.getLogger('gnr')
     root_logger.setLevel(level)
     for k, v in root_logger.manager.loggerDict.items():
-        if not k.startswith("gnr"):
+        if not k.startswith("gnr."):
             continue 
         try:
             v.setLevel(level)
