@@ -213,7 +213,7 @@ def set_gnr_log_global_level(level):
 class AuditLoggerFilter(logging.Filter):
     def filter(self, record):
         if not hasattr(record, 'user'):
-            record.user = os.environ.get("USER")
+            record.user = os.environ.get("USER", "NA")
         return True
 
 
