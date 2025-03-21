@@ -100,9 +100,7 @@ var genro_plugin_grid_configurator = {
             sourceNode.dropModes.column = sourceNode.attr.dropTarget_column;
         }
         sourceNode._gridConfiguratorBuilt=true;
-        sourceNode.settC
         var gridData = sourceNode.getRelativeData();
-
         gridData.setCallBackItem('structMenuBag',this.prepareStructMenuBag,null,{gridId:sourceNode.attr.nodeId});
     },
     
