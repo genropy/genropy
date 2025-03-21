@@ -7,12 +7,27 @@
 .settings_tree.branchtree .dijitTreeLabel {
     padding-left: 2px;
     white-space: nowrap;
+    line-height:20px;
+    font-size: 1.2em;
+}
+
+.mode_mobile .settings_tree.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
     line-height:30px;
     font-size: 1.5em;
+
 }
 
 
 .settings_tree.branchtree .dijitTreeExpando{
+    height: 20px;
+    width: 16px;
+    cursor: pointer;
+}
+
+
+.mode_mobile .settings_tree.branchtree .dijitTreeExpando{
     height: 28px;
     width: 16px;
     cursor: pointer;
