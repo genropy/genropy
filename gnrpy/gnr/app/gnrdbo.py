@@ -1191,8 +1191,8 @@ class TableBase(object):
                                dest_package=None,
                                dest_tblname=None,
                                _commit=False,
-                               logger=None,
                                onSelectedSourceRows=None,
+                               skipMissingColumns=False,
                                **kwargs):
         """
         Copy table data from a source instance to a destination instance
@@ -1222,6 +1222,8 @@ class TableBase(object):
                                      before copying (can also be defined as a
                                      method on the table class named 
                                      'hosting_copyToInstance_onSelectedSourceRows')
+        :param skipMissingColumns: If True, ignore columns that don't exist 
+                                   in the destination table (default: False)
         :param **kwargs: Additional parameters passed to query methods
 
         Returns
@@ -1237,8 +1239,6 @@ class TableBase(object):
         - The method can handle logical deletion flags and draft records
         """
 
-        #attr = self.attributes
-        #logger.append('** START COPY %(name_long)s **'%attr)
         source_db = (
             self.db
             if not source_instance
@@ -1269,6 +1269,7 @@ class TableBase(object):
 
         # Fetch all rows from source table
         # including logically deleted and draft records
+        logger.debug('Fetching source records')
         source_rows = source_tbl.query(addPkeyColumn=False,
                                        excludeLogicalDeleted=False,
                                        excludeDraft=False,
@@ -1281,11 +1282,16 @@ class TableBase(object):
             'hosting_copyToInstance_onSelectedSourceRows',
             None)
         if onSelectedSourceRows:
+            logger.debug('Calling onSelectedSourceRows method for table %s', self.fullname)
             onSelectedSourceRows(source_instance=source_instance,
                                  dest_instance=dest_instance,
                                  source_rows=source_rows)
 
+        if not source_rows:
+            return
+
         # Fetch all destination records
+        logger.debug('Fetching destination records')
         all_dest = dest_tbl.query(addPkeyColumn=False,
                                   for_update=True,
                                   excludeLogicalDeleted=False,
@@ -1294,6 +1300,7 @@ class TableBase(object):
                                   ).fetchAsDict(pkey)
 
         # Fetch only the destination records that match source primary keys
+        logger.debug('Fetching destination records (to be updated only)')
         existing_dest = dest_tbl.query(addPkeyColumn=False,
                                        for_update=True,
                                        excludeLogicalDeleted=False,
@@ -1305,35 +1312,46 @@ class TableBase(object):
         # Merge the two destination dictionaries
         all_dest.update(existing_dest)
 
-        if source_rows:
-            # Create a comma-separated list of fields to check for changes
-            # excluding metadata fields
-            fieldsToCheck = ",".join(
-                [
-                    c
-                    for c in list(source_rows[0].keys())
-                    if c not in ("__ins_ts", "__mod_ts", "__ins_user", "__mod_user")
-                ]
-            )
+        # If ignoring missing columns, get the list of columns from the destination table
+        destColumns = None
+        if skipMissingColumns:
+            destColumns = set(dest_tbl.columns)
 
-            for r in source_rows:
-                r = dict(r)
-                # Check if the record exists in destination (by primary key)
-                if r[pkey] in all_dest:
-                    oldr = dict(all_dest[r[pkey]])
-                    # Compare source and destination records and
-                    # only update if there are actual changes in values
-                    if self.fieldsChanged(fieldsToCheck, r, oldr):
-                        #logger.append('\t\t ** UPDATING LINE %s **' %r['id'])
-                        dest_tbl.raw_update(r, oldr)
-                    all_dest.pop(r[pkey])
-                else:
-                    #logger.append('\t\t ** INSERTING LINE %s **' %r['id'])
-                    # Record doesn't exist in destination, so insert it
-                    dest_tbl.raw_insert(r)  
-            #self.hosting_removeUnused(dest_db, all_dest.keys())
-            if _commit:
-                dest_db.commit()
+        # Create a comma-separated list of fields to check for changes
+        # excluding metadata fields
+        fieldsToCheck = ",".join(
+            [
+                c
+                for c in list(source_rows[0].keys())
+                if c not in ("__ins_ts", "__mod_ts", "__ins_user", "__mod_user")
+            ]
+        )
+
+        for r in source_rows:
+            r = dict(r)
+
+            # If skipping missing columns, filter out from the record
+            if skipMissingColumns and destColumns:
+                filtered_r = {k: v for k, v in r.items() if k in destColumns}
+                r = filtered_r
+
+            # Check if the record exists in destination (by primary key)
+            if r[pkey] in all_dest:
+                oldr = dict(all_dest[r[pkey]])
+                # Compare source and destination records and
+                # only update if there are actual changes in values
+                if self.fieldsChanged(fieldsToCheck, r, oldr):
+                    logger.debug('Updating line %s'%r[pkey])
+                    dest_tbl.raw_update(r, oldr)
+                all_dest.pop(r[pkey])
+            else:
+                # Record doesn't exist in destination, so insert it
+                logger.debug('Inserting line %s'%r[pkey])
+                dest_tbl.raw_insert(r)  
+        #self.hosting_removeUnused(dest_db, all_dest.keys())
+        if _commit:
+            logger.debug('Commit on dest. DB')
+            dest_db.commit()
 
         return source_rows
 
