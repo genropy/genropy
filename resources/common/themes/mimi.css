@@ -413,6 +413,10 @@ body.tundra.mimi {
 }
 /* @end */
 
+._common_d11 .hideDialogTitle .dijitDialogPaneContent{
+    border-radius: 6px;
+}
+
 .tundra._common_d11 .dijitDialogTitleBar {
     background: var(--dialogtitlebar-background);
     color: #ffffff;

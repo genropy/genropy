@@ -99,3 +99,20 @@ class UserPref(object):
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', disabled='^.email_account_id')
         fb.textbox(value='^.system_bcc', lbl='System bcc',disabled='^.email_account_id')
 
+
+class MenuUserPreference(object):
+    def appqrcode(self):
+        'Show qrcode to connect your mobile app'
+        return dict(action=""" 
+                              const qrcode_text = `GENRO:${owner_name || sitename}:${url}`;
+                              const qrcode_url = `/_tools/qrcode?text=${qrcode_text}`;
+                              genro.dlg.iframeDialog('app_qrcode_dlg',{src:qrcode_url,closable:true,height:'400px',width:'400px',
+                                                                        title:'Scan qrcode to connect your mobile app'});
+                                """,
+                       url='=gnr.homeFolder',sitename='=gnr.siteName',
+                       owner_name='=gnr.app_preference.adm.instance_data.owner_name')
+
+
+    def change_password(self):
+        'Change password'
+        return dict(action="""genro.mainGenroWindow.genro.publish('openNewPwd')""")

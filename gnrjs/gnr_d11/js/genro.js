@@ -435,7 +435,7 @@ dojo.declare('gnr.GenroClient', null, {
         
         window.addEventListener("click", function(e){
             var parentGenro = genro.getParentGenro();
-            if(genro.isMobile && parentGenro){
+            if(genro.isMobile && parentGenro && !genro.startArgs.modal_dialog){
                 parentGenro.publish('setIndexLeftStatus',false);
             }
             e._clickDuration = genro._lastMouseEvent.duration;

@@ -711,7 +711,7 @@ class SqlDbAdapter(object):
         result = cursor.executemany(sql,records)
         return result
 
-    def update(self, dbtable, record_data, pkey=None,**kwargs):
+    def update(self, dbtable, record_data, pkey=None,old_record=None,**kwargs):
         """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
         
@@ -732,12 +732,19 @@ class SqlDbAdapter(object):
                     sql_par_prefix = ''
                     k = sql_value
                 sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
-        pkeyColumn = tblobj.pkey
-        if pkey:
-            pkeyColumn = '__pkey__'
-            record_data[pkeyColumn] = pkey
-        sql = 'UPDATE %s SET %s WHERE %s=:%s;' % (
-        tblobj.sqlfullname, ','.join(sql_flds), tblobj.sqlnamemapper[tblobj.pkey], pkeyColumn)
+        if old_record:
+            pkeysDict = {k:old_record[k] for k in  tblobj.pkeys}
+        elif pkey:
+            pkeysDict = dbtable.parseSerializedKey(pkey)
+        else:
+            pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
+        where = []
+        for i,k in enumerate(pkeysDict.keys()):
+            parname = f'__pkey__{i}'
+            where.append(f'{tblobj.sqlnamemapper[k]}=:{parname}')
+            record_data[parname] = pkeysDict[k]
+        where = ' AND '.join(where)
+        sql = f"UPDATE {tblobj.sqlfullname} SET {','.join(sql_flds)} WHERE {where};"
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def delete(self, dbtable, record_data,**kwargs):

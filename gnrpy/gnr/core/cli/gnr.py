@@ -128,7 +128,11 @@ class CommandManager():
                 missing_doc = "MISSING DESCRIPTION"
                 
             for command, cmd_impl in sorted(self.script_tree[section].items()):
-                description = getattr(self.load_module(*cmd_impl[2]), "description", "").capitalize()
+                l_module = self.load_module(*cmd_impl[2])
+                description = getattr(l_module, "description", "").capitalize()
+                gnr_cli_hide = getattr(l_module, "gnr_cli_hide", False)
+                if gnr_cli_hide:
+                    continue
                 if not description:
                     description = missing_doc
                 print(f"  {command :>15} - {description}")
