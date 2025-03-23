@@ -20,9 +20,7 @@ class GnrCustomWebPage(object):
     def main(self, root, **kwargs):
         root.thFormHandler(formResource='FormUserSettings',datapath='main',
                     table='adm.user',formId='legacy_user_settings',
-                    startKey=self.db.currentEnv.get('user_id'))
-       
-    
+                    startKey=self.db.currentEnv.get('user_id'))    
     @public_method
     def updateUserPreferenceFromSettings(self,data=None,**kwargs):
         pass

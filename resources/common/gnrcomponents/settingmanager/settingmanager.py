@@ -93,8 +93,8 @@ class SettingManager(BaseComponent):
                                    border_bottom='1px solid silver')
         bar.formletTitle.div('^#FORM.current_caption')
     
-    def formlets_tree(self, parent, title=None, **kwargs):
-        frame = parent.framePane(**kwargs)
+    def formlets_tree(self, parent,frameCode=None, title=None, **kwargs):
+        frame = parent.framePane(frameCode=frameCode,**kwargs)
         frame.top.slotBar('5,searchOn,*,5', height='30px', font_weight='bold',
                 color='var(--mainWindow-color)', border_bottom='1px solid silver')
         frame.center.contentPane().div(padding='20px').tree(
@@ -102,6 +102,7 @@ class SettingManager(BaseComponent):
             _class='branchtree noIcon settings_tree',
             labelAttribute='caption',
             openOnClick=True,
+            nodeId=f'{frameCode}_tree',
             getLabelClass="""
             if(!node.attr.formlet_caption){
                 return 'setting_group';
