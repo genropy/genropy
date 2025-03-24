@@ -68,7 +68,7 @@ class MultiStageDockerImageBuilder:
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
         git_repositories = []
-        for r in self.config.get('dependencies.git_repositories', []):
+        for r in self.config.get('dependencies', {}).get('git_repositories', {}):
             repo_conf = r.__dict__['_value']
             repo = {
                 'url': repo_conf.get('url'),
@@ -94,6 +94,7 @@ class MultiStageDockerImageBuilder:
             }
         
         git_repositories.append(code_repo)
+        logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
 
     def build_docker_image(self, version_tag="latest"):
@@ -118,7 +119,7 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             
                 for idx, repo in enumerate(git_repositories, start=1):
-                
+
                     repo_name = repo['url'].split("/")[-1].replace(".git", "")
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     
