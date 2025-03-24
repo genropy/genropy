@@ -11,6 +11,11 @@ input:focus { outline: none; }
 * a:hover{
     text-decoration:underline !important;
 }
+
+body {
+    --primary-color: #1E3055;
+}
+
 #protection_shield{
     background: rgba(200, 200, 200, 0.4) url(icons/pageWaiting.gif) no-repeat center center;
     z-index: 10000000;
@@ -4615,7 +4620,10 @@ p {
     width: 10px;
 }
 
-
+/*Mobile bar styles*/
+.mobile_bar.slotbar_toolbar_standard{
+    background:white;
+}
 
 .mobile_bar .multibutton_container{
     color:var(--root-dark);
@@ -4623,8 +4631,10 @@ p {
 
 .mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
     background: none;
+    font-weight: bold;
     border-bottom:2px solid var(--root-dark);
 }
+
 .mobile_bar .multibutton {
     position: relative;
     font-variant: normal;
@@ -4639,11 +4649,11 @@ p {
     background-color: transparent;
 }
 
-
 .mobile_bar .multibutton:first-child{
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: 0px;
+    margin-left:10px;
 }
 
 .mobile_bar .multibutton:last-child {
@@ -4651,6 +4661,7 @@ p {
     border-bottom-right-radius: 0;
     border-left: 0px;
     border-right: 0px;
+    margin-right: 10px;
 }
 
 .mobile_bar .multibutton_container.singleChildMultibutton{
@@ -4666,6 +4677,28 @@ p {
         padding-right: 6px;
     }
 }
+
+/*Mobile button styles*/
+.mobile_button_container{
+    display: flex;
+    flex-flow: column;
+    justify-content: space-around;
+    align-content: center;
+    align-items: center;
+}
+
+.mobile_button{
+    background: var(--primary-color);
+    color: white;
+    width:80%;
+    font-size: 1.1em;
+    text-align: center;
+    cursor: pointer;
+    padding:10px;
+    margin:5px;
+    border-radius: 20px;
+}
+
 /* @end */
 
 .framecloserIcon{
