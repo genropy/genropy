@@ -5,9 +5,9 @@ class Table(object):
     def config_db(self,pkg):
         tbl=pkg.table('user_setting', pkey='identifier',pkey_columns='user_id,setting_code', name_long='User setting', name_plural='User setting',caption_field='')
         self.sysFields(tbl,id=False)
-        tbl.column('user_id',size='22', group='_', name_long='User'
+        tbl.column('user_id',size='22', group='_', name_long='User',notnull=True
                     ).relation('adm.user.id', relation_name='settings', mode='foreignkey', onDelete='cascade')
-        tbl.column('setting_code', size=':20', name_long='Setting code')
+        tbl.column('setting_code', size=':20', name_long='Setting code',notnull=True)
         tbl.column('setting_data', dtype='X', name_long='Setting data')
         tbl.column('identifier',size=':42',name_long='Setting identifier')
     
