@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import tempfile
 from gnr.core.cli import GnrCliArgParse
 
 description = "Drop user settings table if empty"
