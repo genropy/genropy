@@ -85,8 +85,22 @@ class FormUserSettings(BaseComponent):
     py_requires ='gnrcomponents/settingmanager/settingmanager:SettingManager AS setting_manager'
     def th_form(self,form):
         self.setting_manager.setting_panel(form.center.contentPane(),title='!![en]User settings',
-                                            table='adm.user_setting',
+                                            table='adm.user_setting',datapath='.setting_manager',
+                                            frameCode='user_settings',
                                             storepath='#FORM.record.preferences')
+
+        form.dataController("""
+                                if(_subscription_kwargs.setting_path){
+                                    let treeNode = genro.nodeById('V_user_settings_tree');
+                                    treeNode.widget.setSelectedPath(null,{value:_subscription_kwargs.setting_path});  
+                                    setTimeout(function(){
+                                        treeNode.fireEvent('#ANCHOR.formlets.load',true);
+                                    },100)  
+                                    
+                                }    
+                               """,
+                            subscribe_user_setting_open=True
+                            )
 
     def th_options_showtoolbar(self):
         return False

@@ -264,8 +264,8 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let startKw =  objectExtract(kw,'start_*');
         let openKw = kw.openKw || {};
         objectUpdate(openKw,startKw)
-        openKw.topic = 'modal_page_open';
-        let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+        openKw.topic = openKw.topic || 'modal_page_open';
+        genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
@@ -543,18 +543,24 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
 
-    openUserSettings:function(){
+    openUserSettings:function(setting_path){
         if(genro.isMobile){
             genro.publish('setIndexLeftStatus',false);
-            this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings')});
-            return;
         }
-        this.newModalPanel({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
-                            dlg_max_width:'600px'});
+        openKw = {}
+        openKw.topic = 'user_setting_open'
+        openKw.setting_path = setting_path;
+        this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px',modal:!genro.isMobile,openKw:openKw});
     },
 
-    openAppPreferences:function(){
-        this.newModalPanel({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true
+    openAppPreferences:function(openKw){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        
+        this.selectIframePage({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true,modal:!genro.isMobile,
+            openKw:openKw
         });
     },
 
