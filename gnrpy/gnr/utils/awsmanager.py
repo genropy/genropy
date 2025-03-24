@@ -810,6 +810,7 @@ class RDSManager(BaseAwsService):
             instances = []
             interesting_keys = ['DBInstanceIdentifier',
                                 'DBInstanceClass',
+                                'DBInstanceArn',
                                 'DBInstanceStatus',
                                 'Engine',
                                 'AllocatedStorage']
