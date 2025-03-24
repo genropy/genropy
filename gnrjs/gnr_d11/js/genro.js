@@ -1471,9 +1471,33 @@ dojo.declare('gnr.GenroClient', null, {
         let frm = node._('htmliframe', params);
         node.unfreeze();
         console.log('iframe download',frm.getParentNode().domNode)
-
-
     },
+
+    triggerDownload:function(url,args,onload_cb){
+        var args = args || {};
+        //args.download = true;
+        url = genro.makeUrl(url, args);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = ''; // lasciando vuoto forza il comportamento di download in alcuni browser
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    },
+
+    triggerPrint:function(url,args) {
+        url = genro.makeUrl(url, args);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = function () {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        };
+    },
+
     makeUrl: function(url, kwargs) {
         if (url.indexOf('://') == -1) {
             if (url.slice(0, 1) != '/') {
