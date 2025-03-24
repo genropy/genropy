@@ -145,6 +145,10 @@ class BaseAwsService(object):
     @property
     def ECS(self):
         return self.service('ecs')
+
+    @property
+    def RDS(self):
+        return self.service('rds')
     
 class SQSManager(BaseAwsService):
     service_label = 'sqs'
@@ -796,6 +800,28 @@ class ECSManager(BaseAwsService):
             logger.error("Error forcing service update: %s", str(e))
             return False
 
+class RDSManager(BaseAwsService):
+    service_label = 'rds'
+
+    def list_instances(self):
+        """Get list of RDS instances with their details"""
+        try:
+            response = self.client.describe_db_instances()
+            instances = []
+            interesting_keys = ['DBInstanceIdentifier',
+                                'DBInstanceClass',
+                                'DBInstanceStatus',
+                                'Engine',
+                                'AllocatedStorage']
+            
+            for instance in response.get("DBInstances", []):
+                i = {k: instance[k] for k in interesting_keys}
+                i['Address'] = instance['Endpoint']['Address']
+                instances.append(i)
+            return instances
+        except Exception as e:
+            logger.error("Error listing RDS clusters: %s", str(e))
+            return []
 
 class CostUsageReportManager(BaseAwsService):
     service_label='cur'
