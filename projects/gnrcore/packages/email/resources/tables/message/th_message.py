@@ -146,7 +146,11 @@ class ViewFromDashboard(View):
     
     
 class ViewMobile(BaseComponent):
-
+    
+    def baseCondition(self):
+        "Message filters base condition, customizable"
+        return '$dest_user_id=:env_user_id'
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('__ins_ts',hidden=True)
@@ -174,7 +178,7 @@ class ViewMobile(BaseComponent):
                     condition_type='=messageFilters.type',
                     condition_from_date='=messageFilters.from_date',
                     condition_to_date='=messageFilters.to_date')
-        
+    
     @customizable    
     def th_top_readingstate(self, top):
         bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar')
@@ -195,7 +199,10 @@ class ViewMobile(BaseComponent):
         fb.dbSelect('^.type', table='email.message_type', lbl='!![en]Message type', colspan=2, hasDownArrow=True)
         fb.dateTextBox('^.from_date', lbl='!![en]From date')
         fb.dateTextBox('^.to_date', lbl='!![en]To date')
-        dlg.dataController("""var condition_list = ['$dest_user_id=:env_user_id'];
+        dlg.dataController("""SET messageFilters.base_condition=base_condition""",
+                           base_condition=self.baseCondition(), _onStart=True)
+        dlg.dataController("""var condition_list = [base_condition];
+                           console.log('base_condition', condition_list);
                             if(type){
                                 condition_list.push('$message_type=:type');
                             };
@@ -211,7 +218,8 @@ class ViewMobile(BaseComponent):
                             type='^.type',
                             from_date='^.from_date',
                             to_date='^.to_date',
-                            _onStart=True)
+                            base_condition='^messageFilters.base_condition',
+                            _onStart=1)
         return dlg
     
     def th_options(self):
@@ -300,7 +308,7 @@ class FormMobile(BaseComponent):
         
         bc.dataController("bc.widget.setRegionVisible('bottom',read)",bc=bc,read='^#FORM.record.read?=!#v')
         bc.contentPane(region='bottom').div(_class='mobile_button_container', margin_bottom='20px').lightButton(
-                        '!!Mark as read', _class='/Users/dgpaci/sviluppo/anaci_projects/anaci_app/packages/anc_app/resources/tables/_packages/email/message/tpl').dataRpc(self.db.table('email.message').markAsRead, 
+                        '!!Mark as read', _class='mobile_button').dataRpc(self.db.table('email.message').markAsRead, 
                                                                         pkey='=#FORM.pkey', _onResult="""this.form.dismiss();""")
 
     def th_options(self):
