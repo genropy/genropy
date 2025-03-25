@@ -38,7 +38,7 @@ function configureViewer() {
 
     if(_is_cordova && _external_document_url){
         const app = window.PDFViewerApplication;
-        _viewer_tools = _viewer_tools.split(',').filter(elem=>elem!='print').join(',');
+        _viewer_options = _viewer_options.split(',').filter(elem=>elem!='print').join(',');
         document.body.classList.add('cordova_external_url');
         app.download = function(){
             window.open(_external_document_url+'/'+this._downloadUrl);
