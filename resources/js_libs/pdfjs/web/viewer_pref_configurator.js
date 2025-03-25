@@ -45,10 +45,26 @@ function configureViewer() {
     }
 };
 
+function patchViewer(){
+    console.log('PDFViewerApplication',PDFViewerApplication);
+    PDFViewerApplication.download = function() {
+        console.log('patch download')
+        const url = this._downloadUrl;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = ''; // lasciando vuoto forza il comportamento di download in alcuni browser
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+}
+
 document.blockUnblockOnload?.(true);
 
 if (document.readyState === "interactive" || document.readyState === "complete") {
   configureViewer();
+  patchViewer();
 } else {
   document.addEventListener("DOMContentLoaded", configureViewer, true);
 }
