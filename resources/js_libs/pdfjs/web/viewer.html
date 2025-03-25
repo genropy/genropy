@@ -35,7 +35,11 @@ See https://github.com/adobe-type-tools/cmap-resources
 
   <script src="viewer.mjs" type="module"></script>
   <link rel="stylesheet" href="viewer_pref_configurator.css">
-  <script src="viewer_pref_configurator.js" type="module"></script>
+  <script>
+    const script = document.createElement('script');
+    script.src = 'viewer_pref_configurator.js?v=' + Date.now(); // timestamp evita cache
+    document.head.appendChild(script);
+  </script>
   </head>
 
   <body tabindex="1">
