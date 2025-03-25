@@ -5,6 +5,9 @@ info = {
 }
 
 class Formlet(BaseComponent):
+    py_requires='th/th:TableHandler'
     def flt_main(self,pane):
-        fb = pane.formlet(cols=1)
-        fb.button('2fa')
+        bc = pane.borderContainer(datapath='#FORM.user_form')
+        bc.contentPane(region='center').thFormHandler(table='adm.user',formId='user_2fa_form',startKey=self.db.currentEnv.get('user_id'),
+                                                    formResource='FormFrom2FaSettings')
+

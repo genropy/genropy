@@ -1811,7 +1811,6 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 .tundra .menupane .dijitMenuItem td{
     padding: 0;
-    color:#333;
 }
 
 .tundra .menupane.colormenu .dijitMenuExpandEnabled{
@@ -1825,8 +1824,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     padding-top: 0px !important;
     padding-bottom: 0px !important;
     padding-right: .40em;
-    color:#333;
 }
+
+
 div.dojoxDock {
 	background: none;
 	border: none;
