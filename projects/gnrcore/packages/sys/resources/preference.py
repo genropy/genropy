@@ -81,7 +81,8 @@ class AppPref(object):
                                     scrollPage:[!![en]Scroll page],scrollVertical:[!![en]Scroll vertical],scrollHorizontal:[!![en]Scroll Horizontal],\
                                     spreadModeButtons:[!![en]Spread mode buttons],documentProperties:[!![en]Document properties]""",
                          cols=3,hidden='^.jsPdfViewer?=!#v',lbl_hidden='^.jsPdfViewer?=!#v')
-        
+        fbv.textbox(value='^.external_document_url',lbl='External document url')
+
     def developerPreferences(self, pane):
         fb = pane.formbuilder()
         fb.comboBox(value='^.experimental.remoteForm',lbl='!![en]Remote forms',values='onEnter,delayed')
