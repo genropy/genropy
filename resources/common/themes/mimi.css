@@ -1,5 +1,8 @@
 /*vico*/
 
+body {
+    --primary-color: #1E3055;
+}
 
 body.tundra.mimi {
     font:14px "SF Pro Text","Myriad Set Pro","SF Pro Icons","Apple Legacy Chevron","Helvetica Neue","Helvetica","Arial",sans-serif;

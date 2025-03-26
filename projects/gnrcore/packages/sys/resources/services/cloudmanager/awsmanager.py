@@ -72,6 +72,10 @@ class Service(CloudManager):
     def force_update_ecs_service(self, cluster, service):
         return self.aws_manager.ECS.force_update_service(cluster=cluster, service=service)
 
+    # RDS Methods
+    def list_rds_instances(self):
+        return self.aws_manager.RDS.list_instances()
+    
     # Secrets Manager Methods
     def create_secret(self, name, secret_value, description=None, tags=None):
         return self.aws_manager.SecretsManager.create_secret(name=name, secret_value=secret_value, 

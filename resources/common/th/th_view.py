@@ -996,15 +996,16 @@ class TableHandlerView(BaseComponent):
                                 """,
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
-                            gridId=gridId,_onBuilt=1)
+                            _delay=1,gridId=gridId,_onBuilt=1)
         q = Bag()
         pyviews = self._th_hook('struct',mangler=th_root,asDict=True)
         for k,v in list(pyviews.items()):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
-                        table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
+        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
+        pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
+                        table=table,th_root=th_root,_fired='^.reload_userobjects_struct')
 
         options = self._th_getOptions(pane)
         #SOURCE MENUPRINT
@@ -1580,35 +1581,15 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_menuViews(self,table=None,th_root=None,pyviews=None,objtype=None,favoriteViewPath=None,currentView=None,baseViewName=None,**kwargs):
-        result = Bag()
+    def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
         objtype = objtype or 'view'
-        currentView = currentView or favoriteViewPath or '__baseview__'
         gridId = '%s_grid' %th_root
-        result.setItem('__baseview__', None,caption=baseViewName or 'Base View',gridId=gridId,checked = currentView=='__baseview__',isBaseView=True)
-        if pyviews:
-            for k,caption in pyviews:
-                result.setItem(k.replace('_','.'),None,description=caption,caption=caption,viewkey=k,gridId=gridId)
         userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, gridId),table=table)
         if self.pagename.startswith('thpage'):
             #compatibility old saved views
             userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % gridId,table=table))
-        if len(userobjects)>0:
-            result.update(userobjects)
-        result.walk(self._th_checkFavoriteLine,favPath=favoriteViewPath,currentView=currentView,gridId=gridId)
-        return result
-    
-    def _th_checkFavoriteLine(self,node,favPath=None,currentView=None,gridId=None):
-        if node.attr.get('code'):
-            if gridId:
-                node.attr['gridId'] = gridId
-            if node.attr['code'] == currentView:
-                node.attr['checked'] = True
-            elif node.attr['code'] == favPath:
-                node.attr['favorite'] = True
-            
-        else:
-            node.attr['favorite'] = None
+        return userobjects
+
     
     @public_method
     def th_menuQueries(self,table=None,th_root=None,pyqueries=None,editor=True,bySample=False,**kwargs):
@@ -1632,9 +1613,6 @@ class THViewUtils(BaseComponent):
         else:
             querymenu.setItem('__newquery__',None,caption='!!New query',description='',
                                 extended=True)
-        #if self.application.checkResourcePermission('_DEV_,dbadmin', self.userTags):
-        #    querymenu.setItem('__custom_columns__',None,caption='!!Custom columns',action="""FIRE .handle_custom_column;""")
-        #querymenu.walk(self._th_checkFavoriteLine,favPath=favoriteQueryPath)
         return querymenu
             
     @public_method

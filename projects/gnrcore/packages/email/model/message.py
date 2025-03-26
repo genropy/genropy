@@ -50,12 +50,23 @@ class Table(object):
         tbl.column('error_msg', name_long='Error message')
         tbl.column('error_ts', name_long='Error Timestamp')
         tbl.column('connection_retry', dtype='L')
+        tbl.column('read', dtype='B', name_long='!!Read')
 
+        #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
+        #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
+        tbl.formulaColumn('dest_user_id', select=dict(table='adm.user', where='$email=#THIS.to_address', 
+                                                      limit=1), name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
+        tbl.formulaColumn('show_read', """CASE WHEN $read IS NOT TRUE THEN '<div style="border-radius\\:10px;background\\:var(--primary-color);height\\:10px;width\\:10px"></div>'
+                                                ELSE NULL END""", name_long='!!Show read')
+        tbl.pyColumn('full_external_url', name_long='Full external url')
 
+    def pyColumn_full_external_url(self,record,field):
+        return self.db.application.site.externalUrl('/index', menucode='messages')
+    
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
@@ -322,6 +333,12 @@ class Table(object):
         self.db.commit()
         return 
 
+    @public_method
+    def markAsRead(self, pkey):
+        with self.recordToUpdate(pkey) as message_rec:
+            message_rec['read'] = True
+        self.db.commit()
+        
     def atc_getAttachmentPath(self,pkey):
         return self.folderPath(self.recordAs(pkey))
 

@@ -100,45 +100,133 @@ var genro_plugin_grid_configurator = {
             sourceNode.dropModes.column = sourceNode.attr.dropTarget_column;
         }
         sourceNode._gridConfiguratorBuilt=true;
+        var gridData = sourceNode.getRelativeData();
+        gridData.setCallBackItem('structMenuBag',this.prepareStructMenuBag,null,{gridId:sourceNode.attr.nodeId});
     },
     
+
+    newView:function(gridId){
+        var gridSourceNode = genro.nodeById(gridId);
+        gridSourceNode.setRelativeData('.currViewPath','__noselect__',null,false,false);
+        genro.dlg.prompt(_T('New view'),
+            {'widget':[{lbl:'Code',value:'^.code',validate_notnull:true},
+                        {lbl:'Description',value:'^.description'}],
+               action:function(result){
+                           var kw = result.asDict();
+                           let newStruct = new gnr.GnrBag()
+                           newStruct.setItem('view_0.rows_0',new gnr.GnrBag());
+                           kw.caption= kw.description;
+                           gridSourceNode.setRelativeData('.temp_structs.'+kw.code,newStruct,kw);
+                           gridSourceNode.setRelativeData('.currViewPath',kw.code);
+                       }
+               });
+    },
+
+    prepareStructMenuBag:function(kw){
+        var gridId = kw.gridId;
+        var gridSourceNode = genro.nodeById(gridId);
+        var favoriteViewPath = gridSourceNode.getRelativeData('.favoriteViewPath') || '__baseview__';
+        var result = new gnr.GnrBag()
+        var currPath = gridSourceNode.getRelativeData('.currViewPath') || favoriteViewPath;
+        var temp_structs = gridSourceNode.getRelativeData('.temp_structs');
+        var userobject_structs = gridSourceNode.getRelativeData('.userobject_structs');
+        var resource_structs = gridSourceNode.getRelativeData('.resource_structs');
+        var baseViewName = gridSourceNode.attr.baseViewName || _T('!![en]Base View')
+        result.addItem('__baseview__',null,{caption:baseViewName,gridId:gridId,isBaseView:true});
+        if(resource_structs){
+            resource_structs.getNodes().forEach(function(n){
+                if (n.label!='__baseview__'){
+                    result.addItem(n.label,null,{caption:n.attr.caption});
+                }
+            });
+        }
+        if(userobject_structs && userobject_structs.len() || temp_structs && temp_structs.len()){
+            result.addItem('_break_2',null,{'caption':'-'});
+        }
+        if(userobject_structs && userobject_structs.len()){
+            userobject_structs.walk(function(n){
+                let path = n.getFullpath(null,userobject_structs);
+                if(!n.getValue()){
+                    result.addItem(path,null,{color:'darkgreen',...n.attr});
+                }
+            });
+        }
+        if(temp_structs && temp_structs.len()){
+            temp_structs.forEach(function(n){
+                result.addItem(n.label,null,{color:'darkgreen',font_style:'italic',...n.attr});
+            });
+        }
+        result.walk(function(n){
+            let code = n.attr.code || n.label;
+            if(code){
+                if(code==currPath){
+                    n.attr.checked = true;
+                }
+                else if(code==favoriteViewPath){
+                    n.attr.favorite = true;
+                }
+            }
+        });
+ 
+        result.addItem('_break_3',null,{'caption':'-'});
+        result.addItem('__newview__',null,{caption:_T('New view')})
+        return result;
+
+    },
+
     loadView:function(gridId,currPath){
         var gridSourceNode = genro.nodeById(gridId);
+        if (currPath=='__newview__'){
+            this.newView(gridId)
+            return
+        }
         currPath = currPath || gridSourceNode.getRelativeData('.favoriteViewPath') || '__baseview__';
         var resource_structs = gridSourceNode.getRelativeData('.resource_structs');
-        var structbag,structnode,viewAttr;
+        var temp_structs = gridSourceNode.getRelativeData('.temp_structs');
+
+        var structbag,tempstruct,structnode,viewAttr;
         var finalize = function(struct){
              gridSourceNode.setRelativeData(gridSourceNode.attr.structpath,struct);
-             //if(gridSourceNode.widget && gridSourceNode.widget.storeRowCount()>0){
-             //    gridSourceNode.widget.reload(true);
-             //}
         }
         
-        if(resource_structs){
-            structnode = resource_structs.getNode(currPath);
+        if(resource_structs || temp_structs){
+            if(resource_structs){
+                structnode = resource_structs.getNode(currPath);
+            }
+            if(temp_structs && !structnode){
+                structnode = temp_structs.getNode(currPath);
+            }
             if(structnode){
                 viewAttr = structnode.attr;
                 structbag = structnode._value;
+                tempstruct = true;
             }
         }
         if(!structbag){
-            var menubag = gridSourceNode.getRelativeData('.structMenuBag');
-            if(!menubag.getNode(currPath)){
+            var userobject_structs = gridSourceNode.getRelativeData('.userobject_structs');
+            if(!userobject_structs.getNode(currPath)){
                 gridSourceNode.setRelativeData('.currViewPath','__baseview__');
                 return;
             }
-            viewAttr = menubag.getNode(currPath).attr;
+            viewAttr = userobject_structs.getNode(currPath).attr;
         }        
         viewAttr.id = viewAttr.pkey;
         gridSourceNode.setRelativeData('.currViewAttrs',new gnr.GnrBag(viewAttr));
         this.checkFavorite(gridId);
         if(viewAttr.pkey){
             var pkey = viewAttr.pkey;
-            genro.serverCall('_table.adm.userobject.loadUserObject', {pkey:pkey}, function(result){finalize(result.getValue());});
-        }else{
-            finalize(gridSourceNode.getRelativeData('.resource_structs.'+currPath).deepCopy());
+            genro.serverCall('_table.adm.userobject.loadUserObject', {pkey:pkey}, function(result){
+                gridSourceNode.fireEvent('.reload_userobjects_struct');
+                finalize(result.getValue());
+            });
+        }else{            
+            if(!tempstruct){
+                structbag = structbag?structbag.deepCopy():new gnr.GnrBag();
+            }
+            finalize(structbag);
         }
     },
+
     refreshMenu:function(gridId){
         var gridSourceNode = genro.nodeById(gridId);
         var menubag = gridSourceNode.getRelativeData('.structMenuBag');

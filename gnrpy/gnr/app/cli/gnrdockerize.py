@@ -68,15 +68,17 @@ class MultiStageDockerImageBuilder:
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
         git_repositories = []
-        for r in self.config.get('dependencies.git_repositories', []):
-            repo_conf = r.__dict__['_value']
-            repo = {
-                'url': repo_conf.get('url'),
-                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
-                'subfolder': repo_conf.get("subfolder", None),
-                'description': repo_conf.get("description", "No description")
-            }
-            git_repositories.append(repo)
+        git_config = self.config.get("dependencies", {}).get("git_repositories", {})
+        if isinstance(git_config, Bag):
+            for r in git_config:
+                repo_conf = r.__dict__['_value']
+                repo = {
+                    'url': repo_conf.get('url'),
+                    'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                    'subfolder': repo_conf.get("subfolder", None),
+                    'description': repo_conf.get("description", "No description")
+                }
+                git_repositories.append(repo)
 
         # Include the instance repository too
         start_build_dir = os.getcwd()
@@ -94,6 +96,7 @@ class MultiStageDockerImageBuilder:
             }
         
         git_repositories.append(code_repo)
+        logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
 
     def build_docker_image(self, version_tag="latest"):
@@ -118,7 +121,7 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             
                 for idx, repo in enumerate(git_repositories, start=1):
-                
+
                     repo_name = repo['url'].split("/")[-1].replace(".git", "")
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     

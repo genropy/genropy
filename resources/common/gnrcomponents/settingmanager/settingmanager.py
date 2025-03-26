@@ -59,7 +59,7 @@ class SettingManager(BaseComponent):
         frameCode = frameCode or f'sm_{table.replace(".","_")}'
         frame = parent.framePane(frameCode=frameCode, datapath=datapath, design='sidebar',
                                  _anchor=True, rounded=8, **kwargs)
-        frame.data('.settings',self.getSettingsData(table=table))
+        frame.data('.settings',self.getSettingsData(table=table,bagMode=storepath is not None))
         bc = frame.center.borderContainer()
 
         leftkw = {"region":"left","width":"100%"}
@@ -93,8 +93,8 @@ class SettingManager(BaseComponent):
                                    border_bottom='1px solid silver')
         bar.formletTitle.div('^#FORM.current_caption')
     
-    def formlets_tree(self, parent, title=None, **kwargs):
-        frame = parent.framePane(**kwargs)
+    def formlets_tree(self, parent,frameCode=None, title=None, **kwargs):
+        frame = parent.framePane(frameCode=frameCode,**kwargs)
         frame.top.slotBar('5,searchOn,*,5', height='30px', font_weight='bold',
                 color='var(--mainWindow-color)', border_bottom='1px solid silver')
         frame.center.contentPane().div(padding='20px').tree(
@@ -102,6 +102,7 @@ class SettingManager(BaseComponent):
             _class='branchtree noIcon settings_tree',
             labelAttribute='caption',
             openOnClick=True,
+            nodeId=f'{frameCode}_tree',
             getLabelClass="""
             if(!node.attr.formlet_caption){
                 return 'setting_group';
@@ -113,6 +114,7 @@ class SettingManager(BaseComponent):
                   }
             """,
             selectedLabelClass='selectedTreeNode',
+            selected_code='#ANCHOR.formlets.selected_code',
             selected_pkey='#ANCHOR.formlets.selected_pkey',
             selected_formlet_caption='#ANCHOR.formlets.selected_caption',
             selected_resource='#ANCHOR.formlets.selected_resource',
@@ -124,10 +126,17 @@ class SettingManager(BaseComponent):
         form = parent.contentPane(**kwargs).thFormHandler(table=table,
                                                           formResource='gnrcomponents/settingmanager/settingmanager:FormSetting')
         parent.dataController("""
-        frm.goToRecord(pkey)
+        if(pkey){
+            frm.goToRecord(pkey)
+        }else{
+            frm.newrecord({code:selected_code});
+        }
+        
         """,
         pkey='=#ANCHOR.formlets.selected_pkey', frm=form.js_form,
-        resource='^#ANCHOR.formlets.load',
+        resource = '=#ANCHOR.formlets.selected_resource',
+        selected_code='=#ANCHOR.formlets.selected_code',
+        _doload='^#ANCHOR.formlets.load',
         _if='pkey',_delay=1)
         return form
 
@@ -197,7 +206,7 @@ class SettingManager(BaseComponent):
                )
 
 
-    def getSettingsData(self, table=None):
+    def getSettingsData(self, table=None,bagMode=None,**kwargs):
         result = Bag()
         pkg,tblname = table.split('.')
         resources = Bag()
@@ -208,7 +217,7 @@ class SettingManager(BaseComponent):
         resources.update(resources_pkg)
         resources.update(resources_custom)
         tblobj = self.db.table(table)
-
+        currentSettings = {} if bagMode else tblobj.getCurrentSettings()
         infodict = {groupNode.label:os.path.join(groupNode.attr['abs_path'],f'{groupNode.label}.json') for groupNode in resources_pkg}
         infodict.update({groupNode.label:os.path.join(groupNode.attr['abs_path'],
                             f'{groupNode.label}.json') for groupNode in resources_custom 
@@ -235,7 +244,8 @@ class SettingManager(BaseComponent):
                     groupNode.attr.update(info)
                     continue
                 info['formlet_caption'] = info['caption']
-                content.setItem(info['code'], None, pkey=tblobj.getSettingPkey(**info),
+                content.setItem(info['code'], None, 
+                                pkey=currentSettings.get(info['code'],{}).get(tblobj.pkey),
                                 resource=f'formlet/{groupNode.label}/{setting_node.label}',
                                 group_caption=group_info.get('caption'),
                                 group=group_info.get('group'),

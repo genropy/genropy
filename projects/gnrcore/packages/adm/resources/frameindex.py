@@ -130,6 +130,7 @@ class FrameIndex(BaseComponent):
                                 persist=True,
                                 selfsubscribe_toggleLeft="""this.getWidget().setRegionVisible("left",'toggle');""",
                                 selfsubscribe_hideLeft="""this.getWidget().setRegionVisible("left",false);""",
+                                subscribe_openUserSettings="genro.framedIndexManager.openUserSettings($1)",
                                 subscribe_setIndexLeftStatus="""var delay = $1===true?0: 500;
                                                                 var set = $1;                           
                                                                 if(typeof($1)=='number'){

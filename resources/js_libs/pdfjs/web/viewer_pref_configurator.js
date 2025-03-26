@@ -33,6 +33,18 @@ function configureViewer() {
     let parsedUrl = parseURL(document.location.href);
     let _viewer_options = parsedUrl.params._viewer_options;
     let _viewer_tools = parsedUrl.params._viewer_tools;
+    let _is_cordova = parsedUrl.params._is_cordova;
+    let _external_document_url = parsedUrl.params._external_document_url;
+
+    if(_is_cordova && _external_document_url){
+        const app = window.PDFViewerApplication;
+        _viewer_options = _viewer_options.split(',').filter(elem=>elem!='print').join(',');
+        document.body.classList.add('cordova_external_url');
+        app.download = function(){
+            window.open(_external_document_url+'/'+this._downloadUrl);
+        };
+    }
+
     if(_viewer_options){
         for(let opt of _viewer_options.split(',')){
             document.body.classList.add(opt+'_enabled');
@@ -43,7 +55,10 @@ function configureViewer() {
             document.body.classList.add(opt+'_enabled');
         }
     }
+
 };
+
+
 
 document.blockUnblockOnload?.(true);
 

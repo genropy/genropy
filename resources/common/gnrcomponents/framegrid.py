@@ -434,7 +434,8 @@ class FrameGrid(BaseComponent):
         grid_kwargs.setdefault('selectedId','.selectedId')
         grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
-                                            title=grid_kwargs.pop('title','!!Grid'),_class='gridRoundedEnvelope' if roundedEnvelope else None)
+                                            title=grid_kwargs.pop('title','!!Grid'),
+                                            _class='gridRoundedEnvelope' if roundedEnvelope else None)
         grid = envelope_bc.contentPane(region='center',childname='grid_pane').includedView(autoWidth=False,
                           storepath=storepath,datamode=datamode,
                           dynamicStorepath=dynamicStorepath,

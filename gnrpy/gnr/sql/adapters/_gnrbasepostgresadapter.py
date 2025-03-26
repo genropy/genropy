@@ -67,6 +67,8 @@ class MacroExpander(BaseMacroExpander):
         channel_code = m.group('querycode') or 'current'
         sqlparams = self.querycompiler.sqlparams
         tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+        if not tsquery_params:
+            return "''"
         query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
         language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
         config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
