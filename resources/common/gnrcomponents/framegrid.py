@@ -231,10 +231,11 @@ class FrameGridTools(BaseComponent):
         default_closable.update(closable_kwargs)
         box_kwargs.setdefault('border_right','1px solid silver')
         box_kwargs.update(default_closable)
+        splitter = False if self.isMobile else splitter
         bc = view.grid_envelope.borderContainer(region= region or 'left',
                                         width=width or '300px',
                                         closable=closable,
-                                        splitter=False if self.isMobile else splitter,
+                                        splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
                                         **box_kwargs)
         if closable !='close':
@@ -281,6 +282,9 @@ class FrameGridTools(BaseComponent):
         gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False)
         gth.dataController(f"""
             SET .selectedIndex = null;
+            if(!_use_grouper){{
+                grouper_grid.selection.unselectAll();
+            }}
             if(genro.nodeById(tree_nodeId)){{
                 SET #{tree_nodeId}.currentGroupPath = null;
             }}
@@ -291,11 +295,10 @@ class FrameGridTools(BaseComponent):
             }}else{{
                 groupedStore.store.loadData();
             }}
-        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId)   
+        """,_use_grouper=f'^#{groupedTh}_grid.#parent.use_grouper',tree_nodeId=tree_nodeId,grouper_grid=gth.grid.js_widget)   
         gth.grid.attributes['selfsubscribe_group_added_column'] = f"""
             var groupedStore = genro.nodeById('{groupedTh}_grid_store');
             if(groupedStore.store.storeType!='VirtualSelection'){{
-                console.log('reload_grouper');
                 genro.nodeById('{groupedTh}_frame').fireEvent('.reloadGrouper',{{_addedColumn:$1.column}});
             }}
         """
@@ -431,8 +434,9 @@ class FrameGrid(BaseComponent):
         grid_kwargs.setdefault('selectedId','.selectedId')
         grid_kwargs.update(editor_kwargs)
         envelope_bc = frame.borderContainer(childname='grid_envelope',pageName='mainView',
-                                            title=grid_kwargs.pop('title','!!Grid'),_class='gridRoundedEnvelope' if roundedEnvelope else None)
-        grid = envelope_bc.contentPane(region='center').includedView(autoWidth=False,
+                                            title=grid_kwargs.pop('title','!!Grid'),
+                                            _class='gridRoundedEnvelope' if roundedEnvelope else None)
+        grid = envelope_bc.contentPane(region='center',childname='grid_pane').includedView(autoWidth=False,
                           storepath=storepath,datamode=datamode,
                           dynamicStorepath=dynamicStorepath,
                           datapath='.grid',

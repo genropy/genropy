@@ -11,6 +11,11 @@ input:focus { outline: none; }
 * a:hover{
     text-decoration:underline !important;
 }
+
+body {
+    --primary-color: #1E3055;
+}
+
 #protection_shield{
     background: rgba(200, 200, 200, 0.4) url(icons/pageWaiting.gif) no-repeat center center;
     z-index: 10000000;
@@ -134,6 +139,12 @@ cursorZoom_plus{
 
 .gnr_blurred_cell{
     filter:blur(3px);
+}
+
+.FragmentDelimiter{
+    border:0;
+    height:1px;
+    background: #ddd;
 }
 
 .iskeepable{
@@ -1800,7 +1811,6 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 .tundra .menupane .dijitMenuItem td{
     padding: 0;
-    color:#333;
 }
 
 .tundra .menupane.colormenu .dijitMenuExpandEnabled{
@@ -1814,8 +1824,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     padding-top: 0px !important;
     padding-bottom: 0px !important;
     padding-right: .40em;
-    color:#333;
 }
+
+
 div.dojoxDock {
 	background: none;
 	border: none;
@@ -2625,8 +2636,12 @@ div.dojoxDock {
     overflow: hidden;
 }
 
-._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar{
+._common_d11 .lightboxDialog .dijitDialogTitleBar, ._common_d11 .fullscreenDialog .dijitDialogTitleBar, ._common_d11 .hideDialogTitle .dijitDialogTitleBar{
     display:none;
+}
+
+._common_d11 .hideDialogTitle .dijitDialogPaneContent{
+    border-radius: 6px;
 }
 
 ._common_d11  .dijitTooltipFocusNode{
@@ -4605,7 +4620,10 @@ p {
     width: 10px;
 }
 
-
+/*Mobile bar styles*/
+.mobile_bar.slotbar_toolbar_standard{
+    background:white;
+}
 
 .mobile_bar .multibutton_container{
     color:var(--root-dark);
@@ -4613,8 +4631,10 @@ p {
 
 .mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
     background: none;
+    font-weight: bold;
     border-bottom:2px solid var(--root-dark);
 }
+
 .mobile_bar .multibutton {
     position: relative;
     font-variant: normal;
@@ -4629,11 +4649,11 @@ p {
     background-color: transparent;
 }
 
-
 .mobile_bar .multibutton:first-child{
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: 0px;
+    margin-left:10px;
 }
 
 .mobile_bar .multibutton:last-child {
@@ -4641,6 +4661,7 @@ p {
     border-bottom-right-radius: 0;
     border-left: 0px;
     border-right: 0px;
+    margin-right: 10px;
 }
 
 .mobile_bar .multibutton_container.singleChildMultibutton{
@@ -4656,6 +4677,28 @@ p {
         padding-right: 6px;
     }
 }
+
+/*Mobile button styles*/
+.mobile_button_container{
+    display: flex;
+    flex-flow: column;
+    justify-content: space-around;
+    align-content: center;
+    align-items: center;
+}
+
+.mobile_button{
+    background: var(--primary-color);
+    color: white;
+    width:80%;
+    font-size: 1.1em;
+    text-align: center;
+    cursor: pointer;
+    padding:10px;
+    margin:5px;
+    border-radius: 20px;
+}
+
 /* @end */
 
 .framecloserIcon{
@@ -5211,14 +5254,6 @@ div[disabled='true'], div[disabled='disabled']{
 
 .branchtree .dijitTreeExpandoLeaf{
     background: none;
-}
-
-.branchtree .dijitTreeLabel {
-    padding-left: 2px;
-    white-space: nowrap;
-}
-.treeGridCenter .branchtree .dijitTreeLabel {
-    padding-left: 0;
 }
 
 .branchtree.treeLongLabels .dijitTreeLabel {

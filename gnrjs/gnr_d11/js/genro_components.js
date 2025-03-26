@@ -5362,7 +5362,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         kw = sourceNode.evaluateOnNode(kw);
         var popup = objectPop(kw,'popup');
         var values = objectPop(kw,'values');
-        var codeSeparator = objectPop(kw,'codeSeparator');
+        var customCodeSeparator = objectPop(kw,'codeSeparator');
+        var codeSeparator = customCodeSeparator;
         var tb;
         var gnrwdg = sourceNode.gnrwdg;
         var has_code;
@@ -5379,10 +5380,9 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         }
         if(values instanceof gnr.GnrBag){
             has_code = true;
+        }else if (values){
+            has_code = codeSeparator?values.indexOf(codeSeparator)>=0:false;
         }else{
-            has_code = (codeSeparator && values)?values.indexOf(codeSeparator)>=0:false;
-        }
-        if(!values){
             var table = objectPop(originalKwargs,'table');
             if(table || gnrwdg.remoteValuesRpc){
                 var hierarchical = objectPop(kw,'hierarchical');
@@ -5428,6 +5428,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
                     gnrwdg.has_code = (codeSeparator && v)?v.indexOf(codeSeparator)>=0:false;
                     gnrwdg.setValues(v);
                 }
+            }else{
+                has_code = customCodeSeparator?true:false;
             }
         }
         var rootNode = sourceNode;

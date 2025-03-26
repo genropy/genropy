@@ -38,7 +38,27 @@ from gnr.sql import logger
 FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
+class MacroExpander(object):
+    # Regex patterns for each macro with improved support for quoted identifiers
+    
+    macros = {}
 
+    def __init__(self,querycompiler):
+        self.querycompiler = querycompiler
+        
+    def replace(self, sql_text, macro):
+        """Expands macros in the given SQL text.
+
+        :param sql_text: The SQL string containing macros.
+        :param finder: The macro type to expand (e.g., 'tsquery', 'tsrank', 'tsheadline').
+        :return: The SQL string with macros expanded.
+        """
+        for m in macro.split(','):
+            if m not in self.macros:
+                continue
+            sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        return sql_text
+    
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
@@ -103,6 +123,10 @@ class SqlDbAdapter(object):
         Adapt/fix a name if needed in a specific adapter/driver
         """
         return name
+    
+    @property
+    def macroExpander(self):
+        return MacroExpander
 
     def adaptSqlSchema(self,name):
         """
@@ -687,7 +711,7 @@ class SqlDbAdapter(object):
         result = cursor.executemany(sql,records)
         return result
 
-    def update(self, dbtable, record_data, pkey=None,**kwargs):
+    def update(self, dbtable, record_data, pkey=None,old_record=None,**kwargs):
         """Update a record in the db. 
         All fields in record_data will be updated: all keys must correspond to a column in the db.
         
@@ -708,12 +732,19 @@ class SqlDbAdapter(object):
                     sql_par_prefix = ''
                     k = sql_value
                 sql_flds.append('%s=%s%s' % (sqlcolname, sql_par_prefix,k))
-        pkeyColumn = tblobj.pkey
-        if pkey:
-            pkeyColumn = '__pkey__'
-            record_data[pkeyColumn] = pkey
-        sql = 'UPDATE %s SET %s WHERE %s=:%s;' % (
-        tblobj.sqlfullname, ','.join(sql_flds), tblobj.sqlnamemapper[tblobj.pkey], pkeyColumn)
+        if old_record:
+            pkeysDict = {k:old_record[k] for k in  tblobj.pkeys}
+        elif pkey:
+            pkeysDict = dbtable.parseSerializedKey(pkey)
+        else:
+            pkeysDict = {k:record_data[k] for k in  tblobj.pkeys}
+        where = []
+        for i,k in enumerate(pkeysDict.keys()):
+            parname = f'__pkey__{i}'
+            where.append(f'{tblobj.sqlnamemapper[k]}=:{parname}')
+            record_data[parname] = pkeysDict[k]
+        where = ' AND '.join(where)
+        sql = f"UPDATE {tblobj.sqlfullname} SET {','.join(sql_flds)} WHERE {where};"
         return self.dbroot.execute(sql, record_data, dbtable=dbtable.fullname)
 
     def delete(self, dbtable, record_data,**kwargs):
@@ -912,7 +943,7 @@ class SqlDbAdapter(object):
         return f"'{strvalue}'"
 
     def columnSqlDefinition(self, sqlname, dtype=None, size=None, notnull=None, pkey=None, 
-                            unique=None,default=None,extra_sql=None):
+                            unique=None,default=None,extra_sql=None,generated_expression=None):
         """Return the statement string for creating a table's column
         """
         sql_list = [f'"{sqlname}" {self.columnSqlType(dtype, size)}'] 
@@ -924,7 +955,13 @@ class SqlDbAdapter(object):
             sql_list.append('UNIQUE')
         if default:
             sql_list.append(f'DEFAULT {self.valueToSql(default)}')
-        return f"{' '.join(sql_list)} {extra_sql or ''}"
+        extra_sql = extra_sql or ''
+        if generated_expression:
+            always = ' ALWAYS' if generated_expression.get('always') else ''
+            stored = ' STORED' if generated_expression.get('stored') else ''
+            expression = generated_expression.get('expression')
+            extra_sql = f"GENERATED{always} AS ({expression}){stored} {extra_sql}"
+        return f"{' '.join(sql_list)} {extra_sql}".strip()
 
     def columnSqlType(self, dtype, size=None):
         """
@@ -1325,6 +1362,13 @@ class GnrWhereTranslator(object):
     def op_contains(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Contains"
         return self.unaccentTpl(tblobj,column,'ILIKE',mask="'%%%%' || :%s || '%%%%'")  % (column, self.storeArgs(value, dtype, sqlArgs, parname=parname))
+
+
+    def op_fulltext(self, column, value, dtype, sqlArgs, tblobj, parname=None):
+        "!!Matches"
+        return f"#TSQUERY({tblobj.column(column).attributes['tsvColumn']},:{self.storeArgs(value, dtype, sqlArgs, parname=parname)},{tblobj.column(column).attributes['tsvLanguage']})"
+
+
 
     def op_greater(self, column, value, dtype, sqlArgs, tblobj, parname=None):
         "!!Greater than"

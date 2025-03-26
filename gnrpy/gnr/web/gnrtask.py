@@ -22,15 +22,16 @@
 
 #Copyright (c) 2019 Softwell. All rights reserved.
 
+import os
 from psutil import pid_exists
-from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
-from gnr.web.gnrwsgisite import GnrWsgiSite
-
 from datetime import datetime
 from time import sleep
 from random import randrange
-import os
+
+from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrbag import Bag
+from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web import logger
 
 class GnrTaskScheduler(object):
     def __init__(self,instancename,interval=None):
@@ -123,11 +124,16 @@ class GnrTaskWorker(object):
                             batch_selection_savedQuery=task_execution['task_saved_query'])
         taskparameters = task_execution['task_parameters']
         with self.db.tempEnv(connectionName='execution'):
+            logger.info("Executing task %s.%s - %s", task_execution['table_table'],
+                        task_execution['table_table'],
+                        task_execution['table_name'],
+                        task_execution['table_command'])
             taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
     
     def start(self):
         while True:
             for te_pkey in self.taskToExecute():
+                logger.info("Starting task %s", te_pkey)
                 with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
                                                 virtual_columns="""$task_table,
                                                                     $task_name,

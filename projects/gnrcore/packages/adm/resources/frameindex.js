@@ -259,16 +259,17 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     newModalPanel:function(kw){
+        kw.url_modal_dialog = true;
         this.finalizePageUrl(kw);
         let startKw =  objectExtract(kw,'start_*');
         let openKw = kw.openKw || {};
         objectUpdate(openKw,startKw)
-        openKw.topic = 'modal_page_open';
-        let dlgNode = genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+        openKw.topic = openKw.topic || 'modal_page_open';
+        genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
                                                 {src:kw.url,windowRatio:.8,title:kw.label,
                                                 closable:kw.closable,
                                                 iframe_subscribe_modal_page_close:'this.publish("close")',
-                                                openKw:openKw
+                                                openKw:openKw,...objectExtract(kw,'dlg_*',true,true)
                                                 });
     },
 
@@ -537,11 +538,30 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/user_preference'});
+        //old
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),dlg_closable:true});
     },
 
-    openAppPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/app_preference'});
+
+    openUserSettings:function(setting_path){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        openKw = {}
+        openKw.topic = 'user_setting_open'
+        openKw.setting_path = setting_path;
+        this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px',modal:!genro.isMobile,openKw:openKw});
+    },
+
+    openAppPreferences:function(openKw){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        
+        this.selectIframePage({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true,modal:!genro.isMobile,
+            openKw:openKw
+        });
     },
 
     openHelpForCurrentIframe:function(){

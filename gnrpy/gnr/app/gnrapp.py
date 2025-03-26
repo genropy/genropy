@@ -46,6 +46,7 @@ from gnr.core.gnrlang import  objectExtract,gnrImport, instanceMixin, GnrExcepti
 from gnr.core.gnrstring import makeSet, toText, splitAndStrip, like, boolean
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
+from gnr.core import gnrlog
 from gnr.utils import ssmtplib
 from gnr.app.gnrdeploy import PathResolver
 from gnr.app import logger
@@ -366,7 +367,8 @@ class GnrPackagePlugin(object):
         
 class GnrPackage(object):
     """TODO"""
-    def __init__(self, pkg_id, application, path=None, filename=None, project=None,**pkgattrs):
+    def __init__(self, pkg_id, application,
+                 path=None, filename=None, project=None, **pkgattrs):
         self.id = pkg_id
         filename = filename or pkg_id
         self.application = application
@@ -375,7 +377,6 @@ class GnrPackage(object):
         # for path, which is the default value of the method
         # parameter, and no checks are being made on it.
         self.packageFolder = os.path.join(path, filename)
-        
         self.libPath = os.path.join(self.packageFolder, 'lib')
         sys.path.append(self.libPath)
         self.attributes = {}
@@ -404,7 +405,7 @@ class GnrPackage(object):
         except Exception as e:
             logger.exception(e)
             raise GnrImportException(
-                    "Cannot import package %s from %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py')))    
+                    "Cannot import package %s from %s: %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py'), str(e)))
         self.pkgMixin = GnrMixinObj()
         instanceMixin(self.pkgMixin, getattr(self.main_module, 'Package', None))
         
@@ -635,8 +636,14 @@ class GnrApp(object):
         self.project_packages_path = None
         self.enabled_packages = enabled_packages
         if instanceFolder:
-            if ':' in instanceFolder:
-                instanceFolder,self.remote_db  = instanceFolder.split(':',1)
+            if ":" in instanceFolder:
+                if sys.platform == 'win32':
+                    if instanceFolder.count(':') > 1:
+                        _s = instanceFolder.split(":")
+                        instanceFolder = ":".join(_s[:2])
+                        self.remote_db = _s[-1]
+                else:
+                    instanceFolder,self.remote_db  = instanceFolder.split(':',1)
             self.instanceFolder = self.instance_name_to_path(instanceFolder)
             self.instanceName = os.path.basename(self.instanceFolder)
             project_packages_path = os.path.normpath(os.path.join(self.instanceFolder, '..', '..', 'packages'))
@@ -645,6 +652,8 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
+            self.load_logging_conf()
+            
         sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
@@ -689,7 +698,26 @@ class GnrApp(object):
     def get_modulefinder(self):
         """TODO"""
         return GnrModuleFinder(self)
-        
+
+    def save_logging_conf(self, conf_bag, apply=False):
+        logger.debug("Saving new logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        with open(log_conf, "w") as wfp:
+            wfp.write(conf_bag.toXml())
+        if apply:
+            gnrlog.apply_dynamic_conf(conf_bag)
+    
+    def load_logging_conf(self):
+        logger.debug("Loading logging configuration")
+        log_conf = os.path.join(self.instanceFolder, "logging.xml")
+        if os.path.isfile(log_conf):
+            try:
+                c = Bag(log_conf)
+                gnrlog.apply_dynamic_conf(c)
+                logger.debug("Logging configuration loaded")
+            except:
+                logger.exception("Logging configuration error")
+                
     def load_instance_config(self):
         """TODO"""
         if not self.instanceFolder:
@@ -732,13 +760,15 @@ class GnrApp(object):
         self.catalog = GnrClassCatalog()
         self.localization = {}
 
-        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
             return
+
+        # load the packages
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+
         
         if not forTesting:
             dbattrs = self.config.getAttr('db') or {}
@@ -821,14 +851,24 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        for a, p in self.packages.items():
-            requirements_file = os.path.join(p.packageFolder, "requirements.txt")
+        for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
+            if ":" in pkgid:
+                project, pkgid = pkgid.split(":")
+            else:
+                project = None
+            if not pkgattrs.get('path'):
+                path = self.pkg_name_to_path(pkgid,project)
+            if not os.path.isabs(path):
+                path = self.realPath(path)
+
+            requirements_file = os.path.join(path, pkgid, "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(a)
+                            instance_deps[dep_name].append(pkgid
+                                                           )
         self.instance_packages_dependencies = instance_deps
 
         if not 'checkdepcli' in self.kwargs:
