@@ -1216,8 +1216,6 @@ class TableBase(object):
                              (Use only if copying to a different table name)
         :param _commit: Whether to commit changes to the destination database 
                         (default: False)
-        :param logger: Logger object for recording operations.
-                       (currently not used)
         :param onSelectedSourceRows: Optional function to process source rows
                                      before copying (can also be defined as a
                                      method on the table class named 
