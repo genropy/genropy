@@ -1005,7 +1005,12 @@ class TableHandlerView(BaseComponent):
         pane.data('.grid.resource_structs',q)
         pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
         pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
-                        table=table,th_root=th_root,_fired='^.reload_userobjects_struct')
+                        table=table,th_root=th_root,
+                        _loadAfter='^.grid.reload_userobjects_struct',
+                        _onResult="""if(kwargs._loadAfter!==true){
+                            PUT .grid.currViewPath = null;
+                            SET .grid.currViewPath = kwargs._loadAfter;
+                        }""")
 
         options = self._th_getOptions(pane)
         #SOURCE MENUPRINT

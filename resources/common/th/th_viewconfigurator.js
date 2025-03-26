@@ -62,8 +62,7 @@ var genro_plugin_grid_configurator = {
                             table:gridSourceNode.attr.table},
                             function(result) {
                                 dlg.close_action();
-                                gridSourceNode.setRelativeData('.currViewPath', result.attr.code);
-                                that.refreshMenu(gridId);
+                                that.refreshMenu(gridId,result.attr.code);
                             });
         };
         genro.dev.userObjectDialog(selectedViewCode ? 'Save View ' + selectedViewCode : 'Save New View',datapath,saveCb);
@@ -115,7 +114,7 @@ var genro_plugin_grid_configurator = {
                            var kw = result.asDict();
                            let newStruct = new gnr.GnrBag()
                            newStruct.setItem('view_0.rows_0',new gnr.GnrBag());
-                           kw.caption= kw.description;
+                           kw.caption= kw.description || kw.code;
                            gridSourceNode.setRelativeData('.temp_structs.'+kw.code,newStruct,kw);
                            gridSourceNode.setRelativeData('.currViewPath',kw.code);
                        }
@@ -216,7 +215,6 @@ var genro_plugin_grid_configurator = {
         if(viewAttr.pkey){
             var pkey = viewAttr.pkey;
             genro.serverCall('_table.adm.userobject.loadUserObject', {pkey:pkey}, function(result){
-                gridSourceNode.fireEvent('.reload_userobjects_struct');
                 finalize(result.getValue());
             });
         }else{            
@@ -227,13 +225,9 @@ var genro_plugin_grid_configurator = {
         }
     },
 
-    refreshMenu:function(gridId){
+    refreshMenu:function(gridId,loadAfter){
         var gridSourceNode = genro.nodeById(gridId);
-        var menubag = gridSourceNode.getRelativeData('.structMenuBag');
-        if(!menubag){
-            return;
-        }
-        menubag.getParentNode().getResolver().reset();
+        gridSourceNode.fireEvent('.reload_userobjects_struct',loadAfter || true)
     },
     checkFavorite:function(gridId){
         var frame = genro.getFrameNode(gridId.replace('_grid',''));
