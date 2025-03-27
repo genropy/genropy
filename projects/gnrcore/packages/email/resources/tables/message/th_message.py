@@ -225,7 +225,8 @@ class ViewMobile(BaseComponent):
                     configurable=False,roundedEnvelope=True,
                     dialog_fullScreen=True,
                     extendedQuery=False, addrow=False, delrow=False)
-        
+
+
 
 class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
