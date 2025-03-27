@@ -5229,6 +5229,15 @@ div[disabled='true'], div[disabled='disabled']{
     line-height: 15px;
 }
 
+.branchtree .dijitTreeLabel {
+    padding-left: 2px;
+    white-space: nowrap;
+}
+.treeGridCenter .branchtree .dijitTreeLabel {
+    padding-left: 0;
+}
+
+
 .branchtree .dijitTreeExpando{
     height: 15px;
     width: 16px;
