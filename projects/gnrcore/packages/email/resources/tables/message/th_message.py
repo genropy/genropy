@@ -227,17 +227,6 @@ class ViewMobile(BaseComponent):
                     extendedQuery=False, addrow=False, delrow=False)
         
 
-class FormFromSocio(BaseComponent):
-    py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
-
-    def th_form(self, form):
-        tc = form.center.tabContainer(tabPosition='left-h')
-        tc.contentPane(title='Contenuto', datapath='.record').templateChunk(table='email.message', record_id='^.id', 
-                                                                            template='msg_preview', margin='5px')
-        tc.contentPane(title='Allegati').attachmentMultiButtonFrame()
-            
-
-
 class Form(BaseComponent):
     py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
 
