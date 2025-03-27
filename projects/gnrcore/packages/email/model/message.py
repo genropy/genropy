@@ -54,8 +54,7 @@ class Table(object):
 
         #tbl.joinColumn('dest_user_id', name_long='!!Destination user').relation('adm.user.id', 
         #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
-        tbl.formulaColumn('dest_user_id', select=dict(table='adm.user', where='$email=#THIS.to_address', columns='$id',
-                                                      limit=1), name_long='!!Destination user')
+        tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
