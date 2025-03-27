@@ -171,7 +171,7 @@ class ViewMobile(BaseComponent):
 
     def th_order(self):
         return '$__ins_ts:d'
-    
+        
     def th_condition(self):
         return dict(condition='^messageFilters.condition',
                     condition_type='=messageFilters.type',
@@ -180,7 +180,7 @@ class ViewMobile(BaseComponent):
     
     @customizable    
     def th_top_readingstate(self, top):
-        bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar')
+        bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar', margin_bottom='20px')
         dlg = self.filtersDialog(bar.filters)
         bar.filters.slotButton(_class='google_icon filters', background='#555', height='35px').dataController(
                                     "dlg.show();", dlg=dlg.js_widget)
@@ -188,7 +188,7 @@ class ViewMobile(BaseComponent):
     
     def th_sections_readingstate(self):
         return [dict(code='to_read', caption='!![en]Unread', condition="$read IS NOT TRUE"),
-                   dict(code='all', caption='[en]All')]
+                   dict(code='all', caption='!![en]All')]
         
 
     def filtersDialog(self, pane):
