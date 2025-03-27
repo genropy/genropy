@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import shutil
 import subprocess
 import urllib.request, urllib.parse, urllib.error
 import _thread
@@ -268,8 +269,10 @@ class GnrWsgiSite(object):
             alias_url = getattr(tool_impl.__call__, "alias_url", None)
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
-            
+
+        # FIXME: ?
         self.register
+        
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
         if counter == 0 and options and options.source_instance:
@@ -581,25 +584,32 @@ class GnrWsgiSite(object):
             localizerKw = self.currentPage.localizerKw
         return  GnrSiteException(message=message,localizerKw=localizerKw)
 
-        #def connFolderRemove(self, connection_id, rnd=True):
-        #    shutil.rmtree(os.path.join(self.allConnectionsFolder, connection_id),True)
-        #    if rnd and random.random() > 0.9:
-        #        live_connections=self.register_connection.connections()
-        #        connection_to_remove=[connection_id for connection_id in os.listdir(self.allConnectionsFolder) if connection_id not in live_connections and os.path.isdir(connection_id)]
-        #        for connection_id in connection_to_remove:
-        #            self.connFolderRemove(connection_id, rnd=False)
-        #
+    def connFolderRemove(self, connection_id=None):
+        """
+        remove all connection folder to the given connection_id
+
+        if not provide, it will delete all the connection folders
+        for connections that do not exist in the register
+        """
+        if connection_id:
+            logger.info("Cleaning up connection folder %s", connection_id)
+            shutil.rmtree(os.path.join(self.allConnectionsFolder, connection_id), ignore_errors=True)
+        else:
+            logger.info("Cleaning old connection folders")
+            live_connections=self.register.connections()
+            connection_to_remove=[connection_id for connection_id in os.listdir(self.allConnectionsFolder) if connection_id not in live_connections and os.path.isdir(connection_id)]
+            for conn_id in connection_to_remove:
+                self.connFolderRemove(conn_id)
+        
 
     def onInited(self, clean):
         """TODO
 
         :param clean: TODO"""
         if clean:
+            logger.info("Cleaning up connection folder")
             self.dropConnectionFolder()
             self.initializePackages()
-        else:
-            pass
-
 
     def on_reloader_restart(self):
         """TODO"""
@@ -1149,7 +1159,6 @@ class GnrWsgiSite(object):
             debugger.onClosePage()
         self.currentPage = None
         self.db.closeConnection()
-        #self.shared_data.disconnect_all()
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
