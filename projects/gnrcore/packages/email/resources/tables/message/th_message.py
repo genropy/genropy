@@ -188,7 +188,7 @@ class ViewMobile(BaseComponent):
     
     def th_sections_readingstate(self):
         return [dict(code='to_read', caption='!![en]Unread', condition="$read IS NOT TRUE"),
-                   dict(code='all', caption='[en]All')]
+                   dict(code='all', caption='!![en]All')]
         
 
     def filtersDialog(self, pane):
