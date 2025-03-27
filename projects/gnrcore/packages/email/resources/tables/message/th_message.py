@@ -148,7 +148,6 @@ class ViewFromDashboard(View):
 class ViewMobile(BaseComponent):
     
     def baseCondition(self):
-        "Message filters base condition, customizable"
         return '$dest_user_id=:env_user_id'
     
     def th_struct(self,struct):
@@ -188,8 +187,8 @@ class ViewMobile(BaseComponent):
         return top
     
     def th_sections_readingstate(self):
-        return [dict(code='NOLETTI', caption='Da leggere', condition="$read IS NOT TRUE"),
-                   dict(code='TUTTI', caption='Tutti')]
+        return [dict(code='to_read', caption='!![en]Unread', condition="$read IS NOT TRUE"),
+                   dict(code='all', caption='[en]All')]
         
 
     def filtersDialog(self, pane):
@@ -202,7 +201,6 @@ class ViewMobile(BaseComponent):
         dlg.dataController("""SET messageFilters.base_condition=base_condition""",
                            base_condition=self.baseCondition(), _onStart=True)
         dlg.dataController("""var condition_list = [base_condition];
-                           console.log('base_condition', condition_list);
                             if(type){
                                 condition_list.push('$message_type=:type');
                             };
