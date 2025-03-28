@@ -5943,6 +5943,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             slotKw = objectExtract(kw,slot+'_*');
             if(slotKw.width){
                 cell.getParentNode().attr['width'] = slotKw.width;
+                slotKw._original_width = slotKw.width;
                 slotKw.width = '100%';
             }
             if(slotKw.text_align){
@@ -6041,7 +6042,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             searchId = searchCode+'_searchbox';
         }
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
-                            'width':objectPop(slotKw,'width'),search_kw:slotKw});
+                            'width':objectPop(slotKw,'_original_width'),search_kw:slotKw});
     },
 
     slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
