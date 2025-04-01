@@ -16,15 +16,16 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                 genro.cordova.onDeviceReady();
             }, false);
 
-            var CORDOVA_JS_URL = "https://localhost/cordova.js";
+            let CORDOVA_JS_URL = "https://localhost/cordova.js";
             
+            let COUNTERPART_JS_URL = "https://localhost/genro_app_counterpart.js";
+
             // iOS wants a different scheme for local payloads.
             if(navigator.userAgent.includes("GnriOS")) {
                 CORDOVA_JS_URL = "/_cordova_asset/ios/cordova.js";
+                COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js'
             }
-            genro.dom.loadJs(CORDOVA_JS_URL, () => {
-                        console.log("CORDOVA JS LOADED");
-            });
+            genro.dom.loadResource(CORDOVA_JS_URL).then(()=>genro.dom.loadResource(COUNTERPART_JS_URL))
         }
     },
 
