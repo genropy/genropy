@@ -1,7 +1,6 @@
 it starts from genropy-pg
 use gnrdaemon
 supervisord
-nginx
 gnrasync
 
 

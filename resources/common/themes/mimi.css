@@ -1,5 +1,8 @@
 /*vico*/
 
+body {
+    --primary-color: #1E3055;
+}
 
 body.tundra.mimi {
     font:14px "SF Pro Text","Myriad Set Pro","SF Pro Icons","Apple Legacy Chevron","Helvetica Neue","Helvetica","Arial",sans-serif;
@@ -412,6 +415,10 @@ body.tundra.mimi {
     margin:12px;
 }
 /* @end */
+
+._common_d11 .hideDialogTitle .dijitDialogPaneContent{
+    border-radius: 6px;
+}
 
 .tundra._common_d11 .dijitDialogTitleBar {
     background: var(--dialogtitlebar-background);
@@ -1008,7 +1015,7 @@ body.tundra.mimi {
     height:0px;
     padding-top:0px;
     padding-bottom:0px;
-    background:none;
+    background:white;
     vertical-align:top;
 }
 

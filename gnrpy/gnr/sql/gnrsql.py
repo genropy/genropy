@@ -29,8 +29,9 @@ import _thread
 import locale
 from time import time
 from multiprocessing.pool import ThreadPool
-
+from functools import wraps
 from gnr.sql import logger
+from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrlang import GnrObject
@@ -59,6 +60,29 @@ def in_triggerstack(func):
         return result
         
     return decore
+
+def sql_audit(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        sql = args[1]
+        # Get caller info and user info
+        sql_details = self_instance.currentEnv.get("sql_details", {})
+        start_time = time()
+        result = func(*args, **kwargs)
+        end_time = time()
+        sql_details['time'] = end_time-start_time
+        getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        return result
+        
+    
+    return wrapper
+
 
 class GnrSqlException(GnrException):
     """Standard Gnr Sql Base Exception
@@ -479,6 +503,7 @@ class GnrSqlDb(GnrObject):
         else:
             return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
     
+    @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
         """Execute the sql statement using given kwargs. Return the sql cursor
@@ -505,6 +530,9 @@ class GnrSqlDb(GnrObject):
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
         sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
+        #sql_details = self.currentEnv.get("sql_details", {})
+        #getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')

@@ -68,16 +68,17 @@ class MultiStageDockerImageBuilder:
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
         git_repositories = []
-
-        for r in self.config['dependencies'].get('git_repositories', []):
-            repo_conf = r.__dict__['_value']
-            repo = {
-                'url': repo_conf.get('url'),
-                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
-                'subfolder': repo_conf.get("subfolder", None),
-                'description': repo_conf.get("description", "No description")
-            }
-            git_repositories.append(repo)
+        git_config = self.config.get("dependencies", {}).get("git_repositories", {})
+        if isinstance(git_config, Bag):
+            for r in git_config:
+                repo_conf = r.__dict__['_value']
+                repo = {
+                    'url': repo_conf.get('url'),
+                    'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                    'subfolder': repo_conf.get("subfolder", None),
+                    'description': repo_conf.get("description", "No description")
+                }
+                git_repositories.append(repo)
 
         # Include the instance repository too
         start_build_dir = os.getcwd()
@@ -95,6 +96,7 @@ class MultiStageDockerImageBuilder:
             }
         
         git_repositories.append(code_repo)
+        logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
 
     def build_docker_image(self, version_tag="latest"):
@@ -102,7 +104,6 @@ class MultiStageDockerImageBuilder:
         Generate a multi-stage Dockerfile that clones and copies
         repositories from multiple Docker images.
         """
-        docker_images = self.get_docker_images()
         git_repositories = self.get_git_repositories()
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
@@ -117,9 +118,10 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write("FROM ghcr.io/genropy/genropy:develop as build_stage\n")
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
                 dockerfile.write("USER genro\n\n")
+                dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
             
                 for idx, repo in enumerate(git_repositories, start=1):
-                
+
                     repo_name = repo['url'].split("/")[-1].replace(".git", "")
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     
@@ -179,23 +181,47 @@ graceful_timeout = 600
                 dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
                 supervisor_template = """
+[supervisord]
+nodaemon = true
+                
 [program:dbsetup]
 autorestart=unexpected
 startsecs = 0
 exitcodes = 0
 command=gnr db setup {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
-[program:wsgiserver]
+
+[program:httpserver]
 command=gunicorn -c /home/genro/gunicorn.py root
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrasync]
-command=gnrasync -p 9999 {instanceName}
+command=gnr app async -p 9999 {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
-command=gnrtaskscheduler {instanceName}
+command=gnr web taskscheduler {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:gnrtaskworker]
-command=gnrtaskworker {instanceName}
+command=gnr web taskworker {instanceName}
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
                 """
                 with open("supervisord.conf", "w") as wfp:
                     wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))

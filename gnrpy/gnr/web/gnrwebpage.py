@@ -1270,6 +1270,8 @@ class GnrWebPage(GnrBaseWebPage):
         if self.isMobile:
             arg_dict['js_requires'].append(self.site.getStaticUrl('rsrc:js_libs','hammer.min.js'))
             arg_dict['js_requires'].append(self.site.getStaticUrl('rsrc:js_libs','DragDropTouch.js'))
+            if self.connection.is_cordova:
+                arg_dict['js_requires'].append('app://localhost/js/genro_app_counterpart.js')
         css_path, css_media_path = self.get_css_path()
         arg_dict['css_requires'] = css_path
         arg_dict['css_media_requires'] = css_media_path

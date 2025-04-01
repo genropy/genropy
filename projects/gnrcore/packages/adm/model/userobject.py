@@ -3,7 +3,7 @@
 import os
 
 from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method,extract_kwargs
 
 
 class Table(object):
@@ -190,8 +190,9 @@ class Table(object):
         self.delete(pkey)
         self.db.commit()
 
+    @extract_kwargs(menuline=True)
     @public_method
-    def userObjectMenu(self,table=None, objtype=None,**kwargs): #th_listUserObject
+    def userObjectMenu(self,table=None, objtype=None,menuline_kwargs=None,**kwargs): #th_listUserObject
         result = Bag()
         userobjects = self.listUserObject(objtype=objtype,userid=self.db.currentPage.user, tbl=table,
                                                 authtags=self.db.currentPage.userTags,**kwargs)
@@ -203,7 +204,8 @@ class Table(object):
                 r['caption'] = r['description'] or r['code'].title()
                 r['draggable'] = True
                 r['onDrag'] = """dragValues['dbrecords'] = {table:'adm.userobject',pkeys:['%(pkey)s'],objtype:'%(objtype)s',reftable:"%(tbl)s"}""" %r
-                result.setItem(r['code'] or 'r_%i' % i, None, **dict(r))
+                r.update(menuline_kwargs)
+                result.setItem(r['code'] or 'r_%i' % i, None,**dict(r))
                 i+=1
         return result
             
