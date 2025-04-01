@@ -34,7 +34,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
         if(navigator.userAgent.includes("GnriOS")) {
             COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js'
         }  
-        return genro.dom.loadResource(COUNTERPART_JS_URL).then((){
+        return genro.dom.loadResource(COUNTERPART_JS_URL).then(()=>{
                 console.log('COUNTERPART_JS_URL loaded')
                 console.log('testmethod',window.counterpart_test());
             }
