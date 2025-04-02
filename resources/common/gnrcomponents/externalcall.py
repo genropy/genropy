@@ -90,6 +90,32 @@ class BaseRpc(BaseComponent):
     def rpc_error(self, method, *args, **kwargs):
         return 'Not existing method %s' % method
 
+
+class RecordRpc(BaseComponent):
+    convert_result = True
+    skip_connection = True
+    prefix = 'rpc'
+
+    def rootPage(self,pkg,tbl,pkey,method=None,resource=None,res_class=None, **kwargs):
+        if method:
+            handlername = f'{self.prefix}_{method}'
+            handler = self.getPublicMethod('rpc',handlername)
+            if handler:
+                return handler(pkg=pkg,tbl=tbl,pkey=pkey,**kwargs)
+            handler = self.getPublicMethod('rpc',f'_table.{pkg}.{tbl}.{handlername}')
+            if not handler:
+                return 'Missing handler'
+            return handler(pkey=pkey,**kwargs)
+        elif resource:
+            return self.handlerResourceRpc(table=f'{pkg}.{tbl}',respath=resource, class_name=res_class or 'Main',pkey=pkey,**kwargs)
+        
+
+    def handlerResourceRpc(self,table=None,respath=None,class_name=None,pkey=None,**kwargs):
+        handler = self.loadTableScript(table=table, respath=respath, class_name=class_name or 'Main')
+        return handler(record=pkey,**kwargs)
+
+
+
 class NetBagRpc(BaseComponent):
 
     skip_connection = True
