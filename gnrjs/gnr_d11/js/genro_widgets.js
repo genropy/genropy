@@ -400,7 +400,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 }
             };
             var domnode = newobj.domNode || newobj;
-            dojo.connect(domnode, 'input', kbhandler);
+            dojo.connect(domnode, 'onkeydown', kbhandler);
         };
         
         if(newobj.domNode && newobj.isFocusable()){
