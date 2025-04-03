@@ -48,6 +48,9 @@ class MultiStageDockerImageBuilder:
             # generate a build configuration analyzing the instance
             logger.warning(f"Build file configuration not found, creating one from current status")
             self._create_build_config()
+        elif options.build_generate:
+            logger.warning(f"Build file configuration found, but forcing autogeneration")
+            self._create_build_config()
         else:
             logger.info("Found build configuration in instance folder")
             
@@ -99,6 +102,7 @@ class MultiStageDockerImageBuilder:
 
     def _get_git_url_from_path(self, path):
         url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=path).decode().strip()
+        logger.debug("For path %s found git url: %s", path, url)
         return url
     
     def _get_git_commit_from_path(self, path):
@@ -114,7 +118,7 @@ class MultiStageDockerImageBuilder:
     
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
-        git_repositories = []
+        _repos = {}
         git_config = self.config.get("dependencies", {}).get("git_repositories", {})
         if isinstance(git_config, Bag):
             for r in git_config:
@@ -125,7 +129,7 @@ class MultiStageDockerImageBuilder:
                     'subfolder': repo_conf.get("subfolder", None),
                     'description': repo_conf.get("description", "No description")
                 }
-                git_repositories.append(repo)
+                _repos[repo_conf.get('url')] = repo
 
         # Include the instance repository too
         start_build_dir = os.getcwd()
@@ -141,8 +145,8 @@ class MultiStageDockerImageBuilder:
             'description': self.instance.instanceName,
             'subfolder': None
             }
-        
-        git_repositories.append(code_repo)
+        _repos[main_repo_url] = code_repo
+        git_repositories = list(_repos.values())
         logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
 
@@ -174,7 +178,6 @@ class MultiStageDockerImageBuilder:
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     
                     result = subprocess.run(["git", "clone", repo['url'], repo_name],
-                                            check=True,
                                             capture_output=True
                                             )
                     if result.returncode == 0:
@@ -184,7 +187,6 @@ class MultiStageDockerImageBuilder:
                         
                     os.chdir(os.path.join(build_context_dir, repo_name))
                     result = subprocess.run(["git", "checkout", repo['branch_or_commit']],
-                                   check=True,
                                    capture_output=True
                                    )
                     if result.returncode == 0:
@@ -318,6 +320,10 @@ def main():
                         help="The image version tag",
                         type=str,
                         default="latest")
+    parser.add_argument('--build-gen',
+                        action="store_true",
+                        dest="build_generate",
+                        help="Force the automatically creation of the build.xml file")
     parser.add_argument('-p', '--push',
                         dest="push",
                         action="store_true",
