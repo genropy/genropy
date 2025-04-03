@@ -1665,7 +1665,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                                 var parentDialog = ds.length>0?ds[ds.length-1]:null;
                                 if (parentDialog) {
                                     parentDialog._modalconnects.push(dojo.connect(window, "onscroll", parentDialog, "layout"));
-                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "input", parentDialog, "_onKey"));
+                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", parentDialog, "_onKey"));
                                 }                   
                             }
                             if(this._windowConnectionResize){
@@ -3997,7 +3997,7 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
     created: function(widget, savedAttrs, sourceNode) {
         this._baseTextBox_created(widget, savedAttrs, sourceNode);
         if (dojo.number._parseInfo().decimal==','){
-            dojo.connect(widget,'input',function(evt){
+            dojo.connect(widget,'onkeyup',function(evt){
                 if(evt.key=='.'){
                     widget.textbox.value = widget.textbox.value.replace('.',',');
                 }
