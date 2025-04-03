@@ -151,7 +151,8 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-        with tempfile.TemporaryDirectory(dir=os.getcwd()) as build_context_dir:
+        build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
+        if True:
             os.chdir(build_context_dir)
             self.dockerfile_path = os.path.join(build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
@@ -293,7 +294,11 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-                
+        if self.options.keep_temp:
+            print(f"The build directory {build_context_dir} has NOT been removed")
+        else:
+            shutil.rmtree(build_context_dir)
+            
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-t', '--tag',
@@ -305,6 +310,10 @@ def main():
                         dest="push",
                         action="store_true",
                         help="Push the image into the registry")
+    parser.add_argument('--keep-temp',
+                        action="store_true",
+                        dest="keep_temp",
+                        help="Keep intermediate data for debugging the image build")
     parser.add_argument('-r', '--registry',
                         dest="registry",
                         type=str,
