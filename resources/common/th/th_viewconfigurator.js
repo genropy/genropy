@@ -142,17 +142,17 @@ var genro_plugin_grid_configurator = {
         if(userobject_structs && userobject_structs.len() || temp_structs && temp_structs.len()){
             result.addItem('_break_2',null,{'caption':'-'});
         }
+        if(temp_structs && temp_structs.len()){
+            temp_structs.forEach(function(n){
+                result.addItem(n.label,null,{color:'darkgreen',font_style:'italic',...n.attr});
+            });
+        }
         if(userobject_structs && userobject_structs.len()){
             userobject_structs.walk(function(n){
                 let path = n.getFullpath(null,userobject_structs);
                 if(!n.getValue()){
-                    result.addItem(path,null,{color:'darkgreen',...n.attr});
+                    result.setItem(path,null,{color:'darkgreen',...n.attr});
                 }
-            });
-        }
-        if(temp_structs && temp_structs.len()){
-            temp_structs.forEach(function(n){
-                result.addItem(n.label,null,{color:'darkgreen',font_style:'italic',...n.attr});
             });
         }
         result.walk(function(n){
