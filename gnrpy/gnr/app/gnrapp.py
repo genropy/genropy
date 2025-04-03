@@ -856,7 +856,8 @@ class GnrApp(object):
                 project, pkgid = pkgid.split(":")
             else:
                 project = None
-            if not pkgattrs.get('path'):
+            path = pkgattrs.get('path', None)
+            if path is None:
                 path = self.pkg_name_to_path(pkgid,project)
             if not os.path.isabs(path):
                 path = self.realPath(path)

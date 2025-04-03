@@ -42,6 +42,8 @@ class MultiStageDockerImageBuilder:
         # could be passed as Bag to the constructor
         self.config_file = os.path.join(self.instance.instanceFolder, "build.xml")
 
+        logger.debug("Build configuration file: %s", self.config_file)
+
         if not os.path.exists(self.config_file):
             # generate a build configuration analyzing the instance
             logger.warning(f"Build file configuration not found, creating one from current status")
@@ -60,10 +62,12 @@ class MultiStageDockerImageBuilder:
         git_repos_bag= Bag()
         for package, obj in self.instance.packages.items():
             url = self._get_git_url_from_path(obj.packageFolder)
+
             if "genropy/genropy" in url:
                 continue
             branch_or_commit = self._get_git_branch_from_path(obj.packageFolder)
             description = url.split('/')[-1].replace(".git","")
+            logger.debug("Package %s is using git remote %s on branch/commit %s", obj.packageFolder, url, branch_or_commit)
             git_repos_bag.setItem(description, None,
                                   url=url,
                                   branch_or_commit=branch_or_commit,
@@ -151,7 +155,8 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-        with tempfile.TemporaryDirectory(dir=os.getcwd()) as build_context_dir:
+        build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
+        if True:
             os.chdir(build_context_dir)
             self.dockerfile_path = os.path.join(build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
@@ -168,17 +173,25 @@ class MultiStageDockerImageBuilder:
                     repo_name = repo['url'].split("/")[-1].replace(".git", "")
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     
-                    subprocess.run(["git", "clone", repo['url'], repo_name],
-                                   check=True,
-                                   stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL,
-                                   )
+                    result = subprocess.run(["git", "clone", repo['url'], repo_name],
+                                            check=True,
+                                            capture_output=True
+                                            )
+                    if result.returncode == 0:
+                        logger.debug("Git clone for %s went ok", repo['url'])
+                    else:
+                        logger.error("Error cloning %s: %s", repo['url'], result.stderr)
+                        
                     os.chdir(os.path.join(build_context_dir, repo_name))
-                    subprocess.run(["git", "checkout", repo['branch_or_commit']],
+                    result = subprocess.run(["git", "checkout", repo['branch_or_commit']],
                                    check=True,
-                                   stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL,
+                                   capture_output=True
                                    )
+                    if result.returncode == 0:
+                        logger.debug("Git checkout for branch %s went ok", repo['branch_or_commit'])
+                    else:
+                        logger.error("Error checking out %s: %s", repo['branch_or_commit'], result.stderr)
+                        
                     commit = self._get_git_commit_from_path(".")
                     if commit == repo['branch_or_commit']:
                         image_labels[f'git:{repo_name}'] = f"@{commit}"
@@ -293,7 +306,11 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-                
+        if self.options.keep_temp:
+            print(f"The build directory {build_context_dir} has NOT been removed")
+        else:
+            shutil.rmtree(build_context_dir)
+            
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-t', '--tag',
@@ -305,6 +322,10 @@ def main():
                         dest="push",
                         action="store_true",
                         help="Push the image into the registry")
+    parser.add_argument('--keep-temp',
+                        action="store_true",
+                        dest="keep_temp",
+                        help="Keep intermediate data for debugging the image build")
     parser.add_argument('-r', '--registry',
                         dest="registry",
                         type=str,
