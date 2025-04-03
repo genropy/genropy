@@ -3997,7 +3997,7 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
     created: function(widget, savedAttrs, sourceNode) {
         this._baseTextBox_created(widget, savedAttrs, sourceNode);
         if (dojo.number._parseInfo().decimal==','){
-            dojo.connect(widget,'input',function(evt){
+            dojo.connect(widget,'onkeyup',function(evt){
                 if(evt.key=='.'){
                     widget.textbox.value = widget.textbox.value.replace('.',',');
                 }
