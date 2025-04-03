@@ -1665,7 +1665,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                                 var parentDialog = ds.length>0?ds[ds.length-1]:null;
                                 if (parentDialog) {
                                     parentDialog._modalconnects.push(dojo.connect(window, "onscroll", parentDialog, "layout"));
-                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "input", parentDialog, "_onKey"));
+                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", parentDialog, "_onKey"));
                                 }                   
                             }
                             if(this._windowConnectionResize){
