@@ -65,7 +65,7 @@ class MultiStageDockerImageBuilder:
 
             if "genropy/genropy" in url:
                 continue
-            branch_or_commit = self._get_git_branch_from_path(obj.packageFolder)
+            branch_or_commit = self._get_git_commit_from_path(obj.packageFolder)
             description = url.split('/')[-1].replace(".git","")
             logger.debug("Package %s is using git remote %s on branch/commit %s", obj.packageFolder, url, branch_or_commit)
             git_repos_bag.setItem(description, None,
