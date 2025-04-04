@@ -36,14 +36,49 @@ class MultiStageDockerImageBuilder:
             logger.error("Missing executables: %s - please install", ", ".join(missing_execs))
             sys.exit(1)
 
+        self.main_repo_name = ""
+        
         # check if build configuration is present - in the future, the configuration
         # could be passed as Bag to the constructor
         self.config_file = os.path.join(self.instance.instanceFolder, "build.xml")
-        self.main_repo_name = ""
+
+        logger.debug("Build configuration file: %s", self.config_file)
+
         if not os.path.exists(self.config_file):
-            logger.error(f'Build configuration for instance {self.instance.instanceName} does not exists')
-            sys.exit(1)
+            # generate a build configuration analyzing the instance
+            logger.warning(f"Build file configuration not found, creating one from current status")
+            self._create_build_config()
+        elif options.build_generate:
+            logger.warning(f"Build file configuration found, but forcing autogeneration")
+            self._create_build_config()
+        else:
+            logger.info("Found build configuration in instance folder")
+            
         self.config = self.load_config()
+
+    def _create_build_config(self):
+        config_bag = Bag()
+        dependencies = Bag()
+        config_bag.setItem('dependencies', dependencies)
+        
+        # search for git repos
+        git_repos_bag= Bag()
+        for package, obj in self.instance.packages.items():
+            url = self._get_git_url_from_path(obj.packageFolder)
+
+            if "genropy/genropy" in url:
+                continue
+            branch_or_commit = self._get_git_commit_from_path(obj.packageFolder)
+            description = url.split('/')[-1].replace(".git","")
+            logger.debug("Package %s is using git remote %s on branch/commit %s", obj.packageFolder, url, branch_or_commit)
+            git_repos_bag.setItem(description, None,
+                                  url=url,
+                                  branch_or_commit=branch_or_commit,
+                                  description=description)
+
+        dependencies.setItem("git_repositories", git_repos_bag)
+        with open(self.config_file, "w") as wfp:
+            wfp.write(config_bag.toXml())
 
     def load_config(self):
         """Load and parse the XML configuration file."""
@@ -65,28 +100,44 @@ class MultiStageDockerImageBuilder:
             docker_images.append(image)
         return docker_images
 
+    def _get_git_url_from_path(self, path):
+        url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=path).decode().strip()
+        logger.debug("For path %s found git url: %s", path, url)
+        return url
+    
+    def _get_git_commit_from_path(self, path):
+        url = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
+        return url
+    
+    def _get_git_branch_from_path(self, path):
+        url = subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
+        return url
+    
+    def _get_git_repo_name_from_url(self, url):
+        return url.split("/")[-1].replace(".git", "")
+    
     def get_git_repositories(self):
         """Get a list of Git repository dependencies."""
-        git_repositories = []
+        _repos = {}
         git_config = self.config.get("dependencies", {}).get("git_repositories", {})
         if isinstance(git_config, Bag):
             for r in git_config:
-                repo_conf = r.__dict__['_value']
+                repo_conf = r.attr
                 repo = {
                     'url': repo_conf.get('url'),
                     'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
                     'subfolder': repo_conf.get("subfolder", None),
                     'description': repo_conf.get("description", "No description")
                 }
-                git_repositories.append(repo)
+                _repos[repo_conf.get('url')] = repo
 
         # Include the instance repository too
         start_build_dir = os.getcwd()
         os.chdir(self.instance.instanceFolder)
-        main_repo_url = subprocess.check_output(["git", "remote", "get-url", "origin"]).decode().strip()
+        main_repo_url = self._get_git_url_from_path(self.instance.instanceFolder)
         # get the repo name, needed for gunicorn/supervisor templates
-        self.main_repo_name = main_repo_url.split("/")[-1].replace(".git", "")
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+        self.main_repo_name = self._get_git_repo_name_from_url(main_repo_url)
+        commit = self._get_git_commit_from_path(self.instance.instanceFolder)
         os.chdir(start_build_dir)
         code_repo = {
             'url': main_repo_url,
@@ -94,8 +145,8 @@ class MultiStageDockerImageBuilder:
             'description': self.instance.instanceName,
             'subfolder': None
             }
-        
-        git_repositories.append(code_repo)
+        _repos[main_repo_url] = code_repo
+        git_repositories = list(_repos.values())
         logger.debug("Found git repositories: %s", git_repositories)
         return git_repositories
 
@@ -108,7 +159,8 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-        with tempfile.TemporaryDirectory(dir=os.getcwd()) as build_context_dir:
+        build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
+        if True:
             os.chdir(build_context_dir)
             self.dockerfile_path = os.path.join(build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
@@ -125,18 +177,24 @@ class MultiStageDockerImageBuilder:
                     repo_name = repo['url'].split("/")[-1].replace(".git", "")
                     logger.info(f"Checking repository {repo_name} at {repo['url']}")
                     
-                    subprocess.run(["git", "clone", repo['url'], repo_name],
-                                   check=True,
-                                   stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL,
-                                   )
+                    result = subprocess.run(["git", "clone", repo['url'], repo_name],
+                                            capture_output=True
+                                            )
+                    if result.returncode == 0:
+                        logger.debug("Git clone for %s went ok", repo['url'])
+                    else:
+                        logger.error("Error cloning %s: %s", repo['url'], result.stderr)
+                        
                     os.chdir(os.path.join(build_context_dir, repo_name))
-                    subprocess.run(["git", "checkout", repo['branch_or_commit']],
-                                   check=True,
-                                   stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL,
+                    result = subprocess.run(["git", "checkout", repo['branch_or_commit']],
+                                   capture_output=True
                                    )
-                    commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+                    if result.returncode == 0:
+                        logger.debug("Git checkout for branch %s went ok", repo['branch_or_commit'])
+                    else:
+                        logger.error("Error checking out %s: %s", repo['branch_or_commit'], result.stderr)
+                        
+                    commit = self._get_git_commit_from_path(".")
                     if commit == repo['branch_or_commit']:
                         image_labels[f'git:{repo_name}'] = f"@{commit}"
                     else:
@@ -250,7 +308,11 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-                
+        if self.options.keep_temp:
+            print(f"The build directory {build_context_dir} has NOT been removed")
+        else:
+            shutil.rmtree(build_context_dir)
+            
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-t', '--tag',
@@ -258,10 +320,18 @@ def main():
                         help="The image version tag",
                         type=str,
                         default="latest")
+    parser.add_argument('--build-gen',
+                        action="store_true",
+                        dest="build_generate",
+                        help="Force the automatically creation of the build.xml file")
     parser.add_argument('-p', '--push',
                         dest="push",
                         action="store_true",
                         help="Push the image into the registry")
+    parser.add_argument('--keep-temp',
+                        action="store_true",
+                        dest="keep_temp",
+                        help="Keep intermediate data for debugging the image build")
     parser.add_argument('-r', '--registry',
                         dest="registry",
                         type=str,
