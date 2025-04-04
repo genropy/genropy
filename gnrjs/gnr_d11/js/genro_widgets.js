@@ -988,9 +988,27 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            if(sourceNode.attr.documentClasses){
+                if(sourceNode.attr.documentClasses){
+                    let useViewer = true;
+                    try {
+                    let parsed = parseURL(v);
+                    let ext = '';
+                    if (parsed.file && parsed.file.includes('.')) {
+                        ext = parsed.file.split('.').pop().toLowerCase();
+                        console.log(ext)
+                    }
+                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
+                    if (ext && extList.includes(ext)) {
+                        useViewer = false;
+                    }
+                    } catch(e) {
+                        useViewer = true;
+                    }
+    
+            if(useViewer){
                 v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
             }
+                }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
