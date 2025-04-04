@@ -5,6 +5,7 @@
 Create a Dockerfile for an instance, starting from a specific configuration file,
 and build the finale image
 """
+import atexit
 import sys
 import shutil
 import tempfile
@@ -55,7 +56,9 @@ class MultiStageDockerImageBuilder:
             logger.info("Found build configuration in instance folder")
             
         self.config = self.load_config()
-
+        self.build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
+        atexit.register(self.cleanup_build_dir)
+        
     def _create_build_config(self):
         config_bag = Bag()
         dependencies = Bag()
@@ -85,6 +88,12 @@ class MultiStageDockerImageBuilder:
 
         b = Bag(self.config_file)
         return Bag(self.config_file)
+
+    def cleanup_build_dir(self):
+        if self.options.keep_temp:
+            logger.warning(f"As requested, the build directory {self.build_context_dir} has NOT been removed")
+        else:
+            shutil.rmtree(self.build_context_dir)
 
     def get_docker_images(self):
         """Get a list of Docker image dependencies."""
@@ -159,10 +168,10 @@ class MultiStageDockerImageBuilder:
         now = datetime.datetime.now(datetime.UTC)
         image_labels = {"gnr_app_dockerize_on": str(now)}
         entry_dir = os.getcwd()
-        build_context_dir = tempfile.mkdtemp(dir=os.getcwd())
+
         if True:
-            os.chdir(build_context_dir)
-            self.dockerfile_path = os.path.join(build_context_dir, "Dockerfile")
+            os.chdir(self.build_context_dir)
+            self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
                 dockerfile.write(f"# Docker image for instance {self.instance.instanceName}\n")
                 dockerfile.write(f"# Dockerfile builded on {now}\n\n")
@@ -185,7 +194,7 @@ class MultiStageDockerImageBuilder:
                     else:
                         logger.error("Error cloning %s: %s", repo['url'], result.stderr)
                         
-                    os.chdir(os.path.join(build_context_dir, repo_name))
+                    os.chdir(os.path.join(self.build_context_dir, repo_name))
                     result = subprocess.run(["git", "checkout", repo['branch_or_commit']],
                                    capture_output=True
                                    )
@@ -208,7 +217,7 @@ class MultiStageDockerImageBuilder:
                     
                     shutil.rmtree(".git")
                     # go back to original build directory
-                    os.chdir(build_context_dir)
+                    os.chdir(self.build_context_dir)
                     docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                     dockerfile.write(f"# {repo['description']}\n")
                     if repo['subfolder']:
@@ -295,7 +304,7 @@ stderr_logfile_maxbytes=0
                 # Ensure to have Docker installed and running
                 build_command = ['docker', 'build', '-t',
                                  f'{self.instance.instanceName}:{version_tag}',
-                                 build_context_dir]
+                                 self.build_context_dir]
                 subprocess.run(build_command, check=True)
                 logger.info("Docker image built successfully.")
                 os.chdir(entry_dir)
@@ -308,10 +317,6 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-        if self.options.keep_temp:
-            print(f"The build directory {build_context_dir} has NOT been removed")
-        else:
-            shutil.rmtree(build_context_dir)
             
 def main():
     parser = GnrCliArgParse(description=description)
