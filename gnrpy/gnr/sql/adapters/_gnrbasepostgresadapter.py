@@ -627,7 +627,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             constraints[table_key]["UNIQUE"][constraint_name]["columns"].append(column_name)
         
         for row in self.raw_fetch(self.get_foreign_key_sql(), (schemas,)):
-            (schema_name, table_name, constraint_name, column_name, on_update,
+            (schema_name, table_name, constraint_name, column_name,column_ord, on_update,
             on_delete, related_schema, related_table, related_column,
             deferrable, initially_deferred) = row
 
@@ -1040,6 +1040,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             cls1.relname AS table_name,
             con.conname AS constraint_name,
             att1.attname AS column_name,  
+            fk.ord AS ord,
             CASE con.confupdtype
                 WHEN 'a' THEN 'NO ACTION'
                 WHEN 'r' THEN 'RESTRICT'
@@ -1089,7 +1090,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             con.contype = 'f' -- Only foreign keys
             AND nsp1.nspname = ANY(%s)
         ORDER BY
-            con.conname;"""
+            con.conname,
+            ord;"""
 
         return q
 

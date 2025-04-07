@@ -53,5 +53,5 @@ class GnrCustomWebPage(object):
                         if n.attr['date']>=at_date:
                             break
                         version+=1
-                documentpath = f'{documentpath.split('.')[0]}_versions',f'v_{version:04}.pdf'
+                documentpath = f'{documentpath.split(".")[0]}_versions',f'v_{version:04}.pdf'
             return self.site.storageNode(documentpath)
