@@ -989,25 +989,29 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
                 if(sourceNode.attr.documentClasses){
-                    let useViewer = true;
-                    try {
-                    let parsed = parseURL(v);
+                    let useViewer = false;
                     let ext = '';
-                    if (parsed.file && parsed.file.includes('.')) {
-                        ext = parsed.file.split('.').pop().toLowerCase();
-                        console.log(ext)
-                    }
-                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
-                    if (ext && extList.includes(ext)) {
-                        useViewer = false;
-                    }
-                    } catch(e) {
-                        useViewer = true;
-                    }
+                    genro.dom.removeClass(domnode,'emptyIframe');
+                    genro.dom.addClass(domnode,'waiting');
+                    try {
+                        let parsed = parseURL(v);
+                        if (parsed.file && parsed.file.includes('.')) {
+                            ext = parsed.file.split('.').pop().toLowerCase();
+                        }
+                    } catch(e) {}
     
-            if(useViewer){
-                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
-            }
+                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
+                    useViewer = !ext || !extList.includes(ext);
+    
+                    if (useViewer) {
+                        v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
+                    } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
+                        domnode.removeAttribute('src');
+                        domnode.setAttribute('srcdoc', `<html><body style="margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
+                            <img src="${v}" style="max-width:100%;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                        </body></html>`);
+                        return;
+                    }
                 }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
