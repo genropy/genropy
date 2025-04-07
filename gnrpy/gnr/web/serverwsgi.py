@@ -466,6 +466,13 @@ class Server(object):
             os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
 
             if self.reloader:
+                
+                # werkzeug reloader expects sys.argv without
+                # spaces for the reloader on python3.8
+                if " " in sys.argv[0]:
+                    cmd_name = sys.argv.pop(0).split()
+                    sys.argv = cmd_name + sys.argv
+
                 run_with_reloader(
                     srv.serve_forever,
                     #extra_files=extra_files,
