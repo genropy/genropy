@@ -2561,7 +2561,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             var c;
             for(var k in this.grid.cellmap){
                 c = this.grid.cellmap[k];
-                formats[c.field] = c._formats;
+                formats[c.field] = {...c._formats};
             }
             return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
         }else{

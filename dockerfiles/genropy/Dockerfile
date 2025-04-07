@@ -31,4 +31,5 @@ WORKDIR /home/genro
 ENV GNRLOCAL_PROJECTS=/etc/workspaces
 
 EXPOSE 8080
-ENTRYPOINT "supervisord"
+ENTRYPOINT []
+CMD ["supervisord"]
