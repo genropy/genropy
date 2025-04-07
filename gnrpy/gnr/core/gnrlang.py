@@ -172,7 +172,7 @@ def objectExtract(myobj, f,slicePrefix=True):
     :param myobj: TODO
     :param f: TODO"""
     lf = len(f)
-    return dict([(k[lf:] if slicePrefix else k, getattr(myobj, k)) for k in dir(myobj) if k.startswith(f)])
+    return {k[lf:] if slicePrefix else k: getattr(myobj, k) for k in dir(myobj) if k.startswith(f)}
 
 def importModule(module):
     """TODO

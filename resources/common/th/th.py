@@ -434,7 +434,8 @@ class TableHandler(BaseComponent):
         
     @struct_method
     def th_plainTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,viewResource=None,
-                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,**kwargs):
+                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,
+                            mobileTemplateGrid=None,**kwargs):
         kwargs['tag'] = 'ContentPane'
         if picker:
             hider=True
@@ -442,10 +443,15 @@ class TableHandler(BaseComponent):
             addrow = False if addrow is None else addrow
         if not delrow and rowStatusColumn is None:
             rowStatusColumn = False
+        if mobileTemplateGrid:
+            kwargs.setdefault('configurable',False)
+            kwargs.setdefault('grid_gridplugins',False)
         wdg = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,handlerType='plain',
                                         viewResource=viewResource,hider=hider,rowStatusColumn=rowStatusColumn,
                                         picker=picker,addrow=addrow,delrow=delrow,**kwargs)
         wdg.view.attributes.update(height=height,width=width)
+        if mobileTemplateGrid:
+            wdg.view.attributes['_class'] = f"{wdg.view.attributes['_class']} mobileTemplateGrid templateGrid"
         return wdg
 
     @extract_kwargs(default=True,page=True)     

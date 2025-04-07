@@ -2031,12 +2031,16 @@ dojo.declare("gnr.GnrDomHandler", null, {
             src = `/_rsrc/js_libs/pdfjs/web/viewer.html?file=`+encodeURIComponent(src);
             let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
             let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
-            console.log('jsPdfViewerOptions',jsPdfViewerOptions,'jsPdfViewerTools',jsPdfViewerTools)
+            let external_document_url = genro.getData('gnr.app_preference.sys.external_document_url');
             if(jsPdfViewerOptions){
                 src+=('&_viewer_options='+jsPdfViewerOptions)
             }
             if(jsPdfViewerTools){
                 src+=('&_viewer_tools='+jsPdfViewerTools)
+            }
+            if(genro.isCordova  && external_document_url){
+                src+=('&_is_cordova=y');
+                src+='&_external_document_url='+external_document_url;
             }
         }
         return src;

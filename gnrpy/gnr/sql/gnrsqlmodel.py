@@ -589,8 +589,15 @@ class DbModelSrc(GnrStructData):
         :param onInserting: This sets the method name which is triggered when a record is inserted.  useful for adding a code for example
         :param onUpdating: This sets the method name which is triggered when a record is updated
         :param onDeleting: This sets the method name which is triggered when a record is deleted"""
-        indexed = boolean(indexed) if indexed is not None else None
-        unique = boolean(unique) if unique is not None else None
+
+        # indexed can be a dictionary, in case you want to specify the method or other
+        # parameters of the index. Since boolean of a dict becomes True, use the default
+        # btree method for the index. boolean() is used for retro-compatibility with older
+        # models defined in XML, where you can find things like "indexed='y'"
+        if isinstance(indexed,str):
+            indexed = boolean(indexed)
+        if isinstance(unique,str):
+            unique = boolean(unique)
         if '::' in name:
             name, dtype = name.split('::')
         if not 'columns' in self:
@@ -619,7 +626,7 @@ class DbModelSrc(GnrStructData):
                 pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
                 handler = getattr(pkgobj,'ext_config',None)
                 if handler:
-                    extKwargs = {} if extKwargs is True else extKwargs
+                    extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}
                     tblsrc = self._destinationNode  if hasattr(self,'_destinationNode') else self
                     handler(tblsrc,colname=name,colattr=result.attributes,**extKwargs)
                     return result

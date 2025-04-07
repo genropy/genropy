@@ -69,7 +69,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (this.widget) {
             return  this.widget.focusNode || this.widget.containerNode || this.widget.domNode;
         }
-        return this.getParentNode().getDomNode();
+        return this.getParentNode()?this.getParentNode().getDomNode():null;
 
     },
     

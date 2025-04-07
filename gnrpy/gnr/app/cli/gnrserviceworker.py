@@ -6,6 +6,8 @@ import sys
 from gnr.core.gnrlang import gnrImport
 from gnr.app.gnrdeploy import PathResolver
 
+description = "Run a service defined in a project"
+
 def main():
     # FIXME: using sys.argv[1] can be shifted in a nested command structure
     # FIXME: the parameter must be validated

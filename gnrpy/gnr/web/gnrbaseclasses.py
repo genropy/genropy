@@ -24,7 +24,7 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 import os,math,re
-
+import warnings
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlSrc
 from gnr.core.gnrdecorator import extract_kwargs
@@ -333,8 +333,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         self._gridStructures = {}
         if self.rows_table:
             self.row_table = self.rows_table
-            raise DeprecationWarning('Please change rows_table into row_table')
-
+            warnings.warn('Please change rows_table into row_table',
+                  DeprecationWarning)
+            
     def __call__(self, record=None, pdf=None, downloadAs=None, thermo=None,record_idx=None, resultAs=None,
                     language=None,locale=None, htmlContent=None, **kwargs):
         if not record:

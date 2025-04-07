@@ -682,6 +682,13 @@ class TableBase(object):
             raise Exception('hdepth variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hdepth(field,**kwargs)
 
+    def variantColumn_docurl(self,field,docurl=None,document=None,name_long=None,**kwargs):
+        document = document or docurl
+        return dict(name=f'{field}_docurl', dtype='T',py_method='endpointColumn',
+                                endpoint='print',
+                                endpoint_document=field,**kwargs)
+        
+
     def trigger_hierarchical_before(self,record,fldname,old_record=None,**kwargs):
         self.hierarchicalHandler.trigger_before(record,old_record=old_record)
 
@@ -1184,6 +1191,17 @@ class TableBase(object):
                 r[k] = Bag(r[k])
         return templateReplace(tpl,r,**kwargs)
 
+
+
+
+    def endpointColumn(self,record=None,field=None):
+        colattr = self.column(field).attributes
+        baseEndpoint = colattr.get('endpoint')
+        endpoint_pars = dictExtract(colattr,'endpoint_')
+        pkey = record.get('_pkey') or record.get(self.pkey) or record.get('pkey')
+        return self.db.application.site.externalUrl(f"/sys/ep_table/record/{self.fullname.replace('.','/')}/{pkey}/{baseEndpoint}",**endpoint_pars)
+
+      
 
     def hosting_copyToInstance(self,source_instance=None,dest_instance=None,_commit=False,logger=None,onSelectedSourceRows=None,**kwargs):
         #attr = self.attributes
