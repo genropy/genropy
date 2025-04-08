@@ -633,7 +633,7 @@ class SqlMigrator():
             handler(**kw)
 
     def missing_handler_cb(self,**kwargs):
-        raise NotImplementedError
+        return f'missing {kwargs}'
  
     def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
