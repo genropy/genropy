@@ -98,12 +98,11 @@ class UrlInfo(object):
                 self.plugin = path_list.pop(0)
                 self.basepath= pkg_obj.plugins[self.plugin].webpages_path
             else:
-                self.basepath =  os.path.join(pkg_obj.packageFolder,'webpages')
-                # if isinstance(pkg_obj, GnrPackage):
-
-                # else:
-                #     self.request_args = []
-                #     return 
+                if isinstance(pkg_obj, GnrPackage):
+                    self.basepath =  os.path.join(pkg_obj.packageFolder,'webpages')
+                else:
+                    self.request_args = []
+                    return 
             self.pkg = pkg_obj.id
         mobilepath = None
         if self.request_kwargs.pop('_mobile',False):
