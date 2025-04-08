@@ -707,6 +707,7 @@ class SqlMigrator():
         sqltablename = self.tableSqlName(item)
         substatements = []
         if not item['columns']:
+            #without columns avoid table creation
             return
         for col in item['columns'].values():
             substatements.append(self.columnSql(col).strip())
