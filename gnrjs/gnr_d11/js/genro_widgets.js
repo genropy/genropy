@@ -990,7 +990,7 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
             v = genro.addParamsToUrl(v,src_kwargs);   
                 if(sourceNode.attr.documentClasses){
                     let useViewer = false;
-                    let ext = src_kwargs.source_ext || '';
+                    let ext = '';
                     genro.dom.removeClass(domnode,'emptyIframe');
                     genro.dom.addClass(domnode,'waiting');
                     try {

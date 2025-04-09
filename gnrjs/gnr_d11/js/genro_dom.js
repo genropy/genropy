@@ -2022,6 +2022,10 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
+        const ext = parsedSrc.params.source_ext || pathname.split('.').pop(); 
+        if(ext && ext!='pdf'){
+            return src
+        }
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
         if(parsedSrc.file && jsPdfViewer){
