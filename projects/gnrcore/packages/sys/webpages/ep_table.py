@@ -22,24 +22,78 @@ class GnrCustomWebPage(object):
     def ep_missing(self,*args,**kwargs):
         return 'Missing'
 
-    def ep_get(self,tblobj,pkey,source=None,version=None,**kwargs):
+    def ep_get(self,tblobj,pkey,source=None,version=None,force_download=False,**kwargs):
         if not source:
             return
+
+
         documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
         if not documentNode:
             return ''
-        self.response.content_type = documentNode.mimetype
-        with documentNode.open('rb') as f:
-            return f.read()
+        if self.is_inline_displayable(documentNode) or force_download:
+            self.response.content_type = documentNode.mimetype
+            with documentNode.open('rb') as f:
+                return f.read()
+        else:
+            download_url = self.db.application.site.externalUrl(f"/sys/ep_table/{tblobj.fullname.replace('.','/')}/{pkey}/get/{source}",force_download=True,**kwargs)
+            return f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Download file</title>
+                <style>
+                    body {{ font-family: sans-serif; text-align: center; padding-top: 50px; }}
+                    a.download-button {{
+                        display: inline-block;
+                        padding: 12px 20px;
+                        background-color: #4CAF50;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 6px;
+                        font-size: 16px;
+                    }}
+                    a.download-button:hover {{
+                        background-color: #45a049;
+                    }}
+                </style>
+            </head>
+            <body>
+                <p><a class="download-button" href="{download_url}">
+                    ⬇ Download file
+                </a></p>
+            </body>
+            </html>
+            """
 
+
+    def _checkEndpointPermission(self,tags,**kwargs):
+        _current_page_id = kwargs.get('_current_page_id') or kwargs.get('_calling_page_id')
+        page_item = self.site.register.page(_current_page_id,include_data='lazy')
+        if not page_item:
+            raise self.exception('user_not_allowed')
+        user = page_item['user'] or 'guest_'
+        if user.startswith('guest_'):
+            raise self.exception('user_not_allowed')
+        tags = tags or ''
+        user_tags = self.db.application.getAvatar(user,authenticate=False).user_tags
+        if tags and not self.db.application.getResourcePermission(tags,user_tags):
+            raise self.exception('user_not_allowed')
     
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
         isCachedInField = tblobj.column(source) is not None
+        readTags = None
         handlername = f'_table.{tblobj.fullname}.getDocument_{source}'
         try:
             handler = self.getPublicMethod('rpc',handlername)
         except AttributeError:
             handler = None
+        if isCachedInField:
+            readTags = tblobj.column(source).attributes.get('readTags')
+        elif handler:
+            readTags = getattr(handler,'tags')
+        if readTags is not False:
+            self._checkEndpointPermission(readTags,**kwargs)
         record = tblobj.record(pkey).output('record')
         documentNode = None
         if isCachedInField:
@@ -54,6 +108,20 @@ class GnrCustomWebPage(object):
                 rec[source] = documentNode.fullpath
             self.db.commit()
         return documentNode
+
+
+    def is_inline_displayable(self,storageNode):
+        INLINE_MIME_TYPES = {
+            'text/html',
+            'text/plain',
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/svg+xml'
+        }
+        return storageNode.mimetype.lower() in INLINE_MIME_TYPES
 
 
 
