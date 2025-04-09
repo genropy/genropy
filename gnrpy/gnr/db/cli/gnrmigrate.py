@@ -130,8 +130,11 @@ def inspect(migrator, options):
         for filename in dump_files:
             zipf.write(filename)
             logger.info("Added %s to inspection archive", filename)
-            os.remove(filename)
-            logger.debug("Removed temp file %s", filename)
+
+    # Remove temporary files after successful zip creation
+    for filename in dump_files:
+        os.remove(filename)
+        logger.debug("Removed temp file %s", filename)
     print(f"Inspection archive {zip_name} created.")
     
 def check_db(migrator, options):
