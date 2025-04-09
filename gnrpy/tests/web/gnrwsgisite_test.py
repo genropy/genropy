@@ -3,7 +3,7 @@ import os
 import pytest
 
 import gnr.web.gnrwsgisite as gws
-from common import BaseGnrTest
+from webcommon import BaseGnrTest
 from utils import WSGITestClient, ExternalProcess
 
 class TestGnrWsgiSite(BaseGnrTest):
