@@ -49,7 +49,7 @@ class BaseGnrTest:
   <webtools>
     <genropy path="{cls.test_genro_root}/webtools"/>
   </webtools>
-  <gnrdaemon host="localhost" port="40404" hmac_key="glhwdtmk5kqf"/>
+  <gnrdaemon host="localhost" port="40404" hmac_key="whoknows"/>
 </GenRoBag>
 """)
         os.mkdir(os.path.join(cls.conf_dir, "instanceconfig"))
@@ -62,6 +62,9 @@ class BaseGnrTest:
                         <admin pwd="password" tags="superadmin,_DEV_,admin,user"/>
                 </xml_auth>
         </authentication>
+        <api_keys>
+           <foobar value="hellothere"/>
+        </api_keys>
 </GenRoBag>""")
         os.mkdir(os.path.join(cls.conf_dir, "siteconfig"))
         with open(os.path.join(cls.conf_dir, "siteconfig", "default.xml"), "w", encoding='utf-8') as fp:
