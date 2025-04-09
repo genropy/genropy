@@ -46,14 +46,10 @@ class TestGnrWsgiSite(BaseGnrTest):
     def test_storage_path(self):
 
         
-        def storagePath(self, storage_name, storage_path): 
-            if storage_name == 'user': 
-                return '%s/%s'%(self.currentPage.user, storage_path) 
-            elif storage_name == 'conn': 
-                return '%s/%s'%(self.currentPage.connection_id, storage_path) 
-            elif storage_name == 'page': 
-                return '%s/%s/%s'% (self.currentPage.connection_id, self.currentPage.page_id, storage_path) 
-            return storage_path 
+        # Test different storage path types
+        for storage in storages:
+            r = self.site.storagePath(storage, storage_path)
+            assert r.endswith(storage_path)
 
         # Test with single storage type
         storages = ['boogerbin']
