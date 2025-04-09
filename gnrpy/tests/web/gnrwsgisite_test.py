@@ -55,7 +55,7 @@ class TestGnrWsgiSite(BaseGnrTest):
                 return '%s/%s/%s'% (self.currentPage.connection_id, self.currentPage.page_id, storage_path) 
             return storage_path 
 
-        storages = ['user', 'conn', 'page', 'foobar', 'boogerbin']
+        # Test with single storage type
         storages = ['boogerbin']
         storage_path = 'misc'
         for storage in storages:
