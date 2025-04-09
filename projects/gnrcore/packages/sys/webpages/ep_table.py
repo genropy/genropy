@@ -2,6 +2,11 @@
 from gnr.sql.gnrsql import GnrSqlMissingTable
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrbag import Bag
+AUTH_FORBIDDEN = -1
+
+
+class NotAllowedError(Exception):
+    pass
 
 
 class GnrCustomWebPage(object):
@@ -25,9 +30,10 @@ class GnrCustomWebPage(object):
     def ep_get(self,tblobj,pkey,source=None,version=None,force_download=False,**kwargs):
         if not source:
             return
-
-
-        documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
+        try:
+            documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
+        except NotAllowedError:
+            return AUTH_FORBIDDEN
         if not documentNode:
             return ''
         if self.is_inline_displayable(documentNode) or force_download:
@@ -66,19 +72,18 @@ class GnrCustomWebPage(object):
             </html>
             """
 
-
     def _checkEndpointPermission(self,tags,**kwargs):
         _current_page_id = kwargs.get('_current_page_id') or kwargs.get('_calling_page_id')
         page_item = self.site.register.page(_current_page_id,include_data='lazy')
         if not page_item:
-            raise self.exception('user_not_allowed')
+            raise NotAllowedError
         user = page_item['user'] or 'guest_'
         if user.startswith('guest_'):
-            raise self.exception('user_not_allowed')
+            raise NotAllowedError
         tags = tags or ''
         user_tags = self.db.application.getAvatar(user,authenticate=False).user_tags
         if tags and not self.db.application.getResourcePermission(tags,user_tags):
-            raise self.exception('user_not_allowed')
+            raise NotAllowedError
     
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
         isCachedInField = tblobj.column(source) is not None
