@@ -8,7 +8,7 @@ import pytz
 import mimetypes
 from collections import defaultdict
 
-from gnr.core.gnrlang import boolean
+from gnr.core.gnrlang import boolean,objectExtract
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
 from gnr.core.gnrdecorator import public_method,extract_kwargs
@@ -1468,11 +1468,14 @@ class AttachmentTable(GnrDboTable):
     def use_dbstores(self, **kwargs):
         return self.db.table(tblname=self.fullname[0:-4]).use_dbstores()
 
+    def config_attributes(self):
+        return dict()
+        
     def config_db(self,pkg):
         tblname = self._tblname
         tbl = pkg.table(tblname,pkey='id')
         mastertbl = '%s.%s' %(pkg.parentNode.label,tblname.replace('_atc',''))
-
+        table_attributes = self.config_attributes() #objectExtract(self,'attribute_')
         pkgname,mastertblname = mastertbl.split('.')
         tblname = '%s_atc' %mastertblname
         assert tbl.parentNode.label == tblname,'table name must be %s' %tblname
@@ -1484,7 +1487,7 @@ class AttachmentTable(GnrDboTable):
         tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Attachment' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Attachments' %mastertbl_name_long)
-
+        tbl.attributes.update(table_attributes)
         self.sysFields(tbl, counter='maintable_id')
         #self.sysFields(tbl,id=True, ins=False, upd=False,counter='maintable_id')
         tbl.column('id',size='22',group='_',name_long='Id')
@@ -1514,10 +1517,7 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-        if self.atc_exposeEndpointUrl():
-            tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',static=True)
-        else:
-            tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
+        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
@@ -1537,8 +1537,10 @@ class AttachmentTable(GnrDboTable):
         if not filepath:
             return
         if ':' in filepath:
-            return self.endpointColumn(record=record,field='filepath',
+            if self.attributes.get('endpoint_url'):
+                return self.endpointColumn(record=record,field='filepath',
                             source_ext=self.db.application.site.storageNode(filepath).ext)
+            return self.db.application.site.externalUrl(f'/{filepath}')
         return self.db.application.site.externalUrl(f'/_vol/{filepath}')
 
     def pyColumn_full_external_url(self,record,field):
