@@ -45,12 +45,6 @@ class TestGnrWsgiSite(BaseGnrTest):
         
     def test_storage_path(self):
 
-        
-        # Test different storage path types
-        for storage in storages:
-            r = self.site.storagePath(storage, storage_path)
-            assert r.endswith(storage_path)
-
         # Test with single storage type
         storages = ['boogerbin']
         storage_path = 'misc'
