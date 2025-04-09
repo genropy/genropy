@@ -629,9 +629,11 @@ class SqlMigrator():
             item = kw['item']
             if item.get('schema_name') in self.readOnly_schemas:
                 continue
-            handler = getattr(self, f'{evt}_{kw["entity"]}' ,'missing_handler')
+            handler = getattr(self, f'{evt}_{kw["entity"]}' ,self.missing_handler_cb)
             handler(**kw)
 
+    def missing_handler_cb(self,**kwargs):
+        return f'missing {kwargs}'
  
     def prepareStructures(self):
         self.application_schemas = self.db.getApplicationSchemas()
@@ -704,6 +706,9 @@ class SqlMigrator():
     def added_table(self, item=None,**kwargs):
         sqltablename = self.tableSqlName(item)
         substatements = []
+        if not item['columns']:
+            #without columns avoid table creation
+            return
         for col in item['columns'].values():
             substatements.append(self.columnSql(col).strip())
         if item["attributes"]["pkeys"]:
@@ -853,19 +858,7 @@ class SqlMigrator():
         elif changed_attribute == 'unique':
             # Handle changes to the UNIQUE constraint
             if newvalue:
-                columns = [column_name]
-                constraint_name = hashed_name(schema=item['schema_name'],table=item['table_name'],columns=columns,obj_type='cst')
-                sql = self.db.adapter.struct_constraint_sql(
-                    constraint_type='UNIQUE',
-                    constraint_name=constraint_name,
-                    columns=columns,
-                    schema_name=item['schema_name'],
-                    table_name=item['table_name']
-                )
-                constraints_dict = table_dict['constraints']
-                constraints_dict[constraint_name] = {
-                    "command": f'ADD {sql}'
-                }
+                self.addColumnUniqueConstraint(item)
             else:
                 columns = [column_name]
                 constraints_dict = table_dict['constraints']
@@ -878,6 +871,22 @@ class SqlMigrator():
                 constraints_dict[constraint_name] = {"command":sql}
         elif changed_attribute in ('generated_expression','extra_sql'):
             return
+
+    def addColumnUniqueConstraint(self,col):
+        table_dict = self.schema_tables(col['schema_name'])[col['table_name']]
+        columns = [col['entity_name']]
+        constraint_name = hashed_name(schema=col['schema_name'],table=col['table_name'],columns=columns,obj_type='cst')
+        sql = self.db.adapter.struct_constraint_sql(
+            constraint_type='UNIQUE',
+            constraint_name=constraint_name,
+            columns=columns,
+            schema_name=col['schema_name'],
+            table_name=col['table_name']
+        )
+        constraints_dict = table_dict['constraints']
+        constraints_dict[constraint_name] = {
+            "command": f'ADD {sql}'
+        }
 
     def changed_index(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
         """
@@ -986,10 +995,11 @@ class SqlMigrator():
     def columnSql(self, col):
         """Return the statement string for creating a table's column"""
         colattr = col['attributes']
+        if colattr.get('unique'):
+            self.addColumnUniqueConstraint(col)
         return self.db.adapter.columnSqlDefinition(col['entity_name'],
                                                    dtype=colattr['dtype'], size=colattr.get('size'),
                                                    notnull=colattr.get('notnull', False),
-                                                    unique=colattr.get('unique'),
                                                     default=colattr.get('sqldefault'),
                                                     extra_sql=colattr.get('extra_sql'),
                                                     generated_expression=colattr.get('generated_expression'))
@@ -1101,6 +1111,7 @@ class SqlMigrator():
         if build_commands:
             # FIXME: why the manager is not used in this case?
             self.db.adapter.execute(build_commands,autoCommit=True)
+        
 
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
