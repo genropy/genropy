@@ -3,6 +3,7 @@ import re
 import io
 import subprocess
 import urllib.request, urllib.parse, urllib.error
+from urllib.parse import urlsplit
 import _thread
 import mimetypes
 import functools
@@ -238,7 +239,7 @@ class GnrWsgiSite(object):
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
             
-        self.register
+        #self.register
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
         if counter == 0 and options and options.source_instance:
@@ -471,7 +472,6 @@ class GnrWsgiSite(object):
     
     def pathListFromUrl(self, url):
         "Returns path_list from given url"
-        from urllib.parse import urlsplit
         parsed_url = urlsplit(url)
         path_list = parsed_url.path.split('/')
         return list(filter(None, path_list))
@@ -743,11 +743,8 @@ class GnrWsgiSite(object):
         # No path -> indexpage is served
         if path_info == '/' or path_info == '':
             path_info = self.indexpage
-        #if path_info.endswith('.py'):
-        #    path_info = path_info[:-3]
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
-        # if url starts with _ go to static file handling
         return path_list
 
     def _get_home_uri(self):
