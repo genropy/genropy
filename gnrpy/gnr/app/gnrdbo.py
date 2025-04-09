@@ -1194,12 +1194,16 @@ class TableBase(object):
 
 
 
-    def endpointColumn(self,record=None,field=None):
+    def endpointColumn(self,record=None,field=None,endpoint=None,**kwargs):
         colattr = self.column(field).attributes
-        baseEndpoint = colattr.get('endpoint')
+        baseEndpoint = endpoint or colattr.get('endpoint') or 'get'
         endpoint_pars = dictExtract(colattr,'endpoint_')
-        source = endpoint_pars.pop('source',None)
+        endpoint_pars.update(kwargs)
+        source = endpoint_pars.pop('source',None) or field
         pkey = record.get('_pkey') or record.get(self.pkey) or record.get('pkey')
+        currentPage = self.db.currentPage
+        if currentPage:
+            endpoint_pars['_current_page_id'] = currentPage.page_id
         return self.db.application.site.externalUrl(f"/sys/ep_table/{self.fullname.replace('.','/')}/{pkey}/{baseEndpoint}/{source}",**endpoint_pars)
 
       
@@ -1486,8 +1490,7 @@ class AttachmentTable(GnrDboTable):
         tbl.column('id',size='22',group='_',name_long='Id')
         tbl.column('filepath' ,name_long='!![en]Filepath',onDeleted='onDeletedAtc',
                     onInserted='onInsertedAtc',
-                    onInserting='checkExternalUrl',
-                    variant='docurl')
+                    onInserting='checkExternalUrl')
         tbl.column('filepath_hash', name_long='MD5 hash')
         tbl.column('filepath_original_name', name_long='!![en]Original name')
 
@@ -1511,7 +1514,10 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-        tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
+        if self.atc_exposeEndpointUrl():
+            tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',static=True)
+        else:
+            tbl.formulaColumn('fileurl',"COALESCE($external_url,$adapted_url)",name_long='Fileurl',static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):
@@ -1520,24 +1526,26 @@ class AttachmentTable(GnrDboTable):
         self.onTableConfig(tbl)
         tbl.pyColumn('missing_file',name_long='Missing file',dtype='B')
         tbl.pyColumn('full_external_url',name_long='Full external url')
-        tbl.pyColumn('endpoint_docurl',name_long='Endpoint url')
 
+    def atc_exposeEndpointUrl(self):
+        return False
 
-    def pyColumn_endpoint_url(self,record,field):
+    def filepath_endpoint_url(self,record,field=None):
         if record['external_url']:
             return record['external_url']
         filepath = record['filepath']
         if not filepath:
             return
         if ':' in filepath:
-            pkey = record.get('_pkey') or record.get(self.pkey) or record.get('pkey')
-            print(xxx)
-            return self.db.application.site.externalUrl(f"/sys/ep_table/{self.fullname.replace('.','/')}/{pkey}/get/filepath")
+            return self.endpointColumn(record=record,field='filepath',
+                            source_ext=self.db.application.site.storageNode(filepath).ext)
         return self.db.application.site.externalUrl(f'/_vol/{filepath}')
-    
-      
 
     def pyColumn_full_external_url(self,record,field):
+        if record['external_url']:
+            return record['external_url']
+        if self.atc_exposeEndpointUrl():
+            return self.filepath_endpoint_url(record)
         if not record.get('fileurl'):
             return
         return self.db.application.site.externalUrl(record['fileurl'])
