@@ -210,6 +210,10 @@ class StorageNode(object):
         self.autocreate = autocreate
 
     @property
+    def versions(self):
+        return self.service.versions(self.path)
+
+    @property
     def md5hash(self):
         """Returns the md5 hash"""
         return self.service.md5hash(self.path)
@@ -374,6 +378,9 @@ class StorageService(GnrBaseService):
     def md5hash(self,*args):
         """Returns the md5 hash of a given path"""
         pass
+
+    def versions(self,*args):
+        return []
 
     def fullpath(self, path):
         """Returns the fullpath (comprending self.service_name) of a path"""

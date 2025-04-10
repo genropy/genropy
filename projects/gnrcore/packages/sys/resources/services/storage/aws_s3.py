@@ -151,6 +151,19 @@ class Service(StorageService):
             else:
                 raise
 
+
+    def versions(self,*args):
+        response =  self._client.list_object_versions(Bucket=self.bucket,Prefix=self.internal_path(*args))  
+        versions =  response.get('Versions',[])
+        result = {}
+        for v in versions:
+            replaced_v = result.get(v['ETag'])
+            if replaced_v and replaced_v.get('IsLatest'):
+                continue
+            result[v['ETag']] = v
+        return list(result.values())
+
+
     def md5hash(self,*args):
         bucket = self._head_object(*args)
         if bucket:
@@ -316,6 +329,7 @@ class Service(StorageService):
 
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
+        #version_id = kwargs.pop('version_id',None)
         if self.readonly:
             if 'b' in kwargs['mode']:
                 kwargs['mode'] = 'rb'
@@ -323,7 +337,7 @@ class Service(StorageService):
                 kwargs['mode'] = 'r'
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
-            transport_params={'session':self._session, 'client': self._client}, **kwargs)
+            transport_params={'session':self._session, 'client': self._client},**kwargs)
 
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket

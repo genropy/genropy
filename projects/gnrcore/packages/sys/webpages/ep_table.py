@@ -41,7 +41,7 @@ class GnrCustomWebPage(object):
             with documentNode.open('rb') as f:
                 return f.read()
         else:
-            download_url = self.db.application.site.externalUrl(f"/sys/ep_table/{tblobj.fullname.replace('.','/')}/{pkey}/get/{source}",force_download=True,**kwargs)
+            download_url = self.db.application.site.externalUrl(f"/sys/ep_table/{tblobj.fullname.replace('.','/')}/{pkey}/get/{source}",force_download=True,version=version,**kwargs)
             return f"""
             <!DOCTYPE html>
             <html>
@@ -84,11 +84,13 @@ class GnrCustomWebPage(object):
         user_tags = self.db.application.getAvatar(user,authenticate=False).user_tags
         if tags and not self.db.application.getResourcePermission(tags,user_tags):
             raise NotAllowedError
-    
+        return page_item
+
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
         isCachedInField = tblobj.column(source) is not None
         readTags = None
         handlername = f'_table.{tblobj.fullname}.getDocument_{source}'
+        related_page_item = None
         try:
             handler = self.getPublicMethod('rpc',handlername)
         except AttributeError:
@@ -98,9 +100,10 @@ class GnrCustomWebPage(object):
         elif handler:
             readTags = getattr(handler,'tags')
         if readTags is not False:
-            self._checkEndpointPermission(readTags,**kwargs)
+            related_page_item = self._checkEndpointPermission(readTags,**kwargs)
         record = tblobj.record(pkey).output('record')
         documentNode = None
+        clientRecordUpdater = Bag()
         if isCachedInField:
             documentNode = self.getStoredDocumentFromField(tblobj,record=record,field=source,version=version)
             if documentNode and not documentNode.exists:
@@ -111,8 +114,26 @@ class GnrCustomWebPage(object):
         if isCachedInField and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
                 rec[source] = documentNode.fullpath
+            clientRecordUpdater[source] = record[source]
             self.db.commit()
+        if related_page_item:
+            if isCachedInField and not version:
+                clientRecordUpdater.addItem('{source}_versions', self._getVersionBag(documentNode,**kwargs),_sendback=False)
+            clientRecordUpdater[tblobj.pkey] = record['id']
+            self.setInClientRecord(tblobj,record=clientRecordUpdater,
+                                            fields=','.join(clientRecordUpdater.keys()),
+                                            page_id=related_page_item['register_item_id'],
+                                            silent=True)
         return documentNode
+
+
+
+    def _getVersionBag(self,documentNode,**kwargs):
+        result = Bag()
+        for i,version in enumerate(documentNode.versions):
+            result.addItem(f'r_{i:02}',None,caption=self.toText(version['LastModified'],dtype='D'),version_id=version['VersionId'],
+                                                date=version['LastModified'],isLatest=version['IsLatest'])
+        return result
 
 
     def is_inline_displayable(self,storageNode):
