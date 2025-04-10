@@ -118,10 +118,11 @@ class GnrCustomWebPage(object):
             self.db.commit()
         if related_page_item:
             if isCachedInField and not version:
-                clientRecordUpdater.addItem('{source}_versions', self._getVersionBag(documentNode,**kwargs),_sendback=False)
+                clientRecordUpdater.addItem(f'${source}_versions', self._getVersionBag(documentNode,**kwargs))
             clientRecordUpdater[tblobj.pkey] = record['id']
+            fields = ','.join(clientRecordUpdater.keys())
             self.setInClientRecord(tblobj,record=clientRecordUpdater,
-                                            fields=','.join(clientRecordUpdater.keys()),
+                                            fields=fields,
                                             page_id=related_page_item['register_item_id'],
                                             silent=True)
         return documentNode
