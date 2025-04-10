@@ -91,7 +91,7 @@ class ExternalProcess:
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid
         )
-        time.sleep(0.5)  # Adjust if your process needs more time
+        time.sleep(2)  # Adjust if your process needs more time
 
     def stop(self):
         if self.process:
