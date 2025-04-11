@@ -57,7 +57,7 @@ class MenuStruct(GnrStructData):
             if methodname.startswith('config_'):
                 handler = getattr(obj,methodname)
                 group_code = getattr(handler,'group_code',None)
-                if group_code==page.rootenv['user_group_code']:
+                if group_code and group_code==page.rootenv['user_group_code']:
                     return methodname
         return 'config'
 

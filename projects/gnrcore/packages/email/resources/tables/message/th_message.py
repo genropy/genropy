@@ -148,7 +148,6 @@ class ViewFromDashboard(View):
 class ViewMobile(BaseComponent):
     
     def baseCondition(self):
-        "Message filters base condition, customizable"
         return '$dest_user_id=:env_user_id'
     
     def th_struct(self,struct):
@@ -172,7 +171,7 @@ class ViewMobile(BaseComponent):
 
     def th_order(self):
         return '$__ins_ts:d'
-    
+        
     def th_condition(self):
         return dict(condition='^messageFilters.condition',
                     condition_type='=messageFilters.type',
@@ -181,15 +180,15 @@ class ViewMobile(BaseComponent):
     
     @customizable    
     def th_top_readingstate(self, top):
-        bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar')
+        bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar', margin_bottom='20px')
         dlg = self.filtersDialog(bar.filters)
         bar.filters.slotButton(_class='google_icon filters', background='#555', height='35px').dataController(
                                     "dlg.show();", dlg=dlg.js_widget)
         return top
     
     def th_sections_readingstate(self):
-        return [dict(code='NOLETTI', caption='Da leggere', condition="$read IS NOT TRUE"),
-                   dict(code='TUTTI', caption='Tutti')]
+        return [dict(code='to_read', caption='!![en]Unread', condition="$read IS NOT TRUE"),
+                   dict(code='all', caption='!![en]All')]
         
 
     def filtersDialog(self, pane):
@@ -202,7 +201,6 @@ class ViewMobile(BaseComponent):
         dlg.dataController("""SET messageFilters.base_condition=base_condition""",
                            base_condition=self.baseCondition(), _onStart=True)
         dlg.dataController("""var condition_list = [base_condition];
-                           console.log('base_condition', condition_list);
                             if(type){
                                 condition_list.push('$message_type=:type');
                             };
@@ -227,17 +225,7 @@ class ViewMobile(BaseComponent):
                     configurable=False,roundedEnvelope=True,
                     dialog_fullScreen=True,
                     extendedQuery=False, addrow=False, delrow=False)
-        
 
-class FormFromSocio(BaseComponent):
-    py_requires = "gnrcomponents/attachmanager/attachmanager:AttachManager"
-
-    def th_form(self, form):
-        tc = form.center.tabContainer(tabPosition='left-h')
-        tc.contentPane(title='Contenuto', datapath='.record').templateChunk(table='email.message', record_id='^.id', 
-                                                                            template='msg_preview', margin='5px')
-        tc.contentPane(title='Allegati').attachmentMultiButtonFrame()
-            
 
 
 class Form(BaseComponent):

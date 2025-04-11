@@ -33,7 +33,7 @@
 <en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="id"></en_id>
 <en_date_and_time fr="Date et heure" de="Datum und Uhrzeit" en="Date and Time" it="Data e ora" base="Date and Time"></en_date_and_time>
 <en_expiry fr="Expiration" de="Ablauf" en="Expiry" it="Scadenza" base="Expiry"></en_expiry>
-<en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Destinazione d'uso" base="Destination user"></en_destination_user>
+<en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Utente destinatario" base="Destination user"></en_destination_user>
 <en_connection_id fr="id de connexion" de="Verbindungs-ID" en="Connection id" it="Id Connessione" base="Connection Id"></en_connection_id>
 <en_max_uses fr="Utilise Max" de="Max verwendet" en="Max uses" it="Utilizza Max" base="Max uses"></en_max_uses>
 <en_allowed_host fr="Autorisé hôte" de="Host erlaubt" en="Allowed host" it="Ospite ammessi" base="Allowed host"></en_allowed_host>

@@ -273,7 +273,12 @@ class TableHandlerGroupBy(BaseComponent):
                         table=table,th_root=frame.attributes['frameCode']))
 
         frame.dataRpc('.grid.userobject_structs',self.th_userObjectViews,objtype='grpview',
-                        table=table,th_root=frame.attributes['frameCode'])
+                        _loadAfter='^.grid.reload_userobjects_struct',
+                        table=table,th_root=frame.attributes['frameCode'],
+                        _onResult="""if(kwargs._loadAfter!==true){
+                            PUT .grid.currViewPath = null;
+                            SET .grid.currViewPath = kwargs._loadAfter;
+                        }""")
 
     def _thg_stackedView(self,parentStack,title=None, grid=None,frameCode=None,linkedTo=None,table=None,stack_kwargs=None,**kwargs):
         frame = parentStack.bagGrid(frameCode='%s_stacked' %frameCode,title='!!Stacked',pageName='stackedview',
