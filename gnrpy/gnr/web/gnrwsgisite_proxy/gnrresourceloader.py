@@ -7,7 +7,7 @@
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
 import os
-
+import warnings
 import inspect
 import glob
 
@@ -107,16 +107,25 @@ class ResourceLoader(object):
         return page
 
 
-    def get_page_class(self, basepath=None,relpath=None, pkg=None, plugin=None,avoid_module_cache=None,request_args=None,request_kwargs=None, page_factory=None):
+    def get_page_class(self, basepath=None, relpath=None,
+                       pkg=None, plugin=None, avoid_module_cache=None,
+                       request_args=None, request_kwargs=None, page_factory=None):
         """TODO
         
         :param path: TODO
         :param pkg: the :ref:`package <packages>` object"""
 
         module_path = os.path.join(basepath,relpath)
-        page_module = gnrImport(module_path, avoidDup=True,silent=False,avoid_module_cache=avoid_module_cache)
-        page_factory = page_factory or getattr(page_module, 'page_factory', GnrWebPage)
+        page_module = gnrImport(module_path, avoidDup=True, silent=False, avoid_module_cache=avoid_module_cache)
+        
         custom_class = getattr(page_module, 'GnrCustomWebPage')
+        
+        module_defined_factory = getattr(page_module, 'page_factory', None)
+        if module_defined_factory:
+            warnings.warn("Defining page_factory at toplevel is deprecated, please defined it as a class attribute")
+            
+        page_factory = page_factory or module_defined_factory or getattr(custom_class, "page_factory", GnrWebPage)
+
         mainPkg = pkg
         if hasattr(custom_class,'getMainPackage'):
             kw = dict()
@@ -124,6 +133,7 @@ class ResourceLoader(object):
                 kw = self.site.register.pageStore(request_kwargs['page_id']).getItem('pageArgs') or dict()
                 kw.update(request_kwargs)
             mainPkg = custom_class.getMainPackage(request_args=request_args,request_kwargs=kw)
+        
         py_requires = splitAndStrip(getattr(custom_class, 'py_requires', ''), ',')
         plugin_webpage_classes = self.plugin_webpage_classes(relpath, pkg=mainPkg)
         for plugin_webpage_class in plugin_webpage_classes:
