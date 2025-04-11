@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from gnr.sql.gnrsql import GnrSqlMissingTable
-from gnr.core.gnrlang import GnrException
+from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
 AUTH_FORBIDDEN = -1
 
@@ -41,36 +41,14 @@ class GnrCustomWebPage(object):
             with documentNode.open('rb') as f:
                 return f.read()
         else:
-            download_url = self.db.application.site.externalUrl(f"/sys/ep_table/{tblobj.fullname.replace('.','/')}/{pkey}/get/{source}",force_download=True,version=version,**kwargs)
-            return f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <title>Download file</title>
-                <style>
-                    body {{ font-family: sans-serif; text-align: center; padding-top: 50px; }}
-                    a.download-button {{
-                        display: inline-block;
-                        padding: 12px 20px;
-                        background-color: #4CAF50;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 6px;
-                        font-size: 16px;
-                    }}
-                    a.download-button:hover {{
-                        background-color: #45a049;
-                    }}
-                </style>
-            </head>
-            <body>
-                <p><a class="download-button" href="{download_url}">
-                    ⬇ Download file
-                </a></p>
-            </body>
-            </html>
-            """
+            if version:
+                kwargs['version'] = version
+            download_url = self.db.application.site.externalUrl(f"/sys/ep_table/{tblobj.fullname.replace('.','/')}/{pkey}/get/{source}",force_download=True,**kwargs)
+            tpl = self.getResourceContent(resource='ep_table/download_file_tpl', ext='html')
+            return templateReplace(
+                tpl,{'download_url':download_url}
+            )
+
 
     def _checkEndpointPermission(self,tags,**kwargs):
         _current_page_id = kwargs.get('_current_page_id') or kwargs.get('_calling_page_id')
@@ -111,7 +89,7 @@ class GnrCustomWebPage(object):
         if handler and not documentNode:
             documentpath = handler(pkey,**kwargs)
             documentNode = self.site.storageNode(documentpath)
-        if isCachedInField and record[source] != documentNode.fullpath:
+        if documentNode and isCachedInField and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
                 rec[source] = documentNode.fullpath
             clientRecordUpdater[source] = record[source]
@@ -131,10 +109,10 @@ class GnrCustomWebPage(object):
 
     def _getVersionBag(self,documentNode,**kwargs):
         result = Bag()
-        for i,version in enumerate(documentNode.versions):
-            result.addItem(f'r_{i:02}',None,caption=self.toText(version['LastModified'],dtype='D'),version_id=version['VersionId'],
+        for version in documentNode.versions:
+            result.addItem(version['VersionId'],None,caption=self.toText(version['LastModified'],dtype='D'),version_id=version['VersionId'],
                                                 date=version['LastModified'],isLatest=version['IsLatest'])
-        return result
+        return result if len(result)>1 else None
 
 
     def is_inline_displayable(self,storageNode):
@@ -154,19 +132,7 @@ class GnrCustomWebPage(object):
 
     def getStoredDocumentFromField(self,tblobj,record=None,field=None,version=None,at_date=None):
         documentpath = record[field]
-        history_field = tblobj.column(f'{field}_history')
-        version = version or 0
-        if not (version or at_date):
-            return self.site.storageNode(documentpath) if documentpath else None
-        if history_field is None:
-            raise GnrException(f'Missing field {history_field}')
-        version_bag = Bag(record[history_field]) or Bag()
-        if version_bag and at_date:
-            version = 1
-            for n in version_bag:
-                if n.attr['date']>=at_date:
-                    break
-                version+=1
-        versionpath = f'{documentpath.split(".")[0]}_versions',f'v_{version:04}.pdf'
-        return self.site.storageNode(versionpath)
+        if not documentpath:
+            return
+        return self.site.storageNode(documentpath,version=version) 
 

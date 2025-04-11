@@ -200,7 +200,7 @@ class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
 
-    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, mode='r'):
+    def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, version=None,mode='r'):
         self.service = service
         self.parent = parent
         self.path = self.service.expandpath(path)
@@ -208,6 +208,7 @@ class StorageNode(object):
             raise NotExistingStorageNode
         self.mode = mode
         self.autocreate = autocreate
+        self.version = version
 
     @property
     def versions(self):
@@ -307,7 +308,7 @@ class StorageNode(object):
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
         self.service.autocreate(self.path, autocreate=-1)
-        return self.service.open(self.path, mode=mode)
+        return self.service.open(self.path, mode=mode,version_id=self.version)
 
     def url(self, **kwargs):
         """Returns the external url of this file"""
