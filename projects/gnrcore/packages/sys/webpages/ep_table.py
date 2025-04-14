@@ -73,22 +73,32 @@ class GnrCustomWebPage(object):
             handler = self.getPublicMethod('rpc',handlername)
         except AttributeError:
             handler = None
+        documentPath = None
+        record = tblobj.record(pkey).output('record')
         if isCachedInField:
             readTags = tblobj.column(source).attributes.get('readTags')
+            documentPath = record[source]
         elif handler:
-            readTags = getattr(handler,'tags')
+            readTags = getattr(handler,'tags',None)
+            pathTemplate = getattr(handler,'pathTemplate',None)
+            if pathTemplate:
+                documentPath = pathTemplate.format(record)
+        if not documentPath:
+            documentPathHandler = getattr(tblobj,f'{handlername}_path',None)
+            if documentPathHandler:
+                documentPath = documentPathHandler(record,**kwargs)
         if readTags is not False:
+            #do with permissions
             related_page_item = self._checkEndpointPermission(readTags,**kwargs)
-        record = tblobj.record(pkey).output('record')
         documentNode = None
         clientRecordUpdater = Bag()
-        if isCachedInField:
-            documentNode = self.getStoredDocumentFromField(tblobj,record=record,field=source,version=version)
+        if documentPath:
+            documentNode = self.site.storageNode(documentPath,version=version) 
             if documentNode and not documentNode.exists:
                 documentNode = None
         if handler and not documentNode:
-            documentpath = handler(pkey,**kwargs)
-            documentNode = self.site.storageNode(documentpath)
+            documentPath = handler(pkey,documentPath=documentPath,**kwargs)
+            documentNode = self.site.storageNode(documentPath)
         if documentNode and isCachedInField and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
                 rec[source] = documentNode.fullpath
@@ -127,12 +137,4 @@ class GnrCustomWebPage(object):
             'image/svg+xml'
         }
         return storageNode.mimetype.lower() in INLINE_MIME_TYPES
-
-
-
-    def getStoredDocumentFromField(self,tblobj,record=None,field=None,version=None,at_date=None):
-        documentpath = record[field]
-        if not documentpath:
-            return
-        return self.site.storageNode(documentpath,version=version) 
 
