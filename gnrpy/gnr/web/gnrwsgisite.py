@@ -242,6 +242,7 @@ class GnrWsgiSite(object):
 
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
+            
         if counter == 0 and options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
@@ -593,10 +594,10 @@ class GnrWsgiSite(object):
         for connections that do not exist in the register
         """
         if connection_id:
-            logger.info("Cleaning up connection folder %s", connection_id)
+            logger.info("Purging connection folder %s", connection_id)
             shutil.rmtree(os.path.join(self.allConnectionsFolder, connection_id), ignore_errors=True)
         else:
-            logger.info("Cleaning old connection folders")
+            logger.info("Purging connection folders")
             live_connections=self.register.connections()
             connection_to_remove=[connection_id for connection_id in os.listdir(self.allConnectionsFolder) if connection_id not in live_connections and os.path.isdir(connection_id)]
             for conn_id in connection_to_remove:
@@ -608,7 +609,7 @@ class GnrWsgiSite(object):
 
         :param clean: TODO"""
         if clean:
-            logger.info("Cleaning up connection folder")
+            logger.info("Purging connection folders")
             self.dropConnectionFolder()
             self.initializePackages()
 
