@@ -459,7 +459,7 @@ class TableBase(object):
         tbl.formulaColumn('__is_protected_row',"$__protecting_reasons!=''",group=group,name_long='!![en]Row Protected',_sysfield=True)
 
         tbl.formulaColumn('__invalid_reasons',sql_formula=True,group=group,name_long='!![en]Invalid reasons',_sysfield=True)
-        tbl.formulaColumn('__is_invalid_row',"$__invalid_reasons!=''",group=group,name_long='!![en]Invalid row',_sysfield=True)
+        tbl.formulaColumn('__is_invalid_row',"$__invalid_reasons!=''",group=group,name_long='!![en]Invalid row',_sysfield=True,_addClass='is_invalid_row')
 
 
         if [r for r in dir(self) if r!='_release_' and r.startswith('_release_')]:
