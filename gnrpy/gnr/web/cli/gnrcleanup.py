@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import os
-
 from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrwsgisite import GnrWsgiSite
 
