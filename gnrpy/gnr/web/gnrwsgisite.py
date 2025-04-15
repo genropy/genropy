@@ -599,7 +599,9 @@ class GnrWsgiSite(object):
         else:
             logger.info("Purging connection folders")
             live_connections=self.register.connections()
-            connection_to_remove=[connection_id for connection_id in os.listdir(self.allConnectionsFolder) if connection_id not in live_connections and os.path.isdir(connection_id)]
+            
+            connections_folder = self.allConnectionsFolder
+            connection_to_remove=[conn_id for conn_id in os.listdir(connections_folder) if conn_id not in live_connections and os.path.isdir(os.path.join(connections_folder, conn_id))]
             for conn_id in connection_to_remove:
                 self.connFolderRemove(conn_id)
         
