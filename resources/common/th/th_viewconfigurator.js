@@ -166,9 +166,11 @@ var genro_plugin_grid_configurator = {
                 }
             }
         });
- 
-        result.addItem('_break_3',null,{'caption':'-'});
-        result.addItem('__newview__',null,{caption:_T('New view')})
+        if(gridSourceNode.attr.configurable!='readOnly'){
+            result.addItem('_break_3',null,{'caption':'-'});
+            result.addItem('__newview__',null,{caption:_T('New view')});
+        }
+        
         return result;
 
     },
