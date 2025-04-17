@@ -361,7 +361,7 @@ class FrameGridTools(BaseComponent):
         
 
     @struct_method
-    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=True):
+    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=None):
         if not self.checkTablePermission(table=table,permissions='configure_view'):
             return
         grid = view.grid
