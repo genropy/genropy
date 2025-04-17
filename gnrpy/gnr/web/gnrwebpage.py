@@ -973,7 +973,7 @@ class GnrWebPage(GnrBaseWebPage):
     def localizer(self):
         return self.application.localizer
 
-    @public_method
+    @public_method(tags=False)
     def getRemoteTranslation(self, txt=None,language=None,**kwargs):
         return self.localizer.getTranslation(txt,language=language or self.locale)
 
@@ -1043,10 +1043,12 @@ class GnrWebPage(GnrBaseWebPage):
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
         
-        if handler and getattr(handler, 'tags',None):
-            userTags = self.userTags or self.basicAuthenticationTags()
-            if not self.application.checkResourcePermission(handler.tags, userTags):
-                raise self.exception(GnrUserNotAllowed,method=method)
+        handlerTags = getattr(handler, 'tags','logged')
+        if handler:
+            if handlerTags is not False:
+                userTags = self.userTags or self.basicAuthenticationTags()
+                if not self.application.checkResourcePermission(handlerTags, userTags):
+                    raise self.exception(GnrUserNotAllowed,method=method)
         if not handler:
             self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
         return handler
@@ -1438,7 +1440,25 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def userTags(self):
         """TODO"""
-        return self.avatar.user_tags if self.avatar else ''
+        if not self.avatar:
+            return ''
+        
+        tags = self.avatar.user_tags
+        user_local_tags = self.userLocalTags
+        if user_local_tags:
+            tags = tags.split(',')
+            for t in user_local_tags.split(','):
+                if not t in tags:
+                    tags.append(t)
+            tags = ','.join(tags)
+        tags += ',logged'
+        return tags
+    
+    @property
+    def userLocalTags(self):
+        if not hasattr(self,'_rootenv'):
+             return
+        return self.rootenv['user_local_tags']
     
     @property
     def userMenu(self):
@@ -1967,6 +1987,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
+    #@public_method(tags=False)
     def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
         """The first method loaded in a Genro application
         
@@ -2178,7 +2199,7 @@ class GnrWebPage(GnrBaseWebPage):
         #    registerNewPageData = Bag(dict(page_id=self.page_id,page_info=page_info,class_info=class_info,init_info=init_info,mixin_set=mixin_set))
         #    self.wsk.sendCommandToPage('','registerNewPage',registerNewPageData)
         return (page, pageattr)
-   
+    rpc_main.tags=False
     def loginDialog(self, root, **kwargs):
         """TODO
         

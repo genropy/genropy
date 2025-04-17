@@ -210,7 +210,7 @@ class LoginComponent(BaseComponent):
         return dlg
         
 
-    @public_method
+    @public_method(tags=False)
     def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
@@ -228,7 +228,7 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
-    @public_method
+    @public_method(tags=False)
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         result = Bag()
         try:
