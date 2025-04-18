@@ -230,7 +230,7 @@ class GnrWebUtils(GnrBaseProxy):
 
         return '%s\n%s' % ('\n'.join(result), style)
 
-    @public_method
+    @public_method(tags=None)
     def tableImporterCheck(self,table=None,file_path=None,limit=None,importerStructure=None,checkCb=None,filetype=None,**kwargs):
         result = Bag()
         result['imported_file_path'] = file_path
@@ -296,7 +296,7 @@ class GnrWebUtils(GnrBaseProxy):
             rows.setItem('r_%i' %i,Bag(dict(r)))
         return result.toXml()
 
-    @public_method
+    @public_method(tags=False)
     @extract_kwargs(constant=True)
     def tableImporterRun(self,table=None,file_path=None,match_index=None,import_mode=None,
                         import_method=None,sql_mode=None,filetype=None,constant_kwargs=None,**kwargs):
