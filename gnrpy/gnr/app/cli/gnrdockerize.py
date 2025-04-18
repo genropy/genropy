@@ -114,12 +114,10 @@ class MultiStageDockerImageBuilder:
         return url
     
     def _get_git_commit_from_path(self, path):
-        url = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
-        return url
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
     
     def _get_git_branch_from_path(self, path):
-        url = subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
-        return url
+        return subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
     
     def _get_git_repo_name_from_url(self, url):
         return url.split("/")[-1].replace(".git", "")
@@ -175,7 +173,8 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write(f"# Docker image for instance {self.instance.instanceName}\n")
                 dockerfile.write(f"# Dockerfile builded on {now}\n\n")
                 # Genropy image, which is our base image
-                dockerfile.write("FROM ghcr.io/genropy/genropy:develop as build_stage\n")
+                base_image_tag = self.options.bleeding and "develop" or "latest"
+                dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
                 dockerfile.write("USER genro\n\n")
                 dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
@@ -293,7 +292,7 @@ stderr_logfile_maxbytes=0
                     wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))
                 dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance.instanceName}-supervisor.conf\n")
 
-                dockerfile.write(f"RUN gnr app checkdep -i {self.instance.instanceName}\n")
+                dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance.instanceName}\n")
                 dockerfile.write("LABEL {}\n".format(
                     " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
                 ))
@@ -328,6 +327,10 @@ def main():
                         action="store_true",
                         dest="build_generate",
                         help="Force the automatically creation of the build.xml file")
+    parser.add_argument('--bleeding',
+                        action="store_true",
+                        dest="bleeding",
+                        help="Use Genropy from latest develop image")
     parser.add_argument('-p', '--push',
                         dest="push",
                         action="store_true",
