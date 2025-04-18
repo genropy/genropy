@@ -1843,7 +1843,7 @@ class GnrWebPage(GnrBaseWebPage):
         :param dflt: TODO"""
         return self.site.getPreference(path, pkg=pkg, dflt=dflt, mandatoryMsg=mandatoryMsg)
        
-    @public_method 
+    @public_method(tags=False)
     def getUserPreference(self, path='*', pkg=None, dflt=None, username=None,**kwargs):
         """TODO
         
@@ -1855,11 +1855,13 @@ class GnrWebPage(GnrBaseWebPage):
             return
         return self.site.getUserPreference(path, pkg=pkg, dflt=dflt, username=username)
         
-    @public_method
+    @public_method(tags=False)
     def getAppPreference(self,pkg=None,**kwargs):
         """TODO
         
         :param path: TODO"""
+        if self.isGuest:
+            return
         path = kwargs.get('path') or kwargs.get('prefpath') or '*'
         return self.getPreference(path,pkg=pkg)
 
@@ -1873,8 +1875,10 @@ class GnrWebPage(GnrBaseWebPage):
         :param username: TODO"""
         self.site.setUserPreference(path, data, pkg=pkg, username=username)
         
-    @public_method
+    @public_method(tags=False)
     def getShortcuts(self,**kwargs):
+        if self.isGuest:
+            return
         shortcuts = self.db.table('adm.shortcut').query().fetch()
         result = Bag()
         for i,r in enumerate(shortcuts):

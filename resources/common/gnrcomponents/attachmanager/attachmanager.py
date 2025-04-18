@@ -359,7 +359,7 @@ class AttachManager(BaseComponent):
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
 
-    @public_method
+    @public_method(tags=False)
     def onUploadingAttachment(self,kwargs):
         attachment_table = kwargs.get('attachment_table')
         maintable_id = kwargs.get('maintable_id')
