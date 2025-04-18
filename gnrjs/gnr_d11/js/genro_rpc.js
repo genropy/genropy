@@ -990,6 +990,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.append(key, params[key]);
         }
         var sender = new XMLHttpRequest();
+        sender.withCredentials = true;
         var errorCb = function() {
             console.log(arguments);
         };

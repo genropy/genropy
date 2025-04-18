@@ -1046,7 +1046,8 @@ class GnrWebPage(GnrBaseWebPage):
         handlerTags = getattr(handler, 'tags','logged')
         if handler:
             if handlerTags is not False:
-                userTags = self.userTags or self.basicAuthenticationTags()
+
+                userTags = self.userTags or (self.request.headers.get('Authorization') and self.basicAuthenticationTags())
                 if not self.application.checkResourcePermission(handlerTags, userTags):
                     raise self.exception(GnrUserNotAllowed,method=method)
         if not handler:

@@ -181,4 +181,4 @@ class GnrWebRpc(GnrBaseProxy):
                 return handler(file_url=file_url, file_path=file_path, file_ext=file_ext, action_results=action_results,
                                **kwargs)
         return file_url
-
+    rpc_upload_file.tags = False
