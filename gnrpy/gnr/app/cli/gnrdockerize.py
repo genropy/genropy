@@ -250,6 +250,7 @@ graceful_timeout = 600
 nodaemon = true
                 
 [program:dbsetup]
+priority=1
 autorestart=unexpected
 startsecs = 0
 exitcodes = 0
@@ -261,6 +262,7 @@ stderr_logfile_maxbytes=0
 
 
 [program:httpserver]
+priority=50
 command=gunicorn -c /home/genro/gunicorn.py root
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -268,6 +270,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrasync]
+priority=999
 command=gnr app async -p 9999 {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -275,6 +278,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
+priority=999
 command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -282,6 +286,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskworker]
+priority=999
 command=gnr web taskworker {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -315,7 +320,47 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-            
+            if self.options.compose:
+                compose_template = """
+---
+# Docker compose file for instance $_INSTANCENAME:$_VERSIONTAG
+services:
+  $_INSTANCENAME_db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=S3cret
+      - POSTGRES_USER=genro
+      - POSTGRES_DB=$_INSTANCENAME
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genro -d $_INSTANCENAME"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+  $_INSTANCENAME:
+    image: $_INSTANCENAME:$_VERSIONTAG
+    ports:
+      - "8888:8888"
+    depends_on:
+      $_INSTANCENAME_db:
+        condition: service_healthy
+    environment:
+      GNR_DB_IMPLEMENTATION : "postgres"
+      GNR_DB_HOST : ${GNR_DB_HOST:-$_INSTANCENAME_db}
+      GNR_ROOTPWD : ${GNR_ROOTPWD:-admin}
+      GNR_DB_USER: ${GNR_DB_USER:-genro}
+      GNR_DB_PORT: ${GNR_DB_PORT:-5432}
+      GNR_DB_PASSWORD: ${GNR_DB_PASSWORD:-S3cret}
+      GNR_LOCALE: "IT_it"
+                """
+                compose_template_file = f"{self.instance.instanceName}-compose.yml"
+                with open(compose_template_file, "w") as wfp:
+                    wfp.write(compose_template.replace("$_INSTANCENAME", self.instance.instanceName).
+                              replace("$_VERSIONTAG", version_tag))
+                    print(f"Created docker compose file {compose_template_file}")
+                    print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
+                    print("YMMV, please adjust the generated file accordingly.")
+                    
 def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('-t', '--tag',
@@ -327,6 +372,10 @@ def main():
                         action="store_true",
                         dest="build_generate",
                         help="Force the automatically creation of the build.xml file")
+    parser.add_argument('-c','--compose',
+                        action="store_true",
+                        dest="compose",
+                        help="Generate a docker compose file for the created image")
     parser.add_argument('--bleeding',
                         action="store_true",
                         dest="bleeding",
