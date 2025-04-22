@@ -218,11 +218,18 @@ class MultiStageDockerImageBuilder:
                     os.chdir(self.build_context_dir)
                     docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                     dockerfile.write(f"# {repo['description']}\n")
+                    site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance.instanceName}/site"
                     if repo['subfolder']:
+                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance.instanceName}/site"
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
                     else:
+
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
+                dockerfile.write(f"VOLUME {site_folder}\n")
+                dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
+                dockerfile.write("EXPOSE 8888/tcp 9999/tcp\n")
+                
                 dockerfile.write("\n# Final customizations\n")
                 gunicorn_template = """
 import multiprocessing
@@ -254,7 +261,7 @@ priority=1
 autorestart=unexpected
 startsecs = 0
 exitcodes = 0
-command=gnr db setup {instanceName}
+command=gnr db migrate -u {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
@@ -295,13 +302,15 @@ stderr_logfile_maxbytes=0
                 """
                 with open("supervisord.conf", "w") as wfp:
                     wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))
+                    
                 dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance.instanceName}-supervisor.conf\n")
 
                 dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance.instanceName}\n")
+
                 dockerfile.write("LABEL {}\n".format(
                     " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
                 ))
-                dockerfile.write('ENTRYPOINT ["/usr/bin/supervisord"]\n')
+                dockerfile.write(f'CMD gnr db migrate -u {self.instance.instanceName} && /usr/bin/supervisord\n')
                 dockerfile.close()
                 logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
                 # Ensure to have Docker installed and running
@@ -324,6 +333,10 @@ stderr_logfile_maxbytes=0
                 compose_template = """
 ---
 # Docker compose file for instance $_INSTANCENAME:$_VERSIONTAG
+
+volumes:
+  $_INSTANCENAME_site:
+
 services:
   $_INSTANCENAME_db:
     image: postgres:latest
@@ -352,6 +365,9 @@ services:
       GNR_DB_PORT: ${GNR_DB_PORT:-5432}
       GNR_DB_PASSWORD: ${GNR_DB_PASSWORD:-S3cret}
       GNR_LOCALE: "IT_it"
+    volumes:
+      - $_INSTANCENAME_site:/home/genro/site/
+                
                 """
                 compose_template_file = f"{self.instance.instanceName}-compose.yml"
                 with open(compose_template_file, "w") as wfp:
