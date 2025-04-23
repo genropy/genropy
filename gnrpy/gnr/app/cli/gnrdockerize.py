@@ -13,6 +13,8 @@ import datetime
 import os
 import subprocess
 
+from mako.template import Template
+
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
@@ -329,50 +331,76 @@ stderr_logfile_maxbytes=0
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
+
+            # docker compose conf file
             if self.options.compose:
+                extra_labels = []
+
+                if self.options.fqdn and self.options.router == 'traefik':
+                    extra_labels.extend([
+                        'traefik.enable: "true"',
+                        f'traefik.http.routers.{self.instance.instanceName}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance.instanceName}_web.entrypoints: http',
+                        f'traefik.http.routers.{self.instance.instanceName}_web.service: {self.instance.instanceName}_svc_web',
+                        f'traefik.http.services.{self.instance.instanceName}_svc_web.loadbalancer.server.port: 8888',
+                        f'traefik.http.routers.{self.instance.instanceName}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance.instanceName}_wsk.entrypoints: http',
+                        f'traefik.http.routers.{self.instance.instanceName}_wsk.service: {self.instance.instanceName}_svc_wsk',
+                        f'traefik.http.services.{self.instance.instanceName}_svc_wsk.loadbalancer.server.port: 9999'
+                    ])
+                                        
+                    
                 compose_template = """
 ---
-# Docker compose file for instance $_INSTANCENAME:$_VERSIONTAG
+# Docker compose file for instance ${instanceName}:${version_tag}
 
 volumes:
-  $_INSTANCENAME_site:
+  ${instanceName}_site:
 
 services:
-  $_INSTANCENAME_db:
+  ${instanceName}_db:
     image: postgres:latest
     environment:
       - POSTGRES_PASSWORD=S3cret
       - POSTGRES_USER=genro
-      - POSTGRES_DB=$_INSTANCENAME
+      - POSTGRES_DB=${instanceName}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U genro -d $_INSTANCENAME"]
+      test: ["CMD-SHELL", "pg_isready -U genro -d ${instanceName}"]
       interval: 10s
       retries: 5
       start_period: 30s
       timeout: 10s
-  $_INSTANCENAME:
-    image: $_INSTANCENAME:$_VERSIONTAG
+  ${instanceName}:
+    image: ${instanceName}:${version_tag}
+    % if extra_labels:
+    labels:
+    % for l in extra_labels:
+      ${l}
+    % endfor
+    % endif:
     ports:
       - "8888:8888"
     depends_on:
-      $_INSTANCENAME_db:
+      ${instanceName}_db:
         condition: service_healthy
     environment:
       GNR_DB_IMPLEMENTATION : "postgres"
-      GNR_DB_HOST : ${GNR_DB_HOST:-$_INSTANCENAME_db}
-      GNR_ROOTPWD : ${GNR_ROOTPWD:-admin}
-      GNR_DB_USER: ${GNR_DB_USER:-genro}
-      GNR_DB_PORT: ${GNR_DB_PORT:-5432}
-      GNR_DB_PASSWORD: ${GNR_DB_PASSWORD:-S3cret}
+      GNR_DB_HOST : ${r"${GNR_DB_HOST:-" + instanceName + "_db}"}
+      GNR_ROOTPWD : ${r"${GNR_ROOTPWD:-admin}"}
+      GNR_DB_USER : ${r"${GNR_DB_USER:-genro}"}
+      GNR_DB_PORT : ${r"${GNR_DB_PORT:-5432}"}
+      GNR_DB_PASSWORD: ${r"${GNR_DB_PASSWORD:-S3cret}"}
       GNR_LOCALE: "IT_it"
     volumes:
-      - $_INSTANCENAME_site:/home/genro/site/
+      - ${instanceName}_site:/home/genro/site/
                 
                 """
                 compose_template_file = f"{self.instance.instanceName}-compose.yml"
                 with open(compose_template_file, "w") as wfp:
-                    wfp.write(compose_template.replace("$_INSTANCENAME", self.instance.instanceName).
-                              replace("$_VERSIONTAG", version_tag))
+                    t = Template(compose_template, strict_undefined=True)
+                    wfp.write(t.render(instanceName=self.instance.instanceName,
+                                       version_tag=version_tag,
+                                       extra_labels=extra_labels))
                     print(f"Created docker compose file {compose_template_file}")
                     print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
                     print("YMMV, please adjust the generated file accordingly.")
@@ -414,6 +442,17 @@ def main():
                         type=str,
                         default="softwellsrl",
                         help="The registry username where to push the image")
+    parser.add_argument('-f', '--fqdn',
+                        dest="fqdn",
+                        type=str,
+                        default=None,
+                        help="The FQDN of the site for deployment")
+    parser.add_argument('--router',
+                        dest='router',
+                        type=str,
+                        default='traefik',
+                        choices=['traefik'],
+                        help="The router to use for deployment")
     
     parser.add_argument('instance_name')
     
