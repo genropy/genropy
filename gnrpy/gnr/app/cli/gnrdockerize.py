@@ -25,6 +25,8 @@ description = "Create a Docker image for the instance"
 class MultiStageDockerImageBuilder:
     def __init__(self, instance, options):
         self.instance = instance
+        self.instance_name = self.instance.instanceName
+        self.image_name = options.image_name or self.instance.instanceName
         self.options = options
 
         # check for required executables
@@ -150,7 +152,7 @@ class MultiStageDockerImageBuilder:
         code_repo = {
             'url': main_repo_url,
             'branch_or_commit': commit,
-            'description': self.instance.instanceName,
+            'description': self.instance_name,
             'subfolder': None
             }
         _repos[main_repo_url] = code_repo
@@ -172,7 +174,7 @@ class MultiStageDockerImageBuilder:
             os.chdir(self.build_context_dir)
             self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
-                dockerfile.write(f"# Docker image for instance {self.instance.instanceName}\n")
+                dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
                 dockerfile.write(f"# Dockerfile builded on {now}\n\n")
                 # Genropy image, which is our base image
                 base_image_tag = self.options.bleeding and "develop" or "latest"
@@ -220,9 +222,9 @@ class MultiStageDockerImageBuilder:
                     os.chdir(self.build_context_dir)
                     docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                     dockerfile.write(f"# {repo['description']}\n")
-                    site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance.instanceName}/site"
+                    site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
                     if repo['subfolder']:
-                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance.instanceName}/site"
+                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
                     else:
 
@@ -250,7 +252,7 @@ timeout = 1800
 graceful_timeout = 600      
                 """
                 with open("gunicorn.py", "w") as wfp:
-                    wfp.write(gunicorn_template.format(instanceName=self.instance.instanceName,
+                    wfp.write(gunicorn_template.format(instanceName=self.instance_name,
                                                        main_repo_name=self.main_repo_name))
                 dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
@@ -303,21 +305,21 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
                 """
                 with open("supervisord.conf", "w") as wfp:
-                    wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))
+                    wfp.write(supervisor_template.format(instanceName=self.instance_name))
                     
-                dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance.instanceName}-supervisor.conf\n")
+                dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
 
-                dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance.instanceName}\n")
+                dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
 
                 dockerfile.write("LABEL {}\n".format(
                     " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
                 ))
-                dockerfile.write(f'CMD gnr db migrate -u {self.instance.instanceName} && /usr/bin/supervisord\n')
+                dockerfile.write(f'CMD gnr db migrate -u {self.instance_name} && /usr/bin/supervisord\n')
                 dockerfile.close()
                 logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
                 # Ensure to have Docker installed and running
                 build_command = ['docker', 'build', '-t',
-                                 f'{self.instance.instanceName}:{version_tag}',
+                                 f'{self.image_name}:{version_tag}',
                                  self.build_context_dir]
                 subprocess.run(build_command, check=True)
                 logger.info("Docker image built successfully.")
@@ -325,7 +327,7 @@ stderr_logfile_maxbytes=0
                 
             if self.options.push:
                 # push the newly created image to the registry
-                image_push = f"{self.instance.instanceName}:{version_tag}"
+                image_push = f"{self.image_name}:{version_tag}"
                 image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
                 logger.info(f"Tagging image {image_push} to {image_push_url}")
                 subprocess.run(['docker','tag', image_push, image_push_url])
@@ -339,14 +341,14 @@ stderr_logfile_maxbytes=0
                 if self.options.fqdn and self.options.router == 'traefik':
                     extra_labels.extend([
                         'traefik.enable: "true"',
-                        f'traefik.http.routers.{self.instance.instanceName}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
-                        f'traefik.http.routers.{self.instance.instanceName}_web.entrypoints: http',
-                        f'traefik.http.routers.{self.instance.instanceName}_web.service: {self.instance.instanceName}_svc_web',
-                        f'traefik.http.services.{self.instance.instanceName}_svc_web.loadbalancer.server.port: 8888',
-                        f'traefik.http.routers.{self.instance.instanceName}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
-                        f'traefik.http.routers.{self.instance.instanceName}_wsk.entrypoints: http',
-                        f'traefik.http.routers.{self.instance.instanceName}_wsk.service: {self.instance.instanceName}_svc_wsk',
-                        f'traefik.http.services.{self.instance.instanceName}_svc_wsk.loadbalancer.server.port: 9999'
+                        f'traefik.http.routers.{self.instance_name}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
+                        f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
+                        f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
+                        f'traefik.http.routers.{self.instance_name}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
+                        f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
+                        f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
                     ])
                                         
                     
@@ -395,10 +397,10 @@ services:
       - ${instanceName}_site:/home/genro/site/
                 
                 """
-                compose_template_file = f"{self.instance.instanceName}-compose.yml"
+                compose_template_file = f"{self.instance_name}-compose.yml"
                 with open(compose_template_file, "w") as wfp:
                     t = Template(compose_template, strict_undefined=True)
-                    wfp.write(t.render(instanceName=self.instance.instanceName,
+                    wfp.write(t.render(instanceName=self.instance_name,
                                        version_tag=version_tag,
                                        extra_labels=extra_labels))
                     print(f"Created docker compose file {compose_template_file}")
@@ -412,6 +414,10 @@ def main():
                         help="The image version tag",
                         type=str,
                         default="latest")
+    parser.add_argument('-n', '--name',
+                        dest="image_name",
+                        help="The image name (default to instance name)",
+                        type=str)
     parser.add_argument('--build-gen',
                         action="store_true",
                         dest="build_generate",
