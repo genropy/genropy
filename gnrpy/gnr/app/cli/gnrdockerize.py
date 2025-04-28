@@ -409,50 +409,51 @@ services:
                     
 def main():
     parser = GnrCliArgParse(description=description)
-    parser.add_argument('-t', '--tag',
-                        dest="version_tag",
-                        help="The image version tag",
-                        type=str,
-                        default="latest")
-    parser.add_argument('-n', '--name',
-                        dest="image_name",
-                        help="The image name (default to instance name)",
-                        type=str)
-    parser.add_argument('--build-gen',
-                        action="store_true",
-                        dest="build_generate",
-                        help="Force the automatically creation of the build.xml file")
     parser.add_argument('-c','--compose',
                         action="store_true",
                         dest="compose",
                         help="Generate a docker compose file for the created image")
-    parser.add_argument('--bleeding',
-                        action="store_true",
-                        dest="bleeding",
-                        help="Use Genropy from latest develop image")
-    parser.add_argument('-p', '--push',
-                        dest="push",
-                        action="store_true",
-                        help="Push the image into the registry")
-    parser.add_argument('--keep-temp',
-                        action="store_true",
-                        dest="keep_temp",
-                        help="Keep intermediate data for debugging the image build")
-    parser.add_argument('-r', '--registry',
-                        dest="registry",
-                        type=str,
-                        default="ghcr.io",
-                        help="The registry where to push the image")
-    parser.add_argument('-u', '--username',
-                        dest="username",
-                        type=str,
-                        default="softwellsrl",
-                        help="The registry username where to push the image")
     parser.add_argument('-f', '--fqdn',
                         dest="fqdn",
                         type=str,
                         default=None,
                         help="The FQDN of the site for deployment")
+    parser.add_argument('-n', '--name',
+                        dest="image_name",
+                        help="The image name (default to instance name)",
+                        type=str)
+    parser.add_argument('-p', '--push',
+                        dest="push",
+                        action="store_true",
+                        help="Push the image into the registry")
+    parser.add_argument('-r', '--registry',
+                        dest="registry",
+                        type=str,
+                        default="ghcr.io",
+                        help="The registry where to push the image")
+    parser.add_argument('-t', '--tag',
+                        dest="version_tag",
+                        help="The image version tag",
+                        type=str,
+                        default="latest")
+    parser.add_argument('-u', '--username',
+                        dest="username",
+                        type=str,
+                        default="softwellsrl",
+                        help="The registry username where to push the image")
+
+    parser.add_argument('--bleeding',
+                        action="store_true",
+                        dest="bleeding",
+                        help="Use Genropy from latest develop image")
+    parser.add_argument('--build-gen',
+                        action="store_true",
+                        dest="build_generate",
+                        help="Force the automatically creation of the build.xml file")
+    parser.add_argument('--keep-temp',
+                        action="store_true",
+                        dest="keep_temp",
+                        help="Keep intermediate data for debugging the image build")
     parser.add_argument('--router',
                         dest='router',
                         type=str,
