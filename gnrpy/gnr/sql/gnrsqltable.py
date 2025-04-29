@@ -950,10 +950,8 @@ class SqlTable(GnrObject):
         :param sqlContextName: TODO
         :param for_update: TODO"""
         packageStorename = self.pkg.attributes.get('storename')
-        if packageStorename:
+        if packageStorename and _storename is None:
             _storename = packageStorename
-        else:
-            _storename = None
         record = SqlRecord(self, pkey=pkey, where=where,
                            lazy=lazy, eager=eager,
                            relationDict=relationDict,
@@ -1389,10 +1387,8 @@ class SqlTable(GnrObject):
                 rel = rel[0:-1]
             joinConditions[rel] = dict(condition=cond,params=dict(),one_one=one_one)
         packageStorename = self.pkg.attributes.get('storename')
-        if packageStorename:
+        if packageStorename and _storename is None:
             _storename = packageStorename
-        else:
-            _storename = None
         query = SqlQuery(self, columns=columns, where=where, order_by=order_by,
                          distinct=distinct, limit=limit, offset=offset,
                          group_by=group_by, having=having, for_update=for_update,
@@ -1927,10 +1923,9 @@ class SqlTable(GnrObject):
             pkey = None
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
-            _storename = packageStorename
+            with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=packageStorename):
+                self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         else:
-            _storename = None
-        with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
             self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         return record
         
