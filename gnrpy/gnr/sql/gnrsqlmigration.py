@@ -370,8 +370,11 @@ class OrmExtractor:
                 size = f'0{size}'
             if ':' in size:
                 dtype = 'A'
-            elif ',' not in size and (not dtype or 'C' in COMPATIBLE_TYPES[dtype]):
-                dtype = 'C'                
+            elif ',' not in size:
+                if not dtype or 'C' in COMPATIBLE_TYPES[dtype]:
+                    dtype = 'C'    
+                elif dtype =='N':
+                    size = f'{size},0'
         if dtype in ('A','C') and not size:
             dtype = 'T'
         result['dtype'] = dtype
