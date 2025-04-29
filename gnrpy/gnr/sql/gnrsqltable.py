@@ -1923,7 +1923,7 @@ class SqlTable(GnrObject):
             pkey = None
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
-            with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
+            with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=packageStorename):
                 self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         else:
             self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
