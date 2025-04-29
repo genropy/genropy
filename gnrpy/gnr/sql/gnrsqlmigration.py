@@ -370,7 +370,7 @@ class OrmExtractor:
                 size = f'0{size}'
             if ':' in size:
                 dtype = 'A'
-            elif ',' not in size:
+            elif ',' not in size and not dtype:
                 dtype = 'C'                
         if dtype in ('A','C') and not size:
             dtype = 'T'
@@ -933,7 +933,11 @@ class SqlMigrator():
             deferrable= relattr.get('deferrable'),
             initially_deferred = relattr.get('initially_deferred')
         )
-        relations_dict[f'rem_{entity_name}']['command'] = f"DROP CONSTRAINT {relattr['constraint_name']}"
+        relations_dict[f'rem_{entity_name}']['command'] = self.db.adapter.struct_drop_constraint_sql(
+                    constraint_name=relattr['constraint_name'],
+                    schema_name=item['schema_name'],
+                    table_name=item['table_name'],
+        )
         relations_dict[f'add_{entity_name}']['command'] = f"ADD {add_sql}"
 
     def changed_constraint(self, item=None,changed_attribute=None,oldvalue=None,newvalue=None, **kwargs):
