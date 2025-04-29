@@ -13,6 +13,8 @@ import datetime
 import os
 import subprocess
 
+from mako.template import Template
+
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
@@ -23,6 +25,8 @@ description = "Create a Docker image for the instance"
 class MultiStageDockerImageBuilder:
     def __init__(self, instance, options):
         self.instance = instance
+        self.instance_name = self.instance.instanceName
+        self.image_name = options.image_name or self.instance.instanceName
         self.options = options
 
         # check for required executables
@@ -114,12 +118,10 @@ class MultiStageDockerImageBuilder:
         return url
     
     def _get_git_commit_from_path(self, path):
-        url = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
-        return url
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
     
     def _get_git_branch_from_path(self, path):
-        url = subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
-        return url
+        return subprocess.check_output(["git", "branch", "--show-current"], cwd=path).decode().strip()
     
     def _get_git_repo_name_from_url(self, url):
         return url.split("/")[-1].replace(".git", "")
@@ -150,7 +152,7 @@ class MultiStageDockerImageBuilder:
         code_repo = {
             'url': main_repo_url,
             'branch_or_commit': commit,
-            'description': self.instance.instanceName,
+            'description': self.instance_name,
             'subfolder': None
             }
         _repos[main_repo_url] = code_repo
@@ -172,10 +174,11 @@ class MultiStageDockerImageBuilder:
             os.chdir(self.build_context_dir)
             self.dockerfile_path = os.path.join(self.build_context_dir, "Dockerfile")
             with open(self.dockerfile_path, 'w') as dockerfile:
-                dockerfile.write(f"# Docker image for instance {self.instance.instanceName}\n")
+                dockerfile.write(f"# Docker image for instance {self.instance_name}\n")
                 dockerfile.write(f"# Dockerfile builded on {now}\n\n")
                 # Genropy image, which is our base image
-                dockerfile.write("FROM ghcr.io/genropy/genropy:develop as build_stage\n")
+                base_image_tag = self.options.bleeding and "develop" or "latest"
+                dockerfile.write(f"FROM ghcr.io/genropy/genropy:{base_image_tag} as build_stage\n")
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
                 dockerfile.write("USER genro\n\n")
                 dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
@@ -219,11 +222,18 @@ class MultiStageDockerImageBuilder:
                     os.chdir(self.build_context_dir)
                     docker_clone_dir = f"/home/genro/genropy_project/{repo_name}"
                     dockerfile.write(f"# {repo['description']}\n")
+                    site_folder = f"/home/genro/genropy_projects/{repo_name}/instances/{self.instance_name}/site"
                     if repo['subfolder']:
+                        site_folder = f"/home/genro/genropy_projects/{repo['subfolder']}/instances/{self.instance_name}/site"
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name}/{repo['subfolder']} /home/genro/genropy_projects/{repo['subfolder']}\n")
                     else:
+
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
+                dockerfile.write(f"VOLUME {site_folder}\n")
+                dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
+                dockerfile.write("EXPOSE 8888/tcp 9999/tcp\n")
+                
                 dockerfile.write("\n# Final customizations\n")
                 gunicorn_template = """
 import multiprocessing
@@ -242,7 +252,7 @@ timeout = 1800
 graceful_timeout = 600      
                 """
                 with open("gunicorn.py", "w") as wfp:
-                    wfp.write(gunicorn_template.format(instanceName=self.instance.instanceName,
+                    wfp.write(gunicorn_template.format(instanceName=self.instance_name,
                                                        main_repo_name=self.main_repo_name))
                 dockerfile.write(f"COPY --chown=genro:genro gunicorn.py /home/genro/gunicorn.py\n")
                 
@@ -251,10 +261,11 @@ graceful_timeout = 600
 nodaemon = true
                 
 [program:dbsetup]
+priority=1
 autorestart=unexpected
 startsecs = 0
 exitcodes = 0
-command=gnr db setup {instanceName}
+command=gnr db migrate -u {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
@@ -262,6 +273,7 @@ stderr_logfile_maxbytes=0
 
 
 [program:httpserver]
+priority=50
 command=gunicorn -c /home/genro/gunicorn.py root
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -269,6 +281,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrasync]
+priority=999
 command=gnr app async -p 9999 {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -276,6 +289,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskscheduler]
+priority=999
 command=gnr web taskscheduler {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -283,6 +297,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:gnrtaskworker]
+priority=999
 command=gnr web taskworker {instanceName}
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -290,19 +305,21 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
                 """
                 with open("supervisord.conf", "w") as wfp:
-                    wfp.write(supervisor_template.format(instanceName=self.instance.instanceName))
-                dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance.instanceName}-supervisor.conf\n")
+                    wfp.write(supervisor_template.format(instanceName=self.instance_name))
+                    
+                dockerfile.write(f"COPY --chown=genro:genro supervisord.conf /etc/supervisor/conf.d/{self.instance_name}-supervisor.conf\n")
 
-                dockerfile.write(f"RUN gnr app checkdep -i {self.instance.instanceName}\n")
+                dockerfile.write(f"RUN gnr app checkdep -n -i {self.instance_name}\n")
+
                 dockerfile.write("LABEL {}\n".format(
                     " \\ \n\t ".join([f'{k}="{v}"' for k,v in image_labels.items()])
                 ))
-                dockerfile.write('ENTRYPOINT ["/usr/bin/supervisord"]\n')
+                dockerfile.write(f'CMD gnr db migrate -u {self.instance_name} && /usr/bin/supervisord\n')
                 dockerfile.close()
                 logger.info(f"Dockerfile generated at: {self.dockerfile_path}")
                 # Ensure to have Docker installed and running
                 build_command = ['docker', 'build', '-t',
-                                 f'{self.instance.instanceName}:{version_tag}',
+                                 f'{self.image_name}:{version_tag}',
                                  self.build_context_dir]
                 subprocess.run(build_command, check=True)
                 logger.info("Docker image built successfully.")
@@ -310,42 +327,139 @@ stderr_logfile_maxbytes=0
                 
             if self.options.push:
                 # push the newly created image to the registry
-                image_push = f"{self.instance.instanceName}:{version_tag}"
+                image_push = f"{self.image_name}:{version_tag}"
                 image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
                 logger.info(f"Tagging image {image_push} to {image_push_url}")
                 subprocess.run(['docker','tag', image_push, image_push_url])
                 logger.info(f"Pushing image {image_push_url}")
                 subprocess.run(['docker', 'push', image_push_url])
-            
+
+            # docker compose conf file
+            if self.options.compose:
+                extra_labels = []
+
+                if self.options.fqdn and self.options.router == 'traefik':
+                    extra_labels.extend([
+                        'traefik.enable: "true"',
+                        f'traefik.http.routers.{self.instance_name}_web.rule: "(Host(`{self.options.fqdn}`) && !Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance_name}_web.entrypoints: http',
+                        f'traefik.http.routers.{self.instance_name}_web.service: {self.instance_name}_svc_web',
+                        f'traefik.http.services.{self.instance_name}_svc_web.loadbalancer.server.port: 8888',
+                        f'traefik.http.routers.{self.instance_name}_wsk.rule: "(Host(`{self.options.fqdn}`) && Path(`/websocket`))"',
+                        f'traefik.http.routers.{self.instance_name}_wsk.entrypoints: http',
+                        f'traefik.http.routers.{self.instance_name}_wsk.service: {self.instance_name}_svc_wsk',
+                        f'traefik.http.services.{self.instance_name}_svc_wsk.loadbalancer.server.port: 9999'
+                    ])
+                                        
+                    
+                compose_template = """
+---
+# Docker compose file for instance ${instanceName}:${version_tag}
+
+volumes:
+  ${instanceName}_site:
+
+services:
+  ${instanceName}_db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=S3cret
+      - POSTGRES_USER=genro
+      - POSTGRES_DB=${instanceName}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genro -d ${instanceName}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+  ${instanceName}:
+    image: ${instanceName}:${version_tag}
+    % if extra_labels:
+    labels:
+    % for l in extra_labels:
+      ${l}
+    % endfor
+    % endif:
+    ports:
+      - "8888:8888"
+    depends_on:
+      ${instanceName}_db:
+        condition: service_healthy
+    environment:
+      GNR_DB_IMPLEMENTATION : "postgres"
+      GNR_DB_HOST : ${r"${GNR_DB_HOST:-" + instanceName + "_db}"}
+      GNR_ROOTPWD : ${r"${GNR_ROOTPWD:-admin}"}
+      GNR_DB_USER : ${r"${GNR_DB_USER:-genro}"}
+      GNR_DB_PORT : ${r"${GNR_DB_PORT:-5432}"}
+      GNR_DB_PASSWORD: ${r"${GNR_DB_PASSWORD:-S3cret}"}
+      GNR_LOCALE: "IT_it"
+    volumes:
+      - ${instanceName}_site:/home/genro/site/
+                
+                """
+                compose_template_file = f"{self.instance_name}-compose.yml"
+                with open(compose_template_file, "w") as wfp:
+                    t = Template(compose_template, strict_undefined=True)
+                    wfp.write(t.render(instanceName=self.instance_name,
+                                       version_tag=version_tag,
+                                       extra_labels=extra_labels))
+                    print(f"Created docker compose file {compose_template_file}")
+                    print(f"You can now execute 'docker-compose -f {compose_template_file} up'")
+                    print("YMMV, please adjust the generated file accordingly.")
+                    
 def main():
     parser = GnrCliArgParse(description=description)
-    parser.add_argument('-t', '--tag',
-                        dest="version_tag",
-                        help="The image version tag",
-                        type=str,
-                        default="latest")
-    parser.add_argument('--build-gen',
+    parser.add_argument('-c','--compose',
                         action="store_true",
-                        dest="build_generate",
-                        help="Force the automatically creation of the build.xml file")
+                        dest="compose",
+                        help="Generate a docker compose file for the created image")
+    parser.add_argument('-f', '--fqdn',
+                        dest="fqdn",
+                        type=str,
+                        default=None,
+                        help="The FQDN of the site for deployment")
+    parser.add_argument('-n', '--name',
+                        dest="image_name",
+                        help="The image name (default to instance name)",
+                        type=str)
     parser.add_argument('-p', '--push',
                         dest="push",
                         action="store_true",
                         help="Push the image into the registry")
-    parser.add_argument('--keep-temp',
-                        action="store_true",
-                        dest="keep_temp",
-                        help="Keep intermediate data for debugging the image build")
     parser.add_argument('-r', '--registry',
                         dest="registry",
                         type=str,
                         default="ghcr.io",
                         help="The registry where to push the image")
+    parser.add_argument('-t', '--tag',
+                        dest="version_tag",
+                        help="The image version tag",
+                        type=str,
+                        default="latest")
     parser.add_argument('-u', '--username',
                         dest="username",
                         type=str,
                         default="softwellsrl",
                         help="The registry username where to push the image")
+
+    parser.add_argument('--bleeding',
+                        action="store_true",
+                        dest="bleeding",
+                        help="Use Genropy from latest develop image")
+    parser.add_argument('--build-gen',
+                        action="store_true",
+                        dest="build_generate",
+                        help="Force the automatically creation of the build.xml file")
+    parser.add_argument('--keep-temp',
+                        action="store_true",
+                        dest="keep_temp",
+                        help="Keep intermediate data for debugging the image build")
+    parser.add_argument('--router',
+                        dest='router',
+                        type=str,
+                        default='traefik',
+                        choices=['traefik'],
+                        help="The router to use for deployment")
     
     parser.add_argument('instance_name')
     

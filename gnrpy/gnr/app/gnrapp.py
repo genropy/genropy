@@ -899,9 +899,12 @@ class GnrApp(object):
                     logger.error(f"ERROR on {name}: {e}")
         return missing, wrong
 
-    def check_package_install_missing(self):
+    def check_package_install_missing(self, nocache=False):
         missing, wrong = self.check_package_missing_dependencies()
-        return subprocess.check_call([sys.executable, '-m', 'pip', 'install',]+missing)
+        base_cmd = [sys.executable, '-m', 'pip', 'install']
+        if nocache:
+            base_cmd.append("--no-cache-dir")
+        return subprocess.check_call(base_cmd+missing)
         
     def importFromSourceInstance(self,source_instance=None):
         to_import = ''
