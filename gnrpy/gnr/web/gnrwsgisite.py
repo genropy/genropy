@@ -195,7 +195,6 @@ class GnrWsgiSite(object):
                 import psycopg2 # noqa: F401
             except Exception:
                 pass
-
             
         if self.default_uri[-1] != '/':
             self.default_uri += '/'
@@ -240,6 +239,11 @@ class GnrWsgiSite(object):
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
 
+        # this is needed, don't remove - if removed, the register
+        # is not initialized, since self.register is a property
+        # and it initialze the register itself.
+        self.register
+        
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
             
