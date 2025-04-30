@@ -327,6 +327,7 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
     def test_08b_modify_column_type(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row_alternative')
+        tbl.column('vegan').attributes.pop('dtype')
         tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
         check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nDROP COLUMN "vegan",\nADD COLUMN "vegan" character(1) ;'
         self.checkChanges(check_value)
