@@ -457,7 +457,7 @@ class FormHandler(BaseComponent):
     @struct_method          
     def fh_slotbar_form_dismissTitle(self,pane,height=None,color=None,back_title=None,**kwargs):
         color = color or pane.getInheritedAttributes().get('color')
-        btn = pane.lightButton(action='this.form.abort();',style='display:flex;align-items:center;',cursor='pointer')
+        btn = pane.lightButton(action='this.form.publish("navigationEvent",{command:"dismiss"});',style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height=height or '25px',background_color=color)
         btn.div(back_title or '^.#parent.view.title')
 

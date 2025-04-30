@@ -1,8 +1,10 @@
 import os
 import re
 import io
+import shutil
 import subprocess
 import urllib.request, urllib.parse, urllib.error
+from urllib.parse import urlsplit
 import _thread
 import mimetypes
 import functools
@@ -29,6 +31,7 @@ from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.lib.services.storage import StorageNode
 from gnr.app.gnrdeploy import PathResolver
+from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException, GnrMaintenanceException
@@ -74,12 +77,13 @@ class PrintHandlerError(Exception):
 
 
 class UrlInfo(object):
-    def __init__(self,site,url_list=None,request_kwargs=None):
+    def __init__(self, site, url_list=None, request_kwargs=None):
         self.site = site
         self.url_list = url_list
         self.request_args = None
         self.request_kwargs = request_kwargs or dict()
         self.relpath = None
+        self.basepath = ''
         self.plugin = None
         path_list = list(url_list)
         if path_list[0]=='webpages':
@@ -96,7 +100,11 @@ class UrlInfo(object):
                 self.plugin = path_list.pop(0)
                 self.basepath= pkg_obj.plugins[self.plugin].webpages_path
             else:
-                self.basepath =  os.path.join(pkg_obj.packageFolder,'webpages')
+                if isinstance(pkg_obj, GnrPackage):
+                    self.basepath =  os.path.join(pkg_obj.packageFolder,'webpages')
+                else:
+                    self.request_args = []
+                    return 
             self.pkg = pkg_obj.id
         mobilepath = None
         if self.request_kwargs.pop('_mobile',False):
@@ -135,52 +143,13 @@ class UrlInfo(object):
         self.basepath = mobilepath or self.basepath
         self.request_args = path_list
 
-#class SafeEvalException(EvalException):
-#    def __call__(self, environ, start_response):
-#        if not environ['wsgi.multiprocess']:
-#            return super(SafeEvalException, self).__call__(environ, start_response)
-#        else:
-#            return self.application(environ, start_response)
-
 class GnrWsgiSite(object):
     """TODO"""
-
-    @property
-    def guest_counter(self):
-        """TODO"""
-        self._guest_counter += 1
-        return self._guest_counter
-
-    def log_print(self, msg, code=None):
-        """
-        Internal logging invocation 
-        :param msg: The log message
-        :param code: The method which invoked the log
-        """
-        if not code:
-            code = "OTHER"
-        logger.debug('%s: %s', code, msg)
-
-    def setDebugAttribute(self, options):
-        self.force_debug = False
-        if options:
-            self.debug = boolean(options.debug)
-            if self.debug:
-                self.force_debug = True
-        else:
-            if boolean(self.config['wsgi?debug']) is not True and (self.config['wsgi?debug'] or '').lower()=='force':
-                self.debug = True
-                self.force_debug = True
-            else:
-                self.debug = boolean(self.config['wsgi?debug'])
-
-
-    def __call__(self, environ, start_response):
-        return self.wsgiapp(environ, start_response)
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None, counter=None, noclean=None,
                  options=None, tornado=None, websockets=None):
+        
         global GNRSITE
         GNRSITE = self
         counter = int(counter or '0')
@@ -205,10 +174,12 @@ class GnrWsgiSite(object):
             
         self.site_path = PathResolver().site_name_to_path(self.site_name)
         site_parent=(os.path.dirname(self.site_path))
+
         if site_parent.endswith('sites'):
             self.project_name = os.path.basename(os.path.dirname(site_parent))
         else:
             self.project_name = None
+            
         if _gnrconfig:
             self.gnr_config = _gnrconfig
         else:
@@ -224,7 +195,6 @@ class GnrWsgiSite(object):
                 import psycopg2 # noqa: F401
             except Exception:
                 pass
-
             
         if self.default_uri[-1] != '/':
             self.default_uri += '/'
@@ -268,10 +238,15 @@ class GnrWsgiSite(object):
             alias_url = getattr(tool_impl.__call__, "alias_url", None)
             if alias_url:
                 self.webtools_static_routes[alias_url] = tool_name
-            
+
+        # this is needed, don't remove - if removed, the register
+        # is not initialized, since self.register is a property
+        # and it initialze the register itself.
         self.register
+        
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
+            
         if counter == 0 and options and options.source_instance:
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
@@ -282,6 +257,41 @@ class GnrWsgiSite(object):
         self.page_max_age = int(cleanup.get('page_max_age') or 120)
         self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
         self.db.closeConnection()
+
+
+    @property
+    def guest_counter(self):
+        """TODO"""
+        # this construct seems to be unused
+        self._guest_counter += 1
+        return self._guest_counter
+
+    def log_print(self, msg, code=None):
+        """
+        Internal logging invocation 
+        :param msg: The log message
+        :param code: The method which invoked the log
+        """
+        if not code:
+            code = "OTHER"
+        logger.debug('%s: %s', code, msg)
+
+    def setDebugAttribute(self, options):
+        self.force_debug = False
+        if options:
+            self.debug = boolean(options.debug)
+            if self.debug:
+                self.force_debug = True
+        else:
+            if boolean(self.config['wsgi?debug']) is not True and (self.config['wsgi?debug'] or '').lower()=='force':
+                self.debug = True
+                self.force_debug = True
+            else:
+                self.debug = boolean(self.config['wsgi?debug'])
+
+
+    def __call__(self, environ, start_response):
+        return self.wsgiapp(environ, start_response)
 
     @property
     def db(self):
@@ -467,7 +477,6 @@ class GnrWsgiSite(object):
     
     def pathListFromUrl(self, url):
         "Returns path_list from given url"
-        from urllib.parse import urlsplit
         parsed_url = urlsplit(url)
         path_list = parsed_url.path.split('/')
         return list(filter(None, path_list))
@@ -581,25 +590,34 @@ class GnrWsgiSite(object):
             localizerKw = self.currentPage.localizerKw
         return  GnrSiteException(message=message,localizerKw=localizerKw)
 
-        #def connFolderRemove(self, connection_id, rnd=True):
-        #    shutil.rmtree(os.path.join(self.allConnectionsFolder, connection_id),True)
-        #    if rnd and random.random() > 0.9:
-        #        live_connections=self.register_connection.connections()
-        #        connection_to_remove=[connection_id for connection_id in os.listdir(self.allConnectionsFolder) if connection_id not in live_connections and os.path.isdir(connection_id)]
-        #        for connection_id in connection_to_remove:
-        #            self.connFolderRemove(connection_id, rnd=False)
-        #
+    def connFolderRemove(self, connection_id=None):
+        """
+        remove all connection folder to the given connection_id
+
+        if not provide, it will delete all the connection folders
+        for connections that do not exist in the register
+        """
+        if connection_id:
+            logger.info("Purging connection folder %s", connection_id)
+            shutil.rmtree(os.path.join(self.allConnectionsFolder, connection_id), ignore_errors=True)
+        else:
+            logger.info("Purging connection folders")
+            live_connections=self.register.connections()
+            
+            connections_folder = self.allConnectionsFolder
+            connection_to_remove=[conn_id for conn_id in os.listdir(connections_folder) if conn_id not in live_connections and os.path.isdir(os.path.join(connections_folder, conn_id))]
+            for conn_id in connection_to_remove:
+                self.connFolderRemove(conn_id)
+        
 
     def onInited(self, clean):
         """TODO
 
         :param clean: TODO"""
         if clean:
+            logger.info("Purging connection folders")
             self.dropConnectionFolder()
             self.initializePackages()
-        else:
-            pass
-
 
     def on_reloader_restart(self):
         """TODO"""
@@ -681,11 +699,6 @@ class GnrWsgiSite(object):
             return self.currentPage.locale
         return self.server_locale
 
-   #def _get_sitemap(self):
-   #    return self.resource_loader.sitemap
-   #
-   #sitemap = property(_get_sitemap)
-
     def getPackageFolder(self,pkg):
         return self.gnrapp.packages[pkg].packageFolder
 
@@ -744,11 +757,8 @@ class GnrWsgiSite(object):
         # No path -> indexpage is served
         if path_info == '/' or path_info == '':
             path_info = self.indexpage
-        #if path_info.endswith('.py'):
-        #    path_info = path_info[:-3]
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
-        # if url starts with _ go to static file handling
         return path_list
 
     def _get_home_uri(self):
@@ -1149,7 +1159,6 @@ class GnrWsgiSite(object):
             debugger.onClosePage()
         self.currentPage = None
         self.db.closeConnection()
-        #self.shared_data.disconnect_all()
 
     def serve_tool(self, path_list, environ, start_response, **kwargs):
         """TODO
@@ -1297,38 +1306,17 @@ class GnrWsgiSite(object):
         self.instance_path = instance_path
         restorepath = options.restore if options else None
         restorefiles=[]
- #      if restorepath:
- #           if restorepath == 'auto':
- #               restorepath = self.getStaticPath('site:maintenance','restore',autocreate=True)
- #               restorefiles = [j for j in os.listdir(restorepath) if not j.startswith('.')]
- #           else:
- #               restorefiles = [restorepath]
- #           if restorefiles:
- #               restorepath = os.path.join(restorepath,restorefiles[0])
- #           else:
- #               restorepath = None
         if self.remote_db:
             instance_path = '%s:%s' %(instance_path,self.remote_db)
         app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath)
         self.config.setItem('instances.app', app, path=instance_path)
- #       for f in restorefiles:
- #           if os.path.isfile(restorepath):
- #               os.rename(restorepath,self.getStaticPath('site:maintenance','restored',f,autocreate=-1))
         return app
 
     def onAuthenticated(self, avatar):
         """TODO
 
         :param avatar: the avatar (user that logs in)"""
-        #if 'adm' in self.db.packages:
-        #    self.db.packages['adm'].onAuthenticated(avatar)
-        #pkgbroadcast?
         self.gnrapp.pkgBroadcast('onAuthenticated',avatar)
-       #
-       # for pkg in self.db.packages.values():
-       #     if hasattr(pkg,'onAuthenticated'):
-       #         pkg.onAuthenticated(avatar)
-       #
 
     def checkPendingConnection(self):
         if self.connectionLogEnabled:
@@ -1341,7 +1329,6 @@ class GnrWsgiSite(object):
         :param page_id: the 22 characters page id"""
         if self.connectionLogEnabled == 'A':
             self.db.table('adm.served_page').pageLog(event, page_id=page_id)
-
 
     def connectionLog(self, event, connection_id=None):
         """TODO

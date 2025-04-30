@@ -279,7 +279,7 @@ class FrameGridTools(BaseComponent):
         """,gth=gth.grid.js_widget,
             selectedLines=f'^.grid.currentSelectedPkeys'
         )
-        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False)
+        gth.viewConfigurator(table,queryLimit=False,toolbar=True,closable='close' if not static else False,readOnly=static)
         gth.dataController(f"""
             SET .selectedIndex = null;
             if(!_use_grouper){{
@@ -361,11 +361,11 @@ class FrameGridTools(BaseComponent):
         
 
     @struct_method
-    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None):
+    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=None):
         if not self.checkTablePermission(table=table,permissions='configure_view'):
             return
         grid = view.grid
-        grid.attributes['configurable'] = True
+        grid.attributes['configurable'] = True if not readOnly else 'readOnly'
         if closable is None:
             closable = 'close'
         frameCode = view.attributes.get('frameCode')
