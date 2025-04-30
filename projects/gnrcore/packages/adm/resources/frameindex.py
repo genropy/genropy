@@ -342,6 +342,7 @@ class FrameIndex(BaseComponent):
         documentationcb = self.helpdesk_documentation()
         helpcb = self.helpdesk_help()
         usergroup_documentation = self.helpdesk_userGroupDocumentation()
+
         if not (usergroup_documentation or documentationcb or helpcb):
             return
         menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
@@ -368,7 +369,7 @@ class FrameIndex(BaseComponent):
         return
 
     def helpdesk_help(self):
-        return 
+        return "genro.framedIndexManager.openHelpForCurrentIframe()"
     
     @struct_method
     def fi_slotbar_openGnrIDE(self,slot,**kwargs):
