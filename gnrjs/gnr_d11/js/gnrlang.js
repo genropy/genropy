@@ -37,7 +37,7 @@ function _px(v){
         v+='px';
     }
     return v;
-};
+}
 function _T(str,lazy){
     if(isNullOrBlank(str)){
         return str;
@@ -100,7 +100,7 @@ function pyref(ref,mode){
     }
     return node;
     
-};
+}
 function bagAsObj(bag) {
     var result = {};
     var parentNode = bag.getParentNode();
@@ -111,7 +111,7 @@ function bagAsObj(bag) {
         result[n.label] = n.getValue();
     });
     return result;
-};
+}
 
 function objectAsGrid(obj,labels){
     var labels = labels || 'label,value';
@@ -131,12 +131,12 @@ function objectAsGrid(obj,labels){
     }
     result.sort('#k');
     return result;
-};
+}
 function objectAsHTMLTable(obj,labels){
     labels = labels || 'label,value';
     var b = objectAsGrid(obj);
     return b.asHtmlTable({cells:labels});
-};
+}
 
 function arrayContains(arr, item) {
     for (var i = 0; i < arr.length; i++) {
@@ -153,7 +153,7 @@ function copyArray(arraylike){
     var result = [];
     dojo.forEach(arraylike,function(n){result.push(n);});
     return result;
-};
+}
 
 function arrayIndexOf(arr, item) {
     for (var i = 0; i < arr.length; i++) {
@@ -167,8 +167,8 @@ function arrayPushNoDup(arr, item) {
     if (dojo.indexOf(arr, item) < 0) {
         arr.push(item);
     }
-    ;
-};
+    
+}
 
 function arrayUniquify(arr){
     var result = [];
@@ -178,7 +178,7 @@ function arrayUniquify(arr){
         }
     });
     return result;
-};
+}
 
 urlB64ToUint8Array = function(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -193,7 +193,7 @@ urlB64ToUint8Array = function(base64String) {
         outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
-}
+};
 
 function arrayMatch(a, matchString) {
     if (matchString.indexOf('*') >= 0) {
@@ -251,7 +251,7 @@ function stringCapitalize(str,firstOnly) {
         return a.charAt(0).toUpperCase() + a.substr(1);
 
     });
-};
+}
 
 
 function dataTemplate(str, data, path, showAlways,kw) {
@@ -260,7 +260,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
     if (!str) {
         return '';
     }
-    if (typeof(str)=='object' && str.cb){
+    if (typeof(str)==='object' && str.cb){
         var templateHandler = str;
         if (!templateHandler.template){
             templateHandler.cb.call(templateHandler);
@@ -295,7 +295,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
 
     }
     
-    if (data && typeof(data) == 'string') {
+    if (data && typeof(data) === 'string') {
         data = genro._data.getItem(data);
     }
     else if (data instanceof gnr.GnrDomSourceNode) {
@@ -351,7 +351,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = objectFromString(valueattr.values)[value];
                                    }
                                 }else{
-                                    value = auxattr[as_name]
+                                    value = auxattr[as_name];
                                 }
                                 if(value instanceof gnr.GnrBag){
                                     var subtpl = templates?templates.getItem(as_name):null;
@@ -429,7 +429,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
         return result;
     }
 }
-;
+
 
 
 function stringStrip(s) {
@@ -457,7 +457,7 @@ function keyName(keyCode){
             return keyName;
         }
     }
-};
+}
 
 function bagPathJoin(path1, path2) {
     var path1 = path1.split('.');
@@ -474,7 +474,7 @@ function objectPop(obj, key, dflt) {
         result = obj[key];
         delete obj[key];
     } else {
-        result = (typeof dflt == 'undefined') ? null : dflt;
+        result = (typeof dflt === 'undefined') ? null : dflt;
     }
     return result;
 }
@@ -500,12 +500,12 @@ function isEqual(a,b){
         return a.isEqual(b);
     }
     if(a instanceof Array && b instanceof Array){
-        return a.length == b.length && !a.some(function(elem,idx){return !isEqual(elem,b[idx])});
+        return a.length == b.length && !a.some(function(elem,idx){return !isEqual(elem,b[idx]);});
     }
     a = a instanceof Date ? a.valueOf() : a;
     b = b instanceof Date ? b.valueOf() : b;
     return objectIsEqual(a,b);
-};
+}
 
 function objectIsEqual(obj1, obj2) {
     if (obj1 == obj2) {
@@ -549,7 +549,7 @@ function normalizeKwargs(kwargs,str){
     if(p===true || p===null){
         return kw || (p?{}:null);
     }
-    if(typeof(p) == 'object'){
+    if(typeof(p) === 'object'){
         kw = objectUpdate(kw || {},p);
     }else{
         kw._ = p;
@@ -623,10 +623,10 @@ function mapConvertFromText(value){
     if (value instanceof Array){
         return value.map(mapConvertFromText);
     }
-    if (typeof(value)=='string'){
+    if (typeof(value)==='string'){
         return convertFromText(value);
     }
-    if(typeof(value)=='object' && !(value instanceof Date)){
+    if(typeof(value)==='object' && !(value instanceof Date)){
         var result = {};
         for (var k in value){
             result[k] = mapConvertFromText(value[k]);
@@ -762,7 +762,7 @@ function objectAsXmlAttributes_old(obj, sep) {
     var result = [];
     for (var prop in obj) {
         val = obj[prop];
-        if (typeof(val) == 'string') {
+        if (typeof(val) === 'string') {
             val = val.replace(/\</g, '&lt;');
             val = val.replace(/\&/g, '&amp;');
             val = val.replace(/\>/g, '&gt;');
@@ -773,7 +773,7 @@ function objectAsXmlAttributes_old(obj, sep) {
             val = val.replace(/\t/g, '&#09;');
             result.push(prop + "=" + quoted(val));
 
-        } else if (typeof(obj[prop]) != 'function') {
+        } else if (typeof(obj[prop]) !== 'function') {
             result.push(prop + "=" + quoted(asTypedTxt(obj[prop])));
         }
     }
@@ -785,10 +785,10 @@ function objectAsXmlAttributes(obj, sep) {
     var result = [];
     for (var prop in obj) {
         val = obj[prop];
-        if(typeof(val)=='function'){
+        if(typeof(val)==='function'){
             continue;
         }
-        if (typeof(val) != 'string') {
+        if (typeof(val) !== 'string') {
             val = asTypedTxt(val);
         }
         val = val.replace(/\</g, '&lt;');
@@ -831,7 +831,7 @@ function objectFromStyle(style) {
         }
     }
     return result;
-};
+}
 
 function objectFromString(values,sep,mode){
     if(!values){
@@ -854,7 +854,7 @@ function objectFromString(values,sep,mode){
         }
     }
     return result;
-};
+}
 
 
 //funzione di utilità che elimina i blank attorno ad una stringa.
@@ -896,7 +896,7 @@ zip = function(list) {
 };
 
 function asTypedTxt(value, dtype) {
-    if(typeof(value)=='function'){
+    if(typeof(value)==='function'){
         return;
     }
     var typedText = convertToText(value, {'xml':true,'dtype':dtype});
@@ -907,7 +907,7 @@ function asTypedTxt(value, dtype) {
     }
     return value;
 }
-;
+
 
 function quoted(astring) {
     var mystring = new String(astring);
@@ -921,14 +921,14 @@ function quoted(astring) {
         return "invalid string";
     }
 }
-;
+
 
 
 function convertFromText(value, t, fromLocale) {
     if(isNullOrBlank(value)){
-        return null
+        return null;
     }
-    if (typeof(value)!='string') {
+    if (typeof(value)!=='string') {
         return value;
     }
     if (!t){
@@ -999,7 +999,7 @@ function convertFromText(value, t, fromLocale) {
         try {
             return mapConvertFromText(JSON.parse(value));
         } catch (e) {
-            return genro.evaluate(value)
+            return genro.evaluate(value);
         }
     }
     else if (t == 'BAG' || t=='X') {
@@ -1027,7 +1027,7 @@ var gnrformatter = {
             }
         }
         dtype = dtype|| guessDtype(value);
-        if(format && typeof(format)!='string'){
+        if(format && typeof(format)!=='string'){
             var formatdict = format;
             format = objectPop(format,'format') || objectPop(format,'pattern');
             objectUpdate(formatKw,formatdict);
@@ -1055,9 +1055,9 @@ var gnrformatter = {
             return value;
         }
         var c,c_zoom;
-        if(typeof(format)=='string' && stringStartsWith(format,'auto')){
+        if(typeof(format)==='string' && stringStartsWith(format,'auto')){
             if(format.indexOf(':')){
-                format = format.split(':')
+                format = format.split(':');
                 var c_zoom = parseFloat(format[1]);
             }
             if(value.indexOf('?')>=0){
@@ -1069,7 +1069,7 @@ var gnrformatter = {
                 }
             }
         }
-        if(typeof(format)=='string'){
+        if(typeof(format)==='string'){
             format = objectFromString(format);
         }
         if(formatKw){
@@ -1085,7 +1085,7 @@ var gnrformatter = {
             var c ='<div style="height:'+format["h"]+'px;width:'+format["w"]+'px;overflow:hidden;'+format["style"]+'">';
             objectPop(format,'style');
             if (c_zoom){
-                c_style = "-webkit-transform:scale("+c_zoom+");-webkit-transform-origin:0px 0px;-moz-transform:scale("+c_zoom+");-moz-transform-origin:0px 0px;"
+                c_style = "-webkit-transform:scale("+c_zoom+");-webkit-transform-origin:0px 0px;-moz-transform:scale("+c_zoom+");-moz-transform-origin:0px 0px;";
             }
             c = c+'<div style="'+c_style+'">';
         }
@@ -1120,9 +1120,9 @@ var gnrformatter = {
             return makeLink(value,'Download',true);
         }
         if(format=='playsound'){
-            return makeLink('javascript:genro.lockScreen(true,"sound"); genro.playUrl("'+value+'",function(){genro.lockScreen(false,"sound")});','<div class="iconbox sound"></div>')
+            return makeLink('javascript:genro.lockScreen(true,"sound"); genro.playUrl("'+value+'",function(){genro.lockScreen(false,"sound")});','<div class="iconbox sound"></div>');
         }
-        if(typeof(format)=='string' && format.indexOf('#')>=0){ //to check
+        if(typeof(format)==='string' && format.indexOf('#')>=0){ //to check
             format = format.split('');
             value = value.split('');
             var result = [];
@@ -1145,13 +1145,13 @@ var gnrformatter = {
         }
         var opt = {selector:'date'};
         var standard_format = 'long,short,medium,full';
-        var week_format = ['-W','-w','-WD']
+        var week_format = ['-W','-w','-WD'];
         var result = '';
         if(format){
             if(standard_format.indexOf(format)>=0){
                 opt.formatLength = format;
             }else if (week_format.indexOf(format)>=0){
-                return ''+deltaWeeks(null,value,format.slice(1));;
+                return ''+deltaWeeks(null,value,format.slice(1));
             }else{
                 opt.datePattern = format;
             }
@@ -1161,7 +1161,7 @@ var gnrformatter = {
     
     format_H:function(value,format,formatKw){
         var opt = {selector:'time'};
-        var standard_format = 'long,short,medium,full'
+        var standard_format = 'long,short,medium,full';
         if(format){
             if(standard_format.indexOf(format)>=0){
                 opt.formatLength = format;
@@ -1176,12 +1176,12 @@ var gnrformatter = {
     },
 
     format_DH:function(value,format,formatKw){
-        if (typeof(value)=="number"){
-            value=new Date(value)
+        if (typeof(value)==="number"){
+            value=new Date(value);
         }
         var opt = {selector:'datetime'};
         var standard_format = 'long,short,medium,full';
-        var week_format = ['-W','-w','-WD']
+        var week_format = ['-W','-w','-WD'];
         if(format){
             if(standard_format.indexOf(format)>=0){
                 opt.formatLength = format;
@@ -1199,10 +1199,10 @@ var gnrformatter = {
     format_B:function(value,format,formatKw){
         var format = format || 'true,false';
         if(format=='semaphore'){
-            format = '<div class="greenLight">&nbsp;</div>,<div class="redLight">&nbsp;</div>,<div class="grayLight">&nbsp;</div>'
+            format = '<div class="greenLight">&nbsp;</div>,<div class="redLight">&nbsp;</div>,<div class="grayLight">&nbsp;</div>';
         }
         if(format=='tick'){
-            format = '<div class="tickOn">&nbsp;</div>,<div>&nbsp;</div>'
+            format = '<div class="tickOn">&nbsp;</div>,<div>&nbsp;</div>';
         }
         format = format.split(',');
         return (value === null && format.length==3)?format[2]:(value?format[0]:format[1]);
@@ -1252,21 +1252,21 @@ var gnrformatter = {
             formatKw.max = formatKw.max || 100;
             var p = [];
             for(var k in formatKw){
-                p.push(k+'="'+formatKw[k]+'"')
+                p.push(k+'="'+formatKw[k]+'"');
             }
             return '<'+format+' style="width:100%;" value="'+value+'"'+' ' +p.join(' ')+ ' ></'+format+'>';
         }
         if(format=='bytes'){
             var s = ['Bytes','KB','MB','GB','TB'];
-            if (value == 0) {return '0 Bytes'};
+            if (value == 0) {return '0 Bytes';}
             var i = parseInt(Math.floor(Math.log(value) / Math.log(1024)));
-            return (value / Math.pow(1024, i)).toFixed(1) + ' ' + s[[i]]
+            return (value / Math.pow(1024, i)).toFixed(1) + ' ' + s[[i]];
         }
         if(format=='epoch'){
-            return _F(new Date(value*1000))
+            return _F(new Date(value*1000));
         }
         if(format=='DHMS'){
-            var r = []
+            var r = [];
             var curr = value;
             r.push(curr%60+'s');
             curr = Math.floor(curr/60);
@@ -1282,9 +1282,9 @@ var gnrformatter = {
                 }
             }
             r.reverse();
-            return r.join(' ')
+            return r.join(' ');
         }
-        return (formatKw.currency ? dojo.currency:dojo.number).format(value, objectUpdate(opt, formatKw))
+        return (formatKw.currency ? dojo.currency:dojo.number).format(value, objectUpdate(opt, formatKw));
     },
     format_X:function(value,format,formatKw){
         return value.getFormattedValue(format);
@@ -1304,16 +1304,16 @@ var gnrformatter = {
     format_AR:function(value,format,formatKw){
         if(format=='json_table'){
             if(!formatKw.cols){
-                formatKw.cols = []
+                formatKw.cols = [];
                 for(c in value[0]){
-                    formatKw.cols.push({'field':c,'name':c})
+                    formatKw.cols.push({'field':c,'name':c});
                 }
             }
             return genro.dom.jsonTable(
                 value,formatKw
             );
         }
-        value = dojo.map(value,function(n){return _F(n)});
+        value = dojo.map(value,function(n){return _F(n);});
         return value.join(formatKw.joiner || ',');
     },
     format_NN:function(value,format,formatKw){
@@ -1327,7 +1327,7 @@ var gnrformatter = {
         var v;
         var indent = formatKw.indent || '';
         if(indent){
-            result.push('')
+            result.push('');
         }
         formatKw.format_indent = indent+'  ';
         for(var k in value){
@@ -1337,7 +1337,7 @@ var gnrformatter = {
         formatKw.format_indent = indent;
         return result.join(format || '\n');
     }
-}
+};
 function isDate(obj){
     if(!obj){
         return false;
@@ -1359,7 +1359,7 @@ function guessDtype(value){
         return 'FILE';
     }
     if(isBag(value)){
-        return 'X'
+        return 'X';
     }
     if(value instanceof gnr.GnrBagNode){
         return 'BAGNODE';
@@ -1389,7 +1389,7 @@ function guessDtype(value){
         return 'AR';
     }
     return 'OBJ';
-};
+}
 
 function convertToText(value, params) {
     if (value == null || value == undefined) {
@@ -1440,7 +1440,7 @@ function convertToText(value, params) {
         }
         var opt = {'selector':selectors[dtype]};
         if(dtype=='DHZ'){
-            return ['DHZ',value.toISOString()]
+            return ['DHZ',value.toISOString()];
         }
         if (forXml) {
             opt.timePattern = 'HH:mm:ss';
@@ -1462,14 +1462,14 @@ function convertToText(value, params) {
         result[1] = mask.replace(/%s/g, result[1]);
     }
     return result;
-};
+}
 function toJSON(value,typedMode){
     if(!typedMode){
         return JSON.stringify(value);
     }
     return toTypedJSON(value);
     
-};
+}
 function toTypedJSON(value){
     let dtype = guessDtype(value);
     if(dtype=='AR' || dtype=='SET'){
@@ -1486,17 +1486,17 @@ function toTypedJSON(value){
         return JSON.stringify(asTypedTxt(value));
     }
     return JSON.stringify(value);
-};
+}
 
 
 
 function asText(value, params) {
     return convertToText(value, params)[1];
-};
+}
 
 
 function numFormat(num, params) {
-    if (typeof(params) == 'string') {
+    if (typeof(params) === 'string') {
         var decimal_precision = params[2];
         var thousand_sep = params[0];
         var decimal_sep = params[1];
@@ -1508,7 +1508,7 @@ function numFormat(num, params) {
     }
     num = num || 0;
  
-    if (typeof(num) == 'string') {
+    if (typeof(num) === 'string') {
         num = parseFloat(num);
     }
  
@@ -1717,9 +1717,9 @@ function serialize(_obj) {
     }
 }
 function stringHash(str){
-    var result = str.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+    var result = str.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a;},0);
     return Math.abs(result);
-};
+}
 
 function stringToColour(str) {
     if(!str){
@@ -1738,7 +1738,7 @@ function stringToColour(str) {
       colour += ('00' + value.toString(16)).substr(-2);
     }
     return colour;
-};
+}
 
 function parseURL(url) {
     var a =  document.createElement('a');
@@ -1773,13 +1773,13 @@ function parseURL(url) {
 function serializeURL(parsedUrl){
     var result = parsedUrl.origin+parsedUrl.pathname || '';
     return genro.addParamsToUrl(result,parsedUrl.params);
-};
+}
 
 
 function funcCreate(fnc, pars, scope,showError) {
     if (fnc) {
         var pars = pars || '';
-        if (typeof(fnc) == 'string') {
+        if (typeof(fnc) === 'string') {
             if (scope && (fnc in scope)) {
                 return scope[fnc];
             }
@@ -1857,7 +1857,7 @@ function funcApply(fnc, parsobj, scope,argNames,argValues,showError) {
     
     argNames.push('_kwargs');
     argValues.push(parsobj);
-    if(typeof(fnc)=='function'){
+    if(typeof(fnc)==='function'){
         var signature = fnc.toString().match(/function *\(([\w \,]*)\)/)[1];
         var idx;
         if(signature){
@@ -1890,9 +1890,9 @@ function deltaWeeks(dateStart,dateEnd,format){
         return Math.round10(dd/7,-2);
     }
     if (format=='WD'){
-        return `${Math.trunc(dd/7)}w${dd%7}d`
+        return `${Math.trunc(dd/7)}w${dd%7}d`;
     }
-};
+}
 
 function deltaDays(dateStart,dateEnd,excludeWD){
     var excludeWD = excludeWD || '';
@@ -1909,7 +1909,7 @@ function deltaDays(dateStart,dateEnd,excludeWD){
         wd = currDate.getDay();
     }
     return result;
-};
+}
 
 function addDaysToDate(dateStart,daysToAdd,excludeWD){
     excludeWD = excludeWD || '';
@@ -1928,11 +1928,11 @@ function addDaysToDate(dateStart,daysToAdd,excludeWD){
         }
     }
     return currDate;
-};
+}
 
 function combineDateAndTime(date, time) {
     if(!(date && time)){
-        return
+        return;
     }
     let timeString = time.getHours() + ':' + time.getMinutes() + ':00';
     let year = date.getFullYear();
@@ -1957,7 +1957,7 @@ function splitDateAndTime(dt){
     let date = new Date(year,month,day);
     date._gnrdtype = 'D';
     let time = newTimeObject(dt.getHours(),dt.getMinutes(),dt.getSeconds(),dt.getMilliseconds());
-    time._gnrdtype = 'H'
+    time._gnrdtype = 'H';
     return {_date:date,_time:time};
 }
 
@@ -2178,7 +2178,7 @@ function localeParser(/*String*/value, /*Object?*/options) {
     //validity of input strings containing 'EEE' or 'EEEE'...
     return result; // Date
 }
-;
+
 
 function getRandomColor() {
     var letters = '0123456789ABCDEF'.split('');

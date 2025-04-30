@@ -93,7 +93,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
             setTimeout(function(){
                 that.initialize(widget,savedAttrs.calAttrs);
             });
-        }
+        };
         if(!window.FullCalendar){
             this.loadFullCalendar(cb);
         }else{
@@ -114,7 +114,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
         var that = this;
         calAttrs.eventSources = [function(info,successCallback,failureCallback){
             return that.readEventStore(domroot.sourceNode,info,successCallback,failureCallback);
-        }]
+        }];
         var calendar = new FullCalendar.Calendar(domroot,calAttrs);
         //dojo.style(domroot.firstChild,{height:'inherit',top:0,left:0,right:0,bottom:0,position:'absolute'})
        
@@ -132,16 +132,16 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
     mixin_gnr_storepath:function(value,kw, trigger_reason){        
         var calendar = this;
         this.sourceNode.delayedCall(function(){
-            console.log('update')
+            console.log('update');
             calendar.refetchEvents();
-        }, 500,'updatingContent')    
+        }, 500,'updatingContent');    
     },
     
     readEventStore:function(sourceNode,info,successCallback,failureCallback){
         var store = sourceNode.getRelativeData(sourceNode.attr.storepath);
-        var events= []
+        var events= [];
         if(!store){
-            return
+            return;
         }
         store.getNodes().forEach(function(n){
             let row = objectUpdate({},n.attr);
@@ -154,7 +154,7 @@ dojo.declare("gnr.widgets.fullcalendar", gnr.widgets.baseHtml, {
             }
         });
         if(!events.length){
-            events = [{title:'Prova',start:new Date()}]
+            events = [{title:'Prova',start:new Date()}];
         }
         console.log('successCallback',events);
         successCallback(events);
@@ -180,7 +180,7 @@ dojo.declare("gnr.widgets.qrscanner", gnr.widgets.baseHtml, {
         let scannerAttributes = objectExtract(attributes,'onDecodeError,preferredCamera,maxScansPerSecond,calculateScanRegion,highlightScanRegion,highlightCodeOutline,returnDetailedScanResult');
         scannerAttributes.highlightCodeOutline = scannerAttributes.highlightCodeOutline!==false;
         scannerAttributes.highlightScanRegion = scannerAttributes.highlightScanRegion!==false;
-        return {scannerAttributes:scannerAttributes}
+        return {scannerAttributes:scannerAttributes};
 
     },
     created:function(widget, savedAttrs, sourceNode){
@@ -378,7 +378,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             this.sourceNode.setAttributeInDatasource('value',value || null);
             let htmlpath = this.sourceNode.attr.htmlpath;
             if(htmlpath){
-                this.sourceNode.setRelativeData(htmlpath,this.getHTML())
+                this.sourceNode.setRelativeData(htmlpath,this.getHTML());
             }
         }
     },
@@ -446,7 +446,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
             cmAttrs.lineWrapping = lineWrapping;
         }
         cmAttrs.value = objectPop(attributes,'value') || '';
-        return {cmAttrs:cmAttrs}
+        return {cmAttrs:cmAttrs};
     },
 
     created:function(widget, savedAttrs, sourceNode){
@@ -462,7 +462,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
         var cb = function(){
             that.load_mode(mode,function(){
                 if(theme){
-                    that.load_theme(theme,function(){that.initialize(widget,cmAttrs,sourceNode)})
+                    that.load_theme(theme,function(){that.initialize(widget,cmAttrs,sourceNode);});
                 }
                 else{
                     that.initialize(widget,cmAttrs,sourceNode);
@@ -470,10 +470,10 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
              });
             if(addon){
                 addon.forEach(function(addon){
-                    that.load_addon(addon)
-                })
+                    that.load_addon(addon);
+                });
             }
-        }
+        };
         if(!window.CodeMirror){
             this.loadCodeMirror(cb);
         }else{
@@ -500,9 +500,9 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                                           cm.replaceSelection(spaces);
                                       }
                                 });
-        dojo.style(widget,{position:'relative'})
+        dojo.style(widget,{position:'relative'});
         var cm = CodeMirror(widget,cmAttrs);
-        dojo.style(widget.firstChild,{height:'inherit',top:0,left:0,right:0,bottom:0,position:'absolute'})
+        dojo.style(widget.firstChild,{height:'inherit',top:0,left:0,right:0,bottom:0,position:'absolute'});
         cm.refresh();
         cm.sourceNode = sourceNode;
         cm.gnr = this;
@@ -518,8 +518,8 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                 if(sourceNode.attr.value){
                     sourceNode.setRelativeData(sourceNode.attr.value,v,null,null,sourceNode);
                 }
-            },sourceNode.attr._delay || 500,'updatingContent')
-        })
+            },sourceNode.attr._delay || 500,'updatingContent');
+        });
         let startValue = sourceNode.getAttributeFromDatasource('value');
         cm.setValue(startValue || '');
     },
@@ -540,10 +540,10 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                     genro.dom.loadJs('/_rsrc/js_libs/codemirror/'+path);
                 }
                  
-            })
+            });
             addondict.css.forEach(function(path){
                  genro.dom.loadCss('/_rsrc/js_libs/codemirror/'+path);
-            })
+            });
         }
     },
 
@@ -557,7 +557,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                         i++;
                         if(CodeMirror.modes[mode].dependencies.length==i){
                             that.load_mode(dep,function(){
-                                setTimeout(function(){cb()},10);
+                                setTimeout(function(){cb();},10);
                             });
                         }else{
                             that.load_mode(dep);
@@ -565,7 +565,7 @@ dojo.declare("gnr.widgets.codemirror", gnr.widgets.baseHtml, {
                     });
                 }
                 else if(cb){
-                    cb()
+                    cb();
                 }
             });
         }
@@ -763,10 +763,10 @@ dojo.declare("gnr.widgets.chartjs", gnr.widgets.baseHtml, {
                 var datasets = that.sourceNode.getAttributeFromDatasource('datasets'); 
                 var captionField = that.sourceNode.getAttributeFromDatasource('captionField');
                 var filterCb;
-                if(typeof(filter)=='string'){
+                if(typeof(filter)==='string'){
                     filter = filter.split(',');
                 }
-                if(typeof(filter)!='function'){
+                if(typeof(filter)!=='function'){
                     filterCb = filter?function(pkey,row){return filter.length===0 ||filter.indexOf(pkey)>=0;}:function(){return true;};
                 }else{
                     filterCb = filter;
@@ -1022,7 +1022,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             var l = [];
             customStyles.forEach(function(n){
                 l.push({name:n.name,element:n.element,styles:objectFromStyle(n.styles),attributes:objectFromStyle(n.attributes)});
-            })
+            });
             customStyles = l;
         }
         var showtoolbar = true;
@@ -1030,14 +1030,14 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             toolbar=[];
             showtoolbar = false;
         }
-        if (typeof(toolbar) == 'string') {
+        if (typeof(toolbar) === 'string') {
             if(toolbar in this.toolbar_dict){
                 toolbar = this.toolbar_dict[toolbar];
             }else{
                 toolbar = genro.evaluate(toolbar);
             }
         }
-        ;
+        
         if (toolbar) {
             config.toolbar = 'custom';
             config.toolbar_custom = toolbar;
@@ -1046,7 +1046,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         savedAttrs.customStyles = customStyles;
         savedAttrs.contentsCss = contentsCss;
         savedAttrs.contentStyles = objectPop(attributes,'contentStyles');
-        savedAttrs.constrainAttr = objectExtract(attributes,'constrain_*')
+        savedAttrs.constrainAttr = objectExtract(attributes,'constrain_*');
         return savedAttrs;
 
     },
@@ -1116,7 +1116,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
                 styleNode.setAttribute('id',styleID);
                 head.appendChild(styleNode);
             }
-            styleNode.innerText = contentStyles
+            styleNode.innerText = contentStyles;
         });
     },
 
@@ -1151,7 +1151,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         if(savedAttrs.customStyles){
             var csname = 'customStyles_'+sourceNode.getStringId();
             CKEDITOR.stylesSet.add(csname,savedAttrs.customStyles);
-            savedAttrs.config.stylesSet = csname
+            savedAttrs.config.stylesSet = csname;
         } 
         savedAttrs.config.enterMode = enterModeDict[enterMode];
         //savedAttrs.config.enterMode = CKEDITOR.ENTER_BR;
@@ -1159,8 +1159,8 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
 
         if(savedAttrs.contentsCss){
             var currlst = CKEDITOR.config.contentsCss;
-            if(typeof(currlst)=='string'){
-                currlst = currlst.split(',')
+            if(typeof(currlst)==='string'){
+                currlst = currlst.split(',');
             }
             savedAttrs.config.contentsCss = currlst.concat(savedAttrs.contentsCss.split(','));
         }
@@ -1218,7 +1218,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             cbResize();
             if(sourceNode.attr._inGridEditor){
                 var that = this;
-                setTimeout(function(){that.focus()},100);
+                setTimeout(function(){that.focus();},100);
             }
         });
 
@@ -1244,24 +1244,24 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
             ckeditor.gnr_setInDatastore();            
             if(sourceNode.attr.connect_onBlur){
                 if(ckeditor._blurTimeOut){
-                    clearTimeout(ckeditor._blurTimeOut)
-                    ckeditor._blurTimeOut = null
+                    clearTimeout(ckeditor._blurTimeOut);
+                    ckeditor._blurTimeOut = null;
                 }
                 ckeditor._blurTimeOut = setTimeout(function(){
                     if(sourceNode.attr._inGridEditor && sourceNode.externalWidget.lastKey==9){
                         sourceNode.externalWidget.cellNext = 'RIGHT';  
                     }
                     funcApply(sourceNode.attr.connect_onBlur,{evt:evt},sourceNode);
-                    clearTimeout(ckeditor._blurTimeOut)
-                    ckeditor._blurTimeOut = null
-                },200)
+                    clearTimeout(ckeditor._blurTimeOut);
+                    ckeditor._blurTimeOut = null;
+                },200);
                 
             }
         });
         dojo.connect(ckeditor.focusManager, 'focus', function(evt){
             if(ckeditor._blurTimeOut){
-                clearTimeout(ckeditor._blurTimeOut)
-                    ckeditor._blurTimeOut = null
+                clearTimeout(ckeditor._blurTimeOut);
+                    ckeditor._blurTimeOut = null;
                 }
         });
 
@@ -1283,7 +1283,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
                 this.gnr_onTyped();
                 this.gnr_setInDatastore();
             },1,this,'typing');
-        })
+        });
         ckeditor['on']('key',function(kw){
             if(!sourceNode.attr._inGridEditor){
                 genro.callAfter(function(){
@@ -1366,7 +1366,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
         if(!cs){
             var cs = this.sourceNode.externalWidget.document.$.createElement('style');
             cs.setAttribute('id','customstyles');
-            this.sourceNode.externalWidget.document.getHead().$.appendChild(cs)
+            this.sourceNode.externalWidget.document.getHead().$.appendChild(cs);
         }
         cs.textContent =idx>=0? "body>*:nth-child("+(idx+1)+"){background:yellow;}":"";
         if(idx>=0){

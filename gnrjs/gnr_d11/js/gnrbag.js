@@ -169,9 +169,9 @@ dojo.declare("gnr.GnrBagNode", null, {
 
 
     getValue2:function(mode/*str*/, optkwargs) {
-        console.log('called by meToo')
+        console.log('called by meToo');
         var result =  this.getValue('static');
-        console.log('result getValue2',result)
+        console.log('result getValue2',result);
 
         return result;
     },
@@ -384,7 +384,7 @@ dojo.declare("gnr.GnrBagNode", null, {
                  return true;
             }
             n = n.getParentNode();
-        }while(n)
+        }while(n);
         return false;
     },
     
@@ -403,7 +403,7 @@ dojo.declare("gnr.GnrBagNode", null, {
                 }
             }else{
                 attrname = attrname.split(',');
-                while(curr && !dojo.some(attrname,function(n){return (n in curr.attr)})){
+                while(curr && !dojo.some(attrname,function(n){return (n in curr.attr);})){
                     curr = curr.getParentNode();
                 }
             }
@@ -483,7 +483,7 @@ dojo.declare("gnr.GnrBagNode", null, {
      * @id delAttr
      */
     delAttr: function(attrToDelete/*String...*/) {
-        if (typeof(attrToDelete) == "string") {
+        if (typeof(attrToDelete) === "string") {
             attrToDelete = attrToDelete.split(',');
         }
         for (var i = 0; i < attrToDelete.length; i++) {
@@ -657,7 +657,7 @@ dojo.declare("gnr.GnrBag", null, {
                 hheadcel.forEach(function(n){
                     var calclabel = (n.attr._valuelabel || n.attr.name_long || stringCapitalize(n.label));
                     headers+=headers?','+calclabel:calclabel;
-                })
+                });
             }
             h = '<thead>';
             headers = headers.split(',');
@@ -697,7 +697,7 @@ dojo.declare("gnr.GnrBag", null, {
                     else{
                         
                         dtype = cell_kw.dtype || vnode.attr.dtype || guessDtype(v);
-                        format = typeof(cell_kw)=='string'?cell_kw:cell_kw.format;
+                        format = typeof(cell_kw)==='string'?cell_kw:cell_kw.format;
                         if(format){
                             v = _F(v,format,dtype);
                         }else{
@@ -711,7 +711,7 @@ dojo.declare("gnr.GnrBag", null, {
                     v = '';
                 }
                 if (cell_kw.width){
-                    v = '<div style="width:'+cell_kw.width+';">'+v+'</div>'
+                    v = '<div style="width:'+cell_kw.width+';">'+v+'</div>';
                 }
                 r+='<td style="text-align:'+align+'">'+v+'</td>';
             });
@@ -792,10 +792,10 @@ dojo.declare("gnr.GnrBag", null, {
         //pars None: label ascending
         var innerCmp = function(a, b, reverse, caseInsensitive) {
             if (caseInsensitive) {
-                if (typeof(a) == 'string') {
+                if (typeof(a) === 'string') {
                     var a = a.toLowerCase();
                 }
-                if (typeof(b) == 'string') {
+                if (typeof(b) === 'string') {
                     var b = b.toLowerCase();
                 }
             }
@@ -831,7 +831,7 @@ dojo.declare("gnr.GnrBag", null, {
                 b = b.valueOf();          
             }
             return innerCmp(a, b, reverse, caseInsensitive);
-        }
+        };
         var pars = pars || '#k:a';
         var level,what,mode,reverse,caseInsensitive;
         var levels = pars.split(',');
@@ -888,9 +888,9 @@ dojo.declare("gnr.GnrBag", null, {
             }
             for (let values of l) {
                 n = values[0];
-                if (typeof n == 'number') {
+                if (typeof n === 'number') {
                     result += n;
-                }else if(typeof n == 'boolean'){
+                }else if(typeof n === 'boolean'){
                     result += n===true?1:0;
                 }
             }
@@ -943,7 +943,7 @@ dojo.declare("gnr.GnrBag", null, {
                     if (attrname == '#keys') {return currvalue.keys();}
                     if (attrname == '#node') {return currnode;}
                     if (attrname.indexOf('#digest:')==0) {return currvalue.digest(attrname.split(':')[1]);}
-                    currvalue = currnode.getAttr(attrname)
+                    currvalue = currnode.getAttr(attrname);
                 }else if(!expr){
                     return currnode.attr;
                 }
@@ -983,11 +983,11 @@ dojo.declare("gnr.GnrBag", null, {
 
     htraverse: function(pathlist, autocreate) {
         var curr = this;
-        if (typeof pathlist == "string") {
+        if (typeof pathlist === "string") {
             var m = pathlist.match(/(.*?)([?|~])(.*)/);
             if(m){
                 pathlist = smartsplit(m[1].replace(/\.\.\//g, '#parent.'), '.');
-                pathlist[pathlist.length - 1] = pathlist[pathlist.length - 1]+m[2]+m[3]
+                pathlist[pathlist.length - 1] = pathlist[pathlist.length - 1]+m[2]+m[3];
             }else{
                 pathlist = smartsplit(pathlist.replace(/\.\.\//g, '#parent.'), '.');
             }
@@ -1301,13 +1301,13 @@ dojo.declare("gnr.GnrBag", null, {
     },
     columns: function(cols, attrMode) {
         var mode = (attrMode) ? '#a.' : '';
-        if (typeof(cols) == 'string') {
+        if (typeof(cols) === 'string') {
             cols = cols.split(',');
         }
         for (var i = 0; i < cols.length; i++) {
             cols[i] = mode + cols[i];
         }
-        ;
+        
         return this.digest(cols.join(','), true);
     },
     asObj: function(formatAttributes) {
@@ -1363,7 +1363,7 @@ dojo.declare("gnr.GnrBag", null, {
     pop: function(path, doTrigger) {
         var n = this.popNode(path, doTrigger);
         if(n){
-            return n.getValue()
+            return n.getValue();
         }
     },
 
@@ -1424,7 +1424,7 @@ dojo.declare("gnr.GnrBag", null, {
         if (doTrigger == null) {
             doTrigger = true;
         }
-        ;
+        
         var p = this.index(label);
         var node = null;
         if (p >= 0) {
@@ -1481,7 +1481,7 @@ dojo.declare("gnr.GnrBag", null, {
         bagOrObj.forEach(function(n){
             var node_resolver = n.getResolver();
             var node_value = null;
-            var replaceContent = objectPop(n.attr,'__replace')
+            var replaceContent = objectPop(n.attr,'__replace');
             if (!node_resolver || mode!='static'){
                 node_value = n.getValue();
                 node_resolver = null;
@@ -1494,7 +1494,7 @@ dojo.declare("gnr.GnrBag", null, {
                      currNode.setResolver(node_resolver);
                  }
                  if ((node_value instanceof gnr.GnrBag) && (currNodeValue instanceof gnr.GnrBag) && !replaceContent){
-                     currNodeValue.update(node_value,mode,reason)
+                     currNodeValue.update(node_value,mode,reason);
                  }else{
                      currNode.setValue(node_value,reason);
                  }
@@ -1555,7 +1555,7 @@ dojo.declare("gnr.GnrBag", null, {
             n = nodes[i];
             if(n.getValue().getItem(path)===value){
                 return n;
-            };
+            }
         }
         return;
     },
@@ -1661,7 +1661,7 @@ dojo.declare("gnr.GnrBag", null, {
      */
 
     asDict: function(recursive,excludeNullValues) {
-        var isArray = this._nodes.some(function(n){return n.attr._autolist});
+        var isArray = this._nodes.some(function(n){return n.attr._autolist;});
         var node,value;
         var result = isArray?[]:{};
         for (var i = 0; i < this._nodes.length; i++) {
@@ -1686,7 +1686,7 @@ dojo.declare("gnr.GnrBag", null, {
             if(isArray){
                 result.push(value);
             }else{
-                if(typeof(value)!='string' || !stringEndsWith(value,'::JS')){
+                if(typeof(value)!=='string' || !stringEndsWith(value,'::JS')){
                     result[node.label] = value;
                 }
                 
@@ -1837,7 +1837,7 @@ dojo.declare("gnr.GnrBag", null, {
     _insertNode: function(node, position, _doTrigger) {
         var n = null;
         var label;
-        if (typeof(position) == 'number') {
+        if (typeof(position) === 'number') {
             n = position;
         }
         else if (position == 0 || position == '<') {
@@ -2264,11 +2264,11 @@ dojo.declare("gnr.GnrBag", null, {
         if (this == otherbag) {
             return true;
         }
-        ;
+        
         if (this._parentnode && otherbag._parentnode) {
             return this._parentnode._id == otherbag._parentnode._id;
         }
-        ;
+        
         return false;
     },
 
@@ -2552,8 +2552,8 @@ dojo.declare("gnr.GnrBagCbResolver", gnr.GnrBagResolver, {
     },
 
     load: function(kwargs) {
-        var kw = objectUpdate({},this.parameters)
-        objectUpdate(kw,kwargs)
+        var kw = objectUpdate({},this.parameters);
+        objectUpdate(kw,kwargs);
         return this.method.call(this,kw);
     }
 });

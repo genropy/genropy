@@ -35,7 +35,7 @@ genropatches.forEachError = function(){
             } 
         }
         fe.call(dojo,arr,cb,scope);
-    }
+    };
 };
 
 genropatches.indexOfError = function(){
@@ -45,7 +45,7 @@ genropatches.indexOfError = function(){
             return arr.findIndex(elem=>object.getTime()===elem.getTime());
         }
         return fe.call(dojo,arr,object,scope);
-    }
+    };
 };
 
 genropatches.setStateClass=function(){
@@ -56,7 +56,7 @@ genropatches.setStateClass=function(){
             this._setStateClass_original();
         }
     };
-}
+};
 
 genropatches.getDocumentWindow = function(){
     dijit.getDocumentWindow = function(doc){
@@ -81,7 +81,7 @@ genropatches.getDocumentWindow = function(){
                 }
                 
             }
-        }
+        };
         try{
             fix(window.top);
         }catch(e){
@@ -108,8 +108,8 @@ genropatches.getDocumentWindow = function(){
     }
 
     return doc._parentWindow || doc.parentWindow || doc.defaultView;    //  Window
-}
-}
+};
+};
 genropatches.sendAsBinary=function(){
     if(!XMLHttpRequest.prototype.sendAsBinary){
             XMLHttpRequest.prototype.sendAsBinary = function(datastr) {
@@ -119,7 +119,7 @@ genropatches.sendAsBinary=function(){
                 var ords = Array.prototype.map.call(datastr, byteValue);
                 var ui8a = new Uint8Array(ords);
                 this.send(ui8a.buffer);
-            }
+            };
         }
 };
 genropatches.dojoToJson = function() {
@@ -151,13 +151,13 @@ genropatches.dojoToJson = function() {
         var newObj;
         _indentStr = _indentStr || "";
         var nextIndent = prettyPrint ? _indentStr + dojo.toJsonIndentStr : "";
-        if(typeof it.__json__ == "function"){
+        if(typeof it.__json__ === "function"){
             newObj = it.__json__();
             if(it !== newObj){
                 return recurse(newObj, prettyPrint, nextIndent);
             }
         }
-        if(typeof it.json == "function"){
+        if(typeof it.json === "function"){
             newObj = it.json();
             if(it !== newObj){
                 return recurse(newObj, prettyPrint, nextIndent);
@@ -171,7 +171,7 @@ genropatches.dojoToJson = function() {
         if(dojo.isArray(it)){
             var res = dojo.map(it, function(obj){
                 var val = recurse(obj, prettyPrint, nextIndent);
-                if(typeof val != "string"){
+                if(typeof val !== "string"){
                     val = "null";
                 }
                 return newLine + nextIndent + val;
@@ -196,16 +196,16 @@ genropatches.dojoToJson = function() {
         var output = [];
         for(var key in it){
             var keyStr;
-            if(typeof key == "number"){
+            if(typeof key === "number"){
                 keyStr = '"' + key + '"';
-            }else if(typeof key == "string"){
+            }else if(typeof key === "string"){
                 keyStr = dojo._escapeString(key);
             }else{
                 // skip non-string or number keys
                 continue;
             }
             val = recurse(it[key], prettyPrint, nextIndent);
-            if(typeof val != "string"){
+            if(typeof val !== "string"){
                 // skip non-serializable values
                 continue;
             }
@@ -214,7 +214,7 @@ genropatches.dojoToJson = function() {
             output.push(newLine + nextIndent + keyStr + ":" + sep + val);
         }
         return "{" + output.join("," + sep) + newLine + _indentStr + "}"; // String
-    }
+    };
 };
 genropatches.dnd=function(){
     dojo.require("dojo.dnd.Moveable");
@@ -225,7 +225,7 @@ genropatches.dnd=function(){
         if (!contextclick){
             this.onMouseDown_replaced(e);
         }
-    }
+    };
     
 };
 
@@ -286,7 +286,7 @@ genropatches.menu = function(){
         var that = this;
         setTimeout(function(){
             that.focus();
-        },1)
+        },1);
 		
 
 		this._onBlur = function(){
@@ -296,7 +296,7 @@ genropatches.menu = function(){
 			dijit.popup.close(this);
 			// don't try to restore focus; user has clicked another part of the screen
 			// and set focus there
-		}
+		};
 	};
     
 };
@@ -318,14 +318,14 @@ genropatches.comboBox = function() {
             var tplRow = this.params.auxColumns_template;
             var max_height = null;
             if(tplRow){
-                console.log('tplRow',tplRow)
+                console.log('tplRow',tplRow);
                 results.forEach(n=>{
                     n.attr._template_value = dataTemplate(tplRow,n.attr);
                 });
-                columns = ['_template_value']
-                headers = ['*']
-                tblclass += ' templateAuxColumns'
-                max_height = '400px'
+                columns = ['_template_value'];
+                headers = ['*'];
+                tblclass += ' templateAuxColumns';
+                max_height = '400px';
 
             }
             genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'tblclass':tblclass,
@@ -363,7 +363,7 @@ genropatches.comboBox = function() {
                 if (tgt) {
                     this.setValue({target:tgt}, true);
                 }
-                ;
+                
             }
         },
 
@@ -382,7 +382,7 @@ genropatches.comboBox = function() {
                     this._focusOptionNode(tgt.parentNode);
                 }
             }
-            ;
+            
 
         },
         _page:function(/*Boolean*/ up) {
@@ -489,13 +489,13 @@ genropatches.comboBox = function() {
 
             //except for pasting case - ctrl + v(118)
             if(evt.altKey || evt.ctrlKey || evt.metaKey){
-                console.log('dijit_form_ComboBoxMixin_onKeyPress exit',evt)
+                console.log('dijit_form_ComboBoxMixin_onKeyPress exit',evt);
                 return;
             }
             if(evt.shiftKey){
                 let code = evt.code.toLowerCase();
                 if(code.includes('shift') || code=='space'){
-                    return
+                    return;
                 }
             }
             var doSearch = false;
@@ -633,11 +633,11 @@ genropatches.comboBox = function() {
                 // bubbles through DOM and we have value visible
                 setTimeout(dojo.hitch(this, "_startSearchFromInput"),1);
             }
-        }
+        };
         dijit_form_ComboBoxMixin_onKeyPress.nom='_onKeyPress';
-        dijit.form.ComboBoxMixin.prototype.templateString = "<div class=\"dijit dijitReset dijitInlineTable dijitLeft\"\n\tid=\"widget_${id}\"\n\tdojoAttachEvent=\"onmouseenter:_onMouse,onmouseleave:_onMouse,onmousedown:_onMouse\" dojoAttachPoint=\"comboNode\" waiRole=\"combobox\" tabIndex=\"-1\"\n\t><div style=\"overflow:hidden;\"\n\t\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton'\n\t\t\tdojoAttachPoint=\"downArrowNode\" waiRole=\"presentation\"\n\t\t\tdojoAttachEvent=\"onmousedown:_onArrowMouseDown,onmouseup:_onMouse,onmouseenter:_onMouse,onmouseleave:_onMouse\"\n\t\t\t><div class=\"dijitArrowButtonInner\">&thinsp;</div\n\t\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div\n\t\t></div\n\t\t><div class=\"dijitReset dijitValidationIcon\"><br></div\n\t\t><div class=\"dijitReset dijitValidationIconText\">&Chi;</div\n\t\t><div class=\"dijitReset dijitInputField\"\n\t\t\t><input type=\"text\" autocomplete=\"off\" name=\"${name}\" class='dijitReset'\n\t\t\tdojoAttachEvent=\"onkeydown:_onKeyPress, onfocus:_update, compositionend,onkeyup\"\n\t\t\tdojoAttachPoint=\"textbox,focusNode\" waiRole=\"textbox\" waiState=\"haspopup-true,autocomplete-list\"\n\t\t/></div\n\t></div\n></div>\n"
+        dijit.form.ComboBoxMixin.prototype.templateString = "<div class=\"dijit dijitReset dijitInlineTable dijitLeft\"\n\tid=\"widget_${id}\"\n\tdojoAttachEvent=\"onmouseenter:_onMouse,onmouseleave:_onMouse,onmousedown:_onMouse\" dojoAttachPoint=\"comboNode\" waiRole=\"combobox\" tabIndex=\"-1\"\n\t><div style=\"overflow:hidden;\"\n\t\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton'\n\t\t\tdojoAttachPoint=\"downArrowNode\" waiRole=\"presentation\"\n\t\t\tdojoAttachEvent=\"onmousedown:_onArrowMouseDown,onmouseup:_onMouse,onmouseenter:_onMouse,onmouseleave:_onMouse\"\n\t\t\t><div class=\"dijitArrowButtonInner\">&thinsp;</div\n\t\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div\n\t\t></div\n\t\t><div class=\"dijitReset dijitValidationIcon\"><br></div\n\t\t><div class=\"dijitReset dijitValidationIconText\">&Chi;</div\n\t\t><div class=\"dijitReset dijitInputField\"\n\t\t\t><input type=\"text\" autocomplete=\"off\" name=\"${name}\" class='dijitReset'\n\t\t\tdojoAttachEvent=\"onkeydown:_onKeyPress, onfocus:_update, compositionend,onkeyup\"\n\t\t\tdojoAttachPoint=\"textbox,focusNode\" waiRole=\"textbox\" waiState=\"haspopup-true,autocomplete-list\"\n\t\t/></div\n\t></div\n></div>\n";
         if(genro.isMobile){
-            dijit.form.ComboBoxMixin.prototype.templateString = "<div class=\"dijit dijitReset dijitInlineTable dijitLeft\"\n\tid=\"widget_${id}\"\n\tdojoAttachEvent=\"onmouseenter:_onMouse,onmouseleave:_onMouse,onmousedown:_onMouse\" dojoAttachPoint=\"comboNode\" waiRole=\"combobox\" tabIndex=\"-1\"\n\t><div style=\"overflow:hidden;\"\n\t\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton'\n\t\t\tdojoAttachPoint=\"downArrowNode\" waiRole=\"presentation\"\n\t\t\tdojoAttachEvent=\"onmousedown:_onArrowMouseDown,onmouseup:_onMouse,onmouseenter:_onMouse,onmouseleave:_onMouse\"\n\t\t\t><div class=\"dijitArrowButtonInner\">&thinsp;</div\n\t\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div\n\t\t></div\n\t\t><div class=\"dijitReset dijitValidationIcon\"><br></div\n\t\t><div class=\"dijitReset dijitValidationIconText\">&Chi;</div\n\t\t><div class=\"dijitReset dijitInputField\"\n\t\t\t><input type=\"text\" autocomplete=\"off\" name=\"${name}\" class='dijitReset'\n\t\t\tdojoAttachEvent=\"input:_onKeyPress, onfocus:_update, compositionend,onkeyup\"\n\t\t\tdojoAttachPoint=\"textbox,focusNode\" waiRole=\"textbox\" waiState=\"haspopup-true,autocomplete-list\"\n\t\t/></div\n\t></div\n></div>\n"
+            dijit.form.ComboBoxMixin.prototype.templateString = "<div class=\"dijit dijitReset dijitInlineTable dijitLeft\"\n\tid=\"widget_${id}\"\n\tdojoAttachEvent=\"onmouseenter:_onMouse,onmouseleave:_onMouse,onmousedown:_onMouse\" dojoAttachPoint=\"comboNode\" waiRole=\"combobox\" tabIndex=\"-1\"\n\t><div style=\"overflow:hidden;\"\n\t\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton'\n\t\t\tdojoAttachPoint=\"downArrowNode\" waiRole=\"presentation\"\n\t\t\tdojoAttachEvent=\"onmousedown:_onArrowMouseDown,onmouseup:_onMouse,onmouseenter:_onMouse,onmouseleave:_onMouse\"\n\t\t\t><div class=\"dijitArrowButtonInner\">&thinsp;</div\n\t\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div\n\t\t></div\n\t\t><div class=\"dijitReset dijitValidationIcon\"><br></div\n\t\t><div class=\"dijitReset dijitValidationIconText\">&Chi;</div\n\t\t><div class=\"dijitReset dijitInputField\"\n\t\t\t><input type=\"text\" autocomplete=\"off\" name=\"${name}\" class='dijitReset'\n\t\t\tdojoAttachEvent=\"input:_onKeyPress, onfocus:_update, compositionend,onkeyup\"\n\t\t\tdojoAttachPoint=\"textbox,focusNode\" waiRole=\"textbox\" waiState=\"haspopup-true,autocomplete-list\"\n\t\t/></div\n\t></div\n></div>\n";
         }
         dijit.form.ComboBoxMixin.prototype._onKeyPress = dijit_form_ComboBoxMixin_onKeyPress;
         dijit.form.ComboBox.prototype._onKeyPress = dijit_form_ComboBoxMixin_onKeyPress;
@@ -862,7 +862,7 @@ genropatches.borderContainer = function() {
             var sideThickness = function(region){
                 var s = splitters[region];
                 return genro.dom.isVisible(s)?splitterThickness[region]:0;
-            }
+            };
             var topSplitter = splitters.top;
             var bottomSplitter = splitters.bottom;
             var leftSplitter = splitters.left;
@@ -1261,7 +1261,7 @@ genropatches.tree = function() {
         }else{
             return this._expandNode_replaced(node);
         }
-    }
+    };
     dijit.Tree.prototype._collapseNode = function(node) {
         if(node.item && node.item._resolver && node.item._resolver.expired()){
             node.state = 'UNCHECKED';
@@ -1275,17 +1275,17 @@ genropatches.tree = function() {
         }else{
             return this._collapseNode_replaced(node);
         }
-    }
+    };
     dijit._TreeNode.prototype.setLabelNode = function(label) {
         this.labelNode.innerHTML = "";
         var itemattr = this.item.attr || {};
-        if ((typeof(label) == 'string') && (label.indexOf('innerHTML:') >= 0)) {
+        if ((typeof(label) === 'string') && (label.indexOf('innerHTML:') >= 0)) {
             this.labelNode.innerHTML = label.replace('innerHTML:', '');
         }
         else {
             this.labelNode.appendChild(dojo.doc.createTextNode(label));
         }
-        ;
+        
         if ('node_class' in itemattr) {
             dojo.addClass(this.domNode, itemattr.node_class);
         }
@@ -1396,7 +1396,7 @@ genropatches.decimalRound = function() {
         let exp;
         if(expOrFormat===undefined){
             exp = -2;
-        }else if(typeof(expOrFormat)=='string'){
+        }else if(typeof(expOrFormat)==='string'){
             let decimalPart = expOrFormat.split('.')[1];
             if (decimalPart===undefined){
                 exp=0;

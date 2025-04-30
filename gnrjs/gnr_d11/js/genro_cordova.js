@@ -23,7 +23,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
             // iOS wants a different scheme for local payloads.
             if(navigator.userAgent.includes("GnriOS")) {
                 CORDOVA_JS_URL = "/_cordova_asset/ios/cordova.js";
-                COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js'
+                COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js';
             }
             genro.dom.loadResource(CORDOVA_JS_URL);
         }
@@ -32,21 +32,21 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
     loadCounterpart:function(){
         let COUNTERPART_JS_URL = "https://localhost/js/genro_app_counterpart.js";
         if(navigator.userAgent.includes("GnriOS")) {
-            COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js'
+            COUNTERPART_JS_URL = '/_cordova_asset/ios/genro_app_counterpart.js';
         }  
         return genro.dom.loadResource(COUNTERPART_JS_URL).then(()=>{
-                console.log('COUNTERPART_JS_URL loaded')
+                console.log('COUNTERPART_JS_URL loaded');
                 console.log('testmethod',window.counterpart_test());
             }
-        )
+        );
     },
 
     onDeviceReady:function(){
         console.log("CORDOVA JS LOAD COMPLETED");
         console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
         genro.cordova_ready = true;
-        genro.setData("gnr.cordova.platform", cordova.platformId)
-        genro.setData("gnr.cordova.version", cordova.version)
+        genro.setData("gnr.cordova.platform", cordova.platformId);
+        genro.setData("gnr.cordova.version", cordova.version);
         genro.setData("gnr.cordova.ready", true);
         
         if(device) {
@@ -59,7 +59,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                 if(genro.framedIndexManager && eventData.params.menucode){
                     let kw = {...eventData.params};
                     if(kw.menucode){
-                        let menucode = objectPop(kw,'menucode')
+                        let menucode = objectPop(kw,'menucode');
                         genro.framedIndexManager.handleExternalMenuCode(menucode,objectExtract(kw,`${menucode}_*`));
                         return;
                     }
@@ -78,7 +78,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                                     },
                                     });
             PushNotification.hasPermission(function(status) {
-                console.log("Push Notification Permission", status)
+                console.log("Push Notification Permission", status);
             });
             genro.notification_obj.on("registration", (data) => {
                 console.log("Push Notification registered: ", data);
@@ -109,7 +109,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                         referrerPolicy: "no-referrer",
                         body: formBody
                         }).then(response => {
-                            console.log('clicked ts set')
+                            console.log('clicked ts set');
                         });
                 }
                 let url = data.additionalData.url;
@@ -117,7 +117,7 @@ dojo.declare("gnr.GnrCordovaHandler", null, {
                     let parsedUrl = parseURL(url);
                     let kw = {...parsedUrl.params};
                     if(kw.menucode){
-                        let menucode = objectPop(kw,'menucode')
+                        let menucode = objectPop(kw,'menucode');
                         genro.framedIndexManager.handleExternalMenuCode(menucode,objectExtract(kw,`${menucode}_*`));
                         return;
                     }

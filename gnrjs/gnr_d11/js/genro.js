@@ -50,7 +50,7 @@ window.onfocus = function(){
 };
 window.onblur = function(){
     window._IS_WINDOW_FOCUSED = false;
-}
+};
 
 /* ----------- Class gnr.GenroClient ----------------*/
 dojo.declare('gnr.GenroClient', null, {
@@ -298,7 +298,7 @@ dojo.declare('gnr.GenroClient', null, {
 
     plugin:async function(plugin){
         if (!genro[plugin]){
-            await genro.dom.addPlugin(plugin)
+            await genro.dom.addPlugin(plugin);
         }
         return genro[plugin];
     },
@@ -365,7 +365,7 @@ dojo.declare('gnr.GenroClient', null, {
         genro.publish('onClosePage');
         if (genro._data) {
             genro.saveContextCookie();
-        };
+        }
     },
 
     onWindowUnload:function(e) {
@@ -546,14 +546,14 @@ dojo.declare('gnr.GenroClient', null, {
     
     login: function(data,kw) {
         genro.serverCall('doLogin',objectUpdate({'login':data},kw),function(result){
-            result=result.getValue()
-            var message=result.getItem('message')
+            result=result.getValue();
+            var message=result.getItem('message');
             if (message){
-                genro.publish('invalid_login',{'message':message})
+                genro.publish('invalid_login',{'message':message});
             }else{
                 genro.mainGenroWindow.location.reload();
             }
-        })
+        });
     },
     start: function() {
                 /*
@@ -583,21 +583,21 @@ dojo.declare('gnr.GenroClient', null, {
             this.cordova = new gnr.GnrCordovaHandler(this);  
         }
         dojo.subscribe('debugstep',
-                       function(data){genro.dev.onDebugstep(data)}
+                       function(data){genro.dev.onDebugstep(data);}
                      );
         dojo.subscribe('closePage',function(){
             genro.closePage();
         });
         window.addEventListener('focus', function() {
-            genro.publish('focusedWindow')
-            let mainGenro = genro.mainGenroWindow.genro
+            genro.publish('focusedWindow');
+            let mainGenro = genro.mainGenroWindow.genro;
             mainGenro._focusedWindow = window;
-            mainGenro.publish('focusedChildWindow')
+            mainGenro.publish('focusedChildWindow');
         });
         window.addEventListener('blur', function() {
-            genro.publish('blurredWindow')
-            let mainGenro = genro.mainGenroWindow.genro
-            mainGenro.publish('blurredChildWindow')
+            genro.publish('blurredWindow');
+            let mainGenro = genro.mainGenroWindow.genro;
+            mainGenro.publish('blurredChildWindow');
             mainGenro._lastFocusedWindow = mainGenro._focusedWindow;
             mainGenro._focusedWindow = null;
         });
@@ -702,7 +702,7 @@ dojo.declare('gnr.GenroClient', null, {
         });
 
         genro.dev.shortcut("Shift+space", function(e) {
-            var wdg =dijit.getEnclosingWidget(e.target)
+            var wdg =dijit.getEnclosingWidget(e.target);
             if(!wdg){
                 return;
             }
@@ -723,7 +723,7 @@ dojo.declare('gnr.GenroClient', null, {
             let valuepath = sn.absDatapath(sn.attr.value);
             let stored_value = genro.getFromStorage('session',valuepath,true);
             if(!isNullOrBlank(stored_value)){
-                sn.widget.setValue(stored_value,false)
+                sn.widget.setValue(stored_value,false);
             }
         });
         dojo.subscribe("setWindowTitle",function(title){
@@ -792,7 +792,7 @@ dojo.declare('gnr.GenroClient', null, {
     setAutoPolling:function(fast){
         var delay = fast? 2 : genro.auto_polling;
         if(genro.auto_polling_handler){
-            clearInterval(genro.auto_polling_handler)
+            clearInterval(genro.auto_polling_handler);
         }
         genro.dom.removeClass('mainWindow','fast_polling');
         genro.auto_polling_handler = setInterval(function(){
@@ -814,7 +814,7 @@ dojo.declare('gnr.GenroClient', null, {
                         limiter();
                     }
                 },genro.user_polling*10000);
-            }
+            };
             limiter();
         }
     },
@@ -957,7 +957,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     getServerLastRpc:function(){
-        return asTypedTxt(new Date(genro._lastRpc.getTime()+(genro.serverTimeDelta || 0)),'DH')
+        return asTypedTxt(new Date(genro._lastRpc.getTime()+(genro.serverTimeDelta || 0)),'DH');
     },
 
     getTimeProfilers:function(){
@@ -1058,10 +1058,10 @@ dojo.declare('gnr.GenroClient', null, {
     checkBeforeUnload:function(){
         var parentGenro = this.getParentGenro();
         if (parentGenro && parentGenro._windowClosing){
-            return
+            return;
         }
         if(genro.hasPendingChanges()){
-            return _T('You have an active form with pending changes')
+            return _T('You have an active form with pending changes');
         }
 
     },
@@ -1133,8 +1133,8 @@ dojo.declare('gnr.GenroClient', null, {
     },
     fakeResize:function(){
         genro.callAfter(()=>{
-            window.dispatchEvent(new Event('resize'))
-        },1,null,'resizing')
+            window.dispatchEvent(new Event('resize'));
+        },1,null,'resizing');
         
     },
     callAfter: function(cb, timeout, scope,reason) {
@@ -1232,7 +1232,7 @@ dojo.declare('gnr.GenroClient', null, {
             }
             v = dojo.date.locale.format(v, opt);
         }
-        else if (typeof(v) == 'number') {
+        else if (typeof(v) === 'number') {
             f.locale = f.locale || dojo.locale;
             if(f.format){
                 return genro.formatter.asText(v,{format:f.format.format || f.format,format_max:f.max,
@@ -1260,7 +1260,7 @@ dojo.declare('gnr.GenroClient', null, {
             v = v.getFormattedValue(objectExtract(f,'bag_*',true));
             //genro.formatter.asText(v,objectUpdate({format:objectExtract(f,'bag_*',true)}) );
         }else if (v && f.dtype=='X'){
-            console.warn('DEPRECATED')
+            console.warn('DEPRECATED');
             var b = new gnr.GnrBag();
             try{
                 var parser = new DOMParser();
@@ -1276,8 +1276,8 @@ dojo.declare('gnr.GenroClient', null, {
                 v = '';
             }
         }
-        else if (typeof(v) == 'boolean' || f.dtype == 'B') {
-            if(typeof(v)=='string'){
+        else if (typeof(v) === 'boolean' || f.dtype == 'B') {
+            if(typeof(v)==='string'){
                 return (v[0]=='^' || v[0]=='=')?'&nbsp;':v;
             }
             var divcontent,divclass;
@@ -1319,7 +1319,7 @@ dojo.declare('gnr.GenroClient', null, {
                 var event_attrs = '';
                 var events = objectExtract(f, 'on*', true);
                 var title = f['tip'] || '';
-                var label = typeof(f['isbutton'])=='string'?f['isbutton']:'&nbsp;';
+                var label = typeof(f['isbutton'])==='string'?f['isbutton']:'&nbsp;';
                 if (events) {
                     for (var event_type in events) {
                         var cellPars = f['cellPars'] || {};
@@ -1337,7 +1337,7 @@ dojo.declare('gnr.GenroClient', null, {
         // fine area passibile di modifiche
         if(f['showlinks'] && v){
             if (v instanceof Array){
-                v=v.join(f['joiner'] || ',')
+                v=v.join(f['joiner'] || ',');
             }
             v = highlightLinks(v);
         }
@@ -1387,7 +1387,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         return dojo.some(window.frames,function(f){
             try {
-                return f.genro?f.genro.page_id==page_id:false
+                return f.genro?f.genro.page_id==page_id:false;
             } catch (error) {
                 return false;
             }
@@ -1470,7 +1470,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         let frm = node._('htmliframe', params);
         node.unfreeze();
-        console.log('iframe download',frm.getParentNode().domNode)
+        console.log('iframe download',frm.getParentNode().domNode);
     },
 
     triggerDownload:function(url,args,onload_cb){
@@ -1507,10 +1507,10 @@ dojo.declare('gnr.GenroClient', null, {
                 }
                 url = base + '/' + url;
             }
-            ;
+            
             url = document.location.protocol + '//' + document.location.host + url;
         }
-        ;
+        
         return genro.addKwargs(url, kwargs);
     },
     addKwargs: function(url, kwargs) {
@@ -1530,7 +1530,7 @@ dojo.declare('gnr.GenroClient', null, {
         return url;
     },
     _invalidNodes: function(databag, sourceNode) {
-        if (typeof(databag) == 'string') {
+        if (typeof(databag) === 'string') {
             if (sourceNode) {
                 databag = sourceNode.absDatapath(databag);
             }
@@ -1584,12 +1584,12 @@ dojo.declare('gnr.GenroClient', null, {
                 if(dpath.indexOf(shared_path)==0){
                     var so = genro._sharedObjects[shared_id];
                     if(so.privilege!='readwrite'){
-                        console.error('you are not allowed to write the shared data:',shared_id,'privilege:',so.privilege)
+                        console.error('you are not allowed to write the shared data:',shared_id,'privilege:',so.privilege);
                     }else{
                         var inner=dpath.slice(shared_path.length+1);
                         var commandict = {shared_id:shared_id,path:inner,
                                       value:kw.node._value,attr:kw.node.attr,evt:kw.evt,
-                                      'fired':kw.fired}
+                                      'fired':kw.fired};
                                       genro.wsk.send('som.datachange',commandict);
                     }
                     
@@ -1614,7 +1614,7 @@ dojo.declare('gnr.GenroClient', null, {
         if (!obj) {
             debugger;
         }
-        if (typeof (obj) == 'string') {
+        if (typeof (obj) === 'string') {
             // return (obj.indexOf('@') ==0) ? obj.slice(1) : obj;
             if (!genro.src.getNode()) {
                 return obj;
@@ -1723,7 +1723,7 @@ dojo.declare('gnr.GenroClient', null, {
         if (cb instanceof Function) {
             return cb;
         }
-        else if ((typeof(cb) == 'string')) {
+        else if ((typeof(cb) === 'string')) {
             cb = cb.split('.');
             if (cb[0] == 'this') {
                 obj = _this;
@@ -1779,7 +1779,7 @@ dojo.declare('gnr.GenroClient', null, {
 
     _publish_new:function(topic,kw) {
         var args = [];  
-        if(typeof(topic)=='string'){
+        if(typeof(topic)==='string'){
             //console.log('publishing:'+topic,args);
             //console.log(args)
             for (var i = 1; i < arguments.length; i++) {
@@ -1799,7 +1799,7 @@ dojo.declare('gnr.GenroClient', null, {
 
     publish:function(topic,kw) {
         var args = [];  
-        if(typeof(topic)=='string'){
+        if(typeof(topic)==='string'){
             //console.log('publishing:'+topic,args);
             //console.log(args)
             for (var i = 1; i < arguments.length; i++) {
@@ -1913,7 +1913,7 @@ dojo.declare('gnr.GenroClient', null, {
 
     setInStorage:function(storageType, key, value,nameSpace) {
         storageType = storageType || 'session';
-        key = sessionNameSpaceKey(key,nameSpace)
+        key = sessionNameSpaceKey(key,nameSpace);
         var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         if(isNullOrBlank(value)){
             storage.removeItem(key);
@@ -1923,7 +1923,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
     getFromStorage:function(storageType, key,nameSpace) {
         storageType = storageType || 'session';
-        key = sessionNameSpaceKey(key,nameSpace)
+        key = sessionNameSpaceKey(key,nameSpace);
         var storage =  {'session':sessionStorage,'local':localStorage}[storageType];
         var value = storage.getItem(key);
         /*if (value) {
@@ -1932,10 +1932,10 @@ dojo.declare('gnr.GenroClient', null, {
             console.log('Not existing in '+storageType+'Storage key:'+key);
         }*/
         try {
-            var v = convertFromText(value)
+            var v = convertFromText(value);
             return v;
             }catch(error){
-            console.log('autofix storage key')
+            console.log('autofix storage key');
             storage.removeItem(key);
         }
     },
@@ -1943,14 +1943,14 @@ dojo.declare('gnr.GenroClient', null, {
     getParentBranchMenuByIdentifier:function(kw){
         let appmenu = genro.mainGenroWindow.genro.getData('gnr.appmenu').toXml();
         appmenu = new gnr.GnrBag(appmenu);
-        appmenu.walk(function(n){objectPop(n.attr,'tag')});
+        appmenu.walk(function(n){objectPop(n.attr,'tag');});
         let branchNode = appmenu.getNodeByAttr('branchIdentifier',kw.branchIdentifier);
         return branchNode.getValue().deepCopy();
     },
 
     addParamsToUrl: function(url, params) {
         if(!url){
-            return
+            return;
         }
         if(!objectNotEmpty(params)){
             return url;
@@ -1967,18 +1967,18 @@ dojo.declare('gnr.GenroClient', null, {
 
     callWebTool:function(toolCode,params){  
         objectUpdate(params,genro.rpc.serializeParameters(genro.src.dynamicParameters(params)));
-        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params)
-        return url
+        let url = this.addParamsToUrl(`/_tools/${toolCode}`,params);
+        return url;
     },
 
     textToClipboard:function(txt,cb){
         let promise = navigator.clipboard.writeText(txt); 
         if(cb){
-            if(typeof(cb)=='string'){
+            if(typeof(cb)==='string'){
                 let message = cb;
                 cb = function(){
                     genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:message});
-                }
+                };
             }
             promise.then(cb);
         }
@@ -2150,7 +2150,7 @@ dojo.declare('gnr.GenroClient', null, {
             }
             url = url + '?' + parameters.join('&');
         }
-        ;
+        
         return url;
 
     },
@@ -2199,7 +2199,7 @@ dojo.declare('gnr.GenroClient', null, {
         return a == b;
     },
     connect: function(target, funcName, objToConnect) {
-        if (typeof objToConnect == 'function') {
+        if (typeof objToConnect === 'function') {
             dojo.connect(target, funcName, objToConnect);
         } else {
             dojo.connect(target, funcName, objToConnect['obj'], objToConnect['func']);
@@ -2207,7 +2207,7 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     call: function(objToCall) {
-        if (typeof objToCall == 'function') {
+        if (typeof objToCall === 'function') {
             objToCall.apply(null, arguments);
         } else {
             objToCall['obj'][objToConnect['func']].apply(objToCall['obj'], arguments);
@@ -2265,7 +2265,7 @@ dojo.declare('gnr.GenroClient', null, {
         params = params || {height:'600',width:'900'};
         let _isPdf = objectPop(params,'_isPdf');
         if (params) {
-            if (typeof(params) != 'string') {
+            if (typeof(params) !== 'string') {
                 let parlist = [];
                 for (var par in params) {
                     parlist.push(par + '=' + params[par]);
@@ -2285,7 +2285,7 @@ dojo.declare('gnr.GenroClient', null, {
             }
             
         }
-        return newwindow
+        return newwindow;
 
     },
     openBrowserTab:function(url,params){
@@ -2297,7 +2297,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         
         //url = genro.dom.detectPdfViewer(url); #DP Merge error?
-        window.open(url)
+        window.open(url);
     },
     
     childBrowserTab:function(url,parent_page_id,params){
@@ -2307,7 +2307,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(_isPdf){
             url = genro.dom.detectPdfViewer(url);
         }
-        genro.bp(true)
+        genro.bp(true);
         window.open(url);
     },
     
@@ -2386,7 +2386,7 @@ dojo.declare('gnr.GenroClient', null, {
     google:function(key){
         if(! this._googleHandler){
             this._googleHandler=this.wdg.getHandler('GoogleLoader');
-            this._googleHandler._mapkey = key || genro._('gnr.api_keys.google?mapkey')
+            this._googleHandler._mapkey = key || genro._('gnr.api_keys.google?mapkey');
         } 
         return this._googleHandler;  
     },
@@ -2441,14 +2441,14 @@ dojo.declare('gnr.GenroClient', null, {
 
 dojo.declare("gnr.GnrClientCaller", gnr.GnrBagResolver, {
     constructor: function(kwargs/*callback, params*/) {
-        if (typeof kwargs.callback == 'string') {
+        if (typeof kwargs.callback === 'string') {
             this.callback = genro.evaluate(kwargs.callback);
         } else {
             this.callback = kwargs.callback;
         }
 
 
-        if (typeof kwargs.params == 'string') {
+        if (typeof kwargs.params === 'string') {
             this.evaluate = 'this.params = ' + kwargs.params;
             this.params = {};
         } else {

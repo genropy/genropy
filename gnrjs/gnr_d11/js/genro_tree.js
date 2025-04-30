@@ -177,7 +177,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                 }
             };
         }
-        attributes.onChecked=attributes.onChecked || ('checkedPaths' in attributes) || ('checked' in attributes) || objectNotEmpty(objectExtract(sourceNode.attr,'checked_*',true))
+        attributes.onChecked=attributes.onChecked || ('checkedPaths' in attributes) || ('checked' in attributes) || objectNotEmpty(objectExtract(sourceNode.attr,'checked_*',true));
         if (attributes.onChecked) {
             attributes.getIconClass = function(node, opened) {
                 if (!(node instanceof gnr.GnrBagNode)) {
@@ -588,14 +588,14 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
     },
 
     mixin_updateCheckedAttr:function(){
-        var checked_attr = objectExtract(this.sourceNode.attr,'checked_*',true)
+        var checked_attr = objectExtract(this.sourceNode.attr,'checked_*',true);
         var checked_attr_joiners = {};
         var p;
         for (let k in checked_attr){
             p = checked_attr[k];
             if(p.indexOf(':')>=0){
                 p = p.split(':');
-                checked_attr[k] = p[0]
+                checked_attr[k] = p[0];
                 checked_attr_joiners[k] = p[1];
             }
         }
@@ -619,7 +619,7 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                     for(let k in checked_attr){
                         var av = n.attr[k];
                         if(result[k].indexOf(av)<0){
-                            result[k].push(av)
+                            result[k].push(av);
                         }
                     }
                     if(checkedPaths){

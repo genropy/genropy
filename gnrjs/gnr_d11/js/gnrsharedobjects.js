@@ -28,7 +28,7 @@
 dojo.declare("gnr.GnrSharedObjectHandler", null, {
     constructor: function(application ) {
         this.application = application;
-        this.lockedPaths={}
+        this.lockedPaths={};
     },
    
     do_sharedObjectChange:function(data){
@@ -83,33 +83,33 @@ dojo.declare("gnr.GnrSharedObjectHandler", null, {
                 var sharedValuePath=function(domnode,path){
                     var sourceNode=genro.dom.getSourceNode(domnode);
                     if (sourceNode && sourceNode.attr.value){
-                        var valuePath=sourceNode.absDatapath(sourceNode.attr.value)
+                        var valuePath=sourceNode.absDatapath(sourceNode.attr.value);
                         if (valuePath.indexOf(path)===0){
                             return valuePath;
                         }
                     }
                       
-                }
+                };
                 window.addEventListener("focus", function(e){
-                    var curr_path=sharedValuePath(e.target,path)
+                    var curr_path=sharedValuePath(e.target,path);
                     if (curr_path){
                             genro.wsk.send('som.onPathFocus',{shared_id:shared_id,curr_path:curr_path,focused:true});                        
                     }
-                 },true)
+                 },true);
                  window.addEventListener("blur", function(e){
-                     var curr_path=sharedValuePath(e.target,path)
+                     var curr_path=sharedValuePath(e.target,path);
                      if (curr_path){
                          genro.wsk.send('som.onPathFocus',{shared_id:shared_id,curr_path:curr_path,focused:false});
                      }
-                  },true)
+                  },true);
                 if (on_registered){
                     on_registered(shared_id);
                 }
-            }
+            };
             genro.wsk.call(objectUpdate({command:'som.subscribe',
                             shared_id:shared_id, _onResult:onResult},kw));
         }else{
-            console.warn('shared_id',shared_id,'is already subscribed')
+            console.warn('shared_id',shared_id,'is already subscribed');
         }
     },
     
@@ -120,7 +120,7 @@ dojo.declare("gnr.GnrSharedObjectHandler", null, {
                                 var so = objectPop(genro._sharedObjects,shared_id);
                                 objectPop(genro._sharedObjects_paths,so.path);
                                 if(so.on_unregistered){
-                                    so.on_unregistered(shared_id)
+                                    so.on_unregistered(shared_id);
                                 }
                             }
             });
@@ -147,20 +147,20 @@ dojo.declare("gnr.GnrSharedObjectHandler", null, {
         var locked = data.getItem('locked');
         var user = data.getItem('user');
         if (locked){
-            genro.som.lockedPaths[lock_path]=user
+            genro.som.lockedPaths[lock_path]=user;
         }else{
-            delete(genro.som.lockedPaths[lock_path])
+            delete(genro.som.lockedPaths[lock_path]);
         }
         var lockedNode=genro.src.getSource().walk(function(n){
             if (n instanceof gnr.GnrDomSourceNode){
                 var p=n.absDatapath(n.attr.value);
                 if (p==lock_path){
-                    return n
+                    return n;
                 }
             }
-        },'static')
+        },'static');
         if (lockedNode){
-            lockedNode.setDisabled(locked)
+            lockedNode.setDisabled(locked);
         }
     }
 

@@ -173,7 +173,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             console.log('handleRpcHttpError');
             debug_url = ioArgs.xhr.getResponseHeader('X-Debug-Url');
             if (!debug_url) {
-                console.error('RESPONSE',response,'ioArgs',ioArgs,responseText)
+                console.error('RESPONSE',response,'ioArgs',ioArgs,responseText);
                 genro.dev.addError("An HTTP error occurred: " + response.message,'SERVER',true);
                 if (genro.isDeveloper){
                     //var title = 'Server error ' +ioArgs.args.content.method || '';
@@ -242,7 +242,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
     serverWriteError:function(error_description, error_type,kw){
         var kw =kw || {};
         objectUpdate(kw,{description:error_description,error_type:error_type});
-        genro.serverCall('site.writeError', kw, function(){console.warn(error_type,error_description)});
+        genro.serverCall('site.writeError', kw, function(){console.warn(error_type,error_description);});
     },
 
 
@@ -340,7 +340,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 fldinfo['maintable'] = table;
                 let fpath = treeItem.attr.fieldpath.split('.');
                 fldinfo._nodelabel = fpath.pop().slice(1);
-                fpath.push(fldinfo._nodelabel)
+                fpath.push(fldinfo._nodelabel);
                 fldinfo.fieldpath =  fpath.join('.');
                 fldinfo.fullcaption = fldinfo.fieldpath;
                 dragValues['text/plain'] = fldinfo.field;
@@ -363,7 +363,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
     },
     startDebug:function(callcounter){
         if(this._debuggerWindow){
-            console.log('callcounter',callcounter)
+            console.log('callcounter',callcounter);
             this._debuggerWindow.focus();
         }else{
             this.openGnrIde();
@@ -374,7 +374,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var url = window.location.host+'/sys/gnride/'+genro.page_id;
         url = window.location.protocol+'//'+url;
         var w = genro.openWindow(url,'debugger',{location:'no',menubar:'no'});
-        console.log('w,h',window.clientWidth,window.clientHeight)
+        console.log('w,h',window.clientWidth,window.clientHeight);
         w.resizeTo(window.screen.width,window.screen.height);
         var debuggedModule = genro.pageModule;
         var mainGenro = genro;
@@ -382,7 +382,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         genro.wsk.addhandler('do_focus_debugger',function(callcounter){
             setTimeout(function(){
                 genro.dev.startDebug(callcounter);
-            },100)
+            },100);
         });
         w.addEventListener('load',function(){
             var dbg_genro = this.genro;     
@@ -394,7 +394,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
     onDebugstep:function(data){
         var callcounter = data.callcounter;
         if (!('r_'+callcounter in genro.debugged_rpc)){
-            this.addToDebugged(callcounter,data)
+            this.addToDebugged(callcounter,data);
             this.updateDebuggerStepBox(callcounter,data);
             
         }
@@ -436,14 +436,14 @@ dojo.declare("gnr.GnrDevHandler", null, {
         genro.wsk.publishToClient(debugger_page_id,"debugCommand",{cmd:'c',pdb_id:pdb_id});
         setTimeout(function(){
             genro.dev.removeFromDebugged(callcounter);
-        },1000)
+        },1000);
     },
 
     openDebugInIde:function(pdb_id,debugger_page_id){
         if(genro.mainGenroWindow){
             genro.mainGenroWindow.genro.framedIndexManager.openGnrIDE();
         }else{
-            genro.wsk.publishToClient(debugger_page_id,'bringToTop')
+            genro.wsk.publishToClient(debugger_page_id,'bringToTop');
         }
     },
 
@@ -539,7 +539,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var data = new gnr.GnrBag();
         saveattr.action = function(){
             saveaction(dlg);
-        }
+        };
         bottom._('button', saveattr);
         bottom._('button', {'float':'right',label:_T('Cancel'),action:dlg.close_action}); 
         return dlg;       
@@ -611,8 +611,8 @@ dojo.declare("gnr.GnrDevHandler", null, {
         //bc._('dataController',{'script':"SET gnr.debugger.pydebug = pydebug_methods?true:false; genro.debug_py=pydebug_methods;",'pydebug_methods':'^gnr.debugger.pydebug_methods',_delay:1});
 
         var top = bc._('framePane',{frameCode:'debugger_rpcgrid',region:'top',height:'200px',splitter:true,_class:'pbl_roundedGroup',margin:'2px',center_overflow:'hidden'});
-        var topbar = top._('SlotBar',{_class:'pbl_roundedGroupLabel',slots:'5,vtitle,*,activator_sql,5,clearConsole,5',side:'top'})
-        topbar._('div','vtitle',{innerHTML:'RPC grid'})
+        var topbar = top._('SlotBar',{_class:'pbl_roundedGroupLabel',slots:'5,vtitle,*,activator_sql,5,clearConsole,5',side:'top'});
+        topbar._('div','vtitle',{innerHTML:'RPC grid'});
         var sn = bc.getParentNode();
         topbar._('checkbox','activator_sql',{'value':'^gnr.debugger.sqldebug','label':'Debug sql'});
         topbar._('slotButton','clearConsole',{'label':'Clear',action:'genro.setData("gnr.debugger.main",null);genro.rpcHeaderInfo = {};genro.getCounter("debug",true);'});
@@ -630,7 +630,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return Math.floor((genro.dev._getHeaderInfo_getcell(row,'xml_size')/1024));
         }});
         rowstruct.setItem('cell_7', null, {field:'xml_time',name:'XMLTime',width:'4em',dtype:'N',_customGetter:function(row){
-            return genro.dev._getHeaderInfo_getcell(row,'xml_time')
+            return genro.dev._getHeaderInfo_getcell(row,'xml_time');
         }});
 
         rowstruct.setItem('cell_3', null, {field:'sql_count',name:'N.Sql',width:'4em',dtype:'N'});
@@ -646,12 +646,12 @@ dojo.declare("gnr.GnrDevHandler", null, {
                                     selectedIndex:'gnr.debugger.rpccall_grid.currentRowIndex',relativeWorkspace:true});
 
         rpcgrid._('dataController',{script:'SET gnr.debugger.sqlquery_grid.store = (sind&&sind)!=-1?mainbag.getItem("#"+sind).deepCopy():null;',
-                                    sind:'^gnr.debugger.rpccall_grid.currentRowIndex',mainbag:'=gnr.debugger.main',_if:'mainbag && mainbag.len()'})
-        rpcgrid._('dataController',{script:'SET gnr.debugger.sqlquery_grid.store = null;',mainbag:'^gnr.debugger.main',_delay:1})
+                                    sind:'^gnr.debugger.rpccall_grid.currentRowIndex',mainbag:'=gnr.debugger.main',_if:'mainbag && mainbag.len()'});
+        rpcgrid._('dataController',{script:'SET gnr.debugger.sqlquery_grid.store = null;',mainbag:'^gnr.debugger.main',_delay:1});
 
         
         var center = bc._('framePane',{frameCode:'debugger_sqlgrid',region:'center',_class:'pbl_roundedGroup',margin:'2px',center_widget:'borderContainer'});
-        center._('contentPane','top',{_class:'pbl_roundedGroupLabel'})._('div',{'innerHTML':'Sql query grid'})
+        center._('contentPane','top',{_class:'pbl_roundedGroupLabel'})._('div',{'innerHTML':'Sql query grid'});
 
 
         var rowstruct = new gnr.GnrBag();
@@ -664,7 +664,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         center._('contentPane',{region:'left',width:'220px',overflow:'hidden',splitter:true})._('includedView',{nodeId:'sql_debugger_grid_sqlquery',storepath:'gnr.debugger.sqlquery_grid.store',
                                 structpath:'gnr.debugger.sqlquery_grid.struct',datapath:'gnr.debugger.sqlquery_grid',relativeWorkspace:true,selectedIndex:'.currentRowIndex'});
         var tc = center._('tabContainer',{region:'center',margin:'2px'});
-        tc._('dataController',{script:'var n=store.getNode("#"+currentRowIndex); if(n){this.setRelativeData(".output.sqltext",n._value);this.setRelativeData(".output.params",objectAsHTMLTable(n.attr))}',currentRowIndex:'^.currentRowIndex',store:'=.store',_if:'store',_else:'SET .output=null;',datapath:'gnr.debugger.sqlquery_grid'})
+        tc._('dataController',{script:'var n=store.getNode("#"+currentRowIndex); if(n){this.setRelativeData(".output.sqltext",n._value);this.setRelativeData(".output.params",objectAsHTMLTable(n.attr))}',currentRowIndex:'^.currentRowIndex',store:'=.store',_if:'store',_else:'SET .output=null;',datapath:'gnr.debugger.sqlquery_grid'});
         tc._('contentPane',{title:'Sql'})._('div',{innerHTML:'^gnr.debugger.sqlquery_grid.output.sqltext',height:'100%',
                                     style:'white-space: pre;background:white;',overflow:'auto',padding:'5px',_class:'selectable'});
         tc._('contentPane',{title:'Arguments'})._('div',{innerHTML:'^gnr.debugger.sqlquery_grid.output.params',height:'100%',overflow:'auto',_class:'debug_params'});
@@ -693,9 +693,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
                             subscribe_devUtils_dbsetup:true,
                             _onResult:'genro.log("DB Change applied","applyChangesToDb")'});
         sb._('checkbox','pollingSwitch',{'label':'Polling',value:'^gnr.polling.polling_enabled'});
-        var m = sb._('DropDownButton','actionMenu',{label:'Commands'})._('menu',{_class:'smallMenu'})
-        m._('menuline',{'label':'Clear LS',action:function(){localStorage.clear()}});
-        m._('menuline',{'label':'Clear SS',action:function(){sessionStorage.clear()}});
+        var m = sb._('DropDownButton','actionMenu',{label:'Commands'})._('menu',{_class:'smallMenu'});
+        m._('menuline',{'label':'Clear LS',action:function(){localStorage.clear();}});
+        m._('menuline',{'label':'Clear SS',action:function(){sessionStorage.clear();}});
         m._('menuline',{'label':'CheckDb',publish:'devUtils_checkDb'});
         m._('menuline',{'label':'DbSetup',publish:'devUtils_dbsetup'});
         m._('menuline',{'label':'Clear log',action:'genro.clearlog()'});
@@ -786,12 +786,12 @@ dojo.declare("gnr.GnrDevHandler", null, {
         if (!opt) opt = default_options;
         else {
             for (var dfo in default_options) {
-                if (typeof opt[dfo] == 'undefined') opt[dfo] = default_options[dfo];
+                if (typeof opt[dfo] === 'undefined') opt[dfo] = default_options[dfo];
             }
         }
 
         var ele = opt.target;
-        if (typeof opt.target == 'string') ele = document.getElementById(opt.target);
+        if (typeof opt.target === 'string') ele = document.getElementById(opt.target);
         var ths = this;
 
         //The function to be called at keypress
@@ -1202,7 +1202,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         parent.unfreeze();
     },
     currDataExplorer:function(kw){
-       let kwargs = {}
+       let kwargs = {};
        var bagfieldpath = kw.fieldPath;
        kwargs.method = function(params){
            let data =  genro.getData(params.fieldPath);
@@ -1210,9 +1210,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
            let result =  data.deepCopy();
            result.setBackRef(true);
            result.walk(function(n){
-               let v=n.getValue('static')
+               let v=n.getValue('static');
                if (v instanceof gnr.GnrBag && v.len()>0){
-                   return
+                   return;
                }
                let dtype = v!==null?guessDtype(v):'T' ;
                n.setValue(null);
@@ -1222,7 +1222,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
            },'static');
 
            return result;
-       }
+       };
        kwargs.parameters = kw;
        //kwargs.cacheTime = 5000;
        if(bagfieldpath){
@@ -1235,8 +1235,8 @@ dojo.declare("gnr.GnrDevHandler", null, {
         errorbag.forEach(function(n){
             n.getValue().forEach(function(errorNode){
                 errors.push(errorNode.getValue());
-            })
-        })
+            });
+        });
         return errors.join('<br/><hr/>');
     },
 
@@ -1248,17 +1248,17 @@ dojo.declare("gnr.GnrDevHandler", null, {
         if (!rows){
             return;
         }
-        let result = []
+        let result = [];
         const blacklist = ["_protectionStatus"];
         const whitelist_attr = ["width","color","style","_class","font_size","cellClasses","cellStyles"];
-        result.push('def th_struct(self,struct):')
-        result.push('    r = struct.view().rows()')
+        result.push('def th_struct(self,struct):');
+        result.push('    r = struct.view().rows()');
         let columnsets = info = structBag.getItem('info.columnsets') || new gnr.GnrBag();
         columnsets_dict = {};
         for(let node of columnsets.getNodes()){
             let attr = {...node.attr};
             let varname = `cs_${attr.code}`;
-            result.push(`    cs_${attr.code} = r.columnset('${attr.code}',name='${attr.name}')`)
+            result.push(`    cs_${attr.code} = r.columnset('${attr.code}',name='${attr.name}')`);
             columnsets_dict[attr.code] = varname;
         }
         for(let node of rows.getNodes()){
@@ -1281,15 +1281,15 @@ dojo.declare("gnr.GnrDevHandler", null, {
             }
             for(let attrname of whitelist_attr){
                 if(attr[attrname]){
-                    cellattrs.push(`${attrname}='${attr[attrname]}'`)
+                    cellattrs.push(`${attrname}='${attr[attrname]}'`);
                 }
             }
             if(attr._customGetter){
-                cellattrs.push(`_customGetter = """${attr._customGetter}"""`)
+                cellattrs.push(`_customGetter = """${attr._customGetter}"""`);
             }
             result.push(`    ${varname}.${tag}('${field}', ${cellattrs.join(', ')})`);
         }
-        return result.join('\n')
+        return result.join('\n');
     },
 
     openHelpDesk:function(){
@@ -1434,7 +1434,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                     genro.wdgById('helpdesk_floating').hide();
                 }
             });
-        }
+        };
         bottom._('lightbutton',savekw);
         bottom._('lightbutton',{innerHTML:_T('Back'),_class:'helpdesk_btn helpdesk_footer',
                                     action:'SET .page=pageName',pageName:'bug_report',
@@ -1459,7 +1459,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         overlay.appendChild(sel);
 
         sendPars = sendPars || {uploadPath:'site:screenshots/'+genro.getData('gnr.pagename')};
-        if(typeof(sendPars)=='string'){
+        if(typeof(sendPars)==='string'){
              sendPars = {uploadPath:sendPars};
         }
         var pos = [0, 0];
@@ -1468,43 +1468,43 @@ dojo.declare("gnr.GnrDevHandler", null, {
             isBottomRight, 
             isTopRight, 
             isTopLeft, 
-            isBottomLeft = false
+            isBottomLeft = false;
 
         dojo.connect(overlay,'mousedown',function(event){
-            isSelection = true
-            x1 = event.pageX - pos[0]
-            y1 = event.pageY - pos[1]
-            sel.style.setProperty('display', 'block')
-            sel.style.setProperty('left', event.pageX + "px")
-            sel.style.setProperty('top', event.pageY + "px")
-            sel.style.setProperty('width', '0px')
-            sel.style.setProperty('height', '0px')
+            isSelection = true;
+            x1 = event.pageX - pos[0];
+            y1 = event.pageY - pos[1];
+            sel.style.setProperty('display', 'block');
+            sel.style.setProperty('left', event.pageX + "px");
+            sel.style.setProperty('top', event.pageY + "px");
+            sel.style.setProperty('width', '0px');
+            sel.style.setProperty('height', '0px');
         });
 
         dojo.connect(overlay,'mouseup',function(event){
            isSelection = false;
            if(isBottomRight){
-             x2 = event.pageX - pos[0]
-             y2 = event.pageY - pos[1]
-             xDif = x2-x1
-             yDif = y2-y1 
+             x2 = event.pageX - pos[0];
+             y2 = event.pageY - pos[1];
+             xDif = x2-x1;
+             yDif = y2-y1; 
            } else if (isBottomLeft){
-             y2 = event.pageY - pos[1]
-             yDif = y2 - y1 
+             y2 = event.pageY - pos[1];
+             yDif = y2 - y1; 
 
-             xDif = x1 - x2
-             x1 = x1 - xDif
+             xDif = x1 - x2;
+             x1 = x1 - xDif;
 
            } else if(isTopRight){
-             x2 = event.pageX - pos[0]
-             xDif = x2 - x1 
-             yDif = y1 - y2
-             y1 = y1 - yDif         
+             x2 = event.pageX - pos[0];
+             xDif = x2 - x1; 
+             yDif = y1 - y2;
+             y1 = y1 - yDif;         
            } else if (isTopLeft){
-             xDif = x1 - x2
-             x1 = x1 - xDif
-             yDif = y1 - y2
-             y1 = y1 - yDif         
+             xDif = x1 - x2;
+             x1 = x1 - xDif;
+             yDif = y1 - y2;
+             y1 = y1 - yDif;         
            }
            sel.style.setProperty('display', 'none');
            dojo.body().removeChild(overlay);
@@ -1513,66 +1513,66 @@ dojo.declare("gnr.GnrDevHandler", null, {
                     onResult();
                 }
                 genro.publish('onPageSnapshot',{setting:false});
-           }
+           };
            var kw = {sendPars:sendPars,onResult:onResultSnapshot,crop:{x:x1,y:y1,deltaX:xDif,deltaY:yDif}};
-           genro.dom.htmlToCanvas(dojo.body(),kw)
+           genro.dom.htmlToCanvas(dojo.body(),kw);
         });
 
         dojo.connect(overlay,'mousemove',function(event){
             if(isSelection){
-                x2 = event.pageX - pos[0]
-                y2 = event.pageY - pos[1]
+                x2 = event.pageX - pos[0];
+                y2 = event.pageY - pos[1];
                 if(x2>x1 && y2>y1){ //moving right bottom selection
-                  isBottomRight = true
-                  isBottomLeft = false
-                  isTopLeft = false
-                  isTopRight = false
+                  isBottomRight = true;
+                  isBottomLeft = false;
+                  isTopLeft = false;
+                  isTopRight = false;
                   
-                  xDif = x2 - x1
-                  yDif = y2 - y1 
+                  xDif = x2 - x1;
+                  yDif = y2 - y1; 
 
-                  sel.style.setProperty('width', xDif + 'px')
-                  sel.style.setProperty('height', yDif + 'px')
+                  sel.style.setProperty('width', xDif + 'px');
+                  sel.style.setProperty('height', yDif + 'px');
                 } else if(x2<x1 && y2>y1){ //moving left bottom selection
-                  isBottomLeft = true
-                  isTopLeft = false
-                  isTopRight = false
-                  isBottomRight = false
+                  isBottomLeft = true;
+                  isTopLeft = false;
+                  isTopRight = false;
+                  isBottomRight = false;
                   
-                  xDif = x1 - x2
-                  yDif = y2 - y1 
+                  xDif = x1 - x2;
+                  yDif = y2 - y1; 
 
-                  sel.style.setProperty('left', x2 + 'px')
-                  sel.style.setProperty('width', xDif + 'px')
-                  sel.style.setProperty('height', yDif + 'px')
+                  sel.style.setProperty('left', x2 + 'px');
+                  sel.style.setProperty('width', xDif + 'px');
+                  sel.style.setProperty('height', yDif + 'px');
                   
                 } else if(x2>x1 && y2<y1){
-                  isTopRight = true
-                  isTopLeft = false
-                  isBottomLeft = false
-                  isBottomRight = false
+                  isTopRight = true;
+                  isTopLeft = false;
+                  isBottomLeft = false;
+                  isBottomRight = false;
 
-                  xDif = y1 - y2
-                  yDif = x2 - x1 
+                  xDif = y1 - y2;
+                  yDif = x2 - x1; 
 
-                  sel.style.setProperty('top', y2 + 'px')
-                  sel.style.setProperty('width', yDif + 'px')
-                  sel.style.setProperty('height', xDif + 'px')
+                  sel.style.setProperty('top', y2 + 'px');
+                  sel.style.setProperty('width', yDif + 'px');
+                  sel.style.setProperty('height', xDif + 'px');
                 } else if (x2<x1 && y2<y1){
-                  isTopLeft = true
-                  isTopRight = false
-                  isBottomLeft = false
-                  isBottomRight = false
+                  isTopLeft = true;
+                  isTopRight = false;
+                  isBottomLeft = false;
+                  isBottomRight = false;
 
-                  yDif = y1 - y2 
-                  xDif = x1 - x2
+                  yDif = y1 - y2; 
+                  xDif = x1 - x2;
 
-                  sel.style.setProperty('left', x2 + pos[0] + divOffset + 'px')
-                  sel.style.setProperty('top', y2 + pos[1] + divOffset + 'px')
-                  sel.style.setProperty('width', xDif  + 'px')
-                  sel.style.setProperty('height', yDif  + 'px')
+                  sel.style.setProperty('left', x2 + pos[0] + divOffset + 'px');
+                  sel.style.setProperty('top', y2 + pos[1] + divOffset + 'px');
+                  sel.style.setProperty('width', xDif  + 'px');
+                  sel.style.setProperty('height', yDif  + 'px');
                 }
-        }})}
+        }});}
 
 });
 //dojo.declare("gnr.GnrViewEditor",null,{

@@ -92,7 +92,7 @@ dojo.declare("gnr.GnrMobileHandler", null, {
         if(!info || !info.sourceNode){
             return;
         }
-        console.log('eventinfo',info.event.type,info)
+        console.log('eventinfo',info.event.type,info);
 
         info.sourceNode.publish(info.event.type,info);
         genro.publish('mobile_'+info.event.type,info);
@@ -167,8 +167,8 @@ dojo.declare("gnr.GnrMobileHandler", null, {
         };
     },
     patch_moveable:function(){
-        dojo.require("dojo.dnd.Moveable")
-        var pr=dojo.dnd.Moveable.prototype
+        dojo.require("dojo.dnd.Moveable");
+        var pr=dojo.dnd.Moveable.prototype;
         pr._constructor = function(node, params){
         		// summary: an object, which makes a node moveable
         		// node: Node: a node (or node's id) to be moved
@@ -212,7 +212,7 @@ dojo.declare("gnr.GnrMobileHandler", null, {
 
         
         dojo.require("dojo.dnd.Mover");
-        var pr=dojo.dnd.Mover.prototype
+        var pr=dojo.dnd.Mover.prototype;
     	pr._constructor= function(node, e, host){
     		// summary: an object, which makes a node follow the mouse, 
     		//	used as a default mover, and as a base class for custom movers
@@ -238,7 +238,7 @@ dojo.declare("gnr.GnrMobileHandler", null, {
     		if(h && h.onMoveStart){
     			h.onMoveStart(this);
     		}
-    	}
+    	};
         
         
     }

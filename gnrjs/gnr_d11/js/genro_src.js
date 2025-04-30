@@ -62,7 +62,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
 
     highlightNode:function(sourceNode) {
-        if (typeof(sourceNode) == 'string') {
+        if (typeof(sourceNode) === 'string') {
             sourceNode = this.sourceRoot.getValue().getNode(sourceNode);
         }
         if (this.highlightedNode) {
@@ -81,7 +81,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
     onBuiltCall:function(cb,delay){
         if(delay){
-            delay = typeof(delay) == 'number'?delay:1;
+            delay = typeof(delay) === 'number'?delay:1;
         }
         this.afterBuildCalls.push(delay? function(){setTimeout(cb,delay);}:cb);
     },
@@ -283,7 +283,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         this._deletingNodeContent = this._deletingNodeContent + 1;
         children.forEach(function(n){
             children.popNode(n.label);
-        })
+        });
         this._deletingNodeContent = this._deletingNodeContent - 1;
     },
     
@@ -324,7 +324,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         if (!obj) {
             return this._main.getNode('main');
         }
-        if (typeof (obj) == 'string') {
+        if (typeof (obj) === 'string') {
             if (obj.indexOf('main.') != 0) {
                 obj = 'main.' + obj;
             }
@@ -394,7 +394,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         var subscribedNodes = this._subscribedNodes;
         for (var strid in subscribedNodes){
             var srcnode = genro.src._main.findNodeById(strid.slice(2));
-            console.log(strid,srcnode,srcnode.getParentNode())
+            console.log(strid,srcnode,srcnode.getParentNode());
           //for (var attr in subscribedNodes[strid]) {
           //         dojo.forEach(subscribedNodes[strid][attr],function(n){
           //             console.log(n);
@@ -456,17 +456,17 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             else {
                 var nodeattr = node.attr;
                 var attrvalue;
-                var specialattr={}
+                var specialattr={};
                 var dflt;
                 for (var attr in nodeattr) {
                     attrvalue = nodeattr[attr];
-                    if ((typeof (attrvalue) == 'string') && node.isPointerPath(attrvalue)) {
+                    if ((typeof (attrvalue) === 'string') && node.isPointerPath(attrvalue)) {
                         if (attr=='value'){
                             dflt = nodeattr['default'] || nodeattr['default_value'];
                         }else{
                             dflt = nodeattr['default_' + attr];
                         }
-                        if((typeof(dflt)=='string' ) && node.attr.dtype){
+                        if((typeof(dflt)==='string' ) && node.attr.dtype){
                             dflt = convertFromText(dflt,node.attr.dtype);
                         }
                         var currval=node.getAttributeFromDatasource(attr, true, dflt);
@@ -577,18 +577,18 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             if (onStart) {
                 node.attr._fired_onStart = '^gnr.onStart';
                 node.registerDynAttr('_fired_onStart');
-                if (typeof(onStart) == "number" && !node.attr._delay) {
+                if (typeof(onStart) === "number" && !node.attr._delay) {
                     node.attr._delay = onStart;
                 }
             }
             if(onBuilt){
                 this.onBuiltCall(function(){
-                    if(typeof(onBuilt)=='number'){
+                    if(typeof(onBuilt)==='number'){
                         setTimeout(function(){node.setDataNodeValue();},onBuilt);
                     }else{
                         node.setDataNodeValue();
                     }
-                })
+                });
             }
         }
         node._setDynAttributes();
@@ -597,7 +597,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     dynamicParameters: function(source, sourceNode) {
         var obj = {};
         var path;
-        if ((source != '') & (typeof source == 'string')) {
+        if ((source != '') & (typeof source === 'string')) {
             source = genro.evaluate(source);
         }
         if (source) {
@@ -605,7 +605,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             var formulaProp = [];
             for (var prop in source) {
                 var val = source[prop];
-                if (typeof(val) == 'string' && val.length>1) {
+                if (typeof(val) === 'string' && val.length>1) {
                     var dynval = stringStrip(val);
                     var sourceNodeKw = sourceNode?sourceNode.attr : {};
                     var toConvert = ( (dynval[0] == '=') || (dynval[0]== '^') ) && !((prop in sourceNodeKw) && (sourceNodeKw[prop]!=dynval));
@@ -625,7 +625,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                             val = genro._data.getItem(path);
                         }
                     }
-                } else if (typeof(val) == 'function') {
+                } else if (typeof(val) === 'function') {
                     val = val();
                 }
                 obj[prop] = val;

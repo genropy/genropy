@@ -105,14 +105,14 @@ dojo.declare("gnr.GnrRemoteResolver", gnr.GnrBagResolver, {
         }
         var result=genro.rpc.resultHandler(response, ioArgs, (this.updateAttr ? this._parentNode.attr : null));
 
-        return result
+        return result;
     }
 });
 
 dojo.declare("gnr.GnrServerCaller", gnr.GnrBagResolver, {
     constructor: function(kwargs /*url, page_id, methodname, params*/) {
         alert("GnrServerCaller");
-        if (typeof kwargs.params == 'string') {
+        if (typeof kwargs.params === 'string') {
             this.evaluate = 'this.params = ' + kwargs.params;
             this.params = {};
         } else {
@@ -329,7 +329,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     _serverCall_execute: function(httpMethod, kw, callKwargs) {
         var xhrResult;
         if (this.debug){
-            console.log('_serverCall_execute:start --- ',kw.method,'httpMethod',httpMethod,'kw',kw,'callKwargs',callKwargs)
+            console.log('_serverCall_execute:start --- ',kw.method,'httpMethod',httpMethod,'kw',kw,'callKwargs',callKwargs);
         }
 
         if (httpMethod == 'GET') {
@@ -353,7 +353,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             }
         }
         if (this.debug){
-            console.log('_serverCall_execute:end --- ',kw.method,'httpMethod',httpMethod,'kw',kw,'callKwargs',callKwargs,'result',xhrResult)
+            console.log('_serverCall_execute:end --- ',kw.method,'httpMethod',httpMethod,'kw',kw,'callKwargs',callKwargs,'result',xhrResult);
         }
         return xhrResult;
     },
@@ -417,7 +417,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         if (async_cb) {
             cb = dojo.hitch(this, function(response, ioArgs) {
                 var result = preprocessor(response, ioArgs);
-                var error = (result && typeof(result) == 'object') ? result.error : null;
+                var error = (result && typeof(result) === 'object') ? result.error : null;
                 genro.safetry(function(){
                     return async_cb(result, error);
                 });
@@ -842,14 +842,14 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                         loadingParameters.setItem(nodes[i].label, nodes[i].getValue(), nodes[i].attr);
                     }
                 }
-                ;
+                
             }
             kwargs['loadingParameters'] = loadingParameters;
         };
         resolver.onloaded = function(){
             var f = this.attr._from_fld || this.attr._target_fld || table;
             genro.publish('resolverOneLoaded_'+f.replace(/\./g, '_'),{path:this.getFullpath(),node:this});
-        }
+        };
         var _related_field = params._target_fld.split('.')[2];
 
         if (params._auto_relation_value) {
@@ -865,7 +865,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 if( val==oldval || ( isNullOrBlank(val) && isNullOrBlank(oldval) ) ){
                     return;
                 }
-                var optkw = {}
+                var optkw = {};
                 if(doTrigger instanceof gnr.GnrDomSourceNode){
                     optkw._sourceNode = doTrigger;
                 }
@@ -874,7 +874,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             if(valNode){
                 valNode._onChangedValue = dojo.hitch(resolver, reloader);
             }else{
-                console.log('missing valNode')
+                console.log('missing valNode');
             }
             
 
@@ -916,14 +916,14 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     for (var label in defaultArgs) {
                         attr[label.replace(/\W/g, '_')] = defaultArgs[label];
                     }
-                    ;
+                    
                     if (loadingParameters) {
                         var nodes = loadingParameters.getNodes();
                         for (var i = 0; i < nodes.length; i++) {
                             var n = nodes[i];
                             attr[n.label] = n.getValue();
                         }
-                        ;
+                        
                     }
                     var result = new gnr.GnrBagNode(null, 'label', null, attr, resolver);
                     //result.getValue();
@@ -1014,23 +1014,23 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         };
         //if (kw.onResult) sender.upload.addEventListener("load", kw.onResult, false);
         if (kw.onProgress){
-            sender.upload.addEventListener("progress", function(evt){evt._sender = sender; kw.onProgress(evt)}, false)
+            sender.upload.addEventListener("progress", function(evt){evt._sender = sender; kw.onProgress(evt);}, false);
         }
         if (kw.onError){
             sender.upload.addEventListener("error", function(evt){
                 evt._sender = sender;
-                (kw.onError || errorCb)(evt)
-            }, false)
-        };
+                (kw.onError || errorCb)(evt);
+            }, false);
+        }
         if (kw.onAbort){
             sender.upload.addEventListener("abort",function(evt){
                 evt._sender = sender;
                 kw.onAbort(evt);
-            }, false)
-        };
+            }, false);
+        }
         //var filereader = new FileReader();
         var onResult = objectPop(kw,'onResult');
-        if(typeof(file) == 'string'){
+        if(typeof(file) === 'string'){
             content.append('dataUrl',file);
         }else{
             content.append('file_handle',file);

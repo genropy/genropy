@@ -1,6 +1,6 @@
 const  GoogleTypeConverter = {'A':'string','T':'string','C':'string',
                                 'B':'boolean','D':'date','DH':'datetime',
-                                'N':'number','R':'number','L':'number','I':'number'}
+                                'N':'number','R':'number','L':'number','I':'number'};
 
 const dataTableFromBag = function(data,columns,datamode){
     if(!datamode){
@@ -11,7 +11,7 @@ const dataTableFromBag = function(data,columns,datamode){
         var columns;
         if(datamode=='bag'){
             columns = firstNode.getValue().getNodes().map(n => {
-                let dtype = guessDtype(n.getValue())
+                let dtype = guessDtype(n.getValue());
                 return {'type':GoogleTypeConverter[dtype] || 'string','label':n.label,'field':n.label};
             });
         }else{
@@ -42,14 +42,14 @@ const hierarchicalDataTableFromBag = function(data){
     result.addColumn('string', 'Caption');
     result.addColumn('string', 'Parent');
     result.addRows(data.getIndex().map(l=>{
-        return [{v:l[0].join('.'),f:l[1].attr.label},l[0].slice(0,-1).join('.')]
+        return [{v:l[0].join('.'),f:l[1].attr.label},l[0].slice(0,-1).join('.')];
     }));
     return result;
 
 };
 
 const dataTableFromGrid = function(grid,given_columns){
-    if(typeof(grid)=='string'){
+    if(typeof(grid)==='string'){
         grid = genro.wdgById(grid);
     }
     let data = grid.storebag();
@@ -71,7 +71,7 @@ const dataTableFromGrid = function(grid,given_columns){
             return {'type':GoogleTypeConverter[n.attr.dtype] || 'string','label':n.attr.name || n.attr.field,'field':n.attr.field_getter || n.attr.field};
         });
     }
-    return dataTableFromBag(data,columns)
+    return dataTableFromBag(data,columns);
 };
 
 dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
@@ -80,12 +80,12 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
     },
     creating: function(attributes, sourceNode) {
         let chartAttributes = objectExtract(attributes,'chart_*',true);
-        objectUpdate(chartAttributes,objectExtract(attributes,'title'))
+        objectUpdate(chartAttributes,objectExtract(attributes,'title'));
         attributes.id = attributes.nodeId || 'gchart_'+genro.getCounter();
         let connectedGrid = objectPop(attributes,'grid');
         let columns = attributes.columns;
         sourceNode.attr._workspace = true;
-        if(columns && typeof(columns)!='string'){
+        if(columns && typeof(columns)!=='string'){
             let columnsBag = columns;
             if(!(columns instanceof gnr.GnrBag)){
                 columnsBag = new gnr.GnrBag();
@@ -101,9 +101,9 @@ dojo.declare("gnr.widgets.GoogleChart", gnr.widgets.baseHtml, {
         sourceNode.attr.chartAttributes = chartAttributes;
         attributes.containerId = attributes.id;
         sourceNode.attr.containerId = attributes.containerId;
-        this._prepareDynamicAttribute(sourceNode,attributes,'storepath',connectedGrid)
-        this._prepareDynamicAttribute(sourceNode,attributes,'structpath',connectedGrid)
-        return {chartAttributes:chartAttributes}
+        this._prepareDynamicAttribute(sourceNode,attributes,'storepath',connectedGrid);
+        this._prepareDynamicAttribute(sourceNode,attributes,'structpath',connectedGrid);
+        return {chartAttributes:chartAttributes};
     },
     created:function(widget, savedAttrs, sourceNode){
         var that = this;

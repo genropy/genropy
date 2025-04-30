@@ -102,7 +102,7 @@ dojo.declare("gnr.GnrStoreBag", null, {
             if (itemvalue instanceof gnr.GnrBag) {
                 return itemvalue.getNodes(this.nodeFilter);
             }else if(this.isDictItem(itemvalue)){
-                return new gnr.GnrBag(itemvalue).getNodes()
+                return new gnr.GnrBag(itemvalue).getNodes();
             }
             else {
                 return [
@@ -180,7 +180,7 @@ dojo.declare("gnr.GnrStoreBag", null, {
     },
 
     isDictItem:function(/* anything */ something){
-        return (typeof(something)=='object') && !(something instanceof Date) && !(something instanceof Array)
+        return (typeof(something)==='object') && !(something instanceof Date) && !(something instanceof Array);
     },
 
     isItemLoaded: function(/* anything */ something) {
@@ -315,7 +315,7 @@ dojo.declare("gnr.GnrStoreBag", null, {
                 return this.labelCb.call(item,this);
             }
             return item.label;
-        } else if (typeof(item) == 'object') {
+        } else if (typeof(item) === 'object') {
             if (this.labelCb) {
                 return this.labelCb.call(item,this);
             } else {
@@ -325,7 +325,7 @@ dojo.declare("gnr.GnrStoreBag", null, {
         else {
             return item;
         }
-        ;
+        
     },
 
     getLabelAttributes: function(/* item */ item) {
@@ -618,7 +618,7 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
             if(parentSourceNode && parentSourceNode.widget){
                 delete parentSourceNode.widget._lastQueryError;
             }
-            var selectedAttrs = objectExtract(parentSourceNode.attr,'selected_*',true)
+            var selectedAttrs = objectExtract(parentSourceNode.attr,'selected_*',true);
             if(!(('rowcaption' in parentSourceNode.attr) || parentSourceNode.attr._hdbselect || parentSourceNode.attr.condition || objectNotEmpty(selectedAttrs))){
                 var recordNodePath = parentSourceNode.attr.value;
                 recordNodePath = recordNodePath.slice(1);

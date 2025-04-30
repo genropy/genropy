@@ -85,30 +85,30 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         
         if (data.indexOf('<?xml')==0){
             var result=this.parseResponse(e.data);
-            var token=result.getItem('token') 
+            var token=result.getItem('token'); 
             if (token){
-                this.receivedToken(token,result.getItem('envelope'))
+                this.receivedToken(token,result.getItem('envelope'));
             }else{
-                this.receivedCommand(result.getItem('command'),result.getItem('data'))
+                this.receivedCommand(result.getItem('command'),result.getItem('data'));
             }
         }else{
-            genro.publish('websocketMessage',data)
+            genro.publish('websocketMessage',data);
         }
     },
     receivedCommand:function(command,data){
         var handler;
         if (command){
             if (command.indexOf('.')>0){
-                comlst=command.split('.')
-                handler=genro[comlst[0]]['do_'+comlst.splice(1).join('.')]
+                comlst=command.split('.');
+                handler=genro[comlst[0]]['do_'+comlst.splice(1).join('.')];
             }
             else{
-                handler=this['do_'+command] || this.do_publish
+                handler=this['do_'+command] || this.do_publish;
             }
         }else{
-            handler=this.do_publish
+            handler=this.do_publish;
         }
-        handler.apply(this,[data])
+        handler.apply(this,[data]);
     },
     receivedToken:function(token,envelope){
         var deferred=objectPop(this.waitingCalls,token);
@@ -124,15 +124,15 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     
    },
     do_alert:function(data){
-        alert(data)
+        alert(data);
     },
     do_set:function(data){
-        var path=data.getItem('path')
-        var valueNode=data.getNode('data')
-        var fired=data.getItem('fired')
-        genro.setData(path,valueNode._value,valueNode.attr, true)
+        var path=data.getItem('path');
+        var valueNode=data.getNode('data');
+        var fired=data.getItem('fired');
+        genro.setData(path,valueNode._value,valueNode.attr, true);
         if (fired){
-            genro.setData(path,null,null,false)
+            genro.setData(path,null,null,false);
         }
         
     },
@@ -149,11 +149,11 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         var nodeId = data.getItem('nodeId');
         var noTrigger = data.getItem('noTrigger');
         var root = nodeId? genro.nodeById(nodeId):genro.src.getNode();
-        root.setRelativeData(path,value,attributes,fired,reason,null,noTrigger?{doTrigger:false}:null)
+        root.setRelativeData(path,value,attributes,fired,reason,null,noTrigger?{doTrigger:false}:null);
     },
 
     do_datachanges:function(datachanges){
-        genro.rpc.setDatachangesInData(datachanges)
+        genro.rpc.setDatachangesInData(datachanges);
     },
 
     do_sharedObjectChange:function(data){
@@ -170,14 +170,14 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         var sopath = so.path;
         var fullpath = path? sopath+ '.' +path: sopath;
         if(evt=='del'){
-            genro._data.popNode(fullpath,'serverChange')
+            genro._data.popNode(fullpath,'serverChange');
         }else{
             genro._data.setItem(fullpath, value, attr, objectUpdate({'doTrigger':'serverChange',lazySet:true}));
         }
     },
 
     do_publish:function(data){
-        var topic=data.getItem('topic')
+        var topic=data.getItem('topic');
         var nodeId = data.pop('nodeId');
         var iframe = data.pop('iframe');
         var parent = data.pop('parent');
@@ -192,7 +192,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         if(nodeId || iframe || parent){
             topic = {topic:topic,nodeId:nodeId,iframe:iframe,parent:parent};
         }
-        genro.publish(topic,data)
+        genro.publish(topic,data);
     },
     call:function(kw,omitSerialize,cb){
         var deferred = new dojo.Deferred();
@@ -228,7 +228,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     },
     send:function(command,kw){
         var kw=kw || {};
-        kw['command']=command
+        kw['command']=command;
         kw=genro.rpc.serializeParameters(genro.src.dynamicParameters(kw));
         var msg = dojo.toJson(kw);
         this.socket.send(msg);
@@ -236,27 +236,27 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
     
     parseResponse:function(response){
         var result = new gnr.GnrBag();
-        var parser=new window.DOMParser()
+        var parser=new window.DOMParser();
         result.fromXmlDoc(parser.parseFromString(response, "text/xml")
                                             ,genro.clsdict);
-        return result
+        return result;
     },
     
     sendCommandToPage:function(page_id,command,data){
-        var envelope=new gnr.GnrBag({'command':command,'data':data})
-         this.send('route',{'target_page_id':page_id,'envelope':envelope.toXml()})
+        var envelope=new gnr.GnrBag({'command':command,'data':data});
+         this.send('route',{'target_page_id':page_id,'envelope':envelope.toXml()});
     },
     setInClientData:function(page_id,path,data){
-        this.sendCommandToPage(page_id,'set',new gnr.GnrBag({'data':data,'path':path}))
+        this.sendCommandToPage(page_id,'set',new gnr.GnrBag({'data':data,'path':path}));
     },
     fireInClientData:function(page_id,path,data){
-        this.sendCommandToPage(page_id,'set',new gnr.GnrBag({'data':data,'path':path,'fired':true}))
+        this.sendCommandToPage(page_id,'set',new gnr.GnrBag({'data':data,'path':path,'fired':true}));
     },
     publishToClient:function(page_id,topic,data){
-        this.sendCommandToPage(page_id,'publish',new gnr.GnrBag({'data':data,'topic':topic}))
+        this.sendCommandToPage(page_id,'publish',new gnr.GnrBag({'data':data,'topic':topic}));
     },
     errorHandler:function(error){
-        console.log('wsk errorHandler',error)
+        console.log('wsk errorHandler',error);
     }
 });
 
@@ -391,7 +391,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
 
             /** The maximum number of reconnection attempts to make. Unlimited if null. */
             maxReconnectAttempts: null
-        }
+        };
         if (!options) { options = {}; }
 
         // Overwrite and define settings with options if they exist.
@@ -407,7 +407,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
 
         /** The URL as resolved by the constructor. This is always an absolute URL. Read only. */
         this.url = url;
-        this.pendingMessagesToSend=[]
+        this.pendingMessagesToSend=[];
         
 
         /** The number of attempted reconnects since starting, or the last successful connection. Read only. */
@@ -464,7 +464,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
             var evt = document.createEvent("CustomEvent");
             evt.initCustomEvent(s, false, false, args);
             return evt;
-        };
+        }
 
         this.open = function (reconnectAttempt) {
             ws = new WebSocket(self.url, protocols || []);
@@ -505,8 +505,8 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
                 reconnectAttempt = false;
                 eventTarget.dispatchEvent(e);
                 while (self.pendingMessagesToSend.length>0){
-                    console.log('send pending')
-                    self.send(self.pendingMessagesToSend.shift())
+                    console.log('send pending');
+                    self.send(self.pendingMessagesToSend.shift());
                 }
             };
 
@@ -551,7 +551,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
                 }
                 eventTarget.dispatchEvent(generateEvent('error'));
             };
-        }
+        };
 
         // Whether or not to create a websocket upon instantiation
         if (this.automaticOpen == true) {
@@ -570,8 +570,8 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
                 }
                 return ws.send(data);
             } else {
-                console.log('socket not ready - adding to queue')
-                this.pendingMessagesToSend.push(data)
+                console.log('socket not ready - adding to queue');
+                this.pendingMessagesToSend.push(data);
                 //console.log ('Error sending :',data);
                 //throw 'INVALID_STATE_ERR : Pausing to reconnect websocket'
             }
@@ -583,7 +583,7 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
          */
         this.close = function(code, reason) {
             // Default CLOSE_NORMAL code
-            if (typeof code == 'undefined') {
+            if (typeof code === 'undefined') {
                 code = 1000;
             }
             forcedClose = true;
