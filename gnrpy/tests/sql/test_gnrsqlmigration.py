@@ -311,9 +311,23 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_ingredient" \n ALTER COLUMN "description" TYPE character varying(50);'
         self.checkChanges(check_value)
 
+
+    def test_08e_modify_column_from_text_to_bytea(self):
+        """Tests modifying the data type of an existing column."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('ingredient')
+        foo_varchar = tbl.column('foo_varchar', size=':50')
+        self.checkChanges(apply_only=True)
+        foo_varchar.attributes['dtype'] = 'O'
+        foo_varchar.attributes.pop('size')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_ingredient"\nDROP COLUMN "foo_varchar",\nADD COLUMN "foo_varchar" bytea;')
+
+
+
     def test_08b_modify_column_type(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row_alternative')
+        tbl.column('vegan').attributes.pop('dtype')
         tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
         check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nDROP COLUMN "vegan",\nADD COLUMN "vegan" character(1) ;'
         self.checkChanges(check_value)

@@ -50,9 +50,6 @@ RE_SQL_PARAMS = re.compile(r":(\S\w*)(\W|$)")
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
-import re
-
-import re
 
 class TsVectorCompiler:
     # Regex patterns for each macro with improved support for quoted identifiers

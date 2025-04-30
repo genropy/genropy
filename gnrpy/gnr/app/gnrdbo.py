@@ -1206,43 +1206,172 @@ class TableBase(object):
             endpoint_pars['_current_page_id'] = currentPage.page_id
         return self.db.application.site.externalUrl(f"/sys/ep_table/{self.fullname.replace('.','/')}/{pkey}/{baseEndpoint}/{source}",**endpoint_pars)
 
-      
+    def hosting_copyToInstance(self,
+                               source_instance=None,
+                               dest_instance=None,
+                               dest_package=None,
+                               dest_tblname=None,
+                               _commit=False,
+                               onSelectedSourceRows=None,
+                               skipMissingColumns=False,
+                               **kwargs):
+        """
+        Copy table data from a source instance to a destination instance
 
-    def hosting_copyToInstance(self,source_instance=None,dest_instance=None,_commit=False,logger=None,onSelectedSourceRows=None,**kwargs):
-        #attr = self.attributes
-        #logger.append('** START COPY %(name_long)s **'%attr)
-        source_db = self.db if not source_instance else self.db.application.getAuxInstance(source_instance).db 
-        dest_db = self.db if not dest_instance else self.db.application.getAuxInstance(dest_instance).db 
+        This method transfers data between different application instances,
+        copying records from the source table to the destination table. It
+        handles both insertions of new records and updates of existing ones
+        based on primary key matching.
+        The method compares records to determine if changes are needed before
+        updating in the destination table.
+
+        Parameters
+        ----------
+        :param source_instance: Name of the source instance.
+                                If None, uses the current AuxInstance
+        :param dest_instance: Name of the destination instance.
+                              If None, uses the current AuxInstance
+        :param dest_package: Name of the destination package.
+                             (Use only if copyng to a different package name)
+        :param dest_tblname: Name of the destination table.
+                             (Use only if copying to a different table name)
+        :param _commit: Whether to commit changes to the destination database 
+                        (default: False)
+        :param onSelectedSourceRows: Optional function to process source rows
+                                     before copying (can also be defined as a
+                                     method on the table class named 
+                                     'hosting_copyToInstance_onSelectedSourceRows')
+        :param skipMissingColumns: If True, ignore columns that don't exist 
+                                   in the destination table (default: False)
+        :param **kwargs: Additional parameters passed to query methods
+
+        Returns
+        -------
+        list
+            The fetched source rows that were processed for copying
+
+        Notes
+        -----
+        - The method excludes metadata fields (__ins_ts, __mod_ts, __ins_user, 
+          __mod_user) when checking for changes
+        - Records are only updated in the destination if field values have changed
+        - The method can handle logical deletion flags and draft records
+        """
+
+        source_db = (
+            self.db
+            if not source_instance
+            else self.db.application.getAuxInstance(source_instance).db
+        )
+        dest_db = (
+            self.db
+            if not dest_instance
+            else self.db.application.getAuxInstance(dest_instance).db
+        )
+
+        # Determine the full name of the destination table
+        # If dest_package and dest_tblname are not provided,
+        # use the same table name as source
+        if dest_package is None and dest_tblname is None:
+            destTblFullName = self.fullname
+        else:
+            destPkgName, destTblName = self.fullname.split('.')
+            destTblFullName = '.'.join(
+                [(dest_package or destPkgName),
+                 (dest_tblname or destTblName)]
+            )
+
         source_tbl = source_db.table(self.fullname)
-        dest_tbl = dest_db.table(self.fullname)
+        dest_tbl = dest_db.table(destTblFullName)
         kwargs.setdefault('bagFields',True)
         pkey = self.pkey
-        source_rows = source_tbl.query(addPkeyColumn=False,excludeLogicalDeleted=False,
-              excludeDraft=False,**kwargs).fetch()
-        onSelectedSourceRows = onSelectedSourceRows or getattr(self,'hosting_copyToInstance_onSelectedSourceRows',None)
+
+        # Fetch all rows from source table
+        # including logically deleted and draft records
+        logger.debug('Fetching source records')
+        source_rows = source_tbl.query(addPkeyColumn=False,
+                                       excludeLogicalDeleted=False,
+                                       excludeDraft=False,
+                                       **kwargs
+                                       ).fetch()
+
+        # Use the callback function for processing source rows if provided
+        onSelectedSourceRows = onSelectedSourceRows or getattr(
+            self,
+            'hosting_copyToInstance_onSelectedSourceRows',
+            None)
         if onSelectedSourceRows:
-            onSelectedSourceRows(source_instance=source_instance,dest_instance=dest_instance,source_rows=source_rows)
-        all_dest = dest_tbl.query(addPkeyColumn=False,for_update=True,excludeLogicalDeleted=False,
-              excludeDraft=False,**kwargs).fetchAsDict(pkey)
-        existing_dest = dest_tbl.query(addPkeyColumn=False,for_update=True,excludeLogicalDeleted=False,
-              excludeDraft=False,where='$%s IN :pk' %pkey,pk=[r[pkey] for r in source_rows]).fetchAsDict(pkey)
+            logger.debug('Calling onSelectedSourceRows method for table %s', self.fullname)
+            onSelectedSourceRows(source_instance=source_instance,
+                                 dest_instance=dest_instance,
+                                 source_rows=source_rows)
+
+        if not source_rows:
+            return
+
+        # Fetch all destination records
+        logger.debug('Fetching destination records')
+        all_dest = dest_tbl.query(addPkeyColumn=False,
+                                  for_update=True,
+                                  excludeLogicalDeleted=False,
+                                  excludeDraft=False,
+                                  **kwargs
+                                  ).fetchAsDict(pkey)
+
+        # Fetch only the destination records that match source primary keys
+        logger.debug('Fetching destination records (to be updated only)')
+        existing_dest = dest_tbl.query(addPkeyColumn=False,
+                                       for_update=True,
+                                       excludeLogicalDeleted=False,
+                                       excludeDraft=False,
+                                       where='$%s IN :pk' %pkey,
+                                       pk=[r[pkey] for r in source_rows]
+                                       ).fetchAsDict(pkey)
+
+        # Merge the two destination dictionaries
         all_dest.update(existing_dest)
-        if source_rows:
-            fieldsToCheck = ','.join([c for c in list(source_rows[0].keys()) if c not in ('__ins_ts','__mod_ts','__ins_user','__mod_user')])
-            for r in source_rows:
-                r = dict(r)
-                if r[pkey] in all_dest:
-                    oldr = dict(all_dest[r[pkey]])
-                    if self.fieldsChanged(fieldsToCheck,r,oldr):
-                        #logger.append('\t\t ** UPDATING LINE %s **' %r['id'])
-                        dest_tbl.raw_update(r,oldr)
-                    all_dest.pop(r[pkey])
-                else:
-                    #logger.append('\t\t ** INSERTING LINE %s **' %r['id'])
-                    dest_tbl.raw_insert(r)  
-            #self.hosting_removeUnused(dest_db,all_dest.keys())
-            if _commit:
-                dest_db.commit()
+
+        # If ignoring missing columns, get the list of columns from the destination table
+        destColumns = None
+        if skipMissingColumns:
+            destColumns = set(dest_tbl.columns)
+
+        # Create a comma-separated list of fields to check for changes
+        # excluding metadata fields
+        fieldsToCheck = ",".join(
+            [
+                c
+                for c in list(source_rows[0].keys())
+                if c not in ("__ins_ts", "__mod_ts", "__ins_user", "__mod_user")
+            ]
+        )
+
+        for r in source_rows:
+            r = dict(r)
+
+            # If skipping missing columns, filter out from the record
+            if skipMissingColumns and destColumns:
+                filtered_r = {k: v for k, v in r.items() if k in destColumns}
+                r = filtered_r
+
+            # Check if the record exists in destination (by primary key)
+            if r[pkey] in all_dest:
+                oldr = dict(all_dest[r[pkey]])
+                # Compare source and destination records and
+                # only update if there are actual changes in values
+                if self.fieldsChanged(fieldsToCheck, r, oldr):
+                    logger.debug('Updating line %s'%r[pkey])
+                    dest_tbl.raw_update(r, oldr)
+                all_dest.pop(r[pkey])
+            else:
+                # Record doesn't exist in destination, so insert it
+                logger.debug('Inserting line %s'%r[pkey])
+                dest_tbl.raw_insert(r)  
+        #self.hosting_removeUnused(dest_db, all_dest.keys())
+        if _commit:
+            logger.debug('Commit on dest. DB')
+            dest_db.commit()
+
         return source_rows
 
     def hosting_removeUnused(self,dest_db,missing=None):

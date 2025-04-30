@@ -5,6 +5,7 @@ import os
 import os.path
 import tempfile
 import shutil
+import random
 
 class BaseGnrTest:
     """
@@ -21,6 +22,7 @@ class BaseGnrTest:
         os.mkdir(fconf)
         cls.conf_dir = fconf
         os.environ['GENRO_GNRFOLDER'] = cls.conf_dir
+        cls.daemon_port = random.randint(40000,45000)
         cls.test_genro_root = os.path.abspath(os.path.join(cls.local_dir, "..", "..", ".."))
         cls.test_app_path = os.path.join(cls.test_genro_root, "projects")
         cls.ENV_FILENAME = os.path.join(cls.conf_dir, "environment.xml")
@@ -49,7 +51,7 @@ class BaseGnrTest:
   <webtools>
     <genropy path="{cls.test_genro_root}/webtools"/>
   </webtools>
-  <gnrdaemon host="localhost" port="40404" hmac_key="whoknows"/>
+  <gnrdaemon host="localhost" port="{cls.daemon_port}" hmac_key="whoknows"/>
 </GenRoBag>
 """)
         os.mkdir(os.path.join(cls.conf_dir, "instanceconfig"))
@@ -77,7 +79,7 @@ class BaseGnrTest:
                 <common/>
                 <js_libs/>
         </resources>
-        <gnrdaemon host="localhost" port="40404" hmac_key="whoknows"/>
+        <gnrdaemon host="localhost" port="{cls.daemon_port}" hmac_key="whoknows"/>
 </GenRoBag>""")
 
     @classmethod

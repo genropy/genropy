@@ -3277,6 +3277,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
         var savedAttrs = objectExtract(attributes, 'fire_*');
         var label = objectPop(attributes,'label');
         attributes.innerHTML = attributes.innerHTML || label;
+        if(!attributes.tabindex){
+            attributes.tabindex = "0"
+        }
         savedAttrs['action'] = objectPop(attributes, 'action');
         savedAttrs['fire'] = objectPop(attributes, 'fire');
         savedAttrs['publish'] = objectPop(attributes, 'publish');

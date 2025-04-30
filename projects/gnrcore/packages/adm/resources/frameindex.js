@@ -346,6 +346,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let backToPage = pageHistory.pop();
         genro.setData('pageHistory',pageHistory.length?pageHistory:null);
         this.stackSourceNode.setRelativeData('selectedFrame',backToPage);
+        if(backToPage=='indexpage' && genro.getData('splash_index')){
+            genro.publish('open_plugin',{plugin:'menu_plugin'});
+        }
     },
 
     onExternalWindowClosed:function(windowKey){
