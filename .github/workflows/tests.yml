@@ -39,7 +39,7 @@ jobs:
         cd gnrpy && pip install -e .[developer]
     - name: Js linting with eslint
       run: |
-        apt install eslint
+        sudo apt update && sudo apt install -y eslint
         cd gnrjs && eslint . || true
     - name: Python linting with flake8
       run: |
