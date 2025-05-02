@@ -308,7 +308,10 @@ class StorageNode(object):
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
         self.service.autocreate(self.path, autocreate=-1)
-        return self.service.open(self.path, mode=mode,version_id=self.version)
+        kwargs = {'mode':'rb'}
+        if self.version and self.service.is_versioned:
+            kwargs['version_id'] = self.version
+        return self.service.open(self.path,**kwargs)
 
     def url(self, **kwargs):
         """Returns the external url of this file"""
@@ -477,6 +480,10 @@ class StorageService(GnrBaseService):
 
         url = '%s?%s' % (url, '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())]))
         return url
+
+    @property
+    def is_versioned(self):
+        return False
 
     @property
     def location_identifier(self):

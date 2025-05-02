@@ -104,9 +104,10 @@ class S3TemporaryFilename(object):
 class Service(StorageService):
 
     def __init__(self, parent=None, bucket=None,
-        base_path=None, aws_access_key_id=None,
-        aws_secret_access_key=None, aws_session_token=None,
-        region_name=None, url_expiration=None, write_in_local=None, readonly=None, **kwargs):
+                base_path=None, aws_access_key_id=None,
+                aws_secret_access_key=None, aws_session_token=None,
+                region_name=None, url_expiration=None, write_in_local=None, 
+                readonly=None,versioned=True, **kwargs):
         self.parent = parent
         self.bucket = bucket
         self.base_path = (base_path or '').rstrip('/')
@@ -120,6 +121,12 @@ class Service(StorageService):
         local = getattr(parent,'_local_mode', False)
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
+        self.versioned = versioned
+
+    @property
+    def is_versioned(self):
+        return self.versioned
+
     @property
     def location_identifier(self):
         return 's3/%s/%s' % (self.region_name, self.bucket)
