@@ -1,4 +1,4 @@
-name: Code testing (python)
+name: Code testing
 
 on: [push]
 
