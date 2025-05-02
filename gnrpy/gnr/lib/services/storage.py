@@ -308,7 +308,7 @@ class StorageNode(object):
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
         self.service.autocreate(self.path, autocreate=-1)
-        kwargs = {'mode':'rb'}
+        kwargs = {'mode':mode}
         if self.version and self.service.is_versioned:
             kwargs['version_id'] = self.version
         return self.service.open(self.path,**kwargs)
