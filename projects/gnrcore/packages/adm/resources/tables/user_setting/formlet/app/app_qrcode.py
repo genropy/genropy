@@ -4,7 +4,7 @@ import json
 info = {
     "code":'app_qrcode',
     "caption":"!![en]App connection",
-    "priority":2,
+    "priority":2
 }       
        
 class Formlet(BaseComponent):

@@ -1,0 +1,1 @@
+info = dict(caption = "Mobile App",iconClass= "appstore",priority=2)
