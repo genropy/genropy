@@ -14,10 +14,10 @@ class Table(object):
     def isInStartupData(self):
         return True
         
-    @metadata(mandatory=True)
+    #@metadata(mandatory=True)
     def sysRecord_it(self):
         return self.newrecord(code='it',name='Italiano')
 
-    @metadata(mandatory=True)
+    #@metadata(mandatory=True)
     def sysRecord_en(self):
         return self.newrecord(code='en',name='English')
