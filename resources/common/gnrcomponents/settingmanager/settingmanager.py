@@ -263,8 +263,7 @@ class SettingManager(BaseComponent):
             permissions and not self.checkTablePermission(table=table,permissions=permissions):
             return False
         is_enabled_cb = getattr(resmodule, 'is_enabled',None)
-        if is_enabled_cb:
-            if is_enabled_cb(self) is False:
-                return False
+        if is_enabled_cb and is_enabled_cb(self) is False:
+            return False
         return info
 

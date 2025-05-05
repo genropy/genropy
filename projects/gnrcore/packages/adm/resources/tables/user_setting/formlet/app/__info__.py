@@ -1,9 +1,9 @@
-import json
+from gnrpkg.adm.app_store_helpers import get_app_links
+
 info = dict(caption = "Mobile App",iconClass= "appstore",priority=2)
 
 def is_enabled(page):
-    mainpackage = page.db.application.site.mainpackage
-    with open(page.getResource('app_store_links.json',pkg=mainpackage), 'r', encoding='utf-8') as f:
-        stores_dict = json.loads(f.read())
-    if not stores_dict:
+    app_links = get_app_links(page)
+    if not app_links:
         return False
+    return True

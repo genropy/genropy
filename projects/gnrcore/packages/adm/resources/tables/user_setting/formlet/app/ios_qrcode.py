@@ -1,5 +1,5 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-import json
+from gnrpkg.adm.app_store_helpers import get_ios_link
 
 info = {
     "code":'ios_qrcode',
@@ -7,22 +7,13 @@ info = {
     "priority":1
 }       
 
-def get_url(page):
-    mainpackage = page.db.application.site.mainpackage
-    with open(page.getResource('app_store_links.json',pkg=mainpackage), 'r', encoding='utf-8') as f:
-        stores_dict = json.loads(f.read())
-    if not stores_dict:
-        return False
-    link = stores_dict.get('ios')
-    return link or False
-
 def is_enabled(page):
-    return get_url(page)
+    return get_ios_link(page)
        
 
 class Formlet(BaseComponent):
     def flt_main(self,pane):
-        url = get_url(self)
+        url = get_ios_link(self)
         pane.dataController(""";
             SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${url}`;""",
             url=url,_onBuilt=True)
