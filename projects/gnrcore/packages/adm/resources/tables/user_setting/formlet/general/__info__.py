@@ -1,1 +1,1 @@
-info = dict(caption = "General",iconClass= "painbrush",priority=0)
+info = dict(caption = "General",iconClass= "painbrush",priority=1)

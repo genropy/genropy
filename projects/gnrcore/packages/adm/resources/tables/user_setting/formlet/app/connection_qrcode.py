@@ -2,13 +2,12 @@ from gnr.web.gnrbaseclasses import BaseComponent
 import json
 
 info = {
-    "code":'app_qrcode',
-    "caption":"!![en]App connection",
-    "priority":2
+    "code":'connection_qrcode',
+    "caption":"!![en]Connection",
+    "priority":3
 }       
        
 class Formlet(BaseComponent):
-    py_requires='th/th:TableHandler'
     def flt_main(self,pane):
         pane.dataController(""" const qrcode_text = `GENRO:${owner_name || sitename}:${url}`;
             SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${qrcode_text}`;""",
