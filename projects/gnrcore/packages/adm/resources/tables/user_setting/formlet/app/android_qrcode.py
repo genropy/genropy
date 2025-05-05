@@ -1,5 +1,5 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnrpkg.adm.app_store_helpers import get_android_link
+from gnrpkg.adm.app_store_helpers import app_store_links
 
 
 info = {
@@ -10,12 +10,12 @@ info = {
 
 
 def is_enabled(page):
-    return get_android_link(page)
+    return app_store_links.get_android_link(page)
 
        
 class Formlet(BaseComponent):
     def flt_main(self,pane):
-        url = get_android_link(self)
+        url = app_store_links.get_android_link(self)
         pane.dataController(""";
             SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${url}`;""",
             url=url,_onBuilt=True)
