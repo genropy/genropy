@@ -1,17 +1,24 @@
 import os
 import json
-from functools import lru_cache
 
-@lru_cache(maxsize=1)
+app_store_links = {}
+
 def load_app_links(path):
     """
     Loads and caches the JSON configuration from the specified path.
     Returns the configuration as a dictionary if the file exists, otherwise returns False.
     """
-    if path and os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return False
+    if app_store_links:
+        return app_store_links
+    else:
+        if path and os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                try:
+                    # handle bad file content, even if it exists.
+                    app_store_links = json.load(f)
+                except:
+                    pass
+        return app_store_links
 
 def get_app_links(page):
     """
@@ -26,17 +33,12 @@ def get_android_link(page):
     Returns the Android application link from the configuration.
     Returns False if the configuration is not available or the link is not found.
     """
-    conf = get_app_links(page)
-    if not conf:
-        return False
-    return conf.get('android') or False
+    return get_app_links(page).get("android", False)
 
 def get_ios_link(page):
     """
     Returns the iOS application link from the configuration.
     Returns False if the configuration is not available or the link is not found.
     """
-    conf = get_app_links(page)
-    if not conf:
-        return False
-    return conf.get('ios') or False
+    return get_app_links(page).get("ios", False)
+
