@@ -14,8 +14,8 @@ class _FormBase(BaseComponent):
             return
 
         pkg,table = table.split('.')
-        self.mixinComponent('tables/%s/%s' % (table, resource), safeMode=True)
-        self.mixinComponent('tables/_packages/%s/%s/%s' % (pkg, table, resource), safeMode=True)
+        self.mixinComponent('tables/%s/%s:Formlet' % (table, resource), safeMode=True)
+        self.mixinComponent('tables/_packages/%s/%s/%s:Formlet' % (pkg, table, resource), safeMode=True)
 
         self.flt_main(pane.contentPane(datapath='#FORM.record.setting_data'))
 
@@ -27,8 +27,8 @@ class _FormBase(BaseComponent):
             return
 
         pkg,table = table.split('.')
-        self.mixinComponent('tables/%s/%s' % (table, resource), safeMode=True)
-        self.mixinComponent('tables/_packages/%s/%s/%s' % (pkg, table, resource), safeMode=True)
+        self.mixinComponent('tables/%s/%s:Formlet' % (table, resource), safeMode=True)
+        self.mixinComponent('tables/_packages/%s/%s/%s:Formlet' % (pkg, table, resource), safeMode=True)
         self.flt_main(pane.contentPane(_workspace=True))
 
 
@@ -226,22 +226,18 @@ class SettingManager(BaseComponent):
             group_info = {'caption':groupNode.attr.get('caption')}
             content = Bag()
             group_info['group'] = groupNode.label
+            settings = Bag(groupNode.value)
+            info_node = settings.popNode('__info__')
+            group_info = self._get_info_from_node(info_node,table=table)
+            if group_info is False:
+                continue
+            settings.popNode('__pycache__')
+            if not settings:
+                continue
             result.addItem(groupNode.label, content, **group_info)
-            for setting_node in groupNode.value:
-                resmodule = gnrImport(setting_node.attr['abs_path'])
-                info = getattr(resmodule, 'info',{})
-                tags = info.get('tags')
-                permissions = info.get('permissions')
-                info['caption'] = info.get('caption') or setting_node.attr.get('caption')
-                info['code'] = info.get('code') or setting_node.label
-                info['priority'] = info.get('priority') or 0
-                if (tags and not self.application.checkResourcePermission(tags, self.userTags)) or \
-                    permissions and not self.checkTablePermission(table=table,permissions=permissions):
-                    continue
-                if setting_node.label=='__pycache__':
-                    continue
-                if setting_node.label=='__info__':
-                    groupNode.attr.update(info)
+            for setting_node in settings:
+                info = self._get_info_from_node(setting_node,table=table)
+                if info is False:
                     continue
                 info['formlet_caption'] = info['caption']
                 content.setItem(info['code'], None, 
@@ -253,3 +249,21 @@ class SettingManager(BaseComponent):
             content.sort('#a.priority,#a.caption')
         result.sort('#a.priority,#a.caption')
         return result
+
+
+    def _get_info_from_node(self,node,table=None):
+        resmodule = gnrImport(node.attr['abs_path'],avoid_module_cache=True)
+        info = getattr(resmodule, 'info',{})
+        tags = info.get('tags')
+        permissions = info.get('permissions')
+        info['caption'] = info.get('caption') or node.attr.get('caption')
+        info['code'] = info.get('code') or node.label
+        info['priority'] = info.get('priority') or 0
+        if (tags and not self.application.checkResourcePermission(tags, self.userTags)) or \
+            permissions and not self.checkTablePermission(table=table,permissions=permissions):
+            return False
+        is_enabled_cb = getattr(resmodule, 'is_enabled',None)
+        if is_enabled_cb and is_enabled_cb(self) is False:
+            return False
+        return info
+

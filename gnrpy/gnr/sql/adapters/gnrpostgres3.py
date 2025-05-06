@@ -119,7 +119,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         Returns all records returned by the SQL statement.
         """
         
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
             cursor.execute(sql, sqlargs)
             r = cursor.fetchall()
