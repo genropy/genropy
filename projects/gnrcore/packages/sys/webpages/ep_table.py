@@ -40,7 +40,7 @@ class GnrCustomWebPage(object):
             self.response.content_type = documentNode.mimetype
             if self.response.content_type == 'application/pdf' and documentNode.watermark:
                 pdfService = self.site.getService('pdf')
-                return pdfService.watermarkedPDF([documentNode],watermark=documentNode.watermark)
+                return pdfService.watermarkedPDF([documentNode],watermark=documentNode.watermark,watermark_align='center')
 
             with documentNode.open('rb') as f:
                 return f.read()
@@ -69,6 +69,8 @@ class GnrCustomWebPage(object):
         return page_item
 
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
+        if version=='_latest_':
+            version = None
         colobj = tblobj.column(source)
         isCachedInField = colobj is not None
         readTags = None
@@ -111,8 +113,7 @@ class GnrCustomWebPage(object):
             self.db.commit()
         versions_bag =  self._getVersionBag(documentNode,**kwargs)
         if related_page_item:
-            if isCachedInField and not version:
-                clientRecordUpdater.addItem(f'${source}_versions',versions_bag)
+            clientRecordUpdater.addItem(f'${source}_versions',versions_bag)
             clientRecordUpdater[tblobj.pkey] = record['id']
             fields = ','.join(clientRecordUpdater.keys())
             self.setInClientRecord(tblobj,record=clientRecordUpdater,
@@ -135,9 +136,10 @@ class GnrCustomWebPage(object):
         result = Bag()
         for version in documentNode.versions:
             localized_date = self.toText(version['LastModified'],dtype='D')
-            result.addItem(version['VersionId'],None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
+            label = version['VersionId'] if not version['IsLatest'] else '_latest_'
+            result.addItem(label,None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
                                                 date=version['LastModified'],localized_date=localized_date,isLatest=version['IsLatest'])
-        return result if len(result)>1 else None
+        return result
 
 
     def is_inline_displayable(self,storageNode):
