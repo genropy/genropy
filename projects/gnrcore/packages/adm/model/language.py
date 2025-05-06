@@ -2,7 +2,6 @@
 # encoding: utf-8
 
 from builtins import object
-from gnr.core.gnrdecorator import metadata
 
 class Table(object):
     def config_db(self, pkg):
@@ -14,10 +13,8 @@ class Table(object):
     def isInStartupData(self):
         return True
         
-    #@metadata(mandatory=True)
     def sysRecord_it(self):
         return self.newrecord(code='it',name='Italiano')
 
-    #@metadata(mandatory=True)
     def sysRecord_en(self):
         return self.newrecord(code='en',name='English')
