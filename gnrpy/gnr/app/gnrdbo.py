@@ -1646,7 +1646,9 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',static=True)
+        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',
+                        outdatedWatermark = tbl.attributes.get('outdatedWatermark'),
+                        static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
         if hasattr(self,'atc_download'):

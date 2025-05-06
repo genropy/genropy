@@ -38,6 +38,10 @@ class GnrCustomWebPage(object):
             return ''
         if self.is_inline_displayable(documentNode) or force_download:
             self.response.content_type = documentNode.mimetype
+            if self.response.content_type == 'application/pdf' and documentNode.watermark:
+                pdfService = self.site.getService('pdf')
+                return pdfService.watermarkedPDF([documentNode],watermark=documentNode.watermark)
+
             with documentNode.open('rb') as f:
                 return f.read()
         else:
@@ -65,7 +69,8 @@ class GnrCustomWebPage(object):
         return page_item
 
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
-        isCachedInField = tblobj.column(source) is not None
+        colobj = tblobj.column(source)
+        isCachedInField = colobj is not None
         readTags = None
         handlername = f'_table.{tblobj.fullname}.getDocument_{source}'
         related_page_item = None
@@ -76,7 +81,7 @@ class GnrCustomWebPage(object):
         documentPath = None
         record = tblobj.record(pkey).output('record')
         if isCachedInField:
-            readTags = tblobj.column(source).attributes.get('readTags')
+            readTags = colobj.attributes.get('readTags')
             documentPath = record[source]
         elif handler:
             readTags = getattr(handler,'tags',None)
@@ -104,15 +109,24 @@ class GnrCustomWebPage(object):
                 rec[source] = documentNode.fullpath
             clientRecordUpdater[source] = record[source]
             self.db.commit()
+        versions_bag =  self._getVersionBag(documentNode,**kwargs)
         if related_page_item:
             if isCachedInField and not version:
-                clientRecordUpdater.addItem(f'${source}_versions', self._getVersionBag(documentNode,**kwargs))
+                clientRecordUpdater.addItem(f'${source}_versions',versions_bag)
             clientRecordUpdater[tblobj.pkey] = record['id']
             fields = ','.join(clientRecordUpdater.keys())
             self.setInClientRecord(tblobj,record=clientRecordUpdater,
                                             fields=fields,
                                             page_id=related_page_item['register_item_id'],
                                             silent=True)
+        documentNode.watermark = None
+        if version:
+            version_attrs = versions_bag.getAttr(version)
+            if version_attrs and not version_attrs['isLatest']:
+                outdatedWatermark = colobj.attributes.get('outdatedWatermark') if  isCachedInField else None
+                if handler and not outdatedWatermark:
+                    outdatedWatermark = getattr(handler,'outdatedWatermark',None)
+                documentNode.watermark = outdatedWatermark.format(**version_attrs).format(**record.asDict())
         return documentNode
 
 
@@ -120,8 +134,9 @@ class GnrCustomWebPage(object):
     def _getVersionBag(self,documentNode,**kwargs):
         result = Bag()
         for version in documentNode.versions:
-            result.addItem(version['VersionId'],None,caption=self.toText(version['LastModified'],dtype='D'),version_id=version['VersionId'],
-                                                date=version['LastModified'],isLatest=version['IsLatest'])
+            localized_date = self.toText(version['LastModified'],dtype='D')
+            result.addItem(version['VersionId'],None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
+                                                date=version['LastModified'],localized_date=localized_date,isLatest=version['IsLatest'])
         return result if len(result)>1 else None
 
 
