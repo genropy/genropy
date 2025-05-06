@@ -104,7 +104,7 @@ class GnrCustomWebPage(object):
             if documentNode and not documentNode.exists:
                 documentNode = None
         if handler and not documentNode:
-            handler(pkey,documentPath=documentPath,**kwargs)
+            documentPath = handler(pkey,documentPath=documentPath,**kwargs)
             documentNode = self.site.storageNode(documentPath)
         if documentNode and isCachedInField and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
