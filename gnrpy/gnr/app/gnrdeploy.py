@@ -825,6 +825,7 @@ class PackageMaker(object):
         self.helloworld = helloworld
         self.package_path = os.path.join(self.base_path, self.package_name)
         self.model_path = os.path.join(self.package_path, 'model')
+        self.cli_path = os.path.join(self.package_path, 'cli')
         self.lib_path = os.path.join(self.package_path, 'lib')
         self.webpages_path = os.path.join(self.package_path, 'webpages')
         self.resources_path = os.path.join(self.package_path, 'resources')
@@ -833,10 +834,15 @@ class PackageMaker(object):
         
     def do(self):
         """Creates the files of the ``packages`` folder"""
-        for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
+        for path in (self.package_path, self.model_path, self.cli_path,
+                     self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
                 os.makedirs(path)
 
+        # create an emptydir file allowing an empty cli directory to be
+        # pushed to repository
+        open(os.path.join(self.cli_path, ".emptydir"), "w").close()
+        
         # create an empty requirements.txt file, hopefully developers
         # will be reminded by its presence that dependencies can be added
         # in this file

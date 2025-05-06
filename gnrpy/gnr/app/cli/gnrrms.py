@@ -14,7 +14,7 @@ def register_pod(pod=None, service_url=None,customer_code=None,rebuild=None):
     rms = RMS()
     rms.registerPod()
 
-description = ""
+description = "Remote Management System tool"
 
 def main():
     parser = GnrCliArgParse(description=description)

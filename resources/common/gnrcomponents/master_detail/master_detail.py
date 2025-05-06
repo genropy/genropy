@@ -120,7 +120,7 @@ class MasterDetail(BaseComponent):
                 default_rows.setItem(n.attr.field.replace(/\W/g, '_'),new gnr.GnrBag(v))
             });
             var curr_rows = that.getRelativeData('#FORM.record.'+field);
-            if(!curr_rows){
+            if(!curr_rows || curr_rows.len()==0){
                 that.setRelativeData('#FORM.record.'+field,default_rows)
             }else{
                 default_rows.forEach(function(n){
