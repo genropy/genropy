@@ -206,7 +206,7 @@ class OrmExtractor:
     def __init__(self,migrator=None, db=None,extensions=None):
         self.migrator = migrator
         self.db = db or self.migrator.db
-        self.json_structure = new_structure_root(self.db.dbname)
+        self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
         self.extensions = extensions or []
         self.schemas = self.json_structure['root']['schemas']
@@ -428,7 +428,7 @@ class DbExtractor(object):
     @time_measure
     def prepare_json_struct(self,schemas=None):
         """Generates the JSON structure of the database."""
-        self.json_structure = new_structure_root(self.db.dbname)
+        self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
         self.json_schemas = self.json_structure["root"]['schemas']  
         infodict = self.get_info_from_db(schemas=schemas)
