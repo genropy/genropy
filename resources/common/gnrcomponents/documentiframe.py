@@ -60,7 +60,9 @@ class DocumentIframe(BaseComponent):
             #            items='^.outdatedMenu')
 
             bar = frame.top.slotBar('*,versions,10',height='22px',background='#2A2A2E')
-            bar.versions.labledBox('!![en]Version: ',color='white',side='left',box_c_padding_top='1px',box_c_padding_left='5px').menudiv('^.selectedVersion',
+            bar.versions.labledBox('!![en]Version: ',color='white',side='left',box_c_padding_top='1px',
+                        box_c_padding_left='5px').menudiv('^.selectedVersion',
+                        key='version_key',
                         font_weight='bold',placeholder='!![en]Latest',colorWhite=True,
                         storepath='.outdatedMenu')
         return result

@@ -136,9 +136,12 @@ class GnrCustomWebPage(object):
         result = Bag()
         for version in documentNode.versions:
             localized_date = self.toText(version['LastModified'],dtype='D')
-            label = version['VersionId'] if not version['IsLatest'] else '_latest_'
-            result.addItem(label,None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
-                                                date=version['LastModified'],localized_date=localized_date,isLatest=version['IsLatest'])
+            version_key = version['VersionId'] if not version['IsLatest'] else '_latest_'
+            result.addItem(version_key.replace('.','_'),None,caption=self._('!![en]Latest') if version['IsLatest'] else localized_date,version_id=version['VersionId'],
+                                                date=version['LastModified'],
+                                                localized_date=localized_date,
+                                                isLatest=version['IsLatest'],
+                                                version_key=version_key)
         return result
 
 
