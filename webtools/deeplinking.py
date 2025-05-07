@@ -15,7 +15,6 @@ from gnr.core.gnrdecorator import metadata
 class DeepLink(BaseWebtool):
     def __call__(self, *args, **kwargs):
         apps_config = self.site.gnrapp.config.getNode(self.config_item, None)
-        print(apps_config)
         if not apps_config:
             raise Exception(f"{self.config_item} deeplinking support is not configured for this instance")
         return self.get_content([apps_config])
