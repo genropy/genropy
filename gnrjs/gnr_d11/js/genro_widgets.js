@@ -999,10 +999,8 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                             ext = parsed.file.split('.').pop().toLowerCase();
                         }
                     } catch(e) {}
-    
                     let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
                     useViewer = !ext || !extList.includes(ext);
-    
                     if (useViewer) {
                         v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
                     } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
