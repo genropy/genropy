@@ -1,5 +1,4 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnrpkg.adm.app_store_helpers import app_store_links
 
 info = {
     "code":'ios_qrcode',
