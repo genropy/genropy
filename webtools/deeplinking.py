@@ -14,13 +14,14 @@ from gnr.core.gnrdecorator import metadata
 
 class DeepLink(BaseWebtool):
     def __call__(self, *args, **kwargs):
-        apps_config = self.site.gnrapp.config.get(self.config_item, None)
+        apps_config = self.site.gnrapp.config.getNode(self.config_item, None)
+        print(apps_config)
         if not apps_config:
             raise Exception(f"{self.config_item} deeplinking support is not configured for this instance")
-        return self.get_content(apps_config)
+        return self.get_content([apps_config])
 
 class DeepLinkIOS(DeepLink):
-    config_item = "ios_apps"
+    config_item = "mobile_app.ios"
     content_type = "text/plain"
     def get_content(self, apps_config):
         app_template = {
@@ -40,7 +41,7 @@ class DeepLinkIOS(DeepLink):
                 ]
             },
             "webcredentials": {
-                "apps": [] #"{apple_app_id.{apple_app_bundle}", "{apple_team_id}.{apple_app_bundle}"]
+                "apps": [] 
             }
         }
         for a in apps_config:
@@ -70,7 +71,7 @@ class DeepLinkIOS(DeepLink):
 
 class DeepLinkAndroid(DeepLink):
     content_type = "application/json"
-    config_item = "android_apps"
+    config_item = "mobile_app.android"
 
     def get_content(self, apps_config):
         file_template = []
