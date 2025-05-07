@@ -1604,7 +1604,7 @@ class AttachmentTable(GnrDboTable):
         tblname = self._tblname
         tbl = pkg.table(tblname,pkey='id')
         mastertbl = '%s.%s' %(pkg.parentNode.label,tblname.replace('_atc',''))
-        table_attributes = self.config_attributes() #objectExtract(self,'attribute_')
+        table_attributes = self.config_attributes() 
         pkgname,mastertblname = mastertbl.split('.')
         tblname = '%s_atc' %mastertblname
         assert tbl.parentNode.label == tblname,'table name must be %s' %tblname
@@ -1668,7 +1668,12 @@ class AttachmentTable(GnrDboTable):
         if not filepath:
             return
         if ':' in filepath:
-            if self.attributes.get('endpoint_url'):
+            atc_endpoint_url = self.attributes.get('endpoint_url') 
+            if not atc_endpoint_url:
+                site =  self.db.application.site
+                main_pkg_obj = site.gnrapp.packages[site.mainpackage]
+                atc_endpoint_url = main_pkg_obj.attributes.get('atc_endpoint_url')
+            if atc_endpoint_url:
                 return self.endpointColumn(record=record,field='filepath',
                             source_ext=self.db.application.site.storageNode(filepath).ext)
             return self.db.application.site.externalUrl(f'/{filepath}')

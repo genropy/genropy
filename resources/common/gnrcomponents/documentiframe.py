@@ -21,27 +21,31 @@ class DocumentIframe(BaseComponent):
         endpoint_maker = getattr(tblobj,f'getDocument_{code}',None)
         if endpoint_maker and not outdatedWatermark:
             outdatedWatermark = getattr(endpoint_maker,'outdatedWatermark',None)
-        return parent.documentIframe(src=f'^#FORM.record.{field}',
+        iframe = parent.documentIframe(src=f'^#FORM.record.{field}',
                                     outdatedPath=f'#FORM.record.${code}_versions',
                                         **kwargs)
 
+        parent.onDbChanges("""
+            if(dbChanges.some(c=>c.pkey=ordine_id)){
+                iframeNode.setRelativeData('.refresh_ts',new Date());
+            }
+        """, table=table, pkey='=#FORM.pkey',iframeNode=iframe)
+        return iframe
             
     @struct_method
     def dc_documentIframe(self,parent,src=None,outdatedPath=None,**kwargs):
         frame = parent.framePane(nodeId='documentIframe_#',
                                 datapath=f'#FORM.documentIframe_{id(parent)}')
- 
+        kwargs['src_refresh'] = '^.refresh_ts'
         if outdatedPath:
             kwargs['src_version'] = '^.selectedVersion'
-        result = frame.center.contentPane().iframe(src=src,height='100%',width='100%',border=0,
-                                onLoad="console.log('fastpollig start');genro.setFastPolling(true);" if outdatedPath else None,
+        result = frame.center.contentPane(overflow='hidden').iframe(src=src,height='100%',width='100%',border=0,
+                                onLoad="genro.setFastPolling(true);" if outdatedPath else None,
                                 documentClasses=True,**kwargs)
         if outdatedPath:
             frame.data('.selectedVersion','_latest_')
             frame.dataController("""SET .selectedVersion = '_latest_';""",_fired='^#FORM.controller.loaded')
-            frame.dataController("""console.log('fastpollig stop',outdatedMenu);
-                                    console.log(this.getRelativeData(".selectedVersion"))
-                                    genro.setFastPolling(false)
+            frame.dataController("""genro.setFastPolling(false)
                                     const currentVersions = outdatedMenu?outdatedMenu.keys().join(','):'_noversions_';
                                     if(currentVersions!=latestVersions){
                                         SET .latestVersions = currentVersions;
@@ -55,7 +59,8 @@ class DocumentIframe(BaseComponent):
             #frame.bottom.slotBar('*,versions,*',_class='mobile_bar',height='22px').versions.multiButton(value='^.version_key',
             #            items='^.outdatedMenu')
 
-            frame.top.slotBar('*,versions,*',height='22px',background='#2A2A2E').versions.menudiv('^.selectedVersion',
+            bar = frame.top.slotBar('*,versions,10',height='22px',background='#2A2A2E')
+            bar.versions.labledBox('!![en]Version: ',color='white',side='left',box_c_padding_top='1px',box_c_padding_left='5px').menudiv('^.selectedVersion',
                         font_weight='bold',placeholder='!![en]Latest',colorWhite=True,
                         storepath='.outdatedMenu')
         return result
