@@ -26,7 +26,7 @@ class DocumentIframe(BaseComponent):
                                         **kwargs)
 
         parent.onDbChanges("""
-            if(dbChanges.some(c=>c.pkey=ordine_id)){
+            if(dbChanges.some(c=>c.pkey=pkey)){
                 iframeNode.setRelativeData('.refresh_ts',new Date());
             }
         """, table=table, pkey='=#FORM.pkey',iframeNode=iframe)
