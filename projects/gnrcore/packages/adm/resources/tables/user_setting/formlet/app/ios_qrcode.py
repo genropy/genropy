@@ -8,12 +8,12 @@ info = {
 }       
 
 def is_enabled(page):
-    return app_store_links.get_ios_link(page)
+    return app_store_links.get_ios(page)
        
 
 class Formlet(BaseComponent):
     def flt_main(self,pane):
-        url = app_store_links.get_ios_link(self)
+        url = app_store_links.get_ios(self).get('store_url')
         pane.dataController(""";
             SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${url}`;""",
             url=url,_onBuilt=True)
