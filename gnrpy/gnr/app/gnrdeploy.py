@@ -505,7 +505,11 @@ class PathResolver(object):
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
-            instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
+            template_config_path = os.path.join(self.instance_name_to_path(template),'config','instanceconfig.xml')
+            if os.path.exists(template_config_path):
+                instance_config.update(normalizePackages(Bag(template_config_path)) or Bag())
+            else:
+                instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
         if 'instances' in self.gnr_config['gnr.environment_xml']:
             for path, instance_template in self.gnr_config.digest(
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
