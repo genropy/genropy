@@ -8,7 +8,7 @@ import pytz
 import mimetypes
 from collections import defaultdict
 
-from gnr.core.gnrlang import boolean,objectExtract
+from gnr.core.gnrlang import boolean
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify
 from gnr.core.gnrdecorator import public_method,extract_kwargs
