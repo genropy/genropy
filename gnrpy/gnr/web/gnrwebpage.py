@@ -1222,6 +1222,8 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
             kwargs['debug_py'] = self.debug_py
+        if self.site.debugpy:
+            kwargs['debugpy'] = self.site.debugpy
 
         if self.isDeveloper():
             kwargs['isDeveloper'] = True
