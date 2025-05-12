@@ -56,6 +56,7 @@ class BagToHtml(object):
     grid_footer_height = 0
     grid_body_adjustment = 0
     grid_col_headers = None
+    grid_width = None
     grid_col_headers_height = 4
     grid_col_widths = None
     grid_style_cell = None
