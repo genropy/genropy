@@ -1,5 +1,4 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnrpkg.adm.app_store_helpers import app_store_links
 
 info = {
     "code":'ios_qrcode',
@@ -8,12 +7,11 @@ info = {
 }       
 
 def is_enabled(page):
-    return app_store_links.get_ios_link(page)
-       
+    return page.application.config['mobile_app.ios?store_url']
 
 class Formlet(BaseComponent):
     def flt_main(self,pane):
-        url = app_store_links.get_ios_link(self)
+        url = self.application.config['mobile_app.ios?store_url']
         pane.dataController(""";
             SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${url}`;""",
             url=url,_onBuilt=True)
