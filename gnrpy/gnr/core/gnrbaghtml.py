@@ -1020,18 +1020,28 @@ class BagToHtml(object):
                 self.splittedPages_data.append((pages_path,self.builder.toHtml()))
                 self.newBuilder()
 
-
-    def _docBody(self, body):
-        header_height = self.calcGridHeaderHeight()
-        wrapper = body
+    def _getGridWrapper(self,body,header_height):
+        header_height = header_height/2
+        extlayout = body.layout(border_width=0,top=0,left=0,right=0,bottom=0)
+        row =  extlayout.row()
+        if self.grid_width:
+            row.cell()
+            wrapper =row.cell(width=self.grid_width)
+            row.cell()
+        else:
+            wrapper =row.cell()
         if self.columnsets:
-            header_height = header_height/2
-            extlayout = body.layout(border_width=0,top=0,left=0,right=0,bottom=0)
             gp = self.gridLayoutParameters()
             colsetlayout = extlayout.row(height=header_height).cell().layout(left=gp.get('left'),right=gp.get('right'),top=0,bottom=0,
                                                 border_width=.3,border_color='transparent')
             self.prepareColumnsets(colsetlayout.row())
-            wrapper = extlayout.row().cell()
+        return wrapper
+
+    def _docBody(self, body):
+        header_height = self.calcGridHeaderHeight()
+        wrapper = body
+        if self.columnsets or self.grid_width:
+            wrapper = self._getGridWrapper(body,header_height)
         grid = self.gridLayout(wrapper)
         if header_height:
             self.gridHeader(grid.row(height=header_height))
@@ -1098,7 +1108,10 @@ class BagToHtml(object):
             pars = colNode.attr
             if pars.get('hidden'):
                 continue
-            row.cell(lbl=self.toText(pars.get('name','')), lbl_height=lbl_height, width=pars.get('mm_width'), style=pars.get('header_style'))
+            header_style = pars.get('header_style')
+            row.cell(lbl=self.toText(pars.get('name','')), lbl_height=lbl_height,
+                         width=pars.get('mm_width'), style=header_style,
+                         lbl_class=pars.get('lbl_class'))
 
     def gridFooter(self, row):
         """It can be overridden
