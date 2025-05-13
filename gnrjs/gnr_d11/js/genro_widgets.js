@@ -999,10 +999,8 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                             ext = parsed.file.split('.').pop().toLowerCase();
                         }
                     } catch(e) {}
-    
                     let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
                     useViewer = !ext || !extList.includes(ext);
-    
                     if (useViewer) {
                         v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
                     } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
@@ -3279,6 +3277,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
         var savedAttrs = objectExtract(attributes, 'fire_*');
         var label = objectPop(attributes,'label');
         attributes.innerHTML = attributes.innerHTML || label;
+        if(!attributes.tabindex){
+            attributes.tabindex = "0"
+        }
         savedAttrs['action'] = objectPop(attributes, 'action');
         savedAttrs['fire'] = objectPop(attributes, 'fire');
         savedAttrs['publish'] = objectPop(attributes, 'publish');

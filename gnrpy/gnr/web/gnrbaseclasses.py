@@ -342,6 +342,7 @@ class TableScriptToHtml(BagToHtmlWeb):
             return
         self.thermo_kwargs = thermo
         self.record_idx = record_idx
+        callingPdfPath = pdf if isinstance(pdf,str) else None
         if record=='*':
             record = None
         else:
@@ -364,9 +365,9 @@ class TableScriptToHtml(BagToHtmlWeb):
         if not pdf:
             return self.getHtmlUrl(os.path.basename(self.filepath)) if resultAs=='url' else result
         if not isinstance(result, list):
-            self.writePdf(docname=self.getDocName())
+            self.writePdf(docname=self.getDocName(),pdfpath=callingPdfPath)
         else:
-            self.writePdf(filepath=result,docname=self.getDocName())
+            self.writePdf(filepath=result,docname=self.getDocName(),pdfpath=callingPdfPath)
         if downloadAs:
             with open(self.pdfpath, 'rb') as f:
                 result = f.read()

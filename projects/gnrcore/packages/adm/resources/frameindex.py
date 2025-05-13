@@ -464,7 +464,7 @@ class FrameIndex(BaseComponent):
             self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
             indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
-            
+            page.data('splash_index',True,url=self.index_url)
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         

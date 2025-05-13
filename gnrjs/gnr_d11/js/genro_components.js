@@ -1962,6 +1962,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         var resource = objectPop(kw,'resource');
         var rpcCall = objectPop(kw,'rpcCall');
         var _delay = objectPop(kw,'_delay');
+        var avoidCache = objectPop(kw,'avoidCache');
         var emptyMessage = objectPop(kw,'emptyMessage','Missing');
 
         var _if = objectPop(kw,'_if');
@@ -1992,6 +1993,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         iframekw['rpcCall'] = rpcCall;
         iframekw['_delay'] = _delay;
         iframekw['documentClasses'] = true;
+        iframekw.avoidCache = avoidCache
         objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
         var iframe = frame._('ContentPane','center',{overflow:'hidden'})._('iframe',iframekw);
         var scriptkw = objectUpdate({'script':"SET #WORKSPACE.enabled = true; FIRE #WORKSPACE.reload_iframe;",'_delay':100,_if:_if,_else:'SET #WORKSPACE.enabled = false;'},kw);
