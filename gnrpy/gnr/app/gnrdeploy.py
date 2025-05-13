@@ -236,7 +236,7 @@ $ sudo journalctl -e -u %(service_name)s
 
 GNRSITERUNNERSERVICE_TPL = """
 [Unit]
-Description=GnrSupervisorSiteRunner Service
+Description=%(service_name) GnrSupervisorSiteRunner Service
 After=multi-user.target
 
 [Service]
@@ -244,7 +244,7 @@ Type=forking
 %(environments)s
 User=%(user)s
 ExecStart=%(binpath)s
-ExecReload=%(ctl_binpath)s reload
+ExecReload=kill -HUP $MAINPID
 ExecStop=%(ctl_binpath)s shutdown
 
 [Install]
@@ -260,9 +260,9 @@ def gnrsiterunnerServiceBuilder():
     service_name = 'gnrsiterunner'
     if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
         pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
-        environments = "Environment=VIRTUAL_ENV=%s" %pyprefix
+        environments = f"Environment=VIRTUAL_ENV={pyprefix}"
         binroot = os.path.join(pyprefix,'bin')
-        service_name = '%s_%s'%(service_name, os.path.basename(pyprefix))
+        service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
         environments = ''
     gnr_path = gnrConfigPath()
@@ -270,9 +270,10 @@ def gnrsiterunnerServiceBuilder():
     supervisor_log_path = os.path.join(gnr_path,'supervisord.log')
     binpath = '%s -c %s -l %s' % (daemon_path,supervisor_conf_path_ini,
         supervisor_log_path)
-    content = GNRSITERUNNERSERVICE_TPL %dict(environments=environments,binpath=binpath,
-            user=current_username, ctl_binpath=ctl_binpath)
-    service_name = '%s.service'%service_name
+    content = GNRSITERUNNERSERVICE_TPL % dict(environments=environments, binpath=binpath,
+                                              user=current_username, ctl_binpath=ctl_binpath,
+                                              service_name=service_name)
+    service_name = f'{service_name}.service'
     with open(service_name,'w') as service_file:
         service_file.write(content)
     print("""
