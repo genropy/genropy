@@ -230,9 +230,7 @@ class LoginComponent(BaseComponent):
             return dict(error=login['error'])
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
-        rootenv['user_group_code'] = next((v for v in (
-                                        getattr(self.avatar, 'group_code', None),
-                                        getattr(self.avatar, 'main_group_code', None)) if v), None)
+        rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
         rootenv['workdate'] = rootenv['workdate'] or self.workdate
         rootenv['login_date'] = date.today()
         rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
