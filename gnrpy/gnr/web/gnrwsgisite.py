@@ -227,7 +227,7 @@ class GnrWsgiSite(object):
         self._main_gnrapp = self.build_gnrapp(options=options)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
-        self.debugpy = options.debugpy
+        self.debugpy = options.debugpy if options else None
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
