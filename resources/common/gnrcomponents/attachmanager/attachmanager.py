@@ -311,7 +311,11 @@ class AttachManager(BaseComponent):
                                     onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
         sc.contentPane(pageName='video', overflow='hidden').video(src=src,height='100%',width='100%',
                                     border=0,controls=True)
-        parent.dataController("""       
+        parent.dataController("""
+        if (src.startsWith("data:")){
+            sc.switchPage('image');
+            return;
+        }
         let cleanSrc = src.split("?")[0].split("#")[0];
         let filename = cleanSrc.substring(cleanSrc.lastIndexOf('/') + 1);
         let ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
