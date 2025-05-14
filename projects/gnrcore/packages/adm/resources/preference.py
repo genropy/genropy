@@ -44,12 +44,23 @@ class AppPref(object):
         fb.textbox(value='^.test_deny_message',lbl='!![en]Deny message')
 
     def _adm_helpdesk(self,pane):
-        fb = pane.formbuilder(cols=1)
-        fb.textbox(value='^.url',lbl='!![en]Url',width='40em')
-        fb.textbox(value='^.user',lbl='!![en]User',width='20em')
-        fb.passwordTextBox(value='^.password',lbl='!![en]Password',width='15em')
-        fb.textbox(value='^.client_reference',lbl='!![en]Client reference')
-        fb.textbox(value='^.documentation_url',lbl='!![en]Documentation url',width='40em')
+        fb = pane.formbuilder(cols=1, padding='10px')
+        fb.textbox(value='^.url',
+                   lbl='!![en]Ticket system endpoint URL',
+                   width='40em',
+                   placeholder='http://<server>:<port>/erpy_dvlp/rpcticket')
+        fb.textbox(value='^.user',
+                   lbl='!![en]User',
+                   width='20em')
+        fb.passwordTextBox(value='^.password',
+                           lbl='!![en]Password',
+                           width='15em')
+        fb.textbox(value='^.client_reference',
+                   lbl='!![en]Client reference')
+        fb.div('', margin='10px')
+        fb.textbox(value='^.documentation_url',
+                   lbl='!![en]Documentation URL',
+                   width='40em')
         
     def _adm_privacy(self, bc):
         self.mixinComponent('privacy:PrivacyPreferencePane')

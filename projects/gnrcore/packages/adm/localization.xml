@@ -313,10 +313,11 @@
 <en_testing base="Testing" en="Testing" it="Test"></en_testing>
 <en_deny_message base="Deny message" en="Deny message" it="Rifiuta messaggio"></en_deny_message>
 <en_url base="Url" en="Url" it="url"></en_url>
+<en_ticket_system_endpoint_url base="Ticket system endpoint URL" en="Ticket system endpoint URL" it="URL (endpoint) del sistema di ticketing"></en_ticket_system_endpoint_url>
 <en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user>
 <en_password fr="Mot de passe" de="Passwort" en="Password" it="Password" base="Password"></en_password>
 <en_client_reference base="Client reference" en="Client reference" it="Riferimento del cliente"></en_client_reference>
-<en_documentation_url base="Documentation url" en="Documentation url" it="URL della documentazione"></en_documentation_url>
+<en_documentation_url base="Documentation URL" en="Documentation URL" it="URL della documentazione"></en_documentation_url>
 <en_connection_log_enabled base="Connection log enabled" it="Abilita log connessioni" en="Connection log enabled"></en_connection_log_enabled>
 <en_allow_password_recovery base="Allow password recovery" it="Abilita recupero password" en="Allow password recovery"></en_allow_password_recovery>
 <en_new_user_registration base="New user registration" it="Registrazione nuovo utente" en="New user registration"></en_new_user_registration>
