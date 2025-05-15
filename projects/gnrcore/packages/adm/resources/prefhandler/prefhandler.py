@@ -27,26 +27,39 @@ Component for preference handling:
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
+from collections import defaultdict
+from gnr.core.gnrlang import gnrImport
 
 
 class BasePreferenceTabs(BaseComponent):
     def _pr_makePreferenceTabs(self,parent,packages='*',datapath=None,context_dbstore=None,wdg='tab',**kwargs):
         if isinstance(packages,str):
             packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        packages = {pkgId:self.application.packages[pkgId] for pkgId in packages}
+        grouped_packages = defaultdict(list)
+        for pkgId,pkgObj in packages.items():
+            grouped_packages[pkgObj.attributes.get('prefgroup') or pkgObj.projectInfo['project?prefgroup'] or pkgObj.projectInfo['project?name'] or pkgId].append(pkgObj)
         tc = getattr(parent,f'{wdg}Container')(datapath=datapath,context_dbstore=context_dbstore,nodeId='PREFROOT',**kwargs)
-        for pkgId in packages:
-            pkg = self.application.packages[pkgId]
-            if pkg.disabled:
+        for pkgGroup,pkglist in grouped_packages.items():
+            if len(pkglist)==1:
+                self._fill_pkgpref(tc,pkglist[0],datapath=datapath)
                 continue
-            permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
-            auth = True
-            if permmissioncb:
-                auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
-            panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
-            if panecb and auth:
-                panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
-                        pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
+            innerTc = tc.tabContainer(title=pkgGroup,margin='2px')
+            for pkg in pkglist:
+                self._fill_pkgpref(innerTc,pkg,datapath=datapath)
         return tc
+
+    def _fill_pkgpref(self,tc,pkg,datapath=None):
+        if pkg.disabled:
+            return
+        permmissioncb = getattr(self, 'permission_%s' % pkg.id, None)
+        auth = True
+        if permmissioncb:
+            auth = self.application.checkResourcePermission(permmissioncb(), self.userTags)
+        panecb = getattr(self, 'prefpane_%s' % pkg.id, None)
+        if panecb and auth:
+            panecb(tc, title=pkg.attributes.get('name_full') or pkg.attributes.get('name_long') or pkg.id, datapath='.%s' % pkg.id, nodeId=pkg.id,
+                    pkgId=pkg.id,_anchor=True,sqlContextRoot='%s.%s' % (datapath,pkg.id))
 
 
 
@@ -196,4 +209,42 @@ class UserPrefHandler(BasePreferenceTabs):
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
         self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
     
-        
+
+class UserPrefMenu(BaseComponent):
+    @struct_method
+    def pm_userPrefMenu(self,parent,packages='*',iconClass=None):
+        if isinstance(packages,str):
+            packages = list(self.application.packages.keys()) if packages == '*' else packages.split(',')
+        menu = parent.menudiv(iconClass='iconbox gear')
+
+        for pkgId in packages:
+            pkg = self.application.packages[pkgId]
+            if pkg.disabled:
+                continue
+            m = gnrImport(self.getResource('preference',pkg=pkg.id,ext='py'),importAs=f'Pref_{pkg.id}')
+            if not m:
+                continue
+            resource = getattr(m,'MenuUserPreference',None)
+            instance = resource() if resource else None
+            if not instance:
+                continue
+            instance._page = self
+            linescb = [r for r in dir(instance) if not r.startswith('_')]
+            if not linescb:
+                continue
+            m = menu.menuline(pkg.attributes['name_long']).menu()
+            for cbname in linescb:
+                h = getattr(instance,cbname)
+                tags = getattr(h,'tags',None)
+                if tags and not self.application.checkResourcePermission(tags, self.userTags):
+                    continue
+                pars = h()
+                m.menuline(h.__doc__).dataController(pars.pop('action'),**pars)
+        menu.menuline('-')
+        menu.menuline('User preferences',action='genro.framedIndexManager.openUserPreferences()')
+
+
+    @struct_method
+    def pm_userSettings(self,parent,packages='*',iconClass=None):
+        parent.slotButton('User settings',action='genro.framedIndexManager.openUserSettings()',
+                            iconClass='iconbox gear')

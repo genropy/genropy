@@ -1192,16 +1192,16 @@ class GnrWebPage(GnrBaseWebPage):
         return handler
 
     def exception(self, exception, **kwargs):
-         """TODO
+        """TODO
 
-         :param exception: the exception raised.
-         :param record: TODO.
-         :param msg: TODO."""
-         if isinstance(exception, str):
-             exception = EXCEPTIONS.get(exception)
-             if not exception:
-                 raise exception
-         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
+        :param exception: the exception raised.
+        :param record: TODO.
+        :param msg: TODO."""
+        if isinstance(exception, str):
+            exception = EXCEPTIONS.get(exception)
+            if not exception:
+                raise exception
+        return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO

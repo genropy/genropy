@@ -446,6 +446,7 @@ class Server(object):
                     ssl_context=(self.options.ssl_cert,self.options.ssl_key)
                     extra_info.append(f'SSL mode: On {ssl_context}')
                     localhost = 'https://{host}'.format(host=self.options.ssl_cert.split('/')[-1].split('.pem')[0])
+
                 logger.info(f"Starting server - listening on {localhost}:{port}\t%s", ",".join(extra_info))
 
             if not is_running_from_reloader():
@@ -465,6 +466,13 @@ class Server(object):
             os.environ["WERKZEUG_SERVER_FD"] = str(srv.fileno())
 
             if self.reloader:
+                
+                # werkzeug reloader expects sys.argv without
+                # spaces for the reloader on python3.8
+                if " " in sys.argv[0]:
+                    cmd_name = sys.argv.pop(0).split()
+                    sys.argv = cmd_name + sys.argv
+
                 run_with_reloader(
                     srv.serve_forever,
                     #extra_files=extra_files,

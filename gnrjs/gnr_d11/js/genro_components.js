@@ -1962,6 +1962,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         var resource = objectPop(kw,'resource');
         var rpcCall = objectPop(kw,'rpcCall');
         var _delay = objectPop(kw,'_delay');
+        var avoidCache = objectPop(kw,'avoidCache');
         var emptyMessage = objectPop(kw,'emptyMessage','Missing');
 
         var _if = objectPop(kw,'_if');
@@ -1992,6 +1993,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         iframekw['rpcCall'] = rpcCall;
         iframekw['_delay'] = _delay;
         iframekw['documentClasses'] = true;
+        iframekw.avoidCache = avoidCache
         objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
         var iframe = frame._('ContentPane','center',{overflow:'hidden'})._('iframe',iframekw);
         var scriptkw = objectUpdate({'script':"SET #WORKSPACE.enabled = true; FIRE #WORKSPACE.reload_iframe;",'_delay':100,_if:_if,_else:'SET #WORKSPACE.enabled = false;'},kw);
@@ -5362,7 +5364,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         kw = sourceNode.evaluateOnNode(kw);
         var popup = objectPop(kw,'popup');
         var values = objectPop(kw,'values');
-        var codeSeparator = objectPop(kw,'codeSeparator');
+        var customCodeSeparator = objectPop(kw,'codeSeparator');
+        var codeSeparator = customCodeSeparator;
         var tb;
         var gnrwdg = sourceNode.gnrwdg;
         var has_code;
@@ -5379,10 +5382,9 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         }
         if(values instanceof gnr.GnrBag){
             has_code = true;
+        }else if (values){
+            has_code = codeSeparator?values.indexOf(codeSeparator)>=0:false;
         }else{
-            has_code = (codeSeparator && values)?values.indexOf(codeSeparator)>=0:false;
-        }
-        if(!values){
             var table = objectPop(originalKwargs,'table');
             if(table || gnrwdg.remoteValuesRpc){
                 var hierarchical = objectPop(kw,'hierarchical');
@@ -5428,6 +5430,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
                     gnrwdg.has_code = (codeSeparator && v)?v.indexOf(codeSeparator)>=0:false;
                     gnrwdg.setValues(v);
                 }
+            }else{
+                has_code = customCodeSeparator?true:false;
             }
         }
         var rootNode = sourceNode;
@@ -5941,6 +5945,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             slotKw = objectExtract(kw,slot+'_*');
             if(slotKw.width){
                 cell.getParentNode().attr['width'] = slotKw.width;
+                slotKw._original_width = slotKw.width;
                 slotKw.width = '100%';
             }
             if(slotKw.text_align){
@@ -6039,7 +6044,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             searchId = searchCode+'_searchbox';
         }
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
-                            'width':objectPop(slotKw,'width'),search_kw:slotKw});
+                            'width':objectPop(slotKw,'_original_width'),search_kw:slotKw});
     },
 
     slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){

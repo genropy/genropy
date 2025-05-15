@@ -101,16 +101,18 @@ const LoginComponent = {
                     genro.gotoURL(startPage);
                     return
                 }
+                let kwreload = {...genro.startArgs};
+                objectPop(kwreload,'gnrtoken');
                 if(doLogin){
                     let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
                     if(singlepage && !standAlonePage){
-                        genro.gotoURL(genro.addParamsToUrl(singlepage,genro.startArgs));
+                        genro.gotoURL(genro.addParamsToUrl(singlepage,kwreload));
                     }else{
                         genro.pageReload();
                     }
                 }else{
                     //different context page
-                    let kwreload = {page_id:genro.page_id,...genro.startArgs};
+                    kwreload.page_id = genro.page_id;
                     objectPop(kwreload,'new_window');
                     genro.pageReload(kwreload);
                 }

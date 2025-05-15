@@ -1230,15 +1230,19 @@ var gnrformatter = {
         if(format){
             if(format.indexOf(';')>=0){
                 var formats = format.split(';'); //format='#0,00;-;(#0,00)'
-                if(value===0){
-                    return formats[1];
+                let positive_format = formats[0];
+                let negative_format = `-${positive_format}`;
+                let zero_format = null;
+                if(formats.length>1){
+                    zero_format = formats[1];
                 }
-                if(value<0 && formats.length>2){
-                    format = formats[2];
-                    value = -value;
-                }else{
-                    format = formats[0];
+                if(formats.length>2 && formats[2]){
+                    negative_format = formats[2];
                 }
+                if(zero_format!==null && value===0){
+                    return zero_format;
+                }
+                format = `${positive_format};${negative_format}`;
             }
             if(standard_format.indexOf(format)>=0){
                 opt.type = format;

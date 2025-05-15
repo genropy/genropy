@@ -236,7 +236,7 @@ $ sudo journalctl -e -u %(service_name)s
 
 GNRSITERUNNERSERVICE_TPL = """
 [Unit]
-Description=GnrSupervisorSiteRunner Service
+Description=%(service_name) GnrSupervisorSiteRunner Service
 After=multi-user.target
 
 [Service]
@@ -244,7 +244,7 @@ Type=forking
 %(environments)s
 User=%(user)s
 ExecStart=%(binpath)s
-ExecReload=%(ctl_binpath)s reload
+ExecReload=kill -HUP $MAINPID
 ExecStop=%(ctl_binpath)s shutdown
 
 [Install]
@@ -260,9 +260,9 @@ def gnrsiterunnerServiceBuilder():
     service_name = 'gnrsiterunner'
     if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
         pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
-        environments = "Environment=VIRTUAL_ENV=%s" %pyprefix
+        environments = f"Environment=VIRTUAL_ENV={pyprefix}"
         binroot = os.path.join(pyprefix,'bin')
-        service_name = '%s_%s'%(service_name, os.path.basename(pyprefix))
+        service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
         environments = ''
     gnr_path = gnrConfigPath()
@@ -270,9 +270,10 @@ def gnrsiterunnerServiceBuilder():
     supervisor_log_path = os.path.join(gnr_path,'supervisord.log')
     binpath = '%s -c %s -l %s' % (daemon_path,supervisor_conf_path_ini,
         supervisor_log_path)
-    content = GNRSITERUNNERSERVICE_TPL %dict(environments=environments,binpath=binpath,
-            user=current_username, ctl_binpath=ctl_binpath)
-    service_name = '%s.service'%service_name
+    content = GNRSITERUNNERSERVICE_TPL % dict(environments=environments, binpath=binpath,
+                                              user=current_username, ctl_binpath=ctl_binpath,
+                                              service_name=service_name)
+    service_name = f'{service_name}.service'
     with open(service_name,'w') as service_file:
         service_file.write(content)
     print("""
@@ -505,7 +506,11 @@ class PathResolver(object):
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
-            instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
+            template_config_path = os.path.join(self.instance_name_to_path(template),'config','instanceconfig.xml')
+            if os.path.exists(template_config_path):
+                instance_config.update(normalizePackages(Bag(template_config_path)) or Bag())
+            else:
+                instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
         if 'instances' in self.gnr_config['gnr.environment_xml']:
             for path, instance_template in self.gnr_config.digest(
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
@@ -825,6 +830,7 @@ class PackageMaker(object):
         self.helloworld = helloworld
         self.package_path = os.path.join(self.base_path, self.package_name)
         self.model_path = os.path.join(self.package_path, 'model')
+        self.cli_path = os.path.join(self.package_path, 'cli')
         self.lib_path = os.path.join(self.package_path, 'lib')
         self.webpages_path = os.path.join(self.package_path, 'webpages')
         self.resources_path = os.path.join(self.package_path, 'resources')
@@ -833,10 +839,15 @@ class PackageMaker(object):
         
     def do(self):
         """Creates the files of the ``packages`` folder"""
-        for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
+        for path in (self.package_path, self.model_path, self.cli_path,
+                     self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
                 os.makedirs(path)
 
+        # create an emptydir file allowing an empty cli directory to be
+        # pushed to repository
+        open(os.path.join(self.cli_path, ".emptydir"), "w").close()
+        
         # create an empty requirements.txt file, hopefully developers
         # will be reminded by its presence that dependencies can be added
         # in this file
