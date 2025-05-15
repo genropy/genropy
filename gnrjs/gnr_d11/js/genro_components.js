@@ -1957,7 +1957,8 @@ dojo.declare("gnr.widgets.DownloadButton", gnr.widgets.gnrwdg, {
 
 dojo.declare('gnr.widgets.CharCounterTextarea',gnr.widgets.gnrwdg,{
     createContent:function(sourceNode,kw){
-        let textArewKw = objectExtract(kw,'height,width');
+        let textArewKw = objectExtract(kw,'height');
+        textArewKw.style ='width:100%;box-sizing: border-box;padding:3px';
         sourceNode.attr.value = objectPop(kw,'value');
         textArewKw._absValuePath = sourceNode.absDatapath(sourceNode.attr.value)
         const box = sourceNode._('div','wrapper',{_workspace:true,...kw}); 
