@@ -22,6 +22,7 @@ class Table(object):
         tbl =  pkg.table('message', rowcaption='$to_address,$subject', pkey='id',
                      name_long='!!Message', name_plural='!!Messages')
         self.sysFields(tbl,draftField=True,ldel=False)
+        tbl.subtable('user_messages',condition='$dest_user_id=:env_user_id')
         tbl.column('in_out', size='1', name_long='!!I/O', name_short='!!I/O',values='I:Input,O:Output')
         tbl.column('to_address',name_long='!!To',_sendback=True)
         tbl.column('from_address',name_long='!!From',_sendback=True)
