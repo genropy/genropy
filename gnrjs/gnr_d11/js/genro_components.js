@@ -1960,6 +1960,7 @@ dojo.declare('gnr.widgets.CharCounterTextarea',gnr.widgets.gnrwdg,{
         let textArewKw = objectExtract(kw,'height');
         textArewKw.style ='width:100%;box-sizing: border-box;padding:3px';
         sourceNode.attr.value = objectPop(kw,'value');
+        objectUpdate(sourceNode.attr,kw);
         textArewKw._absValuePath = sourceNode.absDatapath(sourceNode.attr.value)
         const box = sourceNode._('div','wrapper',{_workspace:true,...kw}); 
         textArewKw.connect_input = function(evt){
