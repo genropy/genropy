@@ -440,7 +440,7 @@ class TableBase(object):
         if draftField:
             draftField = '__is_draft' if draftField is True else draftField
             tbl.attributes['draftField'] = draftField
-            tbl.column(draftField, dtype='B', name_long='!![en]Is Draft',group=group,_sysfield=True,_sendback=True)
+            tbl.column(draftField, dtype='B', name_long='!![en]Is Draft',group=group,_sysfield=True,_sendback=True,indexed=True)
         if invalidFields or invalidRelations:
             if invalidFields:
                 tbl.attributes['invalidFields'] = '__invalid_fields'
@@ -1648,6 +1648,7 @@ class AttachmentTable(GnrDboTable):
             END""",group='_')
         tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',
                         outdatedWatermark = tbl.attributes.get('outdatedWatermark'),
+                        required_columns='$external_url,$filepath',
                         static=True)
         if hasattr(self,'atc_types'):
             tbl.column('atc_type',values=self.atc_types())
@@ -1662,7 +1663,7 @@ class AttachmentTable(GnrDboTable):
         return False
 
     def filepath_endpoint_url(self,record,field=None):
-        if record['external_url']:
+        if record.get('external_url'):
             return record['external_url']
         filepath = record['filepath']
         if not filepath:

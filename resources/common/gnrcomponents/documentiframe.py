@@ -26,7 +26,7 @@ class DocumentIframe(BaseComponent):
                                         **kwargs)
 
         parent.onDbChanges("""
-            if(dbChanges.some(c=>c.pkey=ordine_id)){
+            if(dbChanges.some(c=>c.pkey=pkey)){
                 iframeNode.setRelativeData('.refresh_ts',new Date());
             }
         """, table=table, pkey='=#FORM.pkey',iframeNode=iframe)
@@ -34,8 +34,9 @@ class DocumentIframe(BaseComponent):
             
     @struct_method
     def dc_documentIframe(self,parent,src=None,outdatedPath=None,**kwargs):
-        frame = parent.framePane(nodeId='documentIframe_#',
-                                datapath=f'#FORM.documentIframe_{id(parent)}')
+        idx= id(parent)
+        frame = parent.framePane(frameCode=f'documentIframe_{idx}',
+                                datapath=f'#FORM.documentIframe_{idx}')
         kwargs['src_refresh'] = '^.refresh_ts'
         if outdatedPath:
             kwargs['src_version'] = '^.selectedVersion'

@@ -1955,6 +1955,49 @@ dojo.declare("gnr.widgets.DownloadButton", gnr.widgets.gnrwdg, {
 
 });
 
+dojo.declare('gnr.widgets.CharCounterTextarea',gnr.widgets.gnrwdg,{
+    createContent:function(sourceNode,kw){
+        let textArewKw = objectExtract(kw,'height');
+        textArewKw.style ='width:100%;box-sizing: border-box;padding:3px';
+        sourceNode.attr.value = objectPop(kw,'value');
+        objectUpdate(sourceNode.attr,kw);
+        textArewKw._absValuePath = sourceNode.absDatapath(sourceNode.attr.value)
+        const box = sourceNode._('div','wrapper',{_workspace:true,...kw}); 
+        textArewKw.connect_input = function(evt){
+            const tgt = evt.target; 
+            let my_text = tgt.value; 
+            this.setRelativeData(this.attr._absValuePath,my_text);
+        };
+        
+        box._('textarea','textarea',textArewKw);
+        let last_line = box._('div',{font_style:'italic', font_size:'8pt'});
+        last_line._('span',{innerHTML:_T('Remaining: ')})
+        last_line._('span',{innerHTML:'^#WORKSPACE.rem',color:'^#WORKSPACE.clr'})
+        let startValue = sourceNode.getAttributeFromDatasource('value');
+        if(startValue){
+            setTimeout(()=>{
+                sourceNode.gnrwdg.setValue(startValue);
+            },1)
+        }
+        return box
+    },
+    gnrwdg_setValue:function(value,kw,trigger_reason){
+        const textAreaNode = this.sourceNode.getValue().getNode('wrapper.textarea');
+        const currattr = this.sourceNode.currentAttributes(); 
+        const my_text = currattr.value;
+        const max_len = currattr.max_len || 80; 
+        const sound = currattr.sound || 'ping'; 
+        const color_ok = currattr.color_ok || 'grey'; 
+        const color_wg = currattr.color_wg || 'red'; 
+        const remaining = max_len - my_text.length; 
+        textAreaNode.setRelativeData('#WORKSPACE.rem',remaining);
+        textAreaNode.setRelativeData('#WORKSPACE.clr',(remaining<max_len/10)?color_wg:color_ok);
+        textAreaNode.domNode.value = my_text;
+        if(remaining<3){ genro.playSound(sound) }; 
+        if(remaining<0){ this.sourceNode.setRelativeData(this.sourceNode.attr.value,my_text.slice(0,max_len)) };
+    },
+});
+
 dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw){
         var framekw = objectExtract(kw,'frame_*');
@@ -1962,6 +2005,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         var resource = objectPop(kw,'resource');
         var rpcCall = objectPop(kw,'rpcCall');
         var _delay = objectPop(kw,'_delay');
+        var avoidCache = objectPop(kw,'avoidCache');
         var emptyMessage = objectPop(kw,'emptyMessage','Missing');
 
         var _if = objectPop(kw,'_if');
@@ -1992,6 +2036,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         iframekw['rpcCall'] = rpcCall;
         iframekw['_delay'] = _delay;
         iframekw['documentClasses'] = true;
+        iframekw.avoidCache = avoidCache
         objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
         var iframe = frame._('ContentPane','center',{overflow:'hidden'})._('iframe',iframekw);
         var scriptkw = objectUpdate({'script':"SET #WORKSPACE.enabled = true; FIRE #WORKSPACE.reload_iframe;",'_delay':100,_if:_if,_else:'SET #WORKSPACE.enabled = false;'},kw);

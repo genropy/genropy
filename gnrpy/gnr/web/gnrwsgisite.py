@@ -379,12 +379,14 @@ class GnrWsgiSite(object):
                     for k,v in list(attr.items()):
                         self.extraFeatures['%s_%s' %(n.label,k)] = v
 
-    def serviceList(self,service_type):
+    def serviceList(self, service_type):
         return self.services_handler(service_type).configurations()
 
 
-    def getService(self, service_type=None,service_name=None, **kwargs):
-        return self.services_handler.getService(service_type=service_type,service_name=service_name or service_type, **kwargs)
+    def getService(self, service_type=None, service_name=None, **kwargs):
+        return self.services_handler.getService(service_type=service_type,
+                                                service_name=service_name or service_type,
+                                                **kwargs)
 
     def addStatic(self, static_handler_factory, **kwargs):
         """TODO

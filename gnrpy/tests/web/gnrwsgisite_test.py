@@ -1,8 +1,8 @@
 import os
-
 import pytest
 
 import gnr.web.gnrwsgisite as gws
+
 from webcommon import BaseGnrTest
 from utils import WSGITestClient, ExternalProcess
 
@@ -16,6 +16,7 @@ class TestGnrWsgiSite(BaseGnrTest):
             cls.site_name = 'gnrdevelop'
             cls.site = gws.GnrWsgiSite(cls.site_name, site_name=cls.site_name)
             cls.client = WSGITestClient(cls.site)
+            cls.services_handler = cls.site.services_handler
         except Exception as e:
             # re-raise to take care of the problem, but ensuring the external
             # process is being terminated.
@@ -52,10 +53,21 @@ class TestGnrWsgiSite(BaseGnrTest):
             r = self.site.storagePath(storage, storage_path)
             assert r.endswith(storage_path)
  
-    def test_services(self):
+    def test_service_handler(self):
+        # non existing service
+        print("UNO")
         with pytest.raises(KeyError) as excinfo:
-            r = self.site.services_handler("foobar").configurations()
-                
+            r = self.services_handler("foobar").configurations()
+            
+        r = self.site.getService("foobar", "goober")
+        assert r is None
+        r = self.site.getService("git", "gitpython")
+        assert r is None
+        print(self.site.serviceList("git"))
+        print("DUE")
+        assert "git" in self.services_handler.service_types
+        print("TRE")
+
     def test_auxinstances(self):
         with pytest.raises(Exception) as excinfo:
             r = self.site.getAuxInstance("babbala")
