@@ -103,8 +103,7 @@ def cellFromField(field,tableobj,checkPermissions=None):
         if edit is not True:
             validations.update(edit)
         kwargs['edit'] = validations
-    #if 'values' in fldobj.attributes:
-    #    kwargs['values']=fldobj.attributes['values']
+
     if hasattr(fldobj,'relatedColumnJoiner'):
         columnjoiner = fldobj.relatedColumnJoiner()
         if columnjoiner:
@@ -214,7 +213,8 @@ def struct_method(func_or_name):
         existing_name = GnrDomSrc._external_methods.get(name, None)
         if existing_name and (existing_name != func_name):
             # If you want to override a struct_method, be sure to call its implementation method in the same way as the original.
-            # (Otherwise, the result would NOT  be well defined due to uncertainty in the mixin process at runtime plus the fact that the GnrDomSrc is global)
+            # (Otherwise, the result would NOT  be well defined due to uncertainty in the mixin process
+            # at runtime plus the fact that the GnrDomSrc is global)
             raise StructMethodError(
                     "struct_method %s is already tied to implementation method %s" % (repr(name), repr(existing_name)))
         GnrDomSrc._external_methods[name] = func_name
@@ -384,8 +384,7 @@ class GnrDomSrc(GnrStructData):
             self.checkNodeId(kwargs['nodeId'])
         sourceNodeValueAttr = dictExtract(kwargs,'attr_')
         serverpath = sourceNodeValueAttr.get('serverpath')
-       # dbenv = sourceNodeValueAttr.get('dbenv')
-        if serverpath: #or dbenv:
+        if serverpath: 
             clientpath = kwargs.get('value') or kwargs.get('src') or kwargs.get('innerHTML')
             if clientpath:
                 clientpath = clientpath.replace('^','').replace('=','')
@@ -689,15 +688,6 @@ class GnrDomSrc(GnrStructData):
     def semaphore(self, value=None,  **kwargs):
         return self.child('div', innerHTML=value, dtype='B', format='semaphore', **kwargs)
         
-   #def column(self, label='', field='', expr='', name='', **kwargs):
-   #    if not 'columns' in self:
-   #        self['columns'] = Bag()
-   #    if not field:
-   #        field = label.lower()
-   #    columns = self['columns']
-   #    name = 'C_%s' % str(len(columns))
-   #    columns.setItem(name, None, label=label, field=field, expr=expr, **kwargs)
-        
     def tooltip(self, label='', **kwargs):
         """Create a :ref:`tooltip` and return it
         
@@ -736,11 +726,7 @@ class GnrDomSrc(GnrStructData):
         if serverpath:
             self.page.addToContext(serverpath=serverpath,value=value,attr=kwargs)
             kwargs['serverpath'] = serverpath
-        #shared_id = kwargs.pop('shared_id',None)
-        #if shared_id:
-        #    shared_expire = kwargs.pop('shared_expire',0)
-        #    self.page.asyncServer.subscribeToSharedObject(shared_id=shared_id,page=page,expire=shared_expire)
-#
+
         return self.child('data', __cls=className,childcontent=value,_returnStruct=False, path=path, **kwargs)
         
     def script(self, content='', **kwargs):
@@ -889,11 +875,6 @@ class GnrDomSrc(GnrStructData):
         if kw.get('in_cache'):
             return
         return self.page.pageSource().data(f"gnr.helpers.{kw['path']}",data)
-       #return self.page.pageSource().child('dataRemote', path=f"gnr.helpers.{kw['path']}", 
-       #                                    method='getHelperData',
-       #                                    childcontent=childcontent,_resolved=True, 
-       #                                    table=table,name=name)
-
 
     def formbuilder(self,*args,**kwargs):
         dbtable = kwargs.get('table') 
@@ -999,7 +980,6 @@ class GnrDomSrc(GnrStructData):
         commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
         commonKwargs = {k:kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
 
-        #commonKwargs = dict([(k, kwargs.pop(k)) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix])
         tbl = self.child('table', _class='%s %s' % (tblclass, _class), **kwargs).child('tbody')
         formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
         excludeCols = kwargs.pop('excludeCols',None)
@@ -1091,8 +1071,6 @@ class GnrDomSrc(GnrStructData):
                 zoomPage = linktable.replace('.', '/')
             result['lbl_href'] = '^.%s?zoomUrl' % fld
             result['zoomPage'] = zoomPage
-        #elif attr.get('mode')=='M':
-        #    result['tag']='bagfilteringtable'
         elif dtype == 'A':
             result['size'] = fieldobj.print_width or 10
             result['tag'] = 'input'
@@ -1111,50 +1089,83 @@ class GnrDomSrc(GnrStructData):
         
 class GnrDomSrc_dojo_11(GnrDomSrc):
     """TODO"""
-    htmlNS = ['a', 'abbr', 'acronym', 'address', 'area', 'b', 'base', 'bdo', 'big', 'blockquote',
-              'body', 'br', 'button', 'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del',
-              'div', 'dfn', 'dl', 'dt', 'em', 'fieldset', 'frame', 'frameset',
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i', 'iframe','htmliframe','flexbox','gridbox','labledbox', 'img', 'input',
-              'ins', 'kbd', 'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes', 'noscript',
-              'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp',
-              'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
-              'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul', 'audio', 'video', 'var', 'embed','canvas']
-              
-    dijitNS = ['CheckBox', 'RadioButton', 'ComboBox', 'CurrencyTextBox', 'DateTextBox','DatetimeTextBox',
-               'InlineEditBox', 'NumberSpinner', 'NumberTextBox', 'HorizontalSlider', 'VerticalSlider', 'Textarea',
-               'TextBox', 'TimeTextBox',
-               'ValidationTextBox', 'AccordionContainer', 'AccordionPane', 'ContentPane', 'LayoutContainer',
-               'BorderContainer',
-               'SplitContainer', 'StackContainer', 'TabContainer', 'Button', 'ToggleButton', 'ComboButton',
-               'DropDownButton', 'FilteringSelect',
-               'Menu', 'Menubar', 'MenuItem', 'Toolbar', 'Dialog', 'ProgressBar', 'TooltipDialog',
-               'TitlePane', 'Tooltip', 'ColorPalette', 'Editor', 'Tree', 'SimpleTextarea', 'MultiSelect','ToolbarSeparator']
-               
-    dojoxNS = ['FloatingPane', 'Dock', 'RadioGroup', 'ResizeHandle', 'SizingPane', 'BorderContainer',
-               'FisheyeList', 'Loader', 'Toaster', 'FileInput', 'fileInputBlind', 'FileInputAuto', 'ColorPicker',
-               'SortList', 'TimeSpinner', 'Iterator', 'ScrollPane',
-               'Gallery', 'Lightbox', 'SlideShow', 'ThumbnailPicker', 'Chart',
-               'Deck', 'Slide', 'GoogleMap','GoogleChart', 'Calendar', 'GoogleChart', 'GoogleVisualization',
-               'DojoGrid', 'VirtualGrid', 'VirtualStaticGrid']
-               
-    #gnrNS=['menu','menuBar','menuItem','Tree','Select','DbSelect','Combobox','Data',
-    #'Css','Script','Func','BagFilteringTable','DbTableFilter','TreeCheck']
-    gnrNS = ['DbSelect','CallBackSelect','RemoteSelect','PackageSelect','TableSelect', 'DbComboBox', 'DbView', 'DbForm', 'DbQuery', 'DbField',
-             'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
-             'gridView', 'viewHeader', 'viewRow', 'script', 'func',
-             'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
-             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
-             'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',
-            "GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
+    htmlNS = [
+        'a', 'abbr', 'acronym', 'address', 'area', 'b', 'base',
+        'bdo', 'big', 'blockquote', 'body', 'br', 'button', 'canvas',
+        'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del',
+        'div', 'dfn', 'dl', 'dt', 'em', 'embed', 'fieldset', 'frame',
+        'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr',
+        'html', 'i', 'iframe','htmliframe',
+        'flexbox','gridbox','labledbox', 'img', 'input', 'ins', 'kbd',
+        'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes',
+        'noscript', 'object', 'ol', 'optgroup', 'option', 'p',
+        'param', 'pre', 'q', 'samp', 'select', 'small', 'span',
+        'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
+        'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'ul',
+        'audio', 'video', 'var',
+    ]
+    
+    dijitNS = [
+        'CheckBox', 'RadioButton', 'ComboBox',
+        'CurrencyTextBox', 'DateTextBox','DatetimeTextBox',
+        'InlineEditBox', 'NumberSpinner', 'NumberTextBox',
+        'HorizontalSlider', 'VerticalSlider', 'Textarea', 'TextBox',
+        'TimeTextBox', 'ValidationTextBox', 'AccordionContainer',
+        'AccordionPane', 'ContentPane', 'LayoutContainer',
+        'BorderContainer', 'SplitContainer', 'StackContainer',
+        'TabContainer', 'Button', 'ToggleButton', 'ComboButton',
+        'DropDownButton', 'FilteringSelect', 'Menu', 'Menubar',
+        'MenuItem', 'Toolbar', 'Dialog', 'ProgressBar',
+        'TooltipDialog', 'TitlePane', 'Tooltip', 'ColorPalette',
+        'Editor', 'Tree', 'SimpleTextarea',
+        'MultiSelect','ToolbarSeparator'
+    ]
+    
+    dojoxNS = [
+        'FloatingPane', 'Dock', 'RadioGroup', 'ResizeHandle',
+        'SizingPane', 'BorderContainer', 'FisheyeList', 'Loader',
+        'Toaster', 'FileInput', 'fileInputBlind', 'FileInputAuto',
+        'ColorPicker', 'SortList', 'TimeSpinner', 'Iterator',
+        'ScrollPane', 'Gallery', 'Lightbox', 'SlideShow',
+        'ThumbnailPicker', 'Chart', 'Deck', 'Slide',
+        'GoogleMap','GoogleChart', 'Calendar', 'GoogleChart',
+        'GoogleVisualization', 'DojoGrid', 'VirtualGrid',
+        'VirtualStaticGrid'
+    ]
+
+    gnrNS = [
+        'BagNodeEditor', 'BoxForm', 'CallBackSelect',
+        'CharCounterTextarea', 'ChartPane', 'CheckBoxText',
+        'CodeEditor', 'ColorFiltering', 'ColorTextBox', 'ComboArrow',
+        'ComboMenu', 'DbComboBox', 'DbField', 'DbForm', 'DbQuery',
+        'DbSelect', 'DbView', 'DocItem', 'DocumentFrame',
+        'DownloadButton', 'DropUploader', 'DropUploaderGrid',
+        'ExtendedCkeditor', 'FieldsTree', 'FlatBagEditor',
+        'FormStore', 'FrameForm', 'FramePane', 'GeoCoderField',
+        'GeoSearch', 'GridGallery', 'IframeDiv', 'ImgUploader',
+        'LightButton', 'MenuDiv', 'ModalUploader', 'MultiButton',
+        'MultiLineTextbox', 'MultiValueEditor', 'PackageSelect',
+        'PagedHtml', 'Palette', 'PaletteBagNodeEditor',
+        'PaletteChart', 'PaletteGroup', 'PaletteImporter',
+        'PaletteMap', 'PalettePane', 'PaletteTree', 'PasswordTextBox',
+        'QuickEditor', 'QuickGrid', 'QuickTree', 'RadioButtonText',
+        'RemoteSelect', 'SearchBox', 'Semaphore', 'SharedObject',
+        'SlotButton', 'StackButtons', 'StaticMap', 'TableSelect',
+        'TemplateChunk', 'TextboxMenu', 'TooltipPane', 'TreeFrame',
+        'TreeGrid', 'UserObjectBar', 'UserObjectLayout',
+        'VideoPickerPalette', 'VideoPlayer', 'bagEditor', 'chartjs',
+        'ckEditor', 'codemirror', 'dataController', 'dataFormula',
+        'dataRemote', 'dataRpc', 'dataScript', 'dygraph',
+        'dynamicGrid', 'fileUploader', 'fullcalendar', 'func',
+        'gridEditor', 'gridView', 'mdeditor', 'protovis', 'qrscanner',
+        'script', 'staticGrid', 'tinyMCE', 'viewHeader', 'viewRow'
+    ]
+
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in gnrNS]))
-        
-    #def framePane(self,slots=None,**kwargs):
-    #    self.child('FramePane',slots='top,left,bottom,right',**kwargs)
+    
         
     def dataFormula(self, path, formula, **kwargs):
         """Create a :ref:`dataformula` and returns it. dataFormula allows to calculate
@@ -1165,13 +1176,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param **kwargs: formula parameters and other ones (:ref:`css`, etc)
         """
         return self.child('dataFormula', path=path, formula=formula, **kwargs)
-        
+    
     def dataScript(self, path, script, **kwargs):
         """.. warning:: deprecated since version 0.7. It has been substituted
                         by :ref:`datacontroller` and :ref:`dataformula`
         """
         return self.child('dataScript', path=path, script=script, **kwargs)
-        
+    
     def dataController(self, script=None, **kwargs):
         """Create a :ref:`datacontroller` and returns it. dataController allows to
         execute Javascript code
@@ -1181,7 +1192,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       check the controllers' :ref:`controllers_attributes` section
         """
         return self.child('dataController', script=script, **kwargs)
-        
+    
     def dataRpc(self, pathOrMethod, method=None, **kwargs):
         """Create a :ref:`datarpc` and returns it. dataRpc allows the client to make a call
         to the server to perform an action and returns it.
@@ -1199,7 +1210,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         else:
             path = pathOrMethod
         return self.child('dataRpc', path=path, method=method, **kwargs)
-        
+    
     def selectionstore_addcallback(self, *args, **kwargs):
         """TODO"""
         self.datarpc_addcallback(*args,**kwargs)
@@ -1211,7 +1222,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param **kwargs: TODO"""
         self.child('callBack',childcontent=cb,**kwargs)
         return self
-        
+    
     def datarpc_adderrback(self, cb, **kwargs):
         """TODO
         
@@ -1219,7 +1230,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         self.child('callBack',childcontent=cb,_isErrBack=True,**kwargs)
         return self
-        
+    
     def slotButton(self, label=None, **kwargs):
         """Return a :ref:`slotbutton`. A slotbutton is a :ref:`button` with some preset attributes
         to create rapidly a button with an icon (set through the *iconClass* attribute) and with
@@ -1237,7 +1248,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                          check the :ref:`datapath` page
         """
         return self.child(tag='SlotButton',label=label,**kwargs)
-        
+    
     def virtualSelectionStore(self, table=None, storeCode=None, storepath=None, columns=None, **kwargs):
         """TODO
         
@@ -1275,14 +1286,12 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         attr = self.attributes
         parentTag = attr.get('tag')
-        #columns = columns or '==gnr.getGridColumns(this);'
         parent = self
         if parentTag:
             parentTag = parentTag.lower()
-        #storepath = storepath or attr.get('storepath') or '.grid.store'
         if storeCode:
             storepath = storepath or 'gnr.stores.%s.data' %storeCode            
-        
+            
         if parentTag =='includedview' or  parentTag =='newincludedview':
             attr['table'] = table
             storepath = storepath or attr.get('storepath') or '.store'
@@ -1294,11 +1303,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['store'] = storeCode
             attr['table'] = table
             storepath = storepath or attr.get('storepath') or '.store'
-        nodeId = '%s_store' %storeCode
+            nodeId = '%s_store' %storeCode
         return parent.child('SelectionStore',storepath=storepath, table=table, nodeId=nodeId,columns=columns,handler=handler,**kwargs)
-        #ds = parent.dataSelection(storepath, table, nodeId=nodeId,columns=columns,**kwargs)
-        #ds.addCallback('this.publish("loaded",{itemcount:result.attr.rowCount}')
-
     
 
     def bagStore(self,table=None,storeCode=None,storepath=None,columns=None,_identifier=None,**kwargs):
@@ -1315,11 +1321,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         attr = self.attributes
         parentTag = attr.get('tag')
-        #columns = columns or '==gnr.getGridColumns(this);'
         parent = self
         if parentTag:
             parentTag = parentTag.lower()
-        #storepath = storepath or attr.get('storepath') or '.grid.store'
 
         if parentTag =='includedview' or  parentTag =='newincludedview':
             attr['table'] = attr.get('table') or table
@@ -1329,7 +1333,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['tag'] = 'newincludedview'
             if _identifier:
                 attr['identifier'] = _identifier
-            parent = self._storeParentFrame()
+                parent = self._storeParentFrame()
 
         if parentTag == 'palettegrid':            
             storeCode=storeCode or attr.get('paletteCode')
@@ -1337,9 +1341,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['table'] = table
             if _identifier:
                 attr['identifier'] = _identifier
-            storepath = storepath or attr.get('storepath') or '.store'
-        nodeId = '%s_store' %storeCode
-        #self.data(storepath,Bag())
+                storepath = storepath or attr.get('storepath') or '.store'
+                nodeId = '%s_store' %storeCode
         return parent.child('BagStore',storepath=storepath, nodeId=nodeId,_identifier=_identifier,**kwargs)
 
     def fsStore(self,folders=None,storepath=None,storeCode=None,include='*.xml',columns=None,**kwargs):
@@ -1360,7 +1363,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             storeCode=storeCode or attr.get('paletteCode')
             attr['store'] = storeCode
             storepath = storepath or attr.get('storepath') or '.store'
-        nodeId = '%s_store' %storeCode
+            nodeId = '%s_store' %storeCode
         return parent.child('SelectionStore',storepath=storepath,storeType='FileSystem',
                             nodeId=nodeId,method='app.getFileSystemSelection',
                             folders=folders,include=include,columns=columns,
@@ -1384,13 +1387,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             storeCode=storeCode or attr.get('paletteCode')
             attr['store'] = storeCode
             storepath = storepath or attr.get('storepath') or '.store'
-        nodeId = '%s_store' %storeCode
+            nodeId = '%s_store' %storeCode
         return parent.child('SelectionStore',storepath=storepath,storeType='RpcBase',
                             nodeId=nodeId,method=rpcmethod,**kwargs)
 
     def sharedObject(self,shared_path,shared_id=None,autoSave=None,autoLoad=None,**kwargs):
         return self.child(tag='SharedObject',shared_path=shared_path,shared_id=shared_id,autoSave=autoSave,autoLoad=autoLoad,**kwargs)
-        
+    
     def partitionController(self,partition_key=None,value=None,**kwargs):
         self.dataController(f"""
             let kw = {{}};
@@ -1399,7 +1402,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             genro.publish(kw,{{partition_value:value}});
         """,value=value,**kwargs)
         self.partitionSubscriber(partition_key)
-    
+        
     def partitionSubscriber(self,partition_key):
         self.data(f'current.{partition_key}',self.page.rootenv[f'current_{partition_key}'],serverpath=f'rootenv.current_{partition_key}',dbenv=True)
         self.dataFormula(f'current.{partition_key}','partition_value',
@@ -1413,9 +1416,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param table: the :ref:`database table <table>`"""
         self.page.subscribeTable(table,True)
         self.dataController("""var _isLocalPageId = genro.isLocalPageId(_node.attr.from_page_id); 
-                               %s""" % action,
-                               dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),
-                             **kwargs)
+        %s""" % action,
+        dbChanges="^gnr.dbchanges.%s" %table.replace('.','_'),
+        **kwargs)
 
 
     def dataSelection(self, path, table=None, method='app.getSelection', columns=None, distinct=None,
@@ -1448,14 +1451,14 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if not columns:
             if columnsFromView:
                 raise DeprecationWarning('columnsFromView is deprecated')
-                columns = '=grids.%s.columns' % columnsFromView #it is the view id
+            columns = '=grids.%s.columns' % columnsFromView #it is the view id
             else:
                 columns = '*'
                 
         return self.child('dataRpc', path=path, table=table, method=method, columns=columns,
                           distinct=distinct, where=where, order_by=order_by, group_by=group_by,
                           having=having, **kwargs)
-                          
+    
     def directoryStore(self, rootpath=None, storepath='.store', **kwargs):
         """TODO
         
@@ -1493,7 +1496,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                            check the :ref:`rpc_attributes` section
         """
         return self.child('dataRpc', path=path, table=table, pkey=pkey, method=method, **kwargs)
-        
+    
     def dataRemote(self, path, method,_resolved=None, **kwargs):
         """Create a :ref:`dataremote` and returns it. dataRemote is a synchronous :ref:`datarpc`:
         it calls a (specified) dataRspc as its resolver. When ``dataRemote`` is brought to the
@@ -1512,7 +1515,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             kw.update(resolved_kwargs)
             childcontent = method(**kw)
         return self.child('dataRemote', path=path, method=method,childcontent=childcontent,_resolved=_resolved, **kwargs)
-        
+    
     def dataResource(self, path, resource=None, ext=None, pkg=None):
         """Create a :ref:`dataresource` and returns it. dataResource is a :ref:`dataRemote`
         that allows... TODO
@@ -1552,7 +1555,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         datapath= 'gnr.palettes.%s' %paletteCode if datapath is None else datapath
         return self.child('PalettePane',paletteCode=paletteCode,datapath=datapath,**kwargs)
-        
+    
     def paletteTree(self, paletteCode, datapath=None, **kwargs):
         """Return a :ref:`palettetree`
         
@@ -1564,10 +1567,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         palette = self.child('PaletteTree',paletteCode=paletteCode,datapath=datapath,
                              autoslots='top,left,right,bottom',**kwargs)
         return palette
-        
+    
     def paletteGrid(self, paletteCode=None, struct=None,
-                     columns=None, structpath=None, 
-                     datapath=None,viewResource=None, **kwargs):
+                    columns=None, structpath=None, 
+                    datapath=None,viewResource=None, **kwargs):
         """Return a :ref:`palettegrid`
         
         :param paletteCode: create the paletteGrid :ref:`nodeid` (if no *gridId* is defined)
@@ -1600,9 +1603,9 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         structpath = structpath or '.grid.struct'
         kwargs['gridId'] = kwargs.get('gridId') or '%s_grid' %paletteCode
         paletteGrid = self.child('paletteGrid',paletteCode=paletteCode,
-                                structpath=structpath,datapath=datapath,
-                                viewResource=viewResource,
-                                autoslots='top,left,right,bottom',**kwargs)
+                                 structpath=structpath,datapath=datapath,
+                                 viewResource=viewResource,
+                                 autoslots='top,left,right,bottom',**kwargs)
         if struct or columns or not structpath:
             paletteGrid.gridStruct(struct=struct,columns=columns)
         return paletteGrid
@@ -1622,11 +1625,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 mode = 'grid'
                 if ':' in dropCode:
                     dropCode, mode = dropCode.split(':')
-                dropmode = 'dropTarget_%s' % mode
-                ivattr[dropmode] = '%s,%s' % (ivattr[dropmode], dropCode) if dropmode in ivattr else dropCode
-                ivattr['onDrop_%s' % dropCode] = 'SET .droppedInfo_%s = dropInfo; FIRE .dropped_%s = data;' % (dropCode,dropCode)
-                #ivattr['onCreated'] = """dojo.connect(widget,'_onFocus',function(){genro.publish("show_palette_%s")})""" % dropCode
-                
+                    dropmode = 'dropTarget_%s' % mode
+                    ivattr[dropmode] = '%s,%s' % (ivattr[dropmode], dropCode) if dropmode in ivattr else dropCode
+                    ivattr['onDrop_%s' % dropCode] = 'SET .droppedInfo_%s = dropInfo; FIRE .dropped_%s = data;' % (dropCode,dropCode)
+                    
     def newincludedview_footer(self,**kwargs):
         return self.child('footer',**kwargs)
 
@@ -1644,7 +1646,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             return self.includedview_inframe(*args,**kwargs)
         else:
             return self.includedview_legacy(*args,**kwargs)
-            
+        
     def includedview_inframe(self, frameCode=None, struct=None, columns=None, storepath=None, structpath=None,
                              datapath=None, nodeId=None, configurable=None, _newGrid=False, childname=None, **kwargs):
         """TODO
@@ -1671,23 +1673,23 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             datapath = datapath or '#FORM.%s' %nodeId 
         else:
             datapath = '.grid'
-        structpath = structpath or '.struct'
-        self.attributes['target'] = nodeId
-        wdg = 'NewIncludedView' if _newGrid else 'includedView'
-        relativeWorkspace = kwargs.pop('relativeWorkspace',True)
-        childname=childname or 'grid'
-        frameattributes = self.attributes
+            structpath = structpath or '.struct'
+            self.attributes['target'] = nodeId
+            wdg = 'NewIncludedView' if _newGrid else 'includedView'
+            relativeWorkspace = kwargs.pop('relativeWorkspace',True)
+            childname=childname or 'grid'
+            frameattributes = self.attributes
         if not self.attributes.get('frameCode'):
             frameattributes = self.root.getNodeByAttr('frameCode',frameCode).attr
-        frameattributes['target'] = nodeId
-        iv =self.child(wdg,frameCode=frameCode, datapath=datapath,structpath=structpath, nodeId=nodeId,
-                     childname=childname,
-                     relativeWorkspace=relativeWorkspace,configurable=configurable,
-                     storepath=storepath,**kwargs)
+            frameattributes['target'] = nodeId
+            iv =self.child(wdg,frameCode=frameCode, datapath=datapath,structpath=structpath, nodeId=nodeId,
+                           childname=childname,
+                           relativeWorkspace=relativeWorkspace,configurable=configurable,
+                           storepath=storepath,**kwargs)
         if struct or columns or not structpath:
             iv.gridStruct(struct=struct,columns=columns)
         return iv
-        
+    
     def includedview_legacy(self, storepath=None, structpath=None, struct=None, columns=None, table=None,
                             nodeId=None, relativeWorkspace=None, **kwargs):
         """TODO
@@ -1708,12 +1710,12 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         prefix = 'grids.%s' %nodeId if not relativeWorkspace else ''
         structpath = structpath or '%s.struct' % prefix
         iv =self.child('includedView', storepath=storepath, structpath=structpath, nodeId=nodeId, table=table,
-                          relativeWorkspace=relativeWorkspace,**kwargs)
+                       relativeWorkspace=relativeWorkspace,**kwargs)
         source = struct or columns
         if struct or columns or not structpath:
             iv.gridStruct(struct=struct,columns=columns)
         return iv
-            
+    
     def gridStruct(self, struct=None, columns=None):
         """TODO
         
@@ -1741,12 +1743,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 if storeNode:
                     table = storeNode.attr.get('table')
                     gridattr['table'] = table
-                    #gridattr['storepath'] = '#%s_store.%s' %(storeCode,storeNode.attr.get('storepath'))
                 return page._prepareGridStruct(source=source,table=table,gridId=gridId)
             struct = BagCbResolver(getStruct, source=source,gridattr=gridattr,gridId=gridId)
             struct._xmlEager=True
             self.data(structpath, struct)
-        
+            
     def slotToolbar(self,*args,**kwargs):
         """Create a :ref:`slotToolbar <slotbar>` and returns it
         
@@ -1754,12 +1755,12 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         kwargs.setdefault('toolbar', True)
         return self.slotBar(*args,**kwargs)
-        
+    
     def slotFooter(self,*args,**kwargs):
         """TODO"""
         kwargs['_class'] = 'frame_footer'
         return self.slotBar(*args,**kwargs)
-        
+    
     def _addSlot(self,slot,prefix=None,frame=None,frameCode=None,namespace=None,toolbarArgs=None):
         s=self.child('slot',childname=slot)
         s.frame = frame
@@ -1768,7 +1769,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if '@' in slot:
             slotCode = slot.replace('@','_')
             slot,parameter = slot.split('@')
-        slothandle = getattr(s,'%s_%s' %(prefix,slot),None)
+            slothandle = getattr(s,'%s_%s' %(prefix,slot),None)
         if not slothandle:
             if namespace:
                 slothandle = getattr(s,'slotbar_%s_%s' %(namespace,slot),None)
@@ -1804,8 +1805,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             if slot!='*' and slot!='|' and not slot.isdigit():
                 tb._addSlot(slot,prefix=prefix,frame=frame,frameCode=frameCode,namespace=namespace,toolbarArgs=toolbarArgs)
         return tb
-        
-        #se ritorni la toolbar hai una toolbar vuota 
     
     def slotbar_updateslotsattr(self,**kwargs):
         self.attributes.update(kwargs)
@@ -1837,21 +1836,21 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         slotbarCode= toolbarArgs.get('slotbarCode')
         if toReplace=='#':
             toReplace = slotstr
-        replaceStr = replaceStr.replace('#',slotstr)
-        slotstr = slotstr.replace(toReplace,replaceStr)
-        toolbarArgs['slots'] = slotstr
-        slots = slotstr.split(',')
-        inattr = self.getInheritedAttributes()
-        frameCode = inattr.get('frameCode')
-        namespace = inattr.get('namespace')
-        frame = self.parent.parent
-        prefix = slotbarCode or frameCode
+            replaceStr = replaceStr.replace('#',slotstr)
+            slotstr = slotstr.replace(toReplace,replaceStr)
+            toolbarArgs['slots'] = slotstr
+            slots = slotstr.split(',')
+            inattr = self.getInheritedAttributes()
+            frameCode = inattr.get('frameCode')
+            namespace = inattr.get('namespace')
+            frame = self.parent.parent
+            prefix = slotbarCode or frameCode
         for slot in slots:
             if slot!='*' and slot!='|' and not slot.isdigit():
                 if not self.getNode(slot):
                     self._addSlot(slot,prefix=prefix,frame=frame,frameCode=frameCode,namespace=namespace,toolbarArgs=toolbarArgs)
         return self
-                    
+    
     def button(self, label=None, **kwargs):
         """The :ref:`button` is a :ref:`dojo-improved form widget <dojo_improved_widgets>`: through
         the *action* attribute you can add Javascript callbacks
@@ -1865,7 +1864,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                        * **showLabel**: boolean. If ``True``, show the button label
         """
         return self.child('button', label=label, **kwargs)
-        
+    
     def togglebutton(self, label=None, **kwargs):
         """A toggle button is a button that represents a setting with two states:
         ``True`` and ``False``. Use the *iconclass* attribute to allow the user
@@ -1878,7 +1877,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                        * **showLabel**: boolean. If ``True``, show the button label
         """
         return self.child('togglebutton', label=label, **kwargs)
-        
+    
     def radiobutton(self, label=None, **kwargs):
         """:ref:`Radiobuttons <radiobutton>` are used when you want to let the user select
         one - and just one - option from a set of choices (if more options are to be allowed
@@ -1893,7 +1892,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                          attribute (for more information, check the :ref:`rb_examples_group`)
         """
         return self.child('radiobutton', label=label, **kwargs)
-        
+    
     def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
@@ -1906,7 +1905,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             label = lbl
             lbl = '&nbsp;'
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
-        
+    
     def dropdownbutton(self, label=None, **kwargs):
         """The :ref:`dropdownbutton` can be used to build a :ref:`menu`
         
@@ -1917,7 +1916,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                        * **showLabel**: boolean. If ``True``, show the button label
         """
         return self.child('dropdownbutton', label=label, **kwargs)
-        
+    
     def menuline(self, label=None, **kwargs):
         """A line of a :ref:`menu`
         
@@ -1958,7 +1957,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         tag = newkwargs.pop('tag')
         handler = getattr(self,tag)
         return handler(**newkwargs)
-        
+    
     def placeFields(self, fieldlist=None, **kwargs):
         """TODO"""
         for field in fieldlist.split(','):
@@ -1966,12 +1965,12 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             tag = kwargs.pop('tag')
             self.child(tag, **kwargs)
         return self
-        
+    
     def radiogroup(self, labels, group, cols=1, datapath=None, **kwargs):
         """.. warning:: deprecated since version 0.7"""
         if isinstance(labels, str):
             labels = labels.split(',')
-        pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
+            pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
         for label in labels:
             if(datapath):
                 pane.radioButton(label, group=group, datapath=':%s' % label)
@@ -1995,7 +1994,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 raise GnrDomSrcError('No table')
             else:
                 tblobj = self.page.db.table(tbl)
-        fieldobj = tblobj.column(fld)
+                fieldobj = tblobj.column(fld)
         if fieldobj is None:
             raise GnrDomSrcError('Not existing field %s' % fld)
         wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)    
@@ -2005,7 +2004,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld
-           
+            
         if wdgattr['tag']in ('div', 'span'):
             wdgattr['innerHTML'] = '^.%s' % fld
         elif wdgattr['tag'] == 'tree':
@@ -2013,7 +2012,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             wdgattr['_fired'] ='^.%s' % fld
         else:
             wdgattr['value'] = '^.%s' % fld
-        permissions = fieldobj.getPermissions(**self.page.permissionPars)
+            permissions = fieldobj.getPermissions(**self.page.permissionPars)
         if permissions.get('user_readonly'):
             wdgattr['readOnly'] = True
         if permissions.get('user_forbidden'):
@@ -2025,7 +2024,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             wdgattr['tag'] = 'div'
             wdgattr['_class'] = 'gnr_blurred_field'
         return wdgattr
-        
+    
     def wdgAttributesFromColumn(self, fieldobj,fld=None, **kwargs):
         """TODO
         
@@ -2044,36 +2043,36 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 size = '20'
             if ':' in size:
                 size = size.split(':')[1]
-            size = int(size)
+                size = int(size)
         else:
             size = 5
         if fldattr.get('checkpref'):
             result['checkpref'] = fldattr['checkpref']
             result.update(dictExtract(fldattr,'checkpref_',slice_prefix=False))
-        result.update(dictExtract(fldattr,'validate_',slice_prefix=False))
-        result.update(dictExtract(fldattr,'wdg_'))
+            result.update(dictExtract(fldattr,'validate_',slice_prefix=False))
+            result.update(dictExtract(fldattr,'wdg_'))
         if 'unmodifiable' in fldattr:
             result['unmodifiable'] = fldattr['unmodifiable']
         if 'protected' in fldattr:
             result['protected'] = fldattr['protected']
-        relcol = fieldobj.relatedColumn()
+            relcol = fieldobj.relatedColumn()
         if relcol is not None:
             lnktblobj = relcol.table
             linktable_attr = lnktblobj.attributes
             if linktable_attr.get('checkpref'):
                 result['checkpref'] = linktable_attr['checkpref']
                 result.update(dictExtract(linktable_attr,'checkpref_'))
-            isLookup = linktable_attr.get('lookup') or False
-            joiner = fieldobj.relatedColumnJoiner()
-            onerelfld = joiner['one_relation'].split('.')[2]
+                isLookup = linktable_attr.get('lookup') or False
+                joiner = fieldobj.relatedColumnJoiner()
+                onerelfld = joiner['one_relation'].split('.')[2]
             if dtype in ('A', 'C'):
                 size = lnktblobj.attributes.get('size', '20')
                 if ':' in size:
                     size = size.split(':')[1]
-                size = int(size)
+                    size = int(size)
             else:
                 size = 5
-            defaultZoom = self.getInheritedAttributes().get('enableZoom')
+                defaultZoom = self.getInheritedAttributes().get('enableZoom')
             if defaultZoom is None:
                 defaultZoom = self.page.pageOptions.get('enableZoom', True)
             if lbl is not False:
@@ -2084,8 +2083,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             zoomPage = lnktblobj.dbtable.zoomUrl()
                         else:
                             zoomPage = lnktblobj.fullname.replace('.', '/')
-                        result['lbl_href'] = "=='/%s?pkey='+pkey" % zoomPage
-                        result['lbl_pkey'] = '^.%s' %fld
+                            result['lbl_href'] = "=='/%s?pkey='+pkey" % zoomPage
+                            result['lbl_pkey'] = '^.%s' %fld
                     else:
                         if hasattr(lnktblobj.dbtable, 'zoomUrl'):
                             pass
@@ -2093,33 +2092,30 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             zoomKw = dictExtract(kwargs,'zoom_')
                             forcedTitle = zoomKw.pop('title', None)
                             zoomKw.setdefault('formOnly',False)
-                            result['lbl__zoomKw'] = zoomKw #,slice_prefix=False)
+                            result['lbl__zoomKw'] = zoomKw
                             result['lbl__zoomKw_table'] = lnktblobj.fullname
                             result['lbl__zoomKw_lookup'] = isLookup
                             result['lbl__zoomKw_title'] = forcedTitle or lnktblobj.name_plural or lnktblobj.name_long
                             result['lbl__zoomKw_pkey'] = '=.%s' %fld
                             result['lbl_connect_onclick'] = "genro.dlg.zoomPaletteFromSourceNode(this,$1);"  
-                    result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
-                    result['lbl_class'] = 'gnrzoomlabel'
-            result['tag'] = 'DbSelect'
-            _selected_defaultFrom(fieldobj=fieldobj,result=result)
-            result['dbtable'] = lnktblobj.fullname
+                            result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
+                            result['lbl_class'] = 'gnrzoomlabel'
+                            result['tag'] = 'DbSelect'
+                            _selected_defaultFrom(fieldobj=fieldobj,result=result)
+                            result['dbtable'] = lnktblobj.fullname
             if '_storename' in joiner:
                 result['_storename'] = joiner['_storename']
             elif 'storefield' in joiner:
                 result['_storename'] = False if joiner['storefield'] is False else '=.%(storefield)s' %joiner
-            #result['columns']=lnktblobj.rowcaption
-            result['_class'] = 'linkerselect'
-            result['searchDelay'] = 300
-            result['ignoreCase'] = True
-            result['method'] = 'app.dbSelect'
-            result['size'] = size
-            result['_guess_width'] = '%iem' % (int(size * .7) + 2)
-            result.setdefault('hasDownArrow',isLookup)
+                result['_class'] = 'linkerselect'
+                result['searchDelay'] = 300
+                result['ignoreCase'] = True
+                result['method'] = 'app.dbSelect'
+                result['size'] = size
+                result['_guess_width'] = '%iem' % (int(size * .7) + 2)
+                result.setdefault('hasDownArrow',isLookup)
             if(onerelfld != relcol.table.pkey):
                 result['alternatePkey'] = onerelfld
-        #elif attr.get('mode')=='M':
-        #    result['tag']='bagfilteringtable'
         elif dtype in ('A', 'T') and fldattr.get('values', False):
             values = fldattr['values']
             values = getattr(fieldobj.table.dbtable, values ,lambda: values)()
@@ -2152,7 +2148,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['tag'] = 'textBox'
             if col_size:
                 result.setdefault('validate_len',col_size)
-            result['_guess_width'] = '%iem' % int(size * .5)
+                result['_guess_width'] = '%iem' % int(size * .5)
         elif dtype == 'R':
             result['tag'] = 'numberTextBox'
             result['width'] = '7em'
@@ -2181,7 +2177,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             if kwargs.get('autospan', False):
                 kwargs['colspan'] = kwargs.pop('autospan')
                 kwargs['width'] = '99%'
-            result.update(kwargs)
+                result.update(kwargs)
         return result
         
 class GnrFormBuilder(object):
@@ -2203,7 +2199,6 @@ class GnrFormBuilder(object):
         self.lblpos = lblpos
         self.rowlast = -1
         self.byColumn = byColumn
-        #self._tbl=weakref.ref(tbl)
         self._tbl = tbl
         self.maintable = dbtable
         if self.maintable:
@@ -2218,7 +2213,6 @@ class GnrFormBuilder(object):
         self.excludeCols = excludeCols.split(',') if excludeCols else []
         
     def br(self):
-        #self.row=self.row+1
         self.col = 999
         return self.tbl
         
@@ -2228,7 +2222,6 @@ class GnrFormBuilder(object):
     page = property(_get_page)
             
     def _get_tbl(self):
-        #return self._tbl()
         return self._tbl
         
     tbl = property(_get_tbl)
@@ -2583,7 +2576,6 @@ class GnrGridStruct(GnrStructData):
         :param source: TODO
         """
         root = GnrStructData.makeRoot(source=source, protocls=cls)
-        #root._page = weakref.ref(page)
         root._page = page
         root._maintable = maintable
         return root
@@ -2591,7 +2583,6 @@ class GnrGridStruct(GnrStructData):
     makeRoot = classmethod(makeRoot)
         
     def _get_page(self):
-        #return self.root._page()
         return self.root._page
         
     page = property(_get_page)
@@ -2606,7 +2597,7 @@ class GnrGridStruct(GnrStructData):
         if maintable:
             return self.page.db.table(maintable)
         else:
-            return None #self.page.tblobj
+            return None
                 
     tblobj = property(_get_tblobj)
         
@@ -2891,13 +2882,12 @@ class GnrGridStruct(GnrStructData):
             widths.append(width)
             wtot = wtot + width
             dtypes.append(fldobj.dtype)
-            fld_kwargs.append(dict()) #PROVVISORIO
+            fld_kwargs.append(dict()) 
             
         if totalWidth:
             for j, w in enumerate(widths):
                 widths[j] = int(w * totalWidth/wtot)
         for j, field in enumerate(fields):
-            #self.child('cell', field=field, childname=names[j], width='%i%s'%(widths[j],unit), dtype=dtypes[j])
             self.cell(field=field, name=names[j], width='%i%s' % (widths[j], unit), dtype=dtypes[j], **fld_kwargs[j])
             
     def getFieldNames(self, columns=None):
