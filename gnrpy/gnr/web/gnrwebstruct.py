@@ -1303,7 +1303,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['store'] = storeCode
             attr['table'] = table
             storepath = storepath or attr.get('storepath') or '.store'
-            nodeId = '%s_store' %storeCode
+        nodeId = '%s_store' %storeCode
         return parent.child('SelectionStore',storepath=storepath, table=table, nodeId=nodeId,columns=columns,handler=handler,**kwargs)
     
 
@@ -1333,7 +1333,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['tag'] = 'newincludedview'
             if _identifier:
                 attr['identifier'] = _identifier
-                parent = self._storeParentFrame()
+            parent = self._storeParentFrame()
 
         if parentTag == 'palettegrid':            
             storeCode=storeCode or attr.get('paletteCode')
@@ -1341,8 +1341,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             attr['table'] = table
             if _identifier:
                 attr['identifier'] = _identifier
-                storepath = storepath or attr.get('storepath') or '.store'
-                nodeId = '%s_store' %storeCode
+            storepath = storepath or attr.get('storepath') or '.store'
+        nodeId = '%s_store' %storeCode
         return parent.child('BagStore',storepath=storepath, nodeId=nodeId,_identifier=_identifier,**kwargs)
 
     def fsStore(self,folders=None,storepath=None,storeCode=None,include='*.xml',columns=None,**kwargs):
@@ -1363,7 +1363,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             storeCode=storeCode or attr.get('paletteCode')
             attr['store'] = storeCode
             storepath = storepath or attr.get('storepath') or '.store'
-            nodeId = '%s_store' %storeCode
+        nodeId = '%s_store' %storeCode
         return parent.child('SelectionStore',storepath=storepath,storeType='FileSystem',
                             nodeId=nodeId,method='app.getFileSystemSelection',
                             folders=folders,include=include,columns=columns,
