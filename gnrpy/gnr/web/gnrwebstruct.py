@@ -1769,7 +1769,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         if '@' in slot:
             slotCode = slot.replace('@','_')
             slot,parameter = slot.split('@')
-            slothandle = getattr(s,'%s_%s' %(prefix,slot),None)
+        slothandle = getattr(s,'%s_%s' %(prefix,slot),None)
         if not slothandle:
             if namespace:
                 slothandle = getattr(s,'slotbar_%s_%s' %(namespace,slot),None)
@@ -1836,15 +1836,15 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         slotbarCode= toolbarArgs.get('slotbarCode')
         if toReplace=='#':
             toReplace = slotstr
-            replaceStr = replaceStr.replace('#',slotstr)
-            slotstr = slotstr.replace(toReplace,replaceStr)
-            toolbarArgs['slots'] = slotstr
-            slots = slotstr.split(',')
-            inattr = self.getInheritedAttributes()
-            frameCode = inattr.get('frameCode')
-            namespace = inattr.get('namespace')
-            frame = self.parent.parent
-            prefix = slotbarCode or frameCode
+        replaceStr = replaceStr.replace('#',slotstr)
+        slotstr = slotstr.replace(toReplace,replaceStr)
+        toolbarArgs['slots'] = slotstr
+        slots = slotstr.split(',')
+        inattr = self.getInheritedAttributes()
+        frameCode = inattr.get('frameCode')
+        namespace = inattr.get('namespace')
+        frame = self.parent.parent
+        prefix = slotbarCode or frameCode
         for slot in slots:
             if slot!='*' and slot!='|' and not slot.isdigit():
                 if not self.getNode(slot):
@@ -1970,7 +1970,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """.. warning:: deprecated since version 0.7"""
         if isinstance(labels, str):
             labels = labels.split(',')
-            pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
+        pane = self.div(datapath=datapath, **kwargs).formbuilder(cols=cols)
         for label in labels:
             if(datapath):
                 pane.radioButton(label, group=group, datapath=':%s' % label)
@@ -1994,7 +1994,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 raise GnrDomSrcError('No table')
             else:
                 tblobj = self.page.db.table(tbl)
-                fieldobj = tblobj.column(fld)
+        fieldobj = tblobj.column(fld)
         if fieldobj is None:
             raise GnrDomSrcError('Not existing field %s' % fld)
         wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)    
@@ -2012,7 +2012,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             wdgattr['_fired'] ='^.%s' % fld
         else:
             wdgattr['value'] = '^.%s' % fld
-            permissions = fieldobj.getPermissions(**self.page.permissionPars)
+        permissions = fieldobj.getPermissions(**self.page.permissionPars)
         if permissions.get('user_readonly'):
             wdgattr['readOnly'] = True
         if permissions.get('user_forbidden'):
@@ -2043,36 +2043,36 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                 size = '20'
             if ':' in size:
                 size = size.split(':')[1]
-                size = int(size)
+            size = int(size)
         else:
             size = 5
         if fldattr.get('checkpref'):
             result['checkpref'] = fldattr['checkpref']
             result.update(dictExtract(fldattr,'checkpref_',slice_prefix=False))
-            result.update(dictExtract(fldattr,'validate_',slice_prefix=False))
-            result.update(dictExtract(fldattr,'wdg_'))
+        result.update(dictExtract(fldattr,'validate_',slice_prefix=False))
+        result.update(dictExtract(fldattr,'wdg_'))
         if 'unmodifiable' in fldattr:
             result['unmodifiable'] = fldattr['unmodifiable']
         if 'protected' in fldattr:
             result['protected'] = fldattr['protected']
-            relcol = fieldobj.relatedColumn()
+        relcol = fieldobj.relatedColumn()
         if relcol is not None:
             lnktblobj = relcol.table
             linktable_attr = lnktblobj.attributes
             if linktable_attr.get('checkpref'):
                 result['checkpref'] = linktable_attr['checkpref']
                 result.update(dictExtract(linktable_attr,'checkpref_'))
-                isLookup = linktable_attr.get('lookup') or False
-                joiner = fieldobj.relatedColumnJoiner()
-                onerelfld = joiner['one_relation'].split('.')[2]
+            isLookup = linktable_attr.get('lookup') or False
+            joiner = fieldobj.relatedColumnJoiner()
+            onerelfld = joiner['one_relation'].split('.')[2]
             if dtype in ('A', 'C'):
                 size = lnktblobj.attributes.get('size', '20')
                 if ':' in size:
                     size = size.split(':')[1]
-                    size = int(size)
+                size = int(size)
             else:
                 size = 5
-                defaultZoom = self.getInheritedAttributes().get('enableZoom')
+            defaultZoom = self.getInheritedAttributes().get('enableZoom')
             if defaultZoom is None:
                 defaultZoom = self.page.pageOptions.get('enableZoom', True)
             if lbl is not False:
@@ -2083,8 +2083,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             zoomPage = lnktblobj.dbtable.zoomUrl()
                         else:
                             zoomPage = lnktblobj.fullname.replace('.', '/')
-                            result['lbl_href'] = "=='/%s?pkey='+pkey" % zoomPage
-                            result['lbl_pkey'] = '^.%s' %fld
+                        result['lbl_href'] = "=='/%s?pkey='+pkey" % zoomPage
+                        result['lbl_pkey'] = '^.%s' %fld
                     else:
                         if hasattr(lnktblobj.dbtable, 'zoomUrl'):
                             pass
@@ -2098,22 +2098,22 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             result['lbl__zoomKw_title'] = forcedTitle or lnktblobj.name_plural or lnktblobj.name_long
                             result['lbl__zoomKw_pkey'] = '=.%s' %fld
                             result['lbl_connect_onclick'] = "genro.dlg.zoomPaletteFromSourceNode(this,$1);"  
-                            result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
-                            result['lbl_class'] = 'gnrzoomlabel'
-                            result['tag'] = 'DbSelect'
-                            _selected_defaultFrom(fieldobj=fieldobj,result=result)
-                            result['dbtable'] = lnktblobj.fullname
+                    result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
+                    result['lbl_class'] = 'gnrzoomlabel'
+                result['tag'] = 'DbSelect'
+                _selected_defaultFrom(fieldobj=fieldobj,result=result)
+                result['dbtable'] = lnktblobj.fullname
             if '_storename' in joiner:
                 result['_storename'] = joiner['_storename']
             elif 'storefield' in joiner:
                 result['_storename'] = False if joiner['storefield'] is False else '=.%(storefield)s' %joiner
-                result['_class'] = 'linkerselect'
-                result['searchDelay'] = 300
-                result['ignoreCase'] = True
-                result['method'] = 'app.dbSelect'
-                result['size'] = size
-                result['_guess_width'] = '%iem' % (int(size * .7) + 2)
-                result.setdefault('hasDownArrow',isLookup)
+            result['_class'] = 'linkerselect'
+            result['searchDelay'] = 300
+            result['ignoreCase'] = True
+            result['method'] = 'app.dbSelect'
+            result['size'] = size
+            result['_guess_width'] = '%iem' % (int(size * .7) + 2)
+            result.setdefault('hasDownArrow',isLookup)
             if(onerelfld != relcol.table.pkey):
                 result['alternatePkey'] = onerelfld
         elif dtype in ('A', 'T') and fldattr.get('values', False):
@@ -2137,7 +2137,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['maxLength'] = size
             result['tag'] = 'textBox'
             result['_type'] = 'text'
-            result['_guess_width'] = '%iem' % (int(size * .7) + 2)
+        result['_guess_width'] = '%iem' % (int(size * .7) + 2)
         elif dtype == 'B':
             result['tag'] = 'checkBox'
             result.setdefault('html_label',not kwargs.get('label'))
@@ -2177,7 +2177,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             if kwargs.get('autospan', False):
                 kwargs['colspan'] = kwargs.pop('autospan')
                 kwargs['width'] = '99%'
-                result.update(kwargs)
+            result.update(kwargs)
         return result
         
 class GnrFormBuilder(object):
