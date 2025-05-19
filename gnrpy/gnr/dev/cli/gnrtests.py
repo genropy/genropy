@@ -6,7 +6,6 @@ import glob
 
 import pytest
 
-import gnr
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 from gnr.dev import logger

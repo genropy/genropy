@@ -1,7 +1,6 @@
 import os
 from gnr.web.gnrwsgisite import GnrWsgiSite
-from gnr.app.gnrapp import GnrApp
-from gnr.lib.services import ServiceHandler, BaseServiceType
+from gnr.lib.services import ServiceHandler
 
 class PackageTester(object):
     @classmethod

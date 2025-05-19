@@ -2,9 +2,7 @@ import psycopg
 from psycopg import sql
 
 from gnrpkg.sys.services.dbadmin import DbAdmin
-from gnr.app import pkglog as logger
 from gnr.web.gnrbaseclasses import BaseComponent
-
 
 class Service(DbAdmin):
 
