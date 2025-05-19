@@ -1450,8 +1450,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             kwargs['_content'] = kwargs.pop('content')
         if not columns:
             if columnsFromView:
+                columns = '=grids.%s.columns' % columnsFromView #it is the view id
                 raise DeprecationWarning('columnsFromView is deprecated')
-            columns = '=grids.%s.columns' % columnsFromView #it is the view id
             else:
                 columns = '*'
                 
