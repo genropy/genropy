@@ -422,8 +422,6 @@ class PathResolver(object):
     def __init__(self, gnr_config=None):
         self.gnr_config = gnr_config or getGnrConfig()
         setEnvironment(self.gnr_config)
-        
-        
                 
     def js_path(self, lib_type='gnr', version='11'):
         """TODO Return the configuration static js path, with *lib_type* and *version* specified
@@ -437,10 +435,11 @@ class PathResolver(object):
         return path
         
     def entity_name_to_path(self, entity_name, entity_type, look_in_projects=True):
-        """TODO
+        """Resolve an entity type to a local path where to retrieve the requested object,
+        veryfing the existance of the entity itself.
         
-        :param entity_name: TODO
-        :param entity_type: TODO
+        :param entity_name: the entity name
+        :param entity_type: the entity type, a predefined list
         :param look_in_projects: TODO"""
         entity = self.entities.get(entity_type)
         if not entity:
@@ -481,7 +480,7 @@ class PathResolver(object):
         :param site_name: TODO"""
         return self.entity_name_to_path(site_name, 'site')
     
-    def get_instanceconfig(self,instance_name):
+    def get_instanceconfig(self, instance_name):
         instanceFolder = self.instance_name_to_path(instance_name)
         instanceName = os.path.basename(instanceFolder)
 
@@ -541,9 +540,13 @@ class PathResolver(object):
             site_config.update(Bag(site_config_path))
         else:
             site_config = Bag(site_config_path)
+
+        # siteconfig can be update from the contents of the <site/>
+        # tag inside an instanceconfig.xml 
         instance_config = self.get_instanceconfig(site_name)
         if instance_config and instance_config['site']:
             site_config.update(instance_config['site'])
+            
         return site_config
 
 
