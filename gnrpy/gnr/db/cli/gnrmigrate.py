@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import datetime
 import sys
 import os
 import glob
+import zipfile
+import json
 
+from gnr.db import logger
+from gnr.core.gnrsys import expandpath
+from gnr.core.gnrconfig import getGnrConfig
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql import AdapterCapabilities
-from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
 
-
-enable_colored_logging()
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)
@@ -62,13 +64,13 @@ def instance_name_to_path(gnr_config, instance_name):
 
 def get_app(options):
     storename = None
-    debug = options.debug==True
     if options.directory:
         instance_path = options.directory
         if os.path.isdir(instance_path):
-            return GnrApp(instance_path, debug=debug)
+            return GnrApp(instance_path, debug=options.debug)
         else:
             raise Exception("No valid instance provided")
+        
     if hasattr(options, 'config_path') and options.config_path:
         config_path = options.config_path
     else:
@@ -81,7 +83,7 @@ def get_app(options):
             instance_name, storename = instance_name.split('.')
         instance_path = instance_name_to_path(gnr_config, instance_name)
         if os.path.isdir(instance_path):
-            return GnrApp(instance_path, debug=debug), storename
+            return GnrApp(instance_path, debug=options.debug), storename
         else:
             raise Exception("No valid instance provided")
     if options.site:
@@ -90,30 +92,69 @@ def get_app(options):
             site_path = os.path.join(gnr_config['gnr.environment_xml.sites?path'] or '', options.site)
         instance_path = os.path.join(site_path, 'instance')
         if os.path.isfile(os.path.join(instance_path, 'instanceconfig.xml')):
-            return GnrApp(instance_path,debug=debug), storename
+            return GnrApp(instance_path,debug=options.debug), storename
         else:
             raise "No valid instance provided"
     return GnrApp(os.getcwd()), storename
 
 
+def inspect(migrator, options):
+    # dump the information from the migrator, and generates a zip file
+    # useful for inspection/debug
+    logger.info("Creating migration inspection archive")
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    dump_files = []
+    
+    to_dump = [
+        ("db_struct", migrator.sqlStructure),
+        ("orm_struct", migrator.ormStructure),
+        ("changes", migrator.getChanges)
+    ]
+
+    for dump_item in to_dump:
+        filename = f"{options.instance}_{dump_item[0]}_{now}.json"
+        with open(filename, "w") as wfp:
+            if callable(dump_item[1]):
+                wfp.write(json.dumps(dump_item[1]()))
+            else:
+                wfp.write(json.dumps(dump_item[1]))
+        dump_files.append(filename)
+    orig_db_dump = f"{options.instance}_cur_db_struct_{now}"
+    dump_files.append(migrator.db.dump(orig_db_dump,
+                                       options=Bag(plain_text=True,
+                                                   schema_only=True)
+                                       )
+                      )
+    zip_name = f"{options.instance}_migrate_inspection_{now}.zip"
+    with zipfile.ZipFile(zip_name, "w") as zipf:
+        for filename in dump_files:
+            zipf.write(filename)
+            logger.info("Added %s to inspection archive", filename)
+
+    # Remove temporary files after successful zip creation
+    for filename in dump_files:
+        os.remove(filename)
+        logger.debug("Removed temp file %s", filename)
+    print(f"Inspection archive {zip_name} created.")
+    
 def check_db(migrator, options):
     dbname = migrator.db.currentEnv.get('storename')
     dbname = dbname or 'Main'
-    print(f'DB {dbname}')
+    logger.info(f'DB {dbname}')
     if options.rebuild_relations or options.remove_relations_only:
-        print('Removing all relations')
+        logger.info('Removing all relations')
         migrator.db.model.enableForeignKeys(enable=False) 
-        print('Removed')
+        logger.info('Removed')
     if options.remove_relations_only:
         return
     changes = migrator.getChanges()
     if changes:
         if options.verbose:
-            print('*CHANGES:\n%s' % changes)
+            logger.info('*CHANGES:\n%s' % changes)
         else:
-            print('STRUCTURE NEEDS CHANGES')
+            logger.info('STRUCTURE NEEDS CHANGES')
     else:
-        print('STRUCTURE OK')
+        logger.info('STRUCTURE OK')
     return changes
 
 def import_db(filepath, options):
@@ -153,11 +194,10 @@ def main():
                         dest='remove_relations_only',
                         action='store_true',
                         help="Remove relations")
-    
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
+    parser.add_argument('--inspect',
+                        dest='inspect',
                         action='store_true',
-                        help="Debug mode")
+                        help='Create a dump file with configuration for inspection')
     
     parser.add_argument('-i', '--instance',
                         dest='instance',
@@ -180,13 +220,14 @@ def main():
     parser.add_argument('--config',
                         dest='config_path',
                         help="gnrserve file path")
-    
-    options = parser.parse_args()
 
+    
+    parser.set_defaults(loglevel="info")
+    options = parser.parse_args()
     
     app, storename = get_app(options)
     if not app.db.adapter.has_capability(AdapterCapabilities.MIGRATIONS):
-        print(f"The instance '{options.instance}' is using a database adapter which doesn't support migrations")
+        logger.error(f"The instance '{options.instance}' is using a database adapter which doesn't support migrations")
         sys.exit(1)
 
     errordb = []
@@ -197,7 +238,7 @@ def main():
     for storename in stores:
         app.db.use_store(storename)
         if options.upgrade_only:
-            print('#### UPGRADE SCRIPTS IN STORE {storename} ####'.format(storename=storename))
+            logger.info(f'#### UPGRADE SCRIPTS IN STORE {storename} ####')
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
             app.db.table('sys.upgrade').runUpgrades()
             app.db.commit()
@@ -212,12 +253,15 @@ def main():
             check_db(migrator, options)
         elif options.import_file:
             import_db(options.import_file, options)
+        elif options.inspect:
+
+            inspect(migrator, options)
         else:
             changes = check_db(migrator, options)
             if changes:
-                print('APPLYING CHANGES TO DATABASE...')
+                logger.info('APPLYING CHANGES TO DATABASE...')
                 migrator.applyChanges()
-                print('CHANGES APPLIED TO DATABASE')
+                logger.info('CHANGES APPLIED TO DATABASE')
         app.pkgBroadcast('onDbSetup,onDbSetup_*')
         if options.upgrade:
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
@@ -225,7 +269,7 @@ def main():
             app.db.commit()
         app.db.closeConnection()
     if errordb:
-        print('ERROR db',errordb)
+        logger.error(f'db: {errordb}')
         
 if __name__ == '__main__':
     main()

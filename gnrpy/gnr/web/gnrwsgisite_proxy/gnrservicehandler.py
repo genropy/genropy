@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import Bag
 import inspect
 import sys
+
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrbaseservice import GnrBaseService
 from gnr.core.gnrlang import  gnrImport
-import logging
-
-log = logging.getLogger(__name__)
-
+from gnr.web import logger
 
 
 def is_ServiceHandler(cls, service_names=None):
@@ -67,8 +65,8 @@ class ServiceHandlerManager(object):
             #self.add(service_class,**kw)
             return service_class
         except ImportError as import_error:
-            log.exception("Could not import %s"%module)
-            log.exception(str(import_error))
+            logger.exception("Could not import %s"%module)
+            logger.exception(str(import_error))
         
     def add(self, service_handler_factory, service_name=None, **kwargs):
         service_name = service_name or self.service_name(service_handler_factory)

@@ -8,6 +8,7 @@
 
 from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
 
 class ModelExtractor(object):
@@ -104,7 +105,7 @@ class ModelExtractor(object):
             
             fld = root['packages.%s.tables.%s.columns.%s' % (many_schema, many_table, many_field)]
             if not fld:
-                print('missing field %s in table %s.%s' %(many_field,many_schema,many_table))
+                logger.warning('missing field %s in table %s.%s' , many_field, many_schema, many_table)
             else:
                 fld.relation('%s.%s.%s' % (one_schema, one_table, one_field))
 
@@ -174,7 +175,7 @@ class SqlModelChecker(object):
         for pkg in self.db.packages.values():
             if pkg.attributes.get('readOnly') or pkg.attributes.get('storename'):
                 continue
-            #print '----------checking %s----------'%pkg.name
+            logger.debug("Checking package %s", pkg.name)
             if not pkg.tables:
                 continue
             if self.tenantSchemas:
@@ -206,8 +207,7 @@ class SqlModelChecker(object):
                 if commit:
                     self.db.commit()
         except Exception as e:
-            print('Error in adding extensions',e)
-        
+            logger.exception("Error adding extensions")
 
         
     def _checkPackage(self, pkg):
@@ -217,7 +217,7 @@ class SqlModelChecker(object):
         :param pkg: the :ref:`package <packages>` object"""
         self._checkSqlSchema(pkg)
         for tbl in list(pkg.tables.values()):
-            #print '----------checking table %s----------'%tbl.name
+            logger.debug("Checking table %s", tbl.name)
             self._checkSqlSchema(tbl)
             if tbl.sqlname in self.actual_tables.get(tbl.sqlschema, []):
                 tablechanges = self._checkTable(tbl)
@@ -610,10 +610,10 @@ class SqlModelChecker(object):
                 if fldlist[2] == column:
                     try:
                         db.adapter.renameColumn(db.table(tblname).model.sqlfullname,old_colname,column)
-                        print(joiner['many_relation'],' fixed')
+                        logger.info("Fixed %s", joiner['many_relation'])
                         db.commit()
                     except Exception as e:
-                        #print joiner['many_relation'],' error'
+                        logger.exception("%s error", joiner['many_relation'])
                         db.rollback()
 
                                                    

@@ -1,13 +1,14 @@
-
+import os
 import xlwt
+
+from gnr.core import logger
+from gnr.core.gnrstring import toText
+from gnr.lib.services.storage import StorageNode
+
 try:
     import openpyxl
 except:
-    import sys
-    print("\n**ERROR Missing openpyxl: can't export in xlsx\n", file=sys.stderr)
-import os
-from gnr.core.gnrstring import toText
-from gnr.lib.services.storage import StorageNode
+    logger.exception("Missing openpyxl: can't export in xlsx")
 
 class BaseXls(object):
     
@@ -458,7 +459,7 @@ class XlsxWriter(BaseXls):
 
             coltype = coltypes.get(col)
             if coltype in ('R', 'F', 'N'):
-                print('writing float',c)
+                logger.debug('writing float',c)
                 self.writeCell(sheet, current_row, c, value, style="float")
             elif coltype in ('L', 'I'):
                 self.writeCell(sheet, current_row, c, value, style="int")

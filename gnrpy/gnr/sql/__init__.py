@@ -2,10 +2,14 @@
 
 import os.path
 import glob
+import logging
 from enum import Enum, auto
 from collections import defaultdict
 
+from gnr.core.gnrlog import AuditLogger
 from gnr.core.gnrlang import importModule
+
+logger = logging.getLogger("gnr.sql")
 
 class AdapterCapabilities(Enum):
     MIGRATIONS = auto()
@@ -28,4 +32,30 @@ for implementation in AVAILABLE_DB_IMPLEMENTATIONS:
         # the adapter can't be used, since dependencies are missing
         pass
 
+class SqlAuditLogger(AuditLogger):
+    base_logger = "gnraudit.sql"
+    method_groups= {
+        "insert": "modify",
+        "update": "modify",
+        "delete": "modify",
+        "alter": "modify",
+        "select": "read",
+        "create": "modify",
+        "pragma": "read",
+    }
 
+class OrmAuditLogger(AuditLogger):
+    base_logger = "gnraudit.orm"
+    method_groups= {
+        "query": "read",
+        "insert": "modify",
+        "insertMany": "modify",
+        "raw_insert": "modify",
+        "update": "modify",
+        "raw_update": "modify",
+        "delete": "modify",
+        "raw_delete": "modify",
+    }
+
+sqlauditlogger = SqlAuditLogger()
+ormauditlogger = OrmAuditLogger()

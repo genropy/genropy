@@ -5,7 +5,6 @@ import pytest
 from gnr.app import gnrutils as gu
 from common import BaseGnrAppTest
 
-
 class TestGnrAppInsights(BaseGnrAppTest):
     def test_dataset(self):
         g = gu.GnrAppInsightDataset("baba")

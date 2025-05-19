@@ -74,16 +74,22 @@ class MenuIframes(BaseComponent):
     def _menutree_getLabel(self):
         return """
             let label = node.attr.label;
-            if(node.attr.titleCounter && node.attr.isDir){
-                let v = node.getValue();
-                let count = 0;
-                if(v && v instanceof gnr.GnrBag){
-                    count = v.len();
+            if(node.attr.titleCounter){
+                if(node.attr.isDir){
+                    let v = node.getValue();
+                    let count = 0;
+                    if(v && v instanceof gnr.GnrBag){
+                        count = v.len();
+                    }
+                    if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
+                        count-=1;
+                    }
+                    label = `${label} (${count})`
+                }else{
+                    let count = node.attr.titleCounter_count;
+                    label = `${label} (${count})`
                 }
-                if(count && node.attr.tag=="tableBranch" && node.attr.add_label){
-                    count-=1;
-                }
-                label = `${label} (${count})`
+                
             }
             return label;
         """
@@ -148,6 +154,12 @@ class MenuIframes(BaseComponent):
                                         let content = n.getValue();
                                         let child_count = (content instanceof gnr.GnrBag)?content.len():0;
                                         n.updAttributes({'child_count':child_count});
+                                    }
+                                    else if(n.attr.titleCounter){
+                                        genro.serverCall('app.getRecordCount',{table:n.attr.table,where:n.attr.titleCounter_condition},
+                                                            function(result){
+                                                                n.updAttributes({titleCounter_count:result});
+                                                            })
                                     }
                                 },'static');
                                """,treeNode=tree,

@@ -29,21 +29,13 @@ import os
 import sys
 import traceback
 import urllib.request, urllib.parse, urllib.error
-import logging
-
-gnrlogger = logging.getLogger(__name__)
-
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 from gnr.core.gnrbag import Bag, TraceBackResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson
 from gnr.core import gnrdate
-
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 
 AUTH_OK = 0
@@ -545,6 +537,8 @@ class GnrBaseWebPage(GnrObject):
         if 'caption' not in resultAttr:
             resultAttr['caption'] = tblobj.recordCaption(record, rowcaption=rowcaption)
         pkey = record[tblobj.pkey]
+        if len(tblobj.pkeys)>1:
+            pkey = tblobj.compositeKey(record,field=tblobj.pkey)
         resultAttr['lastTS'] = str(record[tblobj.lastTS]) if tblobj.lastTS else None
         for k,v in list(recordClusterAttr.items()):
             if k.startswith('lastTS_'):

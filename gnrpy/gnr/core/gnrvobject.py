@@ -54,6 +54,8 @@ KEY         Public Key  The public encryption key associated with the vCard obje
 
 import vobject
 
+from gnr.core import logger
+
 VALID_VCARD_TAGS = ['n','fn','nickname','photo','bday','adr','label','tel','email',
               'mailer','tz','geo','title','role','logo','agent','org','note',
               'rev','sound','url','uid','version','key']
@@ -95,11 +97,9 @@ class VCard(object):
     def doprettyprint(self):
         return self.j.prettyPrint()
 
-
-
     def setTag(self,tag,data):
         if data:
-            print(tag, data)
+            logger.debug("%s %s", tag, data)
             assert tag in VALID_VCARD_TAGS, 'ERROR: %s is not a valid tag' %tag
             if tag in ['n','adr']:
                 getattr(self, '%s%s' %('_tag_',tag))(tag,data)
@@ -122,8 +122,8 @@ class VCard(object):
 
 
     def fillFrom(self,card):
-        print('card_bag')
-        print(card)
+        logger.debug('card_bag %s', card)
+
         for tag,v in list(card.items()):
             if tag=='n':
                 self.setTag(tag,v)

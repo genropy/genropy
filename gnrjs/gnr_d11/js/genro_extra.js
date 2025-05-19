@@ -249,74 +249,125 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     created:function(widget, savedAttrs, sourceNode){
-        var that=this;
-        var scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
-        var cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-
-        var editorLoaded = window.toastui && window.toastui.Editor;
-
-        if (!editorLoaded) {
-            genro.dom.loadJs(scriptUrl, function() {
-                genro.dom.loadCss(cssUrl, 'tuieditor', function() {
-                    that.ready = true;
-                    that.initialize(widget, savedAttrs, sourceNode);
-                });
+        const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
+        const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
+    
+        const loadResource = (url, type) => {
+            return new Promise((resolve, reject) => {
+                if (type === 'js') {
+                    genro.dom.loadJs(url, resolve);
+                } else if (type === 'css') {
+                    genro.dom.loadCss(url, 'tuieditor', resolve);
+                }
+            });
+        };
+    
+        if (!(window.toastui && window.toastui.Editor)) {
+            Promise.all([
+                loadResource(scriptUrl, 'js'),
+                loadResource(cssUrl, 'css')
+            ]).then(() => {
+                this.ready = true;
+                this.initialize(widget, savedAttrs, sourceNode);
             });
         } else {
-            that.ready = true;
-            that.initialize(widget, savedAttrs, sourceNode);
+            this.ready = true;
+            this.initialize(widget, savedAttrs, sourceNode);
         }
     },
 
-    initialize:function(widget,savedAttrs,sourceNode){
+    initialize:function(widget, savedAttrs, sourceNode){
         let editor_attrs = {...savedAttrs};
-        editor_attrs.autofocus = editor_attrs.autofocus || false;
         objectPop(editor_attrs,'htmlpath');
-        
-        let editor;
+        const editor = editor_attrs.viewer
+            ? this.createViewer(widget, editor_attrs)
+            : this.createEditor(widget, editor_attrs);
+    
+        this.configureToolbar(editor, editor_attrs);
+        this.setExternalWidget(sourceNode, editor);
+        this.attachHooks(editor, editor_attrs, sourceNode);
+    },
+    
+    createViewer:function(widget, editor_attrs){
+        editor_attrs.autofocus = true;
+        return window.toastui.Editor.factory({
+            el: widget,
+            ...editor_attrs
+        });
+    },
+    
+    createEditor:function(widget, editor_attrs){
+        editor_attrs.autofocus = editor_attrs.autofocus || false;
+        return new window.toastui.Editor({
+            el: widget,
+            ...editor_attrs
+        });
+    },
 
-        if (editor_attrs.viewer) {
-            // Build viewer using factory
-            editor = window.toastui.Editor.factory({
-                el: widget,
-                ...editor_attrs
-            });
-        } else {
-            // Build editor
-            editor = new window.toastui.Editor({
-                el: widget,
-                ...editor_attrs
-            });
-        }
+    configureToolbar:function(editor, editor_attrs){
         if(editor_attrs.removeToolbarItems){
-            editor_attrs.removeToolbarItems.forEach(function(item) {
-                editor.removeToolbarItem(item);
-            });
+            editor_attrs.removeToolbarItems.forEach(item => editor.removeToolbarItem(item));
         }
         if(editor_attrs.insertToolbarItems){
-            editor_attrs.insertToolbarItems.forEach(function(item) {
-                editor.insertToolbarItem(item)
-            });
+            editor_attrs.insertToolbarItems.forEach(item => editor.insertToolbarItem(item));
         }
-        this.setExternalWidget(sourceNode,editor);
-        editor.addHook('keydown',function(){
-            genro.callAfter(function(){
-                if(editor_attrs.maxLength){
-                    editor.gnr_checkMaxLength(editor,editor_attrs.maxLength)};
-                editor.gnr_onTyped();
-                editor.gnr_setInDatastore();
-            },10,this,'typing');
-        });
-       //editor.on('afterPreviewRender',function(){
-       //    genro.callAfter(function(){
-       //        console.log('aaa')
-       //        editor.gnr_onTyped();
-       //        editor.gnr_setInDatastore();
-       //    },10,sourceNode,'typing');
-       //})
-
     },
 
+    attachHooks:function(editor, editor_attrs, sourceNode){
+    // Usa il metodo ufficiale di Toast UI Editor per intercettare la perdita del focus
+        editor.on('blur', () => {
+            //console.log("📌 [DEBUG] Focus perso, salvo nel datastore...");
+            this.setInDatastore(editor, sourceNode);
+        });
+
+        // Se serve gestire anche quando prende focus
+        editor.on('focus', () => {
+            //console.log("📌 [DEBUG] Editor ha preso il focus.");
+        });
+
+        // Mantieni la gestione della lunghezza massima su keydown se necessario
+        editor.addHook('keydown', () => {
+            genro.callAfter(() => {
+                if (editor_attrs.maxLength) {
+                    this.checkMaxLength(editor, editor_attrs.maxLength);
+                }
+            }, 10, this, 'typing');
+        });
+    },
+
+    checkMaxLength:function(editor, maxLength){
+        let value = editor.getMarkdown();
+        if (value.length > maxLength) {
+            editor.setMarkdown(value);
+        }
+        // Aggiorna il conteggio dei caratteri nella toolbar
+        editor.removeToolbarItem('remaining');
+        editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
+            name: 'remaining',
+            tooltip: 'Remaining characters',
+            text: `Remaining: ${(maxLength - value.length)}`,
+            style: { textAlign: 'right', fontStyle: 'italic', fontSize: '.8em', cursor: 'auto', width: '75px', textAlign: 'center'}
+        });
+    },
+    
+    onTyped:function(editor){
+        // Logica di callback per la digitazione
+    },
+    
+    setInDatastore:function(editor, sourceNode){
+        let value = editor.getMarkdown();
+        let currentValue = sourceNode.getAttributeFromDatasource('value');
+    
+        // Aggiorna il datastore SOLO se il valore è cambiato
+        if (currentValue !== value) {
+            sourceNode.setAttributeInDatasource('value', value || null);
+            const htmlpath = sourceNode.attr.htmlpath;
+            if (htmlpath) {
+                sourceNode.setRelativeData(htmlpath, editor.getHTML());
+            }
+        }
+    },
+    
     mixin_gnr_value:function(value,kw, trigger_reason){    
         this.setMarkdown(value || '');
     },
@@ -342,23 +393,6 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     mixin_gnr_onTyped:function(){
     },
 
-    mixin_gnr_checkMaxLength:function(editor,maxLength){
-        let value = this.getMarkdown();
-        if (value.length > maxLength) {
-            this.setMarkdown(value);
-        }
-        editor.removeToolbarItem('remaining');
-        editor.insertToolbarItem({ groupIndex: -1, itemIndex: -1 }, {
-            name: 'remaining',
-            tooltip: 'Remaining characters',
-            text: `Remaining: ${(maxLength - value.length)}`,
-            action: null,
-            style:  {textAlign: 'right', right:'0', width:'auto', cursor:'pointer',
-                        cursor: 'auto', fontStyle: 'italic', fontSize: '.8em', background: 'none', border: 'none'}
-          });
-        
-    },
-
     mixin_gnr_disabled:function(value){
         this.gnr_setDisabled(value);
     },
@@ -369,7 +403,9 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
    
     mixin_gnr_setDisabled:function(value){
         this.sourceNode.domNode.setAttribute('disabled',value===true?'true':'false');
-        this.mdEditor.el.lastChild.setAttribute('contenteditable',value===true?'false':'true');
+        if(!this.options.viewer){
+            this.mdEditor.el.lastChild.setAttribute('contenteditable',value===true?'false':'true'); 
+        }
     }
 
     

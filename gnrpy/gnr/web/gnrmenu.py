@@ -57,7 +57,7 @@ class MenuStruct(GnrStructData):
             if methodname.startswith('config_'):
                 handler = getattr(obj,methodname)
                 group_code = getattr(handler,'group_code',None)
-                if group_code==page.rootenv['user_group_code']:
+                if group_code and group_code==page.rootenv['user_group_code']:
                     return methodname
         return 'config'
 
@@ -297,19 +297,33 @@ class MenuResolver(BagResolver):
     def load(self):
         result = Bag()
         source = self.sourceBag[self.path]
-        node_attr = self.sourceBag.getAttr(self.path)
         for node in source:
             if not self.allowedNode(node):
                 continue
             warning = self.checkLegacyNode(node)
             if warning:
                 self._page.log(f'AppMenu Changed tag in node {self.path}.{node.label}: {warning}')
-            handler = getattr(self,f'nodeType_{node.attr["tag"]}')
+            menuTag = node.attr["tag"]
+            handler = getattr(self,f'nodeType_{menuTag}')
             try:
                 value,attributes = handler(node)
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
+            titleCounter_val = attributes.get('titleCounter')
+            if titleCounter_val and menuTag != 'tableBranch':
+                titleCounter_attrs = {}
+                if isinstance(titleCounter_val, dict):
+                    titleCounter_attrs.update(titleCounter_val)
+                table = attributes.get('table') or titleCounter_attrs.get('table')
+                if not table:
+                    continue
+                self._page.subscribeTable(table, True, subscribeMode=True)
+                attributes['titleCounter_count'] = self._page.app.getRecordCount(
+                    table=table,
+                    where=attributes.get('titleCounter_condition'),
+                    **titleCounter_attrs
+                )
             result.setItem(node.label, value, attributes)
         return result
 
@@ -358,13 +372,13 @@ class MenuResolver(BagResolver):
             if nodeattr.get('pkg'):
                 nodeattr['tag'] = 'packageBranch'
                 return 'updateToPackageBranch'
-
-        if nodeTag=='webpage' and nodeattr.get('table'):
-            nodeattr['tag'] = 'thpage'
-            return 'thpage'
         if nodeTag=='thpage' and nodeattr.get('filepath'):
             nodeattr['tag'] = 'webpage'
 
+        if nodeTag=='webpage' and nodeattr.get('table') and not nodeattr.get('filepath'):
+            nodeattr['tag'] = 'thpage'
+            return 'thpage'
+        
         if nodeTag == 'lookups':
             lookup_manager = nodeattr.pop('lookup_manager',None)
             if lookup_manager is True:
@@ -523,6 +537,7 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         attributes.setdefault('branchIdentifier',getUuid())
         kwargs = dict(attributes)
+        kwargs.pop('titleCounter',None)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)

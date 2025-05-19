@@ -5,14 +5,17 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
-
-from gnr.web.gnrwebpage import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwebstruct import struct_method
 from datetime import date
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrRestrictedAccessException
+
 from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.app import pkglog as logger
+from gnr.app.gnrapp import GnrRestrictedAccessException
+from gnr.web.gnrwebpage import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
+
+
         
 class LoginComponent(BaseComponent):
     css_requires = 'login'
@@ -45,8 +48,8 @@ class LoginComponent(BaseComponent):
         login_title = self.loginPreference('login_title')
         new_window_title = self.loginPreference('new_window_title')
 
-       #login_title = login_title or '!!Login'
-       #new_window_title = new_window_title or '!!New Window'
+        #login_title = login_title or '!!Login'
+        #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
         self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg,closable_login=closable_login)
@@ -237,12 +240,15 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
+        logger.info("Checking login for user: %s", user)
         result = Bag()
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
+                logger.error("Login failed for %s", user)
                 return result
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         status = getattr(avatar,'status',None)
         if not status:
@@ -253,12 +259,16 @@ class LoginComponent(BaseComponent):
         try:
             self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
                 ps.setItem('waiting2fa',avatar.user_id)
                 ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
+        # we should send to logger other informations, like IP address
+        # and browser/device id
+        logger.info("User %s logged in", user)
         return result
     
     def login_require2fa(self,avatar):

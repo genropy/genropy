@@ -26,8 +26,6 @@ class AppPref(object):
     def prefpane_docu(self, parent,**kwargs): 
         pane = parent.contentPane(**kwargs)
         fb = pane.formbuilder(cols=1,border_spacing='3px')
-        fb.textbox('^.sphinx_path', lbl='!![en]Sphinx project path', placeholder='E.g. documentation:handbooks')
-        fb.textbox('^.local_path', lbl='!![en]Local handbooks path', placeholder='E.g. documentation:local_handbooks')
         fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
         fb.textbox('^.cloudfront_distribution_id', lbl='!![en]Cloudfront distribution ID', placeholder='E.g. E350MXXXXXZ73K')
         fb.checkbox('^.manage_redirects', lbl='', label='!![en]Manage redirects')

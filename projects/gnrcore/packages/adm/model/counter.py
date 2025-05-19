@@ -1,10 +1,11 @@
 # encoding: utf-8
 
-from past.utils import old_div
 import re
+from datetime import datetime
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-from datetime import datetime
+
 BASE = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
 class Table(object):
@@ -240,7 +241,7 @@ class Table(object):
         b = len(base)
         while counter !=0:
             r = counter % b
-            counter = old_div(counter, b)
+            counter = int(counter/b)
             result.append(base[r])
         result.reverse()
         return ''.join(result)

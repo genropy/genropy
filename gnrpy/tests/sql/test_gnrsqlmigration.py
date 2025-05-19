@@ -69,8 +69,9 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.db.startup()
         self.migrator.prepareMigrationCommands()
         if apply_only:
+            changes = self.migrator.getChanges()
             self.migrator.applyChanges()
-            return
+            return changes
         if expected_value == '?':
             expected_changes = self.migrator.getChanges()
             print('Expected value:', expected_changes)
@@ -144,8 +145,18 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl.column('country',size='2')
         tbl.column('vat_number',size=':30')
         tbl.compositeColumn('international_vat',columns='country,vat_number',unique=True)
-        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);\nCREATE UNIQUE INDEX idx_91100f32 ON "alfa"."alfa_restaurant" USING btree (country, vat_number);'
+        check_value = 'CREATE TABLE "alfa"."alfa_restaurant"(\n "id" serial8 NOT NULL,\n "name" character varying(45),\n "country" character(2),\n "vat_number" character varying(30),\n PRIMARY KEY (id),\n CONSTRAINT "cst_703bf76b" UNIQUE ("country", "vat_number")\n);'
         self.checkChanges(check_value)
+
+
+    def test_04d_add_unique_column(self):
+        """Tests adding a new column to an existing table."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('recipe')
+        tbl.column('testuniquecol',unique=True,size=':10')
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe"\nADD COLUMN "testuniquecol" character varying(10);\nALTER TABLE "alfa"."alfa_recipe"\nADD CONSTRAINT "cst_f797d32c" UNIQUE ("testuniquecol");'
+        self.checkChanges(check_value)
+
 
     def test_05a_create_table_withpkey(self):
         """Tests creating a table with a primary key column."""
@@ -174,13 +185,23 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'CREATE TABLE "alfa"."alfa_recipe_row" ("recipe_code" character varying(12) NOT NULL , "recipe_line" bigint NOT NULL , "description" text , "ingredient_id" bigint , PRIMARY KEY (recipe_code,recipe_line));'
         self.checkChanges(check_value)
 
-    def test_05a_create_table_with_pkey_explicit_unique(self):
+    def test_05d_create_table_with_pkey_explicit_unique(self):
         """Tests creating a table with a primary key column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('company', pkey='code')
         tbl.column('code', size=':30',unique=True)
         tbl.column('description')
         check_value = 'CREATE TABLE "alfa"."alfa_company"(\n "code" character varying(30) NOT NULL,\n "description" text,\n PRIMARY KEY (code)\n);'
+        self.checkChanges(check_value)
+
+    def test_05e_create_table_with_pkey_and_unique_col(self):
+        """Tests creating a table with a primary key column."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('test_table_with_uniquecol', pkey='code')
+        tbl.column('code', size=':30',unique=True)
+        tbl.column('description')
+        tbl.column('uniquecol',unique=True,size='10')
+        check_value = 'CREATE TABLE "alfa"."alfa_test_table_with_uniquecol"(\n "code" character varying(30) NOT NULL,\n "description" text,\n "uniquecol" character(10),\n PRIMARY KEY (code)\n);\nALTER TABLE "alfa"."alfa_test_table_with_uniquecol"\nADD CONSTRAINT "cst_9bbd2120" UNIQUE ("uniquecol");'
         self.checkChanges(check_value)
 
     def test_06_prepare_table(self):
@@ -286,15 +307,29 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         """Tests modifying the data type of an existing column."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('ingredient')
-        tbl.column('description', dtype='varchar', size=':50')
+        tbl.column('description', size=':50')
         check_value = 'ALTER TABLE "alfa"."alfa_ingredient" \n ALTER COLUMN "description" TYPE character varying(50);'
         self.checkChanges(check_value)
+
+
+    def test_08e_modify_column_from_text_to_bytea(self):
+        """Tests modifying the data type of an existing column."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('ingredient')
+        foo_varchar = tbl.column('foo_varchar', size=':50')
+        self.checkChanges(apply_only=True)
+        foo_varchar.attributes['dtype'] = 'O'
+        foo_varchar.attributes.pop('size')
+        self.checkChanges('ALTER TABLE "alfa"."alfa_ingredient"\nDROP COLUMN "foo_varchar",\nADD COLUMN "foo_varchar" bytea;')
+
+
 
     def test_08b_modify_column_type(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('recipe_row_alternative')
+        tbl.column('vegan').attributes.pop('dtype')
         tbl.column('vegan',size='1',values='Y:Yes,C:Crudist,F:Fresh Fruit')
-        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative" \n ALTER COLUMN "vegan" TYPE character(1);'
+        check_value = 'ALTER TABLE "alfa"."alfa_recipe_row_alternative"\nDROP COLUMN "vegan",\nADD COLUMN "vegan" character(1) ;'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_add_unique(self):
@@ -302,14 +337,21 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         tbl = pkg.table('author')
         tbl.column('tax_code',unique=True)
         tbl.column('foo') #columns added for testing the right placement of ADD constraint
-        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");\nCREATE UNIQUE INDEX idx_fbdb510e ON "alfa"."alfa_author" USING btree (tax_code);'
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nADD COLUMN "foo" text ;\nALTER TABLE "alfa"."alfa_author"\nADD CONSTRAINT "cst_99206169" UNIQUE ("tax_code");'
         self.checkChanges(check_value)
 
     def test_08c_modify_column_remove_unique(self):
         pkg = self.src.package('alfa')
         tbl = pkg.table('author')
-        tbl.column('tax_code',unique=False)
+        tbl.column('tax_code').attributes.pop('unique')
         check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP CONSTRAINT IF EXISTS "cst_99206169";'
+        self.checkChanges(check_value)  
+
+    def test_08d_modify_dtype_bis(self):
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('author')
+        tbl.column('foo',dtype='D') 
+        check_value = 'ALTER TABLE "alfa"."alfa_author"\nDROP COLUMN "foo",\nADD COLUMN "foo" date ;'
         self.checkChanges(check_value)
 
     def test_09a_remove_column(self):
@@ -318,13 +360,24 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         check_value = 'ALTER TABLE "alfa"."alfa_author" \n DROP COLUMN "foo";'
         self.checkChanges(check_value)
 
-    def test_09b_remove_relation(self):
+
+    def test_10a_empty_table_creation(self):
         pkg = self.src.package('alfa')
-        tbl = pkg.table('recipe_row_alternative', pkey='id')
-        col = tbl.column('recipe_code')
-        col.pop('relation')
-        check_value = '?'
-        self.checkChanges(check_value)
+        tbl = pkg.table('my_empty_table')
+        self.checkChanges(apply_only=True)
+        tbl.attributes.update(pkey='id')
+        tbl.column('id',size='22')
+        self.checkChanges('CREATE TABLE "alfa"."alfa_my_empty_table"(\n "id" character(22) NOT NULL,\n PRIMARY KEY (id)\n);')
+
+
+
+    #def test_09b_remove_relation(self):
+    #    pkg = self.src.package('alfa')
+    #    tbl = pkg.table('recipe_row_alternative', pkey='id')
+    #    col = tbl.column('recipe_code')
+    #    col.pop('relation')
+    #    check_value = '?'
+    #    self.checkChanges(check_value)
 
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
@@ -346,6 +399,7 @@ class TestGnrSqlMigration_postgres(BaseGnrSqlMigration):
             password=cls.pg_conf.get("password")
         )
 
+ 
 @pytest.mark.skipif(gnrpostgres3.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
 class TestGnrSqlMigration_postgres3(BaseGnrSqlMigration):
@@ -412,3 +466,11 @@ class ToDo:
         tbl.drop_constraint('unique_code')
         check_value = 'ALTER TABLE "alfa"."alfa_recipe" DROP CONSTRAINT unique_code;'
         self.checkChanges(check_value)
+
+
+
+    def test_10b_change_pkey(self):
+        """Not implemented feature"""
+        pass
+
+

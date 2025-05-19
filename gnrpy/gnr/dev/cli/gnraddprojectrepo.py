@@ -6,7 +6,7 @@ import grp
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrsys import expandpath
-from gnr.app.gnrconfig import getGnrConfig
+from gnr.core.gnrconfig import getGnrConfig
 
 def site_name_to_path(site_name, gnr_config=None):
     path_list = []

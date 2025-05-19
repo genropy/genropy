@@ -5,17 +5,18 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import customizable
-from gnr.app.gnrconfig import getRmsOptions
 
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
                    login:LoginComponent,
                    th/th:TableHandler,
+                   prefhandler/prefhandler:UserPrefMenu,
                    gnrcomponents/batch_handler/batch_handler:TableScriptRunner,
                    gnrcomponents/batch_handler/batch_handler:BatchMonitor,
                    gnrcomponents/chat_component/chat_component,
@@ -129,6 +130,7 @@ class FrameIndex(BaseComponent):
                                 persist=True,
                                 selfsubscribe_toggleLeft="""this.getWidget().setRegionVisible("left",'toggle');""",
                                 selfsubscribe_hideLeft="""this.getWidget().setRegionVisible("left",false);""",
+                                subscribe_openUserSettings="genro.framedIndexManager.openUserSettings($1)",
                                 subscribe_setIndexLeftStatus="""var delay = $1===true?0: 500;
                                                                 var set = $1;                           
                                                                 if(typeof($1)=='number'){
@@ -391,7 +393,9 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_settings(self,slot,**kwargs):
-        slot.lightButton(_class='iconbox gear').dataController('genro.framedIndexManager.openUserPreferences()')
+        if self.isGuest:
+            return
+        slot.userSettings()
 
     @struct_method
     def fi_slotbar_refresh(self,slot,**kwargs):
@@ -460,7 +464,7 @@ class FrameIndex(BaseComponent):
             self.index_dashboard(sc.contentPane(pageName='indexpage',title=self.index_title))
         else:
             indexpane = sc.contentPane(pageName='indexpage',title=self.index_title,overflow='hidden')
-            
+            page.data('splash_index',True,url=self.index_url)
             if self.index_url:
                 src = self.getResourceUri(self.index_url,add_mtime=self.isDeveloper())
                 indexpane.htmliframe(height='100%', width='100%', src=src, border='0px',shield=True)         

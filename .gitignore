@@ -7,6 +7,7 @@ gnrpy/build/
 logs.log
 pyro5.log
 dist
+\#*
 .eggs
 *.egg-info
 _static
@@ -14,7 +15,11 @@ _static
 *.pyo
 *~
 gnrpy/.cache
+
 .vscode
+!.vscode/settings.json
+!.vscode/tasks.json
+
 gnrpy/gnr/lib/.DS_Store
 gnrpy/gnr/lib/services/.DS_Store
 .DS_Store
@@ -22,7 +27,9 @@ docker/*
 .python-version
 .spyproject/
 .coverage
+coverage.xml
 
 .aider*
 gnrpy/tests/sql/_main_connection
 gnrpy/tests/_main_connection
+.qodo

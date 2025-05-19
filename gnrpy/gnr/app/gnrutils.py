@@ -221,7 +221,11 @@ class GnrAppInsightProjectComposition(GnrAppInsightDataset):
         for project_component, component_data in data.items():
             print(project_component.replace("_", " ").capitalize())
             print("-"*len(project_component))
-            ids_max_length = max([len(x) for x in component_data.keys()])
+            ids = [len(x) for x in component_data.keys()]
+            if not ids:
+                print("No packages in the project\n")
+                continue
+            ids_max_length = max(ids)
             for package in sorted(component_data.keys()):
                 p = component_data[package]
                 out = f"{package:<{ids_max_length}}: {p['percentage']:=6.2f}% ({p['lines']})"

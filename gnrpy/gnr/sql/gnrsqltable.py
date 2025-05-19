@@ -34,11 +34,12 @@ from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_inf
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
 from gnr.core.gnrbag import Bag, BagCbResolver
 from gnr.core.gnrdict import dictExtract
+from gnr.sql import logger
+from gnr.sql import ormauditlogger
 from gnr.sql.gnrsqldata import SqlRecord, SqlQuery
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 from gnr.sql.gnrsql import GnrSqlException
-
 
 __version__ = '1.0b'
 
@@ -56,7 +57,8 @@ def add_sql_comment(func):
         
         # Get caller info and user info
         info = {
-            "user": self_instance.db.currentEnv.get('user'),
+            "user": self_instance.db.currentEnv.get('user',
+                                                    os.environ.get("USER", "")+"@cli"),
         }
         # Add caller information
         info.update(get_caller_info())
@@ -65,15 +67,40 @@ def add_sql_comment(func):
         sql_comment = kwargs.get('sql_comment', None)
         if sql_comment:
             info['comment'] = sql_comment
+            
         info['sqlcommand'] = func.__name__
-        
         # Create the updated sql_comment
         self_instance.db.currentEnv['sql_comment'] = f'GNRCOMMENT - {json.dumps(info)}'
-        
+        self_instance.db.currentEnv['sql_details'] = info
         # Call the original function with updated kwargs
         return func(*args, **kwargs)
     
     return wrapper
+
+def orm_audit_log(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        # prepare logging info
+        info = {
+            "pkg": self_instance.pkg.name,
+            "table": self_instance.name,
+            "command": func.__name__,
+            "user": self_instance.db.currentEnv.get('user', os.environ.get("USER", "")+"@cli"),
+            "args": args[1:],
+            "kwargs": kwargs,
+            "caller_info": get_caller_info()
+        }
+        getattr(ormauditlogger, func.__name__)(info)
+        return func(*args, **kwargs)
+    
+    return wrapper
+
 
 class RecordUpdater(object):
     """TODO
@@ -630,6 +657,8 @@ class SqlTable(GnrObject):
         """
         field = field or self.pkey
         composed_of = self.column(field).attributes.get('composed_of')
+        if not composed_of:
+            return {field:key}
         pkeykeys = composed_of.strip('[]').split(',')
         pkeyvalues = self.db.typeConverter.fromJson(key)
         return dict(zip(pkeykeys,pkeyvalues))
@@ -921,10 +950,8 @@ class SqlTable(GnrObject):
         :param sqlContextName: TODO
         :param for_update: TODO"""
         packageStorename = self.pkg.attributes.get('storename')
-        if packageStorename:
+        if packageStorename and _storename is None:
             _storename = packageStorename
-        else:
-            _storename = None
         record = SqlRecord(self, pkey=pkey, where=where,
                            lazy=lazy, eager=eager,
                            relationDict=relationDict,
@@ -1006,7 +1033,7 @@ class SqlTable(GnrObject):
                 sourceRecord.update(__del_ts=datetime.now(),__moved_related=moved_relations)
                 self.raw_update(sourceRecord,old_record=old_record)
             else:
-                self.delete(destRecord[self.pkey])
+                self.delete(sourceRecord[self.pkey])
 
 
     def hasRelations(self,recordOrPkey):
@@ -1314,6 +1341,7 @@ class SqlTable(GnrObject):
 
     @extract_kwargs(jc=True)
     @add_sql_comment
+    @orm_audit_log
     def query(self, columns=None, where=None, order_by=None,
               distinct=None, limit=None, offset=None,
               group_by=None, having=None, for_update=False,
@@ -1359,10 +1387,8 @@ class SqlTable(GnrObject):
                 rel = rel[0:-1]
             joinConditions[rel] = dict(condition=cond,params=dict(),one_one=one_one)
         packageStorename = self.pkg.attributes.get('storename')
-        if packageStorename:
+        if packageStorename and _storename is None:
             _storename = packageStorename
-        else:
-            _storename = None
         query = SqlQuery(self, columns=columns, where=where, order_by=order_by,
                          distinct=distinct, limit=limit, offset=offset,
                          group_by=group_by, having=having, for_update=for_update,
@@ -1671,8 +1697,8 @@ class SqlTable(GnrObject):
         return self.db.dbevents[self.fullname]
 
 
-    def notifyDbUpdate(self,record):
-        self.db.notifyDbUpdate(self,record)
+    def notifyDbUpdate(self,record=None,where=None,**kwargs):
+        self.db.notifyDbUpdate(self,recordOrPkey=record,where=where,**kwargs)
 
     def touchRecords(self,_pkeys=None,_wrapper=None,_wrapperKwargs=None,
                     _notifyOnly=False,pkey=None,
@@ -1773,6 +1799,7 @@ class SqlTable(GnrObject):
         self.db.adapter.lockTable(self, mode, nowait)
 
     @add_sql_comment
+    @orm_audit_log
     def insert(self, record, **kwargs):
         """Insert a single record
 
@@ -1781,6 +1808,7 @@ class SqlTable(GnrObject):
         return record
 
     @add_sql_comment
+    @orm_audit_log
     def raw_insert(self, record, **kwargs):
         """Insert a single record without triggers
 
@@ -1789,6 +1817,7 @@ class SqlTable(GnrObject):
         return record
     
     @add_sql_comment
+    @orm_audit_log
     def raw_delete(self, record, **kwargs):
         """Delete a single record without triggers
 
@@ -1796,10 +1825,12 @@ class SqlTable(GnrObject):
         self.db.raw_delete(self, record, **kwargs)
 
     @add_sql_comment
+    @orm_audit_log
     def insertMany(self, records, **kwargs):
         self.db.insertMany(self, records, **kwargs)
 
     @add_sql_comment
+    @orm_audit_log
     def raw_update(self,record=None,old_record=None,pkey=None,**kwargs):
         self.db.raw_update(self, record,old_record=old_record,pkey=pkey,**kwargs)
 
@@ -1807,6 +1838,7 @@ class SqlTable(GnrObject):
         self.db.adapter.changePrimaryKeyValue(self,pkey=pkey,newpkey=newpkey)
 
     @add_sql_comment
+    @orm_audit_log
     def delete(self, record, **kwargs):
         """Delete a single record from this table.
 
@@ -1878,6 +1910,7 @@ class SqlTable(GnrObject):
                             rel_rec[mfld] = None
                             relatedTable.update(rel_rec,oldrec)
     @add_sql_comment
+    @orm_audit_log
     def update(self, record, old_record=None, pkey=None,**kwargs):
         """Update a single record
 
@@ -1890,10 +1923,9 @@ class SqlTable(GnrObject):
             pkey = None
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
-            _storename = packageStorename
+            with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=packageStorename):
+                self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         else:
-            _storename = None
-        with self.db.tempEnv(currentImplementation=self.dbImplementation, storename=_storename):
             self.db.update(self, record, old_record=old_record, pkey=pkey,**kwargs)
         return record
         
@@ -2223,7 +2255,7 @@ class SqlTable(GnrObject):
 
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
 
     def diagnostic_warnings(self, record, old_record=None):
@@ -2231,7 +2263,7 @@ class SqlTable(GnrObject):
 
         :param record: TODO
         :param old_record: TODO"""
-        print('You should override for diagnostic')
+        logger.warning('You should override this method for diagnostic')
         return
 
 
@@ -2551,7 +2583,7 @@ class SqlTable(GnrObject):
             assert dest_version > src_version, 'table %s version conflict from %i to %i' %(self.fullname,src_version,dest_version)
             converters = ['_convert_%i_%i' %(x,x+1) for x in range(src_version,dest_version)]
             if [m for m in converters if not hasattr(self,m)]:
-                print('missing converter',self.fullname)
+                logger.warning('Missing converter %s', self.fullname)
                 return
         self.copyToDb(source_db,self.db,empty_before=empty_before,excludeLogicalDeleted=excludeLogicalDeleted,
                       source_records=source_records,excludeDraft=excludeDraft,
@@ -2690,7 +2722,6 @@ class SqlTable(GnrObject):
             if attributes:
                 if not attributes.get('user_forbidden'):
                     resultAppend(result, relnode.label, attributes, omit)
-        #print(x)
         for vcolname, vcol in list(tblmodel.virtual_columns.items()):
             targetcol = self.column(vcolname)
             attributes = dict(targetcol.attributes)

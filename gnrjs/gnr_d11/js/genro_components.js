@@ -1955,6 +1955,49 @@ dojo.declare("gnr.widgets.DownloadButton", gnr.widgets.gnrwdg, {
 
 });
 
+dojo.declare('gnr.widgets.CharCounterTextarea',gnr.widgets.gnrwdg,{
+    createContent:function(sourceNode,kw){
+        let textArewKw = objectExtract(kw,'height');
+        textArewKw.style ='width:100%;box-sizing: border-box;padding:3px';
+        sourceNode.attr.value = objectPop(kw,'value');
+        objectUpdate(sourceNode.attr,kw);
+        textArewKw._absValuePath = sourceNode.absDatapath(sourceNode.attr.value)
+        const box = sourceNode._('div','wrapper',{_workspace:true,...kw}); 
+        textArewKw.connect_input = function(evt){
+            const tgt = evt.target; 
+            let my_text = tgt.value; 
+            this.setRelativeData(this.attr._absValuePath,my_text);
+        };
+        
+        box._('textarea','textarea',textArewKw);
+        let last_line = box._('div',{font_style:'italic', font_size:'8pt'});
+        last_line._('span',{innerHTML:_T('Remaining: ')})
+        last_line._('span',{innerHTML:'^#WORKSPACE.rem',color:'^#WORKSPACE.clr'})
+        let startValue = sourceNode.getAttributeFromDatasource('value');
+        if(startValue){
+            setTimeout(()=>{
+                sourceNode.gnrwdg.setValue(startValue);
+            },1)
+        }
+        return box
+    },
+    gnrwdg_setValue:function(value,kw,trigger_reason){
+        const textAreaNode = this.sourceNode.getValue().getNode('wrapper.textarea');
+        const currattr = this.sourceNode.currentAttributes(); 
+        const my_text = currattr.value;
+        const max_len = currattr.max_len || 80; 
+        const sound = currattr.sound || 'ping'; 
+        const color_ok = currattr.color_ok || 'grey'; 
+        const color_wg = currattr.color_wg || 'red'; 
+        const remaining = max_len - my_text.length; 
+        textAreaNode.setRelativeData('#WORKSPACE.rem',remaining);
+        textAreaNode.setRelativeData('#WORKSPACE.clr',(remaining<max_len/10)?color_wg:color_ok);
+        textAreaNode.domNode.value = my_text;
+        if(remaining<3){ genro.playSound(sound) }; 
+        if(remaining<0){ this.sourceNode.setRelativeData(this.sourceNode.attr.value,my_text.slice(0,max_len)) };
+    },
+});
+
 dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw){
         var framekw = objectExtract(kw,'frame_*');
@@ -1962,6 +2005,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         var resource = objectPop(kw,'resource');
         var rpcCall = objectPop(kw,'rpcCall');
         var _delay = objectPop(kw,'_delay');
+        var avoidCache = objectPop(kw,'avoidCache');
         var emptyMessage = objectPop(kw,'emptyMessage','Missing');
 
         var _if = objectPop(kw,'_if');
@@ -1992,6 +2036,7 @@ dojo.declare("gnr.widgets.DocumentFrame", gnr.widgets.gnrwdg, {
         iframekw['rpcCall'] = rpcCall;
         iframekw['_delay'] = _delay;
         iframekw['documentClasses'] = true;
+        iframekw.avoidCache = avoidCache
         objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
         var iframe = frame._('ContentPane','center',{overflow:'hidden'})._('iframe',iframekw);
         var scriptkw = objectUpdate({'script':"SET #WORKSPACE.enabled = true; FIRE #WORKSPACE.reload_iframe;",'_delay':100,_if:_if,_else:'SET #WORKSPACE.enabled = false;'},kw);
@@ -3968,11 +4013,11 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var dropAreaKw = {nodeId:nodeId,dropTarget:objectPop(kw,'dropTarget',true),
                           dropTypes:objectPop(kw,'dropTypes','Files'),
                          _class:'dropUploaderBoxInner',...objectExtract(kw,'dropArea_*')};
-        
+
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
-        var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick'
+        var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick'
         dropAreaKw[uploadhandler_key] = function(){
             if(gnrwdg.pendingHandlers.length){
                 genro.dlg.ask(_T("Abort upload"),
@@ -5362,7 +5407,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         kw = sourceNode.evaluateOnNode(kw);
         var popup = objectPop(kw,'popup');
         var values = objectPop(kw,'values');
-        var codeSeparator = objectPop(kw,'codeSeparator');
+        var customCodeSeparator = objectPop(kw,'codeSeparator');
+        var codeSeparator = customCodeSeparator;
         var tb;
         var gnrwdg = sourceNode.gnrwdg;
         var has_code;
@@ -5379,10 +5425,9 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
         }
         if(values instanceof gnr.GnrBag){
             has_code = true;
+        }else if (values){
+            has_code = codeSeparator?values.indexOf(codeSeparator)>=0:false;
         }else{
-            has_code = (codeSeparator && values)?values.indexOf(codeSeparator)>=0:false;
-        }
-        if(!values){
             var table = objectPop(originalKwargs,'table');
             if(table || gnrwdg.remoteValuesRpc){
                 var hierarchical = objectPop(kw,'hierarchical');
@@ -5428,6 +5473,8 @@ dojo.declare("gnr.widgets.CheckBoxText", gnr.widgets.gnrwdg, {
                     gnrwdg.has_code = (codeSeparator && v)?v.indexOf(codeSeparator)>=0:false;
                     gnrwdg.setValues(v);
                 }
+            }else{
+                has_code = customCodeSeparator?true:false;
             }
         }
         var rootNode = sourceNode;
@@ -5941,6 +5988,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             slotKw = objectExtract(kw,slot+'_*');
             if(slotKw.width){
                 cell.getParentNode().attr['width'] = slotKw.width;
+                slotKw._original_width = slotKw.width;
                 slotKw.width = '100%';
             }
             if(slotKw.text_align){
@@ -6039,7 +6087,7 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             searchId = searchCode+'_searchbox';
         }
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
-                            'width':objectPop(slotKw,'width'),search_kw:slotKw});
+                            'width':objectPop(slotKw,'_original_width'),search_kw:slotKw});
     },
 
     slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){

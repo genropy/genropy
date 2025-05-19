@@ -4,8 +4,6 @@
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from past.utils import old_div
 from gnr.web.batch.btcaction import BaseResourceAction
 
 caption = '!!Set rows values'
@@ -35,18 +33,16 @@ class Main(BaseResourceAction):
 
     def table_script_parameters_pane(self, pane, table=None,**kwargs):
         tblobj = self.db.table(table)
-        cols = int(old_div(len(tblobj.columns),30))+1
+        cols = int(len(tblobj.columns)/30)+1
         box = pane.div(max_height='600px',overflow='auto')
         box.menu(validclass='gnrfieldlabel').menuline('Force value to NULL',
-                                                    action="""var lablesn = $2;
-                                                              lablesn.setRelativeData('.'+lablesn.attr.fieldname+'?forced_null',true);""")
+                                                      action="""var lablesn = $2;
+                                                lablesn.setRelativeData('.'+lablesn.attr.fieldname+'?forced_null',true);""")
         fb = box.formbuilder(margin='5px',cols=cols,border_spacing='3px',dbtable=table,datapath='.values')
         for k,v in list(tblobj.columns.items()):
             attr = v.attributes
             if attr.get('dtype') == 'X':
                 continue
-            #if attr.get('_sysfield') and not (k=='__syscode' and self.isDeveloper()):
-            #    continue
             kw = {}
             if attr.get('dtype')=='DH' or attr.get('dtype')=='DHZ':
                 kw['tag'] = 'dateTimeTextBox'

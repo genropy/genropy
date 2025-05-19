@@ -15,8 +15,10 @@ import reprlib
 from bdb import Breakpoint
 
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrdecorator import public_method
+from gnr.web import logger
+from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
+
 
 class GnrPdbClient(GnrBaseProxy):
     @public_method
@@ -104,7 +106,7 @@ class GnrPdb(pdb.Pdb):
         return result
         
     def print_stack_entry(self, frame_lineno, prompt_prefix=None):
-        print(self.format_stack_entry(frame_lineno), file=self.stdout)
+        logger.info(self.format_stack_entry(frame_lineno))
             
     def format_stack_entry(self, frame_lineno, lprefix=': '):
         frame, lineno = frame_lineno
@@ -195,10 +197,7 @@ class GnrPdb(pdb.Pdb):
         return result
 
     def do_p(self, arg):
-        try:
-            print(repr(self._getval(arg)), file=self.stdout)
-        except:
-            pass
+        logger.info(repr(self._getval(arg)))
 
     def do_pp(self, arg):
         try:
@@ -206,6 +205,7 @@ class GnrPdb(pdb.Pdb):
             pprint.pprint(self._getval(arg), self.stdout)
         except:
             pass
+        
     def do_level(self,level):
         level = int(level)
         maxlevel = len(self.stack)-1

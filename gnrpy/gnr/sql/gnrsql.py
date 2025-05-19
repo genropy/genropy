@@ -20,7 +20,6 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import logging
 import pickle
 import os
 import shutil
@@ -30,7 +29,9 @@ import _thread
 import locale
 from time import time
 from multiprocessing.pool import ThreadPool
-
+from functools import wraps
+from gnr.sql import logger
+from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrlang import GnrObject
@@ -43,7 +44,6 @@ from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 MAIN_CONNECTION_NAME = '_main_connection'
 __version__ = '1.0b'
 
-gnrlogger = logging.getLogger(__name__)
 
 def in_triggerstack(func):
     """TODO"""
@@ -60,6 +60,29 @@ def in_triggerstack(func):
         return result
         
     return decore
+
+def sql_audit(func):
+    """
+    Decorator to add a `sql_comment` parameter to the SQL methods.
+    Combines user info, caller info, and any existing sql_comment.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the self instance
+        self_instance = args[0]
+        sql = args[1]
+        # Get caller info and user info
+        sql_details = self_instance.currentEnv.get("sql_details", {})
+        start_time = time()
+        result = func(*args, **kwargs)
+        end_time = time()
+        sql_details['time'] = end_time-start_time
+        getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        return result
+        
+    
+    return wrapper
+
 
 class GnrSqlException(GnrException):
     """Standard Gnr Sql Base Exception
@@ -271,11 +294,11 @@ class GnrSqlDb(GnrObject):
             shutil.rmtree(extractpath)
 
     def _autoRestore_one(self,dbname=None,filepath=None,**kwargs):
-        print('drop',dbname)
+        logger.debug('drop %s',dbname)
         self.dropDb(dbname)
-        print('create',dbname)
+        logger.debug('create %s',dbname)
         self.createDb(dbname)
-        print('restore',dbname,filepath)
+        logger.debug('restore %s from %s ',dbname,filepath)
         self.restore(filepath,dbname=dbname,**kwargs)
 
 
@@ -480,6 +503,7 @@ class GnrSqlDb(GnrObject):
         else:
             return dict(host=self.host, database=self.dbname if not storename or storename=='_main_db' else storename, user=self.user, password=self.password, port=self.port)
     
+    @sql_audit
     def execute(self, sql, sqlargs=None, cursor=None, cursorname=None, 
                 autocommit=False, dbtable=None,storename=None,_adaptArguments=True):
         """Execute the sql statement using given kwargs. Return the sql cursor
@@ -506,6 +530,9 @@ class GnrSqlDb(GnrObject):
         storename = storename or envargs.get('env_storename', self.rootstore)
         sqlargs = envargs
         sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
+        #sql_details = self.currentEnv.get("sql_details", {})
+        #getattr(sqlauditlogger, sql.split(" ")[0])(sql, extra=sql_details)
+        
         for k,v in list(sqlargs.items()):
             if isinstance(v,bytes):
                 v=v.decode('utf-8')
@@ -550,7 +577,7 @@ class GnrSqlDb(GnrObject):
                     self.debugger(sql=sql, sqlargs=sqlargs, dbtable=dbtable,delta_time=time()-t_0)
             
             except Exception as e:
-                gnrlogger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
+                logger.warning('error executing:%s - with kwargs:%s \n\n', sql, str(sqlargs))
                 self.rollback()
                 raise
 
@@ -640,7 +667,7 @@ class GnrSqlDb(GnrObject):
             tblobj.dbo_onUpdating(record,old_record=old_record,pkey=pkey,**kwargs)
 
         tblobj.trigger_assignCounters(record=record,old_record=old_record)
-        self.adapter.update(tblobj, record, pkey=pkey,**kwargs)
+        self.adapter.update(tblobj, record, pkey=pkey,old_record=old_record,**kwargs)
         tblobj.updateRelated(record,old_record=old_record)
         self._onDbChange(tblobj,'U',record=record,old_record=old_record,**kwargs)
         tblobj._doFieldTriggers('onUpdated', record, old_record=old_record)
@@ -824,8 +851,7 @@ class GnrSqlDb(GnrObject):
         if len(deferred)==0:
             return result
         for k,v in list(deferred.items()):
-            print('table ',k, end=' ')
-            print('\t\t blocked by',v)
+            logger.info("Table %s blocked by %s", k, v)
         raise GnrSqlException(description='Blocked dependencies')
 
 
@@ -876,7 +902,25 @@ class GnrSqlDb(GnrObject):
             if len(result[pkg]) == 0:
                 result.pop(pkg)
         return result
-            
+    
+    @property
+    def tables(self):
+        for pkgobj in self.packages.values():
+            for tblobj in pkgobj.tables.values():
+                yield tblobj.dbtable
+
+    def filteredTables(self,filterStr=None):
+        regex_pattern = None
+        if filterStr is not None:
+            patterns = filterStr.split(',')
+            regex_pattern = rf"^({'|'.join(re.escape(p) for p in patterns)})(\.|$)"
+        for tblobj in self.tables:
+            if regex_pattern is None or bool(re.match(regex_pattern, tblobj.fullname)):
+                yield tblobj
+
+
+
+
     def table(self, tblname, pkg=None):
         """Return a table object
         

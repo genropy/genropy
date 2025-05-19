@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-
+import sys
+import ctypes
 import datetime
 import os
 import locale
@@ -297,7 +298,11 @@ def getQuarterNames(locale=None):
     return d
 
 def defaultLocale():
-    return os.environ.get('GNR_LOCALE',locale.getlocale()[0])
+    sys_locale = locale.getlocale()[0]
+    if sys.platform == 'win32':
+        windll = ctypes.windll.kernel32
+        sys_locale = locale.windows_locale[windll.GetUserDefaultUILanguage()]
+    return os.environ.get('GNR_LOCALE', sys_locale)
 
 def currentLocale(locale=None):
     r = (locale or defaultLocale()).replace('-', '_')

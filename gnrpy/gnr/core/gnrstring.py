@@ -25,207 +25,191 @@ import re
 import pickle
 import zipfile
 import io
-import logging
 import datetime
 import json
-
 from decimal import Decimal
+from string import Template
+    
+from gnr.core import logger
+from gnr.core.gnrlocale import localize, parselocal
 
-logger = logging.getLogger(__name__)
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile(r'\W+')
 NARROW_CHARACTERS = ["i", "I","l","t", ",", ".", " ","!", "1","[", "]", "-", ";", ":","?","f","j","'","(",")","{","}","|"]
-try:
-    from string import Template
 
-    class BagTemplate(Template):
-        idpattern = r'[_a-z\@][_a-z0-9\.\@^]*'
+class BagTemplate(Template):
+    idpattern = r'[_a-z\@][_a-z0-9\.\@^]*'
 
-    class NoneIsBlankMapWrapper(object):
+class NoneIsBlankMapWrapper(object):
 
-        def __init__(self,data):
-            self.data=data
+    def __init__(self,data):
+        self.data=data
+        
+    def __getitem__(self,k):
+        value= self.data[k]
+        if value is None:
+            value= ''
+        return value
 
-        def __getitem__(self,k):
-            value= self.data[k]
-            if value is None:
-                value= ''
-            return value
+class LocalizedWrapper(object):
+    """Missin doc"""
+    def __init__(self,data, locale=None,templates=None, formats=None,
+                 masks=None,editcols=None,df_templates=None,dtypes=None,
+                 localizer=None,urlformatter=None,noneIsBlank=None,emptyMode=None):
+        self.data=data
+        self.locale=locale
+        self.formats=formats or dict()
+        self.masks = masks or dict()
+        self.editcols = editcols or dict()
+        self.df_templates = df_templates or dict()
+        self.templates=templates
+        self.noneIsBlank=noneIsBlank
+        self.isBag = hasattr(self.data, '_htraverse')
+        self.localizer = localizer
+        self.urlformatter = urlformatter
+        self.dtypes = dtypes or dict()
+        self.emptyMode=emptyMode
 
-    class LocalizedWrapper(object):
-        """Missin doc"""
-        def __init__(self,data, locale=None,templates=None, formats=None,masks=None,editcols=None,df_templates=None,dtypes=None,
-                         localizer=None,urlformatter=None,noneIsBlank=None,emptyMode=None):
-            self.data=data
-            self.locale=locale
-            self.formats=formats or dict()
-            self.masks = masks or dict()
-            self.editcols = editcols or dict()
-            self.df_templates = df_templates or dict()
-            self.templates=templates
-            self.noneIsBlank=noneIsBlank
-            self.isBag = hasattr(self.data, '_htraverse')
-            self.localizer = localizer
-            self.urlformatter = urlformatter
-            self.dtypes = dtypes or dict()
-            self.emptyMode=emptyMode
-
-        def __getitem__(self,k):
-            as_name = k.replace('@','_').replace('.','_')
-            if '^' in k:
-                k = k.split('^')
-                as_name = k[1]
-                k = k[0]
-            value = self.data[k if k in self.data else as_name]
-            format = None
-            mask = None
-            formattedValue = None
-            caption = ''
-            if self.noneIsBlank and value is None:
-                value= ''
-            if self.isBag:
-                if hasattr(value, '_htraverse'):
-                    templatename =  k.replace('.','_')
-                    templateNode = self.templates.getNode(templatename) if self.templates else None
-                    if templateNode:
-                        template = templateNode.value
-                        joiner = templateNode.getAttr('joiner','')
-                        result = []
-                        for v in list(value.values()):
-                            result.append(templateReplace(template,v, locale=self.locale,
-                                            formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
-                        return joiner.join(result)
-                    elif as_name in self.df_templates:
-                        templatepath = self.df_templates[as_name]
-                        template = self.data[templatepath]
-                        result = templateReplace(template,value,locale=self.locale,
-                                                formats=self.formats,masks=self.masks,
-                                                editcols=self.editcols,dtypes=self.dtypes,
-                                                noneIsBlank=self.noneIsBlank)
-                        empty=templateReplace(template,value,locale=self.locale,
-                                                formats=self.formats,editcols=self.editcols,
-                                                masks=self.masks, dtypes=self.dtypes,
-                                                noneIsBlank=self.noneIsBlank,emptyMode=True)
-                        return result if result!=empty else ''
-                    else:
-                        return value.getFormattedValue(joiner='<br/>')
-                else:
-                    valueNode = self.data.getNode(k)
-                    if valueNode:
-                        value = valueNode.attr.get('_displayedValue') or value
-                        formattedValue = valueNode.attr.get('_formattedValue')
-                attrs = self.data.getAttr(k) or dict()
-                format = attrs.get('format')
-                mask = attrs.get('mask')
-                caption = attrs.get('name_long','')
-            format = self.formats.get(as_name) or format
-            mask = self.masks.get(as_name) or mask
-            dtype = self.dtypes.get(as_name)
-            if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
-                value = self.urlformatter(value)
-            if (isinstance(value,str)) and dtype:
-                value = '%s::%s' %(value,dtype)
-            if mask and '#' in mask:
-                caption = self.localizer.translate(caption) if self.localizer else caption.replace('!!','')
-                mask = mask.replace('#',caption)
-            elif not format and formattedValue:
-                value = formattedValue
-            value = toText(value,locale=self.locale, format=format,mask=mask)
-            return value if not self.emptyMode else ''
-
-
-
-    class SubtemplateMapWrapper(object):
-
-        def __init__(self,data,templates=None, locale=None):
-            self.data=data
-            self.templates=templates
-            self.locale=locale
-
-        def __getitem__(self,k):
-            value= self.data[k]
-            if value is None:
-                value= ''
+    def __getitem__(self,k):
+        as_name = k.replace('@','_').replace('.','_')
+        if '^' in k:
+            k = k.split('^')
+            as_name = k[1]
+            k = k[0]
+        value = self.data[k if k in self.data else as_name]
+        format_choice = None
+        mask = None
+        formattedValue = None
+        caption = ''
+        if self.noneIsBlank and value is None:
+            value= ''
+        if self.isBag:
             if hasattr(value, '_htraverse'):
-                templateNode = self.templates.getNode(k)
+                templatename =  k.replace('.','_')
+                templateNode = self.templates.getNode(templatename) if self.templates else None
                 if templateNode:
                     template = templateNode.value
                     joiner = templateNode.getAttr('joiner','')
                     result = []
-                    for k,v in list(value.items()):
-                        result.append(templateReplace(template,v, locale=self.locale))
-                    value = joiner.join(result)
-            return value
+                    for v in list(value.values()):
+                        result.append(templateReplace(template,v, locale=self.locale,
+                                                      formats=self.formats,masks=self.masks,editcols=self.editcols,dtypes=self.dtypes, noneIsBlank=self.noneIsBlank))
+                    return joiner.join(result)
+                elif as_name in self.df_templates:
+                    templatepath = self.df_templates[as_name]
+                    template = self.data[templatepath]
+                    result = templateReplace(template,value,locale=self.locale,
+                                             formats=self.formats,masks=self.masks,
+                                             editcols=self.editcols,dtypes=self.dtypes,
+                                             noneIsBlank=self.noneIsBlank)
+                    empty=templateReplace(template,value,locale=self.locale,
+                                          formats=self.formats,editcols=self.editcols,
+                                          masks=self.masks, dtypes=self.dtypes,
+                                          noneIsBlank=self.noneIsBlank,emptyMode=True)
+                    return result if result!=empty else ''
+                else:
+                    return value.getFormattedValue(joiner='<br/>')
+            else:
+                valueNode = self.data.getNode(k)
+                if valueNode:
+                    value = valueNode.attr.get('_displayedValue') or value
+                    formattedValue = valueNode.attr.get('_formattedValue')
+            attrs = self.data.getAttr(k) or dict()
+            format_choice = attrs.get('format')
+            mask = attrs.get('mask')
+            caption = attrs.get('name_long','')
+        format_choice = self.formats.get(as_name) or format_choice
+        mask = self.masks.get(as_name) or mask
+        dtype = self.dtypes.get(as_name)
+        if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
+            value = self.urlformatter(value)
+        if (isinstance(value,str)) and dtype:
+            value = '%s::%s' %(value,dtype)
+        if mask and '#' in mask:
+            caption = self.localizer.translate(caption) if self.localizer else caption.replace('!!','')
+            mask = mask.replace('#',caption)
+        elif not format_choice and formattedValue:
+            value = formattedValue
+        value = toText(value,locale=self.locale, format=format_choice,mask=mask)
+        return value if not self.emptyMode else ''
 
 
-except:
-    pass
+class SubtemplateMapWrapper(object):
+    def __init__(self,data,templates=None, locale=None):
+        self.data=data
+        self.templates=templates
+        self.locale=locale
+        
+    def __getitem__(self,k):
+        value= self.data[k]
+        if value is None:
+            value= ''
+        if hasattr(value, '_htraverse'):
+            templateNode = self.templates.getNode(k)
+            if templateNode:
+                template = templateNode.value
+                joiner = templateNode.getAttr('joiner','')
+                result = []
+                for k,v in list(value.items()):
+                    result.append(templateReplace(template,v, locale=self.locale))
+                value = joiner.join(result)
+        return value
 
-try:
-    try:
-        import json
-    except:
-        import simplejson as json
-    class JsonEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, datetime.date):
-                return '%04i/%02i/%02i'%(obj.year,obj.month,obj.day)
-            if isinstance(obj, Decimal):
-                return str(obj)
-            try:
-                result = json.JSONEncoder.default(self, obj)
-            except Exception:
-                result = '*not JSON serializable*'
-            return result
+class JsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.date):
+            return '%04i/%02i/%02i'%(obj.year,obj.month,obj.day)
+        if isinstance(obj, Decimal):
+            return str(obj)
+        try:
+            result = json.JSONEncoder.default(self, obj)
+        except Exception:
+            result = '*not JSON serializable*'
+        return result
 
 
-    class JsonEncoderJS(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, datetime.time):
-                return '%s::H' %str(obj)
+class JsonEncoderJS(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.time):
+            return '%s::H' %str(obj)
 
-            elif isinstance(obj, Decimal):
-                    return str(obj)
-            elif isinstance(obj, datetime.datetime):
-                return '%s::DH' %str(obj)
-            elif isinstance(obj, datetime.date):
-                return '%s::D' %str(obj)
-            return json.JSONEncoder.default(self, obj)
+        elif isinstance(obj, Decimal):
+            return str(obj)
+        elif isinstance(obj, datetime.datetime):
+            return '%s::DH' %str(obj)
+        elif isinstance(obj, datetime.date):
+            return '%s::D' %str(obj)
+        return json.JSONEncoder.default(self, obj)
 
-    class JSONTypedEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, datetime.time):
-                return '%s::H' %str(obj)
-            elif isinstance(obj, Decimal):
-                return f'{str(obj)}::N'
-            elif isinstance(obj, datetime.datetime):
-                return '%s::DH' %str(obj)
-            elif isinstance(obj, datetime.date):
-                return '%s::D' %str(obj)
-            return json.JSONEncoder.default(self, obj)
+class JSONTypedEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.time):
+            return '%s::H' %str(obj)
+        elif isinstance(obj, Decimal):
+            return f'{str(obj)}::N'
+        elif isinstance(obj, datetime.datetime):
+            return '%s::DH' %str(obj)
+        elif isinstance(obj, datetime.date):
+            return '%s::D' %str(obj)
+        return json.JSONEncoder.default(self, obj)
+    
+class JSONTypedDecoder(json.JSONDecoder):
+    def __init__(self, **kwargs):
+        kwargs["object_pairs_hook"] = self.object_pairs_hook
+        super().__init__(**kwargs)
+        
+    @property
+    def gnrclasscatalog(self):
+        if not hasattr(self,'_gnrclasscatalog'):
+            from gnr.core.gnrclasses import GnrClassCatalog
+            self._gnrclasscatalog = GnrClassCatalog()
+        return self._gnrclasscatalog
 
-    class JSONTypedDecoder(json.JSONDecoder):
-        def __init__(self, **kwargs):
-            kwargs["object_pairs_hook"] = self.object_pairs_hook
-            super().__init__(**kwargs)
+    def object_pairs_hook(self, kv):
+        logger.debug('inside object_hook %s',kv)
+        return kv
 
-        @property
-        def gnrclasscatalog(self):
-            if not hasattr(self,'_gnrclasscatalog'):
-                from gnr.core.gnrclasses import GnrClassCatalog
-                self._gnrclasscatalog = GnrClassCatalog()
-            return self._gnrclasscatalog
 
-        def object_pairs_hook(self, kv):
-            print('inside object_hook',kv)
-            #if isinstance(value,str):
-            #    return self.gnrclasscatalog.fromTypedText(value)
-            return kv
-
-except:
-    pass
-
-from gnr.core.gnrlocale import localize, parselocal
 
 REGEX_WRDSPLIT = re.compile(r'\W+')
 BASE_ENCODE = {'/2': '01',
@@ -960,38 +944,6 @@ def fromTypedJSON(obj):
     from gnr.core.gnrclasses import GnrClassCatalog
     catalog = GnrClassCatalog()
     return catalog.typedTextDeepConverter(json.loads(obj))
-
-
-#def fromTypedJSON(obj):
-#    from gnr.core.gnrclasses import GnrClassCatalog
-#    catalog = GnrClassCatalog()
-#    return _typeConverter(json.loads(obj),catalog.fromTypedText)
-#    
-#def _typeConverter(obj,converter):
-#    if isinstance(obj,list):
-#        return _typeConverter_list(obj,converter)
-#    else:
-#        return _typeConverter_dict(obj,converter)#
-
-#def _typeConverter_list(l,converter):
-#    result = []
-#    for v in l:
-#        if isinstance(v,list) or isinstance(v,dict):
-#            v = _typeConverter(v,converter)
-#        if isinstance(v,str):
-#            v = converter(v)
-#        result.append(v) 
-#    return result#
-
-#def _typeConverter_dict(d,converter):
-#    result = {}
-#    for k,v in d.items():
-#        if isinstance(v,list) or isinstance(v,dict):
-#            v = _typeConverter(v,converter)
-#        if isinstance(v,str):
-#            v = converter(v) 
-#        result[k] = v
-#    return result
 
 
 def toSecureJsonJS(obj, key=None):

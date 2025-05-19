@@ -56,23 +56,22 @@ to interact with BagNode instances inside a Bag.
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
 
 from functools import cmp_to_key
-
+import os
+import os.path
+import sys
+import re
 import copy
 import pickle as pickle
 from datetime import datetime, timedelta
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
+import requests
+
 from gnr.core import gnrstring
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException #setCallable
 from gnr.core.gnrlang import file_types
-import os
-import os.path
-import logging
-import sys
-import re
-gnrlogger = logging.getLogger(__name__)
 
 
 class AllowMissingDict(dict):
@@ -96,10 +95,6 @@ class BagAsXml(object):
         
 class BagValidationError(BagException):
     pass
-    # def __init__(self, errcode, value, message):
-    # self.errcode=errcode
-    #self.value = str(value)
-    #self.message = message
     
 class BagDeprecatedCall(BagException):
     def __init__(self, errcode, message):
@@ -2886,7 +2881,7 @@ class NetBag(BagResolver):
     classArgs = ['url','method'] 
 
     def init(self):
-        import requests
+
         self.requests = requests
         self.converter = GnrClassCatalog()
 
