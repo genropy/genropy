@@ -26,6 +26,10 @@ class DbAdmin(GnrBaseService):
             password = self._gen_random_password()
         return self._user_create(username, password)
 
+    def user_list(self):
+        logger.info("Requesting database list")
+        return self._user_list()
+    
     def user_delete(self, username):
         logger.info("Creating user %s", username)
         return self._user_delete(username)
@@ -34,13 +38,11 @@ class DbAdmin(GnrBaseService):
         logger.info("Changing password for user %s", username)
         return self._user_change_password(username, password)
 
-    def user_set_permissions(self, username, database_name,
-                             permission_list):
-        logger.info("Settings permission %s to user %s",
-                    permission_list, username)
-        return self._user_set_permissions(username,
-                                          database_name,
-                                          permission_list)
+    def user_set_all_privileges(self, username, database_name):
+        logger.info("Settings all permission on %s to user %s",
+                    database_name, username)
+        return self._user_set_all_privileges(username,
+                                             database_name)
     
     def _gen_random_password(self):
         return get_random_password(size=20)

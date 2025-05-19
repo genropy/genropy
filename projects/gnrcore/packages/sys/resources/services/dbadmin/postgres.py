@@ -6,20 +6,25 @@ from gnr.app import pkglog as logger
 from gnr.web.gnrbaseclasses import BaseComponent
 
 
-
 class Service(DbAdmin):
 
     def __init__(self, parent,
                  dbadmin_host, dbadmin_port,
                  dbadmin_user, dbadmin_password): 
+
         self.parent=parent
         self.dbadmin_host = dbadmin_host
         self.dbadmin_port = dbadmin_port
         self.dbadmin_user = dbadmin_user
         self.dbadmin_password = dbadmin_password
 
+    @property
+    def cur(self):
+        return self._get_cursor()
+    
     def _get_cursor(self):
         conn = psycopg.connect(
+            dbname="postgres",
             host=self.dbadmin_host,
             port=self.dbadmin_port,
             user=self.dbadmin_user,
@@ -27,6 +32,12 @@ class Service(DbAdmin):
             autocommit=True  # needed for operations like CREATE DATABASE
         )
         return conn.cursor()
+
+    def _database_list(self):
+        with self._get_cursor() as cur:
+            cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false")
+            return [row[0] for row in cur.fetchall()]
+    
 
     def _database_create(self, database_name):
         self.cur.execute(sql.SQL("CREATE DATABASE {}").format(
@@ -38,31 +49,30 @@ class Service(DbAdmin):
             sql.Identifier(database_name)
         ))
 
+    def _user_list(self):
+        with self._get_cursor() as cur:
+            cur.execute("SELECT rolname from pg_roles WHERE rolcanlogin = true")
+            return [row[0] for row in cur.fetchall()]
+    
     def _user_create(self, username, password):
         self.cur.execute(sql.SQL(
-            "CREATE USER {} WITH PASSWORD %s"
-        ).format(sql.Identifier(username)), [password])
+            "CREATE USER {} WITH PASSWORD {}"
+        ).format(sql.Identifier(username), password))
         
     def _user_delete(self, username):
         self.cur.execute(sql.SQL("DROP USER IF EXISTS {}").format(
             sql.Identifier(username)
         ))
 
-    def _user_set_permissions(self, username, database_name,
-                              permission_list):
+    def _user_set_all_privileges(self, username, database_name):
         self.cur.execute(sql.SQL(
             "GRANT ALL PRIVILEGES ON DATABASE {} TO {}"
         ).format(sql.Identifier(database_name), sql.Identifier(username)))
-
-    
-    def _database_list(self):
-        self.cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false")
-        return [row[0] for row in self.cur.fetchall()]
     
     def _user_change_password(self, username, password):
         self.cur.execute(sql.SQL(
-            "ALTER USER {} WITH PASSWORD %s"
-        ).format(sql.Identifier(username)), [password])
+            "ALTER USER {} WITH PASSWORD {}"
+        ).format(sql.Identifier(username), password))
     
     
 class ServiceParameters(BaseComponent):
