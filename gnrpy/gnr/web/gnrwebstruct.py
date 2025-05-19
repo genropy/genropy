@@ -1673,19 +1673,19 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             datapath = datapath or '#FORM.%s' %nodeId 
         else:
             datapath = '.grid'
-            structpath = structpath or '.struct'
-            self.attributes['target'] = nodeId
-            wdg = 'NewIncludedView' if _newGrid else 'includedView'
-            relativeWorkspace = kwargs.pop('relativeWorkspace',True)
-            childname=childname or 'grid'
-            frameattributes = self.attributes
+        structpath = structpath or '.struct'
+        self.attributes['target'] = nodeId
+        wdg = 'NewIncludedView' if _newGrid else 'includedView'
+        relativeWorkspace = kwargs.pop('relativeWorkspace',True)
+        childname=childname or 'grid'
+        frameattributes = self.attributes
         if not self.attributes.get('frameCode'):
             frameattributes = self.root.getNodeByAttr('frameCode',frameCode).attr
-            frameattributes['target'] = nodeId
-            iv =self.child(wdg,frameCode=frameCode, datapath=datapath,structpath=structpath, nodeId=nodeId,
-                           childname=childname,
-                           relativeWorkspace=relativeWorkspace,configurable=configurable,
-                           storepath=storepath,**kwargs)
+        frameattributes['target'] = nodeId
+        iv =self.child(wdg,frameCode=frameCode, datapath=datapath,structpath=structpath, nodeId=nodeId,
+                       childname=childname,
+                       relativeWorkspace=relativeWorkspace,configurable=configurable,
+                       storepath=storepath,**kwargs)
         if struct or columns or not structpath:
             iv.gridStruct(struct=struct,columns=columns)
         return iv
