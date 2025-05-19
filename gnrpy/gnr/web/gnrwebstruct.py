@@ -2137,7 +2137,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['maxLength'] = size
             result['tag'] = 'textBox'
             result['_type'] = 'text'
-        result['_guess_width'] = '%iem' % (int(size * .7) + 2)
+            result['_guess_width'] = '%iem' % (int(size * .7) + 2)
         elif dtype == 'B':
             result['tag'] = 'checkBox'
             result.setdefault('html_label',not kwargs.get('label'))
