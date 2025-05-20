@@ -39,6 +39,7 @@ dependencies = [
 	     "paramiko", # gnr.core.gnrssh
 	     "paste",
 	     "psutil",
+	     "pymupdf",
 	     "pyro4",
 	     "python-dateutil",
 	     "pytz",
