@@ -8,7 +8,7 @@ from gnr.core.gnrlang import GnrException
 from gnr.lib.services.pdfform import PdfFormService
 
 if shutil.which(pypdftk.PDFTK_PATH) is None:
-    raise GnrException('Missing pypdftk library. Please install it or disable pdf forms in preferences')
+    raise GnrException('Missing pdftk tool, see http://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/  - Please install it or disable pdf forms in preferences')
 
 
 class Service(PdfFormService):
