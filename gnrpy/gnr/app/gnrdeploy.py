@@ -236,7 +236,7 @@ $ sudo journalctl -e -u %(service_name)s
 
 GNRSITERUNNERSERVICE_TPL = """
 [Unit]
-Description=GnrSupervisorSiteRunner Service
+Description=%(service_name) GnrSupervisorSiteRunner Service
 After=multi-user.target
 
 [Service]
@@ -244,7 +244,7 @@ Type=forking
 %(environments)s
 User=%(user)s
 ExecStart=%(binpath)s
-ExecReload=%(ctl_binpath)s reload
+ExecReload=kill -HUP $MAINPID
 ExecStop=%(ctl_binpath)s shutdown
 
 [Install]
@@ -260,9 +260,9 @@ def gnrsiterunnerServiceBuilder():
     service_name = 'gnrsiterunner'
     if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
         pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
-        environments = "Environment=VIRTUAL_ENV=%s" %pyprefix
+        environments = f"Environment=VIRTUAL_ENV={pyprefix}"
         binroot = os.path.join(pyprefix,'bin')
-        service_name = '%s_%s'%(service_name, os.path.basename(pyprefix))
+        service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
         environments = ''
     gnr_path = gnrConfigPath()
@@ -270,9 +270,10 @@ def gnrsiterunnerServiceBuilder():
     supervisor_log_path = os.path.join(gnr_path,'supervisord.log')
     binpath = '%s -c %s -l %s' % (daemon_path,supervisor_conf_path_ini,
         supervisor_log_path)
-    content = GNRSITERUNNERSERVICE_TPL %dict(environments=environments,binpath=binpath,
-            user=current_username, ctl_binpath=ctl_binpath)
-    service_name = '%s.service'%service_name
+    content = GNRSITERUNNERSERVICE_TPL % dict(environments=environments, binpath=binpath,
+                                              user=current_username, ctl_binpath=ctl_binpath,
+                                              service_name=service_name)
+    service_name = f'{service_name}.service'
     with open(service_name,'w') as service_file:
         service_file.write(content)
     print("""
@@ -421,8 +422,6 @@ class PathResolver(object):
     def __init__(self, gnr_config=None):
         self.gnr_config = gnr_config or getGnrConfig()
         setEnvironment(self.gnr_config)
-        
-        
                 
     def js_path(self, lib_type='gnr', version='11'):
         """TODO Return the configuration static js path, with *lib_type* and *version* specified
@@ -436,10 +435,11 @@ class PathResolver(object):
         return path
         
     def entity_name_to_path(self, entity_name, entity_type, look_in_projects=True):
-        """TODO
+        """Resolve an entity type to a local path where to retrieve the requested object,
+        veryfing the existance of the entity itself.
         
-        :param entity_name: TODO
-        :param entity_type: TODO
+        :param entity_name: the entity name
+        :param entity_type: the entity type, a predefined list
         :param look_in_projects: TODO"""
         entity = self.entities.get(entity_type)
         if not entity:
@@ -480,7 +480,7 @@ class PathResolver(object):
         :param site_name: TODO"""
         return self.entity_name_to_path(site_name, 'site')
     
-    def get_instanceconfig(self,instance_name):
+    def get_instanceconfig(self, instance_name):
         instanceFolder = self.instance_name_to_path(instance_name)
         instanceName = os.path.basename(instanceFolder)
 
@@ -540,9 +540,13 @@ class PathResolver(object):
             site_config.update(Bag(site_config_path))
         else:
             site_config = Bag(site_config_path)
+
+        # siteconfig can be update from the contents of the <site/>
+        # tag inside an instanceconfig.xml 
         instance_config = self.get_instanceconfig(site_name)
         if instance_config and instance_config['site']:
             site_config.update(instance_config['site'])
+            
         return site_config
 
 
