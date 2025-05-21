@@ -1,8 +1,15 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
+import shutil
 
 import pypdftk
+
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.pdfform import PdfFormService
+
+if shutil.which(pypdftk.PDFTK_PATH) is None:
+    raise GnrException('Missing pypdftk library. Please install it or disable pdf forms in preferences')
+
 
 class Service(PdfFormService):
 
