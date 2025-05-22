@@ -6393,7 +6393,7 @@ dojo.declare("gnr.stores._Collection",null,{
     },
     hasTitleCounterClients:function(){
         return this.linkedGrids().some(function(grid){
-            let rootPane = grid.getRootPane();
+            let rootPane = grid.getTitleCounterPane();
             return rootPane?rootPane.attr.titleCounter:false;
         })
     },
