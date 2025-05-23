@@ -287,7 +287,7 @@ class XlsReader(object):
             firstline = next(linegen)
         except StopIteration:
             firstline = []
-        headers = [slugify(firstline[c], sep='_') for c in range(sheet.ncols)] if firstline else []
+        headers = [slugify(firstline[c], sep='_') for c in range(min(len(firstline), sheet.ncols))] if firstline else []
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         headers = [h for h in headers if h]
         index = dict()
