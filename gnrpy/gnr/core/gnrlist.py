@@ -283,8 +283,11 @@ class XlsReader(object):
     def addSheet(self,sheetname):
         sheet = self.book.sheet_by_name(sheetname)
         linegen = self._sheetlines(sheet)
-        firstline = next(linegen)
-        headers = [slugify(firstline[c],sep='_') for c in range(sheet.ncols)]
+        try:
+            firstline = next(linegen)
+        except StopIteration:
+            firstline = []
+        headers = [slugify(firstline[c], sep='_') for c in range(sheet.ncols)] if firstline else []
         colindex = dict([(i,True)for i,h in enumerate(headers) if h])
         headers = [h for h in headers if h]
         index = dict()
@@ -299,7 +302,7 @@ class XlsReader(object):
                                    'colindex':colindex,
                                    'index':index,
                                     'ncols':len(headers),
-                                    'nrows':sheet.nrows - 1,
+                                    'nrows': max(sheet.nrows - 1, 0),
                                     'errors':errors,
                                     'linegen':linegen}
 
