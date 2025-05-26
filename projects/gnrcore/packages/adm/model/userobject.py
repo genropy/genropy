@@ -46,7 +46,7 @@ class Table(object):
         return dict(user_id=self.db.currentEnv.get('user_id'))
     
     def onDuplicating(self,record):
-        record['code'] = f'{record['code']}_copy'
+        record['code'] = f"{record['code']}_copy"
         
     def trigger_onUpdating(self,record=None,old_record=None):
         self.updateRequiredPkg(record)
