@@ -168,16 +168,19 @@ class Form(BaseComponent):
         bar.save_res.slotButton('!!Save resource', _tags='_DEV_').dataController(
                                 """PUBLISH save_uo_as_resource = {pkeys:[_pkey]};""",
                                 _pkey='=#FORM.pkey')
-        
-    def th_options(self):
-        return dict(copypaste='*', defaultPrompt=dict(title='!![en]Object parameters',
+    
+    def addUserObjectPrompt(self):
+        return dict(title='!![en]Object parameters',
                                     fields=[dict(value='^.code', lbl='!![en]Code', validate_notnull=True),
                                             dict(value='^.tbl',tag='dbSelect',lbl='!![en]Table',
                                                  table='adm.tblinfo', hasDownArrow=True, validate_notnull=True),
                                             #dict(value='^.flags', tag='checkBoxText', lbl='!![en]Flags',
                                             #     values='is_print:[!![en]Print],is_row:[!![en]Row],is_mail:[!![en]Mail]',
                                             #     popup=True)
-                                            ]))
+                                            ])
+
+    def th_options(self):
+        return dict(copy_paste='*', defaultPrompt=self.addUserObjectPrompt())
         
 
 class Form_query(Form):
@@ -293,5 +296,7 @@ class FormCustomColumn(BaseComponent):
 
 class FormTemplate(Form):
     
-    def th_options_default_objtype(self):
-        return 'template'
+     def th_options(self):
+        return dict(default_objtype='template', 
+                    duplicate=True,
+                    defaultPrompt=self.addUserObjectPrompt())

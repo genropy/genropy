@@ -41,6 +41,19 @@ class Table(object):
         if not l:
             return ''
         return '<br/>'.join(l)
+        
+    def defaultValues(self):
+        return dict(user_id=self.db.currentEnv.get('user_id'))
+    
+    def onDuplicating(self,record):
+        record['code'] = f'{record['code']}_copy'
+        
+    def trigger_onUpdating(self,record=None,old_record=None):
+        self.updateRequiredPkg(record)
+
+    def trigger_onInserting(self,record=None):
+        self.updateRequiredPkg(record)
+    
 
     def resourceStatus(self,record):
         resources = []
@@ -74,11 +87,6 @@ class Table(object):
                 resources.append('<span style="color:%s;">%s %s</span>' %(color,pkgid, page.toText(cust_res['__mod_ts'])))
         return resources
 
-    def trigger_onUpdating(self,record=None,old_record=None):
-        self.updateRequiredPkg(record)
-
-    def trigger_onInserting(self,record=None):
-        self.updateRequiredPkg(record)
     
     def updateRequiredPkg(self,record):
         data = Bag(record['data'])
