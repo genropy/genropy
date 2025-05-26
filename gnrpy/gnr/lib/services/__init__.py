@@ -31,10 +31,6 @@ from gnr.core.gnrlang import  gnrImport
 from gnr.core.gnrbag import Bag
 from gnr.lib import logger
 
-PKGMARKER = f"{os.sep}packages{os.sep}"
-
-LIB_ROOT = os.path.dirname(__file__)
-
 class ServiceHandler(object):
     
     def __init__(self, site):
@@ -42,7 +38,7 @@ class ServiceHandler(object):
         #cerco definizioni core
         service_types_factories = {}
         self.service_types = {}
-        services_roots = [LIB_ROOT]
+        services_roots = [os.path.dirname(__file__)]
         for pkg, pkgobj in list(self.site.gnrapp.packages.items()):
             pkglibroot = os.path.join(pkgobj.packageFolder, 'lib', 'services')
             if os.path.isdir(pkglibroot):
