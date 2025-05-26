@@ -236,7 +236,7 @@ $ sudo journalctl -e -u %(service_name)s
 
 GNRSITERUNNERSERVICE_TPL = """
 [Unit]
-Description=%(service_name) GnrSupervisorSiteRunner Service
+Description=%(service_name)s GnrSupervisorSiteRunner Service
 After=multi-user.target
 
 [Service]
