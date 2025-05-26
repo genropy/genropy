@@ -86,7 +86,7 @@ gnr.columnsFromStruct = function(struct, columns) {
             if(node.attr.required_columns){
                 for(let col of node.attr.required_columns.split(',')){
                     arrayPushNoDup(columns,col);
-                };
+                }
             }
             if(node.attr['_joiner_storename']){
                 //_extname considerare
