@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from io import BytesIO
+import warnings
 
 from gnr.lib.services.pdf import PdfService
 from gnr.core.gnrdecorator import extract_kwargs
@@ -27,12 +28,14 @@ class Service(PdfService):
         :param pdf_list: TODO
         :param output_filepath: TODO"""
         
-        if HAS_PYPDF:
-            return self.joinPdf_PYPDF(pdf_list, output_filepath)
-        
         if HAS_FITZ:
             return self.joinPdf_FITZ(pdf_list, output_filepath)
-        raise self.parent.exception('Missing pyPdf in this installation')
+
+        if HAS_PYPDF:
+            warnings.warn("PyPDF is deprecated, please update your codebase")
+            return self.joinPdf_PYPDF(pdf_list, output_filepath)
+        
+        raise self.parent.exception('Missing pdf library in this installation')
     
     def joinPdf_PYPDF(self,pdf_list, output_filepath):
         output_pdf = PdfWriter()
