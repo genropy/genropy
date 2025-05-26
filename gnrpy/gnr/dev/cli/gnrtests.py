@@ -53,6 +53,8 @@ def main():
             continue
 
         r = pytest.main(found_tests + PYTEST_ARGS)
+        if r != 0:
+            logger.warning("Tests for package %s failed with code %s", package, r)
 
 
     logger.info("Testing instance %s", options.instance_name)
@@ -63,3 +65,5 @@ def main():
     else:
         logger.debug(f"Found instance {options.instance_name}: tests: %s", instance_tests)
         r = pytest.main(instance_tests + PYTEST_ARGS)
+        if r != 0:
+            logger.warning("Tests for package %s failed with code %s", package, r)

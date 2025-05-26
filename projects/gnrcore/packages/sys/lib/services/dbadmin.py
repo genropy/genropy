@@ -31,7 +31,7 @@ class DbAdmin(GnrBaseService):
         return self._user_list()
     
     def user_delete(self, username):
-        logger.info("Creating user %s", username)
+        logger.info("Deleting user %s", username)
         return self._user_delete(username)
 
     def user_change_password(self, username, password):

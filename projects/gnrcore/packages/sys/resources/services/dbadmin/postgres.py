@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import psycopg
 from psycopg import sql
 
@@ -16,11 +18,9 @@ class Service(DbAdmin):
         self.dbadmin_user = dbadmin_user
         self.dbadmin_password = dbadmin_password
 
-    @property
-    def cur(self):
-        return self._get_cursor()
-    
-    def _get_cursor(self):
+
+    @contextmanager
+    def __connect(self):
         conn = psycopg.connect(
             dbname="postgres",
             host=self.dbadmin_host,
@@ -29,49 +29,60 @@ class Service(DbAdmin):
             password=self.dbadmin_password,
             autocommit=True  # needed for operations like CREATE DATABASE
         )
-        return conn.cursor()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def _execute(self, query, fetch = None):
+        with self.__connect() as conn, conn.cursor() as cur:
+            cur.execute(query)
+            if fetch:
+                return cur.fetchall()
 
     def _database_list(self):
-        with self._get_cursor() as cur:
-            cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false")
-            return [row[0] for row in cur.fetchall()]
-    
+        query = "SELECT datname FROM pg_database WHERE datistemplate = false"
+        return [row[0] for row in self._execute(query, fetch=True)]
 
     def _database_create(self, database_name):
-        self.cur.execute(sql.SQL("CREATE DATABASE {}").format(
+        query = sql.SQL("CREATE DATABASE {}").format(
             sql.Identifier(database_name)
-        ))
+        )
+        self._execute(query)
 
     def _database_delete(self, database_name):
-        self.cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(
+        query = sql.SQL("DROP DATABASE IF EXISTS {}").format(
             sql.Identifier(database_name)
-        ))
+            )
+        self._execute(query)
 
     def _user_list(self):
-        with self._get_cursor() as cur:
-            cur.execute("SELECT rolname from pg_roles WHERE rolcanlogin = true")
-            return [row[0] for row in cur.fetchall()]
+        query = "SELECT rolname from pg_roles WHERE rolcanlogin = true"
+        return [row[0] for row in self._execute(query, fetch=True)]
     
     def _user_create(self, username, password):
-        self.cur.execute(sql.SQL(
-            "CREATE USER {} WITH PASSWORD {}"
-        ).format(sql.Identifier(username), password))
-        
+        query = sql.SQL("CREATE USER {} with PASSWORD {}").format(
+            sql.Identifier(username), sql.Literal(password))
+        self._execute(query)
+
     def _user_delete(self, username):
-        self.cur.execute(sql.SQL("DROP USER IF EXISTS {}").format(
-            sql.Identifier(username)
-        ))
+        query = sql.SQL("DROP USER IF EXISTS {}").format(sql.Identifier(username))
+        self._execute(query)
 
     def _user_set_all_privileges(self, username, database_name):
-        self.cur.execute(sql.SQL(
-            "GRANT ALL PRIVILEGES ON DATABASE {} TO {}"
-        ).format(sql.Identifier(database_name), sql.Identifier(username)))
-    
+        query = sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}").format(
+            sql.Identifier(database_name), sql.Identifier(username)
+        )
+        self._execute(query)
+
     def _user_change_password(self, username, password):
-        self.cur.execute(sql.SQL(
-            "ALTER USER {} WITH PASSWORD {}"
-        ).format(sql.Identifier(username), password))
-    
+        query = sql.SQL("ALTER USER {} WITH PASSWORD {}").format(
+            sql.Identifier(username), password)
+        self._execute(query)
     
 class ServiceParameters(BaseComponent):
     def service_parameters(self, pane, datapath=None, **kwargs):
