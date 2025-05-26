@@ -83,6 +83,11 @@ gnr.columnsFromStruct = function(struct, columns) {
                 caption_field = (stringStartsWith(caption_field, '$') || stringStartsWith(caption_field, '@'))?caption_field:'$'+caption_field;
                 arrayPushNoDup(columns,caption_field);
             }
+            if(node.attr.required_columns){
+                for(let col of node.attr.required_columns.split(',')){
+                    arrayPushNoDup(columns,col);
+                };
+            }
             if(node.attr['_joiner_storename']){
                 //_extname considerare
                 arrayPushNoDup(columns,node.attr['_external_name']);
