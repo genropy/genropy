@@ -40,7 +40,6 @@ dependencies = [
 	     "paste",
 	     "psutil",
 	     "pymupdf",
-	     "PyPDF2",
 	     "pypdftk",
 	     "pyro4",
 	     "python-dateutil",
