@@ -1248,11 +1248,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.storebag().getNodeByAttr(this.rowIdentifier(),pkey);
     },
     mixin_updateShowCount:function(cnt){
-        let pane = this.getRootPane();
+        let pane = this.getTitleCounterPane();
         if(pane && pane.attr.title && pane.attr.titleCounter){
             pane.widget.setTitle(`${pane.attr.title} (${cnt})`);
         }
     },
+    mixin_getTitleCounterPane:function(){
+        return this.sourceNode.attr.counterChannel?this.sourceNode.attributeOwnerNode('titleCounter',this.sourceNode.attr.counterChannel):this.getRootPane();
+    },
+
     mixin_getRootPane:function(){
         let rootPaneNodeId = this.sourceNode.getAttributeFromDatasource('rootPaneNodeId');
         if (!rootPaneNodeId){

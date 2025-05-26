@@ -210,6 +210,9 @@ class FormPlaceholder(BaseComponent):
  
 
 class ViewPalette(BaseComponent):
+    def th_hiddencolumns(self):
+        return '$filepath'
+        
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('description',width='100%',name='!!Attachment')
