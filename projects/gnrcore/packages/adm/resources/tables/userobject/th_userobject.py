@@ -134,6 +134,7 @@ class Form(BaseComponent):
 
     def objectResource_template(self,bc, **kwargs):
         bc.dataFormula('#FORM.is_mail', 'is_mail?"*":null', is_mail='^#FORM.record.is_mail')
+        bc.dataFormula('#FORM.is_print', 'is_print?true:null', is_print='^#FORM.record.is_print')
         bc.roundedGroup(title='!![en]Template management', overflow_y='auto').templateChunk(
                                         template='^#FORM.record.data',
                                         editable=True,
@@ -142,7 +143,11 @@ class Form(BaseComponent):
                                         table='^#FORM.record.tbl',
                                         selfsubscribe_onChunkEdit='this.form.save();',
                                         emailChunk='^#FORM.is_mail',
-                                        padding='5px')
+                                        showLetterhead='^#FORM.is_print',
+                                        padding='5px', overflow='auto',
+                                        )
+        bc.dataController('console.log(letterhead_id);SET #FORM.record.data.default_letterhead=letterhead_id;', 
+                          letterhead_id='^.preview.letterhead_id')   #DP come lo intercetto?
 
     def objectResource_dash_groupby(self,bc, **kwargs):
         pass
