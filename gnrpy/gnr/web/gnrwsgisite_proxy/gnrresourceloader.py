@@ -122,7 +122,7 @@ class ResourceLoader(object):
         
         module_defined_factory = getattr(page_module, 'page_factory', None)
         if module_defined_factory:
-            warnings.warn("Defining page_factory at toplevel is deprecated, please defined it as a class attribute")
+            warnings.warn("Defining page_factory at toplevel is deprecated, please define it as a class attribute")
             
         page_factory = page_factory or module_defined_factory or getattr(custom_class, "page_factory", GnrWebPage)
 
