@@ -27,7 +27,6 @@ class BaseResourceBatch(object):
     batch_local_cache = True
     batch_ask_options = True
     batch_schedulable = 'admin'
-    batch_push_notification = None
     batch_selection_where = None
     batch_selection_kwargs = dict()
     batch_selection_savedQuery= None
@@ -68,15 +67,6 @@ class BaseResourceBatch(object):
                 result, result_attr = self.result_handler()
                 self.btc.batch_complete(result=result, result_attr=result_attr)
                 
-                if self.batch_push_notification:
-                    message = self.batch_push_notification.get('message','')
-                    self.page.webpushNotify(
-                        user = self.page.user,
-                        message = f'{self.batch_title} is finished {message}',
-                        url = result_attr.get('url_print') or result_attr.get('url'),
-                        **self.batch_push_notification
-                    )
-            #self.page.setInClientData('')
         except self.btc.exception_stopped:
             self.btc.batch_aborted()
             self.batch_log_write('Batch Aborted')

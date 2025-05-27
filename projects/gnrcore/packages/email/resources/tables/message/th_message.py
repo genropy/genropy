@@ -147,9 +147,6 @@ class ViewFromDashboard(View):
     
 class ViewMobile(BaseComponent):
     
-    def baseCondition(self):
-        return '$dest_user_id=:env_user_id'
-    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('__ins_ts',hidden=True)
@@ -180,7 +177,7 @@ class ViewMobile(BaseComponent):
     
     @customizable    
     def th_top_readingstate(self, top):
-        bar = top.slotToolbar('sections@readingstate,*,filters', _class='mobile_bar', margin_bottom='20px')
+        bar = top.slotToolbar('sections@readingstate,*,searchOn,5,filters', _class='mobile_bar', margin_bottom='20px')
         dlg = self.filtersDialog(bar.filters)
         bar.filters.slotButton(_class='google_icon filters', background='#555', height='35px').dataController(
                                     "dlg.show();", dlg=dlg.js_widget)
@@ -198,9 +195,7 @@ class ViewMobile(BaseComponent):
         fb.dbSelect('^.type', table='email.message_type', lbl='!![en]Message type', colspan=2, hasDownArrow=True)
         fb.dateTextBox('^.from_date', lbl='!![en]From date')
         fb.dateTextBox('^.to_date', lbl='!![en]To date')
-        dlg.dataController("""SET messageFilters.base_condition=base_condition""",
-                           base_condition=self.baseCondition(), _onStart=True)
-        dlg.dataController("""var condition_list = [base_condition];
+        dlg.dataController("""var condition_list = [];
                             if(type){
                                 condition_list.push('$message_type=:type');
                             };
@@ -215,9 +210,7 @@ class ViewMobile(BaseComponent):
                             """, 
                             type='^.type',
                             from_date='^.from_date',
-                            to_date='^.to_date',
-                            base_condition='^messageFilters.base_condition',
-                            _onStart=1)
+                            to_date='^.to_date')
         return dlg
     
     def th_options(self):
@@ -225,6 +218,9 @@ class ViewMobile(BaseComponent):
                     configurable=False,roundedEnvelope=True,
                     dialog_fullScreen=True,
                     extendedQuery=False, addrow=False, delrow=False)
+
+    def th_options_subtable(self):
+        return 'user_messages'
 
 
 

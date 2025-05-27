@@ -60,7 +60,7 @@ class FormAtcMobile(BaseComponent):
 class AttachManagerViewBase(BaseComponent):
 
     def th_hiddencolumns(self):
-        return '$fileurl,$is_foreign_document'
+        return '$fileurl,$is_foreign_document,$external_url,$filepath'
 
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -107,7 +107,7 @@ class AttachManagerView(AttachManagerViewBase):
 
 class AttachGalleryView(AttachManagerViewBase):
     def th_hiddencolumns(self):
-        return '$fileurl,$description'
+        return '$fileurl,$description,$external_url,$filepath'
 
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -210,6 +210,9 @@ class FormPlaceholder(BaseComponent):
  
 
 class ViewPalette(BaseComponent):
+    def th_hiddencolumns(self):
+        return '$filepath'
+        
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('description',width='100%',name='!!Attachment')

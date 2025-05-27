@@ -310,10 +310,20 @@ class MenuResolver(BagResolver):
             except NotAllowedException:
                 continue
             self.setLabelClass(attributes)
-            if attributes.get('titleCounter') and menuTag!='tableBranch':
-                self._page.subscribeTable(attributes['table'],True,subscribeMode=True)
-                attributes['titleCounter_count'] = self._page.app.getRecordCount(table=attributes['table'],
-                                                                                 where=attributes.get('titleCounter_condition'))
+            titleCounter_val = attributes.get('titleCounter')
+            if titleCounter_val and menuTag != 'tableBranch':
+                titleCounter_attrs = {}
+                if isinstance(titleCounter_val, dict):
+                    titleCounter_attrs.update(titleCounter_val)
+                table = attributes.get('table') or titleCounter_attrs.get('table')
+                if not table:
+                    continue
+                self._page.subscribeTable(table, True, subscribeMode=True)
+                attributes['titleCounter_count'] = self._page.app.getRecordCount(
+                    table=table,
+                    where=attributes.get('titleCounter_condition'),
+                    **titleCounter_attrs
+                )
             result.setItem(node.label, value, attributes)
         return result
 

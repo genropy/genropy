@@ -5,7 +5,7 @@
 FROM python:3.11-slim
 LABEL org.opencontainers.image.description "Genropy web framework"
 
-RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor python3-psycopg weasyprint && apt-get autoremove -y
+RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor python3-psycopg weasyprint && apt-get autoremove -y && apt clean
 RUN pip install --upgrade pip
 RUN adduser --group --system --shell /bin/bash --home /home/genro genro
   
@@ -25,7 +25,7 @@ COPY --chown=genro:genro dockerfiles/genropy/gnrfolder /home/genro/.gnr
 RUN rm -fr /home/genro/genropy/.git
 
 WORKDIR /home/genro/genropy/gnrpy
-RUN pip install .[developer,pgsql]
+RUN pip install --no-cache-dir .[developer,pgsql]
 
 WORKDIR /home/genro
 ENV GNRLOCAL_PROJECTS=/etc/workspaces

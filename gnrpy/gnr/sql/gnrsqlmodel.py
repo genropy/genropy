@@ -957,6 +957,11 @@ class DbPackageObj(DbModelObj):
 
     tables = property(_get_tables)
 
+    def _get_sqlname(self):
+        """property. Returns the table's sqlname"""
+        return self.attributes.get('sqlschema', self.attributes.get('sqlname',self.name))
+    sqlname = property(_get_sqlname)
+
     def dbtable(self, name):
         """Return a table
 
