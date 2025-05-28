@@ -85,7 +85,8 @@ class FrameGridTools(BaseComponent):
         return pane.menudiv(tip='!!Advanced tools',iconClass=_class,storepath='.advancedTools',**kwargs)
 
     @struct_method
-    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,disabled='^.disabledButton',**kwargs):
+    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,label='!!Delete',
+                                iconClass='^.deleteButtonClass',disabled='^.disabledButton',**kwargs):
         kwargs.setdefault('visible',enable)
         frameCode = kwargs['frameCode']
         pane.dataController("""SET .deleteButtonClass = deleteButtonClass;
@@ -110,8 +111,8 @@ class FrameGridTools(BaseComponent):
                             disabled=disabled,deleteButtonClass=_class,frameCode=frameCode,_onBuilt=True,
                             **{str('subscribe_%s_grid_onSelectedRow' %frameCode):True})
         pane.data('.deleteButtonClass',_class)
-        return pane.slotButton(label='!!Delete',publish='delrow',
-                            iconClass='^.deleteButtonClass',disabled='^.deleteDisabled',
+        return pane.slotButton(label=label,publish='delrow',
+                            iconClass=iconClass,disabled='^.deleteDisabled',
                             _tablePermissions=dict(table=pane.frame.grid.attributes.get('table'),
                                                     permissions='del,readonly'),
                             **kwargs)
