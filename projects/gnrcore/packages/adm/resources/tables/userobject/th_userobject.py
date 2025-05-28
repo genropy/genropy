@@ -146,8 +146,6 @@ class Form(BaseComponent):
                                         showLetterhead='^#FORM.is_print',
                                         padding='5px', overflow='auto',
                                         )
-        bc.dataController('console.log(letterhead_id);SET #FORM.record.data.default_letterhead=letterhead_id;', 
-                          letterhead_id='^.preview.letterhead_id')   #DP come lo intercetto?
 
     def objectResource_dash_groupby(self,bc, **kwargs):
         pass
@@ -212,7 +210,7 @@ class Form_rpcquery(BaseComponent):
                     colspan=2,_class='fakeTextBox',lbl='Where')
         center = bc.tabContainer(region='center',margin='2px')
         self.tokenManagement(center.borderContainer(title='Tokens'))
-        center.contentPane(title='Extended parameters').tree(storepath='#FORM.record.data')
+        center.contentPane(title='!![en]Extended parameters').tree(storepath='#FORM.record.data')
 
 
     def tokenManagement(self,bc):
@@ -221,7 +219,7 @@ class Form_rpcquery(BaseComponent):
                                                                     viewResource='ViewFromUserobject')
         bar = th.view.top.bar.replaceSlots('delrow','delrow,addtoken')
         bar.addtoken.slotButton('Add token').dataRpc(self.addRpcQueryToken,
-                                        _ask=dict(title='Get token',
+                                        _ask=dict(title='!![en]Get token',
                                                     fields=[dict(name='max_usages',tag='numberTextBox',lbl='Max usages'),
                                                             dict(name='expiry',tag='dateTimeTextBox',lbl='Expiry'),
                                                             dict(name='allowed_user',lbl='Allowed user')]),
