@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from io import BytesIO
-import warnings
+# re-add when fitz porting is completed
+#import warnings
 
 from gnr.lib.services.pdf import PdfService
 from gnr.core.gnrdecorator import extract_kwargs
