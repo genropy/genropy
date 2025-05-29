@@ -596,6 +596,16 @@ dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
 
         let wrap = objectPop(attributes,'wrap');
         let direction = objectPop(attributes,'direction');
+        let fitContent = objectPop(attributes,'fitContent');
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
         if(wrap){
             attributes.flex_wrap = 'wrap';
         }
@@ -640,9 +650,9 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
         savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
-        let fitContent = objectPop(attributes,'fitContent');
         let _class = attributes._class || ''
         attributes._class = _class + ' gnrgridbox';
+        let fitContent = objectPop(attributes,'fitContent');
         if(fitContent){
             let margin = fitContent===true?0:fitContent;
             attributes.position = 'absolute'

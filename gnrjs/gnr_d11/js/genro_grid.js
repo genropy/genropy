@@ -1984,7 +1984,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         row.push(cell);
                         cellmap[cell.field] = cell;
                         if(cell.sort){
-                            cellsort.push(`${cell.field_getter}:${cell.sort}`);
+                            let field_sorter = cell.field_sorter || cell.field_getter
+                            cellsort.push(`${field_sorter}:${cell.sort}`);
                         }
                     },'static');
                     rows.push(row);
@@ -4652,7 +4653,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             order = 'a';
         }
         var cell = this.layout.cells[sortInfo - 1];
-        var sortedBy = cell.field_getter + ':' + order;
+        let field_sorter = cell.field_sorter || cell.field_getter;
+        var sortedBy = field_sorter+ ':' + order;
         this.sourceNode.publish('setSortedBy',sortedBy);
         if ('sortedBy' in this.sourceNode.attr){
             var sortpath = this.sourceNode.attr['sortedBy'];
