@@ -743,9 +743,9 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         column_defs = []
         for column, order in columns.items():
             if order:
-                column_defs.append(f"{column} {order}")
+                column_defs.append(f'"{column}" {order}')
             else:
-                column_defs.append(f"{column}")  # Default sorting if not specified
+                column_defs.append(f'"{column}"')  # Default sorting if not specified
 
         # Join columns into a single string
         column_list = ", ".join(column_defs)
