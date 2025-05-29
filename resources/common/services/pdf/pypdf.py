@@ -28,12 +28,13 @@ class Service(PdfService):
         :param pdf_list: TODO
         :param output_filepath: TODO"""
         
+        if HAS_PYPDF:
+            # TO BE RE-ADDED WHEN FITZ IS COMPLETED
+            #warnings.warn("PyPDF is deprecated, please update your codebase")
+            return self.joinPdf_PYPDF(pdf_list, output_filepath)
+
         if HAS_FITZ:
             return self.joinPdf_FITZ(pdf_list, output_filepath)
-
-        if HAS_PYPDF:
-            warnings.warn("PyPDF is deprecated, please update your codebase")
-            return self.joinPdf_PYPDF(pdf_list, output_filepath)
         
         raise self.parent.exception('Missing pdf library in this installation')
     
