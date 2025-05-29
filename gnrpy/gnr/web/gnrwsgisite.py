@@ -1000,7 +1000,8 @@ class GnrWsgiSite(object):
         if storageType:
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='STORAGE')
             return self.storageDispatcher(path_list, environ, start_response, 
-                                                        storageType=storageType, **request_kwargs)
+                                          storageType=storageType, **request_kwargs)
+        
         elif first_segment.startswith('_tools'):
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='TOOLS')
             return self.serve_tool(path_list, environ, start_response, **request_kwargs)

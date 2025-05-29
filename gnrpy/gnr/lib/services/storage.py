@@ -198,7 +198,7 @@ class ServiceType(BaseServiceType):
     
 class StorageNode(object):
     def __str__(self):
-        return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
+        return f'StorageNode {self.service.service_omplementation} <{self.internal_path}>'
 
     def __init__(self, parent=None, path=None, service=None, autocreate=None,must_exist=False, version=None,mode='r'):
         self.service = service
@@ -683,11 +683,6 @@ class BaseLocalService(StorageService):
 
     def internal_path(self, *args, **kwargs):
         out_list = [self.base_path]
-        # for arg in args:
-        #     if '/' in arg:
-        #         out_list.extend(arg.split('/'))
-        #     else:
-        #         out_list.append(arg)
         out_list.extend(args)
         outpath = os.path.join(*out_list)
         return outpath

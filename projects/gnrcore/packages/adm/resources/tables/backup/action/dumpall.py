@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# test_special_action.py
 # Created by Francesco Porcari on 2010-07-02.
 # Copyright (c) 2011 Softwell. All rights reserved.
-from gnr.web.batch.btcbase import BaseResourceBatch
-from gnr.core.gnrbag import Bag
-from datetime import datetime
+
 import os
+from datetime import datetime
+
+from gnr.core.gnrbag import Bag
+from gnr.web.batch.btcbase import BaseResourceBatch
 
 caption = 'Dump all'
 description = 'Dump all'
@@ -18,47 +19,48 @@ class Main(BaseResourceBatch):
     batch_title = 'Dump all'
     batch_cancellable = False
     batch_delay = 0.5
-    batch_steps = 'dumpmain,dumpaux,end'
+    batch_steps = 'dump,end'
 
     def pre_process(self):
-        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'maintenance:backups'        
+        self.dumpfolder = self.page.getPreference(path='backups.backup_folder', pkg='adm') or 'maintenance:backups'        
         self.ts_start = datetime.now()
-        self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
-                                                                                self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
+        self.dump_name = self.batch_parameters.get('name') or f"{self.db.dbname}_{self.ts_start.strftime('%Y%m%d_%H%M')}"
         self.backupSn = self.db.application.site.storageNode(self.dumpfolder)
         self.tempSn = self.db.application.site.storageNode('site:maintenance', 'backups', self.dump_name)
         
         if self.tempSn.exists:
             self.tempSn.delete()
+            
         os.makedirs(self.tempSn.internal_path)  #DP is it possible to use storageNode instead of os?
         self.filelist = []
-        self.dump_rec = self.tblobj.newrecord(name=self.dump_name,start_ts=self.ts_start)
+        self.dump_rec = self.tblobj.newrecord(name=self.dump_name, start_ts=self.ts_start)
         self.tblobj.insert(self.dump_rec)
 
 
-    def step_dumpmain(self):
-        """Dump main db"""
+    def step_dump(self):
+        """Dump dbs and stores"""
+
+        # the main db
         options = self.batch_parameters['options']
         if not options.get('storeonly'):
             destname = self.tempSn.child('mainstore').internal_path 
             self.filelist.append(self.db.dump(destname, excluded_schemas=self.getExcluded(), options=options))
 
-    def step_dumpaux(self):
-        """Dump aux db"""
+        # aux databases
         checkedDbstores = self.batch_parameters.get('checkedDbstores')
         checkedDbstores = checkedDbstores.split(',') if checkedDbstores else [s for s in self.db.stores_handler.dbstores.keys() if not s.startswith('instance_')]
         dbstoreconf = Bag()
         dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
-        options = self.batch_parameters['options']
     
-        for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: '!!Dumping %s' %item):
+        for s in self.btc.thermo_wrapper(checkedDbstores, line_code='dbl',
+                                         message=lambda item, k, m, **kwargs: '!!Dumping %s' % item):
             with self.db.tempEnv(storename=s):
                 folder_path = self.backupSn.internal_path
-                self.filelist.append(self.db.dump(os.path.join(folder_path,s),
+                self.filelist.append(self.db.dump(os.path.join(folder_path, s),
                                     dbname=self.db.stores_handler.dbstores[s]['database'],
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
-                dbstoreconf[s] = Bag(os.path.join(dbstorefolder,'%s.xml' %s))
+                dbstoreconf[s] = Bag(os.path.join(dbstorefolder, f'{s}.xml'))
         dbStoreSn = self.tempSn.child('_dbstores.xml')
         with dbStoreSn.open('wb') as confpath:
             dbstoreconf.toXml(confpath)
@@ -77,7 +79,7 @@ class Main(BaseResourceBatch):
         if len(self.filelist)==1 and self.db.implementation=='postgres':
             filepath = self.filelist[0] #/.../pippo/mainstore.pgd --> /.../pippo.pgd
             fileSn = self.db.application.site.storageNode(filepath)
-            destname = '%s.pdg' %self.dump_name
+            destname = f'{self.dump_name}.pdg'
             destSn = self.backupSn.child(destname)
             fileSn.move(destSn)
             self.tempSn.delete()
@@ -95,11 +97,9 @@ class Main(BaseResourceBatch):
         self.tblobj.update(self.dump_rec, backup_rec)
         self.db.commit()
 
-
     def result_handler(self):
         resultAttr = dict(url=self.result_url)
         return '!!Dump complete', resultAttr
-
 
     def table_script_stores(self, tc, **kwargs):
         dbstores = self.db.dbstores
@@ -114,29 +114,29 @@ class Main(BaseResourceBatch):
         dbstorebag = Bag()
         for s in dbstores:
             dbstorebag.setItem(s,None,dbstore=s,_checked=False)
-        fg = storespane.bagGrid(frameCode='dbstoregrid',struct=_dbstorestruct,
-                        datapath='#WORKSPACE.dbstores',storepath='#WORKSPACE.store',datamode='attr')
+        fg = storespane.bagGrid(frameCode='dbstoregrid', struct=_dbstorestruct,
+                        datapath='#WORKSPACE.dbstores', storepath='#WORKSPACE.store', datamode='attr')
         fg.data('#WORKSPACE._loadedstore',dbstorebag)
         fg.dataFormula('#WORKSPACE.store','loadedstore',loadedstore='=#WORKSPACE._loadedstore',_onBuilt=True)
         fg.top.bar.replaceSlots('#','*,searchOn,5')
 
     def table_script_packages(self, tc, **kwargs):
         pkgPane = tc.contentPane(title='Packages')
-        fb = pkgPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px',nodeId='dump_pars')
+        fb = pkgPane.div(padding='10px').formbuilder(cols=1, border_spacing='3px', nodeId='dump_pars')
         fb.textbox(value='^.name',lbl='!!Backup name')
         values = []
         defaultchecked = []
         for k,v in list(self.db.packages.items()):
             if not v.attributes.get('dump_exclude'):
                 defaultchecked.append(k)
-            values.append('%s:%s,/' %(k,v.attributes.get('name_long',k)))
+            values.append('%s:%s,/' % (k, v.attributes.get('name_long', k)))
         fb.data('.dumppackages',','.join(defaultchecked))
-        fb = pkgPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px')
+        fb = pkgPane.div(padding='10px').formbuilder(cols=1, border_spacing='3px')
         fb.checkBoxText(value='^.dumppackages',values=','.join(values))
 
     def table_script_options(self, tc, **kwargs):
         optionsPane = tc.contentPane(title='Options', datapath='.options')
-        fb = optionsPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px')
+        fb = optionsPane.div(padding='10px').formbuilder(cols=1, border_spacing='3px')
         fb.checkBox(value='^.data_only', label='Data Only')
         fb.checkBox(value='^.no_owner', label='No Owner')
         fb.checkBox(value='^.schema_only', label='Schema Only')
@@ -150,7 +150,7 @@ class Main(BaseResourceBatch):
         fb.checkBox(value='^.create', label='Create', row_visible='^.plain_text')
 
     def table_script_parameters_pane(self, pane, **kwargs):
-        tc = pane.tabContainer(height='500px',width='700px')
+        tc = pane.tabContainer(height='500px', width='700px')
         self.table_script_packages(tc)
         self.table_script_stores(tc)
         self.table_script_options(tc)
