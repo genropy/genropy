@@ -118,7 +118,6 @@ class TableScriptHandler(BaseComponent):
             askOptions = True
         elif isinstance(askOptions,str):
             askOptions = self.db.application.allowedByPreference(askOptions)
-
         if hasParameters:
             parsbox = parsform.div(datapath='#table_script_runner.data',
                             min_width='300px',childname='contentNode',position='relative',top='0',
@@ -138,7 +137,7 @@ class TableScriptHandler(BaseComponent):
                     frm.publish('message',{message:_T(msg),sound:'$error',messageType:'error'});
                 }
                 """,confirm="^.confirm",msg="!!Invalid parameters")  
-            dlgpars.dataController("dlgoptions.show();",
+            dlgpars.dataController(" dlgoptions.show();",
                             confirm="^.confirm_do",dlg=dlgpars.js_widget,
                                     dlgoptions=dlgoptions.js_widget,
                                     hasOptions=hasOptions,askOptions=askOptions,_if='(askOptions && hasOptions && confirm)==true',
@@ -186,12 +185,12 @@ class TableScriptHandler(BaseComponent):
         pane.dataController(
         """if(hasParameters){
                 dlgpars.show();
-            }else if(hasOptions){
+            }else if(hasOptions && askOptions){
                 dlgoptions.show();
             }else{
                 FIRE .confirm;
             }
-        """,_onBuilt=True,
+        """,_onBuilt=True,askOptions=askOptions,
             dlgpars=dlgpars.js_widget,
             dlgoptions=dlgoptions.js_widget,
             hasParameters=hasParameters,hasOptions=hasOptions)
