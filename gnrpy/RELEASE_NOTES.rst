@@ -8,7 +8,10 @@ Enhancements
 * Reduced Docker image footprint by disabling local cache
 * Introduced switch to 'gnr app dockerize' to create images based on development version
   of the framework, and new switch to specify a different image name
-* Package depencency installer ('gnr app checkdep') has a new '-n' option to disable package caching
+* Package depencency installer ('gnr app checkdep') has a new '-n'
+  option to disable package caching
+* Support for 'security.txt' and 'robots.txt' WKUs through instanceconfig
+  
 
 Version 25.04.10
 ================

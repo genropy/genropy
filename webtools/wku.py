@@ -12,14 +12,54 @@ import json
 from gnr.web.gnrbaseclasses import BaseWebtool
 from gnr.core.gnrdecorator import metadata
 
-class DeepLink(BaseWebtool):
+class WKUFile(BaseWebtool):
     def __call__(self, *args, **kwargs):
         apps_config = self.site.gnrapp.config.getNode(self.config_item, None)
         if not apps_config:
-            raise Exception(f"{self.config_item} deeplinking support is not configured for this instance")
+            raise Exception(f"{self.config_item} wku support is not configured for this instance")
         return self.get_content([apps_config])
 
-class DeepLinkIOS(DeepLink):
+class SecurityTxt(WKUFile):
+    config_item = 'wku.security_txt'
+    content_type = "text/plain"
+    
+    def get_content(self, configs):
+        payload = []
+        for config in configs:
+            for item in config.value:
+                payload.append([item.tag, item.value])
+        return "".join(f"{k.capitalize()}: {v}\n" for k, v in payload)
+    
+    @metadata(alias_url="/.well-known/security.txt")
+    def __call__(self, *args, **kwargs):
+        return super().__call__(*args, **kwargs)
+
+
+class RobotsTxt(WKUFile):
+    config_item = 'wku.robots_txt'
+    content_type = "text/plain"
+
+    def get_content(self, configs):
+        payload = []
+        for config in configs:
+            for item in config.value:
+                if item.tag == "user-agent":
+                    agent_name = item.attr.get("name", None)
+                    if agent_name:
+                        payload.append(f"User-agent: {agent_name}")
+                        for action in item.value:
+                            payload.append(f"{action.tag.capitalize()}: {action.value}")
+                else:
+                    payload.append(f"{item.tag.capitalize()}: {item.value}")
+                payload.append('')
+        return "\n".join(payload)
+
+    @metadata(alias_url="/robots.txt")
+    def __call__(self, *args, **kwargs):
+        return super().__call__(*args, **kwargs)
+
+    
+class DeepLinkIOS(WKUFile):
     config_item = "mobile_app.ios"
     content_type = "text/plain"
     def get_content(self, apps_config):
@@ -68,7 +108,7 @@ class DeepLinkIOS(DeepLink):
     def __call__(self, *args, **kwargs):
         return super().__call__(*args, **kwargs)
 
-class DeepLinkAndroid(DeepLink):
+class DeepLinkAndroid(WKUFile):
     content_type = "application/json"
     config_item = "mobile_app.android"
 
