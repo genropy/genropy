@@ -497,7 +497,7 @@ class AttachManager(BaseComponent):
 
     @struct_method
     def at_attachmentMultiButtonFrame(self,pane,datapath='.attachments',formResource=None,parentForm=True,ask=None,
-                                      toolbarPosition=None,itemsMaxWidth=None,**kwargs):   
+                                      toolbarPosition=None,itemsMaxWidth=None,singleFile=False,**kwargs):   
         toolbarPosition = toolbarPosition or 'top'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
                             relation='@atc_attachments',
@@ -515,7 +515,8 @@ class AttachManager(BaseComponent):
                             multibutton_deleteSelectedOnly=True,
                             toolbarPosition=toolbarPosition,
                             store_order_by='$_row_count')
-        frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
+        if not singleFile:
+            frame.multiButtonView.item(code='add_atc',caption='+',frm=frame.form.js_form,
                                     action='frm.newrecord();',
                 parentForm=parentForm,deleteAction=False,
                 disabled='==!_store || _store.len()==0 || (this.form?this.form.isDisabled():false)',
@@ -546,7 +547,8 @@ class AttachManager(BaseComponent):
                 frame.setHiderLayer(false);
                 frm.newrecord();
             }
-            """,store='^.store',_delay=100,newrecordmessage="!!Save record before upload attachments",
+            """,store='^.store',_delay=500,
+            newrecordmessage="!!Save record before upload attachments",
             _fired='^#FORM.controller.loaded',
             _if='!store || store.len()==0',
             parentForm=parentForm,
