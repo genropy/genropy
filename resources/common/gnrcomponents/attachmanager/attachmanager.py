@@ -540,6 +540,7 @@ class AttachManager(BaseComponent):
                 connect_onClose='FIRE .saveDescription;',
             ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.form.record.external_url',lbl='!!External url')
+        # FIXME: the delay has a an arbitrary value
         frame.dataController("""
             if(parentForm && frm.getParentForm().isNewRecord()){
                 frame.setHiderLayer(true,{message:newrecordmessage,background_color:'white'});
