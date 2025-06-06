@@ -21,7 +21,6 @@ from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.gnrdeploy import PathResolver
 from gnr.web.gnrdaemonprocesses import GnrCronHandler, GnrDaemonServiceManager
-from gnr.web.gnrtask import GnrTaskScheduler
 from gnr.web import logger
 
 if hasattr(Pyro4.config, 'METADATA'):
@@ -44,10 +43,6 @@ def createHeartBeat(site_url=None,interval=None,**kwargs):
     server = GnrHeartBeat(site_url=site_url,interval=interval,**kwargs)
     time.sleep(interval)
     server.start()
-
-def createTaskScheduler(sitename,interval=None):
-    scheduler = GnrTaskScheduler(sitename,interval=interval)
-    scheduler.start()
 
 def getFullOptions(options=None):
     gnr_path = gnrConfigPath()
@@ -126,8 +121,6 @@ class GnrDaemon(object):
         self.multiprocessing_manager =  Manager()
         self.batch_processes = dict()
         self.cron_processes = dict()
-        self.task_locks = dict()
-        self.task_execution_dicts = dict()
         self.logger = logger
 
 
@@ -267,14 +260,6 @@ class GnrDaemon(object):
         proc.start()
         return proc
     
-    def hasSysPackageAndIsPrimary(self,sitename):
-        instanceconfig = PathResolver().get_instanceconfig(sitename)
-        if instanceconfig:
-            has_sys = 'gnrcore:sys' in instanceconfig['packages']
-            secondary = has_sys and instanceconfig['packages'].getAttr('gnrcore:sys').get('secondary')
-            return has_sys and not secondary
-        return False
-
     def addSiteRegister(self,sitename,storage_path=None,autorestore=False,port=None):
         if not sitename in self.siteregisters:
             siteregister_processes_dict = dict()
@@ -294,11 +279,6 @@ class GnrDaemon(object):
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
 
-            if self.hasSysPackageAndIsPrimary(sitename):
-                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
-                taskScheduler.daemon = True
-                taskScheduler.start()
-                siteregister_processes_dict['task_scheduler'] = taskScheduler 
             sitedict = siteregister_processes_dict
             self.startServiceProcesses(sitename,sitedict=sitedict)
             #self.startGnrDaemonServiceManager(sitename)
