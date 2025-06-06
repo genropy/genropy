@@ -1,24 +1,23 @@
 #!/usr/bin/env python
 # encoding: utf-8
-# 
+#
+
 from gnr.core.cli import GnrCliArgParse
-from gnr.web.gnrtask import GnrTaskScheduler
-from gnr.web import logger
+from gnr.web import gnrtask 
 
 description = "Start the task scheduler service"
 
-def getOptions():
-    parser = GnrCliArgParse(description=description)
-    parser.add_argument('sitename')
-    arguments= parser.parse_args()
-    return arguments.__dict__
-
 def main():
-    options = getOptions()
-    sitename = options.pop('sitename')
-    interval = options.pop('interval',None)
-    w = GnrTaskScheduler(sitename,interval=interval)
-    logger.info("Starting Task Scheduler for site: %s", sitename)
+    parser = GnrCliArgParse(description=description)
+    
+    parser.add_argument('sitename')
+    parser.add_argument('--host',
+                        dest='host')
+    parser.add_argument('--port',
+                        dest='port')
+
+    options = parser.parse_args()
+    w = gnrtask.GnrTaskScheduler(options.sitename, host=options.host, port=options.port)
     w.start()    
 
 if __name__=="__main__":
