@@ -5,6 +5,8 @@ from datetime import datetime
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrtask import GnrTaskSchedulerClient
 
+
+
 class Table(object):
     
     def config_db(self, pkg):
@@ -59,11 +61,16 @@ class Table(object):
                               table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
                               order_by='$start_ts DESC', limit=1, columns='$start_ts')
                           )
+
+
         
-    def onDbCommitted(self):
-        scheduler_client = GnrTaskSchedulerClient()
-        scheduler_client.reload()
-        
+    def trigger_onUpdating(self,*args, **kwargs):
+        scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
+        self.db.deferAfterCommit(scheduler_client.reload)
+
+    trigger_onInserting = trigger_onUpdating
+    trigger_onDeleted = trigger_onUpdating
+
     def isTaskScheduledNow(self,task,timestamp):
         result = []
         if task['run_asap']:
