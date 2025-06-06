@@ -28,15 +28,27 @@ class GnrTaskSchedulerClient:
     """
     A simple object to interact with the scheduler APIs
     """
-    def __init__(self, url=None):
+    def __init__(self, url=None, page=None):
         self.url = url and url or GNR_SCHEDULER_URL
+        self.page = page
         
+    def _call(self, uri):
+        try:
+            return requests.get(f"{self.url}/{uri}")
+        except Exception as e:
+            if self.page:
+                self.page.clientPublish('floating_message',
+                                        message='Unable to contact scheduler',
+                                        messageType='warning')
+            logger.error("Unable to contact scheduler: %s", e)
+            
     def reload(self):
-        r = requests.get(f"{self.url}/reload")
-        return r.ok
+        r = self._call("reload")
+        return r 
 
     def status(self):
-        return requests.get(f"{self.url}/status").json()
+        r = self_call("status")
+        return r and r.json() or r.status_code
 
 # [id=KsHEQhCJOrCCSLDqcNA6Uw,
 #  __ins_ts=2025-06-03 14:24:35.509291,
