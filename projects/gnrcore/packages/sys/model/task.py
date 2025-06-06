@@ -3,9 +3,10 @@
 from datetime import datetime
 
 from gnr.core.gnrbag import Bag
+from gnr.web.gnrtask import GnrTaskSchedulerClient
 
 class Table(object):
-
+    
     def config_db(self, pkg):
         tbl =  pkg.table('task', rowcaption='$task_name',caption_field='task_name', pkey='id',name_long='!!Task',name_plural='!!Tasks')
         self.sysFields(tbl)
@@ -26,28 +27,43 @@ class Table(object):
         tbl.column('run_asap','B',name_long='!!Run ASAP')
         tbl.column('max_workers','L',name_long='!!Max workers') # Allows concurrent execution of the same task
         tbl.column('log_result', 'B', name_long='!!Log Task')
-        tbl.column('user_id',size='22',group='_',name_long='User id').relation('adm.user.id', mode='foreignkey', onDelete='raise')
+        tbl.column('user_id', size='22', group='_', name_long='User id').relation('adm.user.id',
+                                                                                  mode='foreignkey',
+                                                                                  onDelete='raise')
         tbl.column('date_start','D',name_long='!!Start Date')
         tbl.column('date_end','D',name_long='!!End Date')
         tbl.column('stopped','B',name_long='!!Stopped')
         tbl.column('worker_code',size=':10',name_long="Worker code",indexed=True)
         tbl.column('saved_query_code',size=':40',name_long="!![en]Query")
-        tbl.formulaColumn('active_workers',select=dict(table='sys.task_execution',
-            where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
-            columns='COUNT(*)'
-        ),dtype='N',name_long='N.Active workers')
+        tbl.formulaColumn('active_workers',
+                          select=dict(table='sys.task_execution',
+                                      where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
+                                      columns='COUNT(*)'
+                                      ),
+                          dtype='N', name_long='N.Active workers')
         tbl.formulaColumn('last_result_ts',
             select=dict(table='sys.task_result',
             columns='MAX($start_time)', where='$task_id = #THIS.id'),
             name_long='!!Last Execution')
 
-        tbl.formulaColumn('last_completed', dtype='DH', name_long='!![en]Last completed', select=dict(
-                                        table='sys.task_execution', where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
-                                        order_by='$end_ts DESC', limit=1, columns='$end_ts'))
-        tbl.formulaColumn('last_error', dtype='DH', name_long='!![en]Last error', select=dict(
-                                        table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
-                                        order_by='$start_ts DESC', limit=1, columns='$start_ts'))
-
+        tbl.formulaColumn('last_completed', dtype='DH',
+                          name_long='!![en]Last completed',
+                          select=dict(
+                              table='sys.task_execution',
+                              where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
+                              order_by='$end_ts DESC', limit=1, columns='$end_ts')
+                          )
+        tbl.formulaColumn('last_error', dtype='DH',
+                          name_long='!![en]Last error',
+                          select=dict(
+                              table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
+                              order_by='$start_ts DESC', limit=1, columns='$start_ts')
+                          )
+        
+    def onDbCommitted(self):
+        scheduler_client = GnrTaskSchedulerClient()
+        scheduler_client.reload()
+        
     def isTaskScheduledNow(self,task,timestamp):
         result = []
         if task['run_asap']:
