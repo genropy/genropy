@@ -11,7 +11,8 @@ Enhancements
 * Package depencency installer ('gnr app checkdep') has a new '-n'
   option to disable package caching
 * Support for 'security.txt' and 'robots.txt' WKUs through instanceconfig
-  
+* Introduced 'deferAfterCommit' method in GnrSqlDb to executed
+  callables *after* a commit
 
 Version 25.04.10
 ================
