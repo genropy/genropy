@@ -101,7 +101,23 @@ class BaseSql(BaseGnrSqlTest):
                             dbtable="video.people",
                             sqlargs=dict(a=b'ciao', b=r"\$hello"))
         assert len(r) == 2
-        
+
+    def test_deferred(self):
+
+        results = []
+        def update_res(item):
+            results.append(item)
+            
+        PRE_OP = "pre_op_result"
+        # WARNING: we need to execute a query in the current
+        # connection otherwise the deferToCommit callback is not executed
+        # due to the lack of an active connection.
+        qs = self.db.query('video.movie', columns='$title').fetch()
+        self.db.deferToCommit(update_res, PRE_OP)
+        self.db.commit()
+        assert len(results) == 1
+        assert PRE_OP in results
+
     #------------table test-----------------------------------------
     def test_insert(self):
         tbl = self.db.table('video.movie')
