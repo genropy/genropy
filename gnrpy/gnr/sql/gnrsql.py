@@ -120,7 +120,10 @@ class GnrSqlDb(GnrObject):
     * manage operations on db at high level, hiding adapter's layer and connections.
     """
     rootstore = '_main_db'
-    
+
+    # deferred queues ids
+    QUEUE_DEFER_TO_COMMIT = "to_commit_defer_calls"
+    QUEUE_DEFER_AFTER_COMMIT = "after_commit_defer_calls"
     
     def __init__(self, implementation='sqlite', dbname='mydb',
                  host=None, user=None, password=None, port=None,
@@ -607,8 +610,7 @@ class GnrSqlDb(GnrObject):
             if evt in loggable_events:
                 tblobj.onLogChange(evt,record,old_record=old_record)
                 self.table(self.changeLogTable).logChange(tblobj,evt=evt,record=record)
-        
-
+                
     @in_triggerstack
     def insert(self, tblobj, record, **kwargs):
         """Insert a record in a :ref:`table`
@@ -709,17 +711,30 @@ class GnrSqlDb(GnrObject):
             if not connections:
                 break
             connection = connections[0]
-            with self.tempEnv(storename=connection.storename,onCommittingStep=True):
-                self.onCommitting()
+            # invoke deferred callables just before commit
+            # added via deferToCommit
+            with self.tempEnv(storename=connection.storename, onCommittingStep=True):
+                self._invoke_deferred_cbs(self.QUEUE_DEFER_TO_COMMIT)
+                
             pending_exceptions = self.currentEnv.get('_pendingExceptions')
+            
             if pending_exceptions:
                 raise  GnrException('\n'.join([str(exception) for exception in pending_exceptions]))
             connection.commit()
             connection.committed = True
+            # invoke deferred callables after the commit
+            # added via deferAfterCommit
+            with self.tempEnv(storename=connection.storename, onCommittingStep=True):
+                self._invoke_deferred_cbs(self.QUEUE_DEFER_AFTER_COMMIT)
+                
         self.onDbCommitted()
 
-    def onCommitting(self):
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag()) 
+    def _invoke_deferred_cbs(self, queue):
+        """
+        Execute deferred callables inside `queue`
+        """
+        queue_name = f"{queue}_{self.connectionKey()}"
+        deferreds_blocks = self.currentEnv.setdefault(queue_name, Bag())
         while deferreds_blocks:
             deferreds_blocks.sort()
             block = deferreds_blocks['#0']
@@ -737,10 +752,28 @@ class GnrSqlDb(GnrObject):
 
     def deferredRaise(self,exception):
         self.currentEnv.setdefault('_pendingExceptions',[]).append(exception)
+        
+    def deferToCommit(self, cb, *args, **kwargs):
+        """
+        Add a callable in the DEFER_TO_COMMIT queue, executed
+        just before the database connection commit
+        """
+        return self.deferCallable(self.QUEUE_DEFER_TO_COMMIT, cb, *args, **kwargs)
 
-    def deferToCommit(self,cb,*args,**kwargs):
+    def deferAfterCommit(self, cb, *args, **kwargs):
+        """
+        Add a callable in the DEFER_AFTER_COMMIT queue, executed
+        just after the database connection commit
+        """
+        return self.deferCallable(self.QUEUE_DEFER_AFTER_COMMIT, cb, *args, **kwargs)
+    
+    def deferCallable(self, queue, cb, *args, **kwargs):
+        """
+        Add a callable in the selected `queue`
+        """
         deferredBlock = kwargs.pop('_deferredBlock',None) or '_base_'
-        deferreds_blocks = self.currentEnv.setdefault('deferredCalls_%s' %self.connectionKey(),Bag())
+        queue_name = f"{queue}_{self.connectionKey()}"
+        deferreds_blocks = self.currentEnv.setdefault(queue_name, Bag())
         if deferredBlock not in deferreds_blocks:
             deferreds_blocks[deferredBlock] = Bag()
         deferreds = deferreds_blocks[deferredBlock]
@@ -754,7 +787,6 @@ class GnrSqlDb(GnrObject):
         else:
             cb,args,deferkw = deferreds[deferredKey]
         return deferkw
-        
 
     def systemDbEvent(self):
         return self.currentEnv.get('_systemDbEvent',False)
