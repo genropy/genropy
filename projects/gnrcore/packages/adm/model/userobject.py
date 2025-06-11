@@ -8,7 +8,9 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',name_plural='!![en]User Objects',rowcaption='$code,$objtype',broadcast='objtype')
+        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',
+                        name_plural='!![en]User Objects',rowcaption='$code,$objtype',
+                        broadcast='objtype', archivable=True)
         self.sysFields(tbl, id=True, ins=True, upd=True)
         tbl.column('identifier',size=':120',indexed=True,sql_value="COALESCE(:tbl,:pkg,'')||:objtype||:code|| CASE WHEN :private THEN :userid ELSE '' END",unique=True)
         tbl.column('code', size=':40',name_long='!![en]Code', indexed='y',
