@@ -2275,7 +2275,7 @@ class SqlRecord(object):
                  checkPermissions=None,
                  aliasPrefix=None,
                  **kwargs):
-        if len(dbtable.pkeys)>1 and pkey.startswith('['):
+        if pkey and len(dbtable.pkeys)>1 and pkey.startswith('['):
             sqlparams = sqlparams or {}
             sqlparams.update(dbtable.parseSerializedKey(pkey))
             pkey = None
