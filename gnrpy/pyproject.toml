@@ -57,9 +57,9 @@ dependencies = [
 	     "vobject",
 	     "weasyprint",
 	     "webob",
-	     "werkzeug==2.3.8",
+	     "werkzeug>=2.3.8",
 	     "xlrd",
-	     "xlwt",
+	     "xlwt"
 	     ]
 
 [project.optional-dependencies]
@@ -72,6 +72,7 @@ mysql = ["mysqlclient"]
 developer = [
   "pytest", "pytest-cov", "graphviz", 
   "flake8",
+  "debugpy",
   "build", "twine","ipython",
   "psycopg2-binary",
   "psycopg",
