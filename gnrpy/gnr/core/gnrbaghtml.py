@@ -1021,28 +1021,16 @@ class BagToHtml(object):
                 self.splittedPages_data.append((pages_path,self.builder.toHtml()))
                 self.newBuilder()
 
-    def _getGridWrapper(self,body,header_height):
-        header_height = header_height/2
-        extlayout = body.layout(border_width=0,top=0,left=0,right=0,bottom=0)
-        row =  extlayout.row()
-        if self.grid_width:
-            row.cell()
-            wrapper =row.cell(width=self.grid_width)
-            row.cell()
-        else:
-            wrapper =row.cell()
-        if self.columnsets:
-            gp = self.gridLayoutParameters()
-            colsetlayout = extlayout.row(height=header_height).cell().layout(left=gp.get('left'),right=gp.get('right'),top=0,bottom=0,
-                                                border_width=.3,border_color='transparent')
-            self.prepareColumnsets(colsetlayout.row())
-        return wrapper
+
 
     def _docBody(self, body):
         header_height = self.calcGridHeaderHeight()
         wrapper = body
         if self.columnsets or self.grid_width:
+            if self.columnsets:
+                header_height = header_height/2
             wrapper = self._getGridWrapper(body,header_height)
+
         grid = self.gridLayout(wrapper)
         if header_height:
             self.gridHeader(grid.row(height=header_height))
@@ -1054,6 +1042,23 @@ class BagToHtml(object):
             self.renderMode = 'carry'
             self.renderGridRow(self.gridRunningTotals(lastPage=self.lastPage))
         self.copies[self.copykey]['body_grid'] = grid
+
+    def _getGridWrapper(self,body,header_height):
+        wrapper = body
+       
+        if self.grid_width:
+            row =  body.layout(border_width=0,top=0,left=0,right=0,bottom=0).row()
+            row.cell()
+            wrapper =row.cell(width=self.grid_width)
+            row.cell()
+        if self.columnsets:
+            gp = self.gridLayoutParameters()
+            extlayout = wrapper.layout(border_width=0,top=0,left=0,right=0,bottom=0)
+            colsetlayout = extlayout.row(height=header_height).cell().layout(left=gp.get('left'),right=gp.get('right'),top=0,bottom=0,
+                                                border_width=.3,border_color='transparent')
+            self.prepareColumnsets(colsetlayout.row())
+            wrapper = extlayout.row().cell()
+        return wrapper
 
     def prepareColumnsets(self,row):
         currentColsetCell = None

@@ -1,21 +1,38 @@
 import os
-
+import time
 import pytest
 
 import gnr.web.gnrwsgisite as gws
+
 from webcommon import BaseGnrTest
 from utils import WSGITestClient, ExternalProcess
+
+def get_waited_wsgisite(site_name):
+    max_attempts = 3
+    attempt = 0
+    timeout = 2
+    
+    while attempt < max_attempts:
+        try:
+            site = gws.GnrWsgiSite(site_name, site_name=site_name)
+            return site
+        except Exception as e:
+            time.sleep(timeout)
+            attempt += 1
+    raise Exception(f"Can't connect to local daemon after {attempt} attempts")
 
 class TestGnrWsgiSite(BaseGnrTest):
     @classmethod
     def setup_class(cls):
         super().setup_class()
         cls.external = ExternalProcess(['gnr','web','daemon'], cwd=None)
+
         try:
             cls.external.start()
             cls.site_name = 'gnrdevelop'
-            cls.site = gws.GnrWsgiSite(cls.site_name, site_name=cls.site_name)
+            cls.site = get_waited_wsgisite(cls.site_name)
             cls.client = WSGITestClient(cls.site)
+            cls.services_handler = cls.site.services_handler
         except Exception as e:
             # re-raise to take care of the problem, but ensuring the external
             # process is being terminated.
@@ -52,10 +69,21 @@ class TestGnrWsgiSite(BaseGnrTest):
             r = self.site.storagePath(storage, storage_path)
             assert r.endswith(storage_path)
  
-    def test_services(self):
+    def test_service_handler(self):
+        # non existing service
+        print("UNO")
         with pytest.raises(KeyError) as excinfo:
-            r = self.site.services_handler("foobar").configurations()
-                
+            r = self.services_handler("foobar").configurations()
+            
+        r = self.site.getService("foobar", "goober")
+        assert r is None
+        r = self.site.getService("git", "gitpython")
+        assert r is None
+        print(self.site.serviceList("git"))
+        print("DUE")
+        assert "git" in self.services_handler.service_types
+        print("TRE")
+
     def test_auxinstances(self):
         with pytest.raises(Exception) as excinfo:
             r = self.site.getAuxInstance("babbala")

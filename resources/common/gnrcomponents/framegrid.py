@@ -85,7 +85,8 @@ class FrameGridTools(BaseComponent):
         return pane.menudiv(tip='!!Advanced tools',iconClass=_class,storepath='.advancedTools',**kwargs)
 
     @struct_method
-    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,disabled='^.disabledButton',**kwargs):
+    def fgr_slotbar_delrow(self,pane,_class='iconbox delete_row',enable=None,label='!!Delete',
+                                iconClass='^.deleteButtonClass',disabled='^.disabledButton',**kwargs):
         kwargs.setdefault('visible',enable)
         frameCode = kwargs['frameCode']
         pane.dataController("""SET .deleteButtonClass = deleteButtonClass;
@@ -110,8 +111,8 @@ class FrameGridTools(BaseComponent):
                             disabled=disabled,deleteButtonClass=_class,frameCode=frameCode,_onBuilt=True,
                             **{str('subscribe_%s_grid_onSelectedRow' %frameCode):True})
         pane.data('.deleteButtonClass',_class)
-        return pane.slotButton(label='!!Delete',publish='delrow',
-                            iconClass='^.deleteButtonClass',disabled='^.deleteDisabled',
+        return pane.slotButton(label=label,publish='delrow',
+                            iconClass=iconClass,disabled='^.deleteDisabled',
                             _tablePermissions=dict(table=pane.frame.grid.attributes.get('table'),
                                                     permissions='del,readonly'),
                             **kwargs)
@@ -428,7 +429,7 @@ class FrameGrid(BaseComponent):
 
         grid_kwargs['selfsubscribe_addrow'] = grid_kwargs.get('selfsubscribe_addrow','this.widget.addRows((($1.opt && $1.opt.default_kw)? [$1.opt.default_kw]: $1._counter),$1.evt);')
         grid_kwargs['selfsubscribe_duprow'] = grid_kwargs.get('selfsubscribe_duprow','this.widget.addRows($1._counter,$1.evt,true);')
-        grid_kwargs['selfsubscribe_delrow'] = grid_kwargs.get('selfsubscribe_delrow','this.widget.deleteSelectedRows();')
+        grid_kwargs['selfsubscribe_delrow'] = grid_kwargs.get('selfsubscribe_delrow','this.widget.deleteSelectedRows();this.publish("dismissrow")')
         grid_kwargs['selfsubscribe_archive'] = grid_kwargs.get('selfsubscribe_archive','this.widget.archiveSelectedRows();')
         #grid_kwargs['selfsubscribe_setSortedBy'] = """console.log($1.event);"""
         grid_kwargs.setdefault('selectedId','.selectedId')

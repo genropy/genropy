@@ -83,6 +83,11 @@ gnr.columnsFromStruct = function(struct, columns) {
                 caption_field = (stringStartsWith(caption_field, '$') || stringStartsWith(caption_field, '@'))?caption_field:'$'+caption_field;
                 arrayPushNoDup(columns,caption_field);
             }
+            if(node.attr.required_columns){
+                for(let col of node.attr.required_columns.split(',')){
+                    arrayPushNoDup(columns,col);
+                }
+            }
             if(node.attr['_joiner_storename']){
                 //_extname considerare
                 arrayPushNoDup(columns,node.attr['_external_name']);
@@ -1248,11 +1253,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.storebag().getNodeByAttr(this.rowIdentifier(),pkey);
     },
     mixin_updateShowCount:function(cnt){
-        let pane = this.getRootPane();
+        let pane = this.getTitleCounterPane();
         if(pane && pane.attr.title && pane.attr.titleCounter){
             pane.widget.setTitle(`${pane.attr.title} (${cnt})`);
         }
     },
+    mixin_getTitleCounterPane:function(){
+        return this.sourceNode.attr.counterChannel?this.sourceNode.attributeOwnerNode('titleCounter',this.sourceNode.attr.counterChannel):this.getRootPane();
+    },
+
     mixin_getRootPane:function(){
         let rootPaneNodeId = this.sourceNode.getAttributeFromDatasource('rootPaneNodeId');
         if (!rootPaneNodeId){
@@ -1975,7 +1984,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                         row.push(cell);
                         cellmap[cell.field] = cell;
                         if(cell.sort){
-                            cellsort.push(`${cell.field_getter}:${cell.sort}`);
+                            let field_sorter = cell.field_sorter || cell.field_getter
+                            cellsort.push(`${field_sorter}:${cell.sort}`);
                         }
                     },'static');
                     rows.push(row);
@@ -4643,7 +4653,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             order = 'a';
         }
         var cell = this.layout.cells[sortInfo - 1];
-        var sortedBy = cell.field_getter + ':' + order;
+        let field_sorter = cell.field_sorter || cell.field_getter;
+        var sortedBy = field_sorter+ ':' + order;
         this.sourceNode.publish('setSortedBy',sortedBy);
         if ('sortedBy' in this.sourceNode.attr){
             var sortpath = this.sourceNode.attr['sortedBy'];
