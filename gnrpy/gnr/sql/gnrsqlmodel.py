@@ -708,12 +708,12 @@ class DbModelSrc(GnrStructData):
             elif dtype not in ('L','F','R','B'):
                 val = rf""" '"' ||  ${column} || '\:\:{dtype}"' """ 
             composed_of.append(column)
-            chunks.append(f"""(CASE WHEN ${column} IS NULL THEN 'null' ELSE {val} END) """)
+            chunks.append(val)
         composed_of = ','.join(composed_of)
         if columns!=composed_of:
             logger.warning(f"compositeColumn {name} has columns='{columns}'. It should be '{composed_of}'.")
 
-        sql_formula = " ||','||".join(chunks)
+        sql_formula = " ||', '||".join(chunks)
         sql_formula = f"'[' || {sql_formula} || ']' "
         return self.virtual_column(name, composed_of=composed_of, static=static,sql_formula=sql_formula,dtype='JS',**kwargs)
 
