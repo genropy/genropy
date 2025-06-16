@@ -269,7 +269,8 @@ class Server(object):
         
         parser.add_argument('--debugpy-port',
                 dest='debugpy_port',
-                help="Debugpy port (default: 5678)")
+                type=int,
+                help="Debugpy port (defaults to 5678)")
 
         self.site_script = site_script
         self.server_description = server_description
@@ -375,7 +376,7 @@ class Server(object):
         try:
             import debugpy
             self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
-            self.debugpy_port = int(self.options.debugpy_port) if self.options.debugpy_port else 5678
+            self.debugpy_port = self.options.debugpy_port or 5678
         except ImportError:
             logger.error("Debugpy is not installed! Install debugpy or genropy's developer profile.")
             self.debugpy = False
@@ -383,8 +384,8 @@ class Server(object):
             
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        
         if self.debugpy:
+            logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
             debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
@@ -442,12 +443,13 @@ class Server(object):
                                         _gnrconfig=self.gnr_config,
                                         counter=getattr(self.options, 'counter', None),
                                         noclean=self.options.noclean,
-                                        options=self.options)
+                                        options=self.options,
+                                        debugpy=self.debugpy)
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
                 if self.debugpy:
-                    extra_info.append(f'Debugpy on port {self.debugpy_port}')
+                    extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
                 elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')

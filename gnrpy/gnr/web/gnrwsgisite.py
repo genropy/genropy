@@ -148,7 +148,8 @@ class GnrWsgiSite(object):
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None, counter=None, noclean=None,
-                 options=None, tornado=None, websockets=None):
+                 options=None, tornado=None, websockets=None,
+                 debugpy=False):
         
         global GNRSITE
         GNRSITE = self
@@ -227,7 +228,8 @@ class GnrWsgiSite(object):
         self._main_gnrapp = self.build_gnrapp(options=options)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
-        self.debugpy = options.debugpy if options else None
+        self.debugpy = debugpy
+        logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
