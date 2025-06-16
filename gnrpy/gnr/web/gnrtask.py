@@ -93,7 +93,7 @@ class GnrTask(object):
 
     def completed(self):
         """
-        The task has been executed and acknoledged, update
+        The task has been executed and acknowledged, update
         the last execution timestamp accordingly
         """
         self.record['last_execution_ts'] = "FIXME"
@@ -169,7 +169,11 @@ class GnrTaskScheduler:
         all_tasks = self.tasktbl.query(where='$stopped IS NOT TRUE').fetch()
         self.tasks = {x['id']: GnrTask(x) for x in all_tasks}
         
-
+    async def complete_task(self, task_id):
+        logger.info("Task %s completed, saving", task_id)
+        task = self.tasks.get(task_id)
+        task.completed()
+        
     async def start_service(self):
         await self.load_configuration()
         await self.load_queue_from_disk()
@@ -258,6 +262,7 @@ class GnrTaskScheduler:
             self.workers[worker_id] = {"lastseen": datetime.utcnow()}
         task = await self.task_queue.get()
         self.pending_ack[task["run_id"]] = (task, datetime.utcnow(), 0)
+        self.exectl.insert(self.exectbl.newrecord(task_id = task
         return web.json_response(task)
 
     async def acknowledge(self, request):
@@ -265,7 +270,9 @@ class GnrTaskScheduler:
         run_id = data.get("run_id")
         if run_id in self.pending_ack:
             logger.info("Task %s acknowledged", run_id)
-            del self.pending_ack[run_id]
+            # update the task
+            ack_run = self.pending_ack.pop(run_id)
+            await self.complete_task(ack_run[0]['task_id'])
             return web.json_response({"status": "acknowledged"})
         return web.json_response({"status": "unknown task"}, status=400)
 
@@ -418,7 +425,7 @@ class GnrTaskWorker:
                                 await self.execute_task(task, session)
                     except Exception as e:
                         logger.error("Request error: %s", e)
-                        await asyncio.sleep(10)
+                        await asyncio.sleep(5)
         except asyncio.CancelledError:
             raise
         
