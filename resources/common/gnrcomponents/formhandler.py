@@ -202,6 +202,11 @@ class FormHandler(BaseComponent):
                                     }
                                     finalize();
                                     """
+        gridattr['selfsubscribe_dismissrow'] = """
+            var linkedFormId = this.attr._linkedFormId;
+            var pref = 'form_'+linkedFormId;
+            genro.publish(pref+'_dismiss');
+        """
         gridattr['selfsubscribe_viewlocker'] = 'this.widget.collectionStore().setLocked("toggle");'
         gridsubscribers['onExternalChanged']= """
             var selectionStore = this.widget.collectionStore();
