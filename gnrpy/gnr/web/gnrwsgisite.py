@@ -148,7 +148,8 @@ class GnrWsgiSite(object):
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None, counter=None, noclean=None,
-                 options=None, tornado=None, websockets=None):
+                 options=None, tornado=None, websockets=None,
+                 debugpy=False):
         
         global GNRSITE
         GNRSITE = self
@@ -227,6 +228,8 @@ class GnrWsgiSite(object):
         self._main_gnrapp = self.build_gnrapp(options=options)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
+        self.debugpy = debugpy
+        logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
@@ -1269,22 +1272,6 @@ class GnrWsgiSite(object):
     def build_wsgiapp(self, options=None):
         """Build the wsgiapp callable wrapping self.dispatcher with WSGI middlewares"""
         wsgiapp = self.dispatcher
-        self.error_smtp_kwargs = None
-        profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        if profile:
-            try:
-                from repoze.profile.profiler import AccumulatingProfileMiddleware
-            except ImportError:
-                AccumulatingProfileMiddleware = None
-            if AccumulatingProfileMiddleware:
-                wsgiapp = AccumulatingProfileMiddleware(
-                   wsgiapp,
-                   log_filename=os.path.join(self.site_path, 'site_profiler.log'),
-                   cachegrind_filename=os.path.join(self.site_path, 'cachegrind_profiler.out'),
-                   discard_first_request=True,
-                   flush_at_shutdown=True,
-                   path='/__profile__'
-                  )
         if 'sentry' in self.config:
             try:
                 import sentry_sdk

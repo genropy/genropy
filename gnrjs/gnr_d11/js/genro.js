@@ -81,6 +81,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.auto_polling = -1;
         this.user_polling = -1;
         this.isDeveloper = objectPop(this.startArgs,'isDeveloper');
+        this.debugpy = objectPop(this.startArgs,'debugpy');
         this.isMobile = objectPop(this.startArgs,'isMobile');
         this.isCordova = objectPop(this.startArgs,'isCordova');
         this.deviceScreenSize = objectPop(this.startArgs,'deviceScreenSize');

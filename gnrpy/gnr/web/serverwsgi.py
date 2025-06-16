@@ -183,7 +183,7 @@ class Server(object):
         parser.add_argument('--nodebug',
                             dest='debug',
                             action='store_false',
-                            help="Don't use weberror debugger")
+                            help="Don't use werkzeug debugger")
         parser.add_argument('--profile',
                             dest='profile',
                             action='store_true',
@@ -196,12 +196,7 @@ class Server(object):
                             dest='tornado',
                             action='store_true',
                             help="Serve using tornado")
-
-        parser.add_argument('--reload-interval',
-                            dest='reload_interval',
-                            default=1,
-                            help="Seconds between checking files (low number can cause significant CPU usage)")
-
+        
         parser.add_argument('-c', '--config',
                             dest='config_path',
                             help="gnrserve directory path")
@@ -266,6 +261,16 @@ class Server(object):
                             dest='ssl',
                             action='store_true',
                             help="SSL")
+        
+        parser.add_argument('--debugpy',
+                    dest='debugpy',
+                    action='store_true',
+                    help="Enable Debugpy for remote debugging on port 5678, change port with --debugpy-port")
+        
+        parser.add_argument('--debugpy-port',
+                dest='debugpy_port',
+                type=int,
+                help="Debugpy port (defaults to 5678)")
 
         self.site_script = site_script
         self.server_description = server_description
@@ -368,9 +373,20 @@ class Server(object):
         return instance_config
 
     def run(self):
-        self.reloader = not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
+        try:
+            import debugpy
+            self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
+            self.debugpy_port = self.options.debugpy_port or 5678
+        except ImportError:
+            logger.error("Debugpy is not installed! Install debugpy or genropy's developer profile.")
+            self.debugpy = False
+            self.debugpy_port = None
+            
+        self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        self.start_sitedaemon()
+        if self.debugpy:
+            logger.debug("Starting debugpy service on port localhost:%s", self.debugpy_port)
+            debugpy.listen(("localhost", self.debugpy_port))
         self.serve()
 
     def start_sitedaemon(self):
@@ -418,7 +434,7 @@ class Server(object):
             server.start()
         else:
             ssl_context = None
-            if self.reloader and not is_running_from_reloader():
+            if not self.debugpy and self.reloader and not is_running_from_reloader():
                 gnrServer='FakeApp'
             else:
                 gnrServer = GnrWsgiSite(self.site_script,
@@ -427,11 +443,14 @@ class Server(object):
                                         _gnrconfig=self.gnr_config,
                                         counter=getattr(self.options, 'counter', None),
                                         noclean=self.options.noclean,
-                                        options=self.options)
+                                        options=self.options,
+                                        debugpy=self.debugpy)
                 gnrServer._local_mode=True
                 atexit.register(gnrServer.on_site_stop)
                 extra_info = []
-                if self.debug:
+                if self.debugpy:
+                    extra_info.append(f'Debugpy on port {self.debugpy_port} on loopback interface')
+                elif self.debug:
                     gnrServer = GnrDebuggedApplication(gnrServer, evalex=True, pin_security=False)
                     extra_info.append('Debug mode: On')
                 localhost = 'http://127.0.0.1'
@@ -478,7 +497,7 @@ class Server(object):
                     #extra_files=extra_files,
                     #exclude_patterns=exclude_patterns,
                     interval=1,
-                    reloader_type="stat",
+                    reloader_type="auto",
                 )
             else:
                 try:
