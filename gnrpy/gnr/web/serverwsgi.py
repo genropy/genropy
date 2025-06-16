@@ -372,15 +372,20 @@ class Server(object):
         return instance_config
 
     def run(self):
-        self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
-        self.debugpy_port = int(self.options.debugpy_port) if self.options.debugpy_port else 5678
+        try:
+            import debugpy
+            self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
+            self.debugpy_port = int(self.options.debugpy_port) if self.options.debugpy_port else 5678
+        except ImportError:
+            logger.error("Debugpy is not installed! Install debugpy or genropy's developer profile.")
+            self.debugpy = False
+            self.debugpy_port = None
+            
         self.reloader = not self.debugpy and not (self.options.reload == 'false' or self.options.reload == 'False' or self.options.reload == False or self.options.reload == None)
         self.debug = not (self.options.debug == 'false' or self.options.debug == 'False' or self.options.debug == False or self.options.debug == None)
-        #self.start_sitedaemon()
+        
         if self.debugpy:
-            import debugpy
             debugpy.listen(("localhost", self.debugpy_port))
-                      
         self.serve()
 
     def start_sitedaemon(self):
