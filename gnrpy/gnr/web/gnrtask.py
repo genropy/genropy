@@ -262,7 +262,7 @@ class GnrTaskScheduler:
             self.workers[worker_id] = {"lastseen": datetime.utcnow()}
         task = await self.task_queue.get()
         self.pending_ack[task["run_id"]] = (task, datetime.utcnow(), 0)
-        self.exectl.insert(self.exectbl.newrecord(task_id = task
+        #self.exectl.insert(self.exectbl.newrecord(task_id=task,
         return web.json_response(task)
 
     async def acknowledge(self, request):
