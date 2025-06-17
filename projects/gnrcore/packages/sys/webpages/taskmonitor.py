@@ -5,7 +5,7 @@
 #
 #  Copyright (c) 2025 Softwell. 
 #
-
+import datetime
 import requests
 
 from gnr.core.gnrdecorator import public_method
@@ -58,8 +58,8 @@ class GnrCustomWebPage(object):
 
     def statusStruct(self, struct):
         r = struct.view().rows()
-        r.cell('key', width='10em',name='Attribute')
-        r.cell('value',name='Value',width='10em')
+        r.cell('key', width='15em',name='Attribute')
+        r.cell('value',name='Value',width='40em')
         
     def statusFrame(self,pane):
         frame = pane.frameGrid(frameCode='schedulerStatus', datapath='schedulerStatus',
@@ -87,6 +87,8 @@ class GnrCustomWebPage(object):
                                                    value=len(status['pending'])))
         result.setItem("Total failed tasks", None, dict(key="Total failed tasks",
                                                    value=len(status['failed'])))
+        result.setItem("Last status update", None, dict(key="Last status update",
+                                                   value=str(datetime.datetime.utcnow())))
 
         return result
         
