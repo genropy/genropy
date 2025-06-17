@@ -3,8 +3,6 @@
 #
 
 import os.path
-import asyncio
-from watchgod import awatch
 from multiprocessing import Process
 import importlib
 
@@ -14,25 +12,11 @@ from gnr.web import logger
 
 description = "Start the task worker service"
 
-CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/".join([".."]*3)))
-
 def run_service(options):
-    importlib.reload(gnrtask)
     w = gnrtask.GnrTaskWorker(options.sitename,
                               host=options.host,
                               port=options.port)
     w.start()    
-
-async def autoreload(options):
-    process = Process(target=run_service, args=(options,))
-    process.start()
-    
-    async for changes in awatch(CODE_DIR):
-        logger.info("Detected code changes, restarting...")
-        process.terminate()
-        process.join()
-        process = Process(target=run_service, args=(options,))
-        process.start()
 
 def main():
     parser = GnrCliArgParse(description=description)
@@ -41,15 +25,20 @@ def main():
                         dest='host')
     parser.add_argument('--port',
                         dest='port')
-    parser.add_argument('--autoreload',
-                        action='store_true',
-                        dest='autoreload')
+    parser.add_argument('--processes',
+                        type=int,
+                        default=1,
+                        dest='processes')
 
+    processes = []
     options = parser.parse_args()
-    if options.autoreload:
-        asyncio.run(autoreload(options))
-    else:
-        run_service(options)
+
+    for _ in range(options.processes):
+        p = Process(target=run_service, args=(options,))
+        p.start()
+        processes.append(p)
+    for p in processes:
+        p.join()
 
 if __name__=="__main__":
     main()
