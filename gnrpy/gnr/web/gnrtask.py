@@ -266,7 +266,7 @@ class GnrTaskScheduler:
                 self.workers[worker_id]["worked_tasks"] += 1
                 
         task = await self.task_queue.get()
-        self.pending_ack[task["run_id"]] = (task, str(datetime.utcnow()), 0)
+        self.pending_ack[task["run_id"]] = (task, datetime.utcnow(), 0)
         #self.exectl.insert(self.exectbl.newrecord(task_id=task,
         return web.json_response(task)
 
@@ -377,7 +377,7 @@ class GnrTaskScheduler:
         return web.json_response({"reload": "requested"})
     
     async def status(self, request):
-        return web.Response(text=json.dumps(self._get_status()),
+        return web.Response(text=json.dumps(self._get_status(), default=str),
                             content_type="application/json")
     
     def create_app(self):
