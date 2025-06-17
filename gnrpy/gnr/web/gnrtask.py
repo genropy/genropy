@@ -420,7 +420,7 @@ class GnrTaskWorker:
                     try:
                         async with session.get(f"{self.scheduler_url}/next-task", params={"worker_id": self.worker_id}) as resp:
                             if resp.status == 200:
-                                logger.info("%s got new task!", self.worker_id)
+                                logger.info("%s got new task: ", self.worker_id)
                                 task = await resp.json()
                                 await self.execute_task(task, session)
                     except Exception as e:
