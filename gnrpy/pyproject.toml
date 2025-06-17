@@ -23,6 +23,7 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
 ]
 dependencies = [
+	     "aiohttp",
 	     "babel",
 	     "boto3",
 	     "caldav",
