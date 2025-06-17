@@ -259,7 +259,12 @@ class GnrTaskScheduler:
         if worker_id:
             if worker_id not in self.workers:
                 logger.info("Worker %s connected", worker_id)
-            self.workers[worker_id] = {"lastseen": str(datetime.utcnow())}
+                self.workers[worker_id] = {"lastseen": str(datetime.utcnow()),
+                                           "worked_tasks": 1}
+            else:
+                self.workers[worker_id]["lastseen"] = str(datetime.utcnow())
+                self.workers[worker_id]["worked_tasks"] += 1
+                
         task = await self.task_queue.get()
         self.pending_ack[task["run_id"]] = (task, str(datetime.utcnow()), 0)
         #self.exectl.insert(self.exectbl.newrecord(task_id=task,
