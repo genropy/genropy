@@ -1464,6 +1464,14 @@ class TableHandlerView(BaseComponent):
         pane.menudiv(iconClass='iconbox heart',tip='!!User sets',storepath='.usersets.menu')
        
     @struct_method
+    def thbtn_batchButton(self,pane,label=None,resource=None,res_type='action',iconClass=None,disabled='^.grid.selectedId?=!#v',**kwargs):
+        pane.slotButton(label,disabled=disabled,iconClass=iconClass).dataController("""
+            objectExtract(_kwargs,'_evt,_filterEvent');
+            FIRE .th_batch_run=_kwargs;
+        """,res_type=res_type,resource=resource,**kwargs)
+
+
+    @struct_method
     def th_slotbar_fastQueryBox(self, pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         table = inattr['table'] 

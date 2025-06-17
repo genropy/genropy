@@ -148,7 +148,8 @@ class GnrWsgiSite(object):
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None, counter=None, noclean=None,
-                 options=None, tornado=None, websockets=None):
+                 options=None, tornado=None, websockets=None,
+                 debugpy=False):
         
         global GNRSITE
         GNRSITE = self
@@ -227,6 +228,8 @@ class GnrWsgiSite(object):
         self._main_gnrapp = self.build_gnrapp(options=options)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
+        self.debugpy = debugpy
+        logger.debug("Debugpy active: %s", self.debugpy)
         self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
@@ -379,12 +382,14 @@ class GnrWsgiSite(object):
                     for k,v in list(attr.items()):
                         self.extraFeatures['%s_%s' %(n.label,k)] = v
 
-    def serviceList(self,service_type):
+    def serviceList(self, service_type):
         return self.services_handler(service_type).configurations()
 
 
-    def getService(self, service_type=None,service_name=None, **kwargs):
-        return self.services_handler.getService(service_type=service_type,service_name=service_name or service_type, **kwargs)
+    def getService(self, service_type=None, service_name=None, **kwargs):
+        return self.services_handler.getService(service_type=service_type,
+                                                service_name=service_name or service_type,
+                                                **kwargs)
 
     def addStatic(self, static_handler_factory, **kwargs):
         """TODO
@@ -439,10 +444,12 @@ class GnrWsgiSite(object):
         if not service: return
         autocreate = kwargs.pop('autocreate', False)
         must_exist = kwargs.pop('must_exist', False)
+        version = kwargs.pop('version', None)
+
         mode = kwargs.pop('mode', None)
 
         return StorageNode(parent=self, path=storage_path, service=service,
-            autocreate=autocreate, must_exist=must_exist, mode=mode)
+            autocreate=autocreate, must_exist=must_exist, mode=mode,version=version)
 
     def build_lazydoc(self,lazydoc,fullpath=None,temp_dbstore=None,**kwargs):
         ext = os.path.splitext(fullpath)[1]
@@ -1265,22 +1272,6 @@ class GnrWsgiSite(object):
     def build_wsgiapp(self, options=None):
         """Build the wsgiapp callable wrapping self.dispatcher with WSGI middlewares"""
         wsgiapp = self.dispatcher
-        self.error_smtp_kwargs = None
-        profile = boolean(options.profile) if options else boolean(self.config['wsgi?profile'])
-        if profile:
-            try:
-                from repoze.profile.profiler import AccumulatingProfileMiddleware
-            except ImportError:
-                AccumulatingProfileMiddleware = None
-            if AccumulatingProfileMiddleware:
-                wsgiapp = AccumulatingProfileMiddleware(
-                   wsgiapp,
-                   log_filename=os.path.join(self.site_path, 'site_profiler.log'),
-                   cachegrind_filename=os.path.join(self.site_path, 'cachegrind_profiler.out'),
-                   discard_first_request=True,
-                   flush_at_shutdown=True,
-                   path='/__profile__'
-                  )
         if 'sentry' in self.config:
             try:
                 import sentry_sdk

@@ -577,13 +577,6 @@ class GnrWebPage(GnrBaseWebPage):
                 raise
             else:
                 exception_record = self.site.writeException(exception=e, traceback=tracebackBag())
-                if self.site.error_smtp_kwargs:
-                    import sys
-                    from weberror.errormiddleware import handle_exception
-                    error_handler_kwargs = self.site.error_smtp_kwargs
-                    error_handler_kwargs['debug_mode'] = True
-                    error_handler_kwargs['simple_html_error'] = False
-                    handle_exception(sys.exc_info(), self._environ['wsgi.errors'], **error_handler_kwargs)
                 self.rpc.error = 'server_exception'
                 result = '<div>%s</div>' %str(e)
                 if exception_record:
@@ -1192,16 +1185,16 @@ class GnrWebPage(GnrBaseWebPage):
         return handler
 
     def exception(self, exception, **kwargs):
-         """TODO
+        """TODO
 
-         :param exception: the exception raised.
-         :param record: TODO.
-         :param msg: TODO."""
-         if isinstance(exception, str):
-             exception = EXCEPTIONS.get(exception)
-             if not exception:
-                 raise exception
-         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
+        :param exception: the exception raised.
+        :param record: TODO.
+        :param msg: TODO."""
+        if isinstance(exception, str):
+            exception = EXCEPTIONS.get(exception)
+            if not exception:
+                raise exception
+        return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
@@ -1229,6 +1222,8 @@ class GnrWebPage(GnrBaseWebPage):
             kwargs['debug_sql'] = self.debug_sql
         if self.debug_py:
             kwargs['debug_py'] = self.debug_py
+        if self.site.debugpy:
+            kwargs['debugpy'] = self.site.debugpy
 
         if self.isDeveloper():
             kwargs['isDeveloper'] = True

@@ -449,6 +449,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             }
             return result;
         }else{
+            if(genro.debugpy){
+                xhrKwargs.timeout = 0;
+            }
             var deferred = this._serverCall(callKwargs, xhrKwargs, httpMethod);     
             if(sync){
                 genro.dom.removeClass(dojo.body(),'gnr_sync_rpc');
