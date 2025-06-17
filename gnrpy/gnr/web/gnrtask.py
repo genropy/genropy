@@ -259,9 +259,9 @@ class GnrTaskScheduler:
         if worker_id:
             if worker_id not in self.workers:
                 logger.info("Worker %s connected", worker_id)
-            self.workers[worker_id] = {"lastseen": datetime.utcnow()}
+            self.workers[worker_id] = {"lastseen": str(datetime.utcnow())}
         task = await self.task_queue.get()
-        self.pending_ack[task["run_id"]] = (task, datetime.utcnow(), 0)
+        self.pending_ack[task["run_id"]] = (task, str(datetime.utcnow()), 0)
         #self.exectl.insert(self.exectbl.newrecord(task_id=task,
         return web.json_response(task)
 
@@ -350,23 +350,19 @@ class GnrTaskScheduler:
         """
         t = Template(template_content, strict_undefined=True)
 
-        payload = {
-            "total_tasks": len(self.tasks),
-            "queue_size": self.task_queue.qsize(),
-            "workers": self.workers.items(),
-            "pending": self.pending_ack.items(),
-            "failed": self.failed_tasks
-        }
+        payload = self._get_status()
         return web.Response(text=t.render(**payload), content_type="text/html")
 
     def _get_status(self):
         return {
-            'gnr_scheduler_task_queue_size': self.task_queue.qsize(),
-            'gnr_scheduler_workers_total': len(self.workers),
-            'gnr_scheduler_tasks_failed_total': len(self.failed_tasks),
-            'gnr_scheduler_tasks_pending_ack': len(self.pending_ack),
+            "total_tasks": len(self.tasks),
+            "queue_size": self.task_queue.qsize(),
+            "workers": self.workers,
+            "workers_total": len(self.workers),
+            "pending": self.pending_ack,
+            "failed": self.failed_tasks
         }
-        
+    
     async def metrics(self, request):
         return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status()),
                             content_type="text/plain")
