@@ -6,6 +6,7 @@
 #  Copyright (c) 2025 Softwell. 
 #
 
+import json
 import time
 import datetime
 import requests
@@ -38,9 +39,19 @@ class GnrCustomWebPage(object):
         top = bc.borderContainer(region='top', height='250px')
         self.workersFrame(top.contentPane(region='center'))
 
-        bottom = bc.borderContainer(region='center', height='250px')
+        center = bc.borderContainer(region='center')
+        self.pendingfailedFrame(center.contentPane(region='center'))
+
+        bottom = bc.borderContainer(region='bottom', height='250px')
         self.statusFrame(bottom.contentPane(region='center'))
+
+    def _get_status_data(self):
+        if (time.time() - self._status_cache_ts) > 5:
+            self._status_cache = requests.get(f"{GNR_SCHEDULER_URL}/status").json()
+            self._status_cache_ts = time.time()
+        return self._status_cache
         
+    # WORKERS
     def workersStruct(self, struct):
         r = struct.view().rows()
         r.cell('hostname', width='10em', name='Hostname')
@@ -62,13 +73,7 @@ class GnrCustomWebPage(object):
                      _onStart=True,
                      _timing=self.REFRESH_INTERVAL)
         frame.top.slotBar('2,vtitle,*',vtitle='Running workers',_class='pbl_roundedGroupLabel')
-
-    def _get_status_data(self):
-        if (time.time() - self._status_cache_ts) > 5:
-            self._status_cache = requests.get(f"{GNR_SCHEDULER_URL}/status").json()
-            self._status_cache_ts = time.time()
-        return self._status_cache
-        
+ 
     @public_method
     def runningWorkers(self):
 
@@ -85,6 +90,71 @@ class GnrCustomWebPage(object):
             
         return result
 
+
+    # PENDING/FAILED
+    
+    def pendingfailedStruct(self, struct):
+        r = struct.view().rows()
+        r.cell('status', width='10em', name='Status')
+        r.cell('task_id', name='Task ID', width='15em')
+        r.cell('task_name', name='Task Name', width='15em')
+        r.cell('command', name='Command', width='15em')
+        r.cell('last_scheduled_ts', name='Last Scheduled', width='15em')
+        r.cell('table_name', name='Table name', width='15em')
+        r.cell('run_id', name='Run ID', width='30em')
+
+    def pendingfailedFrame(self,pane):
+        frame = pane.frameGrid(frameCode='pendingfailedStatus', datapath='pendingfailedStatus',
+                               struct=self.pendingfailedStruct, _class='pbl_roundedGroup',
+                               margin='2px')
+        frame.grid.bagStore(storepath='pendingfailedStatus.store', storeType='AttributesBagRows',
+                            sortedBy='=.grid.sorted',
+                            data='^pendingfailedStatus.loaded_data', selfUpdate=True)
+        
+        pane.dataRpc('pendingfailedStatus.loaded_data',
+                     self.pendingfailedStatus,
+                     _onStart=True,
+                     _timing=self.REFRESH_INTERVAL)
+        frame.top.slotBar('2,vtitle,*',vtitle='Pending / Failed tasks',_class='pbl_roundedGroupLabel')
+
+    @public_method
+    def pendingfailedStatus(self):
+        '''
+        prepare data for pending/failed tasks obtained
+        from the scheduler status API endpoint
+        '''
+        result = Bag()
+        failed_show_keys = ['task_name',
+                     'command', 'last_scheduled_ts',
+                     'table_name']
+        try:
+            status = self._get_status_data()
+            # PENDING
+            for i, (k, v) in enumerate(status.get("pending", {}).items()):
+                desc = dict(v[0])
+                payload = {x[0]:x[1] for x in json.loads(desc['payload'])}
+                for k in failed_show_keys:
+                    desc[k] = payload[k]
+                desc['status'] = "Pending"
+                desc['last_scheduled_ts'] = v[1]
+                result.setItem(i, None, **desc)
+
+            # FAILED
+            for i, v in enumerate(status.get("failed", [])):
+                payload = {x[0]:x[1] for x in json.loads(v['payload'])}
+                for k in failed_show_keys:
+                    v[k] = payload[k]
+                
+                v['status'] = "Failed"
+                result.setItem(i, None, **v)
+        except:
+            raise
+            self.clientPublish('floating_message', message="Can't connect to scheduler process", messageType='error')
+            
+        return result
+
+
+    # SCHEDULER STATUS
     def statusStruct(self, struct):
         r = struct.view().rows()
         r.cell('key', width='15em', name='Attribute')
