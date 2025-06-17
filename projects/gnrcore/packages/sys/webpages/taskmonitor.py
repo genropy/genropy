@@ -148,7 +148,6 @@ class GnrCustomWebPage(object):
                 v['status'] = "Failed"
                 result.setItem(i, None, **v)
         except:
-            raise
             self.clientPublish('floating_message', message="Can't connect to scheduler process", messageType='error')
             
         return result
