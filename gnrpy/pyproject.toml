@@ -55,7 +55,7 @@ dependencies = [
 	     "tornado", # used for async
 	     "tzlocal",
 	     "vobject",
-	     "watchfiles", # used in asyncio for autoreload
+	     "watchgod", # used in asyncio for autoreload
 	     "weasyprint",
 	     "webob",
 	     "werkzeug>=2.3.8",
