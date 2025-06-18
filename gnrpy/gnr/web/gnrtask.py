@@ -1,4 +1,27 @@
+#-*- coding: utf-8 -*-
+#--------------------------------------------------------------------------
+# package                : GenroPy web - see LICENSE for details
+# module gnr.web.gnrtask : core module for genropy web framework
+# Copyright (c)          : 2025 Softwell Srl - Milano
+#--------------------------------------------------------------------------
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+# Copyright (c) 2025 Softwell.
+
 import os
+import copy
 import time
 import signal
 import random
@@ -6,7 +29,7 @@ import requests
 import json
 import socket
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from mako.template import Template
 import aiohttp
@@ -80,31 +103,43 @@ class GnrTaskSchedulerClient:
 
     
 class GnrTask(object):
-    def __init__(self, record):
+    def __init__(self, record, db, table):
         self.record = record
+        self.old_record = copy.deepcopy(self.record)
+        self.db = db
+        self.table = table
         self.task_id = record['id']
         self.payload = json.dumps(self.record.items(), default=str)
-
+        
     def __str__(self):
         return self.record['task_name']
     
     def __repr__(self):
         return str(self)
 
-    def completed(self):
+    async def completed(self):
         """
         The task has been executed and acknowledged, update
         the last execution timestamp accordingly
         """
-        self.record['last_execution_ts'] = "FIXME"
-        # FIXME
+        self.record['last_execution_ts'] = datetime.now(timezone.utc)
+        await self.update_record()
+        
+    async def update_record(self):
+        self.table.update(self.record, self.old_record)
+        self.old_record = copy.deepcopy(self.record)
+        logger.debug("Committing record change")
+        
+        self.db.commit()
+        #loop = asyncio.get_running_loop()
+        #await loop.run_in_executor(None, self.db.commit)
         
     def is_due(self, timestamp=None):
         """
         Compute if the task is to be executed
         """
         if not timestamp:
-            timestamp = datetime.now()
+            timestamp = datetime.now(timezone.utc)
 
         result = []
                 
@@ -167,12 +202,12 @@ class GnrTaskScheduler:
         logger.info("Loading scheduler configuration")
 
         all_tasks = self.tasktbl.query(where='$stopped IS NOT TRUE').fetch()
-        self.tasks = {x['id']: GnrTask(x) for x in all_tasks}
+        self.tasks = {x['id']: GnrTask(x, self.db, self.tasktbl) for x in all_tasks}
         
     async def complete_task(self, task_id):
         logger.info("Task %s completed, saving", task_id)
         task = self.tasks.get(task_id)
-        task.completed()
+        await task.completed()
         
     async def start_service(self):
         await self.load_configuration()
@@ -213,7 +248,7 @@ class GnrTaskScheduler:
 
     async def retry_monitor(self):
         while True:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             to_retry = []
             for task_id, (task, sent_time, retries) in list(self.pending_ack.items()):
                 if (now - sent_time).total_seconds() > ACK_TIMEOUT:
@@ -229,9 +264,11 @@ class GnrTaskScheduler:
 
     async def schedule_loop(self):
         while True:
+            logger.debug("Checking for next schedule...")
             now = datetime.utcnow()
             for task_id, task in self.tasks.items():
                 if task.is_due():
+                    task.record['last_scheduled_ts'] = datetime.now(timezone.utc)
                     task_instance = {
                         "run_id": str(uuid.uuid4()),
                         "task_id": task.task_id,
@@ -240,7 +277,7 @@ class GnrTaskScheduler:
                     logger.info("Scheduling task '%s' (%s - %s)",
                                 task, task_id, task_instance['run_id'])
                     await self.task_queue.put(task_instance)
-            await asyncio.sleep(5)
+            await asyncio.sleep(1)
 
     async def worker_leave(self, request):
         """
@@ -372,13 +409,13 @@ class GnrTaskScheduler:
         return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status()),
                             content_type="text/plain")
 
-    async def reload(self, request):
-        await self.load_configuration(triggered=True)
-        return web.json_response({"reload": "requested"})
-    
     async def status(self, request):
         return web.Response(text=json.dumps(self._get_status(), default=str),
                             content_type="application/json")
+
+    async def reload(self, request):
+        await self.load_configuration(triggered=True)
+        return web.json_response({"reload": "requested"})
     
     def create_app(self):
         app = web.Application()
