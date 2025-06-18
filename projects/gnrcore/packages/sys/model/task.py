@@ -22,9 +22,9 @@ class Table(object):
         tbl.column('minute',name_long='!!Minute',values=','.join([str(x) for x in range(60)]))
         tbl.column('frequency', dtype='L', name_long='!!Freq.(min)')
         tbl.column('parameters',dtype='X',name_long='!!Parameters') # date
-        tbl.column('last_scheduled_ts','DH',name_long='!!Last scheduled',indexed=True)
-        tbl.column('last_execution_ts','DH',name_long='!!Last Execution')
-        tbl.column('last_error_ts','DH',name_long='!!Last Error')
+        tbl.column('last_scheduled_ts','DHZ',name_long='!!Last scheduled',indexed=True)
+        tbl.column('last_execution_ts','DHZ',name_long='!!Last Execution')
+        tbl.column('last_error_ts','DHZ',name_long='!!Last Error')
         tbl.column('last_error_info','X',name_long='!!Last Error Info')
         tbl.column('run_asap','B',name_long='!!Run ASAP')
         tbl.column('max_workers','L',name_long='!!Max workers') # Allows concurrent execution of the same task
@@ -65,8 +65,10 @@ class Table(object):
 
         
     def trigger_onUpdating(self,*args, **kwargs):
-        scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
-        self.db.deferAfterCommit(scheduler_client.reload)
+        #scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
+        #self.db.deferAfterCommit(scheduler_client.reload)
+        pass
+    
 
     trigger_onInserting = trigger_onUpdating
     trigger_onDeleted = trigger_onUpdating
