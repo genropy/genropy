@@ -46,11 +46,14 @@ class GnrCustomWebPage(object):
         self.statusFrame(bottom.contentPane(region='center'))
 
     def _get_status_data(self):
-        if (time.time() - self._status_cache_ts) > 5:
-            self._status_cache = requests.get(f"{GNR_SCHEDULER_URL}/status").json()
-            self._status_cache_ts = time.time()
-        return self._status_cache
-        
+        try:
+            if (time.time() - self._status_cache_ts) > self.CACHE_AGE_SECONDS:
+                self._status_cache = requests.get(f"{GNR_SCHEDULER_URL}/status").json()
+                self._status_cache_ts = time.time()
+            return self._status_cache, None
+        except:
+            return None, "Can't connect to scheduler process"
+
     # WORKERS
     def workersStruct(self, struct):
         r = struct.view().rows()
@@ -64,33 +67,54 @@ class GnrCustomWebPage(object):
         frame = pane.frameGrid(frameCode='runningWorkers', datapath='runningWorkers',
                                struct=self.workersStruct, _class='pbl_roundedGroup',
                                margin='2px')
+        
         frame.grid.bagStore(storepath='runningWorkers.store', storeType='AttributesBagRows',
                             sortedBy='=.grid.sorted',
                             data='^runningWorkers.loaded_data', selfUpdate=True)
         
-        pane.dataRpc('runningWorkers.loaded_data',
-                     self.runningWorkers,
-                     _onStart=True,
-                     _timing=self.REFRESH_INTERVAL)
+        pane.dataFormula(".workers_refresh_timer", "dflt",
+                         _onStart=True,
+                         dflt=self.REFRESH_INTERVAL,
+                         _fire_reset='^.workers_refresh_reset')
+
+        pane.dataController(
+            """
+            if(result.getItem('error')) {
+              genro.publish("floating_message",
+                {message: result.getItem('error'), messageType:'error'}
+              );
+              SET .workers_refresh_timer = current*2
+            } else {
+              FIRE .workers_refresh_reset;
+              SET runningWorkers.loaded_data =result.getItem('data');
+            }
+            """,
+            current='=.workers_refresh_timer',
+            result='^.workers_result')
+        
+        pane.dataRpc(
+            self.runningWorkers,
+            _onStart=True,
+            _onResult="""
+            FIRE .workers_result =result;
+            """,
+            _timing='^.workers_refresh_timer'
+        )
+        
         frame.top.slotBar('2,vtitle,*',vtitle='Running workers',_class='pbl_roundedGroupLabel')
  
     @public_method
     def runningWorkers(self):
-
-        result = Bag()
-        try:
-            status = self._get_status_data()
+        result_data = Bag()
+        status, error = self._get_status_data()
+        if status:
             for i, (k, v) in enumerate(status.get('workers', {}).items()):
                 v = dict(v)
                 _, v['hostname'], v['pid'] = k.split('-')
                 v['seen_ts'] = v['lastseen']
-                result.setItem(i, None, **v)
-        except:
-            self.clientPublish('floating_message', message="Can't connect to scheduler process", messageType='error')
-            
-        return result
-
-
+                result_data.setItem(i, None, **v)
+        return Bag(data=result_data, error=error)
+    
     # PENDING/FAILED
     
     def pendingfailedStruct(self, struct):
@@ -110,11 +134,32 @@ class GnrCustomWebPage(object):
         frame.grid.bagStore(storepath='pendingfailedStatus.store', storeType='AttributesBagRows',
                             sortedBy='=.grid.sorted',
                             data='^pendingfailedStatus.loaded_data', selfUpdate=True)
+
+        pane.dataFormula(".pendingfailed_refresh_timer", "dflt",
+                         _onStart=True,
+                         dflt=self.REFRESH_INTERVAL,
+                         _fire_reset='^.pendingfailed_refresh_reset')
         
-        pane.dataRpc('pendingfailedStatus.loaded_data',
-                     self.pendingfailedStatus,
+        pane.dataController(
+            """
+            if(result.getItem('error')) {
+              genro.publish("floating_message",
+                            {message:result.getItem('error'),
+                             messageType:'error'}
+             );
+              SET .pendingfailed_refresh_timer = current*2;
+            } else {
+              FIRE .pendingfailed_refresh_reset;
+              SET pendingfailedStatus.loaded_data =result.getItem('data');
+            }
+            """,
+            current='=.pendingfailed_refresh_timer',
+            result='^.pendingfailed_result')
+
+        pane.dataRpc(self.pendingfailedStatus,
                      _onStart=True,
-                     _timing=self.REFRESH_INTERVAL)
+                     _onResult='FIRE .pendingfailed_result =result;',
+                     _timing='^.pendingfailed_refresh_timer')
         frame.top.slotBar('2,vtitle,*',vtitle='Pending / Failed tasks',_class='pbl_roundedGroupLabel')
 
     @public_method
@@ -127,8 +172,8 @@ class GnrCustomWebPage(object):
         failed_show_keys = ['task_name',
                      'command', 'last_scheduled_ts',
                      'table_name']
-        try:
-            status = self._get_status_data()
+        status,error = self._get_status_data()
+        if status:
             # PENDING
             for i, (k, v) in enumerate(status.get("pending", {}).items()):
                 desc = dict(v[0])
@@ -147,10 +192,8 @@ class GnrCustomWebPage(object):
                 
                 v['status'] = "Failed"
                 result.setItem(i, None, **v)
-        except:
-            self.clientPublish('floating_message', message="Can't connect to scheduler process", messageType='error')
             
-        return result
+        return Bag(data=result,error=error)
 
 
     # SCHEDULER STATUS
@@ -167,18 +210,39 @@ class GnrCustomWebPage(object):
         frame.grid.bagStore(storepath='schedulerStatus.store', storeType='AttributesBagRows',
                             sortedBy='=.grid.sorted',
                             data='^schedulerStatus.loaded_data', selfUpdate=True)
+        pane.dataFormula('.schedulerStatus_refresh_timer', 'dflt',
+                         _onStart=True,
+                         dflt=self.REFRESH_INTERVAL,
+                         _fire_reset='^.schedulerStatus_refresh_reset')
+        pane.dataController(
+            """
+            if(result.getItem('error')) {
+              genro.publish("floating_message",
+                {message: result.getItem('error'), messageType:'error'}
+              );
+              SET .schedulerStatus_refresh_timer = current*2
+            } else {
+              FIRE .schedulerStatus_refresh_reset;
+              SET schedulerStatus.loaded_data =result.getItem('data');
+            }
+
+            """,
+            current='=.schedulerStatus_refresh_timer',
+            result='^.schedulerStatus_result')
         
-        pane.dataRpc('schedulerStatus.loaded_data',self.schedulerStatus,
-                     _onStart=True,
-                     _timing=self.REFRESH_INTERVAL)
+        pane.dataRpc(
+            self.schedulerStatus,
+            _onStart=True,
+            _onResult="FIRE .schedulerStatus_result =result",
+            _timing='^.schedulerStatus_refresh_timer')
 
         frame.top.slotBar('2,vtitle,*',vtitle='Scheduler status',_class='pbl_roundedGroupLabel')
 
     @public_method
     def schedulerStatus(self):
         result = Bag()
-        try:
-            status = self._get_status_data()
+        status,error = self._get_status_data()
+        if status:
             result.setItem("Total workers", None, dict(key="Total workers",
                                                        value=status['workers_total']))
             result.setItem("Total tasks", None, dict(key="Total tasks",
@@ -191,7 +255,5 @@ class GnrCustomWebPage(object):
                                                             value=len(status['failed'])))
             result.setItem("Last status update", None, dict(key="Last status update",
                                                             value=str(datetime.datetime.fromtimestamp(self._status_cache_ts))))
-        except:
-            self.clientPublish('floating_message', message="Can't connect to scheduler process", messageType='error')
-        return result
+        return Bag(data=result,error=error)
         
