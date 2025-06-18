@@ -21,6 +21,8 @@ class View(BaseComponent):
         r.fieldcell('last_completed')
         r.fieldcell('last_error')
         r.fieldcell('saved_query_code',width='8em')
+        r.fieldcell('last_scheduled_ts')
+        r.fieldcell('last_execution_ts')
 
         #r.fieldcell('month',width='20em')
        # r.fieldcell('day',width='15em')
