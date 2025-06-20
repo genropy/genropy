@@ -3,7 +3,7 @@
 from gnr.app.gnrdeploy import EntityNotFoundException
 from gnr.web.server import NewServer
 
-description = """Start application server for site"""
+description = """Start development server for site"""
 
 def main():
     try:

@@ -22,6 +22,8 @@ LOGGING_LEVELS = {
     'critical': logging.CRITICAL
 }
 
+DEFAULT_LOG_HANDLER_CLS = "gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler"
+
 def _load_handler(implementation_class):
     s = implementation_class.split(".")
     class_name = s[-1]
@@ -77,8 +79,7 @@ def init_logging_system(conf_bag=None):
         # no configuration at all, use a classic default configuration
         # with logging on stdout
         root_logger.handlers = []
-        default_handler_cls = "gnr.core.loghandlers.gnrcolour.GnrColourStreamHandler"
-        root_logger.addHandler(_load_handler(default_handler_cls)(stream=sys.stdout))
+        root_logger.addHandler(_load_handler(DEFAULT_LOG_HANDLER_CLS)(stream=sys.stdout))
         root_logger.setLevel(LOGGING_LEVELS.get(env_log_level, logging.WARNING))
 
         auditor = logging.getLogger("gnraudit")

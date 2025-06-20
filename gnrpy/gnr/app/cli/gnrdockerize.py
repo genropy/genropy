@@ -274,7 +274,7 @@ stderr_logfile_maxbytes=0
 
 [program:httpserver]
 priority=50
-command=gunicorn -c /home/genro/gunicorn.py root
+command=gnr web serveprod {instanceName} -c /home/genro/gunicorn.py
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
