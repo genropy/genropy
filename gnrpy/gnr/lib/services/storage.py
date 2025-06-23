@@ -539,6 +539,7 @@ class StorageService(GnrBaseService):
         """Copies the content of a node to another node, its used only
         if copying between different service types"""
         with sourceNode.open(mode='rb') as sourceFile:
+            destNode.service.autocreate(destNode.path, autocreate=-1)
             with destNode.open(mode='wb') as destFile:
                 destFile.write(sourceFile.read())
 
@@ -673,9 +674,10 @@ class StorageService(GnrBaseService):
         pass
 
 class BaseLocalService(StorageService):
-    def __init__(self, parent=None, base_path=None,**kwargs):
+    def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
         self.parent = parent
         self.base_path =  expandpath(base_path) if base_path else None
+        self.tags = tags
 
     @property
     def location_identifier(self):
