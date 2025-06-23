@@ -3617,7 +3617,7 @@ dojo.declare("gnr.widgets.TemplateChunk", gnr.widgets.gnrwdg, {
         }else{
             var table = componentNode.getAttributeFromDatasource('table');
             var remote_datasourcepath = chunkNode.attr.datasource? chunkNode.absDatapath(chunkNode.attr.datasource):null;
-            showLetterhead = typeof(showLetterhead)=='string'?(chunkNode.getRelativeData(showLetterhead) || true):showLetterhead;
+            showLetterhead = typeof(showLetterhead) == 'string' ? chunkNode.getRelativeData(showLetterhead) : showLetterhead;
             var kw = {'paletteCode':paletteCode,'dockTo':'dommyDock:open',
                     title:'Template Edit '+table?table.split('.')[1]:'',width:'750px',
                     maxable:true,

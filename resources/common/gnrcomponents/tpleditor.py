@@ -237,8 +237,8 @@ class TemplateEditor(TemplateEditorBase):
                     _onResult="""
                     SET .data.compiled = result.getItem('compiled').deepCopy();
                     SET .preview.renderedtemplate = result.getItem('preview');
-                    var curr_letterehead =GET .preview.letterhead_id;
-                    if(!curr_letterehead){
+                    var curr_letterhead = GET .preview.letterhead_id;
+                    if(!curr_letterhead){
                         SET .preview.letterhead_id = GET .data.metadata.default_letterhead;
                     }
                     """)
@@ -474,10 +474,10 @@ class TemplateEditor(TemplateEditorBase):
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   
         fb = bar.fb.formbuilder(cols=2, border_spacing='0px',margin_top='2px')
-        fb.dbSelect(dbtable='adm.htmltemplate', value='^.preview.letterhead_id',
+        fb.dbSelect(table='adm.htmltemplate', value='^.preview.letterhead_id',
                     selected_name='.preview.html_template_name',lbl='!!Letterhead',
                     width='10em', hasDownArrow=True)
-        fb.dbSelect(dbtable=table, value='^.preview.selected_id',lbl='!!Record', width='12em',lbl_width='6em',excludeDraft=False)
+        fb.dbSelect(table=table, value='^.preview.selected_id',lbl='!!Record', width='12em',lbl_width='6em',excludeDraft=False)
         fb.dataRpc('.preview.renderedtemplate', self.te_getPreview,
                    _POST =True,record_id='^.preview.selected_id',
                    #templates='^.preview.html_template_name',
@@ -735,10 +735,12 @@ class ChunkEditor(PaletteTemplateEditor):
                                     var result = genro.serverCall('te_compileTemplate',{table:table,datacontent:dc,content_css:content_css,email_meta:email_meta,varsbag:vb,parametersbag:pb},null,null,'POST');
                                     data.setItem('compiled',result.getItem('compiled'));
                                     data.setItem('metadata.email_compiled',result.getItem('email_compiled'));
+                                    data.setItem('metadata.default_letterhead',letterhead_id);
                                     genro.nodeById(paletteId).publish("savechunk",{inMainResource:$1.shiftKey});""",
                             iconClass='iconbox save',paletteId=paletteId,table=table,dc='=.data.content',
                             email_meta='=.data.metadata.email',
                             content_css='=.data.content_css',
+                            letterhead_id='=.preview.letterhead_id',
                             vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')
         
     

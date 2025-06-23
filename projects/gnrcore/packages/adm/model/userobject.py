@@ -8,7 +8,9 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',name_plural='!![en]User Objects',rowcaption='$code,$objtype',broadcast='objtype')
+        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',
+                        name_plural='!![en]User Objects',rowcaption='$code,$objtype',
+                        broadcast='objtype', archivable=True)
         self.sysFields(tbl, id=True, ins=True, upd=True)
         tbl.column('identifier',size=':120',indexed=True,sql_value="COALESCE(:tbl,:pkg,'')||:objtype||:code|| CASE WHEN :private THEN :userid ELSE '' END",unique=True)
         tbl.column('code', size=':40',name_long='!![en]Code', indexed='y',
@@ -41,6 +43,19 @@ class Table(object):
         if not l:
             return ''
         return '<br/>'.join(l)
+        
+    def defaultValues(self):
+        return dict(user_id=self.db.currentEnv.get('user_id'))
+    
+    def onDuplicating(self,record):
+        record['code'] = f"{record['code']}_copy"
+        
+    def trigger_onUpdating(self,record=None,old_record=None):
+        self.updateRequiredPkg(record)
+
+    def trigger_onInserting(self,record=None):
+        self.updateRequiredPkg(record)
+    
 
     def resourceStatus(self,record):
         resources = []
@@ -74,11 +89,6 @@ class Table(object):
                 resources.append('<span style="color:%s;">%s %s</span>' %(color,pkgid, page.toText(cust_res['__mod_ts'])))
         return resources
 
-    def trigger_onUpdating(self,record=None,old_record=None):
-        self.updateRequiredPkg(record)
-
-    def trigger_onInserting(self,record=None):
-        self.updateRequiredPkg(record)
     
     def updateRequiredPkg(self,record):
         data = Bag(record['data'])
