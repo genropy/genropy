@@ -1195,7 +1195,14 @@ class SiteRegisterClient(object):
         if not callable(h):
             return h
         def decore(*args,**kwargs):
-            return h(*args,**kwargs)
+            attempt = 0
+            while attempt < 4:
+                try:
+                    r = h(*args,**kwargs)
+                    break
+                except Exception as e:
+                    attempt += 1
+            return r
         return decore
 
 ##############################################################################
