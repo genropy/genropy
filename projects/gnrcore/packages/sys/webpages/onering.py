@@ -245,7 +245,9 @@ class GnrCustomWebPage(object):
                                                                                                 }
                                                                                          }""",width='30em')
 
-        fb.dataRpc('dummy',self.setInMaintenance,sitename='=main.sitename',status='^main.setInMaintenance',allowed_users='=.allowed_users')
+        fb.dataRpc('dummy',self.setInMaintenance,sitename='=main.sitename',
+                   status='^main.setInMaintenance',
+                   allowed_users='=.allowed_users')
 
     @public_method
     def pgbadger_run(self,since=None):
