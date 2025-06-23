@@ -35,22 +35,30 @@ class ColouredFormatter(logging.Formatter):
         
 
 class GnrColourStreamHandler(logging.StreamHandler):
+    _fmt = "%(asctime)s: %(levelname)s: %(name)s/%(module)s - %(message)s"
     def __init__(self, stream=None):
         super().__init__(stream)
         if hasattr(self.stream, 'isatty') and self.stream.isatty():
             self.setFormatter(
                 ColouredFormatter(
-                    fmt="%(asctime)s: %(levelname)s: %(name)s/%(module)s - %(message)s",
+                    fmt=self._fmt,
                     datefmt="%Y-%m-%d %H:%M:%S"
                 )
             )
         else:
             self.setFormatter(
                 logging.Formatter(
-                    "%(asctime)s: %(levelname)s: %(name)s/%(module)s - %(message)s",
+                    self._fmt,
                     datefmt="%Y-%m-%d %H:%M:%S"
                 )
             )
-                
+
+class GnrInstanceColourStreamHandler(GnrColourStreamHandler):
+    def __init__(self, stream=None, instance_name=None):
+        self.instance_name = instance_name
+        self._fmt = f"%(asctime)s: {self.instance_name} - %(levelname)s: %(name)s/%(module)s - %(message)s"
+        super().__init__(stream)
+
+
 
         
