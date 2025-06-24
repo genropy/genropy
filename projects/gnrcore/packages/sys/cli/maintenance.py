@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web.cli.gnrmaintenance import toggle_maintenance
 
 description = "Enable/disable site maintenance status"
