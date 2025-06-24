@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.web.gnrwsgisite import GnrWsgiSite
+from gnr.web.cli.gnrmaintenance import toggle_maintenance
 
 description = "Enable/disable site maintenance status"
 
@@ -15,20 +15,7 @@ def main(instance):
                         help='Allowed user (can be repeated)')
 
     options = parser.parse_args()
-    site = GnrWsgiSite(instance.instanceName)
-    status = options.disable
 
-    allowed_users = ','.join(options.allow_user)
-    
-    print("{} maintenance state for instance {}".format(
-        status and "Enabling" or "Disabling",
-        instance.instanceName), end='')
-
-    if allowed_users and options.disable:
-        print(f' - Allowed users: {allowed_users}')
-    else:
-        print('')
-    site.register.gnrdaemon_proxy.setSiteInMaintenance(sitename=instance.instanceName,
-                                                       status=status,
-                                                       allowed_users=','.join(options.allow_user)
-                                                       )
+    toggle_maintenance(instance.instanceName,
+                       options.disable,
+                       options.allow_user)
