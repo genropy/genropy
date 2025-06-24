@@ -99,6 +99,8 @@ class StaticHandler(object):
             return result is not False
 
     def serve(self, f, environ, start_response, download=False, download_name=None, **kwargs):
+        EMPTY_BODY = bytes('', 'utf-8')
+        
         if isinstance(f,list):
             fullpath = self.path(*f[1:])
         elif isinstance(f,file_types):
@@ -116,7 +118,7 @@ class StaticHandler(object):
             if kwargs.get('_lazydoc'):
                 headers = []
                 start_response('200 OK', headers)
-                return ['']
+                return [EMPTY_BODY]
             return self.site.not_found_exception(environ, start_response)
         if_none_match = environ.get('HTTP_IF_NONE_MATCH')
         if if_none_match:
@@ -129,7 +131,7 @@ class StaticHandler(object):
                 headers = []
                 ETAG.update(headers, my_none_match)
                 start_response('304 Not Modified', headers)
-                return [''] # empty body
+                return [EMPTY_BODY]
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)

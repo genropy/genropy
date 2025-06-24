@@ -134,6 +134,7 @@ class Form(BaseComponent):
 
     def objectResource_template(self,bc, **kwargs):
         bc.dataFormula('#FORM.is_mail', 'is_mail?"*":null', is_mail='^#FORM.record.is_mail')
+        bc.dataFormula('#FORM.is_print', 'is_print?true:null', is_print='^#FORM.record.is_print')
         bc.roundedGroup(title='!![en]Template management', overflow_y='auto').templateChunk(
                                         template='^#FORM.record.data',
                                         editable=True,
@@ -142,7 +143,9 @@ class Form(BaseComponent):
                                         table='^#FORM.record.tbl',
                                         selfsubscribe_onChunkEdit='this.form.save();',
                                         emailChunk='^#FORM.is_mail',
-                                        padding='5px')
+                                        showLetterhead='^#FORM.is_print',
+                                        padding='5px', overflow='auto',
+                                        )
 
     def objectResource_dash_groupby(self,bc, **kwargs):
         pass
@@ -168,16 +171,19 @@ class Form(BaseComponent):
         bar.save_res.slotButton('!!Save resource', _tags='_DEV_').dataController(
                                 """PUBLISH save_uo_as_resource = {pkeys:[_pkey]};""",
                                 _pkey='=#FORM.pkey')
-        
-    def th_options(self):
-        return dict(copypaste='*', defaultPrompt=dict(title='!![en]Object parameters',
+    
+    def addUserObjectPrompt(self):
+        return dict(title='!![en]Object parameters',
                                     fields=[dict(value='^.code', lbl='!![en]Code', validate_notnull=True),
                                             dict(value='^.tbl',tag='dbSelect',lbl='!![en]Table',
                                                  table='adm.tblinfo', hasDownArrow=True, validate_notnull=True),
                                             #dict(value='^.flags', tag='checkBoxText', lbl='!![en]Flags',
                                             #     values='is_print:[!![en]Print],is_row:[!![en]Row],is_mail:[!![en]Mail]',
                                             #     popup=True)
-                                            ]))
+                                            ])
+
+    def th_options(self):
+        return dict(copy_paste='*', defaultPrompt=self.addUserObjectPrompt())
         
 
 class Form_query(Form):
@@ -204,7 +210,7 @@ class Form_rpcquery(BaseComponent):
                     colspan=2,_class='fakeTextBox',lbl='Where')
         center = bc.tabContainer(region='center',margin='2px')
         self.tokenManagement(center.borderContainer(title='Tokens'))
-        center.contentPane(title='Extended parameters').tree(storepath='#FORM.record.data')
+        center.contentPane(title='!![en]Extended parameters').tree(storepath='#FORM.record.data')
 
 
     def tokenManagement(self,bc):
@@ -213,7 +219,7 @@ class Form_rpcquery(BaseComponent):
                                                                     viewResource='ViewFromUserobject')
         bar = th.view.top.bar.replaceSlots('delrow','delrow,addtoken')
         bar.addtoken.slotButton('Add token').dataRpc(self.addRpcQueryToken,
-                                        _ask=dict(title='Get token',
+                                        _ask=dict(title='!![en]Get token',
                                                     fields=[dict(name='max_usages',tag='numberTextBox',lbl='Max usages'),
                                                             dict(name='expiry',tag='dateTimeTextBox',lbl='Expiry'),
                                                             dict(name='allowed_user',lbl='Allowed user')]),
@@ -293,5 +299,7 @@ class FormCustomColumn(BaseComponent):
 
 class FormTemplate(Form):
     
-    def th_options_default_objtype(self):
-        return 'template'
+     def th_options(self):
+        return dict(default_objtype='template', 
+                    duplicate=True,
+                    defaultPrompt=self.addUserObjectPrompt())

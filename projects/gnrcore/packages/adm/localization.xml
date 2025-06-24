@@ -455,7 +455,7 @@
 <en_application_preference fr="Préférence d'application" en="Application preference" de="Anwendungseinstellung" it="Configurazione applicazione" base="Application preference"></en_application_preference></app_preference>
 <checklist_page path="webpages/checklist_page.py" ext="py"><it_checklist_viewer base="Checklist viewer" en="Checklist viewer" it="Checklist viewer"></it_checklist_viewer></checklist_page>
 <helpdesk path="webpages/helpdesk.py" ext="py"><en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
-<en_tickets fr="Billets" de="Tickets" en="Tickets" it="Biglietti" base="Tickets"></en_tickets></helpdesk>
+<en_tickets fr="Billets" de="Tickets" en="Tickets" it="Ticket" base="Tickets"></en_tickets></helpdesk>
 <monitor path="webpages/monitor.py" ext="py"><en_monitor_panel fr="panneau Moniteur" de="Monitorfenster" en="Monitor panel" it="Pannello Monitor" base="Monitor panel"></en_monitor_panel></monitor>
 <preference path="webpages/preference.py" ext="py"><en_preference_panel fr="panneau de préférence" de="Fenster zu" en="Preference panel" it="Pannello Preferenze" base="Preference panel"></en_preference_panel>
 <en_preference fr="Préférence" de="Vorliebe" en="Preference" it="Preferenza" base="Preference"></en_preference></preference>

@@ -13,9 +13,12 @@ Enhancements
 * Support for 'security.txt' and 'robots.txt' WKUs through instanceconfig
 * Introduced 'deferAfterCommit' method in GnrSqlDb to executed
   callables *after* a commit
-* Introduce new 'gnr web serveprod' cli command, which start a
+* Introduced new 'gnr web serveprod' cli command, which start a
   production grade application server. Currently based on gunicorn.
-
+* Introduce new 'sys maintanance' instance cli command to
+  enable/disable maintenance mode
+  
+  
 Version 25.04.10
 ================
 
