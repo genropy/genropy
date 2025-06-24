@@ -25,7 +25,7 @@ def main():
                         dest='host')
     parser.add_argument('--port',
                         dest='port')
-    parser.add_argument('--processes',
+    parser.add_argument('-p', '--processes',
                         type=int,
                         default=1,
                         dest='processes')

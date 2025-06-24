@@ -138,6 +138,7 @@ class GnrTask(object):
         """
         Compute if the task is to be executed
         """
+        return True
         if not timestamp:
             timestamp = datetime.now(timezone.utc)
 
@@ -337,10 +338,12 @@ class GnrTaskScheduler:
         <table class="table"><thead><tr>
         <th scope="col">Worker ID</th>
         <th scope="col">Last seen</th>
+        <th scope="col">Worked tasks</th>
         </tr></thead><tbody>
-        % for w in workers:
+        % for w in workers.items():
         <tr>
-         <td>${w[0]}</td><td>${w[1]['lastseen']}</td>
+        <td>${w[0]}</td><td>${w[1]['lastseen']}</td>
+        <td>${w[1]['worked_tasks']}</td>
         </tr>
         % endfor
         </tbody></table>
@@ -348,18 +351,18 @@ class GnrTaskScheduler:
         <div class="alert alert-danger" role="alert">
         No workers connected!
         </div>
-        
         % endif
+
         <h2>Pending Acknowledgements</h2>
         % if pending:
-        <table class="table>
+        <table class="table"
         <thead><tr>
-        <th scope="col"></th>
-        <th scope="col"></th>
+        <th scope="col">Run ID</th>
+        <th scope="col">Since</th>
         </tr></thead><tbody>
-        % for a in pending:
+        % for k,v in pending.items():
         <tr>
-        <td>${a[0]}</td>${a[1]}</td>
+        <td>${k}</td><td>${v[1]}</td>
         </tr>
         % endfor
         </tbody></table>
@@ -406,7 +409,7 @@ class GnrTaskScheduler:
         }
     
     async def metrics(self, request):
-        return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status()),
+        return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status().items() if k != 'workers'),
                             content_type="text/plain")
 
     async def status(self, request):
