@@ -6,6 +6,7 @@ build
 gnrpy/build/
 logs.log
 pyro5.log
+gnr_scheduler_queue_dump.json
 dist
 \#*
 .eggs
