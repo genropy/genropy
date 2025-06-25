@@ -63,15 +63,20 @@ class Table(object):
                           )
 
 
-        
-    def trigger_onUpdating(self,*args, **kwargs):
-        #scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
-        #self.db.deferAfterCommit(scheduler_client.reload)
-        pass
-    
 
-    trigger_onInserting = trigger_onUpdating
-    trigger_onDeleted = trigger_onUpdating
+    def _invoke_scheduler_reload(self):
+        scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
+        self.db.deferAfterCommit(scheduler_client.reload)
+        
+    def trigger_onUpdating(self, record=None,old_record=None):
+        if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
+                                  record, old_record):
+            self._invoke_scheduler_reload()
+
+    def trigger_onInserting(self, record):
+        self._invoke_scheduler_reload()
+        
+    trigger_onDeleted = trigger_onInserting
 
     def isTaskScheduledNow(self,task,timestamp):
         result = []
