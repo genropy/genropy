@@ -36,8 +36,9 @@ import aiohttp
 import asyncio
 from aiohttp import web
 
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
-
+from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
 
 GNR_SCHEDULER_PORT=int(os.environ.get("GNR_SCHEDULER_PORT", "14951"))
@@ -129,16 +130,12 @@ class GnrTask(object):
         self.table.update(self.record, self.old_record)
         self.old_record = copy.deepcopy(self.record)
         logger.debug("Committing record change")
-        
         self.db.commit()
-        #loop = asyncio.get_running_loop()
-        #await loop.run_in_executor(None, self.db.commit)
-        
+
     def is_due(self, timestamp=None):
         """
         Compute if the task is to be executed
         """
-        return True
         if not timestamp:
             timestamp = datetime.now(timezone.utc)
 
@@ -186,7 +183,7 @@ class GnrTaskScheduler:
         self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys'])
         self.db = self.app.db
         self.tasktbl = self.db.table("sys.task")
-        self.exectbl = self.db.table("sys.task")
+        self.exectbl = self.db.table("sys.task_execution")
         self.task_queue = asyncio.Queue()
         
         self.pending_ack = {}
@@ -202,7 +199,7 @@ class GnrTaskScheduler:
 
         logger.info("Loading scheduler configuration")
 
-        all_tasks = self.tasktbl.query(where='$stopped IS NOT TRUE').fetch()
+        all_tasks = self.tasktbl.query("*,parameters", where='$stopped IS NOT TRUE').fetch()
         self.tasks = {x['id']: GnrTask(x, self.db, self.tasktbl) for x in all_tasks}
         
     async def complete_task(self, task_id):
@@ -254,11 +251,11 @@ class GnrTaskScheduler:
             for task_id, (task, sent_time, retries) in list(self.pending_ack.items()):
                 if (now - sent_time).total_seconds() > ACK_TIMEOUT:
                     if retries < RETRY_LIMIT:
-                        logger.info("Retrying task %s (%s)", task, task_id)
+                        logger.info("Retrying task %s (%s)", task['task_id'], task['run_id'])
                         await self.task_queue.put(task)
-                        self.pending_ack[task_id] = (task, datetime.utcnow(), retries + 1)
+                        self.pending_ack[task_id] = (task, datetime.now(timezone.utc), retries + 1)
                     else:
-                        logger.error("Task %s (%s) failed after %s retries", task, task_id, RETRY_LIMIT)
+                        logger.error("Task %s (%s) failed after %s retries", task['task_id'], task['run_id'], RETRY_LIMIT)
                         self.failed_tasks.append(task)
                         del self.pending_ack[task_id]
             await asyncio.sleep(5)
@@ -266,7 +263,7 @@ class GnrTaskScheduler:
     async def schedule_loop(self):
         while True:
             logger.debug("Checking for next schedule...")
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             for task_id, task in self.tasks.items():
                 if task.is_due():
                     task.record['last_scheduled_ts'] = datetime.now(timezone.utc)
@@ -297,14 +294,14 @@ class GnrTaskScheduler:
         if worker_id:
             if worker_id not in self.workers:
                 logger.info("Worker %s connected", worker_id)
-                self.workers[worker_id] = {"lastseen": str(datetime.utcnow()),
+                self.workers[worker_id] = {"lastseen": str(datetime.now(timezone.utc)),
                                            "worked_tasks": 1}
             else:
-                self.workers[worker_id]["lastseen"] = str(datetime.utcnow())
+                self.workers[worker_id]["lastseen"] = str(datetime.now(timezone.utc))
                 self.workers[worker_id]["worked_tasks"] += 1
                 
         task = await self.task_queue.get()
-        self.pending_ack[task["run_id"]] = (task, datetime.utcnow(), 0)
+        self.pending_ack[task["run_id"]] = (task, datetime.now(timezone.utc), 0)
         #self.exectl.insert(self.exectbl.newrecord(task_id=task,
         return web.json_response(task)
 
@@ -446,9 +443,13 @@ class GnrTaskWorker:
         self.worker_id = os.environ.get("GNR_WORKER_ID", f"gnrworker-{socket.getfqdn()}-{os.getpid()}")
 
         self.sitename = sitename
+        self.site = GnrWsgiSite(self.sitename)
         self.scheduler_url = GNR_SCHEDULER_URL
 
-        self.executed = []
+        self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys'])
+        self.db = self.app.db
+        self.tasktbl = self.db.table("sys.task")
+        self.exectbl = self.db.table("sys.task_execution")
 
     async def start_service(self):
         asyncio.create_task(self.fetch_and_execute())
@@ -459,6 +460,7 @@ class GnrTaskWorker:
             async with aiohttp.ClientSession(timeout=session_timeout) as session:
                 while True:
                     try:
+                        logger.debug("Connecting to scheduler")
                         async with session.get(f"{self.scheduler_url}/next-task", params={"worker_id": self.worker_id}) as resp:
                             if resp.status == 200:
                                 logger.info("%s got new task: ", self.worker_id)
@@ -471,11 +473,26 @@ class GnrTaskWorker:
             raise
         
     async def execute_task(self, task, session):
-        logger.info("Executing %s", str(task))
-        payload = json.loads(task['payload'])
-        # Simulated execution logic
-        #await asyncio.sleep(random.randint(1,3))
-        self.executed.append(task)
+        logger.info("Executing %s - run %s", task['task_id'] ,task['run_id'])
+        page = self.site.dummyPage
+        self.site.currentPage = page
+        page._db = None
+        page.db
+        
+        record = {x[0]:x[1] for x in json.loads(task['payload'])}
+        task_class = self.tasktbl.getBtcClass(table=record['table_name'],
+                                              command=record['command'],
+                                              page=page
+                                              )
+        task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
+                              batch_selection_savedQuery=record['saved_query_code'])
+        task_params = record['parameters']
+        with self.db.tempEnv(connectionName="execution"):
+            logger.info("Executing task %s - %s",
+                        record['table_name'],
+                        record['command'])
+            task_obj(parameters=Bag(task_params),task_execution_record=record)
+
         try:
             async with session.post(f"{self.scheduler_url}/ack", json={"run_id": task["run_id"]}) as resp:
                 logger.info("Acknowledged run %s, response %s", task['run_id'], await resp.text())
@@ -505,10 +522,6 @@ class GnrTaskWorker:
         app = web.Application()
         app.on_shutdown.append(lambda app: self.shutdown_worker())
 
-        async def dashboard(request):
-            return {"executed": self.executed, "worker_id": self.worker_id}
-        app.add_routes([web.get("/dashboard", dashboard)])
-        
         app.on_startup.append(lambda app: asyncio.create_task(self.start_service()))
         return app
     
