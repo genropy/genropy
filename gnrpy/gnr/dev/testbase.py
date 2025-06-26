@@ -27,17 +27,6 @@ class DbBasedTest(object):
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
 
-        cls.service = cls._get_base_service(
-            service_type="dbadmin",
-            service_implementation="postgres",
-            service_name="testing",
-            dbadmin_host=cls.pg_conf.get('host'),
-            dbadmin_port=cls.pg_conf.get('port'),
-            dbadmin_user=cls.pg_conf.get('user'),
-            dbadmin_password=cls.pg_conf.get("password", 'user')
-        )
-        
-
     @classmethod
     def _get_base_service(cls, service_type, service_implementation,
                           service_name, **kwargs):
