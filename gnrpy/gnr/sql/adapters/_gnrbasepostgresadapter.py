@@ -943,7 +943,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         """
         Generates the SQL to create an extension with optional schema, version, and cascade options.
         """
-        return f"""CREATE EXTENSION IF NOT EXISTS {extension_name};"""
+        return f"""DROP EXTENSION IF EXISTS {extension_name};
+                    CREATE EXTENSION {extension_name};"""
         
 
 
