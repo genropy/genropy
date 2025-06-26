@@ -8,7 +8,7 @@ class Menu(object):
         system.thpage(u"Upgrades", table="sys.upgrade", tags="")
         system.thpage(u"Services", table="sys.service", tags="")
         system.thpage(u"Tasks", table="sys.task", tags="_DEV_")
-        system.webpage(u"Mobile App Check", filepath="/sys/cordova", tags="_DEV_,sysadmin,superadmin")
+        system.webpage(u"Mobile App Check", filepath="/sys/mobileappcheck", tags="_DEV_,sysadmin,superadmin")
         system.webpage(u"Db Structure", tags="", filepath="/sys/dbstruct")
         system.webpage(u"Logging", tags="_DEV_", filepath="/sys/logging")
         system.webpage(u"Startup data manager", tags="_DEV_", filepath="/sys/startupdata_manager")
