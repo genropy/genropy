@@ -405,18 +405,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
             finalizeCb();
         }
         var iframes = dojo.query('iframe',this.stackSourceNode.getValue().getNode(frameName).getWidget().domNode);
-        if(iframes.some(function(n){
-            if(n.sourceNode.attr.externalSite){return false;}
-            return n.contentWindow.genro.checkBeforeUnload();
-        })){
-            genro.dlg.ask(_T('Closing ')+title,_T("There is a pending operation in this tab"),{confirm:_T('Close anyway'),cancel:_T('Cancel')},
-                            {confirm:function(){ 
-                                iframes.forEach(function(f){
-                                    f.sourceNode._genro._checkedUnload = true;
-                                })
-                                finalizeCb();
-                            }})
-        }else{
+        if(iframes.some(function(n) {
+            if(n.sourceNode.attr.externalSite) {
+		return false;
+	    }
+	    if(n.contentWindow.genro) {
+		return n.contentWindow.genro.checkBeforeUnload();
+	    } else {
+		return false;
+	    }
+        }
+       )){
+            genro.dlg.ask(_T('Closing ')+title, _T("There is a pending operation in this tab"), {
+		confirm: _T('Close anyway'), cancel:_T('Cancel')
+	    },
+                          { confirm:function(){ 
+                              iframes.forEach(function(f){
+                                  f.sourceNode._genro._checkedUnload = true;
+                              })
+                              finalizeCb();
+                          }})
+        } else {
             finalizeCb();
         }
     },

@@ -9,6 +9,8 @@ class Menu(object):
         system.thpage("Services", table="sys.service", tags="")
         system.thpage("Tasks", table="sys.task", tags="_DEV_")
         system.thpage("Task Monitor", tags="_DEV_", filepath="/sys/taskmonitor")
+        
+        system.webpage(u"Mobile App Check", filepath="/sys/mobileappcheck", tags="_DEV_,sysadmin,superadmin")
         system.webpage("Db Structure", tags="", filepath="/sys/dbstruct")
         system.webpage("Logging", tags="_DEV_", filepath="/sys/logging")
         system.webpage("Startup data manager", tags="_DEV_", filepath="/sys/startupdata_manager")
@@ -17,4 +19,3 @@ class Menu(object):
         system.webpage("GnrIDE", tags="_DEV_", filepath="/sys/gnride")
         system.webpage("POD dashboard", tags="_DEV_", filepath="/sys/pod_dashboard")
         system.thpage("Widgets", table="sys.widget", tags="")
-
