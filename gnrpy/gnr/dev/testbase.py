@@ -28,12 +28,9 @@ class DbBasedTest(object):
             cls.pg_conf = cls.pg_instance.dsn()
 
     @classmethod
-    def _get_base_service(cls, service_type, service_implementation,
-                          service_name, **kwargs):
-        sh = ServiceHandler(cls.site)
-        service = sh.service_types[service_type]
-        return service.implementations[service_implementation](cls.site, **kwargs)
-    
+    def _get_base_service(cls, service_type, **kwargs):
+        return cls.site.getService(service_type,
+                                   **kwargs)
 
     @classmethod    
     def teardown_class(cls):
