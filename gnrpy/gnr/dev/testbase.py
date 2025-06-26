@@ -3,9 +3,7 @@ import sys
 from testing.postgresql import Postgresql
 import pytest
 
-
 from gnr.web.gnrwsgisite import GnrWsgiSite
-from gnr.lib.services import ServiceHandler
 
 excludewin32 = pytest.mark.skipif(sys.platform == "win32",
                                   reason="testing.postgresql doesn't run on Windows")
