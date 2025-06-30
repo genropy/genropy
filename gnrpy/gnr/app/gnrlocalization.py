@@ -28,6 +28,7 @@ from gnr.core.gnrconfig import getGenroRoot
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrlang import GnrException
+from gnr.app import logger
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
 LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\6\)""")
@@ -217,7 +218,7 @@ class AppLocalizer(object):
             if scan_all or s['destFolder'] != self.genroroot:
                 locbag = Bag()
                 for root in s['roots']:
-                    print (root)
+                    logger.info("Scanning folder %s for localization", root)
                     d = DirectoryResolver(root,include='*.py,*.js')()
                     d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',destFolder=s['destFolder'] )
                 locbag.toXml(os.path.join(s['destFolder'],'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
