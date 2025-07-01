@@ -86,7 +86,7 @@ def main():
     else:
         containers =  [
             {
-                'name': f'{options.name}-application-application',
+                'name': f'{options.name}-fullstack-container',
                 'image': options.image,
                 'ports': [
                     {'containerPort': options.container_port}
