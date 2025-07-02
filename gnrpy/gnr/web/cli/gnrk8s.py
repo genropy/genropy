@@ -5,8 +5,6 @@
 Generates a k8s deployment file
 
 """
-import yaml
-import sys
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrk8s import GnrK8SGenerator
