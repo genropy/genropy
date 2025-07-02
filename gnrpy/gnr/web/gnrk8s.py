@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+Generates a k8s deployment file
+"""
+import yaml
+import sys
+import os.path
+from gnr.web import logger
+
+class GnrK8SGenerator(object):
+    def __init__(self, instance_name, image,
+                 deployment_name=None, split=False,
+                 env_file=False, container_port=8080,
+                 replicas=1):
+        
+        self.instance_name = instance_name
+        self.image = image
+        if "/" not in self.image:
+            self.image = f'ghcr.io/softwellsrl/{self.image}'
+        if ":" not in self.image:
+            self.image = f'{self.image}:latest'
+
+        self.container_port = container_port
+        self.deployment_name = deployment_name or instance_name
+        self.split = split
+        self.replicas = 1
+        self.env_file = env_file
+        self.env = []
+        if self.env_file:
+            if not os.path.isfile(self.env_file):
+                logger.error("Env file %s does not exists - using empty env, YMMV", self.env_file)
+            else:
+                with open(self.env_file) as fp:
+                    for line in fp.readlines():
+                        if "=" in line:
+                            line = line.strip()
+                            k, v = line.split("=")
+                            self.env.append(dict(name=k, value=v))
+            
+    def generate_conf(self, fp=sys.stdout):
+        containers = []
+        if self.split:
+            services = [
+                'daemon',
+                'application',
+                'taskscheduler',
+                'taskworker'
+            ]
+
+            for service in  services:
+                args = [f'--no-{x}' for x in services if x != service]
+                service_def = {
+                    'name': f'{self.deployment_name}-{service}-container',
+                    'image': self.image,
+                    'command': ['gnr'],
+                    'args': ['web','stack'] + args,
+                    'ports': [
+                        {'containerPort': self.container_port} if service == 'application' else None
+                    ],
+                    'env': self.env
+                }
+                containers.append(service_def)
+        else:
+            containers.append(
+                {
+                    'name': f'{self.deployment_name}-fullstack-container',
+                    'image': self.image,
+                    'ports': [
+                        {'containerPort': self.container_port}
+                    ],
+                    'command': ['gnr'],
+                    'args': ['web', 'stack', self.instance_name],
+                    'env': self.env
+                }
+            )
+            
+    
+        deployment = {
+            'apiVersion': 'apps/v1',
+            'kind': 'Deployment',
+            'metadata': {
+                'name': f'{self.deployment_name}-deployment',
+                'labels': {
+                    'app': self.deployment_name
+                }
+            },
+            'spec': {
+                'replicas': self.replicas,
+                'selector': {
+                    'matchLabels': {
+                        'app': self.deployment_name
+                    }
+                },
+                'template': {
+                    'metadata': {
+                        'labels': {
+                            'app': self.deployment_name
+                        }
+                    },
+                    'spec': {
+                        'containers':containers
+                    }
+                }
+            }
+        }
+        
+        # Output YAML to stdout or write to file
+        yaml.dump(deployment, fp, sort_keys=False)
