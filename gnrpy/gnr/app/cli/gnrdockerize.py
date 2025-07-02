@@ -3,7 +3,7 @@
 
 """
 Create a Dockerfile for an instance, starting from a specific configuration file,
-and build the finale image
+and build the final image
 """
 import atexit
 import sys
