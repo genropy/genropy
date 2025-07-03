@@ -40,6 +40,10 @@ class GnrK8SGenerator(object):
                             self.env.append(dict(name=k, value=v))
             
     def generate_conf(self, fp=sys.stdout):
+
+        # have gunicorn listen on all interfaces
+        self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
+
         containers = []
         if self.split:
             services = [
@@ -48,7 +52,19 @@ class GnrK8SGenerator(object):
                 'taskscheduler',
                 'taskworker'
             ]
-
+            services_default_parms = {
+                # if in split, the daemon should listen on public interface
+                # to expose its port
+                'daemon': ['-H','0.0.0.0']
+            }
+            
+            services_port = {
+                'daemon': 40404,
+                'taskscheduler': 14951,
+                'application': self.container_port
+            }
+            
+            
             for service in  services:
                 args = [f'--no-{x}' for x in services if x != service]
                 service_def = {
@@ -56,11 +72,17 @@ class GnrK8SGenerator(object):
                     'image': self.image,
                     'command': ['gnr'],
                     'args': ['web','stack'] + args,
-                    'ports': [
-                        {'containerPort': self.container_port} if service == 'application' else None
-                    ],
                     'env': self.env
                 }
+
+                if services_port.get(service, None):
+                    service_def['ports'] = [
+                        {'containerPort': services_port.get(service) }
+                    ]
+
+                if services_default_parms.get(service, None):
+                    service_def['args'].extend(services_default_parms.get(service))
+                    
                 containers.append(service_def)
         else:
             containers.append(
