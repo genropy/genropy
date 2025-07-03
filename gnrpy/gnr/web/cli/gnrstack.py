@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import subprocess
 import sys
 import signal
@@ -50,16 +49,48 @@ def signal_handler(sig, frame):
 def parse_args():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name", help="The instance name")
-
-    # Dynamically add argument groups for each app
     for app in AVAILABLE_COMMANDS:
-        parser.add_argument(f"--no-{app}", action="store_true",
-                            help=f"Do not start  {app}")
-                
-        parser.add_argument(f"--{app}", nargs=argparse.REMAINDER,
-                            help=f"Arguments for {app}")
+        parser.add_argument(f"--no-{app}", action="store_true", help=f"Do not start  {app}")
 
-    return parser.parse_args()
+    # Parse known args, leave the rest
+    known_args, unknown_args = parser.parse_known_args()
+
+    # Custom parsing for --{app} options
+    app_args = {app: None for app in AVAILABLE_COMMANDS}
+    argv = sys.argv[1:]
+    # Remove instance_name and --no-* from argv
+    filtered_argv = []
+    skip_next = False
+    for i, arg in enumerate(argv):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == known_args.instance_name:
+            continue
+        if any(arg == f"--no-{app}" for app in AVAILABLE_COMMANDS):
+            continue
+        filtered_argv.append(arg)
+
+    # Now, parse --{app} and their arguments
+    i = 0
+    while i < len(filtered_argv):
+        arg = filtered_argv[i]
+        if arg.startswith("--") and arg[2:] in AVAILABLE_COMMANDS:
+            app = arg[2:]
+            j = i + 1
+            app_argv = []
+            while j < len(filtered_argv) and not (filtered_argv[j].startswith("--") and filtered_argv[j][2:] in AVAILABLE_COMMANDS):
+                app_argv.append(filtered_argv[j])
+                j += 1
+            app_args[app] = app_argv
+            i = j
+        else:
+            i += 1
+
+    # Attach app_args to known_args
+    for app in AVAILABLE_COMMANDS:
+        setattr(known_args, app, app_args[app])
+    return known_args
 
 def main():
     signal.signal(signal.SIGINT, signal_handler)
