@@ -10,7 +10,7 @@ description = """Start a complete application stack"""
 
 AVAILABLE_COMMANDS = {
     "daemon": "gnr web daemon",
-    "application": "gnr web serve",
+    "application": "gnr web serveprod",
     "taskscheduler": "gnr web taskscheduler",
     "taskworker": "gnr web taskworker",
 }
@@ -49,8 +49,8 @@ def signal_handler(sig, frame):
 def parse_args():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name", help="The instance name")
-    for app in AVAILABLE_COMMANDS:
-        parser.add_argument(f"--no-{app}", action="store_true", help=f"Do not start  {app}")
+    parser.add_argument("--all", dest="_start_all",
+                        action="store_true", help="Start all services")
 
     # Parse known args, leave the rest
     known_args, unknown_args = parser.parse_known_args()
@@ -58,14 +58,14 @@ def parse_args():
     # Custom parsing for --{app} options
     app_args = {app: None for app in AVAILABLE_COMMANDS}
     argv = sys.argv[1:]
-    # Remove instance_name and --no-* from argv
+    # Remove instance_name and eventual --all
     filtered_argv = []
     skip_next = False
     for i, arg in enumerate(argv):
         if skip_next:
             skip_next = False
             continue
-        if arg == known_args.instance_name:
+        if arg == known_args.instance_name or arg == known_args._start_all:
             continue
         if any(arg == f"--no-{app}" for app in AVAILABLE_COMMANDS):
             continue
@@ -99,11 +99,9 @@ def main():
     args = parse_args()
     instance_name = args.instance_name
     for app_name, script_path in AVAILABLE_COMMANDS.items():
-        # if --no-<app_name> is present, don't start the related process
-        if getattr(args, f"no_{app_name}"):
+        if getattr(args, f"{app_name}", None) is None and not args._start_all:
             print(f"Not starting {app_name}")
             continue
-        
         app_args = getattr(args, app_name)
         start_process(app_name, script_path, instance_name, app_args)
 
