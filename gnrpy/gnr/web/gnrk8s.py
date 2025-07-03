@@ -12,7 +12,7 @@ from gnr.web import logger
 class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  deployment_name=None, split=False,
-                 env_file=False, container_port=8080,
+                 env_file=False, container_port=8000,
                  replicas=1):
         
         self.instance_name = instance_name
@@ -87,9 +87,6 @@ class GnrK8SGenerator(object):
             service_def = {
                 'name': f'{self.deployment_name}-fullstack-container',
                 'image': self.image,
-                'ports': [
-                    {'containerPort': self.container_port}
-                ],
                 'command': ['gnr'],
                 'args': args,
                 'env': self.env

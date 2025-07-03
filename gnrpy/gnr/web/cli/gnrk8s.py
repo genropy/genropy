@@ -29,7 +29,7 @@ def main():
                         help="Env file to load")
     parser.add_argument('-p', '--container-port',
                         type=int,
-                        default=8080,
+                        default=8000,
                         dest="container_port",
                         help="Container port")
     parser.add_argument('-r', '--replicas',
