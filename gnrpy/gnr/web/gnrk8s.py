@@ -44,29 +44,28 @@ class GnrK8SGenerator(object):
         # have gunicorn listen on all interfaces
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
 
+        services = [
+            'daemon',
+            'application',
+            'taskscheduler',
+            'taskworker'
+        ]
+        services_default_parms = {
+            # if in split, the daemon should listen on public interface
+            # to expose its port
+            'daemon': ['-H','0.0.0.0']
+        }
+        
+        services_port = {
+            'daemon': 40404,
+            'taskscheduler': 14951,
+            'application': self.container_port
+        }
+            
         containers = []
         if self.split:
-            services = [
-                'daemon',
-                'application',
-                'taskscheduler',
-                'taskworker'
-            ]
-            services_default_parms = {
-                # if in split, the daemon should listen on public interface
-                # to expose its port
-                'daemon': ['-H','0.0.0.0']
-            }
-            
-            services_port = {
-                'daemon': 40404,
-                'taskscheduler': 14951,
-                'application': self.container_port
-            }
-            
-            
             for service in  services:
-                args = [f'--no-{x}' for x in services if x != service]
+                args = [self.instance_name, f'--{service}']
                 service_def = {
                     'name': f'{self.deployment_name}-{service}-container',
                     'image': self.image,
@@ -85,20 +84,32 @@ class GnrK8SGenerator(object):
                     
                 containers.append(service_def)
         else:
-            containers.append(
-                {
-                    'name': f'{self.deployment_name}-fullstack-container',
-                    'image': self.image,
-                    'ports': [
-                        {'containerPort': self.container_port}
-                    ],
-                    'command': ['gnr'],
-                    'args': ['web', 'stack', self.instance_name],
-                    'env': self.env
-                }
-            )
+
+            args = ['web','stack',self.instance_name, '--all']
+            service_def = {
+                'name': f'{self.deployment_name}-fullstack-container',
+                'image': self.image,
+                'ports': [
+                    {'containerPort': self.container_port}
+                ],
+                'command': ['gnr'],
+                'args': args,
+                'env': self.env
+            }
+            for service in services:
+                if services_port.get(service, None):
+                    if service_def.get("ports", None) is None:
+                        service_def['ports'] = []
+                    service_def['ports'].append(
+                        {'containerPort': services_port.get(service) }
+                    )
+
+                if services_default_parms.get(service, None):
+                    service_def['args'].append(f'--{service}')
+                    service_def['args'].extend(services_default_parms.get(service))
+
+            containers.append(service_def)
             
-    
         deployment = {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
