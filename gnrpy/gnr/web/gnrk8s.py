@@ -17,8 +17,6 @@ class GnrK8SGenerator(object):
         
         self.instance_name = instance_name
         self.image = image
-        if "/" not in self.image:
-            self.image = f'ghcr.io/softwellsrl/{self.image}'
         if ":" not in self.image:
             self.image = f'{self.image}:latest'
 
