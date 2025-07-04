@@ -2461,7 +2461,8 @@ class SqlTable(GnrObject):
             if not tablename in history:
                 history[tablename] = dict(one=set(),many=set())
             one_history_set = history[tablename]['one']
-            sel = relatedTable.query(columns='*', where='$%s IN :pkeys' %ofld,
+            real_columns = ','.join([f'${colname}' for colname in relatedTable.columns])
+            sel = relatedTable.query(columns=real_columns, where='$%s IN :pkeys' %ofld,
                                          pkeys=list(set([r[mfld] for r in records])-one_history_set),
                                          excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
                                          ignorePartition=True).fetch()
@@ -2482,7 +2483,8 @@ class SqlTable(GnrObject):
                     and relatedTable.relations_one.getAttr('#0','onDelete')=="cascade"):
                 continue
             many_history_set = history[tablename]['many']
-            sel = relatedTable.query(columns='*', where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
+            real_columns = ','.join([f'${colname}' for colname in relatedTable.columns])
+            sel = relatedTable.query(columns=real_columns, where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
                                          rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False,
                                          subtable='*',
