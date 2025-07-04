@@ -2456,6 +2456,8 @@ class SqlTable(GnrObject):
         for rel in self.relations_one:
             mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
             opkg, otbl, ofld = rel.attr['one_relation'].split('.')
+            if not rel.attr.get('foreignkey'):
+                continue
             relatedTable = self.db.table(otbl, pkg=opkg)
             tablename = relatedTable.fullname
             if not tablename in history:
