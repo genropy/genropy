@@ -17,6 +17,10 @@ def main():
                         required=True,
                         dest="image",
                         help="Image name to be deployed")
+    parser.add_argument('-f', '--fqdn',
+                        required=True,
+                        dest="fqdn",
+                        help="The FQDN of the deployed service")
     parser.add_argument('-n', '--name',
                         dest="name",
                         help="The application name (default to instance name)")
@@ -47,6 +51,7 @@ def main():
     options = parser.parse_args()
 
     generator = GnrK8SGenerator(options.instance_name, options.image,
+                                options.fqdn,
                                 deployment_name=options.name,
                                 split=options.split,
                                 env_file=options.env,
