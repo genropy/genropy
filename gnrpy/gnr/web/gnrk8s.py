@@ -13,13 +13,14 @@ class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  deployment_name=None, split=False,
                  env_file=False, container_port=8000,
+                 secret_name=None,
                  replicas=1):
         
         self.instance_name = instance_name
         self.image = image
         if ":" not in self.image:
             self.image = f'{self.image}:latest'
-
+        self.secret_name = secret_name
         self.container_port = container_port
         self.deployment_name = deployment_name or instance_name
         self.split = split
@@ -133,6 +134,7 @@ class GnrK8SGenerator(object):
                 }
             }
         }
-        
+        if self.secret_name:
+            deployment['spec']['template']['spec']['imagePullSecrets'] = [{ 'name': self.secret_name }]
         # Output YAML to stdout or write to file
         yaml.dump(deployment, fp, sort_keys=False)

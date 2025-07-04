@@ -37,6 +37,10 @@ def main():
                         type=int,
                         default=1,
                         help="Number of replicas")
+    parser.add_argument('--secret',
+                        dest="secret_name",
+                        type=str,
+                        help="The secret name for image retrieval")
     
     parser.add_argument('instance_name')
     
@@ -47,6 +51,7 @@ def main():
                                 split=options.split,
                                 env_file=options.env,
                                 container_port=options.container_port,
+                                secret_name=options.secret_name,
                                 replicas=options.replicas)
 
     generator.generate_conf()
