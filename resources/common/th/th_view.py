@@ -153,11 +153,11 @@ class TableHandlerView(BaseComponent):
 
     @public_method
     def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
-        tblobj = self.db.table(table)
-        sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
         result = Bag()
         if not sourcePkey:
             return result
+        tblobj = self.db.table(table)
+        sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
         i = 0
         for n in tblobj.model.relations:
             joiner =  n.attr.get('joiner')
