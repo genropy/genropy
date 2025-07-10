@@ -691,15 +691,12 @@ class SqlTable(GnrObject):
         for colobj in self.columns.values:
             value = record[colobj.name]
             if colobj.dtype == 'X' and record[colobj.name]:
-                record[colobj.name] = 
-        
-        tblobj.relations.digest('#k,#a.joiner')
+                record[colobj.name] = f'{value}::X'
             else:
                 related_table = colobj.relatedTable()
                 if related_table is not None:
                     dependencies.setdefault(related_table,[]).append(value)
         related_selection = {}
-        
         if related_many:
             for table,fkey in self.model.manyRelationsList(cascadeOnly=related_many=='cascade'):
                 if table in blacklist:
