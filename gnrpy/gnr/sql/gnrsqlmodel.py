@@ -1707,8 +1707,6 @@ class DbBaseColumnObj(DbModelObj):
             result['related_to'] = relatedColumn.fullname
         return result
     
-    def relatedColumn(self):
-        return
 
     def _fillRelatedColumn(self, related_column):
         relation_list = related_column.split('.')

@@ -677,6 +677,47 @@ class SqlTable(GnrObject):
     def relatedQuery(self,where=None,field=None,value=None,**kwargs):
         return self.query(**self.relatedQueryPars(where=where,field=field,value=value,kwargs=kwargs))
 
+    
+    def recordToJson(self,record: str | dict,
+                     related_many: str | None  = 'cascade',
+                    dependencies: dict | None = None,
+                    blacklist: list[str] | None = None
+                ) -> dict:
+        if isinstance(record,str):
+            real_columns = ','.join([f'${colname}' for colname in self.columns])
+            record = self.db.typeConverter.toTypedJSON(self.readColumns(pkey=record,columns=real_columns))
+        pkey = record[self.pkey]
+        dependencies = dependencies or {}
+        for colobj in self.columns.values:
+            value = record[colobj.name]
+            if colobj.dtype == 'X' and record[colobj.name]:
+                record[colobj.name] = 
+        
+        tblobj.relations.digest('#k,#a.joiner')
+            else:
+                related_table = colobj.relatedTable()
+                if related_table is not None:
+                    dependencies.setdefault(related_table,[]).append(value)
+        related_selection = {}
+        
+        if related_many:
+            for table,fkey in self.model.manyRelationsList(cascadeOnly=related_many=='cascade'):
+                if table in blacklist:
+                    continue
+                related_selection[f"{table}.{fkey}"] = self.db.table(table).relatedSelectionToJson(field=fkey,value=pkey,related_many=related_many,
+                                                                                                    dependencies=dependencies,blacklist=blacklist)
+
+        return record
+
+    def relatedSelectionToJson(self,field=None,value=None,related_many: str | None  = 'cascade',
+                dependencies: dict | None = None,blacklist: list[str] | None = None) -> list:
+        real_columns = ','.join([f'${colname}' for colname in self.columns])
+        result = []
+        for record in self.relatedQuery(field=field,value=value,real_columns=real_columns).fetch():
+            pass
+
+
+
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
 

@@ -218,6 +218,14 @@ class BagNode(object):
             return '%s: %s' %((self.attr.get('_valuelabel') or self.attr.get('name_long') or self.label.capitalize()),v)
         return ''
 
+    def toJson(self,typed=True):
+        value = self.value
+        if isinstance(value,Bag):
+            value = value.toJson(typed=typed)
+        converter = GnrClassCatalog()
+        toJsonConverter = converter.toTypedJSON if typed else converter.toJson
+        return toJsonConverter({"label":self.label,"value":value,"attr":toJsonConverter(self.attr)})
+
     def setValue(self, value, trigger=True, _attributes=None, _updattr=None, _removeNullAttributes=True,_reason=None):
         """Set the node's value, unless the node is locked. This method is called by the property .value
         
@@ -1904,6 +1912,13 @@ class Bag(GnrObject):
                                 omitUnknownTypes=omitUnknownTypes, catalog=catalog, omitRoot=omitRoot,
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
+
+    def toJson(self,typed=True):
+        result = []
+        for node in self.nodes:
+            result.append(node.toJson(typed=typed))
+        return result
+
     def fillFrom(self, source, **kwargs):
         """Fill a void Bag from a source (str, Bag or list)
         
@@ -2073,7 +2088,10 @@ class Bag(GnrObject):
             if listJoiner and all([isinstance(r, str) and not converter.isTypedText(r) for r in json]):
                 return listJoiner.join(json)
             for n,v in enumerate(json):
-                result.addItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
+                if isinstance(v,dict) and 'label' in v:
+                    result.addItem(v['label'],self._fromJson(v.get('value')),_attributes=v.get('attr'))
+                else:
+                    result.addItem('r_%i' %n,self._fromJson(v,listJoiner=listJoiner),_autolist=True)
 
         elif isinstance(json,dict):
             if not json:
