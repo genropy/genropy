@@ -221,10 +221,8 @@ class BagNode(object):
     def toJson(self,typed=True):
         value = self.value
         if isinstance(value,Bag):
-            value = value.toJson(typed=typed)
-        converter = GnrClassCatalog()
-        toJsonConverter = converter.toTypedJSON if typed else converter.toJson
-        return toJsonConverter({"label":self.label,"value":value,"attr":toJsonConverter(self.attr)})
+            value = value.toJson(typed=typed,nested=True)
+        return {"label":self.label,"value":value,"attr":self.attr}
 
     def setValue(self, value, trigger=True, _attributes=None, _updattr=None, _removeNullAttributes=True,_reason=None):
         """Set the node's value, unless the node is locked. This method is called by the property .value
@@ -1913,10 +1911,14 @@ class Bag(GnrObject):
                                 docHeader=docHeader,mode4d=mode4d,pretty=pretty)
                                 
 
-    def toJson(self,typed=True):
+    def toJson(self,typed=True,nested=False):
         result = []
         for node in self.nodes:
             result.append(node.toJson(typed=typed))
+        if not nested:
+            converter = GnrClassCatalog()
+            toJsonConverter = converter.toTypedJSON if typed else converter.toJson
+            result = toJsonConverter(result)
         return result
 
     def fillFrom(self, source, **kwargs):
