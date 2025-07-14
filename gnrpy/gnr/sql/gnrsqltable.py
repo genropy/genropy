@@ -681,17 +681,18 @@ class SqlTable(GnrObject):
     def recordToJson(self,record: str | dict,
                      related_many: str | None  = 'cascade',
                     dependencies: dict | None = None,
-                    blacklist: list[str] | None = None
+                    blacklist: list[str] | None = None,
+                    nested:bool = False,
                 ) -> dict:
         if isinstance(record,str):
             real_columns = ','.join([f'${colname}' for colname in self.columns])
-            record = self.db.typeConverter.toTypedJSON(self.readColumns(pkey=record,columns=real_columns))
+            record = dict(self.readColumns(pkey=record,columns=real_columns))
         pkey = record[self.pkey]
         dependencies = dependencies or {}
         for colobj in self.columns.values:
             value = record[colobj.name]
             if colobj.dtype == 'X' and record[colobj.name]:
-                record[colobj.name] = f'{value}::X'
+                record[colobj.name] = Bag(record[colobj.name]).toJson(nested=True)
             else:
                 related_table = colobj.relatedTable()
                 if related_table is not None:
@@ -704,14 +705,14 @@ class SqlTable(GnrObject):
                 related_selection[f"{table}.{fkey}"] = self.db.table(table).relatedSelectionToJson(field=fkey,value=pkey,related_many=related_many,
                                                                                                     dependencies=dependencies,blacklist=blacklist)
 
-        return record
+        return record if nested else self.db.typeConverter.toTypedJSON(record)
 
     def relatedSelectionToJson(self,field=None,value=None,related_many: str | None  = 'cascade',
                 dependencies: dict | None = None,blacklist: list[str] | None = None) -> list:
         real_columns = ','.join([f'${colname}' for colname in self.columns])
         result = []
         for record in self.relatedQuery(field=field,value=value,real_columns=real_columns).fetch():
-            result.append(self.recordToJson(record),related_many=related_many,dependencies=dependencies,blacklist=blacklist)
+            result.append(self.recordToJson(record,related_many=related_many,dependencies=dependencies,blacklist=blacklist,nested=True))
         return result
 
 
