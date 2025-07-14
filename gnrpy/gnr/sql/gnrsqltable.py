@@ -711,7 +711,8 @@ class SqlTable(GnrObject):
         real_columns = ','.join([f'${colname}' for colname in self.columns])
         result = []
         for record in self.relatedQuery(field=field,value=value,real_columns=real_columns).fetch():
-            pass
+            result.append(self.recordToJson(record),related_many=related_many,dependencies=dependencies,blacklist=blacklist)
+        return result
 
 
 
