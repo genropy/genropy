@@ -36,3 +36,4 @@ gnrpy/tests/_main_connection
 projects/gnrcore/instances/gnrdevelop/data/adm.db
 projects/gnrcore/instances/gnrdevelop/data/sys.db
 _main_connection
+mydb
