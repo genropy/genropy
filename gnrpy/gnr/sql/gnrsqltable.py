@@ -682,7 +682,7 @@ class SqlTable(GnrObject):
         """Precomputed list of columns as $col1,$col2,... for readColumns"""
         return ','.join(f'${c}' for c in self.columns)
     
-    def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None) -> dict:
+    def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,thermo_wrapper=None) -> dict:
         """Insert a hierarchical record cluster from JSON data into database."""
     
         # Validate dependencies exist
@@ -714,7 +714,7 @@ class SqlTable(GnrObject):
             jsonCluster = self.db.typeConverter.fromTypedText(jsonCluster)
     
         # Create and insert main record
-        record_data = {col: jsonCluster.pop(col, None) for col in self.real_column}
+        record_data = {col: jsonCluster.pop(col, None) for col in self.columns.keys()}
         record = self.newrecord(_fromRecord=record_data)
         self.insert(record)
         record_pkey = record[self.pkey]
@@ -725,14 +725,19 @@ class SqlTable(GnrObject):
             for relation_key, joiner in self.relations.digest('#k,#a.joiner') 
             if joiner and not joiner.get('virtual')
         }
-    
-        for relation_key, joiner in many_relations.items():
+        many_relations_iter = many_relations.items()
+        if thermo_wrapper:
+            many_relations_iter = thermo_wrapper(many_relations_iter)
+
+        for relation_key, joiner in many_relations_iter:
+
             relatedJsonClusters = jsonCluster.pop(relation_key, None)
             if not relatedJsonClusters:
                 continue
             
             table, fkey = joiner['many_relation'].rsplit('.', 1)
-        
+            print(table, fkey)
+
             for jc in relatedJsonClusters:
                 jc[fkey] = record_pkey
                 self.insertRecordClusterFromJson(jc)
@@ -746,6 +751,7 @@ class SqlTable(GnrObject):
         dependencies: dict | None = None,
         blacklist: set[str] | str | list | None = None,
         nested: bool = False,
+        thermo_wrapper = None
     ) -> dict:
         """Convert a database record to JSON format with optional related data.
             :param record: Database record as dict or primary key value
@@ -790,12 +796,17 @@ class SqlTable(GnrObject):
         if related_many:
             many_relations = {relation_key:joiner for relation_key,joiner in self.relations.digest('#k,#a.joiner') \
                              if joiner and joiner.get('mode')=='M' and not joiner.get('virtual')}
-            for relation_key,joiner in many_relations.items():
+            many_relations_iter = many_relations.items()
+            if thermo_wrapper:
+                many_relations_iter = thermo_wrapper(many_relations_iter)
+
+            for relation_key,joiner in many_relations_iter:
                 if related_many=='cascade' and not (joiner.get('onDelete')=='cascade' or joiner.get('onDelete_sql')=='cascade'):
                     continue
                 table,fkey = joiner['many_relation'].rsplit('.',1)
                 if is_blacklisted(table):
                     continue
+                print(table, fkey)
                 related_records = self.db.table(table).relatedSelectionToJson(
                     field=fkey,
                     value=pkey,
