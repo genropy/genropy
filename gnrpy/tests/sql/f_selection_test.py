@@ -102,7 +102,7 @@ class BaseDb(BaseGnrSqlTest):
         print(sel.output('bag', formats={'title': 'Titolo: - %s - '},
                          dfltFormats={datetime.date: 'full'},
                          locale='it')['#0.title'] == 'Title: - Match point - ')
-
+    @classmethod
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)
