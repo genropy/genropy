@@ -915,69 +915,44 @@ class SqlTable(GnrObject):
 
 
 
-    def buildrecord(self, fields, resolver_one=None, resolver_many=None):
+    def buildrecord(self, fields, resolver_one:str=None, **kwargs):
         """Build a new record and return it
 
         :param fields: TODO
-        :param resolver_one: TODO
-        :param resolver_many: TODO"""
+        :param resolver_one: TODO"""
         newrecord = Bag()
         for fld_node in self.model.relations:
             fld = fld_node.label
-            if fld.startswith('@'):
-                info = dict(fld_node.getAttr())
-                attrs = info.pop('joiner')
-                if attrs['mode'] == 'O': # or extra_one_one:
-                    #print 'many_one: %s'%str(attrs)
-                    if resolver_one:
-                        mpkg, mtbl, mfld = attrs['many_relation'].split('.')
-                        info.pop('many_relation', None)
-                        info['_from_fld'] = attrs['many_relation']
-                        info['_target_fld'] = attrs['one_relation']
-                        info['mode'] = attrs['mode']
-
-                        if resolver_one is True:
-                            pass # non posso fare il resolver python, il valore di link non c'è ancora
-                        else:
-                            v = None
-                            info['_resolver_name'] = resolver_one
-                            #info['_sqlContextName'] = self.sqlContextName # non ho il contesto, ma comunque serve?
-                            #if attrs.get('one_one'): # one_one
-                            #print 'one_one: %s'%str(attrs)
-                            #pass # one_one relation to a non saved record did make sense ???
-                else: # one_many
-                    #print 'one_many: %s'%str(attrs)
-                    pass # many relation to a non saved record didn't make sense
-            else:
+            if not fld.startswith('@'):
+                #real column
                 v = fields.get(fld)
                 info = dict(self.columns[fld].attributes)
                 dtype = info.get('dtype')
                 if dtype == 'X':
                     try:
                         v = Bag(v)
-                    except:
+                    except Exception:
                         pass
-
-            newrecord.setItem(fld, v, info)
+                newrecord.setItem(fld, v, info)
+            elif resolver_one:
+                #relation
+                if resolver_one is True:
+                    #python resolver one not managed
+                    continue
+                info = dict(fld_node.getAttr())
+                joiner = info.pop('joiner',None)
+                if not joiner or joiner['mode'] == 'M': 
+                    continue
+                info.pop('many_relation', None)
+                info['_from_fld'] = joiner['many_relation']
+                info['_target_fld'] = joiner['one_relation']
+                info['mode'] = joiner['mode']
+                v = None
+                #resolver_one in this case is a js embedded
+                info['_resolver_name'] = resolver_one
+                newrecord.setItem(fld, v, info)
         return newrecord
 
-    def buildrecord_(self, fields):
-        """TODO
-
-        :param fields: TODO"""
-        newrecord = Bag()
-        for fld in list(self.columns.keys()):
-            v = fields.get(fld)
-            info = dict(self.columns[fld].attributes)
-            dtype = info.get('dtype')
-            if dtype == 'X':
-                try:
-                    v = Bag(v)
-                except:
-                    pass
-
-            newrecord.setItem(fld, v, info)
-        return newrecord
         
     def recordCopy(self,fromRecord,asBag=False):
         """"returns a copy of a record, exluding columns that are
@@ -1005,7 +980,6 @@ class SqlTable(GnrObject):
 
 
     def newrecord(self, assignId=False, resolver_one=None,
-                resolver_many=None,
                 _fromRecord=None, **kwargs):
         """TODO
 
@@ -1017,7 +991,7 @@ class SqlTable(GnrObject):
         if _fromRecord:
             defaultValues.update(self.recordCopy(_fromRecord))
         defaultValues.update(kwargs)
-        newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one, resolver_many=resolver_many)
+        newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one)
         if assignId:
             newrecord[self.pkey] = self.newPkeyValue(record=newrecord)
         self.extendDefaultValues(newrecord)
