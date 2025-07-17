@@ -26,12 +26,8 @@
 this test module focus on SqlSelection's methods
 """
 
-import os, os.path
-import datetime
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.core.gnrbag import Bag
-from gnr.core import gnrstring
 
 from .common import BaseGnrSqlTest
 
