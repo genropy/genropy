@@ -874,7 +874,7 @@ class SqlTable(GnrObject):
                 ):
                     continue
 
-                rel_condition_kwargs = relation_conditions.pop(joiner['many_relation'], {})
+                rel_condition_kwargs = relation_conditions.get(joiner['many_relation'], {})
                 child_table, child_fkey = joiner['many_relation'].rsplit('.', 1)
 
                 if is_blacklisted(child_table):
