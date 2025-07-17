@@ -37,7 +37,9 @@ class Service(PdfService):
         if HAS_FITZ:
             return self.joinPdf_FITZ(pdf_list, output_filepath)
         
-        raise self.parent.exception('Missing pdf library in this installation')
+        raise self.parent.exception(
+            "Missing PDF library in this installation. Please install either 'PyPDF2' or 'PyMuPDF (fitz)' via pip."
+        )
     
     def joinPdf_PYPDF(self,pdf_list, output_filepath):
         output_pdf = PdfWriter()
