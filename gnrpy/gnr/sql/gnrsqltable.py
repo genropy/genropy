@@ -684,8 +684,7 @@ class SqlTable(GnrObject):
     
 
     def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,
-                                    record_extra: dict | None = None, fkey_map: dict | None = None,
-                                    thermo_wrapper=None) -> dict:
+                                    record_extra: dict | None = None, fkey_map: dict | None = None) -> dict:
         """
         Insert a hierarchical record cluster from JSON data into the database (breadth-first).
         First inserts all first-level children, then their children, and so on.
@@ -694,7 +693,6 @@ class SqlTable(GnrObject):
             dependencies: dict of {table: [pkeys]} to check before insert
             record_extra: optional dict of additional values to override on insert
             fkey_map: dict mapping old pkeys to new inserted pkeys
-            thermo_wrapper: optional wrapper for iterating the first-level children with progress
         Returns:
             The inserted main record (dict or Bag)
         Raises:
@@ -781,13 +779,8 @@ class SqlTable(GnrObject):
                 if j and j.get('mode') == 'M' and not j.get('virtual')
             }
 
-            # Apply thermo_wrapper only to first level
-            relations_iter = many_relations.items()
-            if is_first_level and thermo_wrapper:
-                relations_iter = thermo_wrapper(relations_iter)
-
             # Queue related children for later insertion
-            for relation_key, joiner in relations_iter:
+            for relation_key, joiner in many_relations.items():
                 related_json_clusters = cluster_data.pop(relation_key, None)
                 if not related_json_clusters:
                     continue
@@ -813,7 +806,6 @@ class SqlTable(GnrObject):
         nested: bool = False,
         relation_conditions: dict | None = None,
         exported_keys: set | None = None,
-        thermo_wrapper=None
     ) -> dict:
         """
         Convert a database record to JSON format with optional related data (breadth-first).
@@ -827,8 +819,6 @@ class SqlTable(GnrObject):
             nested: If True, return nested JSON without type conversion
             relation_conditions: Dict of conditions to apply to each relation (by pkgname.tblname.fkey)
             exported_keys: Set of already exported records ('pkgname.tblname:pkey')
-            thermo_wrapper: Optional wrapper for progress/iteration on first-level relations
-        
         Returns:
             Record as JSON dict with optional related data included
         """
@@ -877,11 +867,7 @@ class SqlTable(GnrObject):
                 if joiner and joiner.get('mode') == 'M' and not joiner.get('virtual')
             }
 
-            many_relations_iter = many_relations.items()
-            if thermo_wrapper:
-                many_relations_iter = thermo_wrapper(many_relations_iter)
-
-            for rel_key, joiner in many_relations_iter:
+            for rel_key, joiner in many_relations.items():
                 # Skip if cascade not requested and relation is not cascade
                 if related_many == 'cascade' and not (
                     joiner.get('onDelete') == 'cascade' or joiner.get('onDelete_sql') == 'cascade'
