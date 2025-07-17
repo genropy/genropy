@@ -28,7 +28,7 @@ import threading
 from datetime import datetime, timedelta
 import pytz
 from functools import wraps
-from collections import defaultdict
+from collections import defaultdict,deque
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_info
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
@@ -682,10 +682,25 @@ class SqlTable(GnrObject):
         """Precomputed list of columns as $col1,$col2,... for readColumns"""
         return ','.join(f'${c}' for c in self.columns)
     
-    def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,thermo_wrapper=None) -> dict:
-        """Insert a hierarchical record cluster from JSON data into database."""
-    
-        # Validate dependencies exist
+
+    def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,
+                                    record_extra: dict | None = None, fkey_map: dict | None = None,
+                                    thermo_wrapper=None) -> dict:
+        """
+        Insert a hierarchical record cluster from JSON data into the database (breadth-first).
+        First inserts all first-level children, then their children, and so on.
+        Args:
+            jsonCluster: dict or JSON string representing the record cluster
+            dependencies: dict of {table: [pkeys]} to check before insert
+            record_extra: optional dict of additional values to override on insert
+            fkey_map: dict mapping old pkeys to new inserted pkeys
+            thermo_wrapper: optional wrapper for iterating the first-level children with progress
+        Returns:
+            The inserted main record (dict or Bag)
+        Raises:
+            Exception if dependencies are missing
+        """
+        # Validate dependencies (unchanged from your original)
         if dependencies:
             for table, pkeys in dependencies.items():
                 tblobj = self.db.table(table)
@@ -699,49 +714,88 @@ class SqlTable(GnrObject):
                     excludeDraft=False,
                     excludeLogicalDeleted=False
                 ).fetch()
-            
                 existing_pkeys = {r[tblobj.pkey] for r in existing_records}
                 missing_dependencies = set(pkeys) - existing_pkeys
-            
                 if missing_dependencies:
                     raise self.exception(
                         'business_logic',
                         msg=f'Missing dependencies: {missing_dependencies} in table {table}'
                     )
-    
-        # Convert string JSON to object if needed
+
+        # Parse JSON string if needed
         if isinstance(jsonCluster, str):
             jsonCluster = self.db.typeConverter.fromTypedText(jsonCluster)
-    
-        # Create and insert main record
-        record_data = {col: jsonCluster.pop(col, None) for col in self.columns.keys()}
-        record = self.newrecord(_fromRecord=record_data)
-        self.insert(record)
-        record_pkey = record[self.pkey]
-    
-        # Process many-to-one relations
-        many_relations = {
-            relation_key: joiner 
-            for relation_key, joiner in self.relations.digest('#k,#a.joiner') 
-            if joiner and not joiner.get('virtual')
-        }
-        many_relations_iter = many_relations.items()
-        if thermo_wrapper:
-            many_relations_iter = thermo_wrapper(many_relations_iter)
+        if not isinstance(jsonCluster, dict):
+            raise ValueError("jsonCluster must be a dict or JSON string")
 
-        for relation_key, joiner in many_relations_iter:
+        fkey_map = fkey_map or {}
+        record_extra = record_extra or {}
 
-            relatedJsonClusters = jsonCluster.pop(relation_key, None)
-            if not relatedJsonClusters:
-                continue
-            
-            table, fkey = joiner['many_relation'].rsplit('.', 1)
-            print(table, fkey)
+        # Queue for breadth-first traversal: (table_obj, cluster_data, extra, is_first_level)
+        queue = deque()
+        queue.append((self, jsonCluster, record_extra, True))  # True -> root level
 
-            for jc in relatedJsonClusters:
-                jc[fkey] = record_pkey
-                self.insertRecordClusterFromJson(jc)
-    
+        while queue:
+            table_obj, cluster_data, extra, is_first_level = queue.popleft()
+
+            # Build record data
+            record_data = {}
+            for colname, colobj in table_obj.columns.items():
+                value = cluster_data.pop(colobj.name, None)
+                relatedtable = colobj.relatedTable()
+                if relatedtable is not None:
+                    # Replace old foreign key with new mapped key if available
+                    table_map = fkey_map.setdefault(relatedtable.fullname, {})
+                    value = table_map.get(value, value)
+                elif colobj.dtype == 'X' and value:
+                    # Convert JSON text to Bag for X type columns
+                    bagvalue = Bag()
+                    bagvalue.fromJson(value)
+                    value = bagvalue
+                record_data[colname] = value
+
+            old_pkey = record_data[table_obj.pkey]
+            record = table_obj.newrecord(_fromRecord=record_data)
+            record.update(extra)
+
+            # Triggers and counters
+            table_obj._doFieldTriggers('onInserting', record)
+            table_obj.trigger_assignCounters(record=record)
+
+            # Generate new primary key if needed
+            record[table_obj.pkey] = record[table_obj.pkey] or table_obj.newPkeyValue(record)
+            table_obj.raw_insert(record)
+
+            fkey_map.setdefault(table_obj.fullname, {})[old_pkey] = record[table_obj.pkey]
+            record_pkey = record[table_obj.pkey]
+
+            # Find all many-to-one non-virtual relations
+            many_relations = {
+                k: j for k, j in table_obj.relations.digest('#k,#a.joiner')
+                if j and j.get('mode') == 'M' and not j.get('virtual')
+            }
+
+            # Apply thermo_wrapper only to first level
+            relations_iter = many_relations.items()
+            if is_first_level and thermo_wrapper:
+                relations_iter = thermo_wrapper(relations_iter)
+
+            # Queue related children for later insertion
+            for relation_key, joiner in relations_iter:
+                related_json_clusters = cluster_data.pop(relation_key, None)
+                if not related_json_clusters:
+                    continue
+                related_table, fkey = joiner['many_relation'].rsplit('.', 1)
+                for jc in related_json_clusters:
+                    if not jc:
+                        continue
+                    queue.append((
+                        table_obj.db.table(related_table),
+                        jc,
+                        {fkey: record_pkey},
+                        False  # Not first level anymore
+                    ))
+
         return record
 
     def recordToJson(
@@ -751,35 +805,52 @@ class SqlTable(GnrObject):
         dependencies: dict | None = None,
         blacklist: set[str] | str | list | None = None,
         nested: bool = False,
-        thermo_wrapper = None
+        relation_conditions: dict | None = None,
+        exported_keys: set | None = None,
+        thermo_wrapper=None
     ) -> dict:
-        """Convert a database record to JSON format with optional related data.
-            :param record: Database record as dict or primary key value
-            :param related_many: Strategy for including related records ('cascade' or None)
-            :param dependencies: Dict to collect foreign key dependencies by table
-            :param blacklist: Tables/packages to exclude from related data (str, list, or set)
-            :param nested: If True, return nested JSON; if False, apply type conversion
-            :return: Record as JSON dict with optional related data included
-            """
-        # If record is not a dict, treat it as a primary key of any type (str, int, timestamp, etc.)
+        """
+        Convert a database record to JSON format with optional related data (breadth-first).
+        Avoids infinite recursion in cyclic graphs by tracking exported keys.
+        
+        Args:
+            record: Database record as dict or primary key value
+            related_many: Strategy for including related records ('cascade' or None)
+            dependencies: Dict to collect foreign key dependencies by table
+            blacklist: Tables/packages to exclude from related data (str, list, or set)
+            nested: If True, return nested JSON without type conversion
+            relation_conditions: Dict of conditions to apply to each relation (by pkgname.tblname.fkey)
+            exported_keys: Set of already exported records ('pkgname.tblname:pkey')
+            thermo_wrapper: Optional wrapper for progress/iteration on first-level relations
+        
+        Returns:
+            Record as JSON dict with optional related data included
+        """
+        # If record is not a dict, assume it's a primary key
         if not hasattr(record, 'items'):
             record = dict(self.readColumns(
                 pkey=record,
                 columns=self.real_columns
             ))
 
-        pkey = record[self.pkey]
+        main_pkey = record[self.pkey]
         dependencies = dependencies or {}
+        relation_conditions = relation_conditions or {}
+        exported_keys = exported_keys or set()
 
-        # Convert Bag fields and collect dependencies for foreign keys
-        for col in self.columns.values():
-            val = record[col.name]
-            if col.dtype == 'X' and val:
-                record[col.name] = Bag(val).toJson(nested=True)
-            elif col.relatedTable() is not None:
-                dependencies.setdefault(col.relatedTable(), []).append(val)
+        # Compose unique key to track and prevent cycles
+        exporting_key = f'{self.fullname}:{main_pkey}'
+        exported_keys.add(exporting_key)
 
-        # Normalize blacklist to a set
+        # Convert Bag fields and collect foreign key dependencies
+        for column in self.columns.values():
+            value = record[column.name]
+            if column.dtype == 'X' and value:
+                record[column.name] = Bag(value).toJson(nested=True)
+            elif column.relatedTable() is not None:
+                dependencies.setdefault(column.relatedTable(), []).append(value)
+
+        # Normalize blacklist
         if isinstance(blacklist, str):
             blacklist = set(blacklist.split(','))
         elif isinstance(blacklist, list):
@@ -787,82 +858,126 @@ class SqlTable(GnrObject):
         else:
             blacklist = blacklist or set()
 
-        def is_blacklisted(table: str) -> bool:
-            """Return True if the table or its package is in the blacklist"""
-            pkg = table.split('.', 1)[0]
-            return table in blacklist or pkg in blacklist
+        def is_blacklisted(table_name: str) -> bool:
+            """Return True if table or package is blacklisted"""
+            pkg = table_name.split('.', 1)[0]
+            return table_name in blacklist or pkg in blacklist
 
-        # Process many-to-one and one-to-many relations
+        # Export related one-to-many records
         if related_many:
-            many_relations = {relation_key:joiner for relation_key,joiner in self.relations.digest('#k,#a.joiner') \
-                             if joiner and joiner.get('mode')=='M' and not joiner.get('virtual')}
+            many_relations = {
+                rel_key: joiner
+                for rel_key, joiner in self.relations.digest('#k,#a.joiner')
+                if joiner and joiner.get('mode') == 'M' and not joiner.get('virtual')
+            }
+
             many_relations_iter = many_relations.items()
             if thermo_wrapper:
                 many_relations_iter = thermo_wrapper(many_relations_iter)
 
-            for relation_key,joiner in many_relations_iter:
-                if related_many=='cascade' and not (joiner.get('onDelete')=='cascade' or joiner.get('onDelete_sql')=='cascade'):
+            for rel_key, joiner in many_relations_iter:
+                # Skip if cascade not requested and relation is not cascade
+                if related_many == 'cascade' and not (
+                    joiner.get('onDelete') == 'cascade' or joiner.get('onDelete_sql') == 'cascade'
+                ):
                     continue
-                table,fkey = joiner['many_relation'].rsplit('.',1)
-                if is_blacklisted(table):
+
+                rel_condition_kwargs = relation_conditions.pop(joiner['many_relation'], {})
+                child_table, child_fkey = joiner['many_relation'].rsplit('.', 1)
+
+                if is_blacklisted(child_table):
                     continue
-                print(table, fkey)
-                related_records = self.db.table(table).relatedSelectionToJson(
-                    field=fkey,
-                    value=pkey,
+
+                # Recursively export child records
+                related_records = self.db.table(child_table).relatedSelectionToJson(
+                    field=child_fkey,
+                    value=main_pkey,
                     related_many=related_many,
                     dependencies=dependencies,
                     blacklist=blacklist,
+                    condition=rel_condition_kwargs.pop('condition', None),
+                    condition_kwargs=rel_condition_kwargs,
+                    relation_conditions=relation_conditions,
+                    exported_keys=exported_keys
                 )
                 if related_records:
-                    record[relation_key] = related_records
+                    record[rel_key] = related_records
 
-        # Return plain or type-converted JSON
         return record if nested else self.db.typeConverter.toTypedJSON(record)
 
 
     def relatedSelectionToJson(
         self,
-        field=None,
+        field: str | None = None,
         value=None,
         related_many: str | None = 'cascade',
         dependencies: dict | None = None,
         blacklist: list[str] | None = None,
+        condition: str | None = None,
+        condition_kwargs: dict | None = None,
+        relation_conditions: dict | None = None,
+        exported_keys: set | None = None,
     ) -> list:
         """
-        Fetch related records and convert them to JSON format.
+        Fetch related records for a one-to-many relation and convert them to JSON format (breadth-first safe).
 
-        :param field: Field name to filter related records
-        :param value: Value to match against the field
-        :param related_many: Strategy for handling many-to-one/one-to-many relations ('cascade' or None)
-        :param dependencies: Dictionary to track dependencies between tables
-        :param blacklist: List of tables/packages to exclude from the result
-        :return: List of records converted to JSON format with nested relations
+        Args:
+            field: Foreign key field name to filter related records
+            value: Value to match against the foreign key field
+            related_many: Strategy for including related records ('cascade' or None)
+            dependencies: Dict to track dependencies between tables
+            blacklist: List of tables/packages to exclude from the result
+            condition: Optional SQL WHERE condition for filtering
+            condition_kwargs: Additional query parameters for filtering
+            relation_conditions: Nested conditions for further relations
+            exported_keys: Set of already exported records ('pkgname.tblname:pkey') to avoid cycles
+
+        Returns:
+            List of related records as JSON dicts
         """
-        result = []
-        # Fetch related records and convert each to nested JSON
-        query_pars = {}
-        query_pars = self.relatedQueryPars(field=field,value=value,kwargs=query_pars)
-        for rec in self.query(
-            columns = self.real_columns,
-            subtable='*',ignorePartition=True,
-            excludeDraft=False,
-            excludeLogicalDeleted=False,addPkeyColumn=False,
-            **query_pars
-        ).fetch():
-            record = dict(rec)
-            record_as_json = self.recordToJson(
-                    record,
-                    related_many=related_many,
-                    dependencies=dependencies,
-                    blacklist=blacklist,
-                    nested=True,
-                )
-            result.append(
-                record_as_json
-            )
-        return result
+        related_json_list = []
 
+        # Build query parameters for the related selection
+        query_params = condition_kwargs or {}
+        query_params = self.relatedQueryPars(
+            where=condition, field=field, value=value, kwargs=query_params
+        )
+
+        exported_keys = exported_keys or set()
+
+        for related_row in self.query(
+            columns=self.real_columns,
+            subtable='*',
+            ignorePartition=True,
+            excludeDraft=False,
+            excludeLogicalDeleted=False,
+            addPkeyColumn=False,
+            **query_params
+        ).fetch():
+            # Compose unique key for this record
+            related_key = f'{self.fullname}:{related_row[self.pkey]}'
+
+            # Skip if already exported (prevents cycles)
+            if related_key in exported_keys:
+                continue
+
+            related_record = dict(related_row)
+
+            # Export record with nested children
+            related_record_json = self.recordToJson(
+                related_record,
+                related_many=related_many,
+                dependencies=dependencies,
+                blacklist=blacklist,
+                nested=True,
+                relation_conditions=relation_conditions,
+                exported_keys=exported_keys
+            )
+            related_json_list.append(related_record_json)
+
+        return related_json_list
+    
+    
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
 
