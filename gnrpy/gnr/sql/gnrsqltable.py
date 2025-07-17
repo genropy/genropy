@@ -700,7 +700,7 @@ class SqlTable(GnrObject):
         Raises:
             Exception if dependencies are missing
         """
-        # Validate dependencies (unchanged from your original)
+        # Validate dependencies
         if dependencies:
             for table, pkeys in dependencies.items():
                 tblobj = self.db.table(table)
@@ -735,6 +735,8 @@ class SqlTable(GnrObject):
         queue = deque()
         queue.append((self, jsonCluster, record_extra, True))  # True -> root level
 
+        root_record = None  # Variable to track the root record
+
         while queue:
             table_obj, cluster_data, extra, is_first_level = queue.popleft()
 
@@ -758,13 +760,17 @@ class SqlTable(GnrObject):
             record = table_obj.newrecord(_fromRecord=record_data)
             record.update(extra)
 
-            # Triggers and counters
+            # Execute field triggers and assign counters
             table_obj._doFieldTriggers('onInserting', record)
             table_obj.trigger_assignCounters(record=record)
 
             # Generate new primary key if needed
             record[table_obj.pkey] = record[table_obj.pkey] or table_obj.newPkeyValue(record)
             table_obj.raw_insert(record)
+
+            # If the record is at the root level, save it as the root record
+            if is_first_level:
+                root_record = record
 
             fkey_map.setdefault(table_obj.fullname, {})[old_pkey] = record[table_obj.pkey]
             record_pkey = record[table_obj.pkey]
@@ -796,7 +802,7 @@ class SqlTable(GnrObject):
                         False  # Not first level anymore
                     ))
 
-        return record
+        return root_record  # Return the root record
 
     def recordToJson(
         self,
