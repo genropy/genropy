@@ -887,7 +887,7 @@ class SqlTable(GnrObject):
                     related_many=related_many,
                     dependencies=dependencies,
                     blacklist=blacklist,
-                    condition=rel_condition_kwargs.pop('condition', None),
+                    condition=rel_condition_kwargs.get('condition', None),
                     condition_kwargs=rel_condition_kwargs,
                     relation_conditions=relation_conditions,
                     exported_keys=exported_keys
@@ -934,10 +934,8 @@ class SqlTable(GnrObject):
         query_params = self.relatedQueryPars(
             where=condition, field=field, value=value, kwargs=query_params
         )
-
         exported_keys = exported_keys or set()
-
-        for related_row in self.query(
+        related_rows = self.query(
             columns=self.real_columns,
             subtable='*',
             ignorePartition=True,
@@ -945,7 +943,8 @@ class SqlTable(GnrObject):
             excludeLogicalDeleted=False,
             addPkeyColumn=False,
             **query_params
-        ).fetch():
+        ).fetch()
+        for related_row in related_rows:
             # Compose unique key for this record
             related_key = f'{self.fullname}:{related_row[self.pkey]}'
 
