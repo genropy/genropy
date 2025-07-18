@@ -31,6 +31,9 @@ def main():
     parser.add_argument('-e', '--env-file',
                         dest="env",
                         help="Env file to load")
+    parser.add_argument('-k', '--env-secret',
+                        dest="env_secret",
+                        help="Secret holding environment")
     parser.add_argument('-p', '--container-port',
                         type=int,
                         default=8000,
@@ -55,6 +58,7 @@ def main():
                                 deployment_name=options.name,
                                 split=options.split,
                                 env_file=options.env,
+                                env_secret=options.env_secret,
                                 container_port=options.container_port,
                                 secret_name=options.secret_name,
                                 replicas=options.replicas)
