@@ -740,6 +740,11 @@ class SqlTable(GnrObject):
 
         fkey_map = fkey_map or {}
         record_extra = record_extra or {}
+        for extra_field,extra_value in record_extra.items():
+            relatedtable = self.column(extra_field).relatedTable()
+            if jsonCluster.get(extra_field) and relatedtable is not None:
+                table_map = fkey_map.setdefault(relatedtable.fullname, {})
+                table_map[jsonCluster[extra_field]] = extra_value
 
         # Queue for breadth-first traversal: (table_obj, cluster_data, extra, is_first_level)
         queue = deque()
@@ -850,11 +855,15 @@ class SqlTable(GnrObject):
 
         # Convert Bag fields and collect foreign key dependencies
         for column in self.columns.values():
+            relatedtable = column.relatedTable()
             value = record[column.name]
-            if column.dtype == 'X' and value:
+            if relatedtable is not None:
+                json_key = relatedtable.attributes.get('json_key')
+                if json_key:
+                    value = f'{json_key}:{relatedtable.cachedRecord(value)[json_key]}'
+                dependencies.setdefault(relatedtable, []).append(value)
+            elif column.dtype == 'X' and value:
                 record[column.name] = Bag(value).toJson(nested=True)
-            elif column.relatedTable() is not None:
-                dependencies.setdefault(column.relatedTable(), []).append(value)
 
         # Normalize blacklist
         if isinstance(blacklist, str):
