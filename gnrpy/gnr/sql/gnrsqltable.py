@@ -836,6 +836,7 @@ class SqlTable(GnrObject):
             nested: If True, return nested JSON without type conversion
             relation_conditions: Dict of conditions to apply to each relation (by pkgname.tblname.fkey)
             exported_keys: Set of already exported records ('pkgname.tblname:pkey')
+            use_external_pkey: Use external pkey column instead of primary key for foreignkey value
         Returns:
             Record as JSON dict with optional related data included
         """
