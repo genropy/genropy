@@ -25,6 +25,9 @@ import json
 import os
 import re
 import threading
+
+from typing import Union, Optional, Dict, Set, List, Any
+
 from datetime import datetime, timedelta
 import pytz
 from functools import wraps
@@ -682,11 +685,11 @@ class SqlTable(GnrObject):
         """Precomputed list of columns as $col1,$col2,... for readColumns"""
         return ','.join(f'${c}' for c in self.columns)
     
-
-    def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,
-                                     blacklist: set[str] | str | list | None = None,
-                                    record_extra: dict | None = None, 
-                                    fkey_map: dict | None = None) -> dict:
+    def insertRecordClusterFromJson(self, jsonCluster,
+                                    dependencies: Optional[Dict] = None,
+                                    blacklist: Union[Set[str], str, List, None] = None,
+                                    record_extra: Optional[Dict] = None,
+                                    fkey_map: Optional[Dict] = None) -> Dict:
         """
         Insert a hierarchical record cluster from JSON data into the database (breadth-first).
         First inserts all first-level children, then their children, and so on.
@@ -813,14 +816,14 @@ class SqlTable(GnrObject):
 
     def recordToJson(
         self,
-        record: dict | object,
-        related_many: str | None = 'cascade',
-        dependencies: dict | None = None,
-        blacklist: set[str] | str | list | None = None,
+        record: Union[Dict, object],
+        related_many: Optional[str] = 'cascade',
+        dependencies: Optional[Dict] = None,
+        blacklist: Union[Set[str], str, List, None] = None,
         nested: bool = False,
-        relation_conditions: dict | None = None,
-        exported_keys: set | None = None,
-    ) -> dict:
+        relation_conditions: Optional[Dict] = None,
+        exported_keys: Optional[Set] = None,
+    ) -> Dict:
         """
         Convert a database record to JSON format with optional related data (breadth-first).
         Avoids infinite recursion in cyclic graphs by tracking exported keys.
@@ -911,19 +914,18 @@ class SqlTable(GnrObject):
 
         return record if nested else self.db.typeConverter.toTypedJSON(record)
 
-
     def relatedSelectionToJson(
         self,
-        field: str | None = None,
+        field: Optional[str] = None,
         value=None,
-        related_many: str | None = 'cascade',
-        dependencies: dict | None = None,
-        blacklist: list[str] | None = None,
-        condition: str | None = None,
-        condition_kwargs: dict | None = None,
-        relation_conditions: dict | None = None,
-        exported_keys: set | None = None,
-    ) -> list:
+        related_many: Optional[str] = 'cascade',
+        dependencies: Optional[Dict] = None,
+        blacklist: Optional[List[str]] = None,
+        condition: Optional[str] = None,
+        condition_kwargs: Optional[Dict] = None,
+        relation_conditions: Optional[Dict] = None,
+        exported_keys: Optional[Set] = None,
+    ) -> List:
         """
         Fetch related records for a one-to-many relation and convert them to JSON format (breadth-first safe).
 
