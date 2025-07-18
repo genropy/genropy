@@ -25,8 +25,6 @@ processes = {}
 
 def start_process(cmd_name, command_path, site, args):
     cmd = [sys.executable] + command_path.split()
-    if cmd_name != 'daemon':
-        cmd += [site]
 
     if args:
         cmd.extend(args)
