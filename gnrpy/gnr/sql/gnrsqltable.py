@@ -26,7 +26,7 @@ import os
 import re
 import threading
 
-from typing import Union, Optional, Dict, Set, List, Any
+from typing import Union, Optional, Dict, Set, List
 
 from datetime import datetime, timedelta
 import pytz
