@@ -766,6 +766,8 @@ class SqlTable(GnrObject):
                     table_map = fkey_map.setdefault(reltbl, {})
                     if value in table_map:
                         value = table_map[value]
+                    elif isinstance(value,str) and ':' in value:
+                        value = relatedtable.dbtable.guessPkey(value)
                     elif is_blacklisted(reltbl):
                         value = None
                 elif colobj.dtype == 'X' and value:
@@ -821,7 +823,7 @@ class SqlTable(GnrObject):
     def recordToJson(self, record, related_many='cascade',
                       dependencies=None, blacklist=None, 
                       nested=False, relation_conditions=None,
-                    exported_keys=None):
+                    exported_keys=None,use_external_pkey=False):
         """
         Convert a database record to JSON format with optional related data (breadth-first).
         Avoids infinite recursion in cyclic graphs by tracking exported keys.
@@ -858,10 +860,11 @@ class SqlTable(GnrObject):
             relatedtable = column.relatedTable()
             value = record[column.name]
             if relatedtable is not None:
-                json_key = relatedtable.attributes.get('json_key')
-                if json_key:
-                    value = f'{json_key}:{relatedtable.cachedRecord(value)[json_key]}'
-                dependencies.setdefault(relatedtable, []).append(value)
+                external_pkey = relatedtable.attributes.get('external_pkey')
+                if external_pkey and use_external_pkey:
+                    record[column.name] = f'{external_pkey}:{relatedtable.dbtable.cachedRecord(value)[external_pkey]}'
+                else:
+                    dependencies.setdefault(relatedtable, []).append(value)
             elif column.dtype == 'X' and value:
                 record[column.name] = Bag(value).toJson(nested=True)
 
@@ -909,7 +912,8 @@ class SqlTable(GnrObject):
                     condition=rel_condition_kwargs.get('condition', None),
                     condition_kwargs=rel_condition_kwargs,
                     relation_conditions=relation_conditions,
-                    exported_keys=exported_keys
+                    exported_keys=exported_keys,
+                    use_external_pkey=use_external_pkey
                 )
                 if related_records:
                     record[rel_key] = related_records
@@ -919,7 +923,7 @@ class SqlTable(GnrObject):
     def relatedSelectionToJson(self, field=None, value=None, related_many='cascade', 
                                dependencies=None, blacklist=None, condition=None,
                                 condition_kwargs=None, relation_conditions=None, 
-                                exported_keys=None):
+                                exported_keys=None,use_external_pkey=None):
         """
         Fetch related records for a one-to-many relation and convert them to JSON format (breadth-first safe).
 
@@ -972,7 +976,8 @@ class SqlTable(GnrObject):
                 blacklist=blacklist,
                 nested=True,
                 relation_conditions=relation_conditions,
-                exported_keys=exported_keys
+                exported_keys=exported_keys,
+                use_external_pkey=use_external_pkey
             )
             related_json_list.append(related_record_json)
 
