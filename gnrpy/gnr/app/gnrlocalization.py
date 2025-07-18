@@ -124,11 +124,16 @@ class AppLocalizer(object):
                     translation = translation_dict.get(language)
                     if not translation:
                         result['status'] = 'NOLANG'
-                        translation = translation_dict.get('en') or translation_dict.get('base')
+                        base_translation = translation_dict.get('base')
+                        if language==loclang:
+                            translation = base_translation
+                        else:
+                            translation = translation_dict.get('en') or base_translation
                     return translation
                 else:
                     result['status'] = 'NOKEY'
                     return loctext
+            
             result['translation'] = TRANSLATION.sub(translatecb,txt) if txt else ''
             return result
 
