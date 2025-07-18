@@ -24,10 +24,7 @@ for k, v in AVAILABLE_COMMANDS.items():
 processes = {}
 
 def start_process(cmd_name, command_path, site, args):
-    cmd = [sys.executable] + command_path.split()
-    if cmd_name != 'daemon':
-        cmd += [site]
-
+    cmd = [sys.executable] + command_path.split() + [site]
     if args:
         cmd.extend(args)
     print(f"Starting {cmd_name}...", end='')
