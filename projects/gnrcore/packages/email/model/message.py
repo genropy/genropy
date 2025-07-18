@@ -327,6 +327,8 @@ class Table(object):
     
     def getBody(self, message=None, **kwargs):
         "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        if not message:
+            return ""
         return message['body']
     
     @public_method
