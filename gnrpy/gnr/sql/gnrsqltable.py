@@ -684,13 +684,16 @@ class SqlTable(GnrObject):
     
 
     def insertRecordClusterFromJson(self, jsonCluster, dependencies: dict | None = None,
-                                    record_extra: dict | None = None, fkey_map: dict | None = None) -> dict:
+                                     blacklist: set[str] | str | list | None = None,
+                                    record_extra: dict | None = None, 
+                                    fkey_map: dict | None = None) -> dict:
         """
         Insert a hierarchical record cluster from JSON data into the database (breadth-first).
         First inserts all first-level children, then their children, and so on.
         Args:
             jsonCluster: dict or JSON string representing the record cluster
             dependencies: dict of {table: [pkeys]} to check before insert
+            blacklist: Tables/packages to exclude from related data (str, list, or set)
             record_extra: optional dict of additional values to override on insert
             fkey_map: dict mapping old pkeys to new inserted pkeys
         Returns:
@@ -698,9 +701,16 @@ class SqlTable(GnrObject):
         Raises:
             Exception if dependencies are missing
         """
+        def is_blacklisted(table_name: str) -> bool:
+            """Return True if table or package is blacklisted"""
+            pkg = table_name.split('.', 1)[0]
+            return table_name in blacklist or pkg in blacklist
+        
         # Validate dependencies
         if dependencies:
             for table, pkeys in dependencies.items():
+                if is_blacklisted(table):
+                    continue
                 tblobj = self.db.table(table)
                 existing_records = tblobj.query(
                     where=f'${tblobj.pkey} IN :pkeys',
@@ -745,8 +755,12 @@ class SqlTable(GnrObject):
                 relatedtable = colobj.relatedTable()
                 if relatedtable is not None:
                     # Replace old foreign key with new mapped key if available
-                    table_map = fkey_map.setdefault(relatedtable.fullname, {})
-                    value = table_map.get(value, value)
+                    reltbl = relatedtable.fullname
+                    table_map = fkey_map.setdefault(reltbl, {})
+                    if value in table_map:
+                        value = table_map[value]
+                    elif is_blacklisted(reltbl):
+                        value = None
                 elif colobj.dtype == 'X' and value:
                     # Convert JSON text to Bag for X type columns
                     bagvalue = Bag()
