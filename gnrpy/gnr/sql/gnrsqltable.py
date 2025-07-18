@@ -26,7 +26,6 @@ import os
 import re
 import threading
 
-from typing import Union, Optional, Dict, Set, List
 
 from datetime import datetime, timedelta
 import pytz
@@ -686,10 +685,10 @@ class SqlTable(GnrObject):
         return ','.join(f'${c}' for c in self.columns)
     
     def insertRecordClusterFromJson(self, jsonCluster,
-                                    dependencies: Optional[Dict] = None,
-                                    blacklist: Union[Set[str], str, List, None] = None,
-                                    record_extra: Optional[Dict] = None,
-                                    fkey_map: Optional[Dict] = None) -> Dict:
+                                    dependencies=None,
+                                    blacklist = None,
+                                    record_extra=None,
+                                    fkey_map=None):
         """
         Insert a hierarchical record cluster from JSON data into the database (breadth-first).
         First inserts all first-level children, then their children, and so on.
@@ -816,14 +815,14 @@ class SqlTable(GnrObject):
 
     def recordToJson(
         self,
-        record: Union[Dict, object],
-        related_many: Optional[str] = 'cascade',
-        dependencies: Optional[Dict] = None,
-        blacklist: Union[Set[str], str, List, None] = None,
-        nested: bool = False,
-        relation_conditions: Optional[Dict] = None,
-        exported_keys: Optional[Set] = None,
-    ) -> Dict:
+        record,
+        related_many =None,
+        dependencies =None,
+        blacklist = None,
+        nested = False,
+        relation_conditions=None,
+        exported_keys = None,
+    ):
         """
         Convert a database record to JSON format with optional related data (breadth-first).
         Avoids infinite recursion in cyclic graphs by tracking exported keys.
@@ -916,16 +915,15 @@ class SqlTable(GnrObject):
 
     def relatedSelectionToJson(
         self,
-        field: Optional[str] = None,
-        value=None,
-        related_many: Optional[str] = 'cascade',
-        dependencies: Optional[Dict] = None,
-        blacklist: Optional[List[str]] = None,
-        condition: Optional[str] = None,
-        condition_kwargs: Optional[Dict] = None,
-        relation_conditions: Optional[Dict] = None,
-        exported_keys: Optional[Set] = None,
-    ) -> List:
+        field,value,
+        related_many = 'cascade',
+        dependencies=None,
+        blacklist = None,
+        condition = None,
+        condition_kwargs=None,
+        relation_conditions=None,
+        exported_keys = None,
+    ):
         """
         Fetch related records for a one-to-many relation and convert them to JSON format (breadth-first safe).
 
