@@ -1125,7 +1125,10 @@ class DbTableObj(DbModelObj):
 
     def _get_pkeys(self):
         if not self.pkey:
+            logger.critical('Missing pkey in table %s', self.fullname)
             return []
+        if self.column(self.pkey) is None:
+            raise AssertionError(f'Missing column defined as pkey {self.pkey} in table {self.fullname}')
         if self.column(self.pkey).attributes.get('composed_of'):
             return self.column(self.pkey).attributes.get('composed_of').split(',')
         return [self.pkey]
