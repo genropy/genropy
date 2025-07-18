@@ -734,7 +734,7 @@ class SqlTable(GnrObject):
 
         # Parse JSON string if needed
         if isinstance(jsonCluster, str):
-            jsonCluster = self.db.typeConverter.fromTypedText(jsonCluster)
+            jsonCluster = gnrstring.fromTypedJSON(jsonCluster)
         if not isinstance(jsonCluster, dict):
             raise ValueError("jsonCluster must be a dict or JSON string")
 
