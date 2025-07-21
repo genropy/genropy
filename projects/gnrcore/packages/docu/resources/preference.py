@@ -24,15 +24,51 @@ class AppPref(object):
         return '_DEV_'
 
     def prefpane_docu(self, parent,**kwargs): 
-        pane = parent.contentPane(**kwargs)
-        fb = pane.formbuilder(cols=1,border_spacing='3px')
+        bc = parent.borderContainer(region='center', **kwargs)
+        self.mainDocuPreferences(bc.contentPane(region='top'))
+        tc = bc.tabContainer(region='center')
+        self.handbooksTheme(tc.contentPane(title='!![en]Handbooks theme', datapath='.handbooks_theme'))
+        self.baseCss(tc.contentPane(title='!![en]Base CSS'))
+        self.baseHtml(tc.contentPane(title='!![en]Base HTML'))
+        self.baseJs(tc.contentPane(title='!![en]Base JS'))
+        
+    def mainDocuPreferences(self, pane):
+        fb = pane.formbuilder(cols=1,border_spacing='4px')
         fb.textbox('^.sphinx_baseurl', lbl='!![en]Sphinx baseurl', placeholder='Default: http://genropy.org/docs/')
         fb.textbox('^.cloudfront_distribution_id', lbl='!![en]Cloudfront distribution ID', placeholder='E.g. E350MXXXXXZ73K')
-        fb.checkbox('^.manage_redirects', lbl='', label='!![en]Manage redirects')
+        fb.checkbox('^.manage_redirects', label='!![en]Manage redirects')
+        fb.checkbox('^.enable_sitemap', label='!![en]Enable sitemap')
+        fb.checkbox('^.save_src_debug', label='!![en]Save source debug files')
         if self.db.package('genrobot'):
             fb.checkBox(value='^.telegram_notification', lbl='', label='Enable Telegram Notification')
             fb.dbselect('^.bot_token', lbl='Default BOT', table='genrobot.bot', columns='$bot_name', alternatePkey='bot_token',
                             colspan=3, hasDownArrow=True, hidden='^.telegram_notification?=!#v')
+            
+    def handbooksTheme(self, pane):
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.img(src='^.logo', lbl='!![en]Handbook Logo', width='200px', height='100px', 
+                            crop_width='200px', crop_height='100px',
+                            edit=True, placeholder=True,
+                            upload_filename='docu_logo.png',
+                            upload_folder='home:documentation/img')
+        fb.textbox(value='^.copyright', lbl='!![en]Copyright text')  
+        fb.checkbox(value='^.last_update', label='!![en]Show last update date') 
+        fb.checkbox(value='^.display_version', label='!![en]Display version number')
+        fb.checkbox(value='^.show_authors', label='!![en]Show authors')
+    
+    def baseCss(self, pane):
+        pane.codemirror('^.base_css', height='100%', width='100%',
+                            config_lineNumbers=True, config_mode='css')
+        
+    def baseHtml(self, pane):
+        pane.codemirror('^.base_html', height='100%', width='100%',             #DP Todo
+                            config_lineNumbers=True, config_mode='html',
+                            config_addon='search,lint')
+    
+    def baseJs(self, pane):
+        pane.codemirror('^.base_js', height='100%', width='100%',             #DP Todo
+                            config_lineNumbers=True, config_mode='javascript',
+                            config_addon='search,lint')
             
 class UserPref(object):
     pass
