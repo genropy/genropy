@@ -127,7 +127,8 @@ class GnrCustomWebPage(object):
                 outdatedWatermark = colobj.attributes.get('outdatedWatermark') if  isCachedInField else None
                 if handler and not outdatedWatermark:
                     outdatedWatermark = getattr(handler,'outdatedWatermark',None)
-                documentNode.watermark = outdatedWatermark.format(**version_attrs).format(**record.asDict())
+                combined_attrs = {**version_attrs, **record.asDict()}
+                documentNode.watermark = outdatedWatermark.format(**combined_attrs)
         return documentNode
 
 

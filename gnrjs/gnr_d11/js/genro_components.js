@@ -1984,7 +1984,7 @@ dojo.declare('gnr.widgets.CharCounterTextarea',gnr.widgets.gnrwdg,{
     gnrwdg_setValue:function(value,kw,trigger_reason){
         const textAreaNode = this.sourceNode.getValue().getNode('wrapper.textarea');
         const currattr = this.sourceNode.currentAttributes(); 
-        const my_text = currattr.value;
+        const my_text = currattr.value || '';
         const max_len = currattr.max_len || 80; 
         const sound = currattr.sound || 'ping'; 
         const color_ok = currattr.color_ok || 'grey'; 

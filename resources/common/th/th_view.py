@@ -153,9 +153,9 @@ class TableHandlerView(BaseComponent):
 
     @public_method
     def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
-        result = Bag()
         if not sourcePkey:
-            return result
+            return Bag()
+        result = Bag()
         tblobj = self.db.table(table)
         sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
         i = 0

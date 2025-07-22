@@ -10,7 +10,7 @@ info = {
 class Formlet(BaseComponent):
     def flt_main(self,pane):
         pane.dataController(""" const qrcode_text = `GENRO:${owner_name || sitename}:${url}`;
-            SET #WORKSPACE.qrcode_url = `/_tools/qrcode?text=${qrcode_text}`;""",
+            SET #WORKSPACE.qrcode_url = `/_tools/qrcode?url=${qrcode_text}`;""",
             url='=gnr.homeFolder',sitename='=gnr.siteName',
             owner_name='=gnr.app_preference.adm.instance_data.owner_name',_onBuilt=True)
         with open(self.getResource('localized_texts.json',pkg='adm'), 'r', encoding='utf-8') as f:

@@ -13,8 +13,9 @@ from gnr.core.gnrbaseservice import GnrBaseService
 
 def whichoffice():
     for executable_name in ['swriter','lowriter','oowriter']:
-        if shutil.which(executable_name):
-            return executable_name
+        path = shutil.which(executable_name)
+        if path:
+            return path
 
 class Main(GnrBaseService):
     def __init__(self, parent=None):
