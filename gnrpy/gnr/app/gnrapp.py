@@ -775,7 +775,7 @@ class GnrApp(object):
 
         
         if not forTesting:
-            dbattrs = self.config.getAttr('db') or {}
+            dbattrs = dict(self.config.getAttr('db') or {}) 
             dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
             if dbattrs.get('dbname') == '_dummydb':
                 pass

@@ -25,10 +25,12 @@ import json
 import os
 import re
 import threading
+
+
 from datetime import datetime, timedelta
 import pytz
 from functools import wraps
-from collections import defaultdict
+from collections import defaultdict,deque
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrObject,getUuid,uniquify, MinValue,get_caller_info
 from gnr.core.gnrdecorator import deprecated,extract_kwargs,public_method
@@ -677,6 +679,312 @@ class SqlTable(GnrObject):
     def relatedQuery(self,where=None,field=None,value=None,**kwargs):
         return self.query(**self.relatedQueryPars(where=where,field=field,value=value,kwargs=kwargs))
 
+    @property
+    def real_columns(self) -> str:
+        """Precomputed list of columns as $col1,$col2,... for readColumns"""
+        return ','.join(f'${c}' for c in self.columns)
+    
+    def insertRecordClusterFromJson(self, jsonCluster,
+                                    dependencies=None,
+                                    blacklist=None,
+                                    record_extra=None,
+                                    fkey_map=None):
+        """
+        Insert a hierarchical record cluster from JSON data into the database (breadth-first).
+        First inserts all first-level children, then their children, and so on.
+        Args:
+            jsonCluster: dict or JSON string representing the record cluster
+            dependencies: dict of {table: [pkeys]} to check before insert
+            blacklist: Tables/packages to exclude from related data (str, list, or set)
+            record_extra: optional dict of additional values to override on insert
+            fkey_map: dict mapping old pkeys to new inserted pkeys
+        Returns:
+            The inserted main record (dict or Bag)
+        Raises:
+            Exception if dependencies are missing
+        """
+        def is_blacklisted(table_name: str) -> bool:
+            """Return True if table or package is blacklisted"""
+            pkg = table_name.split('.', 1)[0]
+            return table_name in blacklist or pkg in blacklist
+        
+        # Validate dependencies
+        if dependencies:
+            for table, pkeys in dependencies.items():
+                if is_blacklisted(table):
+                    continue
+                tblobj = self.db.table(table)
+                existing_records = tblobj.query(
+                    where=f'${tblobj.pkey} IN :pkeys',
+                    pkeys=pkeys,
+                    columns=f"${tblobj.pkey}",
+                    addPkeyColumn=False,
+                    subtable='*',
+                    ignorePartition=True,
+                    excludeDraft=False,
+                    excludeLogicalDeleted=False
+                ).fetch()
+                existing_pkeys = {r[tblobj.pkey] for r in existing_records}
+                missing_dependencies = set(pkeys) - existing_pkeys
+                if missing_dependencies:
+                    raise self.exception(
+                        'business_logic',
+                        msg=f'Missing dependencies: {missing_dependencies} in table {table}'
+                    )
+
+        # Parse JSON string if needed
+        if isinstance(jsonCluster, str):
+            jsonCluster = gnrstring.fromTypedJSON(jsonCluster)
+        if not isinstance(jsonCluster, dict):
+            raise ValueError("jsonCluster must be a dict or JSON string")
+
+        fkey_map = fkey_map or {}
+        record_extra = record_extra or {}
+        for extra_field,extra_value in record_extra.items():
+            relatedtable = self.column(extra_field).relatedTable()
+            if jsonCluster.get(extra_field) and relatedtable is not None:
+                table_map = fkey_map.setdefault(relatedtable.fullname, {})
+                table_map[jsonCluster[extra_field]] = extra_value
+
+        # Queue for breadth-first traversal: (table_obj, cluster_data, extra, is_first_level)
+        queue = deque()
+        queue.append((self, jsonCluster, record_extra, True))  # True -> root level
+
+        root_record = None  # Variable to track the root record
+
+        while queue:
+            table_obj, cluster_data, extra, is_first_level = queue.popleft()
+
+            # Build record data
+            record_data = {}
+            for colname, colobj in table_obj.columns.items():
+                value = cluster_data.pop(colobj.name, None)
+                relatedtable = colobj.relatedTable()
+                if relatedtable is not None:
+                    # Replace old foreign key with new mapped key if available
+                    reltbl = relatedtable.fullname
+                    table_map = fkey_map.setdefault(reltbl, {})
+                    if value in table_map:
+                        value = table_map[value]
+                    elif isinstance(value,str) and ':' in value:
+                        value = relatedtable.dbtable.guessPkey(value)
+                    elif is_blacklisted(reltbl):
+                        value = None
+                elif colobj.dtype == 'X' and value:
+                    # Convert JSON text to Bag for X type columns
+                    bagvalue = Bag()
+                    bagvalue.fromJson(value)
+                    value = bagvalue
+                record_data[colname] = value
+
+            old_pkey = record_data[table_obj.pkey]
+            record = table_obj.newrecord(_fromRecord=record_data)
+            record.update(extra)
+
+            # Execute field triggers and assign counters
+            table_obj._doFieldTriggers('onInserting', record)
+            table_obj.trigger_assignCounters(record=record)
+
+            # Generate new primary key if needed
+            record[table_obj.pkey] = record[table_obj.pkey] or table_obj.newPkeyValue(record)
+            table_obj.raw_insert(record)
+
+            # If the record is at the root level, save it as the root record
+            if is_first_level:
+                root_record = record
+
+            fkey_map.setdefault(table_obj.fullname, {})[old_pkey] = record[table_obj.pkey]
+            record_pkey = record[table_obj.pkey]
+
+            # Find all many-to-one non-virtual relations
+            many_relations = {
+                k: j for k, j in table_obj.relations.digest('#k,#a.joiner')
+                if j and j.get('mode') == 'M' and not j.get('virtual')
+            }
+
+            # Queue related children for later insertion
+            for relation_key, joiner in many_relations.items():
+                related_json_clusters = cluster_data.pop(relation_key, None)
+                if not related_json_clusters:
+                    continue
+                related_table, fkey = joiner['many_relation'].rsplit('.', 1)
+                for jc in related_json_clusters:
+                    if not jc:
+                        continue
+                    queue.append((
+                        table_obj.db.table(related_table),
+                        jc,
+                        {fkey: record_pkey},
+                        False  # Not first level anymore
+                    ))
+
+        return root_record  # Return the root record
+
+    def recordToJson(self, record, related_many='cascade',
+                      dependencies=None, blacklist=None, 
+                      nested=False, relation_conditions=None,
+                    exported_keys=None,use_external_pkey=False):
+        """
+        Convert a database record to JSON format with optional related data (breadth-first).
+        Avoids infinite recursion in cyclic graphs by tracking exported keys.
+        
+        Args:
+            record: Database record as dict or primary key value
+            related_many: Strategy for including related records ('cascade' or None)
+            dependencies: Dict to collect foreign key dependencies by table
+            blacklist: Tables/packages to exclude from related data (str, list, or set)
+            nested: If True, return nested JSON without type conversion
+            relation_conditions: Dict of conditions to apply to each relation (by pkgname.tblname.fkey)
+            exported_keys: Set of already exported records ('pkgname.tblname:pkey')
+            use_external_pkey: Use external pkey column instead of primary key for foreignkey value
+        Returns:
+            Record as JSON dict with optional related data included
+        """
+        # If record is not a dict, assume it's a primary key
+        if not hasattr(record, 'items'):
+            record = dict(self.readColumns(
+                pkey=record,
+                columns=self.real_columns
+            ))
+
+        main_pkey = record[self.pkey]
+        dependencies = dependencies or {}
+        relation_conditions = relation_conditions or {}
+        exported_keys = exported_keys or set()
+
+        # Compose unique key to track and prevent cycles
+        exporting_key = f'{self.fullname}:{main_pkey}'
+        exported_keys.add(exporting_key)
+
+        # Convert Bag fields and collect foreign key dependencies
+        for column in self.columns.values():
+            relatedtable = column.relatedTable()
+            value = record[column.name]
+            if relatedtable is not None:
+                external_pkey = relatedtable.attributes.get('external_pkey')
+                if external_pkey and use_external_pkey:
+                    record[column.name] = f'{external_pkey}:{relatedtable.dbtable.cachedRecord(value)[external_pkey]}'
+                else:
+                    dependencies.setdefault(relatedtable, []).append(value)
+            elif column.dtype == 'X' and value:
+                record[column.name] = Bag(value).toJson(nested=True)
+
+        # Normalize blacklist
+        if isinstance(blacklist, str):
+            blacklist = set(blacklist.split(','))
+        elif isinstance(blacklist, list):
+            blacklist = set(blacklist)
+        else:
+            blacklist = blacklist or set()
+
+        def is_blacklisted(table_name: str) -> bool:
+            """Return True if table or package is blacklisted"""
+            pkg = table_name.split('.', 1)[0]
+            return table_name in blacklist or pkg in blacklist
+
+        # Export related one-to-many records
+        if related_many:
+            many_relations = {
+                rel_key: joiner
+                for rel_key, joiner in self.relations.digest('#k,#a.joiner')
+                if joiner and joiner.get('mode') == 'M' and not joiner.get('virtual')
+            }
+
+            for rel_key, joiner in many_relations.items():
+                # Skip if cascade not requested and relation is not cascade
+                if related_many == 'cascade' and not (
+                    joiner.get('onDelete') == 'cascade' or joiner.get('onDelete_sql') == 'cascade'
+                ):
+                    continue
+
+                rel_condition_kwargs = relation_conditions.get(joiner['many_relation'], {})
+                child_table, child_fkey = joiner['many_relation'].rsplit('.', 1)
+
+                if is_blacklisted(child_table):
+                    continue
+
+                # Recursively export child records
+                related_records = self.db.table(child_table).relatedSelectionToJson(
+                    field=child_fkey,
+                    value=main_pkey,
+                    related_many=related_many,
+                    dependencies=dependencies,
+                    blacklist=blacklist,
+                    condition=rel_condition_kwargs.get('condition', None),
+                    condition_kwargs=rel_condition_kwargs,
+                    relation_conditions=relation_conditions,
+                    exported_keys=exported_keys,
+                    use_external_pkey=use_external_pkey
+                )
+                if related_records:
+                    record[rel_key] = related_records
+
+        return record if nested else self.db.typeConverter.toTypedJSON(record)
+
+    def relatedSelectionToJson(self, field=None, value=None, related_many='cascade', 
+                               dependencies=None, blacklist=None, condition=None,
+                                condition_kwargs=None, relation_conditions=None, 
+                                exported_keys=None,use_external_pkey=None):
+        """
+        Fetch related records for a one-to-many relation and convert them to JSON format (breadth-first safe).
+
+        Args:
+            field: Foreign key field name to filter related records
+            value: Value to match against the foreign key field
+            related_many: Strategy for including related records ('cascade' or None)
+            dependencies: Dict to track dependencies between tables
+            blacklist: List of tables/packages to exclude from the result
+            condition: Optional SQL WHERE condition for filtering
+            condition_kwargs: Additional query parameters for filtering
+            relation_conditions: Nested conditions for further relations
+            exported_keys: Set of already exported records ('pkgname.tblname:pkey') to avoid cycles
+
+        Returns:
+            List of related records as JSON dicts
+        """
+        related_json_list = []
+
+        # Build query parameters for the related selection
+        query_params = condition_kwargs or {}
+        query_params = self.relatedQueryPars(
+            where=condition, field=field, value=value, kwargs=query_params
+        )
+        exported_keys = exported_keys or set()
+        related_rows = self.query(
+            columns=self.real_columns,
+            subtable='*',
+            ignorePartition=True,
+            excludeDraft=False,
+            excludeLogicalDeleted=False,
+            addPkeyColumn=False,
+            **query_params
+        ).fetch()
+        for related_row in related_rows:
+            # Compose unique key for this record
+            related_key = f'{self.fullname}:{related_row[self.pkey]}'
+
+            # Skip if already exported (prevents cycles)
+            if related_key in exported_keys:
+                continue
+
+            related_record = dict(related_row)
+
+            # Export record with nested children
+            related_record_json = self.recordToJson(
+                related_record,
+                related_many=related_many,
+                dependencies=dependencies,
+                blacklist=blacklist,
+                nested=True,
+                relation_conditions=relation_conditions,
+                exported_keys=exported_keys,
+                use_external_pkey=use_external_pkey
+            )
+            related_json_list.append(related_record_json)
+
+        return related_json_list
+    
+    
     def recordCoerceTypes(self, record, null='NULL'):
         """Check and coerce types in record.
 
@@ -729,69 +1037,44 @@ class SqlTable(GnrObject):
 
 
 
-    def buildrecord(self, fields, resolver_one=None, resolver_many=None):
+    def buildrecord(self, fields, resolver_one:str=None, **kwargs):
         """Build a new record and return it
 
         :param fields: TODO
-        :param resolver_one: TODO
-        :param resolver_many: TODO"""
+        :param resolver_one: TODO"""
         newrecord = Bag()
         for fld_node in self.model.relations:
             fld = fld_node.label
-            if fld.startswith('@'):
-                info = dict(fld_node.getAttr())
-                attrs = info.pop('joiner')
-                if attrs['mode'] == 'O': # or extra_one_one:
-                    #print 'many_one: %s'%str(attrs)
-                    if resolver_one:
-                        mpkg, mtbl, mfld = attrs['many_relation'].split('.')
-                        info.pop('many_relation', None)
-                        info['_from_fld'] = attrs['many_relation']
-                        info['_target_fld'] = attrs['one_relation']
-                        info['mode'] = attrs['mode']
-
-                        if resolver_one is True:
-                            pass # non posso fare il resolver python, il valore di link non c'è ancora
-                        else:
-                            v = None
-                            info['_resolver_name'] = resolver_one
-                            #info['_sqlContextName'] = self.sqlContextName # non ho il contesto, ma comunque serve?
-                            #if attrs.get('one_one'): # one_one
-                            #print 'one_one: %s'%str(attrs)
-                            #pass # one_one relation to a non saved record did make sense ???
-                else: # one_many
-                    #print 'one_many: %s'%str(attrs)
-                    pass # many relation to a non saved record didn't make sense
-            else:
+            if not fld.startswith('@'):
+                #real column
                 v = fields.get(fld)
                 info = dict(self.columns[fld].attributes)
                 dtype = info.get('dtype')
                 if dtype == 'X':
                     try:
                         v = Bag(v)
-                    except:
+                    except Exception:
                         pass
-
-            newrecord.setItem(fld, v, info)
+                newrecord.setItem(fld, v, info)
+            elif resolver_one:
+                #relation
+                if resolver_one is True:
+                    #python resolver one not managed
+                    continue
+                info = dict(fld_node.getAttr())
+                joiner = info.pop('joiner',None)
+                if not joiner or joiner['mode'] == 'M': 
+                    continue
+                info.pop('many_relation', None)
+                info['_from_fld'] = joiner['many_relation']
+                info['_target_fld'] = joiner['one_relation']
+                info['mode'] = joiner['mode']
+                v = None
+                #resolver_one in this case is a js embedded
+                info['_resolver_name'] = resolver_one
+                newrecord.setItem(fld, v, info)
         return newrecord
 
-    def buildrecord_(self, fields):
-        """TODO
-
-        :param fields: TODO"""
-        newrecord = Bag()
-        for fld in list(self.columns.keys()):
-            v = fields.get(fld)
-            info = dict(self.columns[fld].attributes)
-            dtype = info.get('dtype')
-            if dtype == 'X':
-                try:
-                    v = Bag(v)
-                except:
-                    pass
-
-            newrecord.setItem(fld, v, info)
-        return newrecord
         
     def recordCopy(self,fromRecord,asBag=False):
         """"returns a copy of a record, exluding columns that are
@@ -819,7 +1102,6 @@ class SqlTable(GnrObject):
 
 
     def newrecord(self, assignId=False, resolver_one=None,
-                resolver_many=None,
                 _fromRecord=None, **kwargs):
         """TODO
 
@@ -831,7 +1113,7 @@ class SqlTable(GnrObject):
         if _fromRecord:
             defaultValues.update(self.recordCopy(_fromRecord))
         defaultValues.update(kwargs)
-        newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one, resolver_many=resolver_many)
+        newrecord = self.buildrecord(defaultValues, resolver_one=resolver_one)
         if assignId:
             newrecord[self.pkey] = self.newPkeyValue(record=newrecord)
         self.extendDefaultValues(newrecord)
@@ -2463,8 +2745,7 @@ class SqlTable(GnrObject):
             if not tablename in history:
                 history[tablename] = dict(one=set(),many=set())
             one_history_set = history[tablename]['one']
-            real_columns = ','.join([f'${colname}' for colname in relatedTable.columns])
-            sel = relatedTable.query(columns=real_columns, where='$%s IN :pkeys' %ofld,
+            sel = relatedTable.query(columns=relatedTable.real_columns, where='$%s IN :pkeys' %ofld,
                                          pkeys=list(set([r[mfld] for r in records])-one_history_set),
                                          excludeDraft=False,excludeLogicalDeleted=False,subtable='*',
                                          ignorePartition=True).fetch()
@@ -2485,8 +2766,7 @@ class SqlTable(GnrObject):
                     and relatedTable.relations_one.getAttr('#0','onDelete')=="cascade"):
                 continue
             many_history_set = history[tablename]['many']
-            real_columns = ','.join([f'${colname}' for colname in relatedTable.columns])
-            sel = relatedTable.query(columns=real_columns, where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
+            sel = relatedTable.query(columns=relatedTable.real_columns, where='$%s in :rkeys AND $%s NOT IN :pklist' % (mfld,relatedTable.pkey),
                                         pklist = list(many_history_set),
                                          rkeys=[r[ofld] for r in records],excludeDraft=False,excludeLogicalDeleted=False,
                                          subtable='*',

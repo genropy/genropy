@@ -65,6 +65,7 @@ PYRO_MULTIPLEX = True
 LOCK_MAX_RETRY = 50
 LOCK_EXPIRY_SECONDS = 10
 RETRY_DELAY = 0.2
+MAX_RETRY_ATTEMPTS = 4  # Maximum number of retry attempts for getattr operations
 
 def remotebag_wrapper(func):
     def decore(self,*args,**kwargs):
@@ -1196,7 +1197,7 @@ class SiteRegisterClient(object):
             return h
         def decore(*args,**kwargs):
             attempt = 0
-            while attempt < 4:
+            while attempt < MAX_RETRY_ATTEMPTS:
                 try:
                     r = h(*args,**kwargs)
                     break
