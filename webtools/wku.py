@@ -127,7 +127,8 @@ class DeepLinkAndroid(WKUFile):
             }
 
             app_template['target']['package_name'] = f"{a.attr['bundle_id']}"
-            app_template['target']['sha256_cert_fingerprints'].append(f"{a.attr['key_fingerprint']}")
+            fingerprints = a.attr['key_fingerprint'].split(',')
+            app_template['target']['sha256_cert_fingerprints'].extend(fingerprints)
             file_template.append(app_template)
         return json.dumps(file_template)
 
