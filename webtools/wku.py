@@ -117,7 +117,8 @@ class DeepLinkAndroid(WKUFile):
         for a in apps_config:
             app_template = {
                 "relation": [
-                    "delegate_permission/common.handle_all_urls"
+                    "delegate_permission/common.handle_all_urls",
+                    "delegate_permission/common.get_login_creds"
                 ],
                 "target": {
                     "namespace": "android_app",
