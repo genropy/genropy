@@ -117,7 +117,8 @@ class DeepLinkAndroid(WKUFile):
         for a in apps_config:
             app_template = {
                 "relation": [
-                    "delegate_permission/common.handle_all_urls"
+                    "delegate_permission/common.handle_all_urls",
+                    "delegate_permission/common.get_login_creds"
                 ],
                 "target": {
                     "namespace": "android_app",
@@ -127,7 +128,8 @@ class DeepLinkAndroid(WKUFile):
             }
 
             app_template['target']['package_name'] = f"{a.attr['bundle_id']}"
-            app_template['target']['sha256_cert_fingerprints'].append(f"{a.attr['key_fingerprint']}")
+            fingerprints = a.attr['key_fingerprint'].split(',')
+            app_template['target']['sha256_cert_fingerprints'].extend(fingerprints)
             file_template.append(app_template)
         return json.dumps(file_template)
 
