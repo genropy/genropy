@@ -140,6 +140,10 @@ class Table(object):
             custom_base = os.path.join(base_folder, '_packages')
             if os.path.exists(custom_base):
                 for target_pkg in os.listdir(custom_base):
+                    # Validate directory name to ensure it matches expected format
+                    if not target_pkg.isalnum():
+                        logger.warning('Skipping invalid directory name: %s', target_pkg)
+                        continue
                     custom_folder = os.path.join(custom_base, target_pkg)
                     if os.path.isdir(custom_folder):
                         d_custom = DirectoryResolver(custom_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
