@@ -145,9 +145,12 @@ class Table(object):
                         logger.warning('Skipping invalid directory name: %s', target_pkg)
                         continue
                     custom_folder = os.path.join(custom_base, target_pkg)
-                    if os.path.isdir(custom_folder):
-                        d_custom = DirectoryResolver(custom_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
-                        d_custom().walk(cbwalk, _mode='deep')
+                    try:
+                        if os.path.isdir(custom_folder):
+                            d_custom = DirectoryResolver(custom_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
+                            d_custom().walk(cbwalk, _mode='deep')
+                    except OSError as e:
+                        logger.warning("Failed to access directory '%s': %s", custom_folder, e)
         self.db.commit()
         
     def listUserObject(self, objtype=None,pkg=None, tbl=None, userid=None, authtags=None, onlyQuicklist=None, flags=None):
