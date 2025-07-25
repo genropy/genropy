@@ -4,7 +4,7 @@ import os
 
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-
+from gnr.app import logger
 
 class Table(object):
     def config_db(self, pkg):
@@ -111,27 +111,46 @@ class Table(object):
         
     def checkResourceUserObject(self):
         def cbattr(nodeattr):
-            return not (nodeattr['file_ext'] !='directory' and not '%(sep)suserobjects%(sep)s' %{'sep':os.sep} in nodeattr['abs_path'])
+            return not (nodeattr['file_ext'] != 'directory' and not '%(sep)suserobjects%(sep)s' %{'sep':os.sep} in nodeattr['abs_path'])
         tableindex = self.db.tableTreeBag(packages='*')
-        def cbwalk(node,**kwargs):
-            if node.attr['file_ext'] !='directory':
+        def cbwalk(node, **kwargs):
+            if node.attr['file_ext'] != 'directory':
                 record = Bag(node.attr['abs_path'])
                 record.pop('pkey')
                 record.pop('id')
                 identifier = self.uo_identifier(record)
-                if  not self.checkDuplicate(code=record['code'],pkg=record['pkg'],tbl=record['tbl'],objtype=record['objtype']):
+                logger.debug("identifier: %s, code: %s, objtype: %s, pkg: %s, tbl: %s",
+                            identifier, record['code'], record['objtype'], record['pkg'], record['tbl'])
+                if not self.checkDuplicate(code=record['code'], pkg=record['pkg'], tbl=record['tbl'], objtype=record['objtype']):
                     if record['tbl'] and not record['tbl'] in tableindex:
-                        print('missing table',record['tbl'],'resource',node.attr['abs_path'])
+                        logger.warning('missing table %s, resource %s', record['tbl'], node.attr['abs_path'])
                         return
-                    print('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' %record)
+                    logger.info('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' % record)
                     record['__ins_ts'] = None
                     record['__mod_ts'] = None
                     self.insert(record)
-                    
-        for pkgid,pkgobj in list(self.db.application.packages.items()):
-            table_resource_folder = os.path.join(pkgobj.packageFolder,'resources','tables') 
-            d = DirectoryResolver(table_resource_folder,include='*.xml',callback=cbattr,processors=dict(xml=False))
-            d().walk(cbwalk,_mode='deep')
+
+        for pkgid, pkgobj in list(self.db.application.packages.items()):
+            base_folder = os.path.join(pkgobj.packageFolder, 'resources', 'tables')
+            # Standard paths (in resources/tables/<table>/userobjects/<objtype>/<code>.xml)
+            d_std = DirectoryResolver(base_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
+            d_std().walk(cbwalk, _mode='deep')
+
+            # Custom paths (in resources/tables/_packages/<target_pkg>/<table>/userobjects/<objtype>/<code>.xml)
+            custom_base = os.path.join(base_folder, '_packages')
+            if os.path.exists(custom_base):
+                for target_pkg in os.listdir(custom_base):
+                    # Validate directory name to ensure it matches expected format
+                    if not target_pkg.isalnum():
+                        logger.warning('Skipping invalid directory name: %s', target_pkg)
+                        continue
+                    custom_folder = os.path.join(custom_base, target_pkg)
+                    try:
+                        if os.path.isdir(custom_folder):
+                            d_custom = DirectoryResolver(custom_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
+                            d_custom().walk(cbwalk, _mode='deep')
+                    except OSError as e:
+                        logger.warning("Failed to access directory '%s': %s", custom_folder, e)
         self.db.commit()
         
     def listUserObject(self, objtype=None,pkg=None, tbl=None, userid=None, authtags=None, onlyQuicklist=None, flags=None):

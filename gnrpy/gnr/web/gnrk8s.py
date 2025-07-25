@@ -61,7 +61,28 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
         self.env.append(dict(name="GNR_EXTERNALHOST", value=f'http://{self.fqdn}'))
 
-        
+
+    def get_pvc(self):
+        pvc = {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": f"{self.stack_name}-site-pvc",
+                },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                    ],
+                "resources": {
+                    "requests": {
+                        "storage": "1Gi"
+                    }
+                },
+                "storageClassName": "standard"
+            }
+        }
+        return [pvc]
+    
     def generate_conf(self, fp=sys.stdout):
         if self.split:
             deployments, services, ingress = self.get_splitted_conf()
@@ -71,6 +92,8 @@ class GnrK8SGenerator(object):
         resources.extend(deployments)
         resources.extend(services)
         resources.extend(ingress)
+
+        resources.extend(self.get_pvc())
         # Output YAML to stdout or write to file
         yaml.dump_all(resources, fp, sort_keys=False)
 
@@ -179,8 +202,20 @@ class GnrK8SGenerator(object):
             'image': self.image,
             'command': ['gnr'],
             'args': args,
-            'env': self.env
+            'env': self.env,
+            'securityContext': {
+                "runAsUser": 1000,
+                "runAsGroup": 1000
+            },
+            'volumeMounts': [
+                {
+                    "name": f'{self.stack_name}-site-volume',
+                    "mountPath": "/home/genro/site"
+                }
+            ]
+                
         }
+
         if self.env_secret:
             service_def['envFrom'] = [{'secretRef': {'name': self.env_secret}}]
             
@@ -221,7 +256,19 @@ class GnrK8SGenerator(object):
                         }
                     },
                     'spec': {
-                        'containers':containers
+                        'securityContext': {
+                            'fsGroup': 1000
+                        },
+                        'containers':containers,
+                        'volumes': [
+                            {
+                                'name': f'{self.stack_name}-site-volume',
+                                'persistentVolumeClaim': {
+                                    'claimName': f'{self.stack_name}-site-pvc'
+                                    }
+                            }
+                        ]
+                        
                     }
                 }
             }

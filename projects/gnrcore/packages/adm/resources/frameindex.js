@@ -737,6 +737,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         objectUpdate(kw.openKw,runKwargs);
         objectUpdate(kw.openKw,{topic:'frameindex_external'});
         genro.publish('selectIframePage',kw);
+        if(genro.isMobile){
+            genro.nodeById('standard_index').publish('hideLeft');
+        }
     },
 
     detachPage:function(attr,title,evt){

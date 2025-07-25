@@ -387,6 +387,7 @@ class GnrWsgiSite(object):
 
 
     def getService(self, service_type=None, service_name=None, **kwargs):
+        logger.debug("Requesting service type %s with name %s", service_type, service_name)
         return self.services_handler.getService(service_type=service_type,
                                                 service_name=service_name or service_type,
                                                 **kwargs)
