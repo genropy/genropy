@@ -51,6 +51,7 @@ class ServiceHandler(object):
             for service_type in service_types:
                 if service_type == '__init__':
                     continue
+                logger.debug("Found service %s in %s", service_type, service_root)
                 all_service_types.add(service_type)
                 m = gnrImport(os.path.join(service_root, f'{service_type}.py'))
                 service_type_factory = getattr(m, 'ServiceType', None)
@@ -63,6 +64,7 @@ class ServiceHandler(object):
                 if not os.path.isdir(os.path.join(service_root, service_type)):
                     continue
                 service_type_factory = service_types_factories.get(service_type) or default_service_type_factory
+                logger.debug("Found resource service %s in %s", service_type, service_root)
                 self.service_types[service_type] = service_type_factory(self.site,service_type=service_type)
         
     def getService(self, service_type=None, service_name=None, **kwargs):
