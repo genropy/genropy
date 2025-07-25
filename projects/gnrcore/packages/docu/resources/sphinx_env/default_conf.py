@@ -43,6 +43,8 @@ extensions = [] #E.g. 'sphinx_sitemap','sphinxext.opengraph'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+html_js_files = ['custom.js']
+html_css_files = ['custom.css']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -56,8 +58,8 @@ master_doc = 'index'
 # General information about the project.
 # Change project_name and author in the handbook to get them published.
 project = 'project_name'
-current_year = datetime.today().year
-copyright = str(current_year)
+show_copyright = True
+copyright = str(datetime.today().year)
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
@@ -68,7 +70,8 @@ show_authors = False
 # built documents.
 #
 # The short X.Y version.
-# version = 'version'
+theme_display_version = False
+version = 'version'
 # The full version, including alpha/beta/rc tags.
 release = ''
 

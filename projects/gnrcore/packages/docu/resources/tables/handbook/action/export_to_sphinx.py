@@ -85,12 +85,13 @@ class Main(BaseResourceBatch):
             f"html_theme_path = ['{theme_path}/']",
             f"html_baseurl='{self.html_baseurl}'",
         ]
-        #if handbooks_theme_pref['logo']:
-        #    conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
+        if handbooks_theme_pref['logo']:
+            conf_lines.append(f"html_logo = '{self.page.site.externalUrl(handbooks_theme_pref['logo'])}'")
+            conf_lines.append("html_short_title = 'Handbook'")
         if handbooks_theme_pref['copyright']:
             conf_lines.append("show_copyright = True")
             conf_lines.append("html_show_sphinx = False")
-            conf_lines.append(f"copyright = '{handbooks_theme_pref['copyright']}'")
+            conf_lines.append(f"copyright = '{self.db.workdate.year} {handbooks_theme_pref['copyright']}'")
         if handbooks_theme_pref['display_version']:
             conf_lines.append("theme_display_version = True")
             conf_lines.append(f"version = release = '{self.handbook_record['version']}'")
@@ -255,10 +256,14 @@ class Main(BaseResourceBatch):
             rst = LINKFINDER.sub(self.fixLinks, rst)
 
             rst=rst.replace('[tr-off]','').replace('[tr-on]','')
+            footer= ''
             if record['author']:
-                footer = '\n.. sectionauthor:: %s\n'%record['author']
-            else:
-                footer= ''
+                footer = '\n.. sectionauthor:: %s\n' % (record['author'] or self.handbook_record['author'])
+            if self.db.application.getPreference('.handbooks_theme.last_update',pkg='docu'):
+                last_upd = translator.getTranslation('!!Publish date', language=self.handbook_record['language']).get('translation') or 'Publish date'
+                date_format = '%Y-%m-%d'if self.handbook_record['language'] == 'en' else '%d-%m-%Y' 
+                publish_date_str = record['publish_date'].strftime(date_format) if record['publish_date'] else ''
+                footer += f"""\n.. raw:: html\n\n   <p style="font-size:0.8em;">{last_upd} {publish_date_str}</p>"""
                 
             if n.attr['child_count']>0:
                 result.append('%s/%s.rst' % (name,name))
@@ -427,7 +432,7 @@ class Main(BaseResourceBatch):
             cssfile.write('\n'.join(cssStyles).encode())
     
     def processJsCustomizations(self):
-        customJSPath='_static/custom.js'    #DP Customizable?
+        customJSPath='_static/custom.js'    
         jsStyles = [
             s for s in [
                 self.db.application.getPreference('.base_js',pkg='docu'),
@@ -438,7 +443,21 @@ class Main(BaseResourceBatch):
             jsfile.write('\n'.join(jsStyles).encode())
             
     def processHtmlCustomizations(self):
-        pass
+        extra_head = self.db.application.getPreference('.html_extra_head', pkg='docu')
+        if not extra_head:
+            return
+        layout_html = f"""
+            {{% extends "!layout.html" %}}
+
+            {{% block extrahead %}}
+              {{% raw %}}{{{{ super() }}}}{{% endraw %}}
+              {extra_head}
+            {{% endblock %}}
+            """
+        template_file = self.sourceDirNode.child('_templates', 'layout.html')
+        template_file.ensureParent()
+        with template_file.open('w') as f:
+            f.write(layout_html)
             
     def defaultCssCustomization(self):
         return """/* override table width restrictions */
