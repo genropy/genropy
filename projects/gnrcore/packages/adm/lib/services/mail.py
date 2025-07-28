@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module gnrwebcore : core module for genropy web framework
@@ -24,7 +24,7 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 from gnr.core.gnrlang import GnrException
-from gnr.lib.services.mail import MailService,MailError
+from gnr.lib.services.mail import MailService
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import TableTemplateToHtml
 from gnr.core.gnrstring import templateReplace

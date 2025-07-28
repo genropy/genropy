@@ -136,14 +136,14 @@ var th_sections_manager = {
             }
             variable_struct = sectionsbag.getItem('variable_struct');
             if(variable_struct){
-                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseView__';
+                structToSet = sectionsbag.getNode('data.'+current).attr.struct || '__baseview__';
             }
             current.split(',').forEach(function(curr){
                 dojo.addClass(viewDomNode,'sections_' + sections_name+'_' + curr);
             });
         });
         if(structToSet){
-            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseView__');
+            viewNode.setRelativeData('.grid.currViewPath',structToSet || '__baseview__');
         }
     },
 
@@ -386,6 +386,13 @@ dojo.declare("gnr.LinkerManager", null, {
                 throw new Error('Missing primary key after record save');
             }
             that.setCurrentPkey(kw.pkey);
+        });
+        this.linkerform.subscribe('setLinkerPkey',function(kw){
+            if(!kw.pkey){
+                throw new Error('Missing primary key to set');
+            }
+            that.setCurrentPkey(kw.pkey);
+            that.linkerform.load({destPkey:'*dismiss*',discardChanges:true});
         });
         this.linkerform.subscribe('onDismissed',function(kw){
             genro.publish('changeInTable',{pkey:that.getCurrentPkey(),table:that.table})

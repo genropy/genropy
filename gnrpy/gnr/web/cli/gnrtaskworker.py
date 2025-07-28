@@ -3,14 +3,13 @@
 # 
 from gnr.web.gnrtask import GnrTaskWorker
 from gnr.core.cli import GnrCliArgParse
+from gnr.web import logger
 
-description = ""
+description = "Start the task worker service"
 
 def getOptions():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename')
-    parser.add_argument('-L', '--loglevel', type=int,
-                       help="Log level")
     parser.add_argument('-I', '--interval', type=int,
                        help="Interval")
     parser.add_argument('-C', '--code', help="Code")
@@ -24,6 +23,7 @@ def main():
     interval = options.pop('interval',None)
 
     w = GnrTaskWorker(sitename,code=code,interval=interval)
+    logger.info("Starting Task Worker for site: %s", sitename)
     w.start()
     
 

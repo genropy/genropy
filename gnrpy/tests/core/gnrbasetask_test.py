@@ -1,4 +1,4 @@
-from gnr.core import gnrbasetask as gbt
+from gnr.core import gnrbasetask as gbt 
 
 def test_GnrBaseTask():
     t = gbt.GnrBaseTask("page1")

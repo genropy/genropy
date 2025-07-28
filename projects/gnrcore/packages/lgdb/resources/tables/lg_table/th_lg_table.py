@@ -11,6 +11,8 @@ class View(BaseComponent):
         r.fieldcell('lg_pkg')
         r.fieldcell('name')
         r.fieldcell('sqlname')
+        r.fieldcell('primary_key')
+        r.fieldcell('legacy_count')
         r.fieldcell('description')
         r.fieldcell('notes')
         r.fieldcell('group')
@@ -44,7 +46,7 @@ class View(BaseComponent):
         result=[]
         result.append(dict(code='all', caption='All'))
         for g in groups:
-            result.append(dict(code=g['group'], caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
+            result.append(dict(code=g['group'].replace('-','_').replace('.','_'), caption=g['group'], condition='$group= :gr', condition_gr=g['group']))
         result.append(dict(code='no_group', caption='No group', condition='$group IS NULL'))
         return result
 
@@ -55,6 +57,8 @@ class ViewFromPackage(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('name')
         r.fieldcell('sqlname')
+        r.fieldcell('primary_key')
+        r.fieldcell('legacy_count')
         r.fieldcell('description')
         r.fieldcell('notes')
         r.fieldcell('group')
@@ -81,6 +85,7 @@ class Form(BaseComponent):
         fb.field('lg_pkg')
         fb.field('name')
         fb.field('group')
+        fb.field('primary_key')
         fb.field('description', colspan=2)
         fb.field('multidb', colspan=2)
         fb.field('notes', tag='simpleTextArea',colspan=2, height='90px')

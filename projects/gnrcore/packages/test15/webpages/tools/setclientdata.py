@@ -6,8 +6,8 @@
 
 """Serverpath"""
 
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     auto_polling = 10

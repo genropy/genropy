@@ -6,7 +6,6 @@
 
 "Test page description"
 
-from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,
                    gnrcomponents/tpleditor:ChunkEditor,

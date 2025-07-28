@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from re import sub
+
 from gnr.core.gnrdecorator import public_method
 from gnr.lib.services.mail import MailService
+from gnr.app import logger as gnrlogger
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/testhandler:TestHandlerFull'
@@ -65,7 +66,7 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.from_address', lbl='From address', dtype='T', colspan=1)
         fb.textbox(value='^.to_address', lbl='To address', dtype='T', colspan=1)
         fb.textbox(value='^.user', lbl='Username', dtype='T', colspan=1)
-        fb.textbox(value='^.password', lbl='Password', dtype='T', colspan=1, type='password')
+        fb.passwordTextBox(value='^.password', lbl='Password', dtype='T', colspan=1)
         fb.textbox(value='^.port', lbl='Port', dtype='T', colspan=1)
         fb.checkbox(value='^.tls', lbl='TLS', dtype='B', colspan=1)
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', colspan=1)
@@ -85,4 +86,4 @@ class GnrCustomWebPage(object):
         msg = mh.build_base_message(subject='Test', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
         with mh.get_smtp_connection(**account_params) as smtp_connection:
             smtp_connection.sendmail(from_address, to_address, msg.as_string())
-            print("Successfully sent email")
+            gnrlogger.info("Successfully sent email")

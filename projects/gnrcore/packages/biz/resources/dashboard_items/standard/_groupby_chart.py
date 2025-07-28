@@ -20,8 +20,6 @@
 
 
 from gnrpkg.biz.dashboard import BaseDashboardItem
-from gnr.core.gnrbag import Bag
-
 
 caption = 'Group by chart'
 description = 'Group by chart'

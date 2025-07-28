@@ -1,19 +1,25 @@
 # encoding: utf-8
-from __future__ import print_function
 
 import os
-import hashlib
+
 from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.app import logger
+
 class Table(object):
     def config_db(self, pkg):
-        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',name_plural='!![en]User Objects',rowcaption='$code,$objtype',broadcast='objtype')
+        tbl = pkg.table('userobject', pkey='id', name_long='!![en]User Object',
+                        name_plural='!![en]User Objects',rowcaption='$code,$objtype',
+                        broadcast='objtype', archivable=True)
         self.sysFields(tbl, id=True, ins=True, upd=True)
         tbl.column('identifier',size=':120',indexed=True,sql_value="COALESCE(:tbl,:pkg,'')||:objtype||:code|| CASE WHEN :private THEN :userid ELSE '' END",unique=True)
-        tbl.column('code', size=':40',name_long='!![en]Code', indexed='y') # a code unique for the same type / pkg / tbl
+        tbl.column('code', size=':40',name_long='!![en]Code', indexed='y',
+                   validate_notnull=True) # a code unique for the same type / pkg / tbl
         tbl.column('objtype',size=':20', name_long='!![en]Object Type', indexed='y')
-        tbl.column('pkg', size=':50',name_long='!![en]Package').relation('pkginfo.pkgid',relation_name='objects') # package code
-        tbl.column('tbl', size=':50',name_long='!![en]Table').relation('tblinfo.tblid',relation_name='objects') # full table name: package.table
+        tbl.column('pkg', size=':50',name_long='!![en]Package', defaultFrom='@tbl.pkgid').relation(
+                    'pkginfo.pkgid',relation_name='objects') # package code
+        tbl.column('tbl', size=':50',name_long='!![en]Table').relation(
+                    'tblinfo.tblid',relation_name='objects') # full table name: package.table
         tbl.column('userid',size=':50', name_long='!![en]User ID', indexed='y')
         tbl.column('description',size=':50', name_long='!![en]Description', indexed='y')
         tbl.column('notes', 'T', name_long='!![en]Notes')
@@ -24,8 +30,12 @@ class Table(object):
         tbl.column('flags', 'T', name_long='!![en]Flags')
         tbl.column('required_pkg', name_long='!![en]Required pkg')
         tbl.column('preview',name_long='!![en][it]Preview')
+        
         tbl.formulaColumn('system_userobject',"$code LIKE :scode",var_scode=r'\_\_%%',dtype='B')
         tbl.pyColumn('resource_status',name_long='!![en]Resources',required_columns='$data')
+        tbl.formulaColumn('is_mail', ":email ILIKE ANY(string_to_array($flags,','))", var_email='is_mail', dtype='B', static=True)
+        tbl.formulaColumn('is_row', ":row ILIKE ANY(string_to_array($flags,','))", var_row='is_row', dtype='B', static=True)
+        tbl.formulaColumn('is_print', ":print ILIKE ANY(string_to_array($flags,','))", var_print='is_print', dtype='B', static=True)
 
     
     def pyColumn_resource_status(self,record=None,**kwargs):
@@ -33,6 +43,19 @@ class Table(object):
         if not l:
             return ''
         return '<br/>'.join(l)
+        
+    def defaultValues(self):
+        return dict(user_id=self.db.currentEnv.get('user_id'))
+    
+    def onDuplicating(self,record):
+        record['code'] = f"{record['code']}_copy"
+        
+    def trigger_onUpdating(self,record=None,old_record=None):
+        self.updateRequiredPkg(record)
+
+    def trigger_onInserting(self,record=None):
+        self.updateRequiredPkg(record)
+    
 
     def resourceStatus(self,record):
         resources = []
@@ -40,10 +63,10 @@ class Table(object):
         packages = self.db.application.packages
         current_data = record['data']
         record['data'] = None
-        if not (record['tbl'] and packages[pkg]):
+        objtype = record['objtype']
+        if not (record['tbl'] and packages[pkg] and objtype):
             return resources
         tbl = record['tbl'].split('.')[1]
-        objtype = record['objtype']
         filename = '%s.xml' %(record['code'].lower().replace('.','_'))
         pkgkeys = list(packages.keys())
         page = self.db.currentPage
@@ -66,11 +89,6 @@ class Table(object):
                 resources.append('<span style="color:%s;">%s %s</span>' %(color,pkgid, page.toText(cust_res['__mod_ts'])))
         return resources
 
-    def trigger_onUpdating(self,record=None,old_record=None):
-        self.updateRequiredPkg(record)
-
-    def trigger_onInserting(self,record=None):
-        self.updateRequiredPkg(record)
     
     def updateRequiredPkg(self,record):
         data = Bag(record['data'])
@@ -93,27 +111,48 @@ class Table(object):
         
     def checkResourceUserObject(self):
         def cbattr(nodeattr):
-            return not (nodeattr['file_ext'] !='directory' and not '%(sep)suserobjects%(sep)s' %{'sep':os.sep} in nodeattr['abs_path'])
+            return not (nodeattr['file_ext'] != 'directory' and not '%(sep)suserobjects%(sep)s' %{'sep':os.sep} in nodeattr['abs_path'])
         tableindex = self.db.tableTreeBag(packages='*')
-        def cbwalk(node,**kwargs):
-            if node.attr['file_ext'] !='directory':
+        def cbwalk(node, **kwargs):
+            if node.attr['file_ext'] != 'directory':
                 record = Bag(node.attr['abs_path'])
                 record.pop('pkey')
                 record.pop('id')
                 identifier = self.uo_identifier(record)
-                if  not self.checkDuplicate(code=record['code'],pkg=record['pkg'],tbl=record['tbl'],objtype=record['objtype']):
+                logger.debug("identifier: %s, code: %s, objtype: %s, pkg: %s, tbl: %s",
+                            identifier, record['code'], record['objtype'], record['pkg'], record['tbl'])
+                if not self.checkDuplicate(code=record['code'], pkg=record['pkg'], tbl=record['tbl'], objtype=record['objtype']):
                     if record['tbl'] and not record['tbl'] in tableindex:
-                        print('missing table',record['tbl'],'resource',node.attr['abs_path'])
+                        logger.warning('missing table %s, resource %s', record['tbl'], node.attr['abs_path'])
                         return
-                    print('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' %record)
+                    logger.info('inserting userobject %(code)s %(tbl)s %(pkg)s from resource' % record)
                     record['__ins_ts'] = None
                     record['__mod_ts'] = None
                     self.insert(record)
-        for pkgid,pkgobj in list(self.db.application.packages.items()):
-            table_resource_folder = os.path.join(pkgobj.packageFolder,'resources','tables') 
-            d = DirectoryResolver(table_resource_folder,include='*.xml',callback=cbattr,processors=dict(xml=False))
-            d().walk(cbwalk,_mode='deep')
 
+        for pkgid, pkgobj in list(self.db.application.packages.items()):
+            base_folder = os.path.join(pkgobj.packageFolder, 'resources', 'tables')
+            # Standard paths (in resources/tables/<table>/userobjects/<objtype>/<code>.xml)
+            d_std = DirectoryResolver(base_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
+            d_std().walk(cbwalk, _mode='deep')
+
+            # Custom paths (in resources/tables/_packages/<target_pkg>/<table>/userobjects/<objtype>/<code>.xml)
+            custom_base = os.path.join(base_folder, '_packages')
+            if os.path.exists(custom_base):
+                for target_pkg in os.listdir(custom_base):
+                    # Validate directory name to ensure it matches expected format
+                    if not target_pkg.isalnum():
+                        logger.warning('Skipping invalid directory name: %s', target_pkg)
+                        continue
+                    custom_folder = os.path.join(custom_base, target_pkg)
+                    try:
+                        if os.path.isdir(custom_folder):
+                            d_custom = DirectoryResolver(custom_folder, include='*.xml', callback=cbattr, processors=dict(xml=False))
+                            d_custom().walk(cbwalk, _mode='deep')
+                    except OSError as e:
+                        logger.warning("Failed to access directory '%s': %s", custom_folder, e)
+        self.db.commit()
+        
     def listUserObject(self, objtype=None,pkg=None, tbl=None, userid=None, authtags=None, onlyQuicklist=None, flags=None):
         onlyQuicklist = onlyQuicklist or False
         def checkUserObj(r):
@@ -183,8 +222,9 @@ class Table(object):
         self.delete(pkey)
         self.db.commit()
 
+    @extract_kwargs(menuline=True)
     @public_method
-    def userObjectMenu(self,table=None, objtype=None,**kwargs): #th_listUserObject
+    def userObjectMenu(self,table=None, objtype=None,menuline_kwargs=None,**kwargs): #th_listUserObject
         result = Bag()
         userobjects = self.listUserObject(objtype=objtype,userid=self.db.currentPage.user, tbl=table,
                                                 authtags=self.db.currentPage.userTags,**kwargs)
@@ -196,7 +236,8 @@ class Table(object):
                 r['caption'] = r['description'] or r['code'].title()
                 r['draggable'] = True
                 r['onDrag'] = """dragValues['dbrecords'] = {table:'adm.userobject',pkeys:['%(pkey)s'],objtype:'%(objtype)s',reftable:"%(tbl)s"}""" %r
-                result.setItem(r['code'] or 'r_%i' % i, None, **dict(r))
+                r.update(menuline_kwargs)
+                result.setItem(r['code'] or 'r_%i' % i, None,**dict(r))
                 i+=1
         return result
             

@@ -21,8 +21,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from collections import defaultdict
-
-import time
 import io
 import re, os
 import datetime
@@ -185,9 +183,6 @@ class _SaxImporter(sax.handler.ContentHandler):
                     try:
                         value = self.catalog.fromText(value, self.currType)
                     except:
-                        import sys
-                        #print sys.exc_info()[1]
-                        #print value
                         value = None
         if self.currArray: #handles an array
             if self.currArray != tagLabel: # array's content
@@ -419,7 +414,8 @@ class BagToXml(object):
                         value = float(value)
                     value, t = self.catalog.asTextAndType(value, translate_cb=self.translate_cb if localize else None,nestedTyping=True)
                 if isinstance(value, BagAsXml):
-                    print(x)
+                    # FIXME - raise the proper exception with description!
+                    raise Exception("x exception")
                 try:
                     value = str(value)
                 except AttributeError:
@@ -471,7 +467,8 @@ class BagToXml(object):
             result = '%s _T="%s"' % (result, t)
         if attributes: result = "%s %s" % (result, attributes)
         if isinstance(value, BagAsXml):
-            print(x)
+            # FIXME - raise the proper exception with description!
+            raise Exception("x exception")
         if not xmlMode:
             if not isinstance(value, str): value = str(value, 'UTF-8')
             #if REGEX_XML_ILLEGAL.search(value): value='<![CDATA[%s]]>' % value

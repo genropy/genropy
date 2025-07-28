@@ -31,7 +31,7 @@ class ServiceParameters(BaseComponent):
         fb = bc.contentPane(region='top').formbuilder(datapath=datapath,cols=4)
         fb.textbox(value='^.host',lbl='Host')
         fb.textbox(value='^.username',lbl='Username')
-        fb.textbox(value='^.password',lbl='Password',type='password')
+        fb.passwordTextBox(value='^.password',lbl='Password')
         fb.textbox(value='^.port',lbl='Port')
         center = bc.borderContainer(region='center',nodeId='supervisordProcessMonitor',_workspace=True)
         frame = center.contentPane(region='center',datapath='#WORKSPACE.allprocess').bagGrid(frameCode='supervisordProcess',

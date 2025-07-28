@@ -55,9 +55,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
         this.stackSourceNode.registerSubscription('closeExternalWindow',function(kw){
             that.onExternalWindowClosed(kw.windowKey);
         });
+        var that = this;
+        this.stackSourceNode.watch('menuReady',
+            function(){
+                return genro.getData('gnr.appmenu.root')
+            },function(){that.checkStartPage()});
         
 
     },
+
+
     
     createIframeRootPage:function(kw){
         this.finalizePageUrl(kw);
@@ -193,6 +200,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.newWindow){
             return this.newBrowserWindowPage(kw);
         }
+        if(kw.modal){
+            return this.newModalPanel(kw);
+        }
         if(kw.newPanel){
             return this.newBrowserPanel(kw);
         }
@@ -203,6 +213,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var iframeDataNode = this.iframesbag.getNode(kw.rootPageName);
         var that = this;
         var cb = function(){
+            if(kw.addToHistory!==false){
+                that.addToPageHistory();
+            }
             that.stackSourceNode.setRelativeData('selectedFrame',rootPageName);
             if(that.getCurrentIframe(rootPageName)){
                 that.checkStartsArgs(rootPageName);
@@ -244,6 +257,22 @@ dojo.declare("gnr.FramedIndexManager", null, {
         })
         
     },
+
+    newModalPanel:function(kw){
+        kw.url_modal_dialog = true;
+        this.finalizePageUrl(kw);
+        let startKw =  objectExtract(kw,'start_*');
+        let openKw = kw.openKw || {};
+        objectUpdate(openKw,startKw)
+        openKw.topic = openKw.topic || 'modal_page_open';
+        genro.dlg.iframeDialog(kw.rootPageName+'_dlg',
+                                                {src:kw.url,windowRatio:.8,title:kw.label,
+                                                closable:kw.closable,
+                                                iframe_subscribe_modal_page_close:'this.publish("close")',
+                                                openKw:openKw,...objectExtract(kw,'dlg_*',true,true)
+                                                });
+    },
+
     newBrowserWindowPage:function(kw){
         this.finalizePageUrl(kw);
         if(kw.rootPageName in genro.externalWindowsObjects){
@@ -306,6 +335,22 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
 
+    addToPageHistory:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        pageHistory.push(this.selectedFrame());
+        genro.setData('pageHistory',pageHistory);
+    },
+
+    historyBack:function(){
+        let pageHistory = genro.getData('pageHistory') || []
+        let backToPage = pageHistory.pop();
+        genro.setData('pageHistory',pageHistory.length?pageHistory:null);
+        this.stackSourceNode.setRelativeData('selectedFrame',backToPage);
+        if(backToPage=='indexpage' && genro.getData('splash_index')){
+            genro.publish('open_plugin',{plugin:'menu_plugin'});
+        }
+    },
+
     onExternalWindowClosed:function(windowKey){
         if(genro._windowClosing){
             return;
@@ -327,6 +372,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     finalizePageUrl:function(kw){
         let urlPars = {};
         let urlkw = objectExtract(kw,'url_*',true);
+        objectExtract(urlkw,'level_offset');
         let baseurl = kw.webpage || kw.file || kw.filepath;
         if(this.dbstore && !kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
             if(baseurl.slice(1).split('/')[0]!=this.dbstore){
@@ -341,6 +387,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             urlPars.windowTitle = title;
         }
         urlPars = objectUpdate(urlPars,urlkw);
+        if(urlPars.newPanel){
+            objectExtract(urlPars,'newPanel,pageName,title');
+        }
         kw.url = genro.addParamsToUrl(baseurl,urlPars);
         kw.rootPageName = kw.pageName || kw.url.replace(/\W/g,'_');
     },
@@ -348,6 +397,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     
     closeRootFramPage:function(frameName,title,evt){
         var that = this;
+        genro._windowClosing = false; //reset windowClosing variable
         var finalizeCb = function(){
             that.deleteFramePage(frameName);
         }
@@ -355,13 +405,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
             finalizeCb();
         }
         var iframes = dojo.query('iframe',this.stackSourceNode.getValue().getNode(frameName).getWidget().domNode);
-        if(iframes.some(function(n){
-            if(n.sourceNode.attr.externalSite){return false;}
-            return n.contentWindow.genro.checkBeforeUnload();
-        })){
-            genro.dlg.ask(_T('Closing ')+title,_T("There is a pending operation in this tab"),{confirm:_T('Close anyway'),cancel:_T('Cancel')},
-                            {confirm:function(){ finalizeCb();}})
-        }else{
+        if(iframes.some(function(n) {
+            if(n.sourceNode.attr.externalSite) {
+		return false;
+	    }
+	    if(n.contentWindow.genro) {
+		return n.contentWindow.genro.checkBeforeUnload();
+	    } else {
+		return false;
+	    }
+        }
+       )){
+            genro.dlg.ask(_T('Closing ')+title, _T("There is a pending operation in this tab"), {
+		confirm: _T('Close anyway'), cancel:_T('Cancel')
+	    },
+                          { confirm:function(){ 
+                              iframes.forEach(function(f){
+                                  f.sourceNode._genro._checkedUnload = true;
+                              })
+                              finalizeCb();
+                          }})
+        } else {
             finalizeCb();
         }
     },
@@ -415,6 +479,10 @@ dojo.declare("gnr.FramedIndexManager", null, {
         return genro.getData('selectedFrame');
     },
 
+    currentGenro:function(){
+        let iframe = this.getCurrentIframe();
+        return iframe.sourceNode._genro;
+    },
 
     changeFrameLabel:function(kw){
         if(kw.pageName && this.iframesbag.getNode(kw.pageName)){
@@ -446,10 +514,16 @@ dojo.declare("gnr.FramedIndexManager", null, {
             curlen = this.externalWindowsBag().len()>0?curlen-1:curlen;
             selected = selected>=curlen? curlen-1:selected;
             var nextPageName = 'indexpage';
-            if(selected>=0){
+            let pageHistory = genro.getData('pageHistory') || [];
+            if(pageHistory){
+                pageHistory.pop()
+            }
+            if(pageHistory.length){
+                nextPageName = pageHistory.pop()
+            }
+            else if(selected>=0){
                 nextPageName = iframesbag.getNode('#'+selected)? iframesbag.getNode('#'+selected).attr.pageName:'indexpage';
             }
-            console.log('nextPageName',nextPageName)
             this.stackSourceNode.setRelativeData('selectedFrame',nextPageName); //PUT
         }
   
@@ -458,6 +532,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     reloadSelectedIframe:function(rootPageName,modifiers){
+        genro._windowClosing = false; //reset windowClosing variable of the maiwindow
         var iframe = this.getCurrentIframe(rootPageName);
         if(iframe){
             var finalizeCb = function(){
@@ -475,11 +550,30 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
     },
     openUserPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/user_preference'});
+        //old
+        this.newModalPanel({webpage:'/adm/user_preference',label:_T('User preference'),dlg_closable:true});
     },
 
-    openAppPreferences:function(){
-        genro.selectIframePage({webpage:'/adm/app_preference'});
+
+    openUserSettings:function(setting_path){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        openKw = {}
+        openKw.topic = 'user_setting_open'
+        openKw.setting_path = setting_path;
+        this.selectIframePage({webpage:'/adm/user_settings',label:_T('User settings'),closable:true,
+                            dlg_max_width:'600px',modal:!genro.isMobile,openKw:openKw});
+    },
+
+    openAppPreferences:function(openKw){
+        if(genro.isMobile){
+            genro.publish('setIndexLeftStatus',false);
+        }
+        
+        this.selectIframePage({webpage:'/adm/app_preference',label:_T('Application preference'),closable:true,modal:!genro.isMobile,
+            openKw:openKw
+        });
     },
 
     openHelpForCurrentIframe:function(){
@@ -523,6 +617,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
     },
 
     getCurrentIframe:function(rootPageName){
+        rootPageName = rootPageName || this.selectedFrame()
         var iframesbag= genro.getData('iframes');
         if(!iframesbag){
             return;
@@ -582,10 +677,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         genro.setUserPreference('index.favorite_pages',favorite_pages,'adm')
     },
 
-    loadFavorites:function(){
+    loadFavorites:function(cb){
         var favorite_pages = genro.userPreference('adm.index.favorite_pages');
-        var external_menucode = genro.startArgs.menucode;
-        if(favorite_pages || external_menucode){
+        if(favorite_pages){
             var that = this;
             var v;
             var startPage;
@@ -616,22 +710,35 @@ dojo.declare("gnr.FramedIndexManager", null, {
                     }
                 },'static');
             }
-            if(external_menucode){
-                var menubag = genro.getData('gnr.appmenu.root');
-                let n = menubag.getNodeByAttr('menucode',external_menucode);
-                inattr = n.getInheritedAttributes()
-                kw = objectUpdate({name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
-                                      viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null},n.attr);
-                kw.openKw = kw.openKw || {};
-                objectUpdate(kw.openKw,{topic:'frameindex_external'});
-                objectUpdate(kw.openKw,objectExtract(genro.startArgs,'start_*',true,true));
-                genro.publish('selectIframePage',kw);
-            }else{
-                setTimeout(function(){
-                    that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
-                    that.stackSourceNode.fireEvent('refreshTablist',true);
-                },100);
-            }
+            setTimeout(function(){
+                that.stackSourceNode.setRelativeData('selectedFrame',startPage || pageName);
+                that.stackSourceNode.fireEvent('refreshTablist',true);
+            },100);
+        }
+    },
+
+    checkStartPage:function(){
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('openOnStart');
+        if(!n){
+            return;
+        }
+        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
+    },
+    handleExternalMenuCode:function(external_menucode,runKwargs){
+        runKwargs = runKwargs || {}
+        let menubag = genro.getData('gnr.appmenu.root');
+        let n = menubag.getNodeByAttr('menucode',external_menucode);
+        inattr = n.getInheritedAttributes()
+        let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
+                                viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
+                    ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};
+        kw.openKw = kw.openKw || {};
+        objectUpdate(kw.openKw,runKwargs);
+        objectUpdate(kw.openKw,{topic:'frameindex_external'});
+        genro.publish('selectIframePage',kw);
+        if(genro.isMobile){
+            genro.nodeById('standard_index').publish('hideLeft');
         }
     },
 

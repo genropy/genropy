@@ -14,7 +14,6 @@ class GnrCustomWebPage(object):
         fb = bc.contentPane(region='top').formbuilder(cols=2, border_spacing='0')
         fb.textbox(value='^.table',lbl='Maintable')
         te=bc.contentPane(region='center').templateEditor(value='^.tplbag',maintable='^.table')
-        te.store.......
         
     def test_1_doc(self,pane):
         """First test description"""

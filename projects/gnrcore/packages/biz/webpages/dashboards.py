@@ -5,10 +5,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 
-from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import boolean
-from gnr.core.gnrdict import dictExtract
 
 class GnrCustomWebPage(object):
     py_requires="""public:Public,th/th:TableHandler,

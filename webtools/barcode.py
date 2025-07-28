@@ -9,9 +9,8 @@
 
 # --------------------------- BaseWebtool subclass ---------------------------
 
-
 from gnr.web.gnrbaseclasses import BaseWebtool
-#from code39 import Code39Encoder
+
 from pystrich.code128 import Code128Encoder
 from pystrich.datamatrix import DataMatrixEncoder
 from pystrich.qrcode import QRCodeEncoder
@@ -22,7 +21,7 @@ except:
     raise Exception('PIL is missing. "pip install Pillow" is required')
 import tempfile
 import mimetypes
-from io import BytesIO
+
 encoders = {
     #'code39' : Code39Encoder,
     'code128': Code128Encoder,

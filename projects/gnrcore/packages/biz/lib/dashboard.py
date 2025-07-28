@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
 # module dashboard : core module for genropy web framework
@@ -23,9 +23,8 @@
 #Created by Giovanni Porcari on 2007-03-24.
 #Copyright (c) 2007 Softwell. All rights reserved.
 
+import sys
 
-
-import os,sys
 from gnr.core.gnrdecorator import extract_kwargs
 from gnr.core.gnrbag import Bag
 

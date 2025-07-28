@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+from PIL import Image
+from urllib.parse import urlparse,parse_qs
+import base64
+from io import BytesIO      
 from gnr.core.gnrdecorator import public_method
 
 "Test img"
@@ -91,11 +95,6 @@ class GnrCustomWebPage(object):
 
     @public_method
     def convertImageToDataUrl(self, image_url=None):
-        from PIL import Image
-        from urllib.parse import urlparse,parse_qs
-        import base64
-        from io import BytesIO      
-
         img_cropdata = parse_qs(urlparse(image_url).query) 
         path_list = self.site.pathListFromUrl(image_url)
         img_path = self.site.storageNodeFromPathList(path_list).internal_path   #s3?

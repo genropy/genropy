@@ -1,0 +1,5 @@
+reportlab
+redbaron
+rpclib==2.8.0rc0
+docker
+suds

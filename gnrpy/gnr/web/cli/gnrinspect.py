@@ -5,13 +5,6 @@ from gnr.core.cli import GnrCliArgParse
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from collections import defaultdict
 
-try:
-    from IPython import embed
-except:
-    print("Python", sys.version)
-    print("\nMissing IPython, please install it")
-    print("pip install ipython")
-    sys.exit(1)
 
 description = "an interactive inspector for daemon data registers"
 
@@ -71,6 +64,15 @@ class DataCollector(object):
         return self._r.counters()
 
 def main():
+
+    try:
+        from IPython import embed
+    except:
+        print("Python", sys.version)
+        print("\nMissing IPython, please install it")
+        print("pip install ipython")
+        sys.exit(1)
+
     parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name")
     _options = parser.parse_args()

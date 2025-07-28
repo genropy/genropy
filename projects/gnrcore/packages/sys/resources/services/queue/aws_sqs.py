@@ -3,11 +3,14 @@
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from gnr.lib.services.queue import QueueService
-from gnr.web.gnrbaseclasses import BaseComponent
-#from gnr.core.gnrlang import componentFactory
+import time
+
 import boto3
 import botocore
+
+from gnr.lib.services.queue import QueueService
+from gnr.web.gnrbaseclasses import BaseComponent
+
 
 
 class Service(QueueService):
@@ -48,11 +51,11 @@ class Service(QueueService):
     def run(self, running):
         queue = self.queue
         while running.value:
-
             time.sleep(2)
-            print ('ciao')
+            print('ciao')
     
-    def handle_messagges(self, message):
+    def handle_messages(self, message):
+        pass
 
 class ServiceParameters(BaseComponent):
 

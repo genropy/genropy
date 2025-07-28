@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
-from shutil import copyfile
 
 from gnr.web.batch.btcaction import BaseResourceAction
-from gnr.lib.services.storage import StorageNode
 
 caption = 'Import legacy tables'
 description = 'Import legacy tables'

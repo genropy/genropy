@@ -2,8 +2,6 @@
 
 """framePane"""
 
-from gnr.core.gnrdecorator import public_method
-
 class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerBase,th/th:TableHandler,
                         dashboard_component/dashboard_component:DashboardItem"""

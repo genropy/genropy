@@ -26,6 +26,9 @@ import datetime
 BASE36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 class GnrTimeStamp(object):
+    """
+    Sortable 10 chars identifier based on time
+    """
     def __init__(self):
         self.startdate = datetime.datetime(1990, 1, 1)
         self.lastSec = 0
@@ -37,6 +40,7 @@ class GnrTimeStamp(object):
         maxcount = int((800000//base) + 0.999)
         while True:
             delta = datetime.datetime.now() - self.startdate
+                
             if(delta.seconds != self.lastSec):
                 self.lastSec = delta.seconds
                 self.lastCount = 1
@@ -47,7 +51,7 @@ class GnrTimeStamp(object):
             if self.lastCount < maxcount: break
 
         return ''.join(
-                self.encode(delta.days - 1, 3) + self.encode(delta.seconds * 18 + (counter//46000), 4) + self.encode(
+                self.encode(delta.days, 3) + self.encode(delta.seconds * 18 + (counter//46000), 4) + self.encode(
                         counter % 46000, 3))
 
     def encode(self, number, nChars):
@@ -64,5 +68,9 @@ class GnrTimeStamp(object):
         return ''.join(result)
     
     def getDate(self,gnrts):
-        return self.startdate+datetime.timedelta(days=BASE36.index(gnrts[0])*36**2+BASE36.index(gnrts[1])*36+BASE36.index(gnrts[2]))
+        v1 = BASE36.index(gnrts[0])*36**2
+        v2 = BASE36.index(gnrts[1])*36
+        v3 = BASE36.index(gnrts[2])
+        v4 = v1 + v2 + v3
+        return self.startdate+datetime.timedelta(days=v4)
 

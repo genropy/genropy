@@ -1,10 +1,6 @@
 #!/usr/bin/python
 
 """advanced form"""
-from __future__ import print_function
-
-
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires = 'public'

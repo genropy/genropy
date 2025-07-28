@@ -1,8 +1,8 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
+
+import os
 
 from gnr.core.gnrbag import Bag
-import shutil
-import os
 from gnr.app.gnrdeploy import PackageMaker
 
 # FIXME: this code seems unused as of 2024-04-05 CRG

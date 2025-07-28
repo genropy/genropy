@@ -4,21 +4,18 @@
 # Created by Francesco Porcari on 2010-09-08.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import division
-from __future__ import print_function
+import os
+import re
+from datetime import datetime
 
-from past.utils import old_div
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import fromJson
 from gnr.core.gnrlang import uniquify
-from datetime import datetime
-import httplib2
-import urllib.request, urllib.parse, urllib.error
-import os
-import re
+
 SH_ENABLED = False
+
 try:
     from sh import cd,ls,git
     SH_ENABLED = True
@@ -344,7 +341,7 @@ class MaintenancePlugin(BaseComponent):
                 color = 'orange'
             else:
                 color = 'red'
-            c = dict(height=1+old_div(n['nc'],4),color=color)
+            c = dict(height=1+int(n['nc']/4),color=color)
             result.append('<div style="background:%(color)s;height:%(height)ipx; width:3px; display:inline-block;margin-right:1px;"></div>' %c)
         item['page_profile'] = '<div>%s</div>'  %''.join(result)
 

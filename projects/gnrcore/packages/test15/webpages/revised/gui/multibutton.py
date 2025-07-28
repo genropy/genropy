@@ -6,8 +6,6 @@
 
 """slotbar"""
 
-
-from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 
@@ -18,12 +16,20 @@ class GnrCustomWebPage(object):
     def windowTitle(self):
         return 'Multibutton test'
         
+
+
     
 
     def test_0_multibutton_base(self,pane):
         pane.multibutton(value='^.base',values='pippo:Pippo,paperino:Paperino')
         pane.textbox(value='^.base')
 
+
+    def test_42_itemsMaxWidth(self,pane):
+        pane.textbox(value='^.base',lbl='Curr selected')
+        pane.textbox(value='^.values',lbl='Curr values',default='pippo:Pippo,pluto:Pluto,paperino:Paperino')
+    
+        pane.multibutton(value='^.base',values='^.values',itemsMaxWidth='100px')
 
 
     def test_1_multibutton_item(self,pane):

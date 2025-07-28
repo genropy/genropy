@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
+
 import json
-from gnr.core.gnrdict import dictExtract
+
 from gnr.core.gnrbag import Bag
 
 PWA_SIZES = ['72','96','128','144','152','192','384','512']

@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
 
 """Esempio"""
+from io import BytesIO
 
-from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Image, Paragraph, PageBreak , Flowable
-# from reportlab.graphics.shapes import Drawing
+from reportlab.platypus import Table, TableStyle, SimpleDocTemplate
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.rl_config import defaultPageSize
-from reportlab.lib.units import mm, cm
-# from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
 from gnr.core.gnrdecorator import public_method
-from io import BytesIO
-
 
 PAGE_HEIGHT = defaultPageSize[1]
 PAGE_WIDTH = defaultPageSize[0]

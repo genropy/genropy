@@ -2,78 +2,25 @@ import os
 import sys
 import site
 import glob
-
+import pathlib
 import shutil
 import random
 import string
+from collections import defaultdict
+from venv import EnvBuilder
+
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlang import uniquify, GnrException
-from collections import defaultdict
+from gnr.core.gnrlang import GnrException
+from gnr.core.gnrconfig import IniConfStruct
+from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
+from gnr.app import logger
+
 from gnr.web.gnrmenu import MenuStruct
-from gnr.app.gnrconfig import IniConfStruct
-from gnr.app.gnrconfig import getGnrConfig,gnrConfigPath, setEnvironment
 
 class GnrConfigException(Exception):
     pass
-
-
-def which(cmd, mode=os.F_OK | os.X_OK, path=None):
-    """Given a command, mode, and a PATH string, return the path which
-    conforms to the given mode on the PATH, or None if there is no such
-    file.
-    `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
-    of os.environ.get("PATH"), or can be overridden with a custom search
-    path.
-    """
-    # Check that a given file can be accessed with the correct mode.
-    # Additionally check that `file` is not a directory, as on Windows
-    # directories pass the os.access check.
-    def _access_check(fn, mode):
-        return (os.path.exists(fn) and os.access(fn, mode)
-            and not os.path.isdir(fn))
-    # If we're given a path with a directory part, look it up directly rather
-    # than referring to PATH directories. This includes checking relative to the
-    # current directory, e.g. ./script
-    if os.path.dirname(cmd):
-        if _access_check(cmd, mode):
-            return cmd
-        return None
-    if path is None:
-        path = os.environ.get("PATH", os.defpath)
-    if not path:
-        return None
-    path = path.split(os.pathsep)
-    if sys.platform == "win32":
-        # The current directory takes precedence on Windows.
-        if not os.curdir in path:
-            path.insert(0, os.curdir)
-        # PATHEXT is necessary to check on Windows.
-        pathext = os.environ.get("PATHEXT", "").split(os.pathsep)
-        # See if the given file matches any of the expected path extensions.
-        # This will allow us to short circuit when given "python.exe".
-        # If it does match, only test that one, otherwise we have to try
-        # others.
-        if any(cmd.lower().endswith(ext.lower()) for ext in pathext):
-            files = [cmd]
-        else:
-            files = [cmd + ext for ext in pathext]
-    else:
-        # On other platforms you don't have things like PATHEXT to tell you
-        # what file suffixes are executable, so just pass on cmd as-is.
-        files = [cmd]
-    seen = set()
-    for dir in path:
-        normdir = os.path.normcase(dir)
-        if not normdir in seen:
-            seen.add(normdir)
-            for thefile in files:
-                name = os.path.join(dir, thefile)
-                if _access_check(name, mode):
-                    return name
-    return None
-
 
 
 def get_random_password(size = 12):
@@ -146,7 +93,7 @@ def build_instanceconfig_xml(path=None,avoid_baseuser=None):
 def build_siteconfig_xml(path=None, gnrdaemon_password=None, gnrdaemon_port=None):
     siteconfig_bag = Bag()
     siteconfig_bag.setItem('wsgi', None, dict(debug=True, reload=True, port='8080'))
-    siteconfig_bag.setItem('gui', None, dict(css_theme='modern'))
+    siteconfig_bag.setItem('gui', None, dict(css_theme='mimi'))
     siteconfig_bag.setItem('jslib', None, dict(dojo_version='11', gnr_version='11'))
     siteconfig_bag.setItem('resources.common', None)
     siteconfig_bag.setItem('resources.js_libs', None)
@@ -211,7 +158,7 @@ def gnrdaemonServiceBuilder():
     else:
         environments = ''
     current_username = pwd.getpwuid(os.getuid())[0]
-    binpath = which('gnrdaemon')
+    binpath = shutil.which('gnrdaemon')
     content = GNRDAEMON_SERVICE_TPL %dict(environments=environments,binpath=binpath, user= current_username)
     service_name = '%s.service'%service_name
     with open(service_name,'w') as service_file:
@@ -219,8 +166,8 @@ def gnrdaemonServiceBuilder():
     print("""
 Gnrdaemon service created Now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 $ sudo systemctl start %(service_name)s
@@ -232,7 +179,7 @@ $ sudo journalctl -e -u %(service_name)s
 
 GNRSITERUNNERSERVICE_TPL = """
 [Unit]
-Description=GnrSupervisorSiteRunner Service
+Description=%(service_name)s GnrSupervisorSiteRunner Service
 After=multi-user.target
 
 [Service]
@@ -240,7 +187,7 @@ Type=forking
 %(environments)s
 User=%(user)s
 ExecStart=%(binpath)s
-ExecReload=%(ctl_binpath)s reload
+ExecReload=kill -HUP $MAINPID
 ExecStop=%(ctl_binpath)s shutdown
 
 [Install]
@@ -250,15 +197,15 @@ WantedBy=multi-user.target
 def gnrsiterunnerServiceBuilder():
     import pwd
     current_username = pwd.getpwuid(os.getuid())[0]
-    daemon_path = which('supervisord')
-    ctl_binpath = which('supervisorctl')
+    daemon_path = shutil.which('supervisord')
+    ctl_binpath = shutil.which('supervisorctl')
     binroot = ''
     service_name = 'gnrsiterunner'
     if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
         pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
-        environments = "Environment=VIRTUAL_ENV=%s" %pyprefix
+        environments = f"Environment=VIRTUAL_ENV={pyprefix}"
         binroot = os.path.join(pyprefix,'bin')
-        service_name = '%s_%s'%(service_name, os.path.basename(pyprefix))
+        service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
         environments = ''
     gnr_path = gnrConfigPath()
@@ -266,16 +213,17 @@ def gnrsiterunnerServiceBuilder():
     supervisor_log_path = os.path.join(gnr_path,'supervisord.log')
     binpath = '%s -c %s -l %s' % (daemon_path,supervisor_conf_path_ini,
         supervisor_log_path)
-    content = GNRSITERUNNERSERVICE_TPL %dict(environments=environments,binpath=binpath,
-            user=current_username, ctl_binpath=ctl_binpath)
-    service_name = '%s.service'%service_name
+    content = GNRSITERUNNERSERVICE_TPL % dict(environments=environments, binpath=binpath,
+                                              user=current_username, ctl_binpath=ctl_binpath,
+                                              service_name=service_name)
+    service_name = f'{service_name}.service'
     with open(service_name,'w') as service_file:
         service_file.write(content)
     print("""
 Gnrsiterunner service created, now run these commands:
 
-$ sudo cp %(service_name)s /lib/systemd/system/%(service_name)s
-$ sudo chmod 644 /lib/systemd/system/%(service_name)s
+$ sudo cp %(service_name)s /etc/systemd/system/%(service_name)s
+$ sudo chmod 644 /etc/systemd/system/%(service_name)s
 $ sudo systemctl daemon-reload  # Refresh the available service list
 $ sudo systemctl enable %(service_name)s
 
@@ -309,19 +257,17 @@ def activateVirtualEnv(path):
 def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None, 
     branch=None):
     venv_path = os.path.join(os.getcwd(), name)
-    print('Creating virtual environment %s in %s'%(name, venv_path))
-    try:
-        from venv import EnvBuilder
-        builder = EnvBuilder(with_pip=True)
-        if os.name == "nt":
-            use_symlinks = False
-        else:
-            use_symlinks = True
-        builder = EnvBuilder(with_pip=True, symlinks=use_symlinks)
-        builder.create(name)
-    except ImportError:
-        import virtualenv
-        virtualenv.cli_run([name])
+    logger.info('Creating virtual environment %s in %s' , name, venv_path)
+    builder = EnvBuilder(with_pip=True)
+
+    if os.name == "nt" or sys.platform == 'win32':
+        use_symlinks = False
+    else:
+        use_symlinks = True
+        
+    builder = EnvBuilder(with_pip=True, symlinks=use_symlinks)
+    builder.create(name)
+        
     gitrepos_path = os.path.join(venv_path, 'gitrepos')
     if not os.path.exists(gitrepos_path):
         os.makedirs(gitrepos_path)
@@ -338,23 +284,24 @@ def createVirtualEnv(name=None, copy_genropy=False, copy_projects=None,
             prj_path = base_path_resolver.project_name_to_path(project)
             if prj_path:
                 destpath = os.path.join(projects_path, project)
-                print('Copying project %s from %s to %s'%(project, prj_path, destpath))
+                logger.info('Copying project %s from %s to %s', project, prj_path, destpath)
                 try:
                     shutil.copytree(prj_path, destpath)
                 except shutil.Error as e:
-                    print(e)
+                    logger.exception(e)
+
     if copy_genropy:
         newgenropy_path = os.path.join(gitrepos_path, 'genropy')
         
         genropy_path = base_gnr_config['gnr.environment_xml.environment.gnrhome?value']
         if genropy_path:
-            print('Copying genropy from %s to %s'%(genropy_path,newgenropy_path))
+            logger.info('Copying genropy from %s to %s', genropy_path,newgenropy_path)
             shutil.copytree(genropy_path,newgenropy_path)
             import subprocess
             curr_cwd = os.getcwd()
             if branch:
                 os.chdir(newgenropy_path)
-                print('Switching to branch %s'%branch)
+                logger.info('Switching to branch %s', branch)
                 subprocess.check_call(['git', 'stash'])
                 subprocess.check_call(['git', 'fetch'])
                 subprocess.check_call(['git', 'checkout', branch])
@@ -418,8 +365,6 @@ class PathResolver(object):
     def __init__(self, gnr_config=None):
         self.gnr_config = gnr_config or getGnrConfig()
         setEnvironment(self.gnr_config)
-        
-        
                 
     def js_path(self, lib_type='gnr', version='11'):
         """TODO Return the configuration static js path, with *lib_type* and *version* specified
@@ -433,10 +378,11 @@ class PathResolver(object):
         return path
         
     def entity_name_to_path(self, entity_name, entity_type, look_in_projects=True):
-        """TODO
+        """Resolve an entity type to a local path where to retrieve the requested object,
+        veryfing the existance of the entity itself.
         
-        :param entity_name: TODO
-        :param entity_type: TODO
+        :param entity_name: the entity name
+        :param entity_type: the entity type, a predefined list
         :param look_in_projects: TODO"""
         entity = self.entities.get(entity_type)
         if not entity:
@@ -477,7 +423,7 @@ class PathResolver(object):
         :param site_name: TODO"""
         return self.entity_name_to_path(site_name, 'site')
     
-    def get_instanceconfig(self,instance_name):
+    def get_instanceconfig(self, instance_name):
         instanceFolder = self.instance_name_to_path(instance_name)
         instanceName = os.path.basename(instanceFolder)
 
@@ -502,7 +448,11 @@ class PathResolver(object):
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:
-            instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
+            template_config_path = os.path.join(self.instance_name_to_path(template),'config','instanceconfig.xml')
+            if os.path.exists(template_config_path):
+                instance_config.update(normalizePackages(Bag(template_config_path)) or Bag())
+            else:
+                instance_config.update(normalizePackages(self.gnr_config['gnr.instanceconfig.%s_xml' % template]) or Bag())
         if 'instances' in self.gnr_config['gnr.environment_xml']:
             for path, instance_template in self.gnr_config.digest(
                     'gnr.environment_xml.instances:#a.path,#a.instance_template') or []:
@@ -533,9 +483,13 @@ class PathResolver(object):
             site_config.update(Bag(site_config_path))
         else:
             site_config = Bag(site_config_path)
+
+        # siteconfig can be update from the contents of the <site/>
+        # tag inside an instanceconfig.xml 
         instance_config = self.get_instanceconfig(site_name)
         if instance_config and instance_config['site']:
             site_config.update(instance_config['site'])
+            
         return site_config
 
 
@@ -803,7 +757,7 @@ class PackageMaker(object):
     
     To autocreate the ``packages`` folder, please type in your console::
         
-        gnrmkpackage packagesname
+        gnr dev mkpackage packagesname
         
     where ``packagesname`` is the name of your ``packages`` folder.
     """
@@ -822,6 +776,7 @@ class PackageMaker(object):
         self.helloworld = helloworld
         self.package_path = os.path.join(self.base_path, self.package_name)
         self.model_path = os.path.join(self.package_path, 'model')
+        self.cli_path = os.path.join(self.package_path, 'cli')
         self.lib_path = os.path.join(self.package_path, 'lib')
         self.webpages_path = os.path.join(self.package_path, 'webpages')
         self.resources_path = os.path.join(self.package_path, 'resources')
@@ -830,9 +785,30 @@ class PackageMaker(object):
         
     def do(self):
         """Creates the files of the ``packages`` folder"""
-        for path in (self.package_path, self.model_path, self.lib_path, self.webpages_path, self.resources_path):
+        for path in (self.package_path, self.model_path, self.cli_path,
+                     self.lib_path, self.webpages_path, self.resources_path):
             if not os.path.isdir(path):
                 os.makedirs(path)
+
+        # create an emptydir file allowing an empty cli directory to be
+        # pushed to repository
+        open(os.path.join(self.cli_path, ".emptydir"), "w").close()
+        
+        # create an empty requirements.txt file, hopefully developers
+        # will be reminded by its presence that dependencies can be added
+        # in this file
+        open(os.path.join(self.package_path, 'requirements.txt'), "w").close()
+
+        # create an placeholder README.md file, since it's a policy
+        # that has been established to have a README for each package
+        # refs #83
+        with open(os.path.join(self.package_path, 'README.md'), "w") as readme_fp:
+            head = f"Package '{self.package_name}'"
+            readme_fp.write(head)
+            readme_fp.write("\n")
+            readme_fp.write("="*len(head))
+            
+            
         sqlprefixstring = ''
         if not os.path.exists(self.main_py_path):
             if self.sqlprefix is not None:
@@ -1036,7 +1012,7 @@ class ThPackageResourceMaker(object):
         name = 'th_%s.py'%table
         path = os.path.join(resourceFolder, name)
         if os.path.exists(path) and not self.option_force:
-            print('%s exist: will be skipped, use -f/--force to force replace' % name)
+            logger.warning('%s exist: will be skipped, use -f/--force to force replace', name)
             return
         view_columns=[]
         form_columns=[]
@@ -1068,7 +1044,7 @@ class ThPackageResourceMaker(object):
             self.writeImports()
             self.writeViewClass(tbl_obj, view_columns)
             self.writeFormClass(tbl_obj, form_columns)
-            print('%s created' % name)
+            logger.info('%s created', name)
 
 ################################# DEPLOY CONF BUILDERS ################################
 
@@ -1197,7 +1173,13 @@ class GunicornDeployBuilder(object):
         pars['max_requests_jitter'] = self.default_max_requests_jitter
         pars['chdir'] = self.site_path if os.path.exists(os.path.join(self.site_path,'root.py')) else self.instance_path
         conf_content = GUNICORN_DEFAULT_CONF_TEMPLATE %pars
-        print('write gunicorn file',self.gunicorn_conf_path)
+        logger.info('Writing gunicorn conf file at %s', self.gunicorn_conf_path)
+
+        # ensure the directory exists before writing the file, to support
+        # older instances with new deploys
+        gunicorn_base_conf_dir = os.path.dirname(self.gunicorn_conf_path)
+        pathlib.Path(gunicorn_base_conf_dir).mkdir(parents=True, exist_ok=True)
+        
         with open(self.gunicorn_conf_path,'w') as conf_file:
             conf_file.write(conf_content)
 

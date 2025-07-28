@@ -1,9 +1,8 @@
-from __future__ import print_function
-
 # -*- coding: utf-8 -*-
 
-
 import os
+
+from gnr.web import logger
 
 class CommandHandler(object):
     def __init__(self, site):
@@ -45,6 +44,6 @@ class CommandHandler(object):
         self.send(command='test',pars=kwargs)
 
     def command_test(self,**kwargs):
-        print('test',kwargs,'pid',os.getpid())
-
-
+        logger.info("test %s pid %s",
+                    kwargs,
+                    os.getpid())

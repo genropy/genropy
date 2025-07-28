@@ -2,8 +2,6 @@
 
 # Created by Davide Paci on 2022-06.
 
-from gnr.core.gnrbag import Bag
-
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:EvaluationGrid"
 

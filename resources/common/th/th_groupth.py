@@ -22,7 +22,6 @@
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs
-from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrbag import Bag
 
 
@@ -112,6 +111,8 @@ class TableHandlerGroupBy(BaseComponent):
                                 grid_baseViewName = baseViewName,
                                 _newGrid=True,pageName='flatview',title='!!Flat',
                                 grid_kwargs=grid_kwargs)
+        if static == 'buttons':
+            frame.grid.attributes['_class'] = f"{frame.grid.attributes.get('_class','')} noheader buttons_grid grouper_buttons no_over"
 
         
         frame.dataFormula('.changets.flatview','new Date();',store='^.store',struct='^.grid.struct',
@@ -124,7 +125,10 @@ class TableHandlerGroupBy(BaseComponent):
             slots = '5,vtitle,count,*,searchOn,export,5'
             if pbl_classes is None:
                 pbl_classes = True
-            if pbl_classes:
+            if static=='buttons':
+                bar = frame.top.slotBar(slots)
+                bar.vtitle.div(title,font_size='.9em',color='#666',font_weight='bold')
+            elif pbl_classes:
                 frame.top.slotBar(slots,_class='pbl_roundedGroupLabel',vtitle=title)
                 frame.attributes['_class'] = 'pbl_roundedGroup'
             else:
@@ -188,6 +192,7 @@ class TableHandlerGroupBy(BaseComponent):
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
                                 groupByStore=True,liveUpdate='PAGE',
+                                sortedBy='=.grid.sorted',
                                 _linkedTo=linkedTo,
                                 _onCalling="""
                                 if(!_linkedTo){
@@ -203,6 +208,9 @@ class TableHandlerGroupBy(BaseComponent):
                                 if(condition){
                                     kwargs.condition = kwargs.condition? kwargs.condition +' AND '+condition:condition;
                                 }
+                                this.store.gridBroadcast(function(grid){
+                                    grid.selectionKeeper('save');
+                                })
                                 """,
                                 _excludeList="""columns,sortedBy,currentFilter,customOrderBy,row_count,hardQueryLimit,limit,liveUpdate,method,nodeId,selectionName,
                             selectmethod,sqlContextName,sum_columns,table,timeout,totalRowCount,userSets,_sections,
@@ -220,6 +228,9 @@ class TableHandlerGroupBy(BaseComponent):
                     }}else if(!grouper){{
                         SET #ANCHOR.details_pkeylist = null;
                     }}
+                    groupbystore.gridBroadcast(function(grid){{
+                                    grid.selectionKeeper('save');
+                                 }})
                     groupbystore.loadData();
                     """.format(linkedTo=linkedTo),
                 grid = frame.grid.js_widget,
@@ -236,7 +247,7 @@ class TableHandlerGroupBy(BaseComponent):
 
 
     def _thg_defaultstruct(self,struct):
-        "!![en]New View"
+        "!![en]Empty View"
         r=struct.view().rows()
         r.cell('_grp_count',name='Cnt',width='5em',group_aggr='sum',dtype='L',childname='_grp_count')
 
@@ -258,11 +269,16 @@ class TableHandlerGroupBy(BaseComponent):
                 prefix,name=k.split('_groupedStruct_')
                 q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
             frame.data('.grid.resource_structs',q)
-        frame.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),currentView="^.grid.currViewPath",
-                        table=table,th_root=frame.attributes['frameCode'],objtype='grpview',baseViewName=baseViewName,
-                        favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
+        frame.data('.grid.userobject_structs',self.th_userObjectViews(objtype='grpview',
+                        table=table,th_root=frame.attributes['frameCode']))
 
-
+        frame.dataRpc('.grid.userobject_structs',self.th_userObjectViews,objtype='grpview',
+                        _loadAfter='^.grid.reload_userobjects_struct',
+                        table=table,th_root=frame.attributes['frameCode'],
+                        _onResult="""if(kwargs._loadAfter!==true){
+                            PUT .grid.currViewPath = null;
+                            SET .grid.currViewPath = kwargs._loadAfter;
+                        }""")
 
     def _thg_stackedView(self,parentStack,title=None, grid=None,frameCode=None,linkedTo=None,table=None,stack_kwargs=None,**kwargs):
         frame = parentStack.bagGrid(frameCode='%s_stacked' %frameCode,title='!!Stacked',pageName='stackedview',

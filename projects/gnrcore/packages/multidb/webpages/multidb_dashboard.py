@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 #  Created by Francesco Porcari
 #
-# --------------------------- GnrWebPage subclass ---------------------------
 
-from gnr.core.gnrdecorator import extract_kwargs,public_method
+
+import os
+
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnrpkg.multidb.utility import getSyncTables
-import os
+
 
 
 class GnrCustomWebPage(object):

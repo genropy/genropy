@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
-from datetime import date,timedelta
 
 from gnr.web.gnrbaseclasses import BaseComponent
-
-from gnr.core.gnrdecorator import public_method
-
 
 class View(BaseComponent):
     def th_struct(self,struct):
@@ -87,13 +83,6 @@ class Form(BaseComponent):
 
         fb.simpleTextArea(value='^.notes',height='2.5em', lbl='!![en]Notes',colspan=2,lbl_vertical_align='top')
 
-   #@public_method 
-   #def th_onSaved(self,record,resultAttr):
-   #    start_date = self.workdate-timedelta(30)
-   #    start_date = date(start_date.year,start_date.month,1)
-   #    end_date = date(start_date.year+1,start_date.month,1)
-   #    self.db.table('tmsh.timerule').generateSlots(timerule_id=record['id'],start_date=start_date,
-   #                                                         end_date = end_date)
 
     def th_options(self):
         tpl = '!![en]Time Rule $rule_order'

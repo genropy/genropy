@@ -22,14 +22,9 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import os
-import datetime
-
-import pytest
-
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj, DbTableListObj, DbColumnListObj, DbIndexListObj
-from gnr.core.gnrbag import Bag
+from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj
+from gnr.sql.gnrsqlmodel import DbColumnObj, DbTableListObj, DbColumnListObj, DbIndexListObj
 
 from .common import BaseGnrSqlTest
 
@@ -49,7 +44,7 @@ class TestSqlStructure(BaseGnrSqlTest):
         pkg = self.db.package('video')
         assert isinstance(pkg, DbPackageObj)
         assert isinstance(pkg.tables, DbTableListObj)
-        assert list(pkg.tables.keys()) == ['people', 'cast', 'movie', 'dvd']
+        assert list(pkg.tables.keys()) == ['people', 'cast', 'movie', 'dvd', 'location']
         tbl = pkg.table('movie')
         assert isinstance(tbl, DbTableObj)
         assert pkg.tableSqlName(tbl) == 'video_movie'

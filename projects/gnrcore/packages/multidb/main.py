@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from __future__ import print_function
+
+import os
+import datetime
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
-from gnr.core.gnrdecorator import metadata
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import instanceMixin
 #from gnrpkg.multidb.multidbtable import MultidbTable
 from gnr.sql.gnrsql import GnrSqlException
-import os
-import datetime
 
 FIELD_BLACKLIST = ('__ins_ts','__mod_ts','__version','__del_ts','__moved_related')
 

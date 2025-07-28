@@ -1,4 +1,3 @@
-import pytest
 from gnr.core.gnrbag import Bag
 from gnr.xtnd import gnrstats as gs
 

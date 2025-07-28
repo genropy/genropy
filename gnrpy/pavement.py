@@ -3,7 +3,7 @@
 # tools.
 
 from paver.easy import *
-from paver.setuputils import setup, find_packages
+from paver.setuputils import setup, find_packages # noqa: F401
 
 @task
 def install():

@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 
 #--------------------------------------------------------------------------
 # package       : GenroPy web - see LICENSE for details
@@ -22,14 +22,13 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-
+from copy import copy
 
 from gnr.core.gnrbag import Bag,BagCbResolver,DirectoryResolver
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs,deprecated
-from copy import copy
 
 def _selected_defaultFrom(fieldobj=None,result=None):
     for c in fieldobj.table.columns.values():
@@ -90,11 +89,10 @@ def cellFromField(field,tableobj,checkPermissions=None):
     kwargs['dtype'] =  fldobj.dtype
     
     kwargs['dfltwidth'] = '%iem' % int(fldobj.print_width*.6) if fldobj.print_width else None
-    if fldattr.get('caption_field'):
-        kwargs['caption_field'] = fldattr['caption_field']
-    if fldattr.get('_owner_package'):
-        kwargs['_owner_package'] = fldattr['_owner_package']
-
+    for attr in ['caption_field', '_owner_package', 'required_columns']:
+        if fldattr.get(attr):
+            kwargs[attr] = fldattr[attr]
+        
     relfldlst = tableobj.fullRelationPath(field).split('.')
     validations = dictExtract(fldobj.attributes,'validate_',slice_prefix=False)
     if fldattr.get('user_readonly'):
@@ -419,6 +417,16 @@ class GnrDomSrc(GnrStructData):
         :param id: the :ref:`nodeid`"""
         return self.findNodeByAttr('nodeId', id)
         
+    def fullScreenDialog(self,backTitle='!!Back',**kwargs):
+        dlg = self.dialog(fullScreen=True,**kwargs)
+        frame = dlg.framePane(childname='center')
+        bar = frame.top.slotBar('backTitle,*',height='30px',font_weight='bold',
+                             color='var(--mainWindow-color)',border_bottom='1px solid silver')
+        btn = bar.backTitle.lightButton(action="_dlg.hide();",_dlg=dlg.js_widget,style='display:flex;align-items:center;',cursor='pointer')
+        btn.div(_class="iconbox leftOut",height='25px',background_color='var(--mainWindow-color)')
+        btn.div(backTitle)
+        return dlg
+
     def framepane(self, frameCode=None, centerCb=None, **kwargs):
         """Create a :ref:`framepane` and return it. A framePane is a :ref:`bordercontainer`
         with :ref:`frame_sides` attribute added: these sides follow the Dojo borderContainer
@@ -597,6 +605,25 @@ class GnrDomSrc(GnrStructData):
         if self.page.isMobile:
             parent = parent.div(_class='scroll-wrapper')
         return parent.child('htmliframe', **kwargs)
+    
+
+    def flexbox(self,direction=None,wrap=None,align_content=None,
+                justify_content=None,align_items=None,
+                justify_items=None,**kwargs):
+        return self.child('flexbox',direction=direction, wrap=wrap,
+                          align_content=align_content,justify_content=justify_content,
+                          align_items=align_items,justify_items=justify_items,**kwargs)
+    
+    def gridbox(self,columns=None,align_content=None,justify_content=None,
+                align_items=None,justify_items=None,table=None,**kwargs):
+        return self.child('gridbox',columns=columns,table=table or self.page.maintable,
+                          align_content=align_content,justify_content=justify_content,
+                          align_items=align_items,justify_items=justify_items
+                          ,**kwargs)
+    
+    def labledbox(self,label=None,**kwargs):
+        return self.child('labledbox',label=label,**kwargs)
+
 
     def htmlform(self,childcontent=None,**kwargs):
         return self.htmlChild('form', childcontent=childcontent, **kwargs)
@@ -680,8 +707,8 @@ class GnrDomSrc(GnrStructData):
         """Create a :ref:`data` and returns it. ``data`` allows to define
         variables from server to client
         
-        :param \*args: args[0] includes the path of the value, args[1] includes the value
-        :param \*\*kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
+        :param *args: args[0] includes the path of the value, args[1] includes the value
+        :param **kwargs: in the kwargs you can insert the ``_serverpath`` attribute. For more
                            information, check the :ref:`data_serverpath` example"""
         value = None
         className = None
@@ -834,7 +861,7 @@ class GnrDomSrc(GnrStructData):
 
     def getFormBuilder(self,fbname=None,table=None):
         fbname = fbname if not table else '%s:%s' %(table,fbname)
-        result = self.getNodeByAttr('fbname',fbname)
+        result = self.getNodeByAttr('fbname',fbname) or self.getNodeByAttr('formletCode',fbname)
         if result:
             return result.value.getItem('#0')
         
@@ -850,17 +877,89 @@ class GnrDomSrc(GnrStructData):
                         lbl_padding_top='4px',enableZoom=False,
                         lbl_font_weight='bold',fldalign='left',
                         fld_html_label=True,
-                        _class=_class or 'mobilefields')
+                        _class=_class or 'mobilefields',
+                        formlet=False)
         pars.update(kwargs)
         return box.formbuilder(**pars)
+    
+
+    def setHelperData(self,table=None,name=None,**kwargs):
+        data,kw = self.page.getHelperData(table=table,name=name)
+        if kw.get('in_cache'):
+            return
+        return self.page.pageSource().data(f"gnr.helpers.{kw['path']}",data)
+       #return self.page.pageSource().child('dataRemote', path=f"gnr.helpers.{kw['path']}", 
+       #                                    method='getHelperData',
+       #                                    childcontent=childcontent,_resolved=True, 
+       #                                    table=table,name=name)
+
+
+    def formbuilder(self,*args,**kwargs):
+        dbtable = kwargs.get('table') 
+        if not dbtable:
+            dbtable = kwargs.get('dbtable') or self.getInheritedAttributes().get('table')
+            kwargs['table'] = dbtable
+        defaultUseFormlet = self.page.pageOptions.get('useFormlet') or \
+                            self.page.getPreference('theme.use_formlets',pkg='sys')
+        if dbtable and not defaultUseFormlet:
+            useFormletCb = getattr(self.page.db.table(dbtable),'useFormlet',None)
+            if useFormletCb:
+                defaultUseFormlet = useFormletCb()
+
+        kwFormlet = kwargs.get('formlet')
+        if kwFormlet is not False and defaultUseFormlet:
+            kwargs.setdefault('item_lbl_side','left')
+            if 'lbl' not in kwargs:
+                kwargs['lbl'] = '&nbsp;'
+                kwargs['box__class'] = 'formlet_fakelabel'
+            return self.formbuilder_formlet(*args,**kwargs)
+        else:
+            return self.formbuilder_table(*args,**kwargs)
         
-    def formbuilder(self, cols=1, table=None, tblclass='formbuilder',
+    def formlet(self,columns=None,table=None,formletCode=None,
+                formletclass='formlet',_class=None,**kwargs):
+        formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
+        excludeCols = kwargs.pop('excludeCols',None)
+        if excludeCols:
+            raise NotImplementedError('Not implemented in formlet')
+        if formNode:
+            table = table or formNode.attr.get('table')
+        result =  self.gridbox(columns=columns,
+                               table=table,
+                            formletCode=formletCode,
+                            _class=_class or f'gnrgridbox {formletclass}',**kwargs)
+        if formNode:
+            if not hasattr(formNode,'_mainformbuilder'):
+                formNode._mainformbuilder = result
+        return result
+        
+    def formbuilder_formlet(self, cols=1, table=None, formlet=None,
                     lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
                     _class='', fieldclass='gnrfield',
                     colswidth=None,
                     lblalign=None, lblvalign='top',
                     fldalign=None, fldvalign='top', disabled=False,
-                    rowdatapath=None, head_rows=None,spacing=None, useMobileParameters=None,**kwargs):
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,border_spacing=None,**kwargs):
+        commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
+        commonKwargs = {f'item_{k}':kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+        commonKwargs.update(dictExtract(kwargs,'item_',pop=False,slice_prefix=False))
+        commonKwargs.pop('item_lbl_width',None)
+        commonKwargs.pop('item_lbl_min_width',None)
+        kwargs.update(commonKwargs)
+        result =  self.formlet(columns=cols,table=table or self.page.maintable,
+                            formletCode=formlet,**kwargs)
+        return result
+
+
+        
+    def formbuilder_table(self, cols=1, table=None, tblclass='formbuilder',
+                    lblclass='gnrfieldlabel', lblpos='L',byColumn=None,
+                    _class='', fieldclass='gnrfield',
+                    colswidth=None,
+                    lblalign=None, lblvalign='top',
+                    fldalign=None, fldvalign='top', disabled=False,
+                    rowdatapath=None, head_rows=None,spacing=None,boxMode=None,
+                    formlet=None,**kwargs):
         """In :ref:`formbuilder` you can put dom and widget elements; its most classic usage is to create
         a :ref:`form` made by fields and layers, and that's because formbuilder can manage automatically
         fields and their positioning
@@ -884,7 +983,7 @@ class GnrDomSrc(GnrStructData):
                          check the :ref:`disabled` attribute
         :param rowdatapath: TODO
         :param head_rows: TODO
-        :param \*\*kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
+        :param **kwargs: for the complete list of the ``**kwargs``, check the :ref:`fb_kwargs` section"""
         if spacing:
             h_padding = float((kwargs.get('border_spacing') or '6px').replace('px',''))/2
             kwargs['border_spacing'] = '0px'
@@ -897,7 +996,9 @@ class GnrDomSrc(GnrStructData):
         if kwargs.get('fbname'):
             kwargs['fbname'] = kwargs['fbname'] if not dbtable else '%s:%s' %(dbtable,kwargs['fbname'])
         commonPrefix = ('lbl_', 'fld_', 'row_', 'tdf_', 'tdl_')
-        commonKwargs = dict([(k, kwargs.pop(k)) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix])
+        commonKwargs = {k:kwargs.pop(k) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix}
+
+        #commonKwargs = dict([(k, kwargs.pop(k)) for k in list(kwargs.keys()) if len(k) > 4 and k[0:4] in commonPrefix])
         tbl = self.child('table', _class='%s %s' % (tblclass, _class), **kwargs).child('tbody')
         formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
         excludeCols = kwargs.pop('excludeCols',None)
@@ -915,6 +1016,7 @@ class GnrDomSrc(GnrStructData):
                                       head_rows=head_rows, 
                                       excludeCols=excludeCols,
                                       byColumn=byColumn,colswidth=colswidth,
+                                      boxMode=boxMode,
                                       commonKwargs=commonKwargs)
         
         inattr = self.getInheritedAttributes()
@@ -1011,7 +1113,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     htmlNS = ['a', 'abbr', 'acronym', 'address', 'area', 'b', 'base', 'bdo', 'big', 'blockquote',
               'body', 'br', 'button', 'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del',
               'div', 'dfn', 'dl', 'dt', 'em', 'fieldset', 'frame', 'frameset',
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i', 'iframe','htmliframe', 'img', 'input',
+              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i', 'iframe','htmliframe','flexbox','gridbox','labledbox', 'img', 'input',
               'ins', 'kbd', 'label', 'legend', 'li', 'link', 'map', 'meta', 'noframes', 'noscript',
               'object', 'ol', 'optgroup', 'option', 'p', 'param', 'pre', 'q', 'samp',
               'select', 'small', 'span', 'strong', 'style', 'sub', 'sup', 'table', 'tbody', 'td',
@@ -1040,10 +1142,11 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
-             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
+             'tinyMCE', 'protovis','codemirror','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
+             'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',"GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore']
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','CodeEditor','TreeGrid','QuickGrid',
+            "GridGallery","VideoPlayer",'MultiValueEditor','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
     genroNameSpace.update(dict([(name.lower(), name) for name in dojoxNS]))
@@ -1058,7 +1161,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the dataFormula's path
         :param formula: the dataFormula's formula
-        :param \*\*kwargs: formula parameters and other ones (:ref:`css`, etc)
+        :param **kwargs: formula parameters and other ones (:ref:`css`, etc)
         """
         return self.child('dataFormula', path=path, formula=formula, **kwargs)
         
@@ -1073,8 +1176,8 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         execute Javascript code
         
         :param script: the Javascript code that ``datacontroller`` has to execute. 
-        :param \*\*kwargs: *_init*, *_onStart*, *_timing*. For more information,
-                       check the controllers' :ref:`controllers_attributes` section
+        :param **kwargs: *_init*, *_onStart*, *_timing*. For more information,
+                      check the controllers' :ref:`controllers_attributes` section
         """
         return self.child('dataController', script=script, **kwargs)
         
@@ -1086,7 +1189,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                      you have to write it even if you don't return any value in the ``dataRpc``
                      (in this situation it will become a "mandatory but dummy" parameter)
         :param method: the name of your ``dataRpc`` method
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if not method and callable(pathOrMethod):
@@ -1104,7 +1207,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """TODO
         
         :param cb: TODO
-        :param \*\*kwargs: TODO"""
+        :param **kwargs: TODO"""
         self.child('callBack',childcontent=cb,**kwargs)
         return self
         
@@ -1334,7 +1437,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                          :ref:`sql_group_by` section
         :param having: the sql "HAVING" clause. For more information check the :ref:`sql_having`
         :param columnsFromView: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         if 'name' in kwargs:
@@ -1343,7 +1446,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             kwargs['_content'] = kwargs.pop('content')
         if not columns:
             if columnsFromView:
-                print('columnsFromView is deprecated')
+                raise DeprecationWarning('columnsFromView is deprecated')
                 columns = '=grids.%s.columns' % columnsFromView #it is the view id
             else:
                 columns = '*'
@@ -1385,7 +1488,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`package <packages>` to which the table belongs to)
         :param pkey: the record :ref:`primary key <pkey>`
         :param method: TODO
-        :param \*\*kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
+        :param **kwargs: *_onCalling*, *_onResult*, *sync*. For more information,
                            check the :ref:`rpc_attributes` section
         """
         return self.child('dataRpc', path=path, table=table, pkey=pkey, method=method, **kwargs)
@@ -1398,7 +1501,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         
         :param path: the path where the dataRemote will save the result of the rpc
         :param method: the rpc name that has to be executed
-        :param \*\*kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
+        :param **kwargs: *cacheTime=NUMBER*: The cache stores the retrieved value and keeps
                            it for a number of seconds equal to ``NUMBER``
         """
         childcontent =None
@@ -1790,7 +1893,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         """
         return self.child('radiobutton', label=label, **kwargs)
         
-    def checkbox(self, value=None, label=None,**kwargs):
+    def checkbox(self, value=None, label=None,lbl=None,**kwargs):
         """Return a :ref:`checkbox`: setting the value to true will check the box
         while false will uncheck it
         
@@ -1798,7 +1901,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
         :param value: the checkbox path for value. For more information, check the
                       :ref:`datapath` section
         """
-        return self.child('checkbox', value=value, label=label, **kwargs)
+        if lbl and not label and not getattr(self,'fbuilder',None):
+            label = lbl
+            lbl = '&nbsp;'
+        return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
         """The :ref:`dropdownbutton` can be used to build a :ref:`menu`
@@ -1883,12 +1989,18 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             assert hasattr(parentfb,'tblobj'),'missing default table. HINT: are you using a formStore in a bad place?'
             tblobj = parentfb.tblobj
         else:
-            raise GnrDomSrcError('No table')
-                
+            tbl = self.getInheritedAttributes().get('table')
+            if not tbl:
+                raise GnrDomSrcError('No table')
+            else:
+                tblobj = self.page.db.table(tbl)
         fieldobj = tblobj.column(fld)
         if fieldobj is None:
             raise GnrDomSrcError('Not existing field %s' % fld)
-        wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)     
+        wdgattr = self.wdgAttributesFromColumn(fieldobj, fld=fld,**kwargs)    
+        wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
+        if fieldobj.attributes.get('_owner_package'):
+            wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld
@@ -1986,7 +2098,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                             result['lbl__zoomKw_title'] = forcedTitle or lnktblobj.name_plural or lnktblobj.name_long
                             result['lbl__zoomKw_pkey'] = '=.%s' %fld
                             result['lbl_connect_onclick'] = "genro.dlg.zoomPaletteFromSourceNode(this,$1);"  
-                    result['lbl'] = '<span class="gnrzoomicon">&nbsp;&nbsp;&nbsp;&nbsp;</span><span>%s</span>' %self.page._(result['lbl'])
+                    result['lbl'] = '<div class="gnrzoomicon">&nbsp;</div><div>%s</div>' %self.page._(result['lbl'])
                     result['lbl_class'] = 'gnrzoomlabel'
             result['tag'] = 'DbSelect'
             _selected_defaultFrom(fieldobj=fieldobj,result=result)
@@ -2013,6 +2125,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             fldattr['values'] = values
             result['tag'] = 'filteringselect' if ':' in values else 'combobox'
             result['values'] = values
+        elif dtype in ('A','T') and fldattr.get('dest_stn'):
+            result['tag'] = 'modalUploader'
+            result['dest_fld'] = fieldobj.fullname
+            result.setdefault('enable','^#FORM.controller.is_newrecord?!=#v')
+            result.setdefault('height','210px')
+            result.setdefault('width','190px')
+            result.setdefault('border','1px solid silver')
+            result.setdefault('rounded',8)
+            result.setdefault('dest_record_pkey','=#FORM.pkey')
+            result.setdefault('label',result.pop('lbl',None))
+            result.setdefault('extensions',fldattr.get('extensions',None))
         elif dtype == 'A':
             result['maxLength'] = size
             result['tag'] = 'textBox'
@@ -2063,16 +2186,17 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
 class GnrFormBuilder(object):
     """The class that handles the creation of the :ref:`formbuilder` widget"""
     def __init__(self, tbl, cols=None, dbtable=None, fieldclass=None,
-                 lblclass='gnrfieldlabel', lblpos='L',byColumn=None, lblalign=None, fldalign=None,
+                 lblclass=None, lblpos='L',byColumn=None, lblalign=None, fldalign=None,
                  lblvalign='top', fldvalign='top', rowdatapath=None, head_rows=None,
-                 excludeCols=None, colswidth=None,commonKwargs=None):
+                 excludeCols=None, colswidth=None,boxMode=False,commonKwargs=None):
         self.commonKwargs = commonKwargs or {}
         self.lblalign = lblalign or {'L': 'right', 'T': 'left'}[lblpos] # jbe?  why is this right and not left?
         self.fldalign = fldalign or {'L': 'left', 'T': 'center'}[lblpos]
+        self.boxMode = boxMode
         self.lblvalign = lblvalign
         self.fldvalign = fldvalign
-        self.lblclass = lblclass
-        self.fieldclass = fieldclass
+        self.lblclass = lblclass or 'gnrfieldlabel' if not self.boxMode else None
+        self.fieldclass = fieldclass 
         self.colswidth = colswidth
         self.colmax = cols
         self.lblpos = lblpos
@@ -2378,9 +2502,15 @@ class GnrFormBuilder(object):
                     lbl_kwargs['tabindex'] = -1 # prevent tab navigation to the zoom link
                     cell.a(childcontent=lblvalue, href=lblhref, **lbl_kwargs)
             else:
-                cell = row.td(childname='c_%i_l' % c, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
-                if lbl:
-                    cell.div(childcontent=lbl, **lbl_kwargs)
+                if self.boxMode:
+                    kwargs['lbl'] = lbl
+                    for k,v in lbl_kwargs.items():
+                        kwargs[f'lbl_{k}'] = v
+                    row.td(childname='c_%i_l' % c, hidden=True)
+                else:
+                    cell = row.td(childname='c_%i_l' % c, align=lblalign, vertical_align=lblvalign, **td_lbl_attr)
+                    if lbl:
+                        cell.div(childcontent=lbl, **lbl_kwargs)
             for k, v in list(row_attributes.items()):
                 # TODO: warn if row_attributes already contains the attribute k (and it has a different value)
                 row.parentNode.attr[k] = v
@@ -2805,4 +2935,3 @@ if __name__ == '__main__':
     fb.field('@card_id.name')
     fb.field('.address')
     a = root.toXml()
-    print(a)

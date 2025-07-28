@@ -5,39 +5,10 @@
 # Copyright (c) 2012 Softwell. All rights reserved.
 
 
-from gnr.core.gnrbag import Bag
-from gnr.web.gnrwebstruct import struct_method
-import os
-
-"Store memory"
 class GnrCustomWebPage(object):
     py_requires="""gnrcomponents/testhandler:TestHandlerFull,
                    gnrcomponents/formhandler:FormHandler,
                    gnrcomponents/framegrid:FrameGrid"""
-
-  # def windowTitle(self):
-  #     return ''
-  # 
-  # 
-  # def folderPath(self):
-  #     return self.site.getStaticPath('pkg:%s' %self.package.name,'testdata','docstore')
-
-
-  # def documentStoreData(self):
-  #     result = Bag()
-  #     folder = self.folderPath()
-  #     if not os.path.exists(folder):
-  #         os.mkdir(folder)
-  #     for fname in os.listdir(folder):
-  #         fpath = os.path.join(folder,fname)
-  #         b = Bag(fpath)
-  #         name = os.path.splitext(fname)[1]
-  #         result.setItem(name,Bag(path=fpath,name=name,
-  #                        description=b['description'],date=b['date']))
-
-  # def test_01_document_item(self,pane):
-  #     pass
-
 
 
     def test_4_document_folder(self,pane):

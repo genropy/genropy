@@ -1,6 +1,5 @@
-from __future__ import print_function
-
 from suds.client import Client
+
 hello_client = Client('http://127.0.0.1:8086/test15/soap/provisioning/?wsdl')
 l=[]
 for i in range(10):

@@ -7,7 +7,6 @@ from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
 from datetime import datetime
 import os
-import shutil
 
 caption = 'Dump all'
 description = 'Dump all'
@@ -22,7 +21,7 @@ class Main(BaseResourceBatch):
     batch_steps = 'dumpmain,dumpaux,end'
 
     def pre_process(self):
-        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'home:maintenance/backups'        
+        self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'maintenance:backups'        
         self.ts_start = datetime.now()
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
@@ -51,10 +50,11 @@ class Main(BaseResourceBatch):
         dbstoreconf = Bag()
         dbstorefolder = os.path.join(self.db.application.instanceFolder, 'dbstores')
         options = self.batch_parameters['options']
-
-        for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: 'Dumping %s' %item):
+    
+        for s in self.btc.thermo_wrapper(checkedDbstores,line_code='dbl',message=lambda item, k, m, **kwargs: '!!Dumping %s' %item):
             with self.db.tempEnv(storename=s):
-                self.filelist.append(self.db.dump(os.path.join(self.folderpath,s),
+                folder_path = self.backupSn.internal_path
+                self.filelist.append(self.db.dump(os.path.join(folder_path,s),
                                     dbname=self.db.stores_handler.dbstores[s]['database'],
                                     excluded_schemas=self.getExcluded(),
                                     options=options))
@@ -95,9 +95,11 @@ class Main(BaseResourceBatch):
         self.tblobj.update(self.dump_rec, backup_rec)
         self.db.commit()
 
+
     def result_handler(self):
         resultAttr = dict(url=self.result_url)
-        return 'Dump complete', resultAttr
+        return '!!Dump complete', resultAttr
+
 
     def table_script_stores(self, tc, **kwargs):
         dbstores = self.db.dbstores
@@ -132,17 +134,31 @@ class Main(BaseResourceBatch):
         fb = pkgPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px')
         fb.checkBoxText(value='^.dumppackages',values=','.join(values))
 
-
-
     def table_script_options(self, tc, **kwargs):
         optionsPane = tc.contentPane(title='Options', datapath='.options')
         fb = optionsPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px')
-        fb.checkBox(value='^.data_only', label='Data Only')
+        fb.checkBox(value='^.data_only', label='Data Only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .schema_only = false;
+                    SET .storeonly = false
+                    }
+                    """)
+        fb.checkBox(value='^.schema_only', label='Schema Only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .data_only = false;
+                    SET .storeonly = false;
+                    }
+                    """)
+        fb.checkBox(value='^.storeonly', label='Store only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .data_only = false;
+                    SET .schema_only = false;
+                    }
+                    """)
+
         fb.checkBox(value='^.no_owner', label='No Owner')
-        fb.checkBox(value='^.schema_only', label='Schema Only')
         fb.checkBox(value='^.no_privileges', label='No Privileges')
         fb.checkBox(value='^.quote_all_identifiers', label='Quote all identifiers')
-        fb.checkBox(value='^.storeonly', label='Store only')
 
         fb.checkBox(value='^.plain_text', label='Plain text')
         fb.checkBox(value='^.clean', label='Clean', row_visible='^.plain_text')

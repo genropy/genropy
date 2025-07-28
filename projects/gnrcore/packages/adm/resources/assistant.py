@@ -1,6 +1,4 @@
-from gnr.core.gnrdecorator import customizable,metadata
 from gnr.core.gnrlang import objectExtract
-from gnr.core.gnrbag import Bag
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class Assistant(BaseComponent):

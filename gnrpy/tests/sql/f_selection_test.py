@@ -29,13 +29,7 @@ this test module focus on SqlSelection's methods
 import os, os.path
 import datetime
 
-import pytest
-
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.sql.gnrsqldata import SqlQuery
-from gnr.sql.gnrsqlmodel import DbPackageObj, DbModelObj, DbTableObj, DbColumnObj,\
-    DbTableListObj, DbColumnListObj, DbIndexListObj
-from gnr.sql.adapters._gnrbaseadapter import GnrDictRow
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 
@@ -108,7 +102,7 @@ class BaseDb(BaseGnrSqlTest):
         print(sel.output('bag', formats={'title': 'Titolo: - %s - '},
                          dfltFormats={datetime.date: 'full'},
                          locale='it')['#0.title'] == 'Title: - Match point - ')
-
+    @classmethod
     def teardown_class(cls):
         cls.db.closeConnection()
         cls.db.dropDb(cls.dbname)
@@ -131,7 +125,21 @@ class TestGnrSqlDb_postgres(BaseDb):
                           port=cls.pg_conf.get("port"),
                           dbname=cls.dbname,
                           user=cls.pg_conf.get("user"),
-                          password=''
+                          password=cls.pg_conf.get("password")
+                          )
+
+    init = classmethod(init)
+    
+class TestGnrSqlDb_postgres3(BaseDb):
+    def init(cls):
+        cls.name = 'postgres3'
+        cls.dbname = 'test2'
+        cls.db = GnrSqlDb(implementation='postgres3',
+                          host=cls.pg_conf.get("host"),
+                          port=cls.pg_conf.get("port"),
+                          dbname=cls.dbname,
+                          user=cls.pg_conf.get("user"),
+                          password=cls.pg_conf.get("password")
                           )
 
     init = classmethod(init)

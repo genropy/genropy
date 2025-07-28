@@ -2,8 +2,6 @@
 
 """Slider"""
 
-from gnr.core.gnrbag import Bag
-
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     

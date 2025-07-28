@@ -8,9 +8,9 @@
 
 # --------------------------- GnrWebPage subclass ---------------------------
 
-
+import os.path
 from .mako.lookup import TemplateLookup
-
+from gnr.web.gnrwebpage import AUTH_OK
 from gnr.web.gnrwebpage_plugin.gnrbaseplugin import GnrBasePlugin
 
 

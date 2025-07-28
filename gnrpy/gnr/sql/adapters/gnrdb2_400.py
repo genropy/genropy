@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- coding: utf-8 -*-
 #--------------------------------------------------------------------------
 # package       : GenroPy sql - see LICENSE for details
 # module gnrpostgres : Genro postgres db connection.
@@ -23,14 +23,16 @@
 import re
 
 import pyodbc
-from pyodbc import Connection, Cursor
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
-from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
+
 from gnr.core.gnrlist import GnrNamedList
 from gnr.core.gnrbag import Bag
+from gnr.sql import logger
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
+from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator as GnrWhereTranslator_base
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException
+
 #DBAPI.paramstyle = 'pyformat'
-RE_SQL_PARAMS = re.compile(":(\w*)(\W|$)")
+RE_SQL_PARAMS = re.compile(r":(\w*)(\W|$)")
 
 class DictCursorWrapper(object):
 
@@ -71,7 +73,7 @@ class DictCursorWrapper(object):
         if self._query_executed:
             self._build_index()
         resultset = self.cursor.fetchmany(size=size)
-        return [GnrUpperNamedList(self.index, values=values) for values in resultset]
+        return [GnrNamedList(self.index, values=values) for values in resultset]
 
 
     def __next__(self):
@@ -122,7 +124,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def defaultMainSchema(self):
         return 'main'
 
-    def connect(self, storename=None):
+    def connect(self, storename=None, **kw):
         """Return a new connection object: provides cursors accessible by col number or col name
         @return: a new connection object"""
         dbroot = self.dbroot
@@ -130,6 +132,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         kwargs = dict(
                 [(k, v) for k, v in list(kwargs.items()) if v != None]) # remove None parameters, psycopg can't handle them
         kwargs['server']=kwargs.pop('host',None)
+        kwargs.pop('implementation',None)
         dsn = kwargs.get('dsn') or kwargs.get('database')
         try:
             conn = pyodbc.connect(dsn=dsn)
@@ -137,16 +140,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
             raise GnrNonExistingDbException(dsn)
         return DictConnectionWrapper(connection=conn)
 
-    def adaptSqlName(self,name):
+    @classmethod
+    def adaptSqlName(cls,name):
         return name
-        return '{name}'.format(name=name)
-
 
     def adaptSqlSchema(self,name):
         pass
-
-    def use_schemas(self):
-        return False
 
     def prepareSqlText(self, sql, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
@@ -158,7 +157,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         sqlargs = []
         def subArgs(m):
             key = m.group(1)
-            print(m.group(2))
+            logger.debug("Subargs %s", m.group(2))
             sqlargs.append(kwargs[key])
             return '? '
         #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
@@ -191,6 +190,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         conn = pyodbc.connect(**conn_kwargs)
         return conn
 
+    @classmethod
     def createDb(self, dbname=None, encoding='unicode'):
         pass
         #if not dbname:
@@ -201,6 +201,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         #curs.close()
         #conn.close()
 
+    @classmethod
     def createDbSql(self, dbname, encoding):
         pass
         #return """CREATE DATABASE "%s";""" % (dbname)
@@ -306,11 +307,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return list(ref_dict.values())
 
     def getPkey(self, table, schema):
-        print(table)
         """
         @param table: table name
         @param schema: schema name
-        @return: list of columns which are the primary key for the table"""
+        @return: list of columns which are the primary key for the table
+        """
+        logger.debug("getPkey table %s", table)
         sql = """WITH xx (CST_NAME, CST_COL_CNT, CST_SCHEMA, CST_TABLE) AS
                 (
                     SELECT CONSTRAINT_NAME, CONSTRAINT_KEYS, CONSTRAINT_SCHEMA, TABLE_NAME FROM QSYS2.SYSCST A
@@ -338,7 +340,7 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         indexes = []
         return indexes
 
-    def getTableContraints(self, table=None, schema=None):
+    def getTableConstraints(self, table=None, schema=None):
         """Get a (list of) dict containing details about a column or all the columns of a table.
         Each dict has those info: name, position, default, dtype, length, notnull
         Every other info stored in information_schema.columns is available with the prefix '_pg_'"""

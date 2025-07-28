@@ -1,9 +1,15 @@
+import sys
 import os
 import os.path
+import pytest
 from testing.postgresql import Postgresql
 
 from gnr.core.gnrbag import Bag
 
+excludewin32 = pytest.mark.skipif(sys.platform == "win32",
+                                  reason="testing.postgresl doesn't run on Windows")
+
+@excludewin32
 class BaseGnrSqlTest:
     """
     Base class for grn.sql testing
@@ -19,23 +25,39 @@ class BaseGnrSqlTest:
         cls.SAMPLE_XMLDATA = os.path.join(base_path, 'dbdata_base.xml')
         cls.SAMPLE_XMLSTRUCT_FINAL = os.path.join(base_path, 'dbstructure_final.xml')
         
-        if "CI" in os.environ:
-            # we are running inside the bitbucket CI
+        if "GITHUB_WORKFLOW" in os.environ:
+            # we are running inside the Github CI
             cls.pg_conf = dict(host="127.0.0.1",
                                port="5432",
                                user="postgres",
                                password="postgres")
+            # no mysql in CI environment
+            cls.mysql_conf = None
+        elif "GNR_TEST_PG_PASSWORD" in os.environ:
+            cls.pg_conf = dict(host=os.environ.get("GNR_TEST_PG_HOST","127.0.0.1"),
+                               port=os.environ.get("GNR_TEST_PG_PORT","5432"),
+                               user=os.environ.get("GNR_TEST_PG_USER","postgres"),
+                               password=os.environ.get("GNR_TEST_PG_PASSWORD"))
+            cls.mysql_conf = None
         else:
             cls.pg_instance = Postgresql()
             cls.pg_conf = cls.pg_instance.dsn()
-
+            cls.mysql_conf = dict(host="localhost",
+                                  port=3306,
+                                  user="genrotest",
+                                  password="genrotest")
+        
     @classmethod    
     def teardown_class(cls):
         """
         Teardown testing enviroment
         """
-        if not "CI" in os.environ:
+        if "GNR_TEST_PG_PASSWORD" in os.environ:
+            if hasattr(cls,'dbname'):
+                cls.db.dropDb(cls.dbname)
+        elif not ("GITHUB_WORKFLOW" in os.environ or "GNR_TEST_PG_PASSWORD" in os.environ):
             cls.pg_instance.stop()
+
 
 
 def configurePackage(pkg):
@@ -70,7 +92,27 @@ def configurePackage(pkg):
     movie.column('description', name_short='Dsc', name_long='Movie description')
 
     dvd = pkg.table('dvd', name_short='Dvd', name_long='Dvd', pkey='code')
-    dvd_id = dvd.column('code', 'L')
+    dvd.column('code', 'L')
     dvd.column('movie_id', 'L',name_short='Mid', name_long='Movie id').relation('movie.id')
     dvd.column('purchasedate', 'D', name_short='Pdt', name_long='Purchase date')
     dvd.column('available', name_short='Avl', name_long='Available')
+
+    location = pkg.table('location',
+                         name_short='Loc',
+                         name_long='Location',
+                         pkey='id')
+    location.column('id', 'L')
+    location.column('name', name_short='Name', name_long='Name')
+    location.column('rating', 'I', name_short='Rt', name_long='Rating')
+
+    # loc_allocation = pkg.table('loc_allocation',
+    #                            name_short='Loc. Alloc',
+    #                            name_long='Location Allocation',
+    #                            pkey='id')
+    # loc_allocation.column('id', 'L')
+    # loc_allocation.column('location_id', 'L', name_short='Loc', name_long='Location'
+    #                         ).relation('location.id')
+    # loc_allocation.column('movie_id', 'L', name_short='Movie', name_long='Movie ID'
+    #                         ).relation('movie.id')
+    # loc_allocation.column('from_date', 'D', name_short='From', name_long='From Date')
+    # loc_allocation.column('to_date', 'D', name_short='To', name_long='To Date')

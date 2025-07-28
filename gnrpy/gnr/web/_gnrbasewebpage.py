@@ -27,25 +27,16 @@
 
 import os
 import sys
-import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
-import logging
-
-gnrlogger = logging.getLogger(__name__)
-
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 from gnr.core.gnrbag import Bag, TraceBackResolver
-from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrstring import  toJson
 from gnr.core import gnrdate
-
-from gnr.sql.gnrsql_exceptions import GnrSqlSaveException, GnrSqlDeleteException
+from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -119,7 +110,7 @@ class GnrBaseWebPage(GnrObject):
     canonical_filename = property(_get_canonical_filename)
     
     @public_method
-    def decodeDatePeriod(self, datestr, workdate=None, locale=None,min_date=None,max_date=None):
+    def decodeDatePeriod(self, datestr, workdate=None, locale=None,min_date=None,max_date=None,pivotYear=None):
         """TODO
         
         :param datestr: a date string. For the string format, please check the :meth:`decodeDatePeriod()
@@ -131,7 +122,9 @@ class GnrBaseWebPage(GnrObject):
         period = datestr
         valid = False
         try:
-            returnDate = gnrdate.decodeDatePeriod(datestr, workdate=workdate, locale=locale, returnDate=True,min_date=min_date,max_date=max_date)
+            returnDate = gnrdate.decodeDatePeriod(datestr, workdate=workdate, locale=locale, 
+                                                  returnDate=True,min_date=min_date,max_date=max_date,
+                                                  pivotYear=pivotYear)
             valid = True
         except:
             returnDate = (None, None)
@@ -480,7 +473,7 @@ class GnrBaseWebPage(GnrObject):
         :param onSavedHandler: TODO
         """
         #resultAttr = None #todo define what we put into resultAttr
-        resultAttr = {}
+        resultAttr = {'table':table}
         gridsChanges = data.pop('grids')
         onSavingMethod = 'onSaving'
         onSavedMethod = 'onSaved'
@@ -544,6 +537,8 @@ class GnrBaseWebPage(GnrObject):
         if 'caption' not in resultAttr:
             resultAttr['caption'] = tblobj.recordCaption(record, rowcaption=rowcaption)
         pkey = record[tblobj.pkey]
+        if len(tblobj.pkeys)>1:
+            pkey = tblobj.compositeKey(record,field=tblobj.pkey)
         resultAttr['lastTS'] = str(record[tblobj.lastTS]) if tblobj.lastTS else None
         for k,v in list(recordClusterAttr.items()):
             if k.startswith('lastTS_'):

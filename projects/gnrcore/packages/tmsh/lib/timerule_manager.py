@@ -1,11 +1,11 @@
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 """
 timerule_manager.py
 """
 
 from gnr.core.gnrbag import Bag
-from datetime import datetime,date,time
+from datetime import datetime, date
 from dateutil import rrule, relativedelta
 from gnr.core.gnrlist import sortByItem
 from gnr.core.gnrlang import uniquify, GnrException

@@ -3,7 +3,7 @@
 #
  
 
-from gnr.web.gnrhtmlpage import GnrHtmlDojoPage as page_factory
+from gnr.web.gnrhtmlpage import GnrHtmlDojoPage as page_factory # noqa: F401
  
 class GnrCustomWebPage(object):
     dojo_version='18'

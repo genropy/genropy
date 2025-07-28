@@ -3,7 +3,7 @@
 
 import os
 import re
-from gnr.core.gnrdecorator import metadata, public_method
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
 
@@ -44,20 +44,25 @@ class Table(object):
         tbl.pyColumn('cover_logo',name_long='Cover logo',dtype='A')
         tbl.pyColumn('square_logo',name_long='Square logo',dtype='A')
 
-        tbl.formulaColumn('other_groups',select=dict(columns="STRING_AGG($group_code,',')",where='$user_id=#THIS.id',
-                                                table='adm.user_group'))
-        tbl.formulaColumn('all_groups',"array_to_string(ARRAY(#allgroups),',')",
-                                                select_allgroups=dict(columns='$code',
-                                                                      where='(@users.id=#THIS.id OR @user_groups.user_id=#THIS.id)',
-                                                table='adm.group'))
-
-        tbl.formulaColumn('fullname', """CASE 
-                                                WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
-                                                WHEN $lastname IS NOT NULL THEN $lastname
-                                        ELSE $username END
+        tbl.formulaColumn('custom_groups', 'null', name_long='!!Custom groups')   #For customization purposes
+        tbl.formulaColumn('other_groups',select=dict(columns=self.db.adapter.string_agg('$group_code',separator=','),
+                                                     where='$user_id=#THIS.id AND $group_code!=#THIS.group_code', 
+                                                     table='adm.user_group'))
+        tbl.formulaColumn('all_groups', """
+                                            CASE WHEN $group_code IS NOT NULL THEN $group_code ELSE '' END ||
+                                            CASE WHEN $group_code IS NOT NULL AND $other_groups IS NOT NULL THEN ',' ELSE '' END ||
+                                            CASE WHEN $other_groups IS NOT NULL THEN $other_groups ELSE '' END ||
+                                            CASE WHEN ($group_code IS NOT NULL OR $other_groups IS NOT NULL) AND $custom_groups IS NOT NULL THEN ',' ELSE '' END ||
+                                            CASE WHEN $custom_groups IS NOT NULL THEN $custom_groups ELSE '' END
+                                        """)
+        
+        tbl.formulaColumn('fullname', """CASE WHEN $firstname IS NOT NULL AND $lastname IS NOT NULL THEN $firstname||' '||$lastname
+                                            WHEN $lastname IS NOT NULL THEN $lastname
+                                            ELSE $username END
                                         """, name_long=u'!!Name',static=True)
 
         tbl.formulaColumn('recover_pwd_email', """$email""", name_long=u'!!Recover email',static=True) #can be overridden
+        tbl.formulaColumn('watermark_notice',"'Copy for ' || $username")
 
     def pyColumn_all_tags(self,record,**kwargs):
         return self.get_all_tags(record)
@@ -285,3 +290,10 @@ class Table(object):
             with self.db.table(inviting_table).recordToUpdate(inviting_id) as inviting_rec:
                 inviting_rec['user_id'] = new_user['id']
         self.db.commit()
+
+
+    @public_method
+    def pushNotification(self,user_pkeys=None,title=None,message=None,
+                         url=None,expiry_date=None,
+                         sender=None,**kwargs):
+        raise self.exception('business_logic',msg='Missing Webpush notification package')

@@ -6,11 +6,7 @@
 
 """RedBaron"""
 
-
 from gnr.core.gnrdecorator import public_method
-from time import sleep
-from random import randint
-
 from gnr.core.gnrredbaron import GnrRedBaron
 
 class GnrCustomWebPage(object):

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from __future__ import print_function
-
 from redbaron import RedBaron
 from importlib import import_module
 
@@ -25,4 +23,4 @@ class Table(object):
     def parseModule(self,hierarchical_name=None):
         filepath = import_module(hierarchical_name.replace('/','.')).__file__.replace('.pyc','.py')
         rb = self.get_redbaron(filepath)
-        print(x)
+        raise Exception("x exception")

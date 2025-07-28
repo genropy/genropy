@@ -2,7 +2,6 @@
 Tests for gnr.app package
 """
 import sys
-import os.path
 import _frozen_importlib
 import pytest
 
@@ -16,7 +15,7 @@ class TestGnrApp(BaseGnrAppTest):
     def setup_method(self, method):
         self.app_name = 'gnrdevelop'
         self.app = ga.GnrApp(self.app_name, forTesting=True)
- 
+
     def test_nullloader(self):
         """
         Tests for NullLoader
@@ -55,16 +54,13 @@ class TestGnrApp(BaseGnrAppTest):
         """
         Tests for GnrModuleFinder
         """
-        with pytest.raises(ImportError) as excinfo:
-            mf = ga.GnrModuleFinder("/", self.app)
-        assert excinfo.typename == "ImportError"
-        path_test = os.path.join(self.app.instanceFolder, "lib")
 
-        mf = self.app.get_modulefinder(path_test)
+
+        mf = self.app.get_modulefinder()
 
         mf_str = str(mf)
 
-        assert mf_str == f'<GnrModuleFinder for "{path_test}">'
+        assert mf_str == '<GnrModuleFinder>'
 
         r = mf.pkg_in_app_list("babbala")
         assert r is None
@@ -72,13 +68,13 @@ class TestGnrApp(BaseGnrAppTest):
         r = mf.pkg_in_app_list("sys")
         assert r.id == 'sys'
 
-        r = mf.find_spec("gnrpkg")
+        r = mf.find_spec("gnrpkg", self.app.instanceFolder)
         assert isinstance(r, _frozen_importlib.ModuleSpec)
 
-        r = mf.find_spec('gnrpkg.gnrcore.sys')
+        r = mf.find_spec('gnrpkg.gnrcore.sys', self.app.instanceFolder)
         assert r is None
 
-        r = mf.find_spec('gnrpkg.sys')
+        r = mf.find_spec('gnrpkg.sys', self.app.instanceFolder)
         assert isinstance(r, _frozen_importlib.ModuleSpec)
 
     def test_gnrpackageplugin(self):

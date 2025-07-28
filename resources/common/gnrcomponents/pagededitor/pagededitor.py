@@ -30,10 +30,13 @@ class PagedEditor(BaseComponent):
             printAction = f"""genro.nodeById('{printId}').publish('print');"""
         center = bc.contentPane(overflow='hidden',region='center')
         editor = center.ExtendedCkeditor(value=value,**editor_kwargs)
-        bc.contentPane(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
-                            margin_left='2px',margin_right='2px').pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
+        right = bc.tabContainer(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
+                            margin_left='2px',margin_right='2px')
+        right.contentPane(title='HTML').pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
                                 printAction=printAction,bodyStyle=bodyStyle,datasource=datasource,extra_bottom=extra_bottom,**tpl_kwargs)
-        
+        right.contentPane(title='PDF').iframe(width='100%', height='100%', border='0', 
+                                              rpcCall=self.pe_buildPdf, rpc_sourceHtml=pagedText, rpc_httpMethod='POST')
+
         bc.dataRemote('#WORKSPACE.letterheads',self._pe_getLetterhead,letterhead_id=letterhead_id,_if='letterhead_id')#_userChanges=True)
         bc._editor = editor
         return bc
@@ -63,8 +66,12 @@ class PagedEditor(BaseComponent):
             result.setItem('page_next',nexthtml)
         return result
 
-
     @public_method
     def pe_printPages(self,pages=None,bodyStyle=None,**kwargs):
         self.getService('htmltopdf').htmlToPdf(pages,self.site.getStaticPath('page:temp','pe_preview.pdf',autocreate=-1), bodyStyle=bodyStyle)
         self.setInClientData(path='gnr.clientprint',value=self.site.getStaticUrl('page:temp','pe_preview.pdf', nocache=True),fired=True)
+
+    @public_method
+    def pe_buildPdf(self, sourceHtml=None, **kwargs):
+        pdf_path = self.getService('htmltopdf').htmlToPdf(sourceHtml, 'page:tempfile.pdf')
+        return self.site.storageNode(pdf_path).url()

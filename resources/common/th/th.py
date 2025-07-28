@@ -263,6 +263,7 @@ class TableHandler(BaseComponent):
         if mobileTemplateGrid:
             dialog_kwargs.setdefault('fullScreen',True)
             kwargs.setdefault('configurable',False)
+            kwargs.setdefault('grid_gridplugins',False)
         pane = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,
                                         viewResource=viewResource,handlerType='dialog',
                                         grid_mobileTemplateGrid=mobileTemplateGrid,
@@ -433,7 +434,8 @@ class TableHandler(BaseComponent):
         
     @struct_method
     def th_plainTableHandler(self,pane,nodeId=None,table=None,th_pkey=None,datapath=None,viewResource=None,
-                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,**kwargs):
+                            hider=False,picker=None,addrow=None,delrow=None,height=None,width=None,rowStatusColumn=None,
+                            mobileTemplateGrid=None,**kwargs):
         kwargs['tag'] = 'ContentPane'
         if picker:
             hider=True
@@ -441,10 +443,15 @@ class TableHandler(BaseComponent):
             addrow = False if addrow is None else addrow
         if not delrow and rowStatusColumn is None:
             rowStatusColumn = False
+        if mobileTemplateGrid:
+            kwargs.setdefault('configurable',False)
+            kwargs.setdefault('grid_gridplugins',False)
         wdg = self.__commonTableHandler(pane,nodeId=nodeId,table=table,th_pkey=th_pkey,datapath=datapath,handlerType='plain',
                                         viewResource=viewResource,hider=hider,rowStatusColumn=rowStatusColumn,
                                         picker=picker,addrow=addrow,delrow=delrow,**kwargs)
         wdg.view.attributes.update(height=height,width=width)
+        if mobileTemplateGrid:
+            wdg.view.attributes['_class'] = f"{wdg.view.attributes['_class']} mobileTemplateGrid templateGrid"
         return wdg
 
     @extract_kwargs(default=True,page=True)     
@@ -488,7 +495,7 @@ class TableHandler(BaseComponent):
         
         
     @struct_method
-    def th_thIframe(self,pane,method=None,src=None,**kwargs):
+    def th_thIframe(self,pane,method=None,src=None,virtual_columns=None,**kwargs):
         pane.attributes.update(dict(overflow='hidden',_lazyBuild=True))
         #pane = pane.contentPane(detachable=True,height='100%',_class='detachablePane')
         #box = pane.div(_class='detacher',z_index=30)
@@ -496,7 +503,7 @@ class TableHandler(BaseComponent):
         iframe = pane.iframe(main='th_iframedispatcher',main_methodname=method,
                             main_table=pane.getInheritedAttributes().get('table'),
                             main_currentFormId=pane.getInheritedAttributes().get('formId'),
-                            main_pkey='=#FORM.pkey',
+                            main_pkey='=#FORM.pkey',main_virtual_columns=virtual_columns,
                             src=src,**kwargs)
         pane.dataController('genro.publish({iframe:"*",topic:"frame_onChangedPkey"},{pkey:pkey})',pkey='^#FORM.pkey')
         return iframe
@@ -539,7 +546,7 @@ class TableHandler(BaseComponent):
         return iframe
         
     @public_method
-    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,**kwargs):
+    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,virtual_columns=None,**kwargs):
         rootattr = root.attributes
         rootattr['formId'] = correntFormId
         rootattr['datapath'] = 'main'
@@ -549,7 +556,7 @@ class TableHandler(BaseComponent):
         rootattr['subscribe_frame_onChangedPkey'] = 'SET .pkey=$1.pkey; FIRE .controller.loaded = $1.pkey;'
         if pkey:
             root.dataController('SET .pkey = pkey; FIRE .controller.loaded=pkey;',pkey=pkey,_onStart=True)
-            root.dataRecord('.record',table,pkey='^#FORM.pkey',_if='pkey')
+            root.dataRecord('.record',table,pkey='^#FORM.pkey',virtual_columns=virtual_columns,_if='pkey')
         handler = self.getPublicMethod('rpc',methodname)
         if handler:
             return handler(root,**kwargs)

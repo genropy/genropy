@@ -1,2 +1,2 @@
-from gnr.core import gnrenv
+from gnr.core import gnrenv  # noqa: F401
 

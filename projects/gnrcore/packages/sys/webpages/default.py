@@ -4,10 +4,9 @@
 # Created by Giovanni Porcari on 2010-08-29.
 # Copyright (c) 2010 Softwell. All rights reserved.
 
-
-from gnr.core.gnrbag import Bag,DirectoryResolver
-import re
 import os
+
+from gnr.core.gnrbag import DirectoryResolver
 from webob.exc import HTTPNotFound
 
 class GnrCustomWebPage(object):

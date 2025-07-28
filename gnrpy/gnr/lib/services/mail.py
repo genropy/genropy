@@ -21,17 +21,14 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import _thread
-import os
 import datetime
 import time
-
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.utils import formatdate
-
 import re, html.entities
 import mimetypes
 
@@ -40,8 +37,6 @@ from gnr.core.gnrbag import Bag
 from gnr.lib.services import GnrBaseService
 from gnr.core.gnrlang import GnrException
 from gnr.core.gnrstring import templateReplace
-
-
 from gnr.lib.services import GnrBaseService,BaseServiceType
 
 

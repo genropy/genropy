@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from gnr.lib.services.storage import BaseLocalService
-from gnr.web.gnrbaseclasses import BaseComponent
 import os
 import tempfile
 from gnr.core.gnrsys import expandpath

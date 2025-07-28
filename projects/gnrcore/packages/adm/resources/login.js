@@ -21,16 +21,21 @@ const LoginComponent = {
             genro.publish('confirmUserDialog');
             return;
         }
-        var newenv = result.getItem('rootenv');
-        var rootenv = sourceNode.getRelativeData('gnr.rootenv');
+        let newenv = result.getItem('rootenv');
+        let rootenv = sourceNode.getRelativeData('gnr.rootenv');
         currenv = rootenv.deepCopy();
         currenv.update(newenv);
         sourceNode.setRelativeData('gnr.rootenv', currenv);
         sourceNode.setRelativeData('gnr.avatar',avatar);
-        if(avatar.getItem('group_code') && !avatar.getItem('multi_group')){
+        let extraEditableFields = [];
+
+        if(avatar.getItem('group_code')){
             sourceNode.setRelativeData('_login.group_code',avatar.getItem('group_code'))
         }
         sourceNode.getValue().walk(n=>{    
+            if(genro.dom.isVisible(n) && n.attr.value && n.attr.nodeId!="tb_login_pwd" &&  n.attr.nodeId!="tb_login_user"){
+                extraEditableFields.push(n);
+            }
             if(!n.hasValidations()){
                 return
             }        
@@ -40,17 +45,19 @@ const LoginComponent = {
             }
             n.setValidationError(validation);
             n.updateValidationStatus();
+
         })
         if(result.getItem('waiting2fa')){
             sourceNode.setRelativeData('waiting2fa',true);
             genro.publish('getOtpDialog');
+        }else if(extraEditableFields.length==0){
+            genro.fireEvent('do_login',true);
         }
     },
 
     confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
-        var rootpage = rootenv.getItem('rootpage');
         var login = sourceNode.getRelativeData('_login');
         var waiting2fa = genro.getData('waiting2fa')
         if(waiting2fa){
@@ -79,6 +86,7 @@ const LoginComponent = {
         genro.lockScreen(true,'login');
         let rpckw = {'rootenv':rootenv,login:login};
         genro.serverCall(rpcmethod,rpckw,function(result){
+            let rootenv = sourceNode.getRelativeData('gnr.rootenv');
             genro.lockScreen(false,'login');
             if (!result || result.error){
                 dlg.show();
@@ -86,29 +94,35 @@ const LoginComponent = {
             }else{
                 genro.setData('gnr.avatar',new gnr.GnrBag(result))
                 var user_dbstore = genro.getData('gnr.avatar.user_record.dbstore')
-                rootpage = rootpage || result['rootpage'];
+                let startPage = result['rootpage'] || sourceNode.getRelativeData('gnr.rootenv.rootpage');
                 if(user_dbstore){
                     if(!window.location.pathname.slice(1).startsWith(user_dbstore)){
                         var redirect_url = window.location.protocol+'//'+window.location.host+'/'+user_dbstore;
                         if(rootpage){
-                            redirect_url+=rootpage;
+                            redirect_url+=startPage;
                         }
                         window.location.assign(redirect_url);
                         return;
                     }
                 }
-                if(rootpage){
-                    genro.gotoURL(rootpage);
+                if(startPage){
+                    genro.gotoURL(startPage);
+                    return
                 }
+                let kwreload = {...genro.startArgs};
+                objectPop(kwreload,'gnrtoken');
                 if(doLogin){
-                    var rootpage = avatar.getItem('avatar_rootpage') || avatar.get('singlepage');
-                    if(rootpage && !standAlonePage){
-                        genro.gotoURL(rootpage);
+                    let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
+                    if(singlepage && !standAlonePage){
+                        genro.gotoURL(genro.addParamsToUrl(singlepage,kwreload));
                     }else{
                         genro.pageReload();
                     }
                 }else{
-                    genro.pageReload({page_id:genro.page_id});
+                    //different context page
+                    kwreload.page_id = genro.page_id;
+                    objectPop(kwreload,'new_window');
+                    genro.pageReload(kwreload);
                 }
             }
         },null,'POST');

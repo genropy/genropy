@@ -1,8 +1,7 @@
 # encoding: utf-8
-from __future__ import division
 
-from past.utils import old_div
 import datetime
+
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import public_method,metadata
 
@@ -91,7 +90,7 @@ class Table(object):
 
         tbl.formulaColumn('following_actions',"array_to_string(ARRAY(#factions),',')",select_factions=dict(table='orgn.annotation',columns="$action_type_description || '-' || COALESCE($action_description,'missing description')",
                                                                 where='$parent_annotation_id=#THIS.id'),name_long='!!Following actions')
-        
+
         tbl.formulaColumn('__protected_by_author',"""
             CASE WHEN :env_orgn_author_only IS NOT TRUE THEN string_to_array(:env_userTags,',') @> string_to_array(COALESCE(:env_orgn_superuser_tag,''),',')
             ELSE $author_user_id!=:env_user_id END
@@ -128,19 +127,19 @@ class Table(object):
             due_ts = datetime.datetime(date_due.year,date_due.month,date_due.day)
 
         td = due_ts-datetime.datetime.now()
-        tdh = int(old_div(td.total_seconds(),3600))
+        tdh = int(td.total_seconds()/3600)
         result = None
         if tdh<0:
             tdh = -tdh
             if tdh >48:
-                result = self.expired_tpl_short() %dict(days=int(old_div(tdh,24)))
+                result = self.expired_tpl_short() % dict(days=int(tdh / 24))
             else:
-                result = self.expired_tpl_long() %dict(days=int(old_div(tdh,24)),hours=tdh%24)
+                result = self.expired_tpl_long() % dict(days=int(tdh / 24),hours=tdh % 24)
         else:
             if tdh >48:
-                result = self.due_tpl_short() %dict(days=int(old_div(tdh,24)))
+                result = self.due_tpl_short() % dict(days=int(tdh / 24))
             else:
-                result = self.due_tpl_long() %dict(days=int(old_div(tdh,24)),hours=tdh%24)
+                result = self.due_tpl_long() % dict(days=int(tdh / 24),hours=tdh % 24)
         return result
 
     def pyColumn_zoomlink(self,record=None,field=None):

@@ -9,12 +9,13 @@ class TestGnrTimestamp():
         with pytest.raises(ZeroDivisionError):
             t.get(station=2, base=0)
 
-        v = t.get(station=1, base=10)
+        v = t.get(station=1, base=100)
         assert len(v) == 10
 
         now = datetime.datetime.now()
         d = t.getDate(v)
         assert d.year == now.year
         assert d.month == now.month
+        assert d.day == now.day
         assert d.hour == 0
         assert d.minute == 0

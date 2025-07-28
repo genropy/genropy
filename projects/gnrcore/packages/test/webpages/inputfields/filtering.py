@@ -21,7 +21,9 @@ class GnrCustomWebPage(object):
         fb.filteringSelect(value='^.description',values='Zero robot killed,One bridge fallen,Two babies born',lbl='No code',
                            fullTextSearch=True)
         fb.button('Reset values',action='SET .code=null;SET .description=null')
-
+        fb.div('^.code')
+        fb.div('^.description')
+        
     def test_1_filtering(self,pane):
         "Basic filteringSelect, list of values built as Bag"
         fb = pane.formbuilder(cols=1,border_spacing='3px')
@@ -31,12 +33,14 @@ class GnrCustomWebPage(object):
         b.setItem('r3',None,caption='Spam',id='C')
         fb.data('.store',b)
         fb.filteringSelect(value='^.tbag',lbl='Test bag 1',storepath='.store')
-
+        fb.div('^.tbag')
+        
     def test_2_combobox(self,pane):
         "Basic comboBox. Choose values or manually insert a new one."
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.comboBox(value='^.description',values='Zero,One,Two',lbl='Combo')
-
+        fb.div('^.description')
+        
     def test_3_filtering(self,pane):
         "Same list of values built as Bag, but store is built with keys"
         fb = pane.formbuilder(cols=1,border_spacing='3px')
@@ -47,6 +51,8 @@ class GnrCustomWebPage(object):
         fb.data('.store',b)
         fb.filteringSelect(value='^.tbag',lbl='Test bag 3',storepath='.store',
                             storeid='#k')  
+        fb.div('^.tbag')
+        
 
     def test_4_filteringCombo(self, pane):
         "filteringSelect vs comboBox: in comboBox you can choose values even not suggested values. Displayed value vs real value"

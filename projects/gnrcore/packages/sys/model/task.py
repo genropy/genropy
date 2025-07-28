@@ -1,10 +1,7 @@
 # encoding: utf-8
 
-from __future__ import print_function
-
-
 from datetime import datetime
-from dateutil import rrule
+
 from gnr.core.gnrbag import Bag
 
 class Table(object):
@@ -87,9 +84,12 @@ class Table(object):
         all_tasks = self.query(where='$stopped IS NOT TRUE').fetch()
         tasks_to_run = []
         for task in all_tasks:
-            reason = self.isTaskScheduledNow(task,timestamp)
-            if reason:
-                tasks_to_run.append((task['id'],reason))
+            try:
+                reason = self.isTaskScheduledNow(task,timestamp)
+                if reason:
+                    tasks_to_run.append((task['id'],reason))
+            except Exception as e:
+                self.db.table('sys.error').writeException(description='Scheduling Error task %s %s :%s' %(task['table_name'],task['command'],str(e)))
         return tasks_to_run
 
     def getBtcClass(self, table=None, page=None, command=None):

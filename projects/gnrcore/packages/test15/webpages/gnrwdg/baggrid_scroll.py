@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
 
 class GnrCustomWebPage(object):
     dojo_source = True

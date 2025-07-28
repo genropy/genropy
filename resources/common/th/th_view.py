@@ -4,7 +4,10 @@
 # Created by Francesco Porcari on 2011-05-04.
 # Copyright (c) 2011 Softwell. All rights reserved.
 
-from xml.sax import handler
+from dateutil import rrule
+from dateutil.relativedelta import relativedelta
+
+
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import public_method,extract_kwargs,metadata
@@ -64,7 +67,7 @@ class TableHandlerView(BaseComponent):
         
         if queryBySample:
             self._th_handleQueryBySample(view,table=table,pars=queryBySample)
-        pkglist = list(self.db.packages.keys())
+        pkglist = list(self.db.packages.keys())+[None]
         for side in ('top','bottom','left','right'):
             hooks = self._th_hook(side,mangler=frameCode,asDict=True)
             for packagename,h in sorted([(getattr(handler,'__mixin_pkg',0),handler) for handler in hooks.values()],key=lambda x:pkglist.index(x[0])):
@@ -114,6 +117,7 @@ class TableHandlerView(BaseComponent):
                                 dockTo='dummyDock',datapath='.depending_relation_explorer')
         pane.remote(self._th_dependingRelationExplorerContent,th_root=th_root,table=gridattr['table'])
     
+
     @public_method
     def _th_dependingRelationExplorerContent(self,pane,th_root=None,table=None):
         bc = pane.borderContainer(nodeId=f'{th_root}_dep_tables_root')
@@ -149,11 +153,11 @@ class TableHandlerView(BaseComponent):
 
     @public_method
     def th_dependingRelationExplorerStore(self,table=None,sourcePkey=None):
+        if not sourcePkey:
+            return Bag()
+        result = Bag()
         tblobj = self.db.table(table)
         sourceRecord,sourceRecordAttr = self.app.getRecord(pkey=sourcePkey,table=table)
-        result = Bag()
-        if not sourcePkey:
-            return result
         i = 0
         for n in tblobj.model.relations:
             joiner =  n.attr.get('joiner')
@@ -448,6 +452,8 @@ class TableHandlerView(BaseComponent):
         table = frame.grid.attributes['table']
 
         b.rowchild(label='!!Reload',action="$2.widget.reload();")
+        if self.isDeveloper():
+            b.rowchild(label='!!Touch selected records',action="$2.widget.touchSelectedRows();")
         b.rowchild(label='-')
         b.rowchild(label='!!Show Archived Records',checked='^.#parent.showLogicalDeleted',
                                 action="""SET .#parent.showLogicalDeleted= !GET .#parent.showLogicalDeleted;
@@ -594,6 +600,7 @@ class TableHandlerView(BaseComponent):
     def _th_section_from_type(self,tblobj,sections,condition=None,condition_kwargs=None,
                             all_begin=None,all_end=None,codePkey=False,include_inherited=None):
         rt = tblobj.column(sections).relatedTable() 
+        
         if rt:
             section_table = tblobj.column(sections).relatedTable().dbtable
             pkeyfield = section_table.pkey
@@ -601,6 +608,7 @@ class TableHandlerView(BaseComponent):
             condition_kwargs = condition_kwargs or dict()
             default_order_by = section_table.attributes.get('order_by','$%s' %caption_field)
             f = section_table.query(columns='*,$%s' %caption_field,where=condition,order_by=default_order_by,**condition_kwargs).fetch()
+            sectionCodeTransformer = slugify
         else:
             caption_field = 'description'
             pkeyfield = 'code'
@@ -608,6 +616,7 @@ class TableHandlerView(BaseComponent):
             for s in tblobj.column(sections).attributes['values'].split(','):
                 s = s.split(':')
                 f.append(dict(code=s[0],description=s[1] if len(s)==2 else s[0]))
+            sectionCodeTransformer = lambda txt: txt.replace('.','_')
         s = []
         sec_cond = '$%s=:s_id' %sections
         if include_inherited:
@@ -615,11 +624,11 @@ class TableHandlerView(BaseComponent):
         if all_begin is None and all_end is None:
             all_begin = True
         if all_begin:
-            s.append(dict(code='c_all_begin',caption='!!All' if all_begin is True else all_begin))
+            s.append(dict(code='_all_',caption='!!All' if all_begin is True else all_begin))
         for i,r in enumerate(f):
-            s.append(dict(code=slugify(r[pkeyfield],'_'),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
+            s.append(dict(code=sectionCodeTransformer(r[pkeyfield]),caption=r[caption_field],condition=sec_cond,condition_s_id=r[pkeyfield]))
         if all_end:
-            s.append(dict(code='c_all_end',caption='!!All' if all_end is True else all_end))
+            s.append(dict(code='_all_',caption='!!All' if all_end is True else all_end))
         return s
 
 
@@ -844,9 +853,6 @@ class TableHandlerView(BaseComponent):
                             allPosition=None, 
                             **kwargs):
         sections = []
-        import datetime
-        from dateutil import rrule
-        from dateutil.relativedelta import relativedelta
         dtstart = dtstart or self.workdate
         dtstart = dtstart.replace(day=1)
         default_date = dtstart
@@ -990,15 +996,21 @@ class TableHandlerView(BaseComponent):
                                 """,
                             currentView="^.grid.currViewPath",
                             favoriteView='^.grid.favoriteViewPath',
-                            gridId=gridId,_onBuilt=1)
+                            _delay=1,gridId=gridId,_onBuilt=1)
         q = Bag()
         pyviews = self._th_hook('struct',mangler=th_root,asDict=True)
         for k,v in list(pyviews.items()):
             prefix,name=k.split('_struct_')
             q.setItem(name,self._prepareGridStruct(v,table=table),caption=v.__doc__)
         pane.data('.grid.resource_structs',q)
-        pane.dataRemote('.grid.structMenuBag',self.th_menuViews,pyviews=q.digest('#k,#a.caption'),baseViewName=baseViewName,currentView="^.grid.currViewPath",
-                        table=table,th_root=th_root,favoriteViewPath='^.grid.favoriteViewPath',cacheTime=30)
+        pane.data('.grid.userobject_structs',self.th_userObjectViews(table=table,th_root=th_root))
+        pane.dataRpc('.grid.userobject_structs',self.th_userObjectViews,
+                        table=table,th_root=th_root,
+                        _loadAfter='^.grid.reload_userobjects_struct',
+                        _onResult="""if(kwargs._loadAfter!==true){
+                            PUT .grid.currViewPath = null;
+                            SET .grid.currViewPath = kwargs._loadAfter;
+                        }""")
 
         options = self._th_getOptions(pane)
         #SOURCE MENUPRINT
@@ -1452,6 +1464,14 @@ class TableHandlerView(BaseComponent):
         pane.menudiv(iconClass='iconbox heart',tip='!!User sets',storepath='.usersets.menu')
        
     @struct_method
+    def thbtn_batchButton(self,pane,label=None,resource=None,res_type='action',iconClass=None,disabled='^.grid.selectedId?=!#v',**kwargs):
+        pane.slotButton(label,disabled=disabled,iconClass=iconClass).dataController("""
+            objectExtract(_kwargs,'_evt,_filterEvent');
+            FIRE .th_batch_run=_kwargs;
+        """,res_type=res_type,resource=resource,**kwargs)
+
+
+    @struct_method
     def th_slotbar_fastQueryBox(self, pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         table = inattr['table'] 
@@ -1574,35 +1594,15 @@ class THViewUtils(BaseComponent):
         return menu
 
     @public_method
-    def th_menuViews(self,table=None,th_root=None,pyviews=None,objtype=None,favoriteViewPath=None,currentView=None,baseViewName=None,**kwargs):
-        result = Bag()
+    def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
         objtype = objtype or 'view'
-        currentView = currentView or favoriteViewPath or '__baseview__'
         gridId = '%s_grid' %th_root
-        result.setItem('__baseview__', None,caption=baseViewName or 'Base View',gridId=gridId,checked = currentView=='__baseview__',isBaseView=True)
-        if pyviews:
-            for k,caption in pyviews:
-                result.setItem(k.replace('_','.'),None,description=caption,caption=caption,viewkey=k,gridId=gridId)
         userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, gridId),table=table)
         if self.pagename.startswith('thpage'):
             #compatibility old saved views
             userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % gridId,table=table))
-        if len(userobjects)>0:
-            result.update(userobjects)
-        result.walk(self._th_checkFavoriteLine,favPath=favoriteViewPath,currentView=currentView,gridId=gridId)
-        return result
-    
-    def _th_checkFavoriteLine(self,node,favPath=None,currentView=None,gridId=None):
-        if node.attr.get('code'):
-            if gridId:
-                node.attr['gridId'] = gridId
-            if node.attr['code'] == currentView:
-                node.attr['checked'] = True
-            elif node.attr['code'] == favPath:
-                node.attr['favorite'] = True
-            
-        else:
-            node.attr['favorite'] = None
+        return userobjects
+
     
     @public_method
     def th_menuQueries(self,table=None,th_root=None,pyqueries=None,editor=True,bySample=False,**kwargs):
@@ -1626,9 +1626,6 @@ class THViewUtils(BaseComponent):
         else:
             querymenu.setItem('__newquery__',None,caption='!!New query',description='',
                                 extended=True)
-        #if self.application.checkResourcePermission('_DEV_,dbadmin', self.userTags):
-        #    querymenu.setItem('__custom_columns__',None,caption='!!Custom columns',action="""FIRE .handle_custom_column;""")
-        #querymenu.walk(self._th_checkFavoriteLine,favPath=favoriteQueryPath)
         return querymenu
             
     @public_method
@@ -1639,13 +1636,12 @@ class THViewUtils(BaseComponent):
         optype_dict = dict(alpha=['contains', 'startswith', 'equal', 'wordstart',
                                   'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
                                   'greater', 'greatereq', 'less', 'lesseq', 'between'],
-                           alpha_phonetic = ['contains','similar', 'startswith', 'equal', 'wordstart',
-                                  'startswithchars', 'isnull', 'nullorempty', 'in', 'regex',
-                                  'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            date=['equal', 'in', 'isnull', 'greater', 'greatereq', 'less', 'lesseq', 'between'],
                            number=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'isnull', 'in'],
                            boolean=['istrue', 'isfalse', 'isnull'],
                            others=['equal', 'greater', 'greatereq', 'less', 'lesseq', 'in'])
+        optype_dict['alpha_phonetic'] = ['similar'] + optype_dict['alpha']
+        optype_dict['alpha_fulltext'] = ['fulltext'] + optype_dict['alpha']
         queryModes = (('S','!!Search'),('U','!!Union'),('I','!!Intersect'),('D','!!Difference'))
         wt = self.db.whereTranslator
         for op,caption in queryModes:

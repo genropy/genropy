@@ -6,6 +6,8 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
+
+
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip
 from gnr.core.gnrstructures import GnrStructData
@@ -140,7 +142,7 @@ class GnrHtmlSrc(GnrStructData):
         :param hasBorderLeft: add the left border
         :param hasBorderRight: add the right border
         :param hasBorderBottom: add the bottom border
-        :param \*\*kwargs: you can pass:
+        :param **kwargs: you can pass:
         
             * *style*: a string with css style"""
         name = name or 'l_{}'.format('_'.join([p for p in self.fullpath.split('.') \
@@ -538,8 +540,6 @@ class GnrHtmlBuilder(object):
         from weasyprint import HTML
         html_doc = HTML(string=self.html)
         html_doc.write_pdf(target=filename)
-            
-
 
     def calculate_style(self, attr, um, **kwargs):
         """TODO

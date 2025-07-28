@@ -16,7 +16,8 @@ import time
 CONNECTION_TIMEOUT = 3600
 CONNECTION_REFRESH = 20
 
-USER_AGENT_SNIFF = (('Chrome', 'Chrome'),
+USER_AGENT_SNIFF = (('GnrCordova', 'GnrCordova'),
+                    ('Chrome', 'Chrome'),
                     ('Safari', 'Safari'),
                     ('Firefox', 'Firefox'),
                     ('Opera', 'Opera'),
@@ -31,6 +32,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.user_agent = page.user_agent or ''
         self.browser_name = self.sniffUserAgent()
         self.user_device = self.sniffUserDevice()
+        self.is_cordova = self.browser_name == "GnrCordova"
         self.ip = self.page.user_ip or '0.0.0.0'
         self.connection_name = '%s_%s' % (self.ip.replace('.', '_'), self.browser_name)
         self.secret = page.site.config['secret'] or self.page.siteName

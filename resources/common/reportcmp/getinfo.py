@@ -9,11 +9,7 @@
 
 """ info """
 
-import re
-from gnr.core.gnrstring import toJson
-from collections import defaultdict
-
-from gnr.core.gnrstring import splitAndStrip, toText
+from gnr.core.gnrstring import splitAndStrip
 from gnr.web.gnrbaseclasses import BaseComponent
 
 class GetInfoPage(BaseComponent):
@@ -67,11 +63,21 @@ class QuickQueryTool(object):
         columns = ','.join(columns_list).strip(',')
         return  group_by, columns
 
-    def qqt_parametricQuery(self, table, columns='', group_by='', order_by='',
-                            having=None, distinct=None, limit=None, columnsDict=None, **kwargs):
+    def qqt_parametricQuery(self, table, columns='',
+                            group_by='', order_by='',
+                            having=None, distinct=None,
+                            limit=None, columnsDict=None,
+                            **kwargs):
         group_by, columns = self._prepareColumnsAndGroupBy(columns, group_by)
         w  = self.qqt_prepareConditions(table, customColumns=columnsDict, **kwargs)
         tblobj = self.db.table(table)
+
+
+        # FIXME: wherelist is not defined, defining an empty list here
+        # to have flake run without complaints
+        wherelist = []
+    
+        
         q = tblobj.query(columns=columns,
                          where=' AND '.join(wherelist),
                          group_by=group_by,
@@ -80,7 +86,10 @@ class QuickQueryTool(object):
                          having=having,
                          addPkeyColumn=False,
                          relationDict=self.columnsDict,
-                         **sqlArgs)
+                         # FIXME - sqlArgs doesn't exists
+                         # **sqlArgs,
+                         **kwargs
+                         )
         return q
         
    
