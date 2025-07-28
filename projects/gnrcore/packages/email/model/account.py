@@ -1,4 +1,7 @@
 # encoding: utf-8
+from gnr.lib.services.mail import MailService
+from gnr.core.gnrdecorator import public_method
+from gnr.app import logger as gnrlogger
 
 class Table(object):
 
@@ -33,7 +36,7 @@ class Table(object):
         output.column('schedulable',dtype='B',name_long='!!Schedulable',name_short='Sched')
         output.column('save_output_message', dtype='B', name_long='!!Save output message')
         output.column('debug_address', name_long='!!Debug address')
-        output.column('dflt_noreply', name_long='!!Default no-reply')
+    
     
     def getSmtpAccountPref(self,account=None,account_name=None):
         if account:
@@ -44,8 +47,7 @@ class Table(object):
         mp['smtp_host'] = account['smtp_host']
         mp['from_address'] = account['smtp_from_address']  
         mp['user'] = account['smtp_username']
-        mp['reply_to'] = account['smtp_reply_to'] 
-        mp['dflt_noreply'] = account['dflt_noreply'] or self.db.application.getPreference('dflt_noreply',pkg='email')
+        mp['reply_to'] = account['smtp_reply_to'] or self.db.application.getPreference('dflt_noreply',pkg='email')
         mp['password'] = account['smtp_password']
         mp['port'] = account['smtp_port']
         mp['ssl'] = account['smtp_ssl']
@@ -69,8 +71,23 @@ class Table(object):
             for i,mbox in enumerate(self.standardMailboxes()):
                 mboxtbl.createMbox(mbox,record_data['id'],order=i+1)
 
-
     def partitionioning_pkeys(self):
         where='@account_users.user_id=:env_user_id OR @account_users.id IS NULL'
         return [r['pkey'] for r in self.query(where=where,excludeLogicalDeleted=False).fetch()]
     
+    @public_method
+    def sendEmailFromParams(self, host=None, from_address=None, to_address=None, reply_to=None, subject=None, body=None,
+                                username=None, password=None, tls=None, ssl=None, port=None, **kwargs):
+        account_params = dict(smtp_host=host, port=port, user=username, password=password, ssl=ssl, tls=tls, **kwargs)
+        mh = MailService()
+        subject = subject or 'This is a test message'
+        body = body or f'This is a test message from {from_address} to {to_address}'
+        msg = mh.build_base_message(subject=subject, body=body)
+        if reply_to:
+            msg.add_header('reply-to', reply_to)
+        try:
+            with mh.get_smtp_connection(**account_params) as smtp_connection:
+                smtp_connection.sendmail(from_address, to_address, msg.as_string())
+                gnrlogger.debug(f'Test message sent successfully')
+        except Exception as e:
+            gnrlogger.error(f'Error sending test message: {e}')

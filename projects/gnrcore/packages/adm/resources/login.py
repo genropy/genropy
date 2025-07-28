@@ -584,7 +584,6 @@ class LoginComponent(BaseComponent):
             self.db.commit()
 
         return 'ok'
-            #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)
 
     @public_method
     def login_changePassword(self,password=None,gnrtoken=None,current_password=None,newusername=None,**kwargs):

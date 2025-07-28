@@ -52,7 +52,7 @@ class GnrCustomWebPage(object):
                                         bcc_address=None, subject=None, template_id=None, tbl=None):
         msg_tbl = self.db.table('email.message')
         rnd_rec_id = self.db.table(tbl).query(columns='$id', limit=1).selection().output('pkeylist')
-        new_msg = msg_tbl.newMessageFromUserTemplate(account_id=account_id, to_address=to_address, 
+        msg_tbl.newMessageFromUserTemplate(account_id=account_id, to_address=to_address, 
                                                         cc_address=cc_address, bcc_address=bcc_address,
                                                         subject=subject, template_id=template_id, 
                                                         record_id=rnd_rec_id[0], doCommit=True)
@@ -72,18 +72,9 @@ class GnrCustomWebPage(object):
         fb.checkbox(value='^.ssl', lbl='SSL', dtype='B', colspan=1)
 
         fb.simpleTextarea(value='^.message',lbl='Text')
-        fb.button('Run').dataRpc(self.send_testemail, smtp_host='=.smtp_host', 
-                            port='=.port', message='=.message', 
-                            tls='=.tls', ssl='=.ssl',
-                            from_address='=.from_address', to_address='=.to_address', 
-                            user='=.user', password='=.password')
-
-    @public_method
-    def send_testemail(self, smtp_host=None, port=None, ssl=None, tls=None, user=None, password=None,
-                            message=None,from_address=None,to_address=None):
-        account_params = dict(smtp_host=smtp_host, port=port, user=user, password=password, ssl=ssl, tls=tls)
-        mh = MailService()
-        msg = mh.build_base_message(subject='Test', body=f"From: {from_address}\r\nTo: {to_address}\r\nTest Message")
-        with mh.get_smtp_connection(**account_params) as smtp_connection:
-            smtp_connection.sendmail(from_address, to_address, msg.as_string())
-            gnrlogger.info("Successfully sent email")
+        fb.button('Run').dataRpc(self.db.table('email.account').sendEmailFromParams, 
+                                 host='=.smtp_host', 
+                                 port='=.port', body='=.message', 
+                                 tls='=.tls', ssl='=.ssl',
+                                 from_address='=.from_address', to_address='=.to_address', 
+                                 username='=.user', password='=.password')

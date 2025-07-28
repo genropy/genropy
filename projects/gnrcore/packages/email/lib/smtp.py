@@ -35,8 +35,8 @@ def send_message(page=None,message=None, account=None, attachments=None):
     async_ = True
     mail_handler.sendmail(to_address=to_address, subject=subject, body=body, cc_address=cc_address,
                     bcc_address=bcc_address, attachments=attachments,
-                 from_address=from_address, smtp_host=smtp_host, port=port, user=user, password=password,
-                 ssl=ssl, tls=tls, html=html, async_=async_)
+                    from_address=from_address, smtp_host=smtp_host, port=port, user=user, password=password,
+                    ssl=ssl, tls=tls, html=html, async_=async_)
                       
 
 def send_pending(page=None, account=None):
