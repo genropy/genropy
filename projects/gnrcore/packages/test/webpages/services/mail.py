@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from gnr.core.gnrdecorator import public_method
-from gnr.lib.services.mail import MailService
-from gnr.app import logger as gnrlogger
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/testhandler:TestHandlerFull'
