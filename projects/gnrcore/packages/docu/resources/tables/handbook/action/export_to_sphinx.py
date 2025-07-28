@@ -24,7 +24,7 @@ import boto3
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.core.gnrbag import Bag
-from gnr.app import pkglog as gnrlogger
+from gnr.app import pkglog as logger
 
 caption = 'Export to sphinx'
 description = 'Export to sphinx'
@@ -104,7 +104,7 @@ class Main(BaseResourceBatch):
         extra_conf = '\n'.join(conf_lines)
         with confSn.open('a') as confFile:
             confFile.write(extra_conf)
-            gnrlogger.info("Extra conf lines added to conf.py: %s" % extra_conf)
+            logger.info("Extra conf lines added to conf.py: %s" % extra_conf)
             
     def step_prepareRstDocs(self):
         "Prepare Rst docs"
@@ -132,7 +132,7 @@ class Main(BaseResourceBatch):
                 try:
                     f.write(urlopen(source_url).read())
                 except:
-                    gnrlogger.debug("Missing file", source_url)
+                    logger.debug("Missing file", source_url)
                     continue
                     
         for relpath,source in self.examplesDict.items():
