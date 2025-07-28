@@ -126,7 +126,6 @@ class Main(BaseResourceMail):
         pane = pane.div(padding='10px',min_height='60px')
         template_address = extra_parameters['template_address'] or 'adm.userobject.data:%s' %extra_parameters['template_id']
         data =  self.loadTemplate(template_address,asSource=True)[0]
-        #data,meta = self.db.table('adm.userobject').loadUserObject(pkey=extra_parameters['template_id'])
         pane.dataFormula('#table_script_runner.dialog_pars.title','dlgtitle',
                             dlgtitle='!!%s (%i)' %(data['metadata.summary'] or 'Mail',record_count),_onBuilt=True)
         fb = pane.formbuilder(cols=1,fld_width='20em',border_spacing='4px')
@@ -134,7 +133,7 @@ class Main(BaseResourceMail):
         fb.checkbox(value='^.as_pdf',label='!!Send as pdf')
         fb.dataController("SET .letterhead_id = default_letterhead || null;",_onBuilt=True,
                             default_letterhead=data.getItem('metadata.default_letterhead') or False,_if='default_letterhead')
-        fb.textbox(value='^.mail_code',lbl='Mail code')
+        fb.textbox(value='^.mail_code',lbl='!!Mail code', _tags='_DEV_')
         if self.db.package('email'):
             fb.dbSelect(value='^.account_id',placeholder='default', dbtable='email.account',
                         lbl='!![en]Account',hasDownArrow=True)

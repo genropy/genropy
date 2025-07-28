@@ -1,6 +1,21 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <GenRoBag><lib><services><ftp path="lib/services/ftp.py" ext="py"><en_s_s _tag="en__s_s" base="%s %s" en="[4] [5]" it="%s %s"></en_s_s></ftp></services></lib>
-<menu path="menu.py" ext="py"><en_system fr="Système" de="System" en="System" it="Sistema" base="System"></en_system></menu>
+<menu path="menu.py" ext="py"><en_system fr="Système" de="System" en="System" it="Sistema" base="System"></en_system>
+<en_onering base="Onering"></en_onering>
+<en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
+<en_batch_log base="Batch log" it="Log batch" en="Batch log"></en_batch_log>
+<en_upgrades base="Upgrades" en="Upgrades" it="Aggiornamenti"></en_upgrades>
+<en_services base="Services" it="Servizi" en="Services"></en_services>
+<en_tasks fr="Tâches" de="Aufgaben" en="Tasks" it="Compiti" base="Tasks"></en_tasks>
+<en_mobile_app_check base="Mobile App Check"></en_mobile_app_check>
+<en_db_structure base="Db Structure"></en_db_structure>
+<en_logging base="Logging"></en_logging>
+<en_startup_data_manager base="Startup data manager"></en_startup_data_manager>
+<en_package_editor base="Package editor" en="Package editor" it="Editor di pacchetti"></en_package_editor>
+<en_localization_editor base="Localization editor" it="Strumento localizzazione"></en_localization_editor>
+<en_gnride base="GnrIDE"></en_gnride>
+<en_pod_dashboard base="POD dashboard"></en_pod_dashboard>
+<en_widgets base="Widgets" en="Widgets" it="Widget"></en_widgets></menu>
 <model><batch_log path="model/batch_log.py" ext="py"><en_batch_log base="Batch log" it="Log batch" en="Batch log"></en_batch_log>
 <en_batch_logs base="Batch logs" it="Log batch" en="Batch logs"></en_batch_logs>
 <en_batch_title base="Batch title" it="Titolo batch" en="Batch title"></en_batch_title>
@@ -46,7 +61,7 @@
 <en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="id"></en_id>
 <en_external_token_id fr="Id jeton externe" de="Externe Token id" en="External token id" it="Id segno esterno" base="External token id"></en_external_token_id>
 <en_date_and_time fr="Date et heure" de="Datum und Uhrzeit" en="Date and Time" it="Data e ora" base="Date and Time"></en_date_and_time>
-<en_host fr="Hôte" de="Gastgeber" en="Host" it="Ospite" base="Host"></en_host></external_token_use>
+<en_host fr="Hôte" de="Gastgeber" en="Host" it="Host" base="Host"></en_host></external_token_use>
 <locked_record path="model/locked_record.py" ext="py"><en_locked_record fr="Document verrouillé" de="Gesperrt Bilanz" en="Locked Record" it="Record Bloccato" base="Locked Record"></en_locked_record>
 <en_locked_records fr="Enregistrements verrouillés" de="Gesperrte Datensätze" en="Locked records" it="Record bloccati" base="Locked records"></en_locked_records>
 <en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="id"></en_id>
@@ -107,8 +122,8 @@
 <en_run_asap base="Run ASAP" en="Run ASAP" it="Esegui al più presto"></en_run_asap>
 <en_max_workers base="Max workers" it="Max processi" en="Max workers"></en_max_workers>
 <en_log_task base="Log Task" en="Log Task" it="Attività di registro"></en_log_task>
-<en_start_date fr="Date De Début" de="Anfangsdatum" en="Start date" it="Data Di Inizio" base="Start Date" zh="开始日期"></en_start_date>
-<en_end_date fr="Date De Fin" de="End Date" en="End date" it="Data Di Fine" base="End Date" zh="结束日期"></en_end_date>
+<en_start_date fr="Date De Début" de="Anfangsdatum" en="Start date" it="Data Di Inizio" base="Start Date"></en_start_date>
+<en_end_date fr="Date De Fin" de="End Date" en="End date" it="Data Di Fine" base="End Date"></en_end_date>
 <en_stopped fr="Arrêtée" de="Gestoppt" en="Stopped" it="Arrestato" base="Stopped"></en_stopped>
 <en_query base="Query" en="Query" it="Query"></en_query>
 <en_last_completed base="Last completed" it="Ultimo completato" en="Last completed"></en_last_completed></task>
@@ -156,7 +171,7 @@
 <model_editor path="resources/package_editor/model_editor.py" ext="py"><en_table_from_csv_xls base="Table from csv/xls" en="Table from csv/xls" it="Tabella da csv/xls"></en_table_from_csv_xls></model_editor>
 <thresource_editor path="resources/package_editor/thresource_editor.py" ext="py"><en_new_viewresource base="New ViewResource" en="New ViewResource" it="Nuova risorsa ViewResource"></en_new_viewresource>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm></thresource_editor></package_editor>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm"></en_confirm></thresource_editor></package_editor>
 <preference path="resources/preference.py" ext="py"><en_styling base="Styling"></en_styling>
 <en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_xlsx_print base="XLSX Print" en="XLSX Print" it="Stampa XLSX"></en_xlsx_print>
@@ -226,9 +241,9 @@
 <en_shortcuts base="Shortcuts" it="Scorciatoie" en="Shortcuts"></en_shortcuts>
 <en_theme base="Theme" it="Tema" en="Theme"></en_theme>
 <en_device_mode base="Device mode" it="Modalità dispositivo" en="Device mode"></en_device_mode>
-<en_12px_default_12px_small_13px_medium_14px_large_15px_extra_large fr="12px: Par défaut, 12px: Petit, 13px: Medium, 14px: Grande 15px: Extra Large" de="12px: Standard, 12px: Klein, 13px: Medium, 14px: Grosses, 15px: Extra Large" en="12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large" it="12px: Default 12px: Piccolo, 13px: Medium, 14px: Grande, 15px: Extra Large" base="12px:Default,12px:Small,13px:Medium,14px:Large,15px:Extra Large"></en_12px_default_12px_small_13px_medium_14px_large_15px_extra_large>
+<en_desktop_zoom base="Desktop Zoom"></en_desktop_zoom>
+<en_mobile_zoom base="Mobile Zoom"></en_mobile_zoom>
 <en_extended_pdf_viewer base="Extended pdf viewer" it="Pdf viewer esteso" en="Extended pdf viewer"></en_extended_pdf_viewer>
-<en_min_pdf_viewer base="Min pdf viewer"></en_min_pdf_viewer>
 <en_12px_small_13px_medium_14px_large_15px_extra_large fr="12px: Petit, 13px: Medium, 14px: Grande 15px: Extra Large" de="12px: Klein, 13px: Medium, 14px: Grosses, 15px: Extra Large" en="12px:Small,13px:Medium,14px:Large,15px:Extra Large" it="12px: Piccolo, 13px: Medium, 14px: Grande, 15px: Extra Large" base="12px:Small,13px:Medium,14px:Large,15px:Extra Large"></en_12px_small_13px_medium_14px_large_15px_extra_large>
 <en_on_saving base="On saving" it="Al salvataggio" en="On saving"></en_on_saving>
 <en_on_saved base="On saved" it="A salvataggio effettuato" en="On saved"></en_on_saved>
@@ -258,33 +273,32 @@
 <en_save_db_template base="Save db template" en="Save db template" it="Salva modello db"></en_save_db_template></startupdata_manager></startupdata_manager>
 <tables><error><th_error path="resources/tables/error/th_error.py" ext="py"><en_exceptions fr="Exceptions" de="Ausnahmen" en="Exceptions" it="Eccezioni" base="Exceptions"></en_exceptions>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors></th_error></error>
-<service><th_service path="resources/tables/service/th_service.py" ext="py"><en_new_service base="New service" en="New service" it="Nuovo servizio"></en_new_service></th_service></service>
+<service><th_service path="resources/tables/service/th_service.py" ext="py"><en_new_service base="New service" en="New service" it="Nuovo servizio"></en_new_service>
+<en_service_type base="Service type" it="Tipo servizio" en="Service type"></en_service_type>
+<en_service_name base="Service name" it="Nome servizio" en="Service name"></en_service_name>
+<en_invalid_code_only_letters_and_numbers_are_allowed base="Invalid code: Only letters and numbers are allowed"></en_invalid_code_only_letters_and_numbers_are_allowed></th_service></service>
 <task><th_task path="resources/tables/task/th_task.py" ext="py"><en_active base="Active" it="Attivo" en="Active"></en_active>
 <en_config base="Config" it="Configurazione" en="Config"></en_config>
 <en_rules fr="Règles" de="Regeln" en="Rules" it="Regole" base="Rules"></en_rules>
-<en_logs base="Logs" en="Logs" it="Registri"></en_logs>
-<en_month fr="Mois" de="Monat" en="Month" it="Mese" base="Month"></en_month>
-<en_day fr="Jour" de="Tag" en="Day" it="Giorno" base="Day"></en_day>
-<en_weekday fr="Jour de la semaine" de="Wochentag" en="Weekday" it="Giorno feriale" base="Weekday"></en_weekday>
-<en_hour fr="Heure" de="Stunde" en="Hour" it="Ora" base="Hour"></en_hour>
-<en_minute fr="Minute" de="Minute" en="Minute" it="Minuto" base="Minute"></en_minute></th_task></task>
+<en_logs base="Logs" en="Logs" it="Registri"></en_logs></th_task></task>
 <task_execution><th_task_execution path="resources/tables/task_execution/th_task_execution.py" ext="py"><en_from_today base="From Today" it="Da oggi" en="From Today"></en_from_today>
 <en_last_7_days base="Last 7 days" it="Ultimi 7 giorni" en="Last 7 days"></en_last_7_days>
 <en_last_30_days base="Last 30 days" it="Ultimi 30 giorni" en="Last 30 days"></en_last_30_days></th_task_execution></task_execution>
 <task_result><th_task_result path="resources/tables/task_result/th_task_result.py" ext="py"><en_error base="Error" it="Errore" en="Error"></en_error></th_task_result></task_result>
+<upgrade><th_upgrade path="resources/tables/upgrade/th_upgrade.py" ext="py"><en_last_modified base="Last Modified"></en_last_modified></th_upgrade></upgrade>
 <widget><th_widget path="resources/tables/widget/th_widget.py" ext="py"><en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"></en_parameters>
 <en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"></en_documentation>
 <en_summary fr="Résumé" de="Zusammenfassung" en="Summary" it="Sommario" base="Summary"></en_summary>
 <en_parameters_doc base="Parameters doc" en="Parameters doc" it="Parametri doc"></en_parameters_doc>
 <en_code base="Code" en="Code" it="Codice"></en_code></th_widget></widget></tables></resources>
-<webpages><external_token path="webpages/external_token.py" ext="py"><en_tokens fr="Jetons" de="Tokens" en="Tokens" it="Token" base="Tokens"></en_tokens>
+<webpages><dbadmin path="webpages/dbadmin.py" ext="py"><en_drop_sqlite_file_here_or_do_double_click_to_browse_your_disk base="Drop sqlite file here or do double click to browse your disk" it="Trascina qui il db sqlite o fai doppio clic e cerca nel filesystem" en="Drop sqlite file here or do double click to browse your disk"></en_drop_sqlite_file_here_or_do_double_click_to_browse_your_disk></dbadmin>
+<ep_table path="webpages/ep_table.py" ext="py"><en_latest base="Latest"></en_latest></ep_table>
+<external_token path="webpages/external_token.py" ext="py"><en_tokens fr="Jetons" de="Tokens" en="Tokens" it="Token" base="Tokens"></en_tokens>
 <en_external_token fr="Jeton externe" de="Externe Token" en="External token" it="Segno esterno" base="External token"></en_external_token></external_token>
 <localizationeditor path="webpages/localizationeditor.py" ext="py"><en_localization_manager fr="Gestionnaire de localisation" de="Localization Manager" en="Localization Manager" it="Localization Manager" base="Localization Manager"></en_localization_manager>
 <en_package fr="Paquet" de="Paket" en="Package" it="Pacchetto" base="Package"></en_package>
 <en_languages fr="Langues" de="Sprachen" en="Languages" it="Linguaggi" base="Languages"></en_languages>
-<en_rebuild base="Rebuild"></en_rebuild>
-<en_options base="Options" de="Options" en="Options" fr="Options" it="Opzioni"></en_options>
-<en_autotranslate base="Autotranslate" en="Autotranslate" it="Traduzione automatica"></en_autotranslate>
+<en_rebuild base="Rebuild" it="Rigenera"></en_rebuild>
 <en_translate_package base="Translate package" it="Traduci pacchetto"></en_translate_package>
 <en_choose_language base="Choose language" it="Scegli lingua"></en_choose_language>
 <en_language base="Language" en="Language" it="Lingua"></en_language>
@@ -304,7 +318,8 @@
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save></lookuptables>
 <memcached_stats path="webpages/memcached_stats.py" ext="py"><en_mem_stats fr="Mem Statistiques" de="Mem Stats" en="Mem Stats" it="Mem Statistiche" base="Mem Stats"></en_mem_stats></memcached_stats>
 <message path="webpages/message.py" ext="py"><en_message fr="Message" de="Nachricht" en="Message" it="Messaggio" base="Message"></en_message></message>
-<onering path="webpages/onering.py" ext="py"><en_one_ring fr="One Ring" de="Eine Ring" en="One Ring" it="One ring" base="One Ring"></en_one_ring>
+<mobileappcheck path="webpages/mobileappcheck.py" ext="py"><en_mobile_app_configuration_check base="Mobile App Configuration check"></en_mobile_app_configuration_check></mobileappcheck>
+<onering path="webpages/onering.py" ext="py"><en_one_ring fr="One Ring" de="Eine Ring" en="One Ring" it="Unico anello" base="One Ring"></en_one_ring>
 <en_rpc_details base="Rpc details" de="RPC-Details" en="Rpc details" fr="Détails Rpc" it="Dettagli Rpc"></en_rpc_details></onering>
 <package_editor path="webpages/package_editor.py" ext="py"><en_package_editor base="Package editor" en="Package editor" it="Editor di pacchetti"></en_package_editor>
 <en_please_select_or_create_a_project_br_and_select_or_create_a_package base="Please select or create a project&lt;br/&gt;and select or create a package" en="Please select or create a project&lt;br/&gt;and select or create a package" it="Seleziona o crea un progetto &lt;br/&gt; e seleziona o crea un pacchetto"></en_please_select_or_create_a_project_br_and_select_or_create_a_package></package_editor>

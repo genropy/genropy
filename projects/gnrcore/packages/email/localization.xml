@@ -5,17 +5,20 @@
 <en_utility_tables fr="tables utilitaires" de="Utility-Tabellen" en="Utility tables" it="Tabelle utilità" base="Utility tables"></en_utility_tables></menu>
 <model><account path="model/account.py" ext="py"><en_account base="Account" en="Account" it="Account"></en_account>
 <en_account_name base="Account Name" en="Account Name" it="Nome dell'account"></en_account_name>
+<en_input_parameters base="Input parameters" it="Parametri di input"></en_input_parameters>
 <en_address base="Address" it="Indirizzo" en="Address"></en_address>
 <en_full_name base="Full Name" it="Nome completo" en="Full Name"></en_full_name>
-<en_host fr="Hôte" de="Gastgeber" en="Host" it="Ospite" base="Host"></en_host>
+<en_host fr="Hôte" de="Gastgeber" en="Host" it="Host" base="Host"></en_host>
 <en_port base="Port" it="Porta" en="Port"></en_port>
 <en_tls base="TLS" en="TLS" it="TLS"></en_tls>
 <en_ssl base="SSL" en="SSL" it="SSL"></en_ssl>
 <en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"></en_username>
 <en_password fr="Mot de passe" de="Passwort" en="Password" it="Password" base="Password"></en_password>
 <en_last_uid base="Last UID" it="Ultimo UID" en="Last UID"></en_last_uid>
+<en_output_parameters base="Output parameters" it="Parametri di uscita"></en_output_parameters>
 <en_smtp_host base="SMTP host" it="Host SMTP" en="SMTP host"></en_smtp_host>
 <en_from_address base="From address" it="Mittente" en="From address" es="Desde la dirección"></en_from_address>
+<en_reply_to base="Reply to" it="Rispondi a"></en_reply_to>
 <en_smtp_username base="Smtp username" it="Username smtp" en="Smtp username"></en_smtp_username>
 <en_smtp_password base="Smtp password" it="Password smtp" en="Smtp password"></en_smtp_password>
 <en_smtp_port base="Smtp port" it="Porta smtp" en="Smtp port"></en_smtp_port>
@@ -46,6 +49,7 @@
 <en_from base="From" de="Von" en="From" fr="À partir de" it="Da"></en_from>
 <en_cc base="Cc" de="CC" en="Cc" fr="CC" it="CC"></en_cc>
 <en_bcc base="Bcc" de="BCC" en="Bcc" fr="BCC" it="BCC"></en_bcc>
+<en_reply_to base="Reply to" it="Rispondi a"></en_reply_to>
 <en_uid base="UID" en="UID" it="UID"></en_uid>
 <en_body base="Body" de="Körper" en="Body" fr="Corps" it="Corpo"></en_body>
 <en_plain_body base="Plain Body" it="Corpo piatto" en="Plain Body"></en_plain_body>
@@ -63,15 +67,22 @@
 <en_extra_headers base="Extra headers" en="Extra headers" it="Intestazioni aggiuntive"></en_extra_headers>
 <en_weak_attachments base="Weak attachments" en="Weak attachments" it="Allegati deboli"></en_weak_attachments>
 <en_reply_message_id base="Reply message id" it="Indirizzo risposta" en="Reply message id"></en_reply_message_id>
-<en_read base="Read"></en_read>
+<en_priority base="Priority" en="Priority" it="Priorità"></en_priority>
+<en_no_send base="No send" it="Nessun invio"></en_no_send>
+<en_low base="Low" it="Basso"></en_low>
+<en_standard base="Standard" it=""></en_standard>
+<en_high base="High" it="Alto"></en_high>
+<en_immediate base="Immediate" it="Immediato"></en_immediate>
+<en_read base="Read" it="Leggi"></en_read>
 <en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Utente destinatario" base="Destination user"></en_destination_user>
 <en_sent base="Sent" it="Inviato" en="Sent" es="Enviado"></en_sent>
 <en_abstract base="Abstract" it="Riassunto"></en_abstract>
-<en_show_read base="Show read"></en_show_read></message>
+<en_show_read base="Show read" it="Mostra leggi"></en_show_read></message>
 <message_address path="model/message_address.py" ext="py"><en_message_address base="Message address" it="Indirizzo messaggio" en="Message address"></en_message_address>
 <en_message_addresses base="Message addresses" it="Indirizzi" en="Message addresses"></en_message_addresses>
 <en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id>
 <en_address base="Address" it="Indirizzo" en="Address"></en_address>
+<en_clean_address base="Clean address" it="Indirizzo pulito"></en_clean_address>
 <en_reason base="Reason" en="Reason" it="Motivo"></en_reason></message_address>
 <message_alias path="model/message_alias.py" ext="py"><en_messagemailbox base="MessageMailbox" en="MessageMailbox" it="Casella di posta elettronica dei messaggi"></en_messagemailbox>
 <en_message_id base="Message id" it="Id messaggio" en="Message id"></en_message_id>
@@ -88,10 +99,13 @@
 <user_account path="model/user_account.py" ext="py"><en_user_id fr="ID de l'utilisateur" de="Benutzer-ID" en="User id" it="ID utente" base="User id"></en_user_id>
 <en_account_id base="Account id" en="Account id" it="ID account"></en_account_id>
 <en_can_send base="Can Send" it="Può inviare" en="Can Send"></en_can_send></user_account></model>
-<resources><tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email" en="Receive email"></en_receive_email></receive_mail>
+<resources><preference path="resources/preference.py" ext="py"><en_default_e_mail_account base="Default e-mail account" it="Account di posta elettronica predefinito"></en_default_e_mail_account>
+<en_default_no_reply_address base="Default no-reply address" it="Indirizzo predefinito per non rispondere"></en_default_no_reply_address></preference>
+<services><mail><mailservice path="resources/services/mail/mailservice.py" ext="py"><en_default_smtp_account base="Default smtp account" it="Account SMTP default" en="Default smtp account"></en_default_smtp_account></mailservice></mail></services>
+<tables><account><action><receive_mail path="resources/tables/account/action/receive_mail.py" ext="py"><en_receive_email base="Receive email" it="Ricevi email" en="Receive email"></en_receive_email></receive_mail>
 <send_mail path="resources/tables/account/action/send_mail.py" ext="py"><en_send_emails base="Send emails" it="Invia email" en="Send emails"></en_send_emails></send_mail></action>
-<th_account path="resources/tables/account/th_account.py" ext="py"><en_input base="Input"></en_input>
-<en_output base="Output"></en_output>
+<th_account path="resources/tables/account/th_account.py" ext="py"><en_input base="Input" it="Ingresso"></en_input>
+<en_output base="Output" it="Uscita"></en_output>
 <en_check_e_mail base="Check e-mail" en="Check e-mail" it="Controlla la posta elettronica"></en_check_e_mail>
 <en_send_test base="Send test" it="Invia test" en="Send test"></en_send_test>
 <en_send_test_e_mail base="Send test e-mail" it="Invia test" en="Send test e-mail"></en_send_test_e_mail>
@@ -110,7 +124,7 @@
 <en_sent base="Sent" it="Inviato" en="Sent" es="Enviado"></en_sent>
 <en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"></en_all>
 <en_unread base="Unread" it="Non letti"></en_unread>
-<en_filter_messages base="Filter messages"></en_filter_messages>
+<en_filter_messages base="Filter messages" it="Filtrare i messaggi"></en_filter_messages>
 <en_message_type base="Message type" it="Tipo messaggio" en="Message type"></en_message_type>
 <en_from_date base="From date" en="From date" it="A partire dalla data"></en_from_date>
 <en_to_date base="To date" en="To date" it="Fino alla data"></en_to_date>
@@ -119,7 +133,7 @@
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_body_plain base="Body plain" it="Corpo piatto" en="Body plain"></en_body_plain>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
-<en_mark_as_read base="Mark as read"></en_mark_as_read></th_message></message>
+<en_mark_as_read base="Mark as read" it="Segna come letto"></en_mark_as_read></th_message></message>
 <user_account><th_user_account path="resources/tables/user_account/th_user_account.py" ext="py"><en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"></en_user></th_user_account></user_account></tables></resources>
 <webpages><account_page path="webpages/account_page.py" ext="py"><en_account base="Account" en="Account" it="Account"></en_account></account_page>
 <mail_dashboard path="webpages/mail_dashboard.py" ext="py"><en_add_mailbox base="Add mailbox" it="Aggiungi casella" en="Add mailbox"></en_add_mailbox>

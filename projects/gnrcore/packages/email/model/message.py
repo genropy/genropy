@@ -226,6 +226,7 @@ class Table(object):
                     html=False,doCommit=False,headers_kwargs=None,**kwargs):
         
         message_date = message_date or self.db.workdate
+        to_address = kwargs.get('system_debug_address') or to_address
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)

@@ -46,7 +46,7 @@ class Form(BaseComponent):
         tc = main_bc.tabContainer(margin='2px', region='center')
         self.imap_parameters(tc.borderContainer(title='!!Input', datapath='.record'))
         self.smtp_parameters(tc.borderContainer(title='!!Output', datapath='.record'))
-        self.account_users(main_bc.contentPane(region='bottom', height='50%'))
+        self.account_users(main_bc.contentPane(region='bottom', height='250px'))
 
     @customizable
     def imap_parameters(self, bc):
