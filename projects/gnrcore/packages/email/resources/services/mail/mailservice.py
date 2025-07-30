@@ -8,6 +8,7 @@ from gnr.web.gnrbaseclasses import BaseComponent
 class Service(AdmMailService):
 
     def get_account_params(self, account_id=None, **kwargs):
+        "Package mail redefines base method in order to manage account_id"
         account_parameters = dict(self.smtp_account)
         email_account_id = account_id or self.parent.getPreference('mail.email_account_id',pkg='adm') or self.parent.getPreference('email_account_id',pkg='email') 
         if email_account_id:
@@ -25,6 +26,7 @@ class Service(AdmMailService):
     @extract_kwargs(headers=True)
     def sendmail(self, scheduler=None, account_id=None, attachments=None,
                         headers_kwargs=None, doCommit=None, **kwargs):   
+        "Package mail redefines base method in order to schedule activity and create new message record"
         message_kwargs = self.get_account_params(account_id, **kwargs)    #DP message parameters and connection settings in kwargs
         default_scheduler = message_kwargs.pop('scheduler',None)
 

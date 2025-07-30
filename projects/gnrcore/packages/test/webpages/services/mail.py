@@ -30,6 +30,9 @@ class GnrCustomWebPage(object):
 
     def test_1_newMessageFromTemplate(self,pane):
         "Send e-mail with template. You must configure a template and package email before testing"
+        if not 'email' in self.db.packages:
+            pane.div('You must install package email before testing this function', color='red')
+            return
         fb=pane.formbuilder(cols=3)
         fb.textBox(value='^.mail.to', lbl='To:')
         fb.textBox(value='^.mail.cc', lbl='CC:')
@@ -57,6 +60,9 @@ class GnrCustomWebPage(object):
 
     def test_3_set_params(self, pane):
         "Send e-mail indicating all required parameters, no service configuration required"
+        if not 'email' in self.db.packages:
+            pane.div('You must install package email before testing this function', color='red')
+            return
         fb = pane.div(margin='5px').formbuilder(cols=1, border_spacing='6px', width='100%', fld_width='100%', tdl_width='10em')
         fb.div(lbl='Mail Settings', colspan=2, lbl_font_style='italic', lbl_margin_top='1em', margin_top='1em',
                lbl_color='#7e5849')

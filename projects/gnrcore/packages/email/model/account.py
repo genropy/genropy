@@ -82,6 +82,7 @@ class Table(object):
         mh = MailService()
         subject = subject or 'This is a test message'
         body = body or f'This is a test message from {from_address} to {to_address}'
+        reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
         msg = mh.build_base_message(subject=subject, body=body)
         if reply_to:
             msg.add_header('reply-to', reply_to)

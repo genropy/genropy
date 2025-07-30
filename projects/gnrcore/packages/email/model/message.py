@@ -227,7 +227,8 @@ class Table(object):
         
         message_date = message_date or self.db.workdate
         to_address = kwargs.get('system_debug_address') or to_address
-        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date),reply_to=reply_to))
+        reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
+        extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date)))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
         account_id = account_id or self.db.application.getPreference('mail', pkg='adm')['email_account_id'] or self.parent.getPreference('email_account_id',pkg='email') 
