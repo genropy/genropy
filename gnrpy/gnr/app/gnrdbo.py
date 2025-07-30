@@ -1310,7 +1310,7 @@ class TableBase(object):
                                  source_rows=source_rows)
 
         if not source_rows:
-            return
+            return []
 
         # Fetch all destination records
         logger.debug('Fetching destination records')
