@@ -47,7 +47,7 @@ class Table(object):
         mp['smtp_host'] = account['smtp_host']
         mp['from_address'] = account['smtp_from_address']  
         mp['user'] = account['smtp_username']
-        mp['reply_to'] = account['smtp_reply_to'] or self.db.application.getPreference('dflt_noreply',pkg='email')
+        mp['reply_to'] = account['smtp_reply_to'] or self.db.application.getPreference('dflt_reply_to',pkg='email')
         mp['password'] = account['smtp_password']
         mp['port'] = account['smtp_port']
         mp['ssl'] = account['smtp_ssl']
