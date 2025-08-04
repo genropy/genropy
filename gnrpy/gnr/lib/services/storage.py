@@ -582,7 +582,7 @@ class StorageService(GnrBaseService):
             return self._move_file(sourceNode, destNode)
         elif sourceNode.isdir:
             return self._move_dir(sourceNode, destNode)
-
+        
 
     def _move_file(self, sourceNode, destNode):
         """Moves the content of a node file to another node file, 

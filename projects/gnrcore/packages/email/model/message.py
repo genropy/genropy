@@ -63,10 +63,11 @@ class Table(object):
         tbl.formulaColumn('show_read', """CASE WHEN $read IS NOT TRUE THEN '<div style="border-radius\\:10px;background\\:var(--primary-color);height\\:10px;width\\:10px"></div>'
                                                 ELSE NULL END""", name_long='!!Show read')
         tbl.pyColumn('full_external_url', name_long='Full external url')
-
+        tbl.pyColumn('compiled_body', py_method='getBody')
+        
     def pyColumn_full_external_url(self,record,field):
         return self.db.application.site.externalUrl('/index', menucode='messages')
-    
+        
     def defaultValues(self):
         return dict(account_id=self.db.currentEnv.get('current_account_id'))
 
@@ -299,7 +300,7 @@ class Table(object):
             try:
                 mail_handler.sendmail(to_address = message['to_address'],
                                 account_id = account_id,
-                                body=message['body'], subject=message['subject'],
+                                body=self.getBody(message), subject=message['subject'],
                                 cc_address=message['cc_address'], bcc_address=bcc_address,
                                 from_address=message['from_address'] or mp['from_address'],
                                 attachments=attachments, 
@@ -323,6 +324,12 @@ class Table(object):
                 message['sending_attempt'].child('attempt', ts=ts, error= error_msg)
         self.db.commit()
         return message
+    
+    def getBody(self, message=None, **kwargs):
+        "Customizable method to return the body of the email. Default is to return the actual 'body' field."
+        if not message:
+            return ""
+        return message['body']
     
     @public_method
     def clearErrors(self, pkey):

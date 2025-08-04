@@ -775,7 +775,7 @@ class GnrApp(object):
 
         
         if not forTesting:
-            dbattrs = self.config.getAttr('db') or {}
+            dbattrs = dict(self.config.getAttr('db') or {}) 
             dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
             if dbattrs.get('dbname') == '_dummydb':
                 pass
@@ -1552,7 +1552,7 @@ class GnrApp(object):
         instance_name = instance_node.getAttr('name') or name
         remote_db = instance_node.getAttr('remote_db')
         if remote_db:
-            instance_name = '%s@%s' %(instance_name,remote_db)
+            instance_name = '%s:%s' %(instance_name,remote_db)
         self.aux_instances[name] = self.createAuxInstance(instance_name)
         return self.aux_instances[name]
     

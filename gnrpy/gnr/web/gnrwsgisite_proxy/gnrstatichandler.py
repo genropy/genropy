@@ -51,11 +51,12 @@ class StaticHandlerManager(object):
     def static_dispatcher(self, path_list, environ, start_response, download=False, **kwargs):
         logger.debug('Calling static_dispatcher %s', path_list) 
         handler = self.get(path_list[0][1:])
+        logger.debug("Static handler %s", handler)
         if handler:
             result = handler.serve(path_list, environ, start_response, download=download, **kwargs)
-
             return result
         else:
+            logger.debug("Static resource %s not found", path_list)
             return self.site.not_found_exception(environ, start_response)
 
 
@@ -158,7 +159,19 @@ class StaticHandler(object):
         return url
 
 
+class CordovaAssetHandler(StaticHandler):
+    prefix = "cordova_asset"
 
+    def url(self, version, *args, **kwargs):
+        return f'{self.home_uri}/_cordova_asset/{"/".join(args)}'
+    
+    def path(self, *args, **kwargs):
+        resource_dirs = self.site.resource_loader.package_resourceDirs(self.site.mainpackage)
+        for dirname in resource_dirs:
+            resource_filename = expandpath(os.path.join(dirname, "cordova", *args))
+            if os.path.isfile(resource_filename):
+                return resource_filename
+    
 class DojoStaticHandler(StaticHandler):
     prefix = 'dojo'
 

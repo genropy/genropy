@@ -387,6 +387,13 @@ dojo.declare("gnr.LinkerManager", null, {
             }
             that.setCurrentPkey(kw.pkey);
         });
+        this.linkerform.subscribe('setLinkerPkey',function(kw){
+            if(!kw.pkey){
+                throw new Error('Missing primary key to set');
+            }
+            that.setCurrentPkey(kw.pkey);
+            that.linkerform.load({destPkey:'*dismiss*',discardChanges:true});
+        });
         this.linkerform.subscribe('onDismissed',function(kw){
             genro.publish('changeInTable',{pkey:that.getCurrentPkey(),table:that.table})
             that.thdialog.hide();

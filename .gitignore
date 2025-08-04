@@ -34,3 +34,9 @@ coverage.xml
 gnrpy/tests/sql/_main_connection
 gnrpy/tests/_main_connection
 .qodo
+projects/gnrcore/instances/gnrdevelop/data/adm.db
+projects/gnrcore/instances/gnrdevelop/data/sys.db
+_main_connection
+mydb
+projects/gnrcore/instances/gnrdevelop/data/adm.db
+projects/gnrcore/instances/gnrdevelop/data/sys.db

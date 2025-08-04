@@ -3,7 +3,7 @@
 
 """
 Create a Dockerfile for an instance, starting from a specific configuration file,
-and build the finale image
+and build the final image
 """
 import atexit
 import sys
@@ -12,11 +12,11 @@ import tempfile
 import datetime
 import os
 import subprocess
+import json
 
 from mako.template import Template
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.app import logger
 
@@ -42,9 +42,7 @@ class MultiStageDockerImageBuilder:
 
         self.main_repo_name = ""
         
-        # check if build configuration is present - in the future, the configuration
-        # could be passed as Bag to the constructor
-        self.config_file = os.path.join(self.instance.instanceFolder, "build.xml")
+        self.config_file = os.path.join(self.instance.instanceFolder, "build.json")
 
         logger.debug("Build configuration file: %s", self.config_file)
 
@@ -63,34 +61,32 @@ class MultiStageDockerImageBuilder:
         atexit.register(self.cleanup_build_dir)
         
     def _create_build_config(self):
-        config_bag = Bag()
-        dependencies = Bag()
-        config_bag.setItem('dependencies', dependencies)
-        
+
+        git_repositories = {}
         # search for git repos
-        git_repos_bag= Bag()
         for package, obj in self.instance.packages.items():
             url = self._get_git_url_from_path(obj.packageFolder)
 
             if "genropy/genropy" in url:
                 continue
+            
             branch_or_commit = self._get_git_commit_from_path(obj.packageFolder)
             description = url.split('/')[-1].replace(".git","")
             logger.debug("Package %s is using git remote %s on branch/commit %s", obj.packageFolder, url, branch_or_commit)
-            git_repos_bag.setItem(description, None,
-                                  url=url,
-                                  branch_or_commit=branch_or_commit,
-                                  description=description)
 
-        dependencies.setItem("git_repositories", git_repos_bag)
+            git_repositories[description] = dict(
+                url=url,
+                branch_or_commit=branch_or_commit,
+                description=description
+            )
+            
+        config = {'dependencies': { "git_repositories": git_repositories} }
         with open(self.config_file, "w") as wfp:
-            wfp.write(config_bag.toXml())
+            wfp.write(json.dumps(config))
 
     def load_config(self):
         """Load and parse the XML configuration file."""
-
-        b = Bag(self.config_file)
-        return Bag(self.config_file)
+        return json.load(open(self.config_file))
 
     def cleanup_build_dir(self):
         if self.options.keep_temp:
@@ -102,8 +98,7 @@ class MultiStageDockerImageBuilder:
         """Get a list of Docker image dependencies."""
         docker_images = []
         
-        for i in self.config['dependencies'].get('docker_images', []):
-            image_conf = i.__dict__['_value']
+        for image_conf in self.config['dependencies'].get('docker_images', []):
             image = {
                 'name': image_conf.get("name"),
                 'tag': image_conf.get("tag"),
@@ -130,16 +125,14 @@ class MultiStageDockerImageBuilder:
         """Get a list of Git repository dependencies."""
         _repos = {}
         git_config = self.config.get("dependencies", {}).get("git_repositories", {})
-        if isinstance(git_config, Bag):
-            for r in git_config:
-                repo_conf = r.attr
-                repo = {
-                    'url': repo_conf.get('url'),
-                    'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
-                    'subfolder': repo_conf.get("subfolder", None),
-                    'description': repo_conf.get("description", "No description")
-                }
-                _repos[repo_conf.get('url')] = repo
+        for k, repo_conf in git_config.items():
+            repo = {
+                'url': repo_conf.get('url'),
+                'branch_or_commit': repo_conf.get('branch_or_commit', 'master'),
+                'subfolder': repo_conf.get("subfolder", None),
+                'description': repo_conf.get("description", "No description")
+            }
+            _repos[repo_conf.get('url')] = repo
 
         # Include the instance repository too
         start_build_dir = os.getcwd()
@@ -449,7 +442,7 @@ def main():
     parser.add_argument('--build-gen',
                         action="store_true",
                         dest="build_generate",
-                        help="Force the automatically creation of the build.xml file")
+                        help="Force the automatically creation of the build.json file")
     parser.add_argument('--keep-temp',
                         action="store_true",
                         dest="keep_temp",

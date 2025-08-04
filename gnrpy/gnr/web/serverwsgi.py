@@ -378,7 +378,7 @@ class Server(object):
             self.debugpy = self.options.debugpy or self.options.debugpy_port is not None
             self.debugpy_port = self.options.debugpy_port or 5678
         except ImportError:
-            logger.error("Debugpy is not installed! Install debugpy or genropy's developer profile.")
+            logger.error(f"Failed to import debugpy: {sys.exc_info()[1]}. Install debugpy or genropy's developer profile.")
             self.debugpy = False
             self.debugpy_port = None
             

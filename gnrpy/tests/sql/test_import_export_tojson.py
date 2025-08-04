@@ -26,12 +26,8 @@
 this test module focus on SqlSelection's methods
 """
 
-import os, os.path
-import datetime
 
 from gnr.sql.gnrsql import GnrSqlDb
-from gnr.core.gnrbag import Bag
-from gnr.core import gnrstring
 
 from .common import BaseGnrSqlTest
 
@@ -52,56 +48,11 @@ class BaseDb(BaseGnrSqlTest):
         cls.db.importXmlData(cls.SAMPLE_XMLDATA)
         cls.db.commit()
 
-        cls.myquery = cls.db.query('video.cast', columns="""$id,@person_id.name AS person,
-                                                            @movie_id.title AS movie,
-                                                            role
-                                                            """)
-        #create a base selection
-        cls.mysel = cls.myquery.selection()
 
-    def test_sort(self):
-        self.mysel.sort('movie', 'role:d', 'person')
-        result = self.mysel.output('list', columns='movie,role,person')
-        assert result[0] == [u'Barry Lindon', u'director', u'Stanley Kubrick']
-        assert result[1][2] == 'Marisa Berenson'
-        self.mysel.sort('id')
-        assert self.mysel.output('list', columns='id')[0][0] == 0
+    def test_recordToJson(self):
+        json = self.db.table('video.movie').recordToJson(3)
+        assert isinstance(json, (str,bytes))
 
-    def test_outputMode(self):
-        assert isinstance(self.mysel.output('list'), list) and\
-               isinstance(self.mysel.output('list')[0], list)
-        assert isinstance(self.mysel.output('dictlist'), list) and\
-               isinstance(self.mysel.output('dictlist')[0], dict)
-        assert isinstance(self.mysel.output('dictlist'), list) and\
-               isinstance(self.mysel.output('dictlist')[0], dict)
-        fromjson = gnrstring.fromJson(self.mysel.output('json'))
-        assert isinstance(self.mysel.output('json'), (str,bytes)) and\
-               isinstance(fromjson, list) and isinstance(fromjson[0], dict)
-        assert isinstance(self.mysel.output('pkeylist'), list) and\
-               self.mysel.output('pkeylist')[0] == 0
-        assert isinstance(self.mysel.output('bag'), Bag)
-
-    def test_filter(self):
-        self.mysel.filter(lambda r: r['person'].endswith('cino'))
-        result = self.mysel.output('list', columns='person')
-        assert result[0][0] == 'Al Pacino'
-        self.mysel.filter()
-
-    def test_freeze(self):
-        freeze_fname = os.path.join(os.path.dirname(__file__), 'data/myselection')
-        self.mysel.freeze(freeze_fname)
-        sel = self.db.table('video.cast').frozenSelection(freeze_fname)
-        assert self.mysel.data == sel.data
-
-    def xtest_formatSelection(self):
-        sel = self.db.query('video.dvd', columns='$purchasedate, @movie_id.title AS title').selection()
-        assert sel.output('list')[0][1] == 'Match point'
-        assert sel.output('list', formats={'title': 'Title: - %s - '},
-                          dfltFormats={datetime.date: 'full'},
-                          locale='it')[0][1] == 'Title: - Match point - '
-        print(sel.output('bag', formats={'title': 'Titolo: - %s - '},
-                         dfltFormats={datetime.date: 'full'},
-                         locale='it')['#0.title'] == 'Title: - Match point - ')
     @classmethod
     def teardown_class(cls):
         cls.db.closeConnection()

@@ -137,12 +137,28 @@ class Main(BaseResourceBatch):
     def table_script_options(self, tc, **kwargs):
         optionsPane = tc.contentPane(title='Options', datapath='.options')
         fb = optionsPane.div(padding='10px').formbuilder(cols=1,border_spacing='3px')
-        fb.checkBox(value='^.data_only', label='Data Only')
+        fb.checkBox(value='^.data_only', label='Data Only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .schema_only = false;
+                    SET .storeonly = false
+                    }
+                    """)
+        fb.checkBox(value='^.schema_only', label='Schema Only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .data_only = false;
+                    SET .storeonly = false;
+                    }
+                    """)
+        fb.checkBox(value='^.storeonly', label='Store only',
+                    validate_onAccept="""if(value == true)  {
+                    SET .data_only = false;
+                    SET .schema_only = false;
+                    }
+                    """)
+
         fb.checkBox(value='^.no_owner', label='No Owner')
-        fb.checkBox(value='^.schema_only', label='Schema Only')
         fb.checkBox(value='^.no_privileges', label='No Privileges')
         fb.checkBox(value='^.quote_all_identifiers', label='Quote all identifiers')
-        fb.checkBox(value='^.storeonly', label='Store only')
 
         fb.checkBox(value='^.plain_text', label='Plain text')
         fb.checkBox(value='^.clean', label='Clean', row_visible='^.plain_text')

@@ -1125,7 +1125,10 @@ class DbTableObj(DbModelObj):
 
     def _get_pkeys(self):
         if not self.pkey:
+            logger.critical('Missing pkey in table %s', self.fullname)
             return []
+        if self.column(self.pkey) is None:
+            raise AssertionError(f'Missing column defined as pkey {self.pkey} in table {self.fullname}')
         if self.column(self.pkey).attributes.get('composed_of'):
             return self.column(self.pkey).attributes.get('composed_of').split(',')
         return [self.pkey]
@@ -1707,8 +1710,6 @@ class DbBaseColumnObj(DbModelObj):
             result['related_to'] = relatedColumn.fullname
         return result
     
-    def relatedColumn(self):
-        return
 
     def _fillRelatedColumn(self, related_column):
         relation_list = related_column.split('.')
