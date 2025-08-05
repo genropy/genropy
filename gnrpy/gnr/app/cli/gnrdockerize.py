@@ -175,6 +175,7 @@ class MultiStageDockerImageBuilder:
                 dockerfile.write("WORKDIR /home/genro/genropy_projects\n")
                 dockerfile.write("USER genro\n\n")
                 dockerfile.write('ENV PATH="/home/genro/.local/bin:$PATH"\n')
+                dockerfile.write('ENV GENRO_GNRFOLDER="/home/genro/.gnr/"\n')
             
                 for idx, repo in enumerate(git_repositories, start=1):
 
@@ -223,7 +224,6 @@ class MultiStageDockerImageBuilder:
 
                         dockerfile.write(f"COPY --chown=genro:genro {repo_name} /home/genro/genropy_projects/{repo_name}\n")
 
-                dockerfile.write(f"VOLUME {site_folder}\n")
                 dockerfile.write(f"RUN ln -s {site_folder} /home/genro/site\n")
                 dockerfile.write("EXPOSE 8888/tcp 9999/tcp\n")
                 
