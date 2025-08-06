@@ -1663,12 +1663,12 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
     def atc_exposeEndpointUrl(self):
-        result = self.attributes.get('endpoint_url') 
+        result = self.attributes.get('endpoint_url') or self.db.currentEnv.get('atc_endpoint_url',False)
         if not result:
             site =  self.db.application.site
             main_pkg_obj = site.gnrapp.packages[site.mainpackage]
             result = main_pkg_obj.attributes.get('atc_endpoint_url') or site.currentPage.isMobile
-        return result or False
+        return result or False 
 
     def filepath_endpoint_url(self,record,field=None):
         if record.get('external_url'):
