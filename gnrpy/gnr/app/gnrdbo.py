@@ -1667,7 +1667,7 @@ class AttachmentTable(GnrDboTable):
         if not result:
             site =  self.db.application.site
             main_pkg_obj = site.gnrapp.packages[site.mainpackage]
-            result = main_pkg_obj.attributes.get('atc_endpoint_url')
+            result = main_pkg_obj.attributes.get('atc_endpoint_url') or site.currentPage.isMobile
         return result or False
 
     def filepath_endpoint_url(self,record,field=None):
