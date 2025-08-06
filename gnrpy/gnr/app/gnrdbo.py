@@ -1665,10 +1665,13 @@ class AttachmentTable(GnrDboTable):
     def atc_exposeEndpointUrl(self):
         result = self.attributes.get('endpoint_url') or self.db.currentEnv.get('atc_endpoint_url',False)
         if not result:
+            jsPdfViewerPref = self.db.application.getPreference('jsPdfViewer',pkg='sys') 
             site =  self.db.application.site
+            if jsPdfViewerPref or site.currentPage.isMobile:
+                return True
             main_pkg_obj = site.gnrapp.packages[site.mainpackage]
-            result = main_pkg_obj.attributes.get('atc_endpoint_url') or site.currentPage.isMobile
-        return result or False 
+            result = main_pkg_obj.attributes.get('atc_endpoint_url')
+        return result or False
 
     def filepath_endpoint_url(self,record,field=None):
         if record.get('external_url'):
