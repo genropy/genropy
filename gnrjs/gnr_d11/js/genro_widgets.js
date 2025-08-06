@@ -4493,31 +4493,33 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     mixin_handleGeocodeResults: function(results, status){
         this.store.mainbag = new gnr.GnrBag();
         if (status == google.maps.GeocoderStatus.OK) {
-             for (var i = 0; i < results.length; i++){
-                 var formatted_address = results[i].formatted_address;
-                 var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
-                 var address_components=results[i].address_components;
-                 for (var a in address_components){
-                     var address_component=address_components[a];
-                     details[address_component.types[0]]=address_component.short_name;
-                     details[address_component.types[0]+'_long']=address_component.long_name;
-                 }
-                 let street_number = details['street_number'] || '';
-                 let route_long = details['route_long'] || '';
-                 if (!route_long) {
-                     details['street_address'] = '';
-                     details['street_address_eng'] = '';
-                 } else {
-                     details['street_address'] = route_long + (street_number ? `, ${street_number}` : '');
-                     details['street_address_eng'] = (street_number ? `${street_number},` : '') + route_long;
-                 }
-                 if(details['subpremise']){
-                     street_number = details['subpremise'] + (street_number ? `/${street_number}` : '');
-                 }
-                 
-                 var position=results[i].geometry.location;
-                 details['position']=position.lat()+','+position.lng();
-                 this.store.mainbag.setItem('root.r_' + i, null, details);
+             for (let i = 0; i < results.length; i++){
+                let formatted_address = results[i].formatted_address;
+                let details = {id:i,caption:formatted_address,formatted_address:formatted_address};
+                let address_components=results[i].address_components;
+                for (let a in address_components){
+                    let address_component=address_components[a];
+                    details[address_component.types[0]]=address_component.short_name;
+                    details[address_component.types[0]+'_long']=address_component.long_name;
+                }
+                let street_number = details.street_number || '';
+                let street_number_eng = street_number;
+                let route_long = details.route_long || '';
+                let subpremise = details.subpremise;
+                if(subpremise){
+                    street_number_eng = subpremise + (street_number ? `/${street_number}` : '');
+                    street_number =  (street_number ? `${street_number}/` : '') + subpremise ;
+                }
+                if (!route_long) {
+                    details.street_address = '';
+                    details.street_address_eng = '';
+                } else {
+                    details.street_address = route_long + (street_number ? ` ${street_number}` : '');
+                    details.street_address_eng = (street_number_eng ? `${street_number_eng} ` : '') + route_long;
+                }
+                const position=results[i].geometry.location;
+                details['position']=position.lat()+','+position.lng();
+                this.store.mainbag.setItem('root.r_' + i, null, details);
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);
