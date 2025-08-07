@@ -5,10 +5,8 @@ from gnr.core.cli import GnrCliArgParse
 
 from gnr.web.gnrdaemonhandler import GnrDaemon,GnrDaemonProxy
 
-PYRO_HOST = 'localhost'
-PYRO_PORT = 40004
-PYRO_HMAC_KEY = 'supersecretkey'
 description = "Main Genropy Daemon for request handling"
+
 def getOptions():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename',nargs='?')
@@ -89,7 +87,10 @@ def main():
             server = GnrDaemon()
             server.start(use_environment=True,**options)
     else:
-        p = GnrDaemonProxy(use_environment=True, host=options.get('host'),port=options.get('port'),socket=options.get('socket'),hmac_key=options.get('hmac_key'),compression=options.get('compression'))
+        p = GnrDaemonProxy(use_environment=True, host=options.get('host'),
+                           port=options.get('port'), socket=options.get('socket'),
+                           hmac_key=options.get('hmac_key'),
+                           compression=options.get('compression'))
         proxy = p.proxy()
         if command=='stop':
             print('savestatus',options.get('savestatus'))
