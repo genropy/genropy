@@ -61,7 +61,26 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
         self.env.append(dict(name="GNR_EXTERNALHOST", value=f'http://{self.fqdn}'))
 
-
+    def get_pv(self):
+        pv = {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": f"{self.stack_name}-site-pv",
+            },
+            "spec": {
+                "capacity": {
+                    "storage": "1Gi",
+                },
+                "accessModes": ['ReadWriteMany'],
+                "storageClassName": "standard",
+                "hostPath": {
+                    "path": f"/mnt/data/{self.stack_name}-site"
+                }
+            }
+        }
+        return [pv]
+    
     def get_pvc(self):
         pvc = {
             "apiVersion": "v1",
@@ -71,7 +90,7 @@ class GnrK8SGenerator(object):
                 },
             "spec": {
                 "accessModes": [
-                    "ReadWriteOnce"
+                    "ReadWriteMany"
                     ],
                 "resources": {
                     "requests": {
@@ -89,11 +108,12 @@ class GnrK8SGenerator(object):
         else:
             deployments, services, ingress = self.get_monolithic_conf()
         resources = []
+        resources.extend(self.get_pv())
+        resources.extend(self.get_pvc())
         resources.extend(deployments)
         resources.extend(services)
         resources.extend(ingress)
-
-        resources.extend(self.get_pvc())
+        
         # Output YAML to stdout or write to file
         yaml.dump_all(resources, fp, sort_keys=False)
 
@@ -113,6 +133,7 @@ class GnrK8SGenerator(object):
             container = {
                 'name': f'{name}-container',
                 'image': self.image,
+                'imagePullPolicy': "Always",
                 'command': ['gnr'],
                 'args': ['web','stack'] + args,
                 'env': self.env
@@ -157,6 +178,26 @@ class GnrK8SGenerator(object):
                     }
                 }
             }
+            if service == "daemon":
+                container['readinessProbe'] = {
+                    "tcpSocket": {
+                        "port": self.GNR_DAEMON_PORT
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 5
+                }
+
+            else:
+                deployment['spec']['template']['spec']['initContainers'] = [
+                    {
+                        "name": "wait-for-daemon",
+                        "image": "busybox",
+                        "command": [
+                            "sh", "-c",
+                            f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
+                        ]
+                    }
+                ]
             if self.secret_name:
                 deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
             deployments.append(deployment)
@@ -204,8 +245,8 @@ class GnrK8SGenerator(object):
             'args': args,
             'env': self.env,
             'securityContext': {
-                "runAsUser": 1000,
-                "runAsGroup": 1000
+                "runAsUser": 100,
+                "runAsGroup": 100
             },
             'volumeMounts': [
                 {
@@ -257,8 +298,22 @@ class GnrK8SGenerator(object):
                     },
                     'spec': {
                         'securityContext': {
-                            'fsGroup': 1000
+                            'fsGroup': 100
                         },
+                        'initContainers': [
+                            {
+                                "name": "volume-permissions",
+                                "image": "busybox",
+                                "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
+                                "volumeMounts": [
+                                    {
+                                        "name": f"{self.stack_name}-site-volume",
+                                        "mountPath": f"/mnt/data/{self.stack_name}-site",
+                                        
+                                    }
+                                ]
+                            }
+                        ],
                         'containers':containers,
                         'volumes': [
                             {
