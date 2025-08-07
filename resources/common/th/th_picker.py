@@ -8,7 +8,7 @@
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrdecorator import public_method, extract_kwargs
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrwebpage import GnrMissingResourceException
 
@@ -68,6 +68,7 @@ class THPicker(BaseComponent):
         title = title or tblobj.name_long
         treepicker = tblobj.attributes.get('hierarchical') and not viewResource
         condition_kwargs = dictExtract(picker_kwargs,'condition_',pop=True,slice_prefix=not treepicker)
+        store_kwargs = dictExtract(picker_kwargs,'store_',pop=True, slice_prefix=False)
         if treepicker:
             palette = pane.palettePane(paletteCode=paletteCode,dockButton=dockButton,title=title,
                             width=width or '400px',height=height or '600px')
@@ -85,7 +86,7 @@ class THPicker(BaseComponent):
                                                 dragValues['text/plain'] = treeItem.attr.caption;
                                                 dragValues['%s'] = treeItem.attr;
                                             }""" %paletteCode,
-                            condition=condition,checkbox=checkbox,subtable=subtable,**tree_kwargs)
+                            condition=condition,checkbox=checkbox,subtable=subtable,**tree_kwargs,**store_kwargs)
         else:
             palette = pane.paletteGridPicker(grid=grid,table=table,relation_field=many,
                                             paletteCode=paletteCode,viewResource=viewResource,
@@ -95,7 +96,7 @@ class THPicker(BaseComponent):
                                             subtable=subtable,
                                             checkbox=checkbox,structure_field = structure_field or picker_kwargs.get('structure_field'),
                                             uniqueRow=picker_kwargs.get('uniqueRow',True),
-                                            top_height=picker_kwargs.get('top_height'),structure_kwargs = dictExtract(picker_kwargs,'structure_'),**kwargs)
+                                            top_height=picker_kwargs.get('top_height'),structure_kwargs = dictExtract(picker_kwargs,'structure_'),**store_kwargs,**kwargs)
 
         if grid is not None:
             grid.attributes.update(dropTargetCb_picker='return this.form?!this.form.isDisabled():true')
@@ -118,14 +119,15 @@ class THPicker(BaseComponent):
     
 
 
+    @extract_kwargs(store=True)
     @struct_method
     def pk_paletteGridPicker(self,pane,grid=None,table=None,relation_field=None,paletteCode=None,
                                 viewResource=None,searchOn=True,multiSelect=True,
                                 title=None,dockButton=True,
                                 height=None,width=None,condition=None,condition_kwargs=None,
                                 structure_field=None,uniqueRow=True,top_height=None,
-                                checkbox=None,structure_kwargs=None,subtable=None,
-                                **kwargs):
+                                checkbox=None,structure_kwargs=None,subtable=None, 
+                                store_kwargs=None, **kwargs):
         many = relation_field 
         if viewResource is True:
             viewResource = 'ViewPicker'
@@ -212,7 +214,9 @@ class THPicker(BaseComponent):
                                         sourcegrid=paletteth.view.grid.js_widget,
                                         pickerset='=.grid.sets.pickerset',
                                         destgrid=grid)
-
+        
+        if store_kwargs:
+            paletteth.view.store.attributes.update(**store_kwargs)
         if condition:
             paletteth.view.store.attributes.update(condition=condition,subtable=subtable,**condition_kwargs)
         if not condition_kwargs:
