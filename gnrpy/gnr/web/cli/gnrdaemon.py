@@ -67,7 +67,7 @@ def main():
             sitedaemonconfig = siteconfig.getAttr('sitedaemon') or {}
             sitepath = path_resolver.site_name_to_path(sitename)
             debug = sitedaemonconfig.get('debug',None)
-            host = sitedaemonconfig.get('host','localhost')
+            host = options.get('host', sitedaemonconfig.get('host','localhost'))
             socket = sitedaemonconfig.get('socket',None)
             port = options.get('port', sitedaemonconfig.get('port','*'))
             hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
