@@ -127,7 +127,7 @@ class THPicker(BaseComponent):
                                 height=None,width=None,condition=None,condition_kwargs=None,
                                 structure_field=None,uniqueRow=True,top_height=None,
                                 checkbox=None,structure_kwargs=None,subtable=None, 
-                                store_kwargs=True, **kwargs):
+                                store_kwargs=None, **kwargs):
         many = relation_field 
         if viewResource is True:
             viewResource = 'ViewPicker'
