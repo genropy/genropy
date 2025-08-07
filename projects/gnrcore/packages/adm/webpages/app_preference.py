@@ -30,11 +30,9 @@ class GnrCustomWebPage(object):
         form.center.appPreferencesTabs(datapath='#FORM.record.data',wdg='stack')
         bar = form.bottom.slotBar('5,cancel,*,revertbtn,10,savebtn,saveAndClose,5',margin_bottom='2px',_class='slotbar_dialog_footer')
         bar.cancel.button('!!Cancel',action='this.form.abort();')
-        bar.savebtn.button('!!Apply',action='this.form.publish("save"})')
+        bar.savebtn.button('!!Apply',action='this.form.publish("save")')
         bar.saveAndClose.button('!!Confirm',action='this.form.publish("save",{destPkey:"*dismiss*"})')
-        form.dataController("""
-                                this.form.load({destPkey:'_mainpref_',discardChange:true});
-                               """,
+        form.dataController("""this.form.load({destPkey:'_mainpref_',discardChange:true});""",
                             subscribe_changedStartArgs=True,
                             subscribe_modal_page_open=True)
         form.dataController("genro.dom.windowMessage('parent',{'topic':'modal_page_close'})",
