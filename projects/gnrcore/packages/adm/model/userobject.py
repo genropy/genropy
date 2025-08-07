@@ -142,7 +142,6 @@ class Table(object):
                 for target_pkg in os.listdir(custom_base):
                     # Validate directory name to ensure it matches expected format
                     if not target_pkg.isalnum():
-                        logger.warning('Skipping invalid directory name: %s', target_pkg)
                         continue
                     custom_folder = os.path.join(custom_base, target_pkg)
                     try:
