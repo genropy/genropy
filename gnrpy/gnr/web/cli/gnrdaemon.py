@@ -69,7 +69,7 @@ def main():
             debug = sitedaemonconfig.get('debug',None)
             host = sitedaemonconfig.get('host','localhost')
             socket = sitedaemonconfig.get('socket',None)
-            port = sitedaemonconfig.get('port','*')
+            port = options.get('port', sitedaemonconfig.get('port','*'))
             hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
             storage_path = os.path.join(sitepath, 'siteregister_data.pik')
             sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
