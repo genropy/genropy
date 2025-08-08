@@ -55,6 +55,7 @@ dependencies = [
 	     "supervisor",
 	     "tornado", # used for async
 	     "tzlocal",
+	     "unidecode",
 	     "vobject",
 	     "weasyprint",
 	     "webob",
