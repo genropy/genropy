@@ -335,9 +335,9 @@ class GnrK8SGenerator(object):
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {
-                "name": self.stack_name,
+                "name": self.application_name,
                 "labels": {
-                    "app": self.stack_name
+                    "app": self.application_name,
                 }
             },
             "spec": {
