@@ -6252,6 +6252,23 @@ div[disabled='true'], div[disabled='disabled']{
     cursor: pointer;
 }
 
+.andor_toggle_label{
+    cursor: pointer;
+    position: absolute;
+    width: 20px;
+    height: 10px;
+    top: 0;
+    right: 22px;
+    padding: 2px;
+    font-size:.85em;
+    user-select:none;
+    text-align: center;
+    border-left: solid 1px #B3B3B3;
+}
+.andor_toggle_label:hover{
+    background:#f3f3f3
+}
+
 .white_refresh{
     background: url(/_rsrc/common/css_icons/svg/16/white_refresh.svg) no-repeat center center;
 }
