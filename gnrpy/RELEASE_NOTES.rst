@@ -1,3 +1,9 @@
+Version 25.08.12
+================
+
+Bug fixing release, correct malformed publish action in app preferences
+
+
 Version 25.04.10
 ================
 
