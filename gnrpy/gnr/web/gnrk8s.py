@@ -59,7 +59,7 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_DAEMON_PORT', value=str(self.GNR_DAEMON_PORT)))
         # have gunicorn listen on all interfaces
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
-        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'http://{self.fqdn}'))
+        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdn}'))
 
     def get_pv(self):
         pv = {
