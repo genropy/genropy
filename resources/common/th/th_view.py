@@ -271,7 +271,6 @@ class TableHandlerView(BaseComponent):
                     var jcAttr = (n.attr.andor_op || 'or').toString().toLowerCase();
                     jcAttr = (jcAttr==='and' || jcAttr==='or') ? jcAttr : 'or';
                     var parentOp = (jcAttr==='and') ? 'contains_all' : (n.attr.op || 'contains');
-                    console.log('parentOp',parentOp);
                     var subwhere = new gnr.GnrBag();
                     value.split(',').forEach(function(chunk,idx){
                         if(!chunk){ 
@@ -279,15 +278,14 @@ class TableHandlerView(BaseComponent):
                         }
                         subwhere.setItem('c_'+idx, chunk.trim(), {
                             column_dtype: n.attr.column_dtype,
-                            op: (n.attr.op || 'contains'),
-                            jc: 'or',
+                            op: op,
+                            jc: jcAttr,
                             column: n.attr.column,
                             value_caption: value_caption,
                             parname: `${parname}_${idx}`
                         });
                     });
                     if(subwhere.len()){
-                        // op is set as parentOp
                         where.setItem('c_'+mainIdx, subwhere, {
                             jc: 'and',
                             op: parentOp,
