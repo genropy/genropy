@@ -1663,7 +1663,15 @@ class AttachmentTable(GnrDboTable):
         tbl.pyColumn('full_external_url',name_long='Full external url')
 
     def atc_exposeEndpointUrl(self):
-        return False
+        result = self.attributes.get('endpoint_url') or self.db.currentEnv.get('atc_endpoint_url',False)
+        if not result:
+            jsPdfViewerPref = self.db.application.getPreference('jsPdfViewer',pkg='sys') 
+            site =  self.db.application.site
+            if jsPdfViewerPref or site.currentPage.isMobile:
+                return True
+            main_pkg_obj = site.gnrapp.packages[site.mainpackage]
+            result = main_pkg_obj.attributes.get('atc_endpoint_url')
+        return result or False
 
     def filepath_endpoint_url(self,record,field=None):
         if record.get('external_url'):
@@ -1672,12 +1680,7 @@ class AttachmentTable(GnrDboTable):
         if not filepath:
             return
         if ':' in filepath:
-            atc_endpoint_url = self.attributes.get('endpoint_url') 
-            if not atc_endpoint_url:
-                site =  self.db.application.site
-                main_pkg_obj = site.gnrapp.packages[site.mainpackage]
-                atc_endpoint_url = main_pkg_obj.attributes.get('atc_endpoint_url')
-            if atc_endpoint_url:
+            if self.atc_exposeEndpointUrl():
                 return self.endpointColumn(record=record,field='filepath',
                             source_ext=self.db.application.site.storageNode(filepath).ext)
             return self.db.application.site.externalUrl(f'/{filepath}')

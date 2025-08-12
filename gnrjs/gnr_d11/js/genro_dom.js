@@ -2022,7 +2022,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
-        const ext = parsedSrc.params.source_ext || src.split('.').pop(); 
+        const ext = parsedSrc.params.source_ext || parsedSrc.file.split('.').pop();
         if(ext && ext!='pdf'){
             return src
         }
