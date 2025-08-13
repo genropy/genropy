@@ -82,7 +82,7 @@ class MultiStageDockerImageBuilder:
             
         config = {'dependencies': { "git_repositories": git_repositories} }
         with open(self.config_file, "w") as wfp:
-            wfp.write(json.dumps(config))
+            json.dump(config, wfp, indent=4, ensure_ascii=False)
 
     def load_config(self):
         """Load and parse the XML configuration file."""
