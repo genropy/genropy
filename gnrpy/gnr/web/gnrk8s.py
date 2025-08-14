@@ -13,7 +13,7 @@ class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  fqdn,
                  deployment_name=None, split=False,
-                 env_file=False, env_secret=None,
+                 env_file=False, env_secrets=[],
                  container_port=8000,
                  secret_name=None,
                  replicas=1):
@@ -30,7 +30,7 @@ class GnrK8SGenerator(object):
         self.split = split
         self.replicas = replicas
         self.env_file = env_file
-        self.env_secret = env_secret
+        self.env_secrets = env_secrets
         self.env = []
         if self.env_file:
             if not os.path.isfile(self.env_file):
@@ -138,8 +138,11 @@ class GnrK8SGenerator(object):
                 'args': ['web','stack'] + args,
                 'env': self.env
             }
-            if self.env_secret:
-                container['envFrom'] = [{'secretRef': {'name': self.env_secret}}]
+            
+            if self.env_secrets:
+                container['envFrom'] = []
+                for env_s in self.env_secrets:
+                    container['envFrom'].append({'secretRef': {'name': env_s}})
 
             if self.services_port.get(service, None):
                 container['ports'] = [
@@ -236,6 +239,7 @@ class GnrK8SGenerator(object):
             # to expose its port
             'daemon': ['-H','127.0.0.1', '-P', str(self.GNR_DAEMON_PORT)]
         }
+        self.env.append(dict(name='GNR_DAEMON_HOST', value=f'127.0.0.1'))
         
         args = ['web','stack',self.instance_name, '--all']
         service_def = {
@@ -257,8 +261,10 @@ class GnrK8SGenerator(object):
                 
         }
 
-        if self.env_secret:
-            service_def['envFrom'] = [{'secretRef': {'name': self.env_secret}}]
+        if self.env_secrets:
+            service_def['envFrom'] = []
+            for env_s in self.env_secrets:
+                service_def['envFrom'].append({'secretRef': {'name': env_s}})
             
         for service in self.services:
             if self.services_port.get(service, None):
