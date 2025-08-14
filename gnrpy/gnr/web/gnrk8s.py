@@ -239,6 +239,7 @@ class GnrK8SGenerator(object):
             # to expose its port
             'daemon': ['-H','127.0.0.1', '-P', str(self.GNR_DAEMON_PORT)]
         }
+        self.env.append(dict(name='GNR_DAEMON_HOST', value=f'127.0.0.1'))
         
         args = ['web','stack',self.instance_name, '--all']
         service_def = {
