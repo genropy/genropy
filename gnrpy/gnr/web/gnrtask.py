@@ -22,14 +22,12 @@
 
 import os
 import copy
-import time
-import signal
 import random
 import requests
 import json
 import socket
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from mako.template import Template
 import aiohttp
@@ -71,7 +69,7 @@ class GnrTaskSchedulerClient:
         return r 
 
     def status(self):
-        r = self_call("status")
+        r = self.call("status")
         return r and r.json() or r.status_code
 
 # [id=KsHEQhCJOrCCSLDqcNA6Uw,

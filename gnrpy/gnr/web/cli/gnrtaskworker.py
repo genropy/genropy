@@ -2,13 +2,10 @@
 # encoding: utf-8
 #
 
-import os.path
 from multiprocessing import Process
-import importlib
 
 from gnr.core.cli import GnrCliArgParse
 from gnr.web import gnrtask
-from gnr.web import logger
 
 description = "Start the task worker service"
 
