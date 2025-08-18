@@ -37,4 +37,4 @@ class GnrCustomWebPage(object):
     def test_4_bag(self, pane):
         pane.data('.mycontent', Bag())
         "If a Bag is set as value and no htmlpath is set, the MDEditor will create a 'text' and 'html' nodes in the Bag"
-        pane.MDEditor(value='^.mycontent',height='300px',width='400px')
+        pane.MDEditor(value='^.mycontent',height='300px',width='400px', colorSyntax=True)

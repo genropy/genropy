@@ -248,28 +248,49 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     created:function(widget, savedAttrs, sourceNode){
         const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
         const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-    
-        const loadResource = (url, type) => {
-            return new Promise((resolve, reject) => {
-                if (type === 'js') {
-                    genro.dom.loadJs(url, resolve);
-                } else if (type === 'css') {
-                    genro.dom.loadCss(url, 'tuieditor', resolve);
-                }
-            });
-        };
-    
+        const pickerCss = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css";
+        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
+        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
+        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
+
+        const loadResource = (url, type) => new Promise((resolve) => {
+            if (type === 'js') { genro.dom.loadJs(url, resolve); }
+            else if (type === 'css') { genro.dom.loadCss(url, 'tuieditor', resolve); }
+        });
+
+        const init = () => { this.ready = true; this.initialize(widget, savedAttrs, sourceNode); };
+
+        // Ensure strict load order: Editor -> Picker -> Plugin
         if (!(window.toastui && window.toastui.Editor)) {
-            Promise.all([
-                loadResource(scriptUrl, 'js'),
-                loadResource(cssUrl, 'css')
-            ]).then(() => {
-                this.ready = true;
-                this.initialize(widget, savedAttrs, sourceNode);
-            });
+            Promise.resolve()
+                .then(() => loadResource(scriptUrl, 'js'))
+                .then(() => loadResource(cssUrl, 'css'))
+                .then(() => loadResource(pickerCss, 'css'))
+                .then(() => loadResource(pickerJs,  'js'))
+                .then(() => loadResource(colorCss,  'css'))
+                .then(() => loadResource(colorJs,   'js'))
+                .then(() => {
+                    // Sanity check: plugin expects window.tui.colorPicker
+                    if (!(window.tui && window.tui.colorPicker)) {
+                        console.warn('[MDEditor] tui.colorPicker missing. Color Syntax plugin may fail.');
+                    }
+                    init();
+                });
         } else {
-            this.ready = true;
-            this.initialize(widget, savedAttrs, sourceNode);
+            // Editor already present. Load dependency then plugin in order
+            const needPicker = !(window.tui && window.tui.colorPicker);
+            const needPlugin = !(window.toastui && window.toastui.Editor && window.toastui.Editor.plugin && window.toastui.Editor.plugin.colorSyntax);
+            Promise.resolve()
+                .then(() => needPicker ? loadResource(pickerCss, 'css') : null)
+                .then(() => needPicker ? loadResource(pickerJs,  'js')  : null)
+                .then(() => needPlugin ? loadResource(colorCss,  'css') : null)
+                .then(() => needPlugin ? loadResource(colorJs,   'js')  : null)
+                .then(() => {
+                    if (!(window.tui && window.tui.colorPicker)) {
+                        console.warn('[MDEditor] tui.colorPicker missing after load.');
+                    }
+                    init();
+                });
         }
     },
 
@@ -339,6 +360,14 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     
     createEditor:function(widget, editor_attrs){
         editor_attrs.autofocus = editor_attrs.autofocus || false;
+        // Attach Color Syntax plugin if loaded via CDN
+        try {
+            const Editor = window.toastui && window.toastui.Editor;
+            const colorSyntax = Editor && Editor.plugin && Editor.plugin.colorSyntax;
+            if (colorSyntax) {
+                editor_attrs.plugins = (editor_attrs.plugins || []).concat([colorSyntax]);
+            }
+        } catch(e) { /* no-op */ }
         return new window.toastui.Editor({
             el: widget,
             ...editor_attrs
