@@ -596,6 +596,16 @@ dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
 
         let wrap = objectPop(attributes,'wrap');
         let direction = objectPop(attributes,'direction');
+        let fitContent = objectPop(attributes,'fitContent');
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
         if(wrap){
             attributes.flex_wrap = 'wrap';
         }
@@ -640,9 +650,9 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
         savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
-        let fitContent = objectPop(attributes,'fitContent');
         let _class = attributes._class || ''
         attributes._class = _class + ' gnrgridbox';
+        let fitContent = objectPop(attributes,'fitContent');
         if(fitContent){
             let margin = fitContent===true?0:fitContent;
             attributes.position = 'absolute'
@@ -988,9 +998,29 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            if(sourceNode.attr.documentClasses){
-                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
-            }
+                if(sourceNode.attr.documentClasses){
+                    let useViewer = false;
+                    let ext = '';
+                    genro.dom.removeClass(domnode,'emptyIframe');
+                    genro.dom.addClass(domnode,'waiting');
+                    try {
+                        let parsed = parseURL(v);
+                        if (parsed.file && parsed.file.includes('.')) {
+                            ext = parsed.file.split('.').pop().toLowerCase();
+                        }
+                    } catch(e) {}
+                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
+                    useViewer = !ext || !extList.includes(ext);
+                    if (useViewer) {
+                        v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
+                    } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
+                        domnode.removeAttribute('src');
+                        domnode.setAttribute('srcdoc', `<html><body style="margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
+                            <img src="${v}" style="max-width:100%;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                        </body></html>`);
+                        return;
+                    }
+                }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
@@ -1665,7 +1695,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                                 var parentDialog = ds.length>0?ds[ds.length-1]:null;
                                 if (parentDialog) {
                                     parentDialog._modalconnects.push(dojo.connect(window, "onscroll", parentDialog, "layout"));
-                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeypress", parentDialog, "_onKey"));
+                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", parentDialog, "_onKey"));
                                 }                   
                             }
                             if(this._windowConnectionResize){
@@ -3257,6 +3287,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
         var savedAttrs = objectExtract(attributes, 'fire_*');
         var label = objectPop(attributes,'label');
         attributes.innerHTML = attributes.innerHTML || label;
+        if(!attributes.tabindex){
+            attributes.tabindex = "0"
+        }
         savedAttrs['action'] = objectPop(attributes, 'action');
         savedAttrs['fire'] = objectPop(attributes, 'fire');
         savedAttrs['publish'] = objectPop(attributes, 'publish');
@@ -3266,6 +3299,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
     
     created: function(widget, savedAttrs, sourceNode) {
         var that = this;
+        widget.addEventListener("mousedown", function(event) {
+            event.stopPropagation(); 
+        });
         dojo.connect(widget, 'onclick', function(e){
             that.clickHandler(sourceNode,e);
         });
@@ -3603,7 +3639,7 @@ dojo.declare("gnr.widgets._BaseTextBox", gnr.widgets.baseDojo, {
         switches = objectNotEmpty(switches)?switches:null;
         if(switches){
             widget._switches = switches;
-            dojo.connect(widget.focusNode,'onkeydown',widget,'checkSwitchKey');
+            dojo.connect(widget.focusNode,'input',widget,'checkSwitchKey');
         }
         
     },
@@ -4457,31 +4493,33 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     mixin_handleGeocodeResults: function(results, status){
         this.store.mainbag = new gnr.GnrBag();
         if (status == google.maps.GeocoderStatus.OK) {
-             for (var i = 0; i < results.length; i++){
-                 var formatted_address = results[i].formatted_address;
-                 var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
-                 var address_components=results[i].address_components;
-                 for (var a in address_components){
-                     var address_component=address_components[a];
-                     details[address_component.types[0]]=address_component.short_name;
-                     details[address_component.types[0]+'_long']=address_component.long_name;
-                 }
-                 let street_number = details['street_number'] || '';
-                 let route_long = details['route_long'] || '';
-                 if (!route_long) {
-                     details['street_address'] = '';
-                     details['street_address_eng'] = '';
-                 } else {
-                     details['street_address'] = route_long + (street_number ? `, ${street_number}` : '');
-                     details['street_address_eng'] = (street_number ? `${street_number},` : '') + route_long;
-                 }
-                 if(details['subpremise']){
-                     street_number = details['subpremise'] + (street_number ? `/${street_number}` : '');
-                 }
-                 
-                 var position=results[i].geometry.location;
-                 details['position']=position.lat()+','+position.lng();
-                 this.store.mainbag.setItem('root.r_' + i, null, details);
+             for (let i = 0; i < results.length; i++){
+                let formatted_address = results[i].formatted_address;
+                let details = {id:i,caption:formatted_address,formatted_address:formatted_address};
+                let address_components=results[i].address_components;
+                for (let a in address_components){
+                    let address_component=address_components[a];
+                    details[address_component.types[0]]=address_component.short_name;
+                    details[address_component.types[0]+'_long']=address_component.long_name;
+                }
+                let street_number = details.street_number || '';
+                let street_number_eng = street_number;
+                let route_long = details.route_long || '';
+                let subpremise = details.subpremise;
+                if(subpremise){
+                    street_number_eng = subpremise + (street_number ? `/${street_number}` : '');
+                    street_number =  (street_number ? `${street_number}/` : '') + subpremise ;
+                }
+                if (!route_long) {
+                    details.street_address = '';
+                    details.street_address_eng = '';
+                } else {
+                    details.street_address = route_long + (street_number ? ` ${street_number}` : '');
+                    details.street_address_eng = (street_number_eng ? `${street_number_eng} ` : '') + route_long;
+                }
+                const position=results[i].geometry.location;
+                details['position']=position.lat()+','+position.lng();
+                this.store.mainbag.setItem('root.r_' + i, null, details);
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);

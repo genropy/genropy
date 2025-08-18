@@ -27,11 +27,16 @@ import zipfile
 import io
 import datetime
 import json
+import math
+import unicodedata
 from decimal import Decimal
 from string import Template
-    
+
+import unidecode
+
 from gnr.core import logger
 from gnr.core.gnrlocale import localize, parselocal
+
 
 CONDITIONAL_PATTERN = re.compile("\\${([^}]*)}",flags=re.S)
 FLATTENER = re.compile(r'\W+')
@@ -201,6 +206,7 @@ class JSONTypedDecoder(json.JSONDecoder):
     @property
     def gnrclasscatalog(self):
         if not hasattr(self,'_gnrclasscatalog'):
+            # runtime import needed to avoid partial import errors
             from gnr.core.gnrclasses import GnrClassCatalog
             self._gnrclasscatalog = GnrClassCatalog()
         return self._gnrclasscatalog
@@ -578,7 +584,7 @@ def updateStringList(s1, s2, sep=','):
     s = set()
 
 def unicodeTranslitterate(txt,char_mapping=None):
-    import unidecode
+
     char_mapping = dict(char_mapping or {u'€':u'&#128;', u"“":u'&#34;',u'–':'-',
                             u"”":u'&#34;', u"‘":u'&#39;',u"’":u'&#39;'})
     for i in range(161,255):
@@ -764,7 +770,7 @@ def baseEncode(number, base='/16', nChars=None):
     :param number: number to encode
     :param base: base of encoding. Default value is ``/16``
     :param nChar: number of characters of the result. """
-    import math
+
 
     if base in BASE_ENCODE: base = BASE_ENCODE[base]
     b = len(base)
@@ -941,6 +947,7 @@ def toTypedJSON(obj):
     return json.dumps(obj, cls=JSONTypedEncoder)
 
 def fromTypedJSON(obj):
+    # runtime import needed to avoid partial import errors
     from gnr.core.gnrclasses import GnrClassCatalog
     catalog = GnrClassCatalog()
     return catalog.typedTextDeepConverter(json.loads(obj))
@@ -970,7 +977,7 @@ def slugify(value,sep='-'):
     """TODO
 
     :param value: TODO"""
-    import unicodedata
+
     value = str(value)
     value = unicodedata.normalize('NFKD', value)#.encode('ascii', 'ignore')
     value = str(re.sub(r'[^\w\s-]', '', value).strip().lower())
@@ -1017,7 +1024,6 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
     normal=0
     narrow=0
     upper=0
-    from math import ceil
     for c in mystring:
         if c in NARROW_CHARACTERS:
             narrow=narrow+1
@@ -1025,13 +1031,6 @@ def weightedLen(mystring, narrow_coeff=None, upper_coeff=None):
             upper=upper+1
         else:
             normal=normal+1
-    return ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
+    return math.ceil(narrow * narrow_coeff + normal + upper*upper_coeff)
 
 
-if __name__ == '__main__':
-    incl = '%.py,%.css'
-    excl = '_%,.%'
-    lst = ['pippo.py', 'piero.txt', '_gino.py', '.ugo.css', 'mario.css', 'sergio.py']
-    result = [x for x in lst if list(filter(x, include=incl, exclude=excl))]
-    print(toJson([1, 2, 4]))
-    print(result)

@@ -104,9 +104,12 @@ class S3TemporaryFilename(object):
 class Service(StorageService):
 
     def __init__(self, parent=None, bucket=None,
-        base_path=None, aws_access_key_id=None,
-        aws_secret_access_key=None, aws_session_token=None,
-        region_name=None, url_expiration=None, write_in_local=None, readonly=None, **kwargs):
+                base_path=None, aws_access_key_id=None,
+                aws_secret_access_key=None, aws_session_token=None,
+                region_name=None, url_expiration=None, write_in_local=None, 
+                readonly=None,versioned=True,
+                custom_endpoint=False, endpoint_url=None,
+                disable_cert_verify=False, **kwargs):
         self.parent = parent
         self.bucket = bucket
         self.base_path = (base_path or '').rstrip('/')
@@ -114,12 +117,20 @@ class Service(StorageService):
         self.aws_secret_access_key=aws_secret_access_key
         self.aws_session_token=aws_session_token
         self.region_name=region_name
+        self.endpoint_url = endpoint_url if custom_endpoint else None
+        self.disable_cert_verify = disable_cert_verify
         self.url_expiration = url_expiration or 3600
         has_sys = 'gnrcore:sys' in self.parent.gnrapp.config['packages']
         secondary = has_sys and self.parent.gnrapp.config['packages'].getAttr('gnrcore:sys').get('secondary')
         local = getattr(parent,'_local_mode', False)
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
+        self.versioned = versioned
+
+    @property
+    def is_versioned(self):
+        return self.versioned
+
     @property
     def location_identifier(self):
         return 's3/%s/%s' % (self.region_name, self.bucket)
@@ -150,6 +161,19 @@ class Service(StorageService):
                 return False
             else:
                 raise
+
+
+    def versions(self,*args):
+        response =  self._client.list_object_versions(Bucket=self.bucket,Prefix=self.internal_path(*args))  
+        versions =  response.get('Versions',[])
+        result = {}
+        for v in versions:
+            replaced_v = result.get(v['ETag'])
+            if replaced_v and replaced_v.get('IsLatest'):
+                continue
+            result[v['ETag']] = v
+        return list(result.values())
+
 
     def md5hash(self,*args):
         bucket = self._head_object(*args)
@@ -207,8 +231,8 @@ class Service(StorageService):
             return
 
     def local_path(self, *args, **kwargs):
-        mode = kwargs.get('mode', 'r')
-        keep = kwargs.get('keep', False)
+        mode = kwargs.get('mode') or 'r'
+        keep = kwargs.get('keep') or False
         internalpath = self.internal_path(*args)
         if self.readonly:
             if 'b' in mode:
@@ -255,7 +279,12 @@ class Service(StorageService):
     @property
     def _client(self):
         if not hasattr(self, '_boto_client') or (hasattr(self,'_boto_client_ts') and (datetime.now()-self._boto_client_ts).seconds>120):
-            self._boto_client = self._session.client('s3', config= boto3.session.Config(signature_version='s3v4'))
+            session_kwargs={}
+            if self.endpoint_url:
+                session_kwargs['endpoint_url'] = self.endpoint_url
+            if self.disable_cert_verify:
+                session_kwargs['verify'] = False
+            self._boto_client = self._session.client('s3', config= boto3.session.Config(signature_version='s3v4'), **session_kwargs)
             self._boto_client_ts = datetime.now()
         return self._boto_client
 
@@ -316,14 +345,16 @@ class Service(StorageService):
 
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
+        #version_id = kwargs.pop('version_id',None)
         if self.readonly:
             if 'b' in kwargs['mode']:
                 kwargs['mode'] = 'rb'
             else:
                 kwargs['mode'] = 'r'
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
+        version_id = kwargs.pop('version_id',None)
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
-            transport_params={'session':self._session, 'client': self._client}, **kwargs)
+            transport_params={'session':self._session, 'client': self._client,'version_id':version_id},**kwargs)
 
 
     def duplicateNode(self, sourceNode=None, destNode=None): # will work only in the same bucket
@@ -394,6 +425,9 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.aws_access_key_id',lbl='Aws Access Key Id')
         fb.textbox(value='^.aws_secret_access_key',lbl='Aws Secret Access Key')
         fb.textbox(value='^.region_name',lbl='Region Name')
+        fb.checkbox(value='^.custom_endpoint',lbl='Custom Endpoint')
+        fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='==!custom', custom='^.custom_endpoint')
+        fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
                                 border='1px solid silver',margin='2px',rounded=4,
                                 region='center',preview_region='right',

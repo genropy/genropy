@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from __future__ import print_function
-
 from gnr.core.gnrbag import Bag
 from datetime import datetime
 

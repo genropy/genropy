@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import datetime
 import sys
 import os
 import glob
+import zipfile
+import json
 
 from gnr.db import logger
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import getGnrConfig
 from gnr.core.cli import GnrCliArgParse
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql import AdapterCapabilities
@@ -94,6 +98,45 @@ def get_app(options):
     return GnrApp(os.getcwd()), storename
 
 
+def inspect(migrator, options):
+    # dump the information from the migrator, and generates a zip file
+    # useful for inspection/debug
+    logger.info("Creating migration inspection archive")
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    dump_files = []
+    
+    to_dump = [
+        ("db_struct", migrator.sqlStructure),
+        ("orm_struct", migrator.ormStructure),
+        ("changes", migrator.getChanges)
+    ]
+
+    for dump_item in to_dump:
+        filename = f"{options.instance}_{dump_item[0]}_{now}.json"
+        with open(filename, "w") as wfp:
+            if callable(dump_item[1]):
+                wfp.write(json.dumps(dump_item[1]()))
+            else:
+                wfp.write(json.dumps(dump_item[1]))
+        dump_files.append(filename)
+    orig_db_dump = f"{options.instance}_cur_db_struct_{now}"
+    dump_files.append(migrator.db.dump(orig_db_dump,
+                                       options=Bag(plain_text=True,
+                                                   schema_only=True)
+                                       )
+                      )
+    zip_name = f"{options.instance}_migrate_inspection_{now}.zip"
+    with zipfile.ZipFile(zip_name, "w") as zipf:
+        for filename in dump_files:
+            zipf.write(filename)
+            logger.info("Added %s to inspection archive", filename)
+
+    # Remove temporary files after successful zip creation
+    for filename in dump_files:
+        os.remove(filename)
+        logger.debug("Removed temp file %s", filename)
+    print(f"Inspection archive {zip_name} created.")
+    
 def check_db(migrator, options):
     dbname = migrator.db.currentEnv.get('storename')
     dbname = dbname or 'Main'
@@ -151,6 +194,10 @@ def main():
                         dest='remove_relations_only',
                         action='store_true',
                         help="Remove relations")
+    parser.add_argument('--inspect',
+                        dest='inspect',
+                        action='store_true',
+                        help='Create a dump file with configuration for inspection')
     
     parser.add_argument('-i', '--instance',
                         dest='instance',
@@ -206,6 +253,9 @@ def main():
             check_db(migrator, options)
         elif options.import_file:
             import_db(options.import_file, options)
+        elif options.inspect:
+
+            inspect(migrator, options)
         else:
             changes = check_db(migrator, options)
             if changes:

@@ -13,7 +13,7 @@
     
   </authentication>
   <site>
-    <gnrdaemon hmac_key="DOCKER" host="localhost" port="40407"/>
+    <gnrdaemon hmac_key="DOCKER" host="{GNR_DAEMON_HOST}" port="{GNR_DAEMON_PORT}"/>
     <gui css_theme="mimi"/>
     <wsgi mainpackage="$GNR_MAINPACKAGE" external_host="$GNR_EXTERNALHOST" websockets='true'/>
     <options liveUpdate="*"/>

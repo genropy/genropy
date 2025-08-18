@@ -172,7 +172,12 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.getFormData().walk(function(n){
                 delete n.attr._loadedValue;
             },'static');
-            d.addCallback(onSavedCb);
+            if(d instanceof dojo.Deferred){
+                d.addCallback(onSavedCb);
+            }else{
+                onSavedCb();
+            }
+           
             return d;
         }else if(errorCb){
             errorCb.call(this);

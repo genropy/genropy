@@ -13,8 +13,8 @@ class Table(object):
         #self.htableFields(tbl)
         #tbl.column('parent_code').relation('htag.code',onDelete='cascade')
 
-        tbl.column('code',name_long='!!Code',validate_notnull=True,validate_nodup=True,
-                    unmodifable=True,unique=True)
+        tbl.column('code',name_long='!!Code', validate_notnull=True,
+                   validate_nodup=True, unique=True)
         tbl.column('description',name_long='!!Description',validate_notnull=True)
         tbl.column('require_2fa', dtype='B', name_long='Require 2fa')
 

@@ -4,23 +4,21 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import public_method
 
 class View(BaseComponent):
+    
     def th_hiddencolumns(self):
-        return '$data'
+        return '$data,$pkg'
 
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('code',width='10em')
         r.fieldcell('objtype',width='10em')
-        r.fieldcell('pkg',width='6em')
-        r.fieldcell('tbl',width='20em')
-        r.fieldcell('userid',width='6em')
+        r.fieldcell('tbl',width='15em')
+        r.fieldcell('userid',width='10em')
         r.fieldcell('description',width='20em')
         r.fieldcell('authtags',width='6em', name='!![en]Tags')
         r.fieldcell('private',width='3em', tick=True, name='!![en]Priv.')
-        r.fieldcell('flags',width='6em')
-        r.fieldcell('required_pkg',width='10em')
         r.fieldcell('__mod_ts',name='Local modTS',width='8em')
-        r.fieldcell('resource_status',width='20em')
+        r.fieldcell('resource_status',width='14em')
 
         if self.isDeveloper():
             r.cell('save_as_resource',calculated=True,format_buttonclass='buttonInGrid',
@@ -41,24 +39,36 @@ class View(BaseComponent):
                         _lockScreen=True)
     
     def th_top_custom(self,top):
-        top.slotToolbar('2,sections@types,*,sections@systemuserobject,2',childname='upper',_position='<bar')
+        top.slotToolbar('2,sections@types,*,sections@flags,2',childname='upper',_position='<bar')
 
     def th_bottom_custom(self,bottom):
-        bottom.slotToolbar('2,sections@packages,*')
+        bottom.slotToolbar('2,sections@packages,*,sections@systemuserobject,2', sections_packages_multiButton=15)
 
     def th_sections_packages(self):
         return self.th_distinctSections(table='adm.userobject',field='pkg')
 
     def th_sections_types(self):
         return self.th_distinctSections(table='adm.userobject',field='objtype')
+    
+    def th_sections_flags(self):
+        return [dict(code='all', caption='!!All'),
+                dict(code='is_mail',caption='!!Mail', condition="$is_mail IS TRUE"),
+                dict(code='is_print',caption='!!Print', condition="$is_print IS TRUE"),
+                dict(code='is_row',caption='!!Row', condition="$is_row IS TRUE"),
+                dict(code='all_flags',caption='!!All flags', condition="$flags IS NOT NULL")]
 
     def th_sections_systemuserobject(self):
-        return [dict(code='standard',caption='Standard',
+        return [dict(code='standard',caption='!!Standard',
                     condition="$system_userobject IS NOT TRUE"),
-                dict(code='system',caption='System',
+                dict(code='system',caption='!!System',
                     condition="$system_userobject IS TRUE")]
 
+
 class View_query(BaseComponent):
+    
+    def th_hiddencolumns(self):
+        return '$pkg'
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('code',width='10em')
@@ -66,16 +76,36 @@ class View_query(BaseComponent):
         r.fieldcell('description',width='20em')
         r.fieldcell('authtags',width='6em')
         r.fieldcell('private',width='6em')
-        r.fieldcell('flags',width='6em')
 
     def th_options(self):
         return dict(virtualStore=False,addrow=False)
+
+
+class View_rpcquery(View_query):
+    def th_struct(self,struct):
+        r = struct.view().rows()
+        r.fieldcell('code',width='8em')
+        r.fieldcell('description',width='25em')
+        r.fieldcell('userid',width='6em')
+        
+        
+class ViewTemplate(View):
+    
+    def th_top_custom(self,top):
+        top.slotToolbar('2,sections@flags,*',childname='upper',_position='<bar')
+
+    def th_bottom_custom(self,bottom):
+        bottom.slotToolbar('2,sections@packages,*', sections_packages_multiButton=15)
+        
+    def th_options(self):
+        return dict(addrow=True, virtualStore=False)
+
 
 class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer(datapath='.record')
-        self.objectParameters(bc.roundedGroup(title='!![en]Object parameters', region='top', height='320px'))
+        self.objectParameters(bc.roundedGroup(title='!![en]Object parameters', region='top', height='150px'))
         self.objectResourceForm(bc.stackContainer(region='center', selectedPage='^.objtype', margin='2px'))
         
     def objectResourceForm(self,sc):
@@ -103,16 +133,19 @@ class Form(BaseComponent):
         return self.db.whereTranslator.toHtml(table,wherebag) 
 
     def objectResource_template(self,bc, **kwargs):
-        bc.roundedGroup(title='!![en]Template management').templateChunk(
+        bc.dataFormula('#FORM.is_mail', 'is_mail?"*":null', is_mail='^#FORM.record.is_mail')
+        bc.dataFormula('#FORM.is_print', 'is_print?true:null', is_print='^#FORM.record.is_print')
+        bc.roundedGroup(title='!![en]Template management', overflow_y='auto').templateChunk(
                                         template='^#FORM.record.data',
                                         editable=True,
                                         height='100%',
                                         min_height='400px',
                                         table='^#FORM.record.tbl',
                                         selfsubscribe_onChunkEdit='this.form.save();',
-                                        emailChunk='^#FORM.record.is_mail',
-                                        padding='5px', 
-                                        overflow_y='auto')
+                                        emailChunk='^#FORM.is_mail',
+                                        showLetterhead='^#FORM.is_print',
+                                        padding='5px', overflow='auto',
+                                        )
 
     def objectResource_dash_groupby(self,bc, **kwargs):
         pass
@@ -123,19 +156,34 @@ class Form(BaseComponent):
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.field('code')
         fb.field('description')
-        fb.field('objtype')
-        fb.field('pkg')
-        fb.field('tbl')
-        fb.field('userid')
-        fb.field('objtype')
-        fb.field('notes')
-        fb.field('authtags')
+        fb.field('tbl', hasDownArrow=True)
         fb.field('private')
-        fb.field('quicklist')
-        fb.field('flags')
+        fb.field('authtags', tag='checkBoxText', lbl='!![en]Auth Tags',
+                 table='adm.htag', popup=True)
+        
+        fb.field('flags', tag='checkBoxText', lbl='!![en]Flags',
+                 values='is_print:[!![en]Print],is_row:[!![en]Row],is_mail:[!![en]Mail]',
+                 readOnly='^.objtype?=#v!="template"', popup=True)
+        fb.field('notes', tag='simpleTextArea', colspan=2, width='100%', height='40px')
+        
+    def th_top_custom(self, top):
+        bar = top.bar.replaceSlots('right_placeholder', 'right_placeholder,5,save_res')
+        bar.save_res.slotButton('!!Save resource', _tags='_DEV_').dataController(
+                                """PUBLISH save_uo_as_resource = {pkeys:[_pkey]};""",
+                                _pkey='=#FORM.pkey')
+    
+    def addUserObjectPrompt(self):
+        return dict(title='!![en]Object parameters',
+                                    fields=[dict(value='^.code', lbl='!![en]Code', validate_notnull=True),
+                                            dict(value='^.tbl',tag='dbSelect',lbl='!![en]Table',
+                                                 table='adm.tblinfo', hasDownArrow=True, validate_notnull=True),
+                                            #dict(value='^.flags', tag='checkBoxText', lbl='!![en]Flags',
+                                            #     values='is_print:[!![en]Print],is_row:[!![en]Row],is_mail:[!![en]Mail]',
+                                            #     popup=True)
+                                            ])
 
     def th_options(self):
-        return dict(copypaste='*')
+        return dict(copy_paste='*', defaultPrompt=self.addUserObjectPrompt())
         
 
 class Form_query(Form):
@@ -148,16 +196,7 @@ class Form_query(Form):
         fb.field('authtags')
         fb.field('private')
         fb.field('quicklist')
-        fb.field('flags')
         
-
-
-class View_rpcquery(View_query):
-    def th_struct(self,struct):
-        r = struct.view().rows()
-        r.fieldcell('code',width='8em')
-        r.fieldcell('description',width='25em')
-        r.fieldcell('userid',width='6em')
 
 class Form_rpcquery(BaseComponent):
     def th_form(self, form):
@@ -171,7 +210,7 @@ class Form_rpcquery(BaseComponent):
                     colspan=2,_class='fakeTextBox',lbl='Where')
         center = bc.tabContainer(region='center',margin='2px')
         self.tokenManagement(center.borderContainer(title='Tokens'))
-        center.contentPane(title='Extended parameters').tree(storepath='#FORM.record.data')
+        center.contentPane(title='!![en]Extended parameters').tree(storepath='#FORM.record.data')
 
 
     def tokenManagement(self,bc):
@@ -180,7 +219,7 @@ class Form_rpcquery(BaseComponent):
                                                                     viewResource='ViewFromUserobject')
         bar = th.view.top.bar.replaceSlots('delrow','delrow,addtoken')
         bar.addtoken.slotButton('Add token').dataRpc(self.addRpcQueryToken,
-                                        _ask=dict(title='Get token',
+                                        _ask=dict(title='!![en]Get token',
                                                     fields=[dict(name='max_usages',tag='numberTextBox',lbl='Max usages'),
                                                             dict(name='expiry',tag='dateTimeTextBox',lbl='Expiry'),
                                                             dict(name='allowed_user',lbl='Allowed user')]),
@@ -203,6 +242,10 @@ class Form_rpcquery(BaseComponent):
         self.db.commit()
 
 class ViewCustomColumn(BaseComponent):
+    
+    def th_hiddencolumns(self):
+        return '$pkg'
+    
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('code',width='10em')
@@ -223,6 +266,7 @@ class ViewCustomColumn(BaseComponent):
 
     def th_options(self):
         return dict(virtualStore=False)
+
 
 class FormCustomColumn(BaseComponent):
 
@@ -253,4 +297,9 @@ class FormCustomColumn(BaseComponent):
                     duplicate=True)
 
 
-
+class FormTemplate(Form):
+    
+     def th_options(self):
+        return dict(default_objtype='template', 
+                    duplicate=True,
+                    defaultPrompt=self.addUserObjectPrompt())
