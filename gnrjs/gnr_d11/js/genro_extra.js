@@ -252,12 +252,13 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
         const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
         const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
-
+        
         const loadResource = (url, type) => new Promise((resolve) => {
             if (type === 'js') { genro.dom.loadJs(url, resolve); }
             else if (type === 'css') { genro.dom.loadCss(url, 'tuieditor', resolve); }
         });
-
+        
+        const wantColor = !(savedAttrs && savedAttrs.colorSyntax === false);
         const init = () => { this.ready = true; this.initialize(widget, savedAttrs, sourceNode); };
 
         // Ensure strict load order: Editor -> Picker -> Plugin
@@ -265,21 +266,21 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             Promise.resolve()
                 .then(() => loadResource(scriptUrl, 'js'))
                 .then(() => loadResource(cssUrl, 'css'))
-                .then(() => loadResource(pickerCss, 'css'))
-                .then(() => loadResource(pickerJs,  'js'))
-                .then(() => loadResource(colorCss,  'css'))
-                .then(() => loadResource(colorJs,   'js'))
+                .then(() => wantColor? loadResource(pickerCss, 'css') : null)
+                .then(() => wantColor? loadResource(pickerJs,  'js') : null)
+                .then(() => wantColor? loadResource(colorCss,  'css') : null)
+                .then(() => wantColor? loadResource(colorJs,   'js') : null)
                 .then(() => {
                     // Sanity check: plugin expects window.tui.colorPicker
-                    if (!(window.tui && window.tui.colorPicker)) {
+                    if (wantColor && !(window.tui && window.tui.colorPicker)) {
                         console.warn('[MDEditor] tui.colorPicker missing. Color Syntax plugin may fail.');
                     }
                     init();
                 });
         } else {
             // Editor already present. Load dependency then plugin in order
-            const needPicker = !(window.tui && window.tui.colorPicker);
-            const needPlugin = !(window.toastui && window.toastui.Editor && window.toastui.Editor.plugin && window.toastui.Editor.plugin.colorSyntax);
+            const needPicker = wantColor && !(window.tui && window.tui.colorPicker);
+            const needPlugin = wantColor && !(window.toastui && window.toastui.Editor && window.toastui.Editor.plugin && window.toastui.Editor.plugin.colorSyntax);
             Promise.resolve()
                 .then(() => needPicker ? loadResource(pickerCss, 'css') : null)
                 .then(() => needPicker ? loadResource(pickerJs,  'js')  : null)
@@ -344,7 +345,10 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         const editor = editor_attrs.viewer
             ? this.createViewer(widget, editor_attrs)
             : this.createEditor(widget, editor_attrs);
-    
+        if (savedAttrs.previewStyle === 'hidden'){
+            this._ensureNoPreviewCss();
+            try{ editor.el && editor.el.classList && editor.el.classList.add('tui-no-preview'); }catch(e){}
+        }
         this.configureToolbar(editor, editor_attrs);
         this.setExternalWidget(sourceNode, editor);
         this.attachHooks(editor, editor_attrs, sourceNode);
@@ -364,7 +368,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         try {
             const Editor = window.toastui && window.toastui.Editor;
             const colorSyntax = Editor && Editor.plugin && Editor.plugin.colorSyntax;
-            if (colorSyntax) {
+            if (editor_attrs.colorSyntax !== false && colorSyntax) {
                 editor_attrs.plugins = (editor_attrs.plugins || []).concat([colorSyntax]);
             }
         } catch(e) { /* no-op */ }
@@ -372,6 +376,22 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
             el: widget,
             ...editor_attrs
         });
+    },
+
+    _ensureNoPreviewCss:function(){
+        try{
+            const id = 'tui-no-preview-style';
+            if(document.getElementById(id)) return;
+            const css = [
+                '.tui-no-preview .te-preview,',
+                '.tui-no-preview .te-mode-switch-section,',
+                '.tui-no-preview .toastui-editor-md-splitter,',
+                '.tui-no-preview .toastui-editor-md-preview,',
+                '.tui-no-preview .toastui-editor-tabs { display:none !important; }'
+            ].join('');
+            const st = document.createElement('style');
+            st.id = id; st.textContent = css; document.head.appendChild(st);
+        }catch(e){}
     },
 
     configureToolbar:function(editor, editor_attrs){
