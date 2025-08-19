@@ -29,11 +29,13 @@ dojo.declare("gnr.GnrDomHandler", null, {
     constructor: function(application) {
         this.application = application;
         this.pendingHeaders = {};
-        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter'];
+        this.css3AttrNames = ['rounded','gradient','shadow','transform','transition','zoom','filter',];
         this.styleAttrNames = ['height', 'width','top','left', 'right', 'bottom', 'resize',
             'visibility','opacity', 'overflow', 'float', 'clear', 'display','line_height',
             'z_index', 'border','position','padding','margin','cursor',
-            'color','white_space','vertical_align','background','font','text'].concat(this.css3AttrNames);
+            'color','white_space','vertical_align','background','font','text','gap','row_gap','column_gap',
+            'flex','grid','grid_template_columns','align_content','justify_content','align_items','justify_items'
+        ].concat(this.css3AttrNames);
         
     },
     isStyleAttr:function(name) {
@@ -117,18 +119,51 @@ dojo.declare("gnr.GnrDomHandler", null, {
             e.onload = cb;
         }
     },
-    addPlugin: function(plugin,cb){
-        genro.dom.loadCss('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',null,null,genro.isDeveloper);
-        genro.dom.loadJs('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',function(){
-                genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
-                genro.wdg.updateWidgetCatalog();
-                if(cb){
-                    cb();
-                }
-                if(genro[plugin].init){
-                    genro[plugin].init();
-                }
-        },genro.isDeveloper);
+
+
+    loadResource: async function(url,noCache) {
+        let element;
+        const isJs = url.endsWith('.js');
+        const isCss = url.endsWith('.css');
+        if (!isJs && !isCss) {
+            throw new Error(`Unsupported file type: ${url}`);
+        }
+        if (noCache) {
+            const cacheBuster = `cachebuster=${new Date().getTime()}`;
+            url += (url.includes('?') ? '&' : '?') + cacheBuster;
+        }
+        if (isJs) {
+            element = document.createElement('script');
+            element.type = 'text/javascript';
+            element.src = url;
+        } else if (isCss) {
+            element = document.createElement('link');
+            element.rel = 'stylesheet';
+            element.href = url;
+        }
+        return new Promise((resolve, reject) => {
+            element.onload = () => resolve(`Resource loaded: ${url}`);
+            element.onerror = () => reject(new Error(`Failed to load resource: ${url}`));
+            document.head.appendChild(element);
+        });
+    },
+
+    addPlugin: async function(plugin,cb){
+        try {
+            await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.css',genro.isDeveloper);
+        } catch (error) {
+            console.log('No stylesheet for plugin ',plugin);
+        }
+        await genro.dom.loadResource('/_rsrc/common/js_plugins/'+plugin+'/'+plugin+'.js',genro.isDeveloper);
+        genro[plugin] = genro[plugin] || objectPop(window,'genro_plugin_'+plugin);
+        genro.wdg.updateWidgetCatalog();
+        if(cb){
+            cb();
+        }
+        if(genro[plugin].init){
+            await genro[plugin].init();
+        }
+        return genro[plugin]
     },
 
     loadExternal:function(urlList,avoidCache){
@@ -414,26 +449,14 @@ dojo.declare("gnr.GnrDomHandler", null, {
         }
     },
     
-    resizeContainer:function(wdgt) {
-        if (wdgt.parent && wdgt.parent.isContainer) {
-            this.resizeContainer(wdgt.parent);
-        } else if (wdgt && wdgt.isContainer) {
-            wdgt.onResized();
-        }
-    },
-
-    resizeFirstContainerResizable:function(sourceNode){
-        let node = sourceNode;
-        let widget = sourceNode.getWidget();
-        while (!(widget && widget.resize && widget.isContainer)){
-            node = node.getParentNode();
-            if(!node){
-                return;
-            }
-            widget = node.getWidget();
-        }
-        widget.resize();
-    },
+    
+   //resizeContainer:function(wdgt) {
+   //    if (wdgt.parent && wdgt.parent.isContainer) {
+   //        this.resizeContainer(wdgt.parent);
+   //    } else if (wdgt && wdgt.isContainer) {
+   //        wdgt.onResized();
+   //    }
+   //},
 
     getStyleDict: function(attributes/*{}*/, noConvertStyle) {
         if (attributes.gnrIcon) {
@@ -452,7 +475,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         for (var i = 0; i < this.styleAttrNames.length; i++) {
             attrname = this.styleAttrNames[i];
             if (attrname in attributes && arrayIndexOf(noConvertStyle, attrname) == -1) {
-                styledict[attrname.replace('_', '-')] = objectPop(attributes, attrname);
+                styledict[attrname.replace(/_/g, '-')] = objectPop(attributes, attrname);
             }
         }
         this.style_setall('min', styledict, attributes, noConvertStyle);
@@ -464,6 +487,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         this.style_setall('padding', styledict, attributes, noConvertStyle);
         this.style_setall('border', styledict, attributes, noConvertStyle);
         this.style_setall('overflow', styledict, attributes, noConvertStyle);
+        this.style_setall('flex', styledict, attributes, noConvertStyle);
+        this.style_setall('grid', styledict, attributes, noConvertStyle);
         return styledict;
     },
     css3style_filter:function(value,valuedict, styledict,noConvertStyle){
@@ -577,7 +602,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 if (colors.length>0){
                        dojo.forEach(colors,function(col){
                         var c=(colordict[col]+',0').split(',');
-                        result +=", "+c[0]+" "+c[01]+"%";
+                        result +=", "+c[0]+" "+c['01']+"%";
                     });
                 }else{
                     result += ','+color_from+','+color_to;
@@ -1619,8 +1644,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var result = {};
         var style = whatDomNode.style;
         var whereposition = whereDomNode.style.position;
-        var deltax = viewport.l || viewport.x;
-        var deltay = viewport.t || viewport.y;
+        var deltax = isNullOrBlank(viewport.l)? viewport.x:viewport.l;
+        var deltay = isNullOrBlank(viewport.t)? viewport.y:viewport.t;
         var onlyX,onlyY;
         xRatio = xRatio || 0;
         yRatio = yRatio || 0;
@@ -1634,6 +1659,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         //    deltax = deltax +viewport.x;
         //    deltay = deltay + viewport.y;
         //}
+        
         if (!onlyY) {
             style.left = Math.floor((deltax + (viewport.w - mb.w)*(1+xRatio) / 2)) + "px";
         }
@@ -1718,9 +1744,35 @@ dojo.declare("gnr.GnrDomHandler", null, {
         return false;
     },
 
+    isElementOverflowing:function(element) {
+        const parent = element.parentElement;
+      
+        const parentRect = parent.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+      
+        const isOverflowing = (
+          elementRect.left < parentRect.left ||
+          elementRect.right > parentRect.right ||
+          elementRect.top < parentRect.top ||
+          elementRect.bottom > parentRect.bottom
+        );
+      
+        return isOverflowing;
+    },
+
     isActiveLayer:function(what){
         var sourceNode = this.getSourceNode(this.getDomNode(what));
         return genro.dialogStack.length===0 || sourceNode.isChildOf(genro.dialogStack.slice(-1)[0].sourceNode);
+    },
+
+    checkScrollPosition:function(element) {
+        const isAtStart = element.scrollLeft === 0;
+        const isAtEnd = element.scrollLeft + element.clientWidth >= element.scrollWidth;
+    
+        return {
+            isAtStart: isAtStart,
+            isAtEnd: isAtEnd
+        };
     },
 
     setAutoSizer:function(sourceNode,domNode,cb,timing){
@@ -1787,6 +1839,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         if(rs instanceof gnr.GnrBag){
             let customStyleDict = objectUpdate(objectFromStyle(document.body.style.cssText),genro.dom.getStyleDict(rs.asDict(), {}))
             document.body.style.cssText = objectAsStyle(customStyleDict);
+            genro.fakeResize();
         }        
     },
     printElementContent:function(where,title,doprint){
@@ -1969,18 +2022,30 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var folderUrl = genro.getData('gnr.homeFolder');
         var parsedFolder = parseURL(folderUrl) || {};
         var parsedSrc = parseURL(src);
+        const ext = parsedSrc.params.source_ext || parsedSrc.file.split('.').pop();
+        if(ext && ext!='pdf'){
+            return src
+        }
         let prefJsPdf = genro.getData('gnr.user_preference.sys.jsPdfViewer') || genro.getData('gnr.app_preference.sys.jsPdfViewer');
-        let prefJsPdfMin = genro.getData('gnr.user_preference.sys.jsPdfViewerMin') || genro.getData('gnr.app_preference.sys.jsPdfViewerMin');
         var jsPdfViewer = isNullOrBlank(jsPdfViewer)? prefJsPdf:jsPdfViewer;
-        var jsPdfViewerMin = isNullOrBlank(jsPdfViewerMin)? prefJsPdfMin:jsPdfViewerMin;
-        var viewer = null;
-        if(jsPdfViewer){viewer = 'viewer'};
-        if(jsPdfViewerMin){viewer = 'viewer_min'};
-        if(parsedSrc.file && viewer  ){
+        if(parsedSrc.file && jsPdfViewer){
             if(parsedFolder.host==parsedSrc.host && parsedSrc.protocol !=parsedFolder.protocol){
                 src = parsedFolder.protocol+'://'+parsedSrc.host+parsedSrc.relative;
             }
-            src = `/_rsrc/js_libs/pdfjs/web/${viewer}.html?file=`+encodeURIComponent(src);
+            src = `/_rsrc/js_libs/pdfjs/web/viewer.html?file=`+encodeURIComponent(src);
+            let jsPdfViewerOptions = genro.getData('gnr.app_preference.sys.jsPdfViewerOptions');
+            let jsPdfViewerTools  = genro.getData('gnr.app_preference.sys.jsPdfViewerTools');
+            let external_document_url = genro.getData('gnr.app_preference.sys.external_document_url');
+            if(jsPdfViewerOptions){
+                src+=('&_viewer_options='+jsPdfViewerOptions)
+            }
+            if(jsPdfViewerTools){
+                src+=('&_viewer_tools='+jsPdfViewerTools)
+            }
+            if(genro.isCordova  && external_document_url){
+                src+=('&_is_cordova=y');
+                src+='&_external_document_url='+external_document_url;
+            }
         }
         return src;
     },

@@ -2,26 +2,22 @@
 # Genro  
 # Copyright (c) 2004 Softwell sas - Milano see LICENSE for details
 # Author Giovanni Porcari, Francesco Cavazzana, Saverio Porcari, Francesco Porcari
-from __future__ import print_function
-
 
 import os
+import logging
 import time, datetime
 from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
-import logging
-
-gnrlogger = logging.getLogger(__name__)
 
 from gnr.core.gnrlang import errorLog
-from gnr.core.gnrbag import Bag, DirectoryResolver
+from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp
 
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 from gnr.sql.gnrsqlmodel import DbModelSrc
 
 from gnr.xtnd.sync4Dtransaction import TransactionManager4D
-
+from gnr.xtnd import logger
 
 class Struct4D(object):
     def __init__(self, instance_folder, packages_folder=None):
@@ -48,7 +44,7 @@ class Struct4D(object):
 
     def areaFolder(self, area):
         path = os.path.join(self.packages_folder, area)
-        print('areaFolder:', path)
+        logger.info('areaFolder: %s', path)
         if not os.path.isdir(path):
             os.mkdir(path)
         return path
@@ -184,7 +180,7 @@ class Struct4D(object):
                 target = '%s.%s.%s' % (sqltarget[0], sqltarget[1], sqltarget[2])
                 fld.relation(target)
             else:
-                print("Error: missing field \n%s" % str(fldbag['relate']))
+                logger.error("Missing field %s", str(fldbag['relate']))
 
 
 class GnrAppSync4D(GnrApp):
@@ -212,9 +208,8 @@ class GnrAppSync4D(GnrApp):
         formatter = Formatter('%(asctime)s - %(name)-12s: %(levelname)-8s %(message)s')
         loghandler.setFormatter(formatter)
 
-        rootlogger = logging.getLogger('')
-        rootlogger.setLevel(logging.DEBUG)
-        rootlogger.addHandler(loghandler)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(loghandler)
         if 'admin' in self.db.packages:
             self.db.package('admin').mailLog(self.processName)
 
@@ -275,7 +270,7 @@ class GnrAppSync4D(GnrApp):
             return True
         except:
             tb_text = errorLog(self.processName)
-            gnrlogger.error(tb_text)
+            logger.error(tb_text)
             raise
 
     def lookForBackSync(self):
@@ -368,7 +363,7 @@ class GnrAppSync4D(GnrApp):
                                             queue_id='sync4d',
                                             request_ts=request_ts
                                             )
-        gnrlogger.info("%s --> %s - %s" % (file_name, attr['mode'], '%s.%s' % (pkg, tbl)))
+        logger.info("%s --> %s - %s" % (file_name, attr['mode'], '%s.%s' % (pkg, tbl)))
 
     def writeImport(self, b, file_name=None):
         if self.area_zz:
@@ -382,7 +377,7 @@ class GnrAppSync4D(GnrApp):
                                             file_name=file_name,
                                             queue_id='sync4d'
                                             )
-        gnrlogger.info("%s --> %s - %s" % (file_name, 'import', '%s.%s' % (pkg, tbl)))
+        logger.info("%s --> %s - %s" % (file_name, 'import', '%s.%s' % (pkg, tbl)))
 
     def setSubTriggerSchemata(self, data):
         for k, tr, attr in data.digest('#k,#v,#a'):

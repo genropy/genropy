@@ -3,19 +3,16 @@
 
 import os
 import tempfile
-
+from datetime import datetime, date
+            
 from gnr.core.gnrdecorator import extract_kwargs
-
 from gnr.core.gnrlang import  GnrException
-
-
 from gnr.lib.services import GnrBaseService,BaseServiceType
 from gnr.lib.services.storage import StorageNode
 
 
 class HtmlToPdfError(GnrException):
     pass
-    
 
 class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
@@ -28,7 +25,6 @@ class ServiceType(BaseServiceType):
                 weasyprint = False
         except ImportError:
             weasyprint = False
-        weasyprint
         default_implementation = 'weasyprint' if weasyprint else 'wk'
         return dict(implementation=default_implementation)
 
@@ -78,8 +74,9 @@ class HtmlToPdfService(GnrBaseService):
         :param destPath: TODO
         :param orientation: TODO"""
 
-        if not destPath:
-            destPath = 'temp:tempfile.pdf'
+       #if not destPath:
+       #    destPath = 'temp:tempfile.pdf'
+
 
         if not isinstance(srcPath, StorageNode) and '<' in srcPath:
             srcPath = self.createTempHtmlFile(srcPath,htmlTemplate=htmlTemplate,bodyStyle=bodyStyle)
@@ -87,7 +84,6 @@ class HtmlToPdfService(GnrBaseService):
             os.remove(srcPath)
             return pdf_path
         srcNode = self.parent.storageNode(srcPath)
-        destNode = self.parent.storageNode(destPath)
         pdf_pref = self.parent.getPreference('.pdf_render',pkg='sys') if self.parent else None
         #preference should be in sys.service service_parameters
         keep_html = False
@@ -100,10 +96,10 @@ class HtmlToPdfService(GnrBaseService):
             pdf_pref.update(pdf_kwargs)
             pdf_kwargs = pdf_pref
         if keep_html:
-            import shutil
-            from datetime import datetime, date
+
             now = datetime.now()
-            baseName = destNode.cleanbasename
+            sn = self.parent.storageNode(destPath) if destPath else srcNode
+            baseName = sn.cleanbasename
             debugName = "%s_%02i_%02i_%02i.html"%(baseName, now.hour,now.minute,now.second)
             htmlfilenode = self.parent.storageNode('site:print_debug',
                 date.today().isoformat(), debugName ,autocreate=-1)

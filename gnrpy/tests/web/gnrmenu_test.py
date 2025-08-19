@@ -1,1 +1,1 @@
-import gnr.web.gnrmenu
+import gnr.web.gnrmenu  # noqa: F401

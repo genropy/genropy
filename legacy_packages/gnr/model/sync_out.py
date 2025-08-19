@@ -1,4 +1,6 @@
 # encoding: utf-8
+import datetime
+from gnr.core.gnrbag import Bag
 
 class Table(object):
     def config_db(self, pkg):

@@ -1,8 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from datetime import timedelta
+
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method,metadata
+from gnr.core.gnrdecorator import metadata
 
 class View(BaseComponent):
 
@@ -54,7 +56,7 @@ class ViewFromTask(BaseComponent):
         ]
     
     def th_sections_insdate(self):
-        from datetime import timedelta
+
         return [
             dict(code='today',condition="$__ins_ts>=:start_date",
                         condition_start_date=self.workdate,

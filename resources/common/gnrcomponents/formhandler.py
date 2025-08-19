@@ -113,24 +113,9 @@ class FormHandler(BaseComponent):
         gridattr['_watchOnVisible'] = True
         gridsubscribers = dict()
         if link_kwargs.get('event'):
-            if self.isMobile:
-                gridattr['selfsubscribe_tap'] = """
-                            var rowIndex= $1.event.rowIndex;
-                            if(isNullOrBlank(rowIndex) || rowIndex==-1){
-                                return;
-                            }
-                            genro.callAfter(function(){
-                                var selectedRows = this.widget.getSelectedRowidx() || [];
-                                if(rowIndex>-1){
-                                    this.publish('editrow',{pkey:this.widget.rowIdByIndex(rowIndex),rowIndex:rowIndex});
-                                }else{
-                                    this.publish('editrow',{pkey:'*norecord*',rowIndex:rowIndex});
-                                }
-                            },100,this,'editselectedrow_'+this._id);
-
-            """
-            else:
-                gridattr['connect_%(event)s' %link_kwargs] = """
+            if self.isMobile and link_kwargs['event']=='onRowDblClick':
+                link_kwargs['event'] = 'onRowClick'
+            gridattr['connect_%(event)s' %link_kwargs] = """
                                             if($1.cell && $1.cell.cellAction){
                                                 funcApply($1.cell.cellAction,{
                                                     'cell':$1.cell
@@ -217,6 +202,11 @@ class FormHandler(BaseComponent):
                                     }
                                     finalize();
                                     """
+        gridattr['selfsubscribe_dismissrow'] = """
+            var linkedFormId = this.attr._linkedFormId;
+            var pref = 'form_'+linkedFormId;
+            genro.publish(pref+'_dismiss');
+        """
         gridattr['selfsubscribe_viewlocker'] = 'this.widget.collectionStore().setLocked("toggle");'
         gridsubscribers['onExternalChanged']= """
             var selectionStore = this.widget.collectionStore();
@@ -472,7 +462,7 @@ class FormHandler(BaseComponent):
     @struct_method          
     def fh_slotbar_form_dismissTitle(self,pane,height=None,color=None,back_title=None,**kwargs):
         color = color or pane.getInheritedAttributes().get('color')
-        btn = pane.lightButton(action='this.form.abort();',style='display:flex;align-items:center;',cursor='pointer')
+        btn = pane.lightButton(action='this.form.publish("navigationEvent",{command:"dismiss"});',style='display:flex;align-items:center;',cursor='pointer')
         btn.div(_class="iconbox leftOut",height=height or '25px',background_color=color)
         btn.div(back_title or '^.#parent.view.title')
 
@@ -511,7 +501,7 @@ class FormHandler(BaseComponent):
 
     @struct_method           
     def fh_formButton(self,pane,label=None,iconClass=None,topic=None,command=True,**kwargs):
-        pane.slotButton(label, lbl=label,iconClass=iconClass,topic=topic,
+        pane.slotButton(label,iconClass=iconClass,topic=topic,
                     action="""let opt = objectExtract(_kwargs,'opt_*',true);
                                 let kw = {command:command,modifiers:genro.dom.getEventModifiers(event)};
                                 objectUpdate(kw,opt)

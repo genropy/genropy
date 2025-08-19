@@ -6,12 +6,9 @@
 #Created by Francesco Porcari on 2010-10-16
 #Copyright (c) 2011 Softwell. All rights reserved.
 
-from __future__ import print_function
-
-
-from gnr.core.gnrbag import Bag
 from datetime import datetime
 
+from gnr.core.gnrbag import Bag
 
 class BaseResourceBatch(object):
     """Base resource class to create a :ref:`batch`"""
@@ -19,6 +16,7 @@ class BaseResourceBatch(object):
     batch_thermo_lines = 'batch_steps,batch_main,ts_loop'
     batch_title = 'My Batch Title'
     batch_cancellable = True
+    batch_hidden_transaction = True
     batch_delay = 2
     batch_note = None
     batch_steps = None #'foo,bar'
@@ -29,7 +27,6 @@ class BaseResourceBatch(object):
     batch_local_cache = True
     batch_ask_options = True
     batch_schedulable = 'admin'
-    batch_push_notification = None
     batch_selection_where = None
     batch_selection_kwargs = dict()
     batch_selection_savedQuery= None
@@ -65,20 +62,11 @@ class BaseResourceBatch(object):
                                 batch_title=self.batch_title,tbl=self.tblobj.fullname,
                                 start_ts=datetime.now(),notes=self.batch_note)
         try:
-            with self.db.tempEnv(cacheInPage=self.batch_local_cache):
+            with self.db.tempEnv(cacheInPage=self.batch_local_cache,hidden_transaction=self.batch_hidden_transaction):
                 self.run()
                 result, result_attr = self.result_handler()
                 self.btc.batch_complete(result=result, result_attr=result_attr)
                 
-                if self.batch_push_notification:
-                    message = self.batch_push_notification.get('message','')
-                    self.page.webpushNotify(
-                        user = self.page.user,
-                        message = f'{self.batch_title} is finished {message}',
-                        url = result_attr.get('url_print') or result_attr.get('url'),
-                        **self.batch_push_notification
-                    )
-            #self.page.setInClientData('')
         except self.btc.exception_stopped:
             self.btc.batch_aborted()
             self.batch_log_write('Batch Aborted')
@@ -96,7 +84,7 @@ class BaseResourceBatch(object):
                     raise
         finally:
             if self.batch_dblog:
-                with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+                with self.db.tempEnv(connectionName='system',storename=self.db.rootstore,hidden_transaction=self.batch_hidden_transaction):
                     self.batch_logrecord['logbag'] =  self.batch_debug
                     self.batch_logrecord['end_ts'] = datetime.now()
                     self.batch_logtbl.insert(self.batch_logrecord)
@@ -159,7 +147,7 @@ class BaseResourceBatch(object):
         :param key: TODO
         :param result: TODO
         :param record: TODO
-        :param \*\* info: TODO"""
+        :param ** info: TODO"""
         self.results[key] = result
         self.records[key] = record
         self.result_info[key] = info

@@ -18,16 +18,15 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import datetime
+from decimal import Decimal
+
+from xmlrpc.client import dumps as xmlrpcdumps,loads as xmlrpcloads, Marshaller, Fault
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebpage import GnrUserNotAllowed,GnrBasicAuthenticationError
-
 from gnr.core.gnrbag import Bag
-from dateutil import parser as dtparser
-import datetime
-from decimal import Decimal
 from gnr.core.gnrdecorator import public_method
-from xmlrpc.client import dumps as xmlrpcdumps,loads as xmlrpcloads, Marshaller, Fault
 from gnr.core.gnrbag import TraceBackResolver
 
 def dump_decimal(self,value, write):

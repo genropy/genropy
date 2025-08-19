@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-            
+
+import re
+import platform
+import socket
+import uuid
+import json
+import psutil
+import logging
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from datetime import datetime
-import re
-import platform,socket,re,uuid,json,psutil
 
 def getSystemInfo():
     try:

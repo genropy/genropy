@@ -6,6 +6,8 @@
     --frameindex-tablist-color:#ffffff;
     --roundedgroup-bar:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
     --roundedgroup-bar-color:#444;
+    --gnrfieldlabel-color:#707070;
+
     --tab-background:linear-gradient(to bottom, #c2d0e9,  #d6dfee);
     --tab-text-color:#444;
     --tab-selected-background:white;

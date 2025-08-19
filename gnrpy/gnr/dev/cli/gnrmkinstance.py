@@ -4,11 +4,9 @@
 create a new genroproject
 
 """
-import sys, os, shutil
+import os
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrApp
 from gnr.app.gnrdeploy import InstanceMaker, PathResolver
 
 description = """Create a new Genropy istance"""

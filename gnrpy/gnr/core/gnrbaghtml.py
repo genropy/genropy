@@ -7,6 +7,7 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 
 import os
+from pathlib import Path
 from gnr.core.gnrstring import toText,templateReplace
 
 from gnr.core.gnrhtml import GnrHtmlBuilder
@@ -55,6 +56,7 @@ class BagToHtml(object):
     grid_footer_height = 0
     grid_body_adjustment = 0
     grid_col_headers = None
+    grid_width = None
     grid_col_headers_height = 4
     grid_col_widths = None
     grid_style_cell = None
@@ -307,14 +309,18 @@ class BagToHtml(object):
         locale = locale or self.locale
         encoding = locale or self.encoding
         return toText(obj, locale=locale, format=format, mask=mask, encoding=encoding, **kwargs)
-
+    
     def createHtml(self, filepath=None, body_attributes=None):
         """TODO
         :param filepath: the path where html will be saved"""
         if self.htmlContent and not self.htmlTemplate:
-            with open(filepath,'w') as f:
-                f.write(self.htmlContent)
-            return self.htmlContent
+            self.builder.body.div('%s::HTML' %self.htmlContent)
+            self.builder.toHtml()
+            path_obj = Path(filepath)
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            with path_obj.open('w') as f:
+                f.write(self.builder.html)
+            return self.builder.html
         self.main()
         if self.splittedPages:
             result = []
@@ -1016,17 +1022,15 @@ class BagToHtml(object):
                 self.newBuilder()
 
 
+
     def _docBody(self, body):
         header_height = self.calcGridHeaderHeight()
         wrapper = body
-        if self.columnsets:
-            header_height = header_height/2
-            extlayout = body.layout(border_width=0,top=0,left=0,right=0,bottom=0)
-            gp = self.gridLayoutParameters()
-            colsetlayout = extlayout.row(height=header_height).cell().layout(left=gp.get('left'),right=gp.get('right'),top=0,bottom=0,
-                                                border_width=.3,border_color='transparent')
-            self.prepareColumnsets(colsetlayout.row())
-            wrapper = extlayout.row().cell()
+        if self.columnsets or self.grid_width:
+            if self.columnsets:
+                header_height = header_height/2
+            wrapper = self._getGridWrapper(body,header_height)
+
         grid = self.gridLayout(wrapper)
         if header_height:
             self.gridHeader(grid.row(height=header_height))
@@ -1038,6 +1042,23 @@ class BagToHtml(object):
             self.renderMode = 'carry'
             self.renderGridRow(self.gridRunningTotals(lastPage=self.lastPage))
         self.copies[self.copykey]['body_grid'] = grid
+
+    def _getGridWrapper(self,body,header_height):
+        wrapper = body
+       
+        if self.grid_width:
+            row =  body.layout(border_width=0,top=0,left=0,right=0,bottom=0).row()
+            row.cell()
+            wrapper =row.cell(width=self.grid_width)
+            row.cell()
+        if self.columnsets:
+            gp = self.gridLayoutParameters()
+            extlayout = wrapper.layout(border_width=0,top=0,left=0,right=0,bottom=0)
+            colsetlayout = extlayout.row(height=header_height).cell().layout(left=gp.get('left'),right=gp.get('right'),top=0,bottom=0,
+                                                border_width=.3,border_color='transparent')
+            self.prepareColumnsets(colsetlayout.row())
+            wrapper = extlayout.row().cell()
+        return wrapper
 
     def prepareColumnsets(self,row):
         currentColsetCell = None
@@ -1093,7 +1114,10 @@ class BagToHtml(object):
             pars = colNode.attr
             if pars.get('hidden'):
                 continue
-            row.cell(lbl=self.toText(pars.get('name','')), lbl_height=lbl_height, width=pars.get('mm_width'), style=pars.get('header_style'))
+            header_style = pars.get('header_style')
+            row.cell(lbl=self.toText(pars.get('name','')), lbl_height=lbl_height,
+                         width=pars.get('mm_width'), style=header_style,
+                         lbl_class=pars.get('lbl_class'))
 
     def gridFooter(self, row):
         """It can be overridden

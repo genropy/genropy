@@ -33,7 +33,7 @@
 <en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="id"></en_id>
 <en_date_and_time fr="Date et heure" de="Datum und Uhrzeit" en="Date and Time" it="Data e ora" base="Date and Time"></en_date_and_time>
 <en_expiry fr="Expiration" de="Ablauf" en="Expiry" it="Scadenza" base="Expiry"></en_expiry>
-<en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Destinazione d'uso" base="Destination user"></en_destination_user>
+<en_destination_user fr="utilisateur Destinations" de="Zielbenutzer" en="Destination user" it="Utente destinatario" base="Destination user"></en_destination_user>
 <en_connection_id fr="id de connexion" de="Verbindungs-ID" en="Connection id" it="Id Connessione" base="Connection Id"></en_connection_id>
 <en_max_uses fr="Utilise Max" de="Max verwendet" en="Max uses" it="Utilizza Max" base="Max uses"></en_max_uses>
 <en_allowed_host fr="Autorisé hôte" de="Host erlaubt" en="Allowed host" it="Ospite ammessi" base="Allowed host"></en_allowed_host>
@@ -68,7 +68,7 @@
 <en_data fr="Données" de="Daten" en="Data" it="Data" base="Data"></en_data>
 <en_backup fr="Sauvegarde" de="Sicherungskopie" en="Backup" it="Di riserva" base="Backup"></en_backup>
 <en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"></en_table></shared_object>
-<task path="model/task.py" ext="py"><en_task fr="Tâche" de="Aufgabe" en="Task" it="Compito" base="Task"></en_task>
+<task path="model/task.py" ext="py"><en_task fr="Tâche" de="Aufgabe" en="Task" it="Task" base="Task"></en_task>
 <en_tasks fr="Tâches" de="Aufgaben" en="Tasks" it="Compiti" base="Tasks"></en_tasks>
 <en_table fr="Table" de="Tabelle" en="Table" it="Tabella" base="Table"></en_table>
 <en_task_name fr="Nom de la tâche" de="Task-Name" en="Task name" it="Nome attività" base="Task name"></en_task_name>
@@ -295,7 +295,7 @@
 <en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save></lookup_page>
-<lookuptables path="webpages/lookuptables.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di ricerca" base="Lookup Tables"></en_lookup_tables>
+<lookuptables path="webpages/lookuptables.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di configurazione" base="Lookup Tables"></en_lookup_tables>
 <en_package fr="Paquet" de="Paket" en="Package" it="Pacchetto" base="Package"></en_package>
 <en_tables fr="Tableaux" de="Tische" en="Tables" it="Tabelle" base="Tables"></en_tables>
 <en_select_a_table_from_the_popup_menu fr="Sélectionnez une table dans le menu contextuel" de="Wählen Sie eine Tabelle aus dem Kontextmenü" en="Select a table from the popup menu" it="Selezionare una tabella dal menu a comparsa" base="Select a table from the popup menu"></en_select_a_table_from_the_popup_menu>

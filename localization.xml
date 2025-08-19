@@ -20,7 +20,7 @@
 <en_counter_s base="Counter %s" de="Gegen  %s" en="Counter [0]" fr="Contre%s" it="Contatore% s"></en_counter_s>
 <en_warnings base="Warnings" de="Warnungen" en="Warnings" fr="Avertissements" it="Avvertenze"></en_warnings>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
-<en_user_insert base="User Insert" de="User-Insert" en="User Insert" fr="Insertion de l'utilisateur" it="Inserisci User"></en_user_insert>
+<en_user_insert base="User Insert" de="User-Insert" en="User Insert" fr="Insertion de l'utilisateur" it="Utente inserimento"></en_user_insert>
 <en_user_modify base="User Modify" de="Benutzer ändern" en="User Modify" fr="Modifier l'utilisateur" it="Modifica utente"></en_user_modify>
 <en_is_draft base="Is Draft" en="Is Draft" it="È Draft"></en_is_draft>
 <en_invalids base="Invalids" de="Invaliden" en="Invalids" fr="Invalides" it="Invalidi"></en_invalids>
@@ -112,7 +112,7 @@
 <en_lower base="Lower" de="Niedriger" en="Lower" fr="Inférieur" it="Inferiore"></en_lower>
 <en_largecapacity base="LargeCapacity" de="Largecapacity" en="LargeCapacity" fr="LargeCapacity" it="LargeCapacity"></en_largecapacity></gnrprinthandler>
 <gnrrlab path="gnrpy/gnr/core/gnrrlab.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrrlab></core>
-<dev><cli><gnrmkthresource path="gnrpy/gnr/dev/cli/gnrmkthresource.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di ricerca" base="Lookup tables"></en_lookup_tables>
+<dev><cli><gnrmkthresource path="gnrpy/gnr/dev/cli/gnrmkthresource.py" ext="py"><en_lookup_tables fr="Tables de recherche" de="Lookup Tables" en="Lookup Tables" it="Tabelle di configurazione" base="Lookup tables"></en_lookup_tables>
 <en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrmkthresource>
 <gnrsql2py path="gnrpy/gnr/dev/cli/gnrsql2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrsql2py>
 <gnrxml2py path="gnrpy/gnr/dev/cli/gnrxml2py.py" ext="py"><en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"></en_s></gnrxml2py></cli></dev>
@@ -199,7 +199,7 @@
 <en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_download base="Download" de="Herunterladen" en="Download" fr="Télécharger" it="Scarica"></en_download>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
-<en_export_url base="Export url" it="URL di esportazione"></en_export_url>
+<en_export_url base="Export url" it="URL Esportazione"></en_export_url>
 <en_link_in_clipboard base="Link in clipboard" it="Link negli appunti"></en_link_in_clipboard></btcprint></batch>
 <gnrbaseclasses path="gnrpy/gnr/web/gnrbaseclasses.py" ext="py"><en_totals base="Totals" it="Totali"></en_totals></gnrbaseclasses>
 <gnrwebpage path="gnrpy/gnr/web/gnrwebpage.py" ext="py"><en_genro_not_allowed_public_call base="Genro Not Allowed Public call" de="Genro erlaubt Öffentlicher Aufruf" en="Genro Not Allowed Public call" fr="Genro non autorisés Appel public" it="Genro non sono ammessi chiamata pubblica"></en_genro_not_allowed_public_call>
@@ -210,6 +210,7 @@
 <en_sample_data base="Sample data" de="Beispieldaten" en="Sample data" fr="Les données d'échantillon" it="Dati campione"></en_sample_data></apphandler>
 <rpc path="gnrpy/gnr/web/gnrwebpage_proxy/rpc.py" ext="py"><en_user_connection_lost_ base="User connection lost." de="User-Verbindung verloren." en="User connection lost." fr="connexion de l'utilisateur perdu." it="Collegamento utente persa."></en_user_connection_lost_></rpc>
 <utils path="gnrpy/gnr/web/gnrwebpage_proxy/utils.py" ext="py"><en_executing base="Executing" de="Ausführen" en="Executing" fr="Exécution" it="Esecuzione"></en_executing></utils></gnrwebpage_proxy>
+<gnrwebstruct path="gnrpy/gnr/web/gnrwebstruct.py" ext="py"><en_back base="Back" de="Zurück" en="Back" fr="Dos" it="Indietro"></en_back></gnrwebstruct>
 <gnrwsgisite path="gnrpy/gnr/web/gnrwsgisite.py" ext="py"><en_genro_site_exception base="Genro Site exception" de="Genro Website Ausnahme" en="Genro Site exception" fr="Exception Genro site" it="Eccezione Genro sito"></en_genro_site_exception>
 <en_site_error_message_s _tag="en__site_error_message_s" base=" Site Error : %(message)s" de="Website-Fehler:  %(Meldung)s" en=" Site Error : [0]" fr="Site erreur:  %(message)s" it="Errore del sito:  %(messaggio)s"></en_site_error_message_s></gnrwsgisite></web>
 <xtnd><gnrpandas path="gnrpy/gnr/xtnd/gnrpandas.py" ext="py"><en_fields base="Fields" de="Felder" en="Fields" fr="Les champs" it="Campi" zh="字段"></en_fields>

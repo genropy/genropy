@@ -8,7 +8,7 @@ class PrivacyPreferencePane(BaseComponent):
         self.privacyConsents(bc.contentPane(region='bottom', height='50%'))
 
     def privacyText(self, pane, **kwargs):
-        pane.ckeditor('^.privacy_policy', **kwargs)
+        pane.ckeditor(value='^.privacy_policy', **kwargs)
 
 
     def privacyConsents(self, pane, **kwargs):

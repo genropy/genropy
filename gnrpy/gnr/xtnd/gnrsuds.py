@@ -1,4 +1,3 @@
-from urllib import request
 from suds.client import Client
 from gnr.core.gnrbag import Bag
 from suds.client import Client

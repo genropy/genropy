@@ -1,13 +1,4 @@
 # encoding: utf-8
-# import timerule_manager
-try:
-    from gnrpkg.tmsh.timerule_manager import TimeruleManager
-except Exception:
-    pass
-from gnr.core.gnrdecorator import public_method
-
-#interval = 5
-
 
 
 class Table(object):
@@ -55,40 +46,3 @@ class Table(object):
             weekday = ['mo','tu','we','th','fr','sa','su'][record_data['valid_from'].weekday()]
             record_data['on_%s' %weekday] = True
 
-   #def generateSlots(self, doctor_id = None, start_date=None, end_date = None, showDenied=True,unifyLocation=None, interval=5):
-   #    trManager = TimeruleManager(self.db, doctor_id=doctor_id, start_date=start_date, end_date = end_date, interval=interval)
-   #    return trManager.generateSlots(showDenied=showDenied, unifyLocation=unifyLocation)
-   #
-   #def checkDay(self,doctor_id=None,day=None,newEvent=None):
-   #    tm = TimeruleManager(db=self.db,start_date=day,end_date=day,doctor_id=doctor_id,newEvent=newEvent)
-   #    tm.generateSlots(hideEvents=False, hideActivities=False)
-   #    errors = {}
-   #    if tm.wrongEvents:
-   #        errors['wrongEvents'] = tm.wrongEvents.get(day)
-   #    return errors
-
-   #def checkNewEvent(self,newEvent=None,**kwargs):
-   #    doctor_id = newEvent['doctor_id']
-   #    event_id = newEvent.get('event_id')
-   #    day = newEvent['evt_date']
-   #    err = self.checkDay(doctor_id=doctor_id,day=day,newEvent=newEvent)
-   #    return self._processTimeruleError(err,event_id=event_id)
-
-   #def _processTimeruleError(self,err,activity_id=None,event_id=None):
-   #    k = 'wrongActivities' if activity_id else 'wrongEvents'
-   #    t = 'activity' if activity_id else 'event'
-   #    pkey = activity_id or event_id
-   #    pkeyname = 'id' if activity_id else 'event_id'
-   #    if err and err.get(k):
-   #        err = [x for x in err[k] if x[t].get(pkeyname) ==pkey]
-   #        if not err:
-   #            return
-   #        else:
-   #            err = err[0]['error_desc'].split(',')
-   #            codes = []
-   #            desc = []
-   #            for e in err:
-   #                c,d = e.split(':')
-   #                codes.append(c)
-   #                desc.append(d)
-   #            return dict(codes=','.join(codes),desc=','.join(desc))

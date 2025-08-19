@@ -351,34 +351,47 @@ class DynamicForm(BaseComponent):
             }
             FIRE #FORM.changed_df_type_%s;
         """ %(field,field),df_pkey='^#FORM.record.%s' %df_field,_delay=1)
-        fbobj = pane.fbuilder
-        fbattrs = dict(fbobj.commonKwargs)
-        fbattrs.update(cols=fbobj.colmax, 
+        fbobj = getattr(pane,'fbuilder',None)
+        if fbobj:
+            fbattrs = dict(fbobj.commonKwargs)
+            fbattrs.update(cols=fbobj.colmax, 
                       lblclass=fbobj.lblclass, lblpos=fbobj.lblpos, lblalign=fbobj.lblalign, 
                       fldalign=fbobj.fldalign,
                       fieldclass=fbobj.fieldclass,
                       lblvalign=fbobj.lblvalign, fldvalign=fbobj.fldvalign,
                       byColumn=fbobj.byColumn,
                       colswidth=fbobj.colswidth)
-        pane.remote(self.df_remoteDynamicGroup,df_table=df_table.fullname,
+            pane.remote(self.df_remoteDynamicGroup,df_table=df_table.fullname,
                             _fired='^#FORM.changed_df_type_%s' %field,
                             df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
                             df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,fbattrs=fbattrs,
                             _onRemote="""
                             this.form.checkInvalidFields();
                             """,**kwargs)
+        else:
+            pane.parent.div(_workspace=True).remote(self.df_remoteDynamicForm,df_table=df_table.fullname,
+                            group_padding='0px',
+                            _fired='^#FORM.changed_df_type_%s' %field,
+                            df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
+                            df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,
+                            _onRemote="""
+                            this.form.checkInvalidFields();
+                            """,**kwargs)
   
     @struct_method
     def df_appendDynamicFieldFromPkey(self,pane,df_table=None,df_pkey=None,datapath=None,**kwargs):
-        fbobj = pane.fbuilder
-        fbattrs = dict(fbobj.commonKwargs)
-        fbattrs.update(cols=fbobj.colmax, 
-                      lblclass=fbobj.lblclass, lblpos=fbobj.lblpos, lblalign=fbobj.lblalign, 
-                      fldalign=fbobj.fldalign,
-                      fieldclass=fbobj.fieldclass,
-                      lblvalign=fbobj.lblvalign, fldvalign=fbobj.fldvalign,
-                      byColumn=fbobj.byColumn,
-                      colswidth=fbobj.colswidth)
+        fbobj = getattr(pane,'fbuilder',None)
+        if fbobj:
+            fbattrs = dict(fbobj.commonKwargs)
+            fbattrs.update(cols=fbobj.colmax, 
+                        lblclass=fbobj.lblclass, lblpos=fbobj.lblpos, lblalign=fbobj.lblalign, 
+                        fldalign=fbobj.fldalign,
+                        fieldclass=fbobj.fieldclass,
+                        lblvalign=fbobj.lblvalign, fldvalign=fbobj.fldvalign,
+                        byColumn=fbobj.byColumn,
+                        colswidth=fbobj.colswidth)
+        else:
+            fbattrs = False
         pane.remote(self.df_remoteDynamicGroup,df_table=df_table,_if='df_pkey',
                             df_pkey=df_pkey,datapath=datapath,*kwargs)
 
@@ -393,16 +406,20 @@ class DynamicForm(BaseComponent):
         return result
 
     @public_method
-    def df_remoteDynamicForm(self,pane,df_table=None,df_pkey=None,datapath=None,df_groups_cols=None,df_groups=None,**kwargs):
+    def df_remoteDynamicForm(self,pane,df_table=None,df_pkey=None,datapath=None,df_groups_cols=None,df_groups=None,
+                             **kwargs):
         if not (df_pkey or df_groups):
             pane.div()
             return
+
         pane.attributes.update(kwargs)
         df_tblobj = self.db.table(df_table)
         pkeylist = df_groups.digest('#a.pkey') if df_groups else [df_pkey]
         global_fields = dict([(pkey,df_tblobj.df_getFieldsRows(pkey=pkey)) for pkey in pkeylist])
         if df_groups:
-            groupfb = pane.div(padding='10px').formbuilder(cols=df_groups_cols or 1,spacing=3,border_spacing='3px',datapath=datapath,tdl_hidden=True)
+            group_kwargs = dictExtract(kwargs,'group_')
+            group_kwargs.setdefault('padding','10px')
+            groupfb = pane.div(**group_kwargs).formbuilder(cols=df_groups_cols or 1,spacing=3,border_spacing='3px',datapath=datapath,tdl_hidden=True)
             global_vars = self.df_prepareGlobalVars(global_fields=global_fields,df_groups=df_groups)
             for gr in df_groups:
                 gr_attr=gr.attr
@@ -426,12 +443,15 @@ class DynamicForm(BaseComponent):
             
     @struct_method
     def df_dynamicFormPage(self,pane,fields=None,ncol=None,colswidth=None,datapath=None,**kwargs):
+        group_kwargs = dictExtract(kwargs,'group_')
+        group_kwargs.setdefault('padding','10px')
+        group_kwargs.setdefault('margin_right','10px')
         fdict = dict()
         for r in fields:
             page = r.pop('page',None) or 'Main'
             fdict.setdefault(page,[]).append(r)
         if len(fdict)<2:
-            pane.div(margin_right='10px',datapath=datapath,padding='10px').dynamicFormGroup(fields=fields,ncol=ncol,colswidth=colswidth or None,**kwargs)
+            pane.div(datapath=datapath,**group_kwargs).dynamicFormGroup(fields=fields,ncol=ncol,colswidth=colswidth or None,**kwargs)
             return
         pages = sorted(fdict.keys())
         tc = pane.tabContainer(datapath=datapath,margin='2px')
@@ -445,7 +465,7 @@ class DynamicForm(BaseComponent):
     @struct_method
     def df_dynamicFormGroup(self,pane,fields=None,ncol=None,colswidth=None,spacing=3,setInAttributes=False,**kwargs):
         fb = pane.div(margin_right='10px').formbuilder(cols=ncol or 1,keeplabel=True,colswidth=colswidth,width='100%',border_spacing='3px',
-                                                            spacing=spacing,tdf_width='100%',lbl_white_space='nowrap')        
+                                                            spacing=spacing,tdf_width='100%',lbl_white_space='nowrap',lbl=False)        
         fb.addDynamicFields(fields=fields,setInAttributes=setInAttributes,**kwargs)
 
 
@@ -459,8 +479,12 @@ class DynamicForm(BaseComponent):
         fields = df_tblobj.df_getFieldsRows(pkey=df_pkey)
         for r in fields:
             r.pop('page',None)
-        fbattrs = fbattrs or dict()
-        fb = pane.formbuilder(row_datapath=datapath,**fbattrs)        
+        if fbattrs is not False:
+            fbattrs = fbattrs or dict()
+            fb = pane.formbuilder(row_datapath=datapath,lbl=False,**fbattrs)     
+        else:
+            fb = pane   
+            kwargs['box_c_'] =datapath
         fb.addDynamicFields(fields=fields,**kwargs)
 
     @struct_method
@@ -496,6 +520,7 @@ class DynamicForm(BaseComponent):
         fieldPrefix = fieldPrefix or '.'
         wdg_attr['value']='^%s%s' %(fieldPrefix,code)
         if tag.lower() in ('checkbox' or 'radiobutton'):
+            wdg_attr['lbl'] = '&nbsp;'
             wdg_attr['label'] = description
         else:
             wdg_attr['lbl'] = description

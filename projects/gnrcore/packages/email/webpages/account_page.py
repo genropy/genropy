@@ -38,4 +38,4 @@ class GnrCustomWebPage(object):
         fb.field('tls')
         fb.field('ssl')
         fb.field('username')
-        fb.textBox(value='^.password', lbl='Password', type='password')
+        fb.passwordTextBox(value='^.password', lbl='Password')

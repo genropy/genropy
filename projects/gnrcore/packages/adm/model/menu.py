@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-#from gnr.core.gnrbag import Bag
+import os
+from datetime import datetime
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import stringDict,asDict,slugify
-from datetime import datetime
-import os
+from gnr.core.gnrstring import stringDict,asDict
 
 class Table(object):
     def config_db(self, pkg):

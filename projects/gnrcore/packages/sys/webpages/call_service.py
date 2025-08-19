@@ -1,7 +1,6 @@
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
-from gnr.core.gnrbag import Bag
-from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory
+from gnr.web.gnrheadlesspage import GnrHeadlessPage as page_factory # noqa: F401
 
 class GnrCustomWebPage(object):
     skip_connection=True
@@ -11,12 +10,12 @@ class GnrCustomWebPage(object):
     def rootPage(self,*args, **kwargs):
         request_method = self.request.method
         service = None
-        print kwargs
+        print(kwargs)
 
         service_name = kwargs.pop('service_name', None)
         if service_name:
             service = self.site.getService(service_name)
-        print service
+        print(service)
         if service:
             if not getattr(service, 'public', None):
                 return self.site.not_found_exception
@@ -26,7 +25,7 @@ class GnrCustomWebPage(object):
             else:
                 self.response.content_type = 'text/plain'
                 
-            print 'result', result
+            print('result', result)
             return result
         else:
             return self.site.not_found_exception

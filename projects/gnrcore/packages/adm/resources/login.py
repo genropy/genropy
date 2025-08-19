@@ -5,14 +5,17 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 # Frameindex component
 
-
-from gnr.web.gnrwebpage import BaseComponent
-from gnr.core.gnrdecorator import public_method
-from gnr.web.gnrwebstruct import struct_method
 from datetime import date
-from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrRestrictedAccessException
+
 from gnr.core.gnrdecorator import customizable
+from gnr.core.gnrdecorator import public_method
+from gnr.core.gnrbag import Bag
+from gnr.app import pkglog as logger
+from gnr.app.gnrapp import GnrRestrictedAccessException
+from gnr.web.gnrwebpage import BaseComponent
+from gnr.web.gnrwebstruct import struct_method
+
+
         
 class LoginComponent(BaseComponent):
     css_requires = 'login'
@@ -45,8 +48,8 @@ class LoginComponent(BaseComponent):
         login_title = self.loginPreference('login_title')
         new_window_title = self.loginPreference('new_window_title')
 
-       #login_title = login_title or '!!Login'
-       #new_window_title = new_window_title or '!!New Window'
+        #login_title = login_title or '!!Login'
+        #new_window_title = new_window_title or '!!New Window'
         wtitle =  login_title if doLogin else new_window_title
         self.login_commonHeader(box,title=wtitle,subtitle=self.loginPreference('login_subtitle'))
         self.loginDialog_center(box,doLogin=doLogin,gnrtoken=gnrtoken,dlg=dlg,closable_login=closable_login)
@@ -83,7 +86,7 @@ class LoginComponent(BaseComponent):
         pane.button('!!Enter',action='FIRE do_login_check',_class='login_confirm_btn')
 
     def loginDialog_center(self,pane,doLogin=None,gnrtoken=None,dlg=None,closable_login=None):
-        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1, border_spacing='4px',onEnter='FIRE do_login_check;',
+        fb = pane.div(_class='login_form_container').htmlform().formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE do_login_check;',
                                 datapath='gnr.rootenv',width='100%',
                                 fld_width='100%',row_height='3ex',keeplabel=True
                                 ,fld_attr_editable=True)
@@ -237,12 +240,15 @@ class LoginComponent(BaseComponent):
 
     @public_method
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
+        logger.info("Checking login for user: %s", user)
         result = Bag()
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
+                logger.error("Login failed for %s", user)
                 return result
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         status = getattr(avatar,'status',None)
         if not status:
@@ -253,12 +259,16 @@ class LoginComponent(BaseComponent):
         try:
             self.login_completeRootEnv(result,avatar=avatar,serverTimeDelta=serverTimeDelta)
         except GnrRestrictedAccessException as e:
+            logger.exception(e)
             return Bag(login_error_msg=e.description)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
                 ps.setItem('waiting2fa',avatar.user_id)
                 ps.setItem('last_2fa_otp',avatar.last_2fa_otp)
+        # we should send to logger other informations, like IP address
+        # and browser/device id
+        logger.info("User %s logged in", user)
         return result
     
     def login_require2fa(self,avatar):
@@ -275,7 +285,7 @@ class LoginComponent(BaseComponent):
         data['group_selector_mandatory'] = False
         if avatar.extra_kwargs.get('multi_group'):
             other_groups = self.db.table('adm.user').readColumns(columns='$other_groups',pkey=avatar.user_id)
-            other_groups = [r for r in other_groups.split(',') if r]
+            other_groups = [r for r in other_groups.split(',') if r] if other_groups else []
             data['all_groups'] = [avatar.main_group_code] if avatar.main_group_code else []
             if other_groups:
                 data['all_groups'] = [avatar.main_group_code] + other_groups
@@ -297,7 +307,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!Lost password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE recover_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE recover_password;',
                                 datapath='lost_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -323,7 +333,7 @@ class LoginComponent(BaseComponent):
         dlg = pane.dialog(_class='lightboxDialog loginDialog',subscribe_closeNewPwd='this.widget.hide();',subscribe_openNewPwd='this.widget.show();')
         box = dlg.div(**self.loginboxPars())
         self.login_commonHeader(box,'!!New password')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE set_new_password;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE set_new_password;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         if not gnrtoken:
@@ -372,7 +382,7 @@ class LoginComponent(BaseComponent):
                 padding='10px 10px 0px 10px',
                 color='#777',font_style='italic',
                 font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE otp_confirm;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE otp_confirm;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.otp_code',lbl='!![en]Code',font_size='1.2em',font_weight='bold')
@@ -429,7 +439,7 @@ class LoginComponent(BaseComponent):
         self.login_commonHeader(box,confirmUserTitle)
         self.login_commonHeader(sc.contentPane(),confirmUserTitle,self.loginPreference('check_email') or 'Please check your email')
         box.div(self.loginPreference('confirm_user_message'),padding='10px 10px 0px 10px',color='#777',font_style='italic',font_size='.9em',text_align='center')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE confirm_email;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE confirm_email;',
                                 datapath='new_password',width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.textbox(value='^.email',lbl='!!Email')
@@ -480,7 +490,7 @@ class LoginComponent(BaseComponent):
         return dlg
 
     def login_newUser_form(self,form):
-        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='6px',onEnter='SET creating_new_user = true;',
+        fb = form.record.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='6px',onEnter='SET creating_new_user = true;',
                                 width='100%',tdl_width='6em',fld_width='100%',row_height='3ex')
         fb.textbox(value='^.firstname',lbl='!!First name',validate_notnull=True,validate_case='c',validate_len='2:')
         fb.textbox(value='^.lastname',lbl='!!Last name',validate_notnull=True,validate_case='c',validate_len='2:')
@@ -513,6 +523,7 @@ class LoginComponent(BaseComponent):
         err = [err for err in errdict.values() if err is not None]
         with self.pageStore() as ps:
             rootenv['new_window_context'] = True
+            rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
             ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
@@ -604,7 +615,7 @@ class LoginComponent(BaseComponent):
         wtitle = '!!Screenlock'
         box.div(wtitle,_class='index_logintitle')  
         box.div('!!Insert password',text_align='center',font_size='.9em',font_style='italic')
-        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1, border_spacing='4px',onEnter='FIRE .checkPwd;',
+        fb = box.div(margin='10px',_class='login_form_container').formbuilder(cols=1,formlet=False, border_spacing='4px',onEnter='FIRE .checkPwd;',
                                 width='100%',
                                 fld_width='100%',row_height='3ex')
         fb.passwordTextBox(value='^.password',lbl='!!Password',row_hidden=False)

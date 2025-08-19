@@ -138,37 +138,8 @@ dojo.declare("gnr.widgets.baseHtml", null, {
     },
 
     _onBuilding:function(sourceNode){        
-        if(sourceNode.getParentNode() && sourceNode.getParentNode().widget && sourceNode.getParentNode().widget.gnr.onChildBuilding){
-            return sourceNode.getParentNode().widget.gnr.onChildBuilding(sourceNode.getParentNode(),sourceNode);
-        }
-
-        var lbl = objectPop(sourceNode.attr,'lbl');
-
-        if(lbl){
-            var inherited_attr = sourceNode.getInheritedAttributes();
-            var lbl_attr = objectExtract(inherited_attr,'lbl_*');
-            var wrp_attr = objectExtract(inherited_attr,'wrp_*')
-            var attr = objectUpdate({},sourceNode.attr)
-            var tag = objectPop(attr,'tag');
-            var moveable = objectPop(attr,'moveable');
-            if (moveable){
-                wrp_attr.moveable=moveable;
-                objectUpdate(wrp_attr, objectExtract(attr,'top,left,position'));
-                lbl_attr.id='handle_'+sourceNode.getStringId()
-                wrp_attr.moveable_handle=lbl_attr.id;
-            }
-            var children = sourceNode.getValue();
-            sourceNode._value = null;
-            var side = lbl_attr['side'] || 'top';
-            sourceNode.attr = objectUpdate({tag:'div',_class:'innerLblWrapper innerLbl_'+side+ ' innerLblWrapper_widget_'+tag.toLowerCase()},wrp_attr);
-            sourceNode._('div',objectUpdate({innerHTML:lbl,_class:'innerLbl'},lbl_attr),{'doTrigger':false});
-            var c = sourceNode._(tag,attr,{'doTrigger':false});
-            if(children && children.len()){
-                c.concat(children);
-            }
-        }else{
-            this.onBuilding(sourceNode);
-        }
+        sourceNode.checkOnChildBuilding();
+        this.onBuilding(sourceNode);
     },
 
     _creating:function(attributes, sourceNode) {
@@ -190,18 +161,14 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             savedAttrs['moveable_kw'] = objectExtract(attributes,'moveable_*');
         }
 
-         
-        savedAttrs['touchEvents'] = objectPop(attributes,'touchEvents');
-
         objectExtract(attributes, 'onDrop,onDrag,dragTag,dropTag,dragTypes,dropTypes');
         objectExtract(attributes, 'onDrop_*');
-        savedAttrs['dropTarget'] = objectPop(attributes, 'dropTarget');
-        savedAttrs['dropTargetCb'] = objectPop(attributes, 'dropTargetCb');
-        savedAttrs['dropTargetCb_extra'] = objectExtract(attributes,'dropTargetCb_*');
-        savedAttrs.connectedMenu = objectPop(attributes, 'connectedMenu');
-        savedAttrs.onEnter = objectPop(attributes, 'onEnter');
-        savedAttrs._watchOnVisible = objectPop(attributes,'_watchOnVisible');
-        savedAttrs.autocomplete = objectPop(attributes,'autocomplete');
+        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,_watchOnVisible,autocomplete'))
+        let extraDropTargets = objectExtract(attributes,'dropTargetCb_*');
+        if(objectNotEmpty(extraDropTargets)){
+            savedAttrs['dropTargetCb_extra'] = extraDropTargets;
+        }
+        
         objectUpdate(savedAttrs, this.creating(attributes, sourceNode));
         var formId = objectPop(attributes, 'formId');
         if (attributes._for) {
@@ -591,10 +558,14 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
         if(genro.isMobile){
             genro.dom.setAutoSizer(sourceNode,newobj.parentNode,function(w,h){
                 newobj.style.width = w+'px';
-                newobj.contentWindow.postMessage({topic:'setClientWidth',width:w},'*');
+                if(newobj.contentWindow){   
+                    newobj.contentWindow.postMessage({topic:'setClientWidth',width:w},'*');
+                }
             });
             dojo.connect(newobj, 'onload', function(){
-                newobj.contentWindow.document.body.classList.add('touchDevice');
+                if(newobj.contentWindow){
+                    newobj.contentWindow.document.body.classList.add('touchDevice');
+                }
                 setTimeout(function(){
                     genro.dom.resetAutoSizer(sourceNode);
                 },50);
@@ -602,14 +573,268 @@ dojo.declare("gnr.widgets.htmliframe", gnr.widgets.baseHtml, {
         }
         if(sourceNode.attr.autoScale){
             dojo.connect(newobj, 'onload', function(){
-                var scalables = newobj.contentWindow.document.getElementsByClassName('gnrAutoScale');
-                for (var i = scalables.length - 1; i >= 0; i--) {
-                    genro.dom.setAutoScale(scalables[i],sourceNode.attr.autoScale);
-                };
+                if(newobj.contentWindow){
+                    var scalables = newobj.contentWindow.document.getElementsByClassName('gnrAutoScale');
+                    for (var i = scalables.length - 1; i >= 0; i--) {
+                        genro.dom.setAutoScale(scalables[i],sourceNode.attr.autoScale);
+                    };
+                }
             });
         }
     },
 
+});
+
+dojo.declare("gnr.widgets.flexbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        let _class = attributes._class || ''
+        attributes._class = _class + ' gnrflexbox';
+
+        let wrap = objectPop(attributes,'wrap');
+        let direction = objectPop(attributes,'direction');
+        let fitContent = objectPop(attributes,'fitContent');
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
+        if(wrap){
+            attributes.flex_wrap = 'wrap';
+        }
+        if(direction){
+            attributes.flex_direction = direction;
+        }
+
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+
+    },
+    setDirection:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_direction = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    setWrap:function(domNode,value,kw){
+        domNode.sourceNode.attr.flex_wrap = value?'wrap':'nowrap';
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+});
+
+
+dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+
+
+    onBuilding:function(sourceNode){
+        sourceNode.attr.nodeId = sourceNode.attr.nodeId || `gridbox_${genro.time36Id()}`;
+        sourceNode.attr._workspace = true;
+        sourceNode.attr._items_attr = objectExtract(sourceNode.attr,'item_*');
+        if(sourceNode.attr.items){
+            let children = sourceNode.getValue();
+            genro.assert((!children || children.len()==0),'if gridbox use items attribute cannot have children')
+        }
+    },
+
+    creating:function(attributes, sourceNode) {
+        let savedAttrs = {}
+        savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
+        let _class = attributes._class || ''
+        attributes._class = _class + ' gnrgridbox';
+        let fitContent = objectPop(attributes,'fitContent');
+        if(fitContent){
+            let margin = fitContent===true?0:fitContent;
+            attributes.position = 'absolute'
+            attributes.top = margin;
+            attributes.bottom = margin;
+            attributes.left = margin;
+            attributes.right = margin;
+
+        }
+        return savedAttrs;
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        if(savedAttrs.columns){
+            this.setColumns(newobj,savedAttrs.columns)
+        }
+    },
+
+    setColumns:function(domNode,value,kw){
+        if(typeof(value)=='number' ||  /^\d+$/.test(value)){
+            value = `repeat(${parseInt(value)}, 1fr)`;
+        }
+        domNode.sourceNode.attr.grid_template_columns = value;
+        genro.dom.style(domNode,genro.dom.getStyleDict(domNode.sourceNode.currentAttributes()));
+    },
+
+    onChildBuilding:function(sourceNode,childNode){
+        let kw = objectExtract(childNode.attr,'rowspan,colspan');
+        if(kw.colspan){
+            childNode.attr.grid_column = `span ${kw.colspan}`;
+        }
+        if(kw.rowspan){
+            childNode.attr.grid_row = `span ${kw.rowspan}`;
+        }
+        let items_attr = sourceNode.attr._items_attr;
+        for(let k in items_attr){
+            childNode.attr[k] = isNullOrBlank(childNode.attr[k])?items_attr[k]:childNode.attr[k]
+        }
+    },
+
+    setItems:function(domNode,value,kw){
+        var sourceNode = domNode.sourceNode;
+        let items = sourceNode.getAttributeFromDatasource('items');
+        let storeNode = items.getParentNode()
+        var parent_lv = kw.node.parentshipLevel(storeNode);
+        if(parent_lv===0){
+            this.clearItems(sourceNode);
+            if(items){
+                for(let item of items.getNodes()){
+                    this.insertItem(sourceNode,item,{doTrigger:true});
+                }
+            }
+            return
+        }
+        if(!kw.node){
+            return;
+        }
+        let nodeToUpdate = kw.node;
+        while (parent_lv>1){
+            nodeToUpdate = nodeToUpdate.getParentNode();
+            parent_lv-=1;
+        }
+        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        if(kw.evt == 'upd'){
+            let index = srcBag.index(nodeToUpdate.attr._itemId)
+            srcBag.popNode(nodeToUpdate.attr._itemId);
+            this.insertItem(sourceNode,nodeToUpdate,{_position:index});
+        }else if(kw.evt=='del' && kw.node){
+            srcBag.popNode(nodeToUpdate.label);
+        }else if(kw.evt=='ins' && kw.node){
+            this.insertItem(sourceNode,nodeToUpdate);
+        }
+    },
+
+    insertItem:function(sourceNode,item,triggerkw){
+        let itemValue = item.getValue();
+        itemValue = itemValue?itemValue.deepCopy():new gnr.GnrDomSource();
+        item.attr._itemId = `item_${genro.time36Id()}`;
+        genro.src.getSource().setItem(sourceNode.getFullpath(null,true)+'.'+item.attr._itemId,itemValue,item.attr,triggerkw);
+    },
+
+
+
+    clearItems:function(sourceNode){
+        let srcBag = genro.src.getSource(sourceNode.getFullpath(null,true));
+        if(!srcBag){
+            return;
+        }
+        for(let n of srcBag.getNodes()){
+            srcBag.popNode(n.label,true);
+        }
+    }
+
+});
+
+
+dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
+    constructor:function(){
+        this._domtag ='div';
+    },
+
+    onBuilding:function(sourceNode){
+        let label = sourceNode.attr.label;
+        let default_side = sourceNode.getInheritedAttributes().label_side;
+        let side = sourceNode.attr.side || default_side;
+        var children = sourceNode.getValue();
+        let label_attr = objectExtract(sourceNode.attr,'label_*');
+        let box_l_kw = objectExtract(sourceNode.attr,'box_l_*');
+        let box_c_kw = objectExtract(sourceNode.attr,'box_c_*');
+        let childIsGridbox = false;
+        var fld_kw = objectExtract(sourceNode.attr,'fld_*');
+
+        label_attr._class = label_attr._class || 'labledBox_title';
+
+
+        sourceNode.attr._class = (sourceNode.attr._class || '') + ' labledBox';
+        if(side){
+            sourceNode.attr._class += ' labledBox_'+side;
+        }
+        if(children && children.len()==1){
+            let childTag = children.getNode('#0').attr.tag.toLowerCase();
+            sourceNode.attr._class += ' labledBox_'+childTag;
+            childIsGridbox = childTag=='gridbox';
+        }
+        sourceNode._value = null;
+        
+        let helpcode = sourceNode.attr.helpcode;
+        let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
+        if (sourceNode.attr.moveable){
+            labelBoxAttr.id='handle_'+sourceNode.getStringId()
+            sourceNode.attr.moveable_handle=label_attr.id;
+        }
+        let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
+        let labelSrc = labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
+        sourceNode._labelNode = labelSrc.getParentNode();
+        if(helpcode){
+            let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+                action:function(){
+                    sourceNode.onHelperClick(this);
+                },
+            },{'doTrigger':false});
+        }
+        if(childIsGridbox && genro.isDeveloper){
+            m = labelBox._('menudiv','devbtn',{iconClass:'innericonbox threedots',btn__class:'developerToolElement',
+            },{'doTrigger':false});
+            m._('menuline',{'label':'Edit labled box',action:function(){
+                genro.dev.openBagNodeEditorPalette(sourceNode.getFullpath(),{name:'_devSrcInspector_',title:'Sourcenode Inspector',origin:'*S'});
+            }},{'doTrigger':false});
+        }
+        let contentBox = sourceNode._('div',{_class:'labledBox_content',...box_c_kw},{'doTrigger':false});
+        if(children){
+            children.forEach(function(childNode){
+                let childNodeAttr = childNode.attr;
+                for(let k in fld_kw){
+                    childNodeAttr[k] = isNullOrBlank(childNodeAttr[k])?fld_kw[k]:childNodeAttr[k];
+                }
+                contentBox.addItem(childNode.label,childNode.getValue(),childNodeAttr,{doTrigger:false});
+            });
+        }
+    },
+    creating:function(attributes, sourceNode) {
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        sourceNode.updateHelperClasses();
+    },
+
+    setSide:function(domNode,value,kw){
+        genro.dom.removeClass(domNode,'labledBox_bottom');
+        genro.dom.removeClass(domNode,'labledBox_left');
+        genro.dom.removeClass(domNode,'labledBox_right');
+        genro.dom.removeClass(domNode,'labledBox_top');
+        if(value){
+            genro.dom.addClass(domNode,`labledBox_${value}`);
+        }
+    },
+
+    setLabel:function(domNode,value,kw){
+        domNode.sourceNode._labelNode.domNode.innerHTML = value;
+    }
 });
 
 dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
@@ -773,9 +998,29 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                 src_kwargs._nocache = genro.time36Id();
             }
             v = genro.addParamsToUrl(v,src_kwargs);   
-            if(sourceNode.attr.documentClasses){
-                v = genro.dom.detectPdfViewer(v,sourceNode.attr.jsPdfViewer);
-            }
+                if(sourceNode.attr.documentClasses){
+                    let useViewer = false;
+                    let ext = '';
+                    genro.dom.removeClass(domnode,'emptyIframe');
+                    genro.dom.addClass(domnode,'waiting');
+                    try {
+                        let parsed = parseURL(v);
+                        if (parsed.file && parsed.file.includes('.')) {
+                            ext = parsed.file.split('.').pop().toLowerCase();
+                        }
+                    } catch(e) {}
+                    let extList = (this._default_ext || '').toLowerCase().split(',').filter(e => e !== 'pdf');
+                    useViewer = !ext || !extList.includes(ext);
+                    if (useViewer) {
+                        v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
+                    } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
+                        domnode.removeAttribute('src');
+                        domnode.setAttribute('srcdoc', `<html><body style="margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
+                            <img src="${v}" style="max-width:100%;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                        </body></html>`);
+                        return;
+                    }
+                }
             var doset = this.initContentHtml(domnode,v);
             if (doset){
                 sourceNode.watch('absurlUpdating',function(){
@@ -1051,6 +1296,18 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         }
     },
 
+});
+dojo.declare("gnr.widgets.baseExternalWidget", gnr.widgets.baseHtml, {
+    setExternalWidget:function(sourceNode,externalWidget){
+        sourceNode.externalWidget = externalWidget;
+        sourceNode.externalWidget.gnr = this;
+        for (let prop in this) {
+            if (prop.indexOf('mixin_') == 0) {
+                externalWidget[prop.replace('mixin_', '')] = this[prop];
+            }
+        }
+        externalWidget.sourceNode = sourceNode;
+    }
 });
 
 dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
@@ -1438,7 +1695,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                                 var parentDialog = ds.length>0?ds[ds.length-1]:null;
                                 if (parentDialog) {
                                     parentDialog._modalconnects.push(dojo.connect(window, "onscroll", parentDialog, "layout"));
-                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeypress", parentDialog, "_onKey"));
+                                    parentDialog._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", parentDialog, "_onKey"));
                                 }                   
                             }
                             if(this._windowConnectionResize){
@@ -2082,6 +2339,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
             var value = splitter.child.domNode.style[splitter.horizontal ? "height" : "width"];
             regions.setItem(region, value, null, {'doTrigger':sourceNode});
         }
+        genro.fakeResize();
     },
     mixin_setRegions:function(value, kw) {
         let region,show,size;
@@ -2745,6 +3003,24 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
                 item.setHidden(wdg.hiddenItemCb(item,e));
             }
         });
+        let staticChildren = sourceNode.getValue('static');
+        let singleOption = wdg.sourceNode.attr.singleOption;
+        if(singleOption && staticChildren && staticChildren.len()==1){
+            let wdg = sourceNode.getValue().getNode('#0').widget;
+            
+            if(!wdg.disabled){
+                if(singleOption=='button'){
+                    wdg.onClick();
+                }else if(singleOption=='ask'){
+                    genro.dlg.ask(_T('Single option'),wdg.label,null,{
+                        confirm:function(){
+                            wdg.onClick();
+                       }
+                    });
+                }
+            }
+            return;
+        }
 
         if(wdg.modifiers){
             wdg._contextMouse_replaced.call(wdg, e);
@@ -2753,6 +3029,7 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
         else if (contextclick) {
             wdg._contextMouse_replaced.call(wdg, e);
         }
+        
 
     },
     
@@ -3010,6 +3287,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
         var savedAttrs = objectExtract(attributes, 'fire_*');
         var label = objectPop(attributes,'label');
         attributes.innerHTML = attributes.innerHTML || label;
+        if(!attributes.tabindex){
+            attributes.tabindex = "0"
+        }
         savedAttrs['action'] = objectPop(attributes, 'action');
         savedAttrs['fire'] = objectPop(attributes, 'fire');
         savedAttrs['publish'] = objectPop(attributes, 'publish');
@@ -3019,6 +3299,9 @@ dojo.declare("gnr.widgets.LightButton", [gnr.widgets.baseHtml,gnr.widgets._Butto
     
     created: function(widget, savedAttrs, sourceNode) {
         var that = this;
+        widget.addEventListener("mousedown", function(event) {
+            event.stopPropagation(); 
+        });
         dojo.connect(widget, 'onclick', function(e){
             that.clickHandler(sourceNode,e);
         });
@@ -3356,7 +3639,7 @@ dojo.declare("gnr.widgets._BaseTextBox", gnr.widgets.baseDojo, {
         switches = objectNotEmpty(switches)?switches:null;
         if(switches){
             widget._switches = switches;
-            dojo.connect(widget.focusNode,'onkeydown',widget,'checkSwitchKey');
+            dojo.connect(widget.focusNode,'input',widget,'checkSwitchKey');
         }
         
     },
@@ -4210,26 +4493,33 @@ dojo.declare("gnr.widgets.GeoCoderField", gnr.widgets.BaseCombo, {
     mixin_handleGeocodeResults: function(results, status){
         this.store.mainbag = new gnr.GnrBag();
         if (status == google.maps.GeocoderStatus.OK) {
-             for (var i = 0; i < results.length; i++){
-                 var formatted_address = results[i].formatted_address;
-                 var details = {id:i,caption:formatted_address,formatted_address:formatted_address};
-                 var address_components=results[i].address_components;
-                 for (var a in address_components){
-                     var address_component=address_components[a];
-                     details[address_component.types[0]]=address_component.short_name;
-                     details[address_component.types[0]+'_long']=address_component.long_name;
-                 }
-                 
-                 details['street_address'] = details['route_long']+', '+(details['street_number']||'??');
-                 var street_number = details['street_number']||'??'; //subpremise
-                 if(details['subpremise']){
-                    street_number = details['subpremise']+'/'+street_number;
-                 }
-                 details['street_address_eng'] = street_number+' '+details['route_long'];
-                 var position=results[i].geometry.location;
-                 details['position']=position.lat()+','+position.lng();
+             for (let i = 0; i < results.length; i++){
+                let formatted_address = results[i].formatted_address;
+                let details = {id:i,caption:formatted_address,formatted_address:formatted_address};
+                let address_components=results[i].address_components;
+                for (let a in address_components){
+                    let address_component=address_components[a];
+                    details[address_component.types[0]]=address_component.short_name;
+                    details[address_component.types[0]+'_long']=address_component.long_name;
+                }
+                let street_number = details.street_number || '';
+                let street_number_eng = street_number;
+                let route_long = details.route_long || '';
+                let subpremise = details.subpremise;
+                if(subpremise){
+                    street_number_eng = subpremise + (street_number ? `/${street_number}` : '');
+                    street_number =  (street_number ? `${street_number}/` : '') + subpremise ;
+                }
+                if (!route_long) {
+                    details.street_address = '';
+                    details.street_address_eng = '';
+                } else {
+                    details.street_address = route_long + (street_number ? ` ${street_number}` : '');
+                    details.street_address_eng = (street_number_eng ? `${street_number_eng} ` : '') + route_long;
+                }
+                const position=results[i].geometry.location;
+                details['position']=position.lat()+','+position.lng();
                 this.store.mainbag.setItem('root.r_' + i, null, details);
-
              }
          }else if (status == google.maps.GeocoderStatus.ZERO_RESULTS){
              //this._updateSelect(this.store.mainbag);
@@ -4920,7 +5210,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
-                var uploadhandler_key = genro.isMobile? 'selfsubscribe_press':'connect_ondblclick';
+                var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick';
 
                 attr[uploadhandler_key] = function(){
                     var elem = sourceNode;

@@ -6,8 +6,6 @@
 
 from gnr.web.batch.btcaction import BaseResourceAction
 from gnr.core.gnrbag import Bag
-import gzip
-import os
 
 caption = 'Import archive file'
 tags = '_DEV_,superadmin'

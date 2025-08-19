@@ -29,7 +29,7 @@ class GnrGit(object): # pragma: no cover
                                                    password=remote_password)
             elif self.remote_url.startswith('git@'):
                 # classic git+ssh url
-                # ex. git@bitbucket.org:genropy/genropy.git
+                # ex. git@github.com:genropy/genropy.git
                 user = self.remote_url.split("@")[0]
                 hostname = self.remote_url.split(":")[0].split("@")[1]
                 self.remote_client = SSHGitClient(host=hostname, username=user)

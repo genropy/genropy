@@ -1,7 +1,7 @@
 # encoding: utf-8
 import pytz
 import datetime
-from gnr.core.gnrlang import GnrException
+
 from gnr.app.gnrdbo import GnrDboTable
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import extract_kwargs

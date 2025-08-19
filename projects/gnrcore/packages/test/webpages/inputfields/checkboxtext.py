@@ -2,9 +2,6 @@
 
 "Checkbox e checkboxtext"
 
-from logging import PlaceHolder
-
-
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull,gnrcomponents/framegrid:FrameGrid"
          

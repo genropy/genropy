@@ -476,6 +476,14 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
         }
     },
+
+
+    openHelperEditor:function(){
+        let table = genro.getData('gnr.table');
+        let url = table? `/sys/helpeditor/${table.replace(".",'/')}`:'/sys/helpeditor';
+        genro.dlg.iframePalette({url:url});
+    },
+
     openInspector:function(){
         var root = genro.src.newRoot();
         genro.src.getNode()._('div', '_devInspector_');

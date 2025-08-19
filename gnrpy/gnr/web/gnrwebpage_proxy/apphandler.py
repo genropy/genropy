@@ -29,24 +29,20 @@ import os
 import re
 import time
 from datetime import datetime
+
 from gnr.core.gnrdict import dictExtract
-
 from gnr.core.gnrlang import gnrImport
-
-import logging
-from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core import gnrlist
-
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import uniquify
 from gnr.core.gnrdecorator import extract_kwargs,public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip, toText, toJson,fromJson
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebstruct import cellFromField
+from gnr.web import logger
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 from gnr.sql.gnrsql import GnrSqlException
 
-
-gnrlogger = logging.getLogger(__name__)
 
 
 ESCAPE_SPECIAL = re.compile(r'[\[\\\^\$\.\|\?\*\+\(\)\]\{\}]')
@@ -334,7 +330,7 @@ class GnrWebAppHandler(GnrBaseProxy):
         :param js_resolver_one: TODO
         :param sqlContextName: TODO"""
         if query_columns:
-            print('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
+            logger.error('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
         columns = columns or query_columns
         t = time.time()
         joinBag = None
@@ -349,13 +345,10 @@ class GnrWebAppHandler(GnrBaseProxy):
         dbtable = '%s.%s' % (pkg, tbl)
         if not relation_value:
             kwargs['limit'] = 0
-        where = "$%s = :val_%s" % (related_field, related_field)
-        kwargs[str('val_%s' % related_field)] = relation_value
-        if condition:
-            where = ' ( %s ) AND ( %s ) ' % (where, condition)
-        query = self.db.query(dbtable, columns=columns, where=where,
-                              sqlContextName=sqlContextName, **kwargs)
 
+        
+        query = self.db.table(dbtable).relatedQuery(field=related_field,value=relation_value,where=condition,
+                                                    sqlContextName=sqlContextName, **kwargs)
         joinBag = None
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
@@ -908,7 +901,8 @@ class GnrWebAppHandler(GnrBaseProxy):
             keys = list(prevSelectedDict.keys())
             resultAttributes['prevSelectedIdx'] = [m['rowidx'] for m in [r for r in selection.data if r['pkey'] in keys]]
         if wherebag:
-            resultAttributes['whereAsPlainText'] = self.db.whereTranslator.toHtml(tblobj,wherebag)
+            
+            resultAttributes['whereAsPlainText'] = tblobj.whereTranslator.toHtml(tblobj,wherebag)
         resultAttributes['hardQueryLimitOver'] = hardQueryLimit and resultAttributes['totalrows'] == hardQueryLimit
         if self.page.pageStore().getItem('slaveSelections.%s' %selectionName):
             with self.page.pageStore() as store:
@@ -1133,12 +1127,19 @@ class GnrWebAppHandler(GnrBaseProxy):
                     kwargs['_filteringPkeys'] = filteringPkeys
                 if filteringWhere:
                     where = filteringWhere if not where else ' ( %s ) AND ( %s ) ' %(filteringWhere, where)
+        
+        if countOnly:
+            columns = f"${tblobj.pkey}"
+            query = tblobj.query(columns=columns, where=where,
+                                distinct=True,
+                             order_by=order_by, limit=limit, offset=offset, group_by=f'${tblobj.pkey}', having=having,
+                             relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
+                             excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
+            return len(query.fetch())
         query = tblobj.query(columns=columns, distinct=distinct, where=where,
                              order_by=order_by, limit=limit, offset=offset, group_by=group_by, having=having,
                              relationDict=relationDict, sqlparams=sqlparams, locale=self.page.locale,
                              excludeLogicalDeleted=excludeLogicalDeleted,excludeDraft=excludeDraft, **kwargs)
-        if countOnly:
-            return query.count()
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
         selection = query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
@@ -1446,8 +1447,9 @@ class GnrWebAppHandler(GnrBaseProxy):
     @public_method
     def insertRecord(self,table=None,record=None,**kwargs):
         tblobj = self.db.table(table)
-        newrecord = tblobj.newrecord()
-        newrecord.update(record)
+        newrecord = tblobj.newrecord(_fromRecord=record)
+        extra_items = {k:v for k,v in record.items()}
+        newrecord.update(extra_items)
         tblobj.insert(newrecord)
         self.db.commit()
         return newrecord[tblobj.pkey]
@@ -1516,6 +1518,7 @@ class GnrWebAppHandler(GnrBaseProxy):
             kwargs['for_update'] = True
         captioncolumns = tblobj.rowcaptionDecode()[0]
         hasProtectionColumns = tblobj.hasProtectionColumns()
+        default_kwargs = default_kwargs or {}
 
         if captioncolumns or hasProtectionColumns:
             columns_to_add = (captioncolumns or [])+(['__protecting_reasons','__is_protected_row'] if hasProtectionColumns else [])
@@ -1530,7 +1533,6 @@ class GnrWebAppHandler(GnrBaseProxy):
                             _storename=_storename,**kwargs)
         if sqlContextName:
             self._joinConditionsFromContext(rec, sqlContextName)
-
         if pkey == '*newrecord*':
             record = rec.output('newrecord', resolver_one=js_resolver_one, resolver_many=js_resolver_many)
         elif pkey=='*sample*':
@@ -1538,12 +1540,21 @@ class GnrWebAppHandler(GnrBaseProxy):
             return record,dict(_pkey=pkey,caption='!!Sample data')
         else:
             record = rec.output('bag', resolver_one=js_resolver_one, resolver_many=js_resolver_many)
-        pkey = record[tblobj.pkey] or '*newrecord*'
-        newrecord = pkey == '*newrecord*'
+        if not record[tblobj.pkey]:
+            newrecord = True
+            if pkey and pkey!='*newrecord*':
+                default_kwargs.update(tblobj.parseSerializedKey(pkey))
+            pkey = '*newrecord*'
+
+        else:
+            pkey = record[tblobj.pkey] 
+            newrecord = False
+
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord, 
                        sqlContextName=sqlContextName,_storename=_storename,
-                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly)
+                       from_fld=from_fld,ignoreReadOnly=ignoreReadOnly,
+                       table=table)
         #if lock and not newrecord:
         if not newrecord and not readOnly:
             recInfo['_protect_write'] =  tblobj._islocked_write(record) or not tblobj.check_updatable(record,ignoreReadOnly=ignoreReadOnly)
@@ -1551,7 +1562,6 @@ class GnrWebAppHandler(GnrBaseProxy):
             if lock:
                 self._getRecord_locked(tblobj, record, recInfo)
         loadingParameters = loadingParameters or {}
-        default_kwargs = default_kwargs or {}
         loadingParameters.update(default_kwargs)
         if _eager_record_stack:
             loadingParameters['_eager_record_stack'] = _eager_record_stack
@@ -1958,6 +1968,12 @@ class GnrWebAppHandler(GnrBaseProxy):
                 result[query.label] = tblobj.query(columns=columns,**qattr).fetchAsBag('pkey')
         return result
         
+
+    @public_method
+    def touchGridSelectedRows(self,table=None,pkeys=None):
+        self.db.table(table).touchRecords(_pkeys=pkeys)
+        self.db.commit()
+
     @public_method
     def updateCheckboxPkeys(self,table=None,field=None,changesDict=None):
         if not changesDict:

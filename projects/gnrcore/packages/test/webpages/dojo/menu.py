@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """Menu"""
-from __future__ import print_function
-import datetime
+
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrsys import expandpath
@@ -55,6 +54,25 @@ class GnrCustomWebPage(object):
         pane.button('add menuline',
                     action='this.setRelativeData(".menudata.r6",12,{"code":"PP","caption":"Palau port"})',
                     disabled='^.disabled')
+
+    def test_5_text_div(self, pane):
+        "Popup with options from text div"
+        pane.menudiv(value='^.opzione',values='p:Pippo,z:Zio,r:Rummo,g:Gennaro o pizzaiolo',
+                    placeholder='Choose',color='red',font_size='20px')
+
+
+    def test_11_singleLineAsButton(self, pane):
+        "Popup with options from text div"
+        pane.checkbox(value='^.disabled',label='Disabled')
+        m = pane.menudiv(iconClass='iconbox gear',singleOption='button')
+        m.menuline('Ciao',disabled='^.disabled').dataController('alert("gear")')
+
+        m = pane.menudiv(iconClass='iconbox chat',singleOption='ask')
+        m.menuline('Chat').dataController('alert("chat")')
+
+
+
+
 
     @public_method
     def menudata(self):

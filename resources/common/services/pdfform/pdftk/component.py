@@ -4,12 +4,13 @@
 # Created by Francesco Porcari on 2017-12-18.
 # Copyright (c) 2017 Softwell. All rights reserved.
 
+from time import time
+
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrstring import slugify
-from time import time
+
 
 
 class PdfTkEditor(BaseComponent):

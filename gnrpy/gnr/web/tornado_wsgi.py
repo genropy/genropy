@@ -3,7 +3,6 @@
 
 
 import itertools
-import logging
 import sys
 import tempfile
 from concurrent import futures
@@ -13,7 +12,7 @@ from tornado import escape, gen, web
 from tornado.iostream import StreamClosedError
 from tornado.wsgi import to_wsgi_str
 
-_logger = logging.getLogger(__name__)
+from gnr.web import logger
 
 
 @web.stream_request_body
@@ -140,14 +139,14 @@ class WSGIHandler(web.RequestHandler):
                 else:
                     break
         except StreamClosedError:
-            _logger.debug('stream closed early')
+            logger.debug('stream closed early')
         finally:
             # Close the temporary file to make sure that it gets deleted.
             if self.body_tempfile is not None:
                 try:
                     self.body_tempfile.close()
                 except OSError as e:
-                    _logger.warning(e)
+                    logger.warning(e)
 
             if hasattr(app_response, 'close'):
                 yield self.executor.submit(app_response.close)

@@ -1,1 +1,1 @@
-import gnr.web.gnrwebreqresp
+import gnr.web.gnrwebreqresp  # noqa: F401

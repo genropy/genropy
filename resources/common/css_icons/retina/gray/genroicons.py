@@ -1,4 +1,3 @@
-from __future__ import print_function
 from gnr.core.gnrbag import Bag
 b=Bag('/Users/fporcari/sviluppo/genro/resources/common/css_icons/retina/gray/16')
 pars={}

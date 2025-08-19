@@ -5,8 +5,6 @@
 # Copyright (c) 2010 Softwell. All rights reserved.
 
 """Test drop uploader"""
-from __future__ import print_function
-
 
 from gnr.core.gnrlist import XlsReader
 from gnr.core.gnrbag import Bag, DirectoryResolver

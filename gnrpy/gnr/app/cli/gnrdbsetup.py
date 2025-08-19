@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
+import sys
 import os
 import glob
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
-from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
-from gnr.core.gnrlog import enable_colored_logging
-from gnr.app.gnrconfig import getGnrConfig
-
-
-enable_colored_logging()
+from gnr.core.gnrconfig import getGnrConfig
+from gnr.app.gnrapp import GnrApp
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
+from gnr.db import logger
 
 S_GNRHOME = os.path.split(os.environ.get('GNRHOME', '/usr/local/genro'))
 GNRHOME = os.path.join(*S_GNRHOME)
@@ -98,21 +95,29 @@ def get_app(options):
 def check_db(app, options):
     dbname = app.db.currentEnv.get('storename')
     dbname = dbname or 'Main'
-    print(f'DB {dbname}')
+    logger.info('DB %s', dbname)
     if options.rebuild_relations or options.remove_relations_only:
-        print('Removing all relations')
+        logger.info('Removing all relations')
         app.db.model.enableForeignKeys(enable=False) 
-        print('Removed')
+        logger.info('Removed')
     if options.remove_relations_only:
         return
-    changes = app.db.model.check()
+
+    try:
+        changes = app.db.model.check()
+    except GnrSqlMissingTable as e:
+        if options.debug:
+            raise
+        print(f"{e} - exiting")
+        sys.exit(2)
+    
     if changes:
         if options.verbose:
-            print('*CHANGES:\n%s' % '\n'.join(app.db.model.modelChanges))
+            logger.info('*CHANGES: %s', '\n'.join(app.db.model.modelChanges))
         else:
-            print('STRUCTURE NEEDS CHANGES')
+            logger.info('STRUCTURE NEEDS CHANGES')
     else:
-        print('STRUCTURE OK')
+        logger.info('STRUCTURE OK')
     return changes
 
 def import_db(filepath, options):
@@ -153,11 +158,6 @@ def main():
                         action='store_true',
                         help="Remove relations")
     
-    parser.add_argument('-d', '--debug',
-                        dest='debug',
-                        action='store_true',
-                        help="Debug mode")
-    
     parser.add_argument('-i', '--instance',
                         dest='instance',
                         help="Use command on instance identified by supplied name")
@@ -192,7 +192,7 @@ def main():
     for storename in stores:
         app.db.use_store(storename)
         if options.upgrade_only:
-            print('#### UPGRADE SCRIPTS IN STORE {storename} ####'.format(storename=storename))
+            logger.info('#### UPGRADE SCRIPTS IN STORE {%s} ####', storename)
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
             app.db.table('sys.upgrade').runUpgrades()
             app.db.commit()
@@ -205,10 +205,10 @@ def main():
         else:
             changes = check_db(app, options)
             if changes:
-                print('APPLYING CHANGES TO DATABASE...')
+                logger.info('APPLYING CHANGES TO DATABASE...')
                 app.db.model.applyModelChanges()
-                print('CHANGES APPLIED TO DATABASE')
-            app.db.model.checker.addExtesions()
+                logger.info('CHANGES APPLIED TO DATABASE')
+            app.db.model.checker.addExtensions()
         app.pkgBroadcast('onDbSetup,onDbSetup_*')
         if options.upgrade:
             app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
@@ -216,7 +216,7 @@ def main():
             app.db.commit()
         app.db.closeConnection()
     if errordb:
-        print('ERROR db',errordb)
+        logger.error('db: ', errordb)
         
 if __name__ == '__main__':
     main()

@@ -22,7 +22,6 @@
 Component for GridCustomizer:
 """
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
@@ -72,7 +71,7 @@ class GridCustomizer(BaseComponent):
         tc = parent.tabContainer(datapath=datapath or '.gridCustomizer',**kwargs)
         structures = self.gc_customizerStructures(table=gridTable,resource=gridResource)
         tc.data('.base_structures',structures)
-        tc.dataController("""
+        tc.dataController(r"""
         if(this.form.isNewRecord()){
             return;
         }        

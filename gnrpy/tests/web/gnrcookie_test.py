@@ -1,1 +1,1 @@
-import gnr.web.gnrcookie
+import gnr.web.gnrcookie  # noqa: F401

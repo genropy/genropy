@@ -9,7 +9,7 @@ class GnrCustomWebPage(object):
         if hierarchical_name:
             self.baseViewer(root,hierarchical_name)
         else:
-            self.mixinComponent('rst_documentation_handler:DocumentationViewer')
+            self.mixinComponent('docu_components:DocumentationViewer')
             self.documentationViewer(root,startpath=startpath)
             if startpath:
                 root.dataController("""var href = window.location.href;

@@ -3,8 +3,6 @@
 """Bag from external formats"""
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
-from decimal import Decimal
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerBase"
@@ -46,8 +44,7 @@ class GnrCustomWebPage(object):
 
     @public_method
     def remoteTester(self,**kwargs):
-        print(xxx)
-
+        raise Exception("XXX exception")
 
     def test_1_rpcjson(self, pane):
         btn = pane.button('Test')

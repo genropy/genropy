@@ -4,11 +4,10 @@
 #  Created by Saverio Porcari on 2013-04-06.
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-from __future__ import print_function
 import os
 from gnr.web.gnrbaseclasses import BaseComponent
 
-from gnrpkg.sys.services.ftp import SftpService,SftpDirectoryResolver
+from gnrpkg.sys.services.ftp import SftpService
 from gnr.core.gnrlang import GnrException
 
 
@@ -102,7 +101,7 @@ class ServiceParameters(BaseComponent):
         fb = pane.formbuilder(datapath=datapath)
         fb.textbox(value='^.host',lbl='Host')
         fb.textbox(value='^.username',lbl='Username')
-        fb.textbox(value='^.password',lbl='Password',type='password')
+        fb.passwordTextBox(value='^.password',lbl='Password')
         fb.textbox(value='^.private_key',lbl='Private key')
         fb.textbox(value='^.port',lbl='Port')
         fb.textbox(value='^.root',lbl='Root')

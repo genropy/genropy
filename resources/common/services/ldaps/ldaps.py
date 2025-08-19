@@ -7,7 +7,6 @@
 #    pip install python-ldap
 #
 
-from __future__ import print_function
 
 from gnr.core.gnrstring import boolean
 from gnr.lib.services.ldaps import LdapsService

@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys
+
 from gnr.core.cli import GnrCliArgParse
 
 from gnr.web.gnrdaemonhandler import GnrDaemon,GnrDaemonProxy
 
-PYRO_HOST = 'localhost'
-PYRO_PORT = 40004
-PYRO_HMAC_KEY = 'supersecretkey'
 description = "Main Genropy Daemon for request handling"
+
 def getOptions():
     parser = GnrCliArgParse(description=description)
     parser.add_argument('sitename',nargs='?')
@@ -35,10 +33,6 @@ def getOptions():
     parser.add_argument('--polltimeout',type=float,
                     help="Use multiplexed server poll timeout")
 
-    parser.add_argument('-d', '--debug',
-                    action='store_false',
-                    help="Debug mode")
-
     parser.add_argument('-c', '--compression',
                     action='store_false',
                     help="Enable compression")
@@ -53,8 +47,6 @@ def getOptions():
     parser.add_argument('-l', '--size_limit', type=int,
                     help="Size limit")
 
-    parser.add_argument('-L', '--loglevel', type=int,
-                    help="Log level")
     arguments= parser.parse_args()
 
     return arguments.__dict__
@@ -75,9 +67,9 @@ def main():
             sitedaemonconfig = siteconfig.getAttr('sitedaemon') or {}
             sitepath = path_resolver.site_name_to_path(sitename)
             debug = sitedaemonconfig.get('debug',None)
-            host = sitedaemonconfig.get('host','localhost')
+            host = options.get('host', sitedaemonconfig.get('host','localhost'))
             socket = sitedaemonconfig.get('socket',None)
-            port = sitedaemonconfig.get('port','*')
+            port = options.get('port', sitedaemonconfig.get('port','*'))
             hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
             storage_path = os.path.join(sitepath, 'siteregister_data.pik')
             sitedaemon = GnrSiteRegisterServer(sitename=sitename,debug=debug, storage_path=storage_path)
@@ -95,7 +87,10 @@ def main():
             server = GnrDaemon()
             server.start(use_environment=True,**options)
     else:
-        p = GnrDaemonProxy(use_environment=True, host=options.get('host'),port=options.get('port'),socket=options.get('socket'),hmac_key=options.get('hmac_key'),compression=options.get('compression'))
+        p = GnrDaemonProxy(use_environment=True, host=options.get('host'),
+                           port=options.get('port'), socket=options.get('socket'),
+                           hmac_key=options.get('hmac_key'),
+                           compression=options.get('compression'))
         proxy = p.proxy()
         if command=='stop':
             print('savestatus',options.get('savestatus'))

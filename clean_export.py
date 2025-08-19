@@ -53,7 +53,7 @@ def do_clean_export(genropy_path = None):
 		return in_file.replace(genropy_path, '')[1:]
 	out_path = os.path.join(os.path.dirname(genropy_path),'genropy_clean')
 	if os.path.exists(out_path):
-		print 'Deleting previous export'
+		print('Deleting previous export')
 		shutil.rmtree(out_path)
 	os.mkdir(out_path)
 	def make_out_file_path(*args):
@@ -73,12 +73,11 @@ def do_clean_export(genropy_path = None):
 
 		for dirname in list(dirnames):
 			if os.path.join(dirpath,dirname) in excluded_paths:
-				print 'Will skip: ',dirname
+				print('Will skip: ',dirname)
 				dirnames.pop(dirnames.index(dirname))
 		if os.path.basename(dirpath)[0] not in ('.') and is_included(dirpath):
 			out_dir = make_out_file_path(make_relative_filename(dirpath))
 			mkdirhier(out_dir)
-			#print 'Copying included path: %s to %s'%(dirpath, out_dir) 
 			for filename in filenames:
 				if os.path.splitext(filename)[-1].lower() not in EXCLUDED_EXTS and not filename[0]=='.':
 					out_file_path = os.path.join(out_dir, filename)

@@ -3,14 +3,15 @@
 # gnride.py
 # Created by Francesco Porcari on 2011-06-22.
 # Copyright (c) 2018 Softwell. All rights reserved.
+import os
+import sys
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.core.gnrdecorator import public_method,extract_kwargs
+from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag,DirectoryResolver
-from gnr.app.gnrconfig import getGenroRoot
-import os
-import sys
+from gnr.core.gnrconfig import getGenroRoot
+
 DIRECTORY_RESOLVER_DEFAULT_PARS = {
     'include':'*.py,*.js,*.xml,*.html',
     'processors':{'xml':False},

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import os.path
 
 class Table(object):
     def config_db(self, pkg):
@@ -17,7 +18,6 @@ class Table(object):
         if f:
             r = dict(f[0])
             return r
-        import os
         r = dict(instance_name=os.path.split(self.db.application.instanceFolder)[1])
         self.insert(r)
         self.db.commit()

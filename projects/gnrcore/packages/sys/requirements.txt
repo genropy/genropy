@@ -1,0 +1,4 @@
+pdf2image
+watchdog
+PyPDF2
+

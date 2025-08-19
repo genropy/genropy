@@ -1,13 +1,14 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
+import shutil
 
+import pypdftk
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.pdfform import PdfFormService
-from gnr.web.gnrbaseclasses import BaseComponent
-try:
-    import pypdftk
-except:
-    raise Exception('Missing pypdftk library. Please install it or disable pdf forms in preferences')
+
+if shutil.which(pypdftk.PDFTK_PATH) is None:
+    raise GnrException('Missing pdftk tool, see http://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/  - Please install it or disable pdf forms in preferences')
 
 
 class Service(PdfFormService):

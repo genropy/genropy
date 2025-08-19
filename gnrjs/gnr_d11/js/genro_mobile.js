@@ -53,7 +53,7 @@ dojo.declare("gnr.GnrMobileHandler", null, {
                 window.open = cordova.InAppBrowser.open;
             } 
         }
-        this.startHammer(document.body);
+        //this.startHammer(document.body);
         document.body.onorientationchange = function(e) {
             genro.setData('touch.orientation', window.orientation);
         };
@@ -92,7 +92,7 @@ dojo.declare("gnr.GnrMobileHandler", null, {
         if(!info || !info.sourceNode){
             return;
         }
-        //console.log('eventinfo',info.event.type,info)
+        console.log('eventinfo',info.event.type,info)
 
         info.sourceNode.publish(info.event.type,info);
         genro.publish('mobile_'+info.event.type,info);

@@ -2,9 +2,10 @@
 <GenRoBag>
 	<menu path="menu.py" ext="py">
 		<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
+		<en_contents base="Contents" it="Contenuti"/>
 		<en_handbooks base="Handbooks" it="Manuali" en="Handbooks"/>
 		<en_redirects base="Redirects" en="Redirects" it="Reindirizzamenti"/>
-		<en_docu_tables base="Docu tables" en="Docu tables" it="Tavoli Docu"/>
+		<en_docu_tables base="Docu tables" en="Docu tables" it="Tabelle Docu"/>
 	</menu>
 
 	<model>
@@ -15,6 +16,45 @@
 				</annotation>
 			</orgn>
 		</_packages>
+		<author path="model/author.py" ext="py">
+			<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+				<en_authors base="Authors" it="Autori"/>
+				<en_first_name fr="Prénom" de="Vorname" en="First name" it="Nome" base="First name"/>
+				<en_mandatory_field fr="Champ obligatoire" de="Pflichtfeld" en="Mandatory field" it="Campo obbligatorio" base="Mandatory field"/>
+				<en_last_name fr="Nom de famille" de="Nachname" en="Last name" it="Cognome" base="Last name"/>
+				<en_full_name base="Full name" it="Nome completo" en="Full Name"/>
+		</author>
+		<content path="model/content.py" ext="py">
+			<en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"/>
+				<en_contents base="Contents" it="Contenuti"/>
+				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
+				<en_headline base="Headline" it="Sottotitolo"/>
+				<en_abstract base="Abstract" it="Riassunto"/>
+				<en_text base="Text" it="Testo"/>
+				<en_html base="HTML" en="Html" it="Html"/>
+				<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
+		</content>
+		<content_author path="model/content_author.py" ext="py">
+			<en_content_author base="Content author" it="Autore del contenuto"/>
+				<en_content_authors base="Content authors" it="Autori di contenuti"/>
+				<en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"/>
+				<en_author base="Author" de="Verfasser" en="Author" fr="Auteur" it="Autore"/>
+		</content_author>
+		<content_history path="model/content_history.py" ext="py">
+			<en_content_history base="Content history" it="Cronologia dei contenuti"/>
+				<en_contents_history base="Contents history" it="Cronologia dei contenuti"/>
+				<en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"/>
+				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
+				<en_vers_ base="Vers." en="Vers." it="Vers."/>
+				<en_text base="Text" it="Testo"/>
+				<en_html base="Html" en="Html" it="Html"/>
+		</content_history>
+		<content_topic path="model/content_topic.py" ext="py">
+			<en_content_topic base="Content topic" it="Argomento del contenuto"/>
+				<en_content_topics base="Content topics" it="Argomenti dei contenuti"/>
+				<en_content base="Content" de="Inhalt" en="Content" fr="Content" it="Contenuto"/>
+				<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"/>
+		</content_topic>
 		<documentation path="model/documentation.py" ext="py">
 			<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
 				<en_code base="Code" en="Code" it="Codice"/>
@@ -45,7 +85,6 @@
 				<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
 				<en_toc_roots base="Toc roots" en="TOC roots" it="Radici TOC"/>
 				<en_base_language base="Base language" it="Lingua base" en=""/>
-				<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"/>
 				<en_is_local_handbook base="Is local handbook" it="Manuale locale" en="Is local handbook"/>
 				<en_local_handbook_zip base="Local handbook zip" it="Manuale locale (zip)" en=""/>
 				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
@@ -58,6 +97,7 @@
 				<en_custom_styles base="Custom styles" it="Stili personalizzati" en=""/>
 				<en_examples_parameters base="Examples parameters" it="Esempi di parametri" en=""/>
 				<en_handbook_preview_image base="Handbook preview image" it="Immagine anteprima manuale" en="Handbook preview image"/>
+				<en_sphinx_path base="Sphinx path" en="Sphinx path" it="Path Sphinx"/>
 		</handbook>
 		<redirect path="model/redirect.py" ext="py">
 			<en_moved_page base="Moved Page" en="Moved Page" it="Pagina spostata"/>
@@ -69,22 +109,18 @@
 				<en_handbook_path base="Handbook path" en="Handbook path" it="Percorso del manuale"/>
 				<en_handbook_url base="Handbook url" it="Url manuale" en="Handbook url"/>
 		</redirect>
+		<topic path="model/topic.py" ext="py">
+			<en_topic base="Topic" de="Thema" en="Topic" fr="Sujet" it="Argomento"/>
+		</topic>
 	</model>
 
 	<resources>
-		<preference path="resources/preference.py" ext="py">
-			<en_sphinx_project_path base="Sphinx project path" en="Sphinx project path" it="Percorso del progetto Sphinx"/>
-				<en_local_handbooks_path base="Local handbooks path" en="Local handbooks path" it="Percorso dei manuali locali"/>
-				<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"/>
-				<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"/>
-				<en_manage_redirects base="Manage redirects" it="Gestisci reindirizzamenti" en="Manage redirects"/>
-		</preference>
-		<rst_documentation_handler path="resources/rst_documentation_handler.py" ext="py">
+		<docu_components path="resources/docu_components.py" ext="py">
 			<en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"/>
 				<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"/>
 				<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"/>
 				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
-				<en_line_wrapping base="Line wrapping" en="Line wrapping" it="Avvolgimento della linea"/>
+				<en_line_wrapping base="Line wrapping" en="Line wrapping" it="A capo automatico"/>
 				<en_quote base="Quote" en="Quote" it="Citazione"/>
 				<en_parent base="Parent" de="Elternteil" en="Parent" fr="Mère" it="Genitore"/>
 				<en_first_child base="First child" en="First child" it="Primo figlio"/>
@@ -92,9 +128,36 @@
 				<en_next base="Next" de="Nächste" en="Next" fr="Prochaine" it="Prossimo" zh="下一步"/>
 				<en_search base="Search" de="Suche" en="Search" fr="Recherche" it="Cerca"/>
 				<en_01_quick_view_02_have_questions_09_okay base="01:Quick view,02:Have questions,09:Okay" en="01:Quick view,02:Have questions,09:Okay" it="01:Visualizzazione rapida, 02:Ho domande, 09:OK"/>
-		</rst_documentation_handler>
+				<en_differences base="Differences" it="Differenze"/>
+		</docu_components>
+		<preference path="resources/preference.py" ext="py">
+			<en_handbooks_theme base="Handbooks theme" it="Tema dei manuali"/>
+				<en_base_css base="Base CSS" it="CSS di base"/>
+				<en_base_html base="Base HTML" it="HTML di base"/>
+				<en_base_js base="Base JS" it="JS di base"/>
+				<en_sphinx_baseurl base="Sphinx baseurl" en="Sphinx baseurl" it="Sphinx baseurl"/>
+				<en_cloudfront_distribution_id base="Cloudfront distribution ID" en="Cloudfront distribution ID" it="ID di distribuzione Cloudfront"/>
+				<en_manage_redirects base="Manage redirects" it="Gestisci reindirizzamenti" en="Manage redirects"/>
+				<en_enable_sitemap base="Enable sitemap" it="Abilita mappa del sito"/>
+				<en_save_source_debug_files base="Save source debug files" it="Salva i file di debug di origine"/>
+				<en_handbook_logo base="Handbook Logo" it="Logo del manuale"/>
+				<en_copyright_text base="Copyright text" it="Testo del copyright"/>
+				<en_show_last_update_date base="Show last update date" it="Mostra la data dell'ultimo aggiornamento"/>
+				<en_display_version_number base="Display version number" it="Visualizza il numero di versione"/>
+				<en_show_authors base="Show authors" it="Mostra autori"/>
+		</preference>
 		<tables>
-			<documentation>
+			<content>
+				<th_content path="resources/tables/content/th_content.py" ext="py">
+					<en_content_data base="Content Data" it="Dati sui contenuti"/>
+								<en_content_attributes base="Content Attributes" it="Attributi del contenuto"/>
+								<en_text base="Text" it="Testo"/>
+								<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
+								<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
+								<en_versions base="Versions" en="Versions" it="Versioni"/>
+				</th_content>
+			</content>
+				<documentation>
 				<th_documentation path="resources/tables/documentation/th_documentation.py" ext="py">
 					<en_documentation base="Documentation" de="Dokumentation" en="Documentation" fr="Documentation" it="Documentazione"/>
 								<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
@@ -119,6 +182,7 @@
 					<export_to_sphinx path="resources/tables/handbook/action/export_to_sphinx.py" ext="py">
 						<en_parameters base="Parameters" de="Parameter" en="Parameters" fr="Paramètres" it="Parametri"/>
 										<en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"/>
+										<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
 										<en_skip_redirects base="Skip redirects" en="Skip redirects" it="Salta i reindirizzamenti"/>
 										<en_force_cloudfront_cache_invalidation base="Force Cloudfront cache invalidation" en="Force Cloudfront cache invalidation" it="Forza l'invalidazione della cache di Cloudfront"/>
 										<en_send_notification_via_telegram base="Send notification via Telegram" en="Send notification via Telegram" it="Invia una notifica tramite Telegram"/>
@@ -132,7 +196,8 @@
 								<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 								<en_doc_root base="Doc root" en="Doc root" it="Radice del documento"/>
 								<en_language base="Language" en="Language" it="Lingua"/>
-								<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
+								<en_vers_ base="Vers." en="Vers." it="Vers."/>
+								<en_last_exp_ts base="Last exp.ts" it="Ultimi exp.ts"/>
 								<en_all fr="Tous" de="Alle" en="All" it="Tutto" base="All"/>
 								<en_online base="Online" en="Online" it="Online"/>
 								<en_local base="Local" it="Locale" en="Local"/>

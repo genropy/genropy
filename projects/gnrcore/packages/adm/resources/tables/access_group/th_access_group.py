@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.core.gnrdecorator import public_method
 
 class View(BaseComponent):
-
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('code')
@@ -17,8 +15,6 @@ class View(BaseComponent):
 
     def th_query(self):
         return dict(column='code', op='contains', val='')
-
-
 
 class Form(BaseComponent):
 

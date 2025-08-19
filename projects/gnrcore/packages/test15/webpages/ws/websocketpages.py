@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 from gnr.core.gnrdecorator import websocket_method
 from gnr.core.gnrbag import Bag
 

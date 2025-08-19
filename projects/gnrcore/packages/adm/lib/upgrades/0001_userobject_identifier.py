@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-from __future__ import print_function
 def main(db):
     print('\t fix identifier in userobject')
     tblobj = db.table('adm.userobject')

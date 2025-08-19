@@ -10,7 +10,6 @@
 
 from gnr.web.gnrwebpage_proxy.frontend.gnrbasefrontend import GnrBaseFrontend
 from gnr.core.gnrlang import boolean
-import os.path
 
 class GnrBaseDojoFrontend(GnrBaseFrontend):
     def importer(self):

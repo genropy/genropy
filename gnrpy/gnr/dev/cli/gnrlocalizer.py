@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import sys, os
-
 from gnr.core.cli import GnrCliArgParse
 from gnr.app.gnrapp import GnrApp
 
