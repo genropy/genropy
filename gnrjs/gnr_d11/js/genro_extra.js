@@ -1463,7 +1463,7 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     attributes.style = `height:${height};width:${width};`;
 
     // Return saved attributes for created()
-    return {valuePath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw};
+    return {valuePath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw, _rawHeight: height, _rawWidth: width};
   },
 
   created: function(domNode, savedAttrs, sourceNode){
@@ -1478,8 +1478,8 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
       if (domNode._tinymce_inited) { return; }
       domNode._tinymce_inited = true;
       
-      const rawHeight = sourceNode.attr.height;
-      const rawWidth = sourceNode.attr.width;
+      const rawHeight = savedAttrs._rawHeight;   // respects default '100%' from creating
+      const rawWidth  = savedAttrs._rawWidth;    // respects default '100%'
       const numericHeight = (rawHeight && /px$/i.test(rawHeight)) ? parseInt(rawHeight, 10) : null;
       const numericWidth = (rawWidth && /px$/i.test(rawWidth)) ? parseInt(rawWidth, 10) : null;
 
@@ -1608,11 +1608,48 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
               editor[prop.replace('mixin_', '')] = widgetObj[prop];
             }
           }
+          // --- Drag & drop: auto-focus on hover and insert $placeholders on drop ---
+          function focusOnDrag(e){
+            try{ e.preventDefault(); }catch(_e){}
+            try{ editor.focus(); }catch(_e){}
+          }
+          function insertDroppedText(e){
+            try{ e.preventDefault(); }catch(_e){}
+            try{ editor.focus(); }catch(_e){}
+            var dt = e.dataTransfer || (e.originalEvent && e.originalEvent.dataTransfer);
+            var txt = dt ? (dt.getData('text/plain') || dt.getData('text') || '') : '';
+            if (!txt){ return; }
+            txt = String(txt).trim();
+            if (!txt){ return; }
+            if (txt[0] !== '$'){ txt = '$' + txt; }
+            // Place caret at drop point if possible
+            try{
+              var doc = editor.getDoc();
+              var rng = null;
+              if (doc.caretRangeFromPoint){
+                rng = doc.caretRangeFromPoint(e.clientX, e.clientY);
+              } else if (doc.caretPositionFromPoint){
+                var pos = doc.caretPositionFromPoint(e.clientX, e.clientY);
+                if (pos){ rng = doc.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); }
+              }
+              if (rng){ editor.selection.setRng(rng); }
+            }catch(_e){}
+            editor.insertContent(editor.dom.encode(txt));
+          }
+          // Focus when dragging over the outer container (handles iframe boundary too)
+          var cont = editor.getContainer();
+          if (cont){
+            ['dragenter','dragover'].forEach(function(ev){ cont.addEventListener(ev, focusOnDrag, {passive:false}); });
+          }
           // Apply percentage height to container after init, if needed
           editor.on('Init', function(){
             if (rawHeight && /%$/.test(rawHeight)){
               const c = editor.getContainer();
-              if (c){ c.style.height = rawHeight; }
+              if (c){
+                c.style.height = rawHeight;     // apply percentage to container
+                // Remove any fixed pixel height applied by init
+                if (c.style.minHeight){ c.style.minHeight = ''; }
+              }
             }
           });
           // editor -> datastore
@@ -1646,6 +1683,14 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
               }
             });
           }
+          // Extend the 'Init' event to add drag/drop listeners to the iframe body
+          editor.on('Init', function(){
+            var body = editor.getBody();
+            if (body){
+              ['dragenter','dragover'].forEach(function(ev){ body.addEventListener(ev, focusOnDrag, {passive:false}); });
+              body.addEventListener('drop', insertDroppedText, {passive:false});
+            }
+          });
         }
       });
     };

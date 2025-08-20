@@ -2156,6 +2156,8 @@ dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
 
 });
 
+
+
 dojo.declare("gnr.widgets.QuickTree", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         var value = objectPop(kw,'value');
