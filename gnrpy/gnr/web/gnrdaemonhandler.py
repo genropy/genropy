@@ -294,13 +294,13 @@ class GnrDaemon(object):
             childprocess.start()
             siteregister_processes_dict['register'] = childprocess
 
-            if self.hasSysPackageAndIsPrimary(sitename):
-                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
-                taskScheduler.daemon = True
-                taskScheduler.start()
-                siteregister_processes_dict['task_scheduler'] = taskScheduler 
-            sitedict = siteregister_processes_dict
-            self.startServiceProcesses(sitename,sitedict=sitedict)
+           # if self.hasSysPackageAndIsPrimary(sitename):
+           #     taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
+           #     taskScheduler.daemon = True
+           #     taskScheduler.start()
+           #     siteregister_processes_dict['task_scheduler'] = taskScheduler 
+            #sitedict = siteregister_processes_dict
+            #self.startServiceProcesses(sitename,sitedict=sitedict)
             #self.startGnrDaemonServiceManager(sitename)
             #self.siteregisters_process[sitename] = sitedict
 

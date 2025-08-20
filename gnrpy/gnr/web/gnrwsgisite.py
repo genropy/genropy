@@ -157,11 +157,13 @@ class GnrWsgiSite(object):
         self.pathfile_cache = {}
         self._currentAuxInstanceNames = {}
         self._currentPages = {}
+        self._currentDomains = {}
+
         self._currentRequests = {}
         self._currentMaintenances = {}
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
-        self._register = None
+        self.registers = {}
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -226,6 +228,7 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
+        self.multi_domain = boolean(self.gnrapp.config.getAttr('instance','multi_domain'))
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -245,7 +248,7 @@ class GnrWsgiSite(object):
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
         # and it initialze the register itself.
-        self.register
+        #self.register
         
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
@@ -254,13 +257,26 @@ class GnrWsgiSite(object):
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
             logger.info('End of import')
-
-        cleanup = self.custom_config.getAttr('cleanup') or dict()
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
-        self.page_max_age = int(cleanup.get('page_max_age') or 120)
-        self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+       
         self.db.closeConnection()
 
+
+
+    @property
+    def cleanup_interval(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('interval') or 120)
+
+    @property
+    def page_max_age(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('page_max_age') or 120)
+
+    @property
+    def connection_max_age(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('connection_max_age') or 600)
+    
 
     @property
     def guest_counter(self):
@@ -343,15 +359,18 @@ class GnrWsgiSite(object):
                 return
         return self._wsk
 
+
     @property
     def register(self):
-        if self._register is None:
-            self._register = SiteRegisterClient(self)
+        register = self.registers.get(self.currentDomain) 
+        if not register:
+            register  = SiteRegisterClient(self)
+            self.registers[self.currentDomain] = register
             self.checkPendingConnection()
-        return self._register
+        return register
 
     def getSubscribedTables(self,tables):
-        if self._register is not None:
+        if self.registers.get(self.currentDomain) is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
     @property
@@ -767,6 +786,10 @@ class GnrWsgiSite(object):
             path_info = self.indexpage
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
+        first_segment = path_list[0]
+        if first_segment not in ('_pwa_worker.js','favicon.ico'):
+            self.currentDomain =  path_list.pop(0) if self.multi_domain else self.site_name
+        self.db.currentEnv['domainName'] = self.currentDomain
         return path_list
 
     def _get_home_uri(self):
@@ -842,7 +865,7 @@ class GnrWsgiSite(object):
                 return self._dispatcher(environ, start_response)
             except self.register.errors.ConnectionClosedError:
                 self.currentMaintenance = 'register_error'
-                self._register = None
+                self.registers[self.currentDomain] = None
                 return self.maintenanceDispatcher(environ, start_response)
             except Exception as e:
                 page = self.currentPage
@@ -1455,6 +1478,17 @@ class GnrWsgiSite(object):
         self._currentPages[_thread.get_ident()] = page
 
     currentPage = property(_get_currentPage, _set_currentPage)
+
+    
+    def _get_currentDomain(self):
+        """property currentDomain it returns the page currently used in this thread"""
+        return self._currentDomains.get(_thread.get_ident())
+
+    def _set_currentDomain(self, domain):
+        """set currentDomain for this thread"""
+        self._currentDomains[_thread.get_ident()] = domain
+
+    currentDomain = property(_get_currentDomain, _set_currentDomain)
 
     def _get_currentAuxInstanceName(self):
         """property currentAuxInstanceName it returns the page currently used in this thread"""

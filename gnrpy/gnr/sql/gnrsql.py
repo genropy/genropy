@@ -146,7 +146,7 @@ class GnrSqlDb(GnrObject):
         self._currentEnv = {}
         self._connections = {}
         self.adapters = {}
-        self.dbname = self.dbpar(dbname)
+        self._dbname = self.dbpar(dbname)
         self.host = self.dbpar(host)
         self.port = self.dbpar(str(port) if port else None)
         self.user = self.dbpar(user)
@@ -423,15 +423,22 @@ class GnrSqlDb(GnrObject):
         
         :param storename: TODO. """
         self.updateEnv(storename=storename)
+
+    @property
+    def dbname(self):
+        domainName = self.currentEnv.get('domainName')
+        if domainName:
+            return self._dbname.replace('*',domainName)
+        return self._dbname
+    
         
     def get_dbname(self):
         """TODO"""
         storename = self.currentEnv.get('storename')
         if storename:
             return self.dbstores[storename]['database']
-        else:
-            return self.dbname
-    
+        return self.dbname
+        
     def getTenantSchemas(self):
         if not self.tenant_table:
             return []
