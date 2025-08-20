@@ -1407,3 +1407,213 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     }
 
 });
+
+
+dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
+  constructor: function(application) {
+    this._domtag = 'textarea';
+  },
+
+  creating: function(attributes, sourceNode){
+    // Enforce required value datapath from sourceNode.attr (in Genro widgets value is kept on sourceNode)
+    const valueAttr = sourceNode.attr.value;
+    if (!valueAttr) { throw new Error('TinyMCE widget: missing required "value" datapath'); }
+    const valuePath = sourceNode.absDatapath(valueAttr);
+    const height = objectPop(attributes,'height') || '100%';
+    const width  = objectPop(attributes,'width')  || '100%';
+    const textareaId = 'tinymce_' + sourceNode.getStringId();
+    // Placeholders: optional, only process if provided
+    const phRaw = objectPop(attributes,'placeholders');
+    const placeholderItems = phRaw ? String(phRaw).split(',').map(s=>s.trim()).filter(Boolean) : [];
+    const base_url = objectPop(attributes,'base_url') || '/_rsrc/js_libs/tinymce';
+    const content_style = objectPop(attributes,'content_style');
+
+    // Optional override for TinyMCE plugins; default excludes 'paste' to avoid 404 if plugin not bundled
+    let plugins = objectPop(attributes,'plugins');
+    if (!plugins){ plugins = 'link lists table code image'; }
+
+    // DropUploader-style params
+    const onUploadedMethod = objectPop(attributes,'onUploadedMethod');
+    const rpcKw = objectExtract(attributes,'rpc_*');
+
+    // New params
+    let removeToolbarItems = objectPop(attributes,'removeToolbarItems');
+    if (removeToolbarItems == null) { removeToolbarItems = []; }
+    if (typeof removeToolbarItems === 'string') {
+      let s = removeToolbarItems.trim();
+      // Try JSON first (supports ["image","code"]) then fall back to bracket/csv parsing (supports ['image','code'] or image,code)
+      try {
+        removeToolbarItems = JSON.parse(s);
+      } catch(e) {
+        if (s[0] === '[' && s[s.length-1] === ']') { s = s.slice(1,-1); }
+        removeToolbarItems = s.split(',').map(t => t.trim().replace(/^['"]|['"]$/g,''));
+        removeToolbarItems = removeToolbarItems.filter(Boolean);
+      }
+    }
+    const imageData = objectPop(attributes,'imageData') === true || objectPop(attributes,'imageData') === 'true';
+    const uploadPath = objectPop(attributes,'uploadPath') || 'home:uploaded_files';
+
+    // Apply basic DOM attrs to the textarea to be created by baseHtml
+    attributes.id = textareaId;
+    attributes.style = `height:${height};width:${width};`;
+
+    // Return saved attributes for created()
+    return {valuePath, textareaId, placeholderItems, base_url, content_style, plugins, removeToolbarItems, imageData, uploadPath, onUploadedMethod, rpcKw};
+  },
+
+  created: function(domNode, savedAttrs, sourceNode){
+    // TinyMCE loader queue to support multiple instances on first load
+    if (!genro._tinymce_waiters){ genro._tinymce_waiters = []; }
+    function enqueueInit(){ genro._tinymce_waiters.push(initEditor); }
+    function drainQueue(){ var q = genro._tinymce_waiters.splice(0); q.forEach(function(fn){ try{ fn(); }catch(e){ console.error(e); } }); }
+
+    var widgetObj = this;
+
+    var initEditor = function(){
+      if (domNode._tinymce_inited) { return; }
+      domNode._tinymce_inited = true;
+      
+      const rawHeight = sourceNode.attr.height;
+      const rawWidth = sourceNode.attr.width;
+      const numericHeight = (rawHeight && /px$/i.test(rawHeight)) ? parseInt(rawHeight, 10) : null;
+      const numericWidth = (rawWidth && /px$/i.test(rawWidth)) ? parseInt(rawWidth, 10) : null;
+
+      // Build toolbar with optional removals, include placeholders button only if needed
+      const defaultToolbarLines = [
+        'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify',
+        savedAttrs.placeholderItems && savedAttrs.placeholderItems.length ?
+          '| link image table | code | placeholders' :
+          '| link image table | code'
+      ];
+      const removeSet = new Set(savedAttrs.removeToolbarItems || []);
+      const toolbar = defaultToolbarLines
+        .map(line => line.split(' ').filter(tok => !removeSet.has(tok)).join(' '))
+        .join(' ');
+
+      tinymce.init({
+        target: domNode,
+        base_url: savedAttrs.base_url,   // '/_rsrc/js_libs/tinymce'
+        suffix: '.min',
+        license_key: 'gpl',
+        promotion: false,
+        menubar: false,
+        branding: false,
+        height: (numericHeight !== null) ? numericHeight : (rawHeight ? undefined : 300),
+        width: rawWidth || null,
+        plugins: savedAttrs.plugins,
+        toolbar: toolbar,
+        forced_root_block: 'p',
+        valid_children: '+a[div|p|span|strong|em]',
+        paste_as_text: false,
+        paste_data_images: !!savedAttrs.imageData,
+        content_style: (savedAttrs.content_style || ''),
+        automatic_uploads: !!savedAttrs.uploadPath,
+        file_picker_types: 'image',
+        file_picker_callback: function (cb) {
+          const url = prompt('Image URL https://…');
+          if (url) cb(url, { alt: '' });
+        },
+        images_upload_handler: function (blobInfo, progress) {
+          // Emulate DropUploader contract: send file + uploadPath + optional onUploadedMethod + rpc_* extras
+          const fd = new FormData();
+          fd.append('file', blobInfo.blob(), blobInfo.filename());
+          fd.append('uploadPath', savedAttrs.uploadPath);
+          if (savedAttrs.onUploadedMethod){ fd.append('onUploadedMethod', savedAttrs.onUploadedMethod); }
+          if (savedAttrs.rpcKw){
+            for (var k in savedAttrs.rpcKw){ fd.append(k, savedAttrs.rpcKw[k]); }
+          }
+          return fetch('/rpc/tinymce_upload', { method: 'POST', body: fd })
+            .then(function(r){ if (!r.ok) { throw new Error('upload http ' + r.status); } return r.json(); })
+            .then(function(json){
+              // Expect {url: '...'} like DropUploader returns a path. Accept also {uploaded_file_path: '...'}
+              var url = json && (json.url || json.uploaded_file_path);
+              if (!url){ throw new Error('invalid upload response'); }
+              progress(100);
+              return url; // TinyMCE will call success with returned value
+            });
+        },
+        images_reuse_filename: true,
+        setup: function(editor){
+          // expose editor for Genro and attach mixins
+          sourceNode.externalWidget = editor;
+          editor.sourceNode = sourceNode;
+          var that = this; // 'this' is not the widget here; capture from outer scope below
+          for (var prop in widgetObj) {
+            if (prop.indexOf('mixin_') === 0) {
+              editor[prop.replace('mixin_', '')] = widgetObj[prop];
+            }
+          }
+          // Apply percentage height to container after init, if needed
+          editor.on('Init', function(){
+            if (rawHeight && /%$/.test(rawHeight)){
+              const c = editor.getContainer();
+              if (c){ c.style.height = rawHeight; }
+            }
+          });
+          // editor -> datastore
+          const pushChange = function(){
+            sourceNode.setRelativeData(savedAttrs.valuePath, editor.getContent());
+          };
+          editor.on('Change KeyUp Undo Redo SetContent', pushChange);
+
+          // datastore -> editor
+          sourceNode.subscribe(savedAttrs.valuePath, function(v, kw2, reason){
+            if (reason === 'container') { return; }
+            if (editor.getContent() !== v) {
+              editor.setContent(v || '');
+            }
+          });
+
+          // Initialize content from current datastore value
+          const initValue = sourceNode.getRelativeData(savedAttrs.valuePath);
+          if (initValue !== undefined) { editor.setContent(initValue || ''); }
+
+          // $placeholders menu only if provided
+          if (savedAttrs.placeholderItems && savedAttrs.placeholderItems.length){
+            editor.ui.registry.addMenuButton('placeholders', {
+              text: '$',
+              fetch: function(cb){
+                const items = savedAttrs.placeholderItems.map(function(name){
+                  const txt = '$' + name.trim();
+                  return { type: 'menuitem', text: txt, onAction: function(){ editor.insertContent(txt); } };
+                });
+                cb(items);
+              }
+            });
+          }
+        }
+      });
+    };
+
+    // Cleanup on node deletion
+    dojo.connect(sourceNode,'_onDeleting',function(){
+      if (window.tinymce){
+        var ed = tinymce.get(savedAttrs.textareaId);
+        if (ed) { ed.remove(); }
+      }
+    });
+
+    // Lazy-load TinyMCE like CKEditor, but queue multiple initializations
+    if (!window.tinymce){
+      enqueueInit();
+      if (!genro._tinymce_loading){
+        genro._tinymce_loading = true;
+        genro.dom.loadJs(savedAttrs.base_url + '/tinymce.min.js', function(){
+          genro._tinymce_loading = false;
+          drainQueue();
+        });
+      }
+    }else{
+      initEditor();
+    }
+  }
+  ,
+  mixin_gnr_value: function(value, kw, trigger_reason){
+      // Update from datastore attribute if Genro triggers this mixin; avoid clobbering while typing
+      var ed = this.sourceNode && this.sourceNode.externalWidget;
+      if (!ed) { return; }
+      if (!ed.hasFocus() && ed.getContent() !== (value || '')){
+        ed.setContent(value || '');
+      }
+  }
+});
