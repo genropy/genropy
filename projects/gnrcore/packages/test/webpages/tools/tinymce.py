@@ -10,14 +10,9 @@ class GnrCustomWebPage(object):
                      removeToolbarItems=['image', 'code'], height='200px')
         
     def test_2_image(self, pane):
-        """Image upload: uploadPath and onUploadedMethod"""
-        pane.tinymce(value='^.text', uploadPath='site:test_uploads',
-                     onUploadedMethod=self.onImageUploaded)
+        """Image upload: uploadPath to specify image upload path"""
+        pane.tinymce(value='^.text', uploadPath='site:test_uploads')
         
     def test_3_imageData(self, pane):
-        """Image upload: uploadPath and imageData"""
+        """Image upload: imageData to manage image as base64"""
         pane.tinymce(value='^.text', imageData=True)
-       
-    @public_method 
-    def onImageUploaded(self, pane, **kwargs):
-        print(x)

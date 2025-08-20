@@ -1450,8 +1450,13 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
         removeToolbarItems = removeToolbarItems.filter(Boolean);
       }
     }
-    const imageData = objectPop(attributes,'imageData') === true || objectPop(attributes,'imageData') === 'true';
-    const uploadPath = objectPop(attributes,'uploadPath') || 'home:uploaded_files';
+    const imageDataRaw = objectPop(attributes,'imageData');
+    const imageData = (imageDataRaw === true || imageDataRaw === 'true' || imageDataRaw === 1 || imageDataRaw === '1');
+    const rawUploadPath = objectPop(attributes,'uploadPath');
+    const uploadPath = rawUploadPath || 'site:uploaded_files';
+    if (imageData && rawUploadPath){
+      throw new Error('TinyMCE widget: imageData=True is mutually exclusive with uploadPath');
+    }
 
     // Apply basic DOM attrs to the textarea to be created by baseHtml
     attributes.id = textareaId;
@@ -1507,30 +1512,90 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
         paste_as_text: false,
         paste_data_images: !!savedAttrs.imageData,
         content_style: (savedAttrs.content_style || ''),
-        automatic_uploads: !!savedAttrs.uploadPath,
+        automatic_uploads: savedAttrs.imageData ? false : !!savedAttrs.uploadPath,
         file_picker_types: 'image',
         file_picker_callback: function (cb) {
           const url = prompt('Image URL https://…');
           if (url) cb(url, { alt: '' });
         },
         images_upload_handler: function (blobInfo, progress) {
-          // Emulate DropUploader contract: send file + uploadPath + optional onUploadedMethod + rpc_* extras
-          const fd = new FormData();
-          fd.append('file', blobInfo.blob(), blobInfo.filename());
-          fd.append('uploadPath', savedAttrs.uploadPath);
-          if (savedAttrs.onUploadedMethod){ fd.append('onUploadedMethod', savedAttrs.onUploadedMethod); }
-          if (savedAttrs.rpcKw){
-            for (var k in savedAttrs.rpcKw){ fd.append(k, savedAttrs.rpcKw[k]); }
-          }
-          return fetch('/rpc/tinymce_upload', { method: 'POST', body: fd })
-            .then(function(r){ if (!r.ok) { throw new Error('upload http ' + r.status); } return r.json(); })
-            .then(function(json){
-              // Expect {url: '...'} like DropUploader returns a path. Accept also {uploaded_file_path: '...'}
-              var url = json && (json.url || json.uploaded_file_path);
-              if (!url){ throw new Error('invalid upload response'); }
-              progress(100);
-              return url; // TinyMCE will call success with returned value
+          if (savedAttrs.imageData){
+            return new Promise(function(resolve, reject){
+              try{
+                var reader = new FileReader();
+                reader.onload = function(){ try{ progress(100); }catch(e){}; resolve(reader.result); };
+                reader.onerror = function(e){ reject(e); };
+                reader.readAsDataURL(blobInfo.blob());
+              }catch(e){ reject(e); }
             });
+          }
+          // Sanitize filename: flatten spaces, accents, and unsafe chars
+          var originalName = blobInfo.filename();
+          var dot = originalName.lastIndexOf('.')
+          var ext = dot >= 0 ? originalName.slice(dot) : '';
+          var base = dot >= 0 ? originalName.slice(0, dot) : originalName;
+          try { base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(_e) {}
+          base = base.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+          var safeFilename = (base || 'upload') + (ext ? ext.toLowerCase() : '');
+          // Use the same path as DropUploader: genro.rpc.uploadMultipart_oneFile
+          // Build params like DropUploader
+          var params = {
+            uploadPath: savedAttrs.uploadPath,
+            filename: safeFilename
+          };
+          if (savedAttrs.onUploadedMethod){ params.onUploadedMethod = savedAttrs.onUploadedMethod; }
+          if (savedAttrs.rpcKw){ for (var k in savedAttrs.rpcKw){ params[k] = savedAttrs.rpcKw[k]; } }
+
+          return new Promise(function(resolve, reject){
+            try{
+              var sender = genro.rpc.uploadMultipart_oneFile(
+                blobInfo.blob(),           // file (Blob)
+                params,                     // params merged above
+                {
+                  method: 'rpc.upload_file',
+                  uploaderId: (sourceNode && typeof sourceNode._id === 'string') ? sourceNode._id : (sourceNode && typeof sourceNode.getStringId === 'function' ? sourceNode.getStringId() : undefined),
+                  uploadPath: params.uploadPath,
+                  filename: params.filename,
+                  onProgress: function(evt){
+                    if (evt && evt.lengthComputable){
+                      var pct = Math.round((evt.loaded / evt.total) * 100);
+                      try{ progress(pct); }catch(e){}
+                    }
+                  },
+                  onResult: function(evt){
+                    try{
+                      var txt = evt.target && evt.target.responseText ? evt.target.responseText : '';
+                      var url = null;
+                      // Try JSON first
+                      try{ var j = JSON.parse(txt); url = (j && (j.url || j.uploaded_file_path || j.path)); }catch(_ignored){}
+                      // Fallbacks: raw string possibly with spaces or quotes
+                      if(!url && typeof txt === 'string'){
+                        var raw = txt.trim();
+                        // strip surrounding quotes
+                        if ((raw[0]==='"' && raw[raw.length-1]==='"') || (raw[0]==="'" && raw[raw.length-1]==="'")){
+                          raw = raw.slice(1,-1);
+                        }
+                        if (/^https?:\/\//i.test(raw)){
+                          url = raw; // full URL even if contains spaces
+                        }else{
+                          // Try to extract URL-ish token, otherwise use as-is
+                          var m = raw.match(/https?:\/\/[^\s"']+/);
+                          url = m ? m[0] : raw;
+                        }
+                      }
+                      if (!url){ throw new Error('Invalid upload response'); }
+                      // Encode spaces and other unsafe chars
+                      try{ url = encodeURI(url); }catch(_e){}
+                      progress(100);
+                      resolve(url);
+                    }catch(e){ reject(e); }
+                  },
+                  onError: function(evt){ reject(new Error('Upload error')); },
+                  onAbort: function(evt){ reject(new Error('Upload aborted')); }
+                }
+              );
+            }catch(e){ reject(e); }
+          });
         },
         images_reuse_filename: true,
         setup: function(editor){
