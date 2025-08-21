@@ -1477,7 +1477,15 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     var initEditor = function(){
       if (domNode._tinymce_inited) { return; }
       domNode._tinymce_inited = true;
-      
+
+      // Preload initial content into the textarea so TinyMCE adopts it as initial value
+      try {
+        var initialContent = sourceNode.getRelativeData(savedAttrs.valuePath);
+        if (typeof initialContent !== 'undefined' && initialContent !== null){
+          domNode.value = initialContent;
+        }
+      } catch(_e) {}
+
       const rawHeight = savedAttrs._rawHeight;   // respects default '100%' from creating
       const rawWidth  = savedAttrs._rawWidth;    // respects default '100%'
       const numericHeight = (rawHeight && /px$/i.test(rawHeight)) ? parseInt(rawHeight, 10) : null;
@@ -1641,16 +1649,35 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
           if (cont){
             ['dragenter','dragover'].forEach(function(ev){ cont.addEventListener(ev, focusOnDrag, {passive:false}); });
           }
-          // Apply percentage height to container after init, if needed
-          editor.on('Init', function(){
-            if (rawHeight && /%$/.test(rawHeight)){
-              const c = editor.getContainer();
-              if (c){
-                c.style.height = rawHeight;     // apply percentage to container
-                // Remove any fixed pixel height applied by init
-                if (c.style.minHeight){ c.style.minHeight = ''; }
-              }
+          // --- Preload from datastore and subscribe like other widgets ---
+          try { sourceNode.registerDynAttr && sourceNode.registerDynAttr('value'); } catch(_e) {}
+          // Keep in sync if framework triggers gnr_value
+          editor.gnr_value = function(value){
+            if (!editor.hasFocus() && editor.getContent() !== (value || '')){
+              editor.setContent(value || '');
             }
+          };
+          // Apply percentage height to container after init, if needed, with min-height fallback
+          editor.on('Init', function(){
+            const c = editor.getContainer();
+            if (!c) { return; }
+            if (rawHeight && /%$/.test(rawHeight)){
+              c.style.height = rawHeight;        // apply percentage height
+              c.style.minHeight = '200px';       // ensure visibility when parent has no size
+            } else if (!rawHeight || rawHeight === '100%'){
+              // Default path: treat as 100% with a safety min-height
+              c.style.height = '100%';
+              c.style.minHeight = '200px';
+            } else {
+              // Explicit pixel height already handled by init; no min-height override
+            }
+            // Ensure initial content from datastore is applied after TinyMCE finishes init
+            try{
+              var iv = sourceNode.getRelativeData(savedAttrs.valuePath);
+              if (typeof iv !== 'undefined' && iv !== null && editor.getContent() !== (iv || '')){
+                editor.setContent(iv || '');
+              }
+            }catch(_e){}
           });
           // editor -> datastore
           const pushChange = function(){
@@ -1665,10 +1692,6 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
               editor.setContent(v || '');
             }
           });
-
-          // Initialize content from current datastore value
-          const initValue = sourceNode.getRelativeData(savedAttrs.valuePath);
-          if (initValue !== undefined) { editor.setContent(initValue || ''); }
 
           // $placeholders menu only if provided
           if (savedAttrs.placeholderItems && savedAttrs.placeholderItems.length){
@@ -1716,14 +1739,59 @@ dojo.declare("gnr.widgets.TinyMCE", gnr.widgets.baseHtml, {
     }else{
       initEditor();
     }
-  }
-  ,
+  },
+  
   mixin_gnr_value: function(value, kw, trigger_reason){
-      // Update from datastore attribute if Genro triggers this mixin; avoid clobbering while typing
       var ed = this.sourceNode && this.sourceNode.externalWidget;
       if (!ed) { return; }
+      // If value is not passed by the caller, fetch from datastore like other widgets
+      if (typeof value === 'undefined'){
+        try { value = this.sourceNode.getAttributeFromDatasource('value'); } catch(_e) { value = ''; }
+      }
       if (!ed.hasFocus() && ed.getContent() !== (value || '')){
         ed.setContent(value || '');
       }
+  },
+  
+  mixin_gnr_setDisabled: function(disabled){
+      // `this` is the TinyMCE editor instance because mixins are attached in setup()
+      var ed = this;
+      try{
+        if (disabled){
+          if (ed.mode && typeof ed.mode.set === 'function'){ ed.mode.set('readonly'); }
+          else if (typeof ed.setMode === 'function'){ ed.setMode('readonly'); }
+          var body = ed.getBody && ed.getBody();
+          if (body){ body.setAttribute('contenteditable','false'); }
+          var c = ed.getContainer && ed.getContainer();
+          if (c && c.querySelectorAll){
+            var ctrls = c.querySelectorAll('button, [role="menuitem"], [aria-label][tabindex]');
+            Array.prototype.forEach.call(ctrls, function(el){
+              try{ el.disabled = true; el.setAttribute('tabindex','-1'); }catch(_e){}
+            });
+          }
+        }else{
+          if (ed.mode && typeof ed.mode.set === 'function'){ ed.mode.set('design'); }
+          else if (typeof ed.setMode === 'function'){ ed.setMode('design'); }
+          var body2 = ed.getBody && ed.getBody();
+          if (body2){ body2.setAttribute('contenteditable','true'); }
+          var c2 = ed.getContainer && ed.getContainer();
+          if (c2 && c2.querySelectorAll){
+            var ctrls2 = c2.querySelectorAll('button, [role="menuitem"], [aria-label][tabindex]');
+            Array.prototype.forEach.call(ctrls2, function(el){
+              try{ el.disabled = false; el.removeAttribute('tabindex'); }catch(_e){}
+            });
+          }
+        }
+      }catch(e){}
+  },
+  
+  mixin_gnr_readOnly: function(value, kw, trigger_reason){
+      // Align with other widgets: readOnly maps to disabled behavior
+      this.gnr_setDisabled(!!value);
+  },
+
+  mixin_gnr_disabled: function(value, kw, trigger_reason){
+      this.gnr_setDisabled(!!value);
   }
+  
 });

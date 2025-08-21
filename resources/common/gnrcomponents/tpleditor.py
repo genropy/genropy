@@ -392,7 +392,7 @@ class TemplateEditor(TemplateEditorBase):
                             FIRE .tree_rebuild;""",
             varsbag="=.data.varsbag",parameters='=.data.parameters',
             varcaption='!!Fields',parscaption='!!Parameters',_if='status=="edit"',status='^.status')
-        vartab = tc.contentPane(title='Variables',overflow='auto',text_align='left',margin='2px',_class='pbl_roundedGroup')
+        vartab = tc.contentPane(title='!!Variables',overflow='auto',text_align='left',margin='2px',_class='pbl_roundedGroup')
         vartab.tree(storepath='.allvariables',_fired='^.tree_rebuild',onDrag="dragValues['text/plain'] = '$'+treeItem.attr.code;",
                 hideValues=True,draggable=True,_class='fieldsTree',labelAttribute='code'
                 )
