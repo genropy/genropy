@@ -60,6 +60,8 @@ class Table(object):
         #                                    cnd='@dest_user_id.email=$to_address', relation_name='received_messages')
         tbl.formulaColumn('dest_user_id', '$user_id', name_long='!!Destination user')
         tbl.formulaColumn('sent','$send_date IS NOT NULL', name_long='!!Sent')
+        tbl.formulaColumn('message_to_send', "$in_out=:out AND $send_date IS NULL AND $error_msg IS NULL", var_out='O', 
+                            name_long='!!Message to send', dtype='B')
         tbl.formulaColumn('plain_text', """regexp_replace($body, '<[^>]*>', '', 'g')""")
         tbl.formulaColumn('abstract', """LEFT(REPLACE($plain_text,'&nbsp;', ''),300)""", name_long='!![en]Abstract')
         tbl.formulaColumn('delta_send',"CAST( EXTRACT(EPOCH FROM ($send_date-$__ins_ts)) AS INTEGER)",dtype='L')
@@ -283,9 +285,21 @@ class Table(object):
     
     
     @public_method
-    def sendMessage(self,pkey=None):
-        site = self.db.application.site
-        mail_handler = site.getService('mail')
+    def sendMessage(self,pkey=None, smtp_connection=None, **kwargs):
+        """
+        Send a single queued message.
+
+        Uses the message's account_id to resolve SMTP parameters from email.account,
+        merges any overrides from **kwargs, and sends the email.
+
+        If `smtp_connection` is provided, it will be reused and NOT closed here.
+        If not provided, the underlying mail service will open and close a new connection.
+
+        Expected types:
+        - pkey: message id (string/uuid)
+        - smtp_connection: an open SMTP object from `mail.smtp_session(...)` (optional)
+        """
+        mail_handler = self.db.application.site.getService('mail')
         with self.recordToUpdate(pkey,for_update='SKIP LOCKED',ignoreMissing=True) as message:
             if not message:
                 return
@@ -314,9 +328,8 @@ class Table(object):
                                 from_address=message['from_address'] or mp['from_address'], 
                                 attachments=attachments, 
                                 smtp_host=mp['smtp_host'], port=mp['port'], user=mp['user'], password=mp['password'],
-                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], 
-                                reply_to=message['reply_to'],
-                                async_=False,
+                                ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
+                                smtp_connection=smtp_connection,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
                 message['send_date'] = datetime.now()
                 message['bcc_address'] = bcc_address

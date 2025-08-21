@@ -23,16 +23,16 @@ class GnrCustomWebPage(object):
     
     @public_method
     def sendMail(self,service_name=None,to_address=None,from_address=None,subject=None,body=None):
-        mail_service = self.site.getService(service_name)
+        mail_service = self.site.getService(service_name=service_name, service_type='mail')
         assert mail_service,'set in services a mail service'
         result = mail_service.sendmail(to_address=to_address, from_address=from_address, subject=subject, body=body)
+        
         return result
 
     def test_1_newMessageFromTemplate(self,pane):
         "Send e-mail with template. You must configure a template and package email before testing"
         if not 'email' in self.db.packages:
-            pane.div('You must install package email before testing this function', color='red')
-            return
+            return pane.div('Package email not installed, cannot test this feature')
         fb=pane.formbuilder(cols=3)
         fb.textBox(value='^.mail.to', lbl='To:')
         fb.textBox(value='^.mail.cc', lbl='CC:')
