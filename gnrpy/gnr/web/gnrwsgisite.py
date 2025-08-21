@@ -1106,11 +1106,14 @@ class GnrWsgiSite(object):
         if auxapp.remote_db:
             remote_db_attr = auxapp.config.getAttr('remote_db.%s' %auxapp.remote_db)
             if remote_db_attr:
-                if 'ssh_host' in remote_db_attr:
-                    host = remote_db_attr['ssh_host'].split('@')[1] if '@' in remote_db_attr['ssh_host'] else remote_db_attr['ssh_host']
+                remote_db_attr = dict(remote_db_attr)
+                ssh_host = remote_db_attr.pop('ssh_host',None)
+                if ssh_host:
+                    host = ssh_host.split('@')[1] if '@' in ssh_host else ssh_host
                     port = remote_db_attr.get('port')
                     dbattr['remote_host'] = host
                     dbattr['remote_port'] = port
+                dbattr.update(remote_db_attr)
         self.db.stores_handler.add_store(storename,dbattr=dbattr)
 
 

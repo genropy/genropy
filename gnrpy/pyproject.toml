@@ -41,6 +41,7 @@ dependencies = [
 	     "psutil",
 	     "pymupdf",
 	     "pypdftk",
+	     "PyPDF2",
 	     "pyro4",
 	     "python-dateutil",
 	     "pytz",
@@ -54,6 +55,7 @@ dependencies = [
 	     "supervisor",
 	     "tornado", # used for async
 	     "tzlocal",
+	     "unidecode",
 	     "vobject",
 	     "weasyprint",
 	     "webob",

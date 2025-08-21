@@ -13,7 +13,7 @@ class GnrK8SGenerator(object):
     def __init__(self, instance_name, image,
                  fqdn,
                  deployment_name=None, split=False,
-                 env_file=False, env_secret=None,
+                 env_file=False, env_secrets=[],
                  container_port=8000,
                  secret_name=None,
                  replicas=1):
@@ -30,7 +30,7 @@ class GnrK8SGenerator(object):
         self.split = split
         self.replicas = replicas
         self.env_file = env_file
-        self.env_secret = env_secret
+        self.env_secrets = env_secrets
         self.env = []
         if self.env_file:
             if not os.path.isfile(self.env_file):
@@ -59,9 +59,28 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_DAEMON_PORT', value=str(self.GNR_DAEMON_PORT)))
         # have gunicorn listen on all interfaces
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
-        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'http://{self.fqdn}'))
+        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdn}'))
 
-
+    def get_pv(self):
+        pv = {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": f"{self.stack_name}-site-pv",
+            },
+            "spec": {
+                "capacity": {
+                    "storage": "1Gi",
+                },
+                "accessModes": ['ReadWriteMany'],
+                "storageClassName": "standard",
+                "hostPath": {
+                    "path": f"/mnt/data/{self.stack_name}-site"
+                }
+            }
+        }
+        return [pv]
+    
     def get_pvc(self):
         pvc = {
             "apiVersion": "v1",
@@ -71,7 +90,7 @@ class GnrK8SGenerator(object):
                 },
             "spec": {
                 "accessModes": [
-                    "ReadWriteOnce"
+                    "ReadWriteMany"
                     ],
                 "resources": {
                     "requests": {
@@ -89,11 +108,12 @@ class GnrK8SGenerator(object):
         else:
             deployments, services, ingress = self.get_monolithic_conf()
         resources = []
+        resources.extend(self.get_pv())
+        resources.extend(self.get_pvc())
         resources.extend(deployments)
         resources.extend(services)
         resources.extend(ingress)
-
-        resources.extend(self.get_pvc())
+        
         # Output YAML to stdout or write to file
         yaml.dump_all(resources, fp, sort_keys=False)
 
@@ -113,12 +133,16 @@ class GnrK8SGenerator(object):
             container = {
                 'name': f'{name}-container',
                 'image': self.image,
+                'imagePullPolicy': "Always",
                 'command': ['gnr'],
                 'args': ['web','stack'] + args,
                 'env': self.env
             }
-            if self.env_secret:
-                container['envFrom'] = [{'secretRef': {'name': self.env_secret}}]
+            
+            if self.env_secrets:
+                container['envFrom'] = []
+                for env_s in self.env_secrets:
+                    container['envFrom'].append({'secretRef': {'name': env_s}})
 
             if self.services_port.get(service, None):
                 container['ports'] = [
@@ -157,6 +181,26 @@ class GnrK8SGenerator(object):
                     }
                 }
             }
+            if service == "daemon":
+                container['readinessProbe'] = {
+                    "tcpSocket": {
+                        "port": self.GNR_DAEMON_PORT
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 5
+                }
+
+            else:
+                deployment['spec']['template']['spec']['initContainers'] = [
+                    {
+                        "name": "wait-for-daemon",
+                        "image": "busybox",
+                        "command": [
+                            "sh", "-c",
+                            f"until nc -z {self.stack_name}-daemon {self.GNR_DAEMON_PORT}; do echo \"Waiting for {self.stack_name}-daemon...\"; sleep 2; done"
+                        ]
+                    }
+                ]
             if self.secret_name:
                 deployment['spec']['template']['spec']['imagePullSecrets'] = [{"name": self.secret_name}]
             deployments.append(deployment)
@@ -195,6 +239,7 @@ class GnrK8SGenerator(object):
             # to expose its port
             'daemon': ['-H','127.0.0.1', '-P', str(self.GNR_DAEMON_PORT)]
         }
+        self.env.append(dict(name='GNR_DAEMON_HOST', value=f'127.0.0.1'))
         
         args = ['web','stack',self.instance_name, '--all']
         service_def = {
@@ -204,8 +249,8 @@ class GnrK8SGenerator(object):
             'args': args,
             'env': self.env,
             'securityContext': {
-                "runAsUser": 1000,
-                "runAsGroup": 1000
+                "runAsUser": 100,
+                "runAsGroup": 100
             },
             'volumeMounts': [
                 {
@@ -216,8 +261,10 @@ class GnrK8SGenerator(object):
                 
         }
 
-        if self.env_secret:
-            service_def['envFrom'] = [{'secretRef': {'name': self.env_secret}}]
+        if self.env_secrets:
+            service_def['envFrom'] = []
+            for env_s in self.env_secrets:
+                service_def['envFrom'].append({'secretRef': {'name': env_s}})
             
         for service in self.services:
             if self.services_port.get(service, None):
@@ -257,8 +304,22 @@ class GnrK8SGenerator(object):
                     },
                     'spec': {
                         'securityContext': {
-                            'fsGroup': 1000
+                            'fsGroup': 100
                         },
+                        'initContainers': [
+                            {
+                                "name": "volume-permissions",
+                                "image": "busybox",
+                                "command": ["sh", "-c", f"chown -R 100:100 /mnt/data/{self.stack_name}-site"],
+                                "volumeMounts": [
+                                    {
+                                        "name": f"{self.stack_name}-site-volume",
+                                        "mountPath": f"/mnt/data/{self.stack_name}-site",
+                                        
+                                    }
+                                ]
+                            }
+                        ],
                         'containers':containers,
                         'volumes': [
                             {
@@ -280,9 +341,9 @@ class GnrK8SGenerator(object):
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {
-                "name": self.stack_name,
+                "name": self.application_name,
                 "labels": {
-                    "app": self.stack_name
+                    "app": self.application_name,
                 }
             },
             "spec": {
