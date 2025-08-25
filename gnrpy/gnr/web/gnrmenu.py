@@ -103,7 +103,13 @@ class MenuStruct(GnrStructData):
     
     
     def branch(self, label, basepath=None ,tags='',pkg=None,**kwargs):
-        return self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
+        b = self.child('branch',label=label,basepath=basepath,tags=tags,pkg=pkg,**kwargs)
+        # ensure nested branches keep a valid page reference
+        try:
+            b._page = getattr(self, '_page', None)
+        except Exception:
+            pass
+        return b
     
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
@@ -135,21 +141,39 @@ class MenuStruct(GnrStructData):
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
-    def packageBranch(self,label=None,pkg=None,subMenu=None,**kwargs):
+    def packageBranch(self,label=None,pkg=None,subMenu=None,_wrap=True,**kwargs):
+        """Build a package branch.
+        _wrap=True means we are at an external call-site and should create a wrapper branch
+        for a single package; internal calls set _wrap=False to avoid recursion.
+        """
         kwargs['branchMethod'] = kwargs.get('branchMethod') or subMenu
         if pkg=='*':
-            packages = [pkg for pkg in self._page.db.packages.keys() if pkg!=self._page.package.name]
+            packages = [p for p in self._page.db.packages.keys() if p != self._page.package.name]
         else:
-            packages = pkg.split(',')
-        if len(packages)>1:
-            kwargs.pop('branchMethod',None)
-            branch = self.branch(label=label,**kwargs)
-            for pkg in packages:
-                pkgattr = self._page.db.package(pkg).attributes
-                label = pkgattr.get('name_plural') or pkgattr.get('name_long') or pkg
-                branch.packageBranch(label=label,pkg=pkg)
+            packages = pkg.split(',') if pkg else []
+
+        # Multiple packages: keep wrapper branch. Internal calls disable further wrapping.
+        if len(packages) > 1:
+            kwargs.pop('branchMethod', None)
+            branch = self.branch(label=label, **kwargs)
+            for p in packages:
+                pkgattr = self._page.db.package(p).attributes
+                plabel = pkgattr.get('name_plural') or pkgattr.get('name_long') or p
+                branch.packageBranch(label=plabel, pkg=p, _wrap=False)
             return branch
-        return self.child('packageBranch',label=label,pkg=pkg,_returnStruct=False,**kwargs)
+
+        # Single package path
+        single_pkg = packages[0] if packages else None
+        pkgattr = self._page.db.package(single_pkg).attributes if single_pkg else {}
+        branch_label = label or pkgattr.get('name_long') or single_pkg or 'Menu'
+
+        if _wrap:
+            # External call: create a wrapper branch once, then call internally without wrapping
+            wrapper = self.branch(label=branch_label)
+            return wrapper.packageBranch(label=branch_label, pkg=single_pkg, _wrap=False, **kwargs)
+        else:
+            # Internal call: emit the actual packageBranch node, no further wrapping
+            return self.child('packageBranch', label=branch_label, pkg=single_pkg, _returnStruct=False, **kwargs)
 
     
     def tableBranch(self,label=None,table=None,**kwargs):
