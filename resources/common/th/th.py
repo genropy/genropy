@@ -129,22 +129,21 @@ class TableHandler(BaseComponent):
             if addrow is not True:
                 addrow_defaults = addrow
 
-        if picker or picker_kwargs:
+        if picker:
             top_slots.append('thpicker')
-            if picker is True:
-                picker = tblobj.pkey
-                picker_kwargs['table'] = table
-                if picker_kwargs.pop('exclude_assigned',None):
-                    picker_base_condition = '$%(_fkey_name)s IS NULL' %condition_kwargs 
-                else:
-                    picker_base_condition = '$%(_fkey_name)s IS NULL OR $%(_fkey_name)s!=:fkey' %condition_kwargs 
-                picker_custom_condition = picker_kwargs.get('condition')
-                picker_kwargs['condition'] = picker_base_condition if not picker_custom_condition else '(%s) AND (%s)' %(picker_base_condition,picker_custom_condition)
-                for k,v in list(condition_kwargs.items()):
-                    picker_kwargs['condition_%s' %k] = v
-                if delrow:
-                    tblname = tblattr.get('name_plural') or tblattr.get('name_one') or tblobj.name
-                    unlinkdict = dict(one_name=tblname.lower(),
+            picker = tblobj.pkey
+            picker_kwargs['table'] = table
+            if picker_kwargs.pop('exclude_assigned',None):
+                picker_base_condition = '$%(_fkey_name)s IS NULL' %condition_kwargs 
+            else:
+                picker_base_condition = '$%(_fkey_name)s IS NULL OR $%(_fkey_name)s!=:fkey' %condition_kwargs 
+            picker_custom_condition = picker_kwargs.get('condition')
+            picker_kwargs['condition'] = picker_base_condition if not picker_custom_condition else '(%s) AND (%s)' %(picker_base_condition,picker_custom_condition)
+            for k,v in list(condition_kwargs.items()):
+                picker_kwargs['condition_%s' %k] = v
+            if delrow:
+                tblname = tblattr.get('name_plural') or tblattr.get('name_one') or tblobj.name
+                unlinkdict = dict(one_name=tblname.lower(),
                                     field=condition_kwargs['_fkey_name'])
             picker_kwargs['relation_field'] = picker
 
