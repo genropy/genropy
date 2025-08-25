@@ -111,25 +111,45 @@ class MenuStruct(GnrStructData):
             pass
         return b
     
-    def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
+    def webpage(self, label,filepath=None,tags='',multipage=None, _wrap=True, **kwargs):
+        if _wrap:
+            wlabel = label or (filepath and str(filepath).split('/')[-1]) or 'Page'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.webpage(label=wlabel, filepath=filepath, tags=tags, multipage=multipage, _wrap=False, **kwargs)
+            return b
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
 
-    def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
+    def thpage(self, label=None,table=None,tags='',multipage=True, _wrap=True, **kwargs):
+        if _wrap:
+            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Table'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.thpage(label=wlabel, table=table, tags=tags, multipage=multipage, _wrap=False, **kwargs)
+            return b
         return self.child('thpage',label=label,table=table,
                             multipage=multipage,tags=tags,_returnStruct=False,**kwargs)
 
-    def lookups(self,label=None,lookup_manager=None,tags=None,**kwargs):
+    def lookups(self,label=None,lookup_manager=None,tags=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or 'Lookups'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.lookups(label=wlabel, lookup_manager=lookup_manager, tags=tags, _wrap=False, **kwargs)
+            return b
         return self.child('lookups',label=label,lookup_manager=lookup_manager,
                     tags=tags,_returnStruct=False,**kwargs)
     
-    def lookupPage(self,label=None,table=None,tags=None,**kwargs):
+    def lookupPage(self,label=None,table=None,tags=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Lookup'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.lookupPage(label=wlabel, table=table, tags=tags, _wrap=False, **kwargs)
+            return b
         return self.child('lookupPage',label=label,table=table,
                     tags=tags,_returnStruct=False,**kwargs)
 
     def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,_wrap=True,**kwargs):
         if _wrap:
-            wlabel = label or (pkg and str(pkg)) or 'Lookups'
+            wlabel = label or (pkg and str(pkg)) or '!!Lookups'
             b = self.branch(label=wlabel, tags=tags, flatten=True)
             b.lookupBranch(label=wlabel, pkg=pkg, tables=tables, tags=tags, _wrap=False, **kwargs)
             return b
@@ -145,7 +165,12 @@ class MenuStruct(GnrStructData):
         return self.child('directoryBranch', label=label, pkg=pkg, folder=folder,
                            tags=tags, _returnStruct=False, **kwargs)
 
-    def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,**kwargs):
+    def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or (pkg and str(pkg)) or 'Dashboard'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.dashboardBranch(label=wlabel, pkg=pkg, tags=tags, code=code, cacheTime=cacheTime, _wrap=False, **kwargs)
+            return b
         return self.child('packageBranch',label=label,pkg='biz',branchMethod='dashboardBranch',
                             branch_filterPkg=pkg,branch_code=code,
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
