@@ -382,7 +382,16 @@ class MenuResolver(BagResolver):
                     where=attributes.get('titleCounter_condition'),
                     **titleCounter_attrs
                 )
-            result.setItem(node.label, value, attributes)
+            #generate unique keys
+            key = node.label or attributes.get('label') or 'item'
+            if result.getNode(key) is not None:
+                # genera chiavi uniche: label__2, label__3, ...
+                i = 2
+                while result.getNode(f"{key}__{i}") is not None:
+                    i += 1
+                key = f"{key}__{i}"
+            attributes.setdefault('label', node.label)  # label visibile coerente
+            result.setItem(key, value, attributes)
 
         for node in source:
             # If this is a synthetic wrapper marked as flatten, inline its children
