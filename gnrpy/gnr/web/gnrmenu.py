@@ -176,7 +176,7 @@ class MenuStruct(GnrStructData):
                             tags=tags,cacheTime=cacheTime,_returnStruct=False,**kwargs)
 
 
-    def packageBranch(self,label=None,pkg=None,subMenu=None,_wrap=True,**kwargs):
+    def packageBranch(self,label=None,pkg=None,subMenu=None,expand=False,_wrap=True,**kwargs):
         """Build a package branch.
         _wrap=True means we are at an external call-site and should create a wrapper branch
         for a single package; internal calls set _wrap=False to avoid recursion.
@@ -194,7 +194,7 @@ class MenuStruct(GnrStructData):
             for p in packages:
                 pkgattr = self._page.db.package(p).attributes
                 plabel = pkgattr.get('name_plural') or pkgattr.get('name_long') or p
-                branch.packageBranch(label=plabel, pkg=p, _wrap=False)
+                branch.packageBranch(label=plabel, pkg=p, expand=expand, _wrap=False)
             return branch
 
         # Single package path
@@ -205,10 +205,10 @@ class MenuStruct(GnrStructData):
         if _wrap:
             # External call: create a wrapper branch once, then call internally without wrapping
             wrapper = self.branch(label=branch_label, flatten=True)
-            return wrapper.packageBranch(label=branch_label, pkg=single_pkg, _wrap=False, **kwargs)
+            return wrapper.packageBranch(label=branch_label, pkg=single_pkg, expand=expand, _wrap=False, **kwargs)
         else:
             # Internal call: emit the actual packageBranch node, no further wrapping
-            return self.child('packageBranch', label=branch_label, pkg=single_pkg, _returnStruct=False, **kwargs)
+            return self.child('packageBranch', label=branch_label, pkg=single_pkg, expand=expand, _returnStruct=False, **kwargs)
 
     
     def tableBranch(self,label=None,table=None,_wrap=True,**kwargs):
@@ -418,6 +418,28 @@ class MenuResolver(BagResolver):
             attributes.setdefault('label', node.label)  # label visibile coerente
             result.setItem(key, value, attributes)
 
+        # If there is exactly one packageBranch and it is marked expand=True, inline its children at root
+        try:
+            if hasattr(source, '__len__') and len(source) == 1:
+                n0 = source.getNode('#0')
+                if n0 is not None and n0.attr.get('tag') == 'packageBranch' and n0.attr.get('expand'):
+                    if self.allowedNode(n0):
+                        handler = getattr(self, 'nodeType_packageBranch')
+                        try:
+                            value, attributes = handler(n0)
+                        except NotAllowedException:
+                            return result
+                        innerbag = None
+                        if hasattr(value, 'load'):
+                            innerbag = value.load()
+                        elif isinstance(value, Bag):
+                            innerbag = value
+                        if innerbag:
+                            for child in innerbag:
+                                _process_node(child)
+                            return result
+        except Exception:
+            pass
         for node in source:
             # If this is a synthetic wrapper marked as flatten, inline its children
             if node.attr.get('flatten') and node.attr.get('tag') == 'branch':
