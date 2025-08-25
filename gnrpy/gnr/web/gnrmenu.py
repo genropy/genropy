@@ -127,13 +127,23 @@ class MenuStruct(GnrStructData):
         return self.child('lookupPage',label=label,table=table,
                     tags=tags,_returnStruct=False,**kwargs)
 
-    def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,**kwargs):
-        return self.child('lookupBranch',label=label,pkg=pkg,tables=tables,
-                            tags=tags,_returnStruct=False,**kwargs)
+    def lookupBranch(self,label=None,pkg=None,tables=None,tags=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or (pkg and str(pkg)) or 'Lookups'
+            b = self.branch(label=wlabel, tags=tags, flatten=True)
+            b.lookupBranch(label=wlabel, pkg=pkg, tables=tables, tags=tags, _wrap=False, **kwargs)
+            return b
+        return self.child('lookupBranch', label=label, pkg=pkg, tables=tables,
+                           tags=tags, _returnStruct=False, **kwargs)
     
-    def directoryBranch(self,label=None,pkg=None,folder=None,tags=None,**kwargs):
-        return self.child('directoryBranch',label=label,pkg=pkg,folder=folder,
-                            tags=tags,_returnStruct=False,**kwargs)
+    def directoryBranch(self,label=None,pkg=None,folder=None,tags=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or (folder and str(folder).split('/')[-1].replace('_',' ').title()) or 'Directory'
+            b = self.branch(label=wlabel, tags=tags, pkg=pkg, flatten=True)
+            b.directoryBranch(label=wlabel, pkg=pkg, folder=folder, tags=tags, _wrap=False, **kwargs)
+            return b
+        return self.child('directoryBranch', label=label, pkg=pkg, folder=folder,
+                           tags=tags, _returnStruct=False, **kwargs)
 
     def dashboardBranch(self,label,pkg=None,tags=None,code=None,cacheTime=None,**kwargs):
         return self.child('packageBranch',label=label,pkg='biz',branchMethod='dashboardBranch',
@@ -169,15 +179,20 @@ class MenuStruct(GnrStructData):
 
         if _wrap:
             # External call: create a wrapper branch once, then call internally without wrapping
-            wrapper = self.branch(label=branch_label)
+            wrapper = self.branch(label=branch_label, flatten=True)
             return wrapper.packageBranch(label=branch_label, pkg=single_pkg, _wrap=False, **kwargs)
         else:
             # Internal call: emit the actual packageBranch node, no further wrapping
             return self.child('packageBranch', label=branch_label, pkg=single_pkg, _returnStruct=False, **kwargs)
 
     
-    def tableBranch(self,label=None,table=None,**kwargs):
-        return self.child('tableBranch',label=label,table=table,_returnStruct=False,**kwargs)
+    def tableBranch(self,label=None,table=None,_wrap=True,**kwargs):
+        if _wrap:
+            wlabel = label or (table and table.split('.')[-1].replace('_',' ').title()) or 'Table'
+            b = self.branch(label=wlabel, flatten=True)
+            b.tableBranch(label=wlabel, table=table, _wrap=False, **kwargs)
+            return b
+        return self.child('tableBranch', label=label, table=table, _returnStruct=False, **kwargs)
 
 
     def toPython(self,filepath=None):
@@ -320,19 +335,38 @@ class MenuResolver(BagResolver):
 
     def load(self):
         result = Bag()
-        source = self.sourceBag[self.path]
-        for node in source:
+        # Generalized source resolution: support None path and absent keys
+        source_root = self.sourceBag
+        source = source_root[self.path] if self.path else source_root
+        if source is None:
+            source = source_root
+            if source is None:
+                return result
+        # Flatten chains of a single top-level branch so inner items are shown directly
+        try:
+            while hasattr(source, '__len__') and len(source) == 1:
+                n0 = source.getNode('#0')
+                if n0 is not None and n0.attr.get('tag') == 'branch' and n0.value is not None:
+                    source = n0.value
+                else:
+                    break
+        except Exception:
+            pass
+        def _process_node(node):
             if not self.allowedNode(node):
-                continue
+                return
             warning = self.checkLegacyNode(node)
             if warning:
                 self._page.log(f'AppMenu Changed tag in node {self.path}.{node.label}: {warning}')
-            menuTag = node.attr["tag"]
-            handler = getattr(self,f'nodeType_{menuTag}')
+            menuTag = node.attr.get("tag")
+            handler = getattr(self, f'nodeType_{menuTag}') if menuTag else None
             try:
-                value,attributes = handler(node)
+                if handler:
+                    value, attributes = handler(node)
+                else:
+                    value, attributes = None, dict(node.attr)
             except NotAllowedException:
-                continue
+                return
             self.setLabelClass(attributes)
             titleCounter_val = attributes.get('titleCounter')
             if titleCounter_val and menuTag != 'tableBranch':
@@ -341,7 +375,7 @@ class MenuResolver(BagResolver):
                     titleCounter_attrs.update(titleCounter_val)
                 table = attributes.get('table') or titleCounter_attrs.get('table')
                 if not table:
-                    continue
+                    return
                 self._page.subscribeTable(table, True, subscribeMode=True)
                 attributes['titleCounter_count'] = self._page.app.getRecordCount(
                     table=table,
@@ -349,6 +383,17 @@ class MenuResolver(BagResolver):
                     **titleCounter_attrs
                 )
             result.setItem(node.label, value, attributes)
+
+        for node in source:
+            # If this is a synthetic wrapper marked as flatten, inline its children
+            if node.attr.get('flatten') and node.attr.get('tag') == 'branch':
+                if not self.allowedNode(node):
+                    continue
+                inner = node.value or Bag()
+                for child in inner:
+                    _process_node(child)
+                continue
+            _process_node(node)
         return result
 
     def setLabelClass(self,attributes):
