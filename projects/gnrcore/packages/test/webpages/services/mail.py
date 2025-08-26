@@ -40,7 +40,7 @@ class GnrCustomWebPage(object):
         fb.textBox(value='^.mail.subject', lbl='Subject:')
         fb.dbSelect(value='^.tpl.template_id', lbl='Template', 
                         table='adm.userobject', hasDownArrow=True, condition='$objtype=:tpl', condition_tpl='template',
-                        rowcaption='$code,$description', auxColumns='$description,$userid', selected_tbl='^.tpl.tbl')
+                        rowcaption='$code,$description', auxColumns='$description,$userid', selected_tbl='.tpl.tbl')
         fb.dbSelect(value='^.mail.account_id', lbl='Mail account', table='email.account', hasDownArrow=True)
 
         send = fb.button('Send')

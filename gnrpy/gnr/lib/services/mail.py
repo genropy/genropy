@@ -90,7 +90,7 @@ class MailService(GnrBaseService):
     """A class for mail management."""
     service_name = 'mail'
 
-    def __init__(self, parent=None, account_name=None, from_address=None, smtp_host=None, user=None,
+    def __init__(self, parent=None, from_address=None, smtp_host=None, user=None,
                          password=None, port=None, ssl=False,tls=False, system_bcc=None,**kwargs):
         self.parent = parent
         self.smtp_account = {}
