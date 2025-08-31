@@ -1204,7 +1204,9 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
     startCapture:function(sourceNode,capture_kw){
         var onErrorGetUserMedia = objectPop(capture_kw,'onReject');
         var onAccept = objectPop(capture_kw,'onAccept');
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        let capture_enviroment= sourceNode.attr.capture === 'environment';
+        let video = capture_enviroment ? {facingMode: "environment"} : true
+        navigator.mediaDevices.getUserMedia({ video: video, audio: false })
         .then(function(stream) {
             if(onAccept){
                 funcApply(onAccept,{},sourceNode);
@@ -5114,7 +5116,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var that = this;
         if(objectNotEmpty(crop)){
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
-            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId');
+            var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
                 innerImage.placeholder = '/_gnr/11/css/icons/placeholder_img_dflt.png'
             }
@@ -5197,6 +5199,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
                         this.domNode.value = null;
                     }
                 });
+                if (attr.capture){sourceNode.attr.capture=attr.capture};
                 var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick';
 
                 attr[uploadhandler_key] = function(){
@@ -5342,7 +5345,9 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         let clientHeight = sourceNode.domNode.clientHeight;
         var dlg = genro.dlg.quickDialog(_T('Take picture'),{_showParent:true,_workspace:true,closable:true,width:videoWidth+22+'px',
                         connect_show:function(){
-                            genro.nodeById(videoNodeId).publish('startCapture');
+                            let videoNode = genro.nodeById(videoNodeId)
+                            if (sourceNode.attr.capture){videoNode.attr.capture=sourceNode.attr.capture};
+                            videoNode.publish('startCapture');
                         }});
         var sc = dlg.center._('StackContainer',{height:videoHeight+42+'px',nodeId:frameCode,selectedPage:'^#WORKSPACE.selectedPage'});
         let video = sc._('contentPane',{pageName:'video'});
