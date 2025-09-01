@@ -11,7 +11,6 @@ from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException,GnrSqlException
 
-
 ENTITY_TREE = {
         'schemas':{
             'tables':{
@@ -560,7 +559,11 @@ class SqlMigrator():
                  removeDisabled=True):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
-        self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
+        self.sql_commands = {
+            'db_creation':None,
+            'build_commands':None,
+            'extensions_commands':None
+        }
         self.dbExtractor = DbExtractor(migrator=self)
         self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
         self.excludeReadOnly = excludeReadOnly
@@ -1071,7 +1074,11 @@ class SqlMigrator():
 
             # Process each table in the schema
             for table_name, tbl_item in tables.items():
-                table_commands = self.sqlCommandsForTable(schema_name=schema_name,table_name=table_name,tbl_item=tbl_item)
+                table_commands = self.sqlCommandsForTable(
+                    schema_name=schema_name,
+                    table_name=table_name,
+                    tbl_item=tbl_item
+                )
                 command_list += table_commands['commands']
                 relation_command_list += table_commands['relation_commands']
         
@@ -1081,7 +1088,8 @@ class SqlMigrator():
         # Return all SQL commands as a single string
         return '\n'.join([v for v in self.sql_commands.values() if v])
     
-    def sqlCommandsForTable(self,schema_name=None,table_name=None,tbl_item=None):
+    def sqlCommandsForTable(self, schema_name=None,
+                            table_name=None, tbl_item=None):
         command_list = []
         relation_command_list = []
         alter_table_command = f'ALTER TABLE "{schema_name}"."{table_name}"'
@@ -1092,11 +1100,11 @@ class SqlMigrator():
         relation_command_list += [f"{alter_table_command}\n {rel['command']};" for rel in tbl_item['relations'].values()]
 
         table_command = tbl_item.get('command')
+        # Add column commands
+        if col_commands:
+            command_list.append(f"{alter_table_command}\n{col_commands};")
         if table_command:
             command_list.append(table_command)
-        # Add column commands
-        elif col_commands:
-            command_list.append(f"{alter_table_command}\n{col_commands};")
         # Add constraint commands
         for constraint_sql in constraint_commands:
             #if the table has been created each constraint needs an alter table 
