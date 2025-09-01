@@ -131,8 +131,7 @@ class TableHandler(BaseComponent):
 
         # Normalize picker kwargs to a dict; avoid truthy non-dict defaults enabling the picker unintentionally
         picker_kwargs = picker_kwargs if isinstance(picker_kwargs, dict) else {}
-        enablePicker = bool(picker)
-        if enablePicker:
+        if bool(picker):
             top_slots.append('thpicker')
             if picker is True:
                 picker = tblobj.pkey
@@ -143,7 +142,7 @@ class TableHandler(BaseComponent):
                     picker_base_condition = '$%(_fkey_name)s IS NULL OR $%(_fkey_name)s!=:fkey' % condition_kwargs
                 picker_custom_condition = picker_kwargs.get('condition')
                 picker_kwargs['condition'] = picker_base_condition if not picker_custom_condition else '(%s) AND (%s)' % (picker_base_condition, picker_custom_condition)
-                for k, v in list(condition_kwargs.items()):
+                for k, v in condition_kwargs.items():
                     picker_kwargs['condition_%s' % k] = v
                 if delrow:
                     tblname = tblattr.get('name_plural') or tblattr.get('name_one') or tblobj.name
@@ -1033,5 +1032,11 @@ class THBusinessIntelligence(BaseComponent):
         if not self.db.package('orgn'):
             return
         self.mixinComponent('orgn_components:OrganizerComponent')
-        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,user_kwargs=user_kwargs,configurable=configurable,
-                                        parentForm=parentForm,nodeId=nodeId,viewResource=viewResource,formResource=formResource)
+        parent.contentPane(titleCounter=True,**kwargs).annotationTableHandler(linked_entity=linked_entity,
+                                                                              user_kwargs=user_kwargs,
+                                                                              configurable=configurable,
+                                                                              parentForm=parentForm,
+                                                                              nodeId=nodeId,
+                                                                              viewResource=viewResource,
+                                                                              formResource=formResource)
+
