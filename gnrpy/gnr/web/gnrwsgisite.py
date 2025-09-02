@@ -787,7 +787,7 @@ class GnrWsgiSite(object):
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
         first_segment = path_list[0]
-        if first_segment not in ('_pwa_worker.js','favicon.ico'):
+        if first_segment in ('alfa','beta'):
             self.currentDomain =  path_list.pop(0) if self.multi_domain else self.site_name
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list

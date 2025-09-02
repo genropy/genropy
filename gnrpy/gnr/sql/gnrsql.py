@@ -427,6 +427,8 @@ class GnrSqlDb(GnrObject):
     @property
     def dbname(self):
         domainName = self.currentEnv.get('domainName')
+        print('getting dbname',domainName)
+
         if domainName:
             return self._dbname.replace('*',domainName)
         return self._dbname

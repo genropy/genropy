@@ -113,9 +113,16 @@ class BaseServiceType(object):
 
     def getServiceConfigurationFromDb(self,service_name):
         if 'sys' in list(self.site.gnrapp.packages.keys()):
-            service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
-                                                                      service_name=service_name,
-                                                                      ignoreMissing=True).output('dict')
+            print('getServiceConfigurationFromDb')
+            dbenv = self.site.db.currentEnv
+            pageDbEnv = None
+            if self.site.currentPage:
+                pageDbEnv = self.site.currentPage.db.currentEnv
+            domainName = self.site.currentDomain
+            with self.site.db.tempEnv(domainName=domainName):
+                service_record = self.site.db.table('sys.service').record(service_type=self.service_type,
+                                                                        service_name=service_name,
+                                                                        ignoreMissing=True).output('dict')
             if not service_record:
                 return
             
