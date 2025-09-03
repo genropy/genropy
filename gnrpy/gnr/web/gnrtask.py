@@ -190,6 +190,7 @@ class GnrTaskScheduler:
         self.stale_workers = dict()
         self.tasks = {}  # Loaded tasks from DB or mock
         self.dump_file_name = "gnr_scheduler_queue_dump.json"
+
         
     async def load_configuration(self, triggered=False):
         if triggered:
@@ -203,11 +204,13 @@ class GnrTaskScheduler:
     async def complete_task(self, task_id):
         logger.info("Task %s completed, saving", task_id)
         task = self.tasks.get(task_id)
-        await task.completed()
+        if task:
+            await task.completed()
         
     async def start_service(self):
         await self.load_configuration()
         await self.load_queue_from_disk()
+        logger.info(f"Starting scheduler on {self.host}:{self.port} - dashboard http://{self.host}:{self.port}")
         asyncio.create_task(self.schedule_loop())
         asyncio.create_task(self.retry_monitor())
 
@@ -465,6 +468,7 @@ class GnrTaskWorker:
                                 task = await resp.json()
                                 await self.execute_task(task, session)
                     except Exception as e:
+                        raise
                         logger.error("Request error: %s", e)
                         await asyncio.sleep(5)
         except asyncio.CancelledError:
@@ -484,7 +488,7 @@ class GnrTaskWorker:
                                               )
         task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
                               batch_selection_savedQuery=record['saved_query_code'])
-        task_params = record['parameters']
+        task_params = record.get('parameters', {})
         with self.db.tempEnv(connectionName="execution"):
             logger.info("Executing task %s - %s",
                         record['table_name'],
