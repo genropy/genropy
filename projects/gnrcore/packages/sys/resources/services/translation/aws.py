@@ -6,18 +6,19 @@
 
 import boto3
 from gnrpkg.sys.services.translation import TranslationService
+from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrlang import GnrException
 import re
 
 SAFETRANSLATE = re.compile(r"""(?:\[tr-off\])(.*?)(?:\[tr-on\])""",flags=re.DOTALL)
 
 class Main(TranslationService):
-    def __init__(self, parent=None,api_key=None):
+    def __init__(self, parent=None,api_key=None, region_name=None):
         self.parent = parent
         self.enabled = boto3 is not False
         if not self.enabled:
             return
-        self.client = boto3.client('translate')
+        self.client = boto3.client('translate', region_name=region_name)
 
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:
@@ -45,4 +46,7 @@ class Main(TranslationService):
             return txt
             
         
-
+class ServiceParameters(BaseComponent):
+    def service_parameters(self, pane, datapath=None, **kwargs):
+        fb = pane.formbuilder(datapath=datapath)
+        fb.textbox(value='^.region_name', lbl='Region name')# values=['eu-central-1','us-east-1', 'us-west-1', 'eu-west-1'])
