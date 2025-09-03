@@ -4,35 +4,27 @@
 #  Created by Davide Paci on 2021-12-21
 #  Service documentation available here: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/translate.html
 
-try: 
-    import boto3
-except ImportError:
-    boto3 = False
+import boto3
 from gnrpkg.sys.services.translation import TranslationService
+from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrlang import GnrException
 import re
 
 SAFETRANSLATE = re.compile(r"""(?:\[tr-off\])(.*?)(?:\[tr-on\])""",flags=re.DOTALL)
 
 class Main(TranslationService):
-    def __init__(self, parent=None,api_key=None):
+    def __init__(self, parent=None,api_key=None, region_name=None):
         self.parent = parent
         self.enabled = boto3 is not False
         if not self.enabled:
             return
-        try:
-            self.client = boto3.client('translate')
-        except Exception:
-            self.client = None
-            self.enabled = False
-        
+        self.client = boto3.client('translate', region_name=region_name)
+
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:
-            print('AWS translator is not available')
-            return what
+            raise GnrException('Service not enabled')
         if not what or not to_language:
-            print('Missing content or target language code')
-            return
+            raise GnrException('Missing content or target language code')
         if not from_language:
             from_language = 'auto'
         safedict = dict()
@@ -54,4 +46,7 @@ class Main(TranslationService):
             return txt
             
         
-
+class ServiceParameters(BaseComponent):
+    def service_parameters(self, pane, datapath=None, **kwargs):
+        fb = pane.formbuilder(datapath=datapath)
+        fb.textbox(value='^.region_name', lbl='Region name')# values=['eu-central-1','us-east-1', 'us-west-1', 'eu-west-1'])
