@@ -20,12 +20,12 @@ class Main(TranslationService):
         self.enabled = boto3 is not False
         if not self.enabled:
             return
+        
         try:
-            self.client = boto3.client('translate', region_name='eu-central-1')
+            self.client = boto3.client('translate')
         except Exception:
-            raise GnrException('Cannot create AWS Translate client')
-            #self.client = None
-            #self.enabled = False
+            self.client = None
+            self.enabled = False
 
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:
