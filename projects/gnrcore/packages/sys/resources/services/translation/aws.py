@@ -4,10 +4,7 @@
 #  Created by Davide Paci on 2021-12-21
 #  Service documentation available here: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/translate.html
 
-try: 
-    import boto3
-except ImportError:
-    boto3 = False
+import boto3
 from gnrpkg.sys.services.translation import TranslationService
 from gnr.core.gnrlang import GnrException
 import re
@@ -20,20 +17,13 @@ class Main(TranslationService):
         self.enabled = boto3 is not False
         if not self.enabled:
             return
-        
-        try:
-            self.client = boto3.client('translate')
-        except Exception:
-            self.client = None
-            self.enabled = False
+        self.client = boto3.client('translate')
 
     def translate(self, what=None, to_language=None, from_language=None, **kwargs):
         if not self.enabled:
-            print('AWS translator is not available')
-            return what
+            raise GnrException('Service not enabled')
         if not what or not to_language:
-            print('Missing content or target language code')
-            return
+            raise GnrException('Missing content or target language code')
         if not from_language:
             from_language = 'auto'
         safedict = dict()
