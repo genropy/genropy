@@ -121,7 +121,7 @@ class TestGnrSql(BaseGnrSqlTest):
             application = MockApplication()
             application.instanceFolder = tmp_instancefolder
             db = gs.GnrSqlDb(application=application)
-            db.stores_handler.add_store(test_store, dbattr=dict(dbname=test_store))
+            db.stores_handler.add_auxstore(test_store, dbattr=dict(dbname=test_store))
             p = db.get_connection_params(storename=test_store)
             assert p.get("database") == test_store
             # ensure it's not the default

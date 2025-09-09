@@ -289,6 +289,7 @@ class SqlDbAdapter(object):
         specific adapters
         """
         raise AdapterMethodNotImplemented()
+    
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
