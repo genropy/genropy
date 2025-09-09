@@ -1115,7 +1115,7 @@ class GnrWsgiSite(object):
                     dbattr['remote_host'] = host
                     dbattr['remote_port'] = port
                 dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_store(storename,dbattr=dbattr)
+        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
