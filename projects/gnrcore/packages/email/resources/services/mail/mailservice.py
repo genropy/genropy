@@ -72,9 +72,11 @@ class Service(AdmMailService):
                 if not kwargs.get(k,None):
                     kwargs[k]=v
         if scheduler:
+            msg_params = dict(kwargs)
+            msg_params.update(message_kwargs or {})
             message_tbl = self.parent.db.table('email.message')
             new_message = message_tbl.newMessage(attachments=attachments,
-                                                headers_kwargs=headers_kwargs,doCommit=doCommit,**message_kwargs)
+                                                headers_kwargs=headers_kwargs,doCommit=doCommit,**msg_params)
             if new_message['priority'] == '-1':
                 new_message = message_tbl.sendMessage(new_message['id'])
             return new_message
