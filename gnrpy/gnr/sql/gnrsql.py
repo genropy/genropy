@@ -310,15 +310,7 @@ class GnrSqlDb(GnrObject):
 
     def _autoRestore_one(self,dbname=None,filepath=None,**kwargs):
         logger.debug('drop %s',dbname)
-        try:
-            self.dropDb(dbname)
-        except Exception as e:
-            active_connections = self.adapter.raw_fetch("""
-                SELECT count(*) 
-                FROM pg_stat_activity;
-            """)
-            print('active_connections',active_connections)
-            raise e
+        self.dropDb(dbname)
         logger.debug('create %s',dbname)
         self.createDb(dbname)
         logger.debug('restore %s from %s ',dbname,filepath)
