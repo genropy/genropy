@@ -92,8 +92,13 @@ class ApplicationCache(object):
         self.application = application
         self.cache = {}
     
-    def getItem(self,key):
-        return self.cache.get(key,None)
+    def getItem(self,key,defaultFactory=None):
+        item =  self.cache.get(key,None)
+        if item is None and defaultFactory:
+            item = defaultFactory()
+            self.setItem(key,item)
+        return item
+
     
     def setItem(self,key,value):
         self.cache[key] = value
