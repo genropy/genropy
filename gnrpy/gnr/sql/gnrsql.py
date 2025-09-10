@@ -506,10 +506,15 @@ class GnrSqlDb(GnrObject):
             
     connection = property(_get_connection)
             
+        
+    def get_store_parameters(self,storename):
+        return self.dbstores.get(storename) or self.auxstores.get(storename)
+
+
     def get_connection_params(self, storename=None):
         if storename == self.rootstore or not storename:
             return dict(host=self.host, database=self.dbname, user=self.user, password=self.password, port=self.port)
-        storeattr = self.dbstores.get(storename) or self.auxstores.get(storename)
+        storeattr = self.get_store_parameters(storename)
         if not storeattr:
             raise GnrSqlException(f'Not existing connection configuration for {storename}')
             
