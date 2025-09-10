@@ -185,7 +185,7 @@ class GnrSqlAppDb(GnrSqlDb):
     @property
     def storetable(self):
         if not hasattr(self,'_storetable'):
-            self._storetable = self.application.config['db?storetable'] 
+            self._storetable = self.application.config['db?storetable']
         return self._storetable
 
     @property

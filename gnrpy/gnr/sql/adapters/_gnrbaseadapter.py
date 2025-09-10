@@ -650,6 +650,8 @@ class SqlDbAdapter(object):
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
             cursor.execute(sql,sqlargs)
+        connection.close()
+
         
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
         """
@@ -662,7 +664,9 @@ class SqlDbAdapter(object):
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
             cursor.execute(sql, sqlargs)
-            return cursor.fetchall()
+            result = cursor.fetchall()
+        connection.close()
+        return result
                 
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db

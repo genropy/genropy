@@ -225,8 +225,11 @@ class GnrSqlDb(GnrObject):
         
     @property
     def storetable(self):
-        return
-
+        if not self.application:
+            return
+        if not hasattr(self,'_storetable'):
+            self._storetable = self.application.config['db?storetable']
+        return self._storetable
 
     @property
     def auto_static_enabled(self):
@@ -293,8 +296,8 @@ class GnrSqlDb(GnrObject):
             stores[dbname] = os.path.join(extractpath,f)
         dbstoreconfig = Bag(stores.pop('_dbstores'))
         mainfilepath = stores.pop('mainstore',None)
-        for s in list(self.stores_handler.dbstores.keys()):
-            self.stores_handler.drop_store(s)
+        for storeconf in self.stores_handler.raw_multdb_dbstores().values():
+            self.dropDb(storeconf['database'])
         if mainfilepath:
             self._autoRestore_one(dbname=self.dbname,filepath=mainfilepath,sqltextCb=sqltextCb,onRestored=onRestored)
         for storename,filepath in list(stores.items()):
@@ -302,13 +305,20 @@ class GnrSqlDb(GnrObject):
             dbattr = conf.getAttr('db')
             dbname = dbattr.pop('dbname')
             self._autoRestore_one(dbname=dbname,filepath=filepath,sqltextCb=sqltextCb,onRestored=onRestored)
-            self.stores_handler.add_dbstore_config(storename,dbname=dbname,save=False,**dbattr)
         if destroyFolder:
             shutil.rmtree(extractpath)
 
     def _autoRestore_one(self,dbname=None,filepath=None,**kwargs):
         logger.debug('drop %s',dbname)
-        self.dropDb(dbname)
+        try:
+            self.dropDb(dbname)
+        except Exception as e:
+            active_connections = self.adapter.raw_fetch("""
+                SELECT count(*) 
+                FROM pg_stat_activity;
+            """)
+            print('active_connections',active_connections)
+            raise e
         logger.debug('create %s',dbname)
         self.createDb(dbname)
         logger.debug('restore %s from %s ',dbname,filepath)
@@ -1196,7 +1206,7 @@ class DbStoresHandler(object):
         instance_dbstores = db.application.config['dbstores']
         if instance_dbstores:
             for n in instance_dbstores:
-                self.add_store(n.label,n.attr)
+                self.add_auxstore(n.label,n.attr)
 
     @property
     def dbstores(self):
@@ -1216,7 +1226,32 @@ class DbStoresHandler(object):
         return result
 
             
-    def add_store(self, storename, dbattr=None):
+    def raw_multdb_dbstores(self):
+        result = {}
+        if self.db.storetable:    
+            existing_databases = self.db.adapter.listElements('databases')
+            if self.db.dbname not in existing_databases:
+                return result
+            prefixname = f'{self.db.dbname}_'
+            databases = {dbname[len(prefixname):]:dbname for dbname in existing_databases if dbname.startswith(prefixname)}
+            pkgname,tblname = self.db.storetable.split('.')
+            pkgattr = self.db.application.packages[pkgname].attributes
+            sqlschema = pkgattr.get('sqlschema') or pkgname
+            sqlprefix = True if pkgattr.get('sqlprefix') is not False else False
+            tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
+            adaptSqlName = self.db.adapter.adaptSqlName
+            sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            dbstores = self.db.adapter.raw_fetch(f"""
+                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+            """)
+            for r in dbstores:
+                storename = r['dbstore']
+                if storename in databases:
+                    result[storename] = dict(database=databases[storename])
+        return result
+
+
+    def add_auxstore(self, storename, dbattr=None):
         """TODO
         :param storename: TODO
         :param check: TODO"""
