@@ -181,11 +181,11 @@ class GnrSqlAppDb(GnrSqlDb):
                     tblobj.attributes.get('transaction', tblobj.pkg.attributes.get('transaction', '')))
         if not self.inTransactionDaemon and tblobj._usesTransaction:
             raise GnrWriteInReservedTableError('%s.%s' % (tblobj.pkg.name, tblobj.name))
-        
+
     @property
     def storetable(self):
         if not hasattr(self,'_storetable'):
-            self._storetable = self.application.config['db?storetable'] 
+            self._storetable = self.application.config['db?storetable']
         return self._storetable
 
     @property
