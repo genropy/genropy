@@ -1596,11 +1596,11 @@ class THViewUtils(BaseComponent):
     @public_method
     def th_userObjectViews(self,table=None,th_root=None,objtype=None,**kwargs):
         objtype = objtype or 'view'
-        gridId = '%s_grid' %th_root
-        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, gridId),table=table)
+        flagCode = '%s_grid' %th_root.split('_DUP_')[0]
+        userobjects = self.db.table('adm.userobject').userObjectMenu(objtype=objtype,flags='%s_%s' % (self.pagename, flagCode),table=table)
         if self.pagename.startswith('thpage'):
             #compatibility old saved views
-            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % gridId,table=table))
+            userobjects.update(self.db.table('adm.userobject').userObjectMenu(objtype='view',flags='thpage_%s' % flagCode,table=table))
         return userobjects
 
     
