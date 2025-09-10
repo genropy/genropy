@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 UTC = ZoneInfo("UTC")
 
 class TZDateTime(_dt.datetime):
-    """Helper per produrre datetime standard sempre timezone-aware (UTC di default)."""
+    """Helper to produce standard datetimes that are always timezone-aware (UTC by default)."""
 
     @classmethod
     def now(cls, tz: Optional[ZoneInfo] = None) -> _dt.datetime:
