@@ -1196,6 +1196,10 @@ class DbStoresHandler(object):
     def __init__(self, db):
         self.db = db
         self.auxstores = {}
+        instance_dbstores = db.application.config['dbstores']
+        if instance_dbstores:
+            for n in instance_dbstores:
+                self.add_store(n.label,n.attr)
 
     @property
     def dbstores(self):
