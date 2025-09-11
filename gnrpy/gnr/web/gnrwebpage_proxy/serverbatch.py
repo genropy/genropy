@@ -6,11 +6,10 @@
 #  Created by Giovanni Porcari on 2007-03-24.
 #  Copyright (c) 2007 Softwell. All rights reserved.
 
+import os
 
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.core.gnrbag import Bag
-from datetime import datetime
-import os
 from gnr.core.gnrdecorator import public_method
 
 class GnrBatchStoppedException(Exception):
@@ -104,7 +103,7 @@ class GnrWebBatch(GnrBaseProxy):
         self.thermo_lines = thermo_lines
 
         self.note = note
-        self.start_ts = datetime.now()
+        self.start_ts = self.page.db.now()
         self.last_ts = self.start_ts
         self.cancellable = True
         self.userBatch = userBatch
@@ -184,7 +183,7 @@ class GnrWebBatch(GnrBaseProxy):
         result_doc['owner_page_id'] = self.page.page_id
         result_doc['note'] = self.note
         result_doc['start_ts'] = self.start_ts
-        result_doc['end_ts'] = datetime.now()
+        result_doc['end_ts'] = self.page.db.now()
         result_doc['time_delta'] = str(result_doc['end_ts'] - result_doc['start_ts']).split('.')[0]
         if result is not None:
             result_doc.setItem('result', result, _attributes=result_attr)
@@ -226,8 +225,8 @@ class GnrWebBatch(GnrBaseProxy):
     def thermo_line_update(self, code, progress=None, message=None, maximum=None):
         if not code in self.line_codes:
             return
-        curr_time = datetime.now()
-        if progress > 1 and code == self.line_codes[-1] and ((datetime.now() - self.last_ts).seconds < self.delay):
+        curr_time = self.page.db.now()
+        if progress > 1 and code == self.line_codes[-1] and ((self.page.db.now() - self.last_ts).seconds < self.delay):
             return
         self.last_ts = curr_time
         with self.page.userStore() as store:

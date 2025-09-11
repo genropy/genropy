@@ -6,7 +6,6 @@
 #Created by Francesco Porcari on 2010-10-16
 #Copyright (c) 2011 Softwell. All rights reserved.
 
-from datetime import datetime
 
 from gnr.core.gnrbag import Bag
 
@@ -60,7 +59,7 @@ class BaseResourceBatch(object):
         if self.batch_dblog:
             self.batch_logrecord = self.batch_logtbl.newrecord(id=self.batch_log_id,
                                 batch_title=self.batch_title,tbl=self.tblobj.fullname,
-                                start_ts=datetime.now(),notes=self.batch_note)
+                                start_ts=self.db.now(),notes=self.batch_note)
         try:
             with self.db.tempEnv(cacheInPage=self.batch_local_cache,hidden_transaction=self.batch_hidden_transaction):
                 self.run()
@@ -86,14 +85,14 @@ class BaseResourceBatch(object):
             if self.batch_dblog:
                 with self.db.tempEnv(connectionName='system',storename=self.db.rootstore,hidden_transaction=self.batch_hidden_transaction):
                     self.batch_logrecord['logbag'] =  self.batch_debug
-                    self.batch_logrecord['end_ts'] = datetime.now()
+                    self.batch_logrecord['end_ts'] = self.db.now()
                     self.batch_logtbl.insert(self.batch_logrecord)
                     self.db.commit()
             if self.task_execution_record:
                 self.task_execution_record['logbag'] = self.batch_debug
 
     def batch_debug_write(self,caption,value=None,**kwargs):
-        self.batch_debug.setItem('r_%04i' %len(self.batch_debug),value,caption=caption,ts=datetime.now(),**kwargs)
+        self.batch_debug.setItem('r_%04i' %len(self.batch_debug),value,caption=caption,ts=self.db.now(),**kwargs)
 
     def batch_log_write(self,logtxt):
         self.btc.log_write(logtxt)

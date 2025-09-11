@@ -49,7 +49,7 @@ class GnrTaskScheduler(object):
             sleep(self.interval)
     
     def writeTaskExecutions(self):
-        now = datetime.now()
+        now = self.db.now()
         task_to_schedule = self.tasktbl.findTasks()
         existing_executions = self.exectbl.query(columns='$reasonkey,$status',
                                                 where='$reasonkey IN :reasonkeys',
@@ -63,7 +63,7 @@ class GnrTaskScheduler(object):
                 self.exectbl.insert(self.exectbl.newrecord(task_id=t,exec_reason=reason,reasonkey=reasonkey))
                 taskToUpdate.append(t)
 
-        self.tasktbl.batchUpdate(dict(last_scheduled_ts=now,run_asap=None),
+        self.tasktbl.batchUpdate(dict(last_scheduled_ts=self.db.now(),run_asap=None),
                                  _pkeys=taskToUpdate,
                                  for_update='SKIP LOCKED')
         self.checkAlive()
@@ -99,7 +99,7 @@ class GnrTaskWorker(object):
             if f:
                 rec = f[0]
                 oldrec = dict(rec)
-                rec['start_ts'] = datetime.now()
+                rec['start_ts'] = self.db.now()
                 rec['pid'] = self.pid
                 self.tblobj.update(rec,oldrec)
                 self.db.commit()
@@ -111,7 +111,7 @@ class GnrTaskWorker(object):
         page._db = None
         page.db
         log_record = Bag()
-        start_time = datetime.now()
+        start_time = self.db.now()
         log_record['start_time'] = start_time
         log_record['task_id'] =task_execution['id']
         table = task_execution['task_table']
@@ -141,7 +141,7 @@ class GnrTaskWorker(object):
                                                                     $task_command,
                                                                     $task_saved_query""") as task_execution:
                     self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now()
+                    task_execution['end_ts'] = self.db.now()
                 self.db.commit()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))

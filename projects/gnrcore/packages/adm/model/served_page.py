@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-from datetime import datetime
 
 class Table(object):
     def config_db(self, pkg):
@@ -30,7 +29,7 @@ class Table(object):
         if event == 'open':
             self.openServedPage()
         else:
-            self.closeServedPage(page_id=page_id, end_ts=datetime.now(), end_reason='unload')
+            self.closeServedPage(page_id=page_id, end_ts=self.db.now(), end_reason='unload')
 
     def closePendingPages(self, connection_id=None, end_ts=None, end_reason=None):
         for page in self.getLivePages(connection_id=connection_id):
@@ -40,7 +39,7 @@ class Table(object):
         page = self.db.application.site.currentPage
         record_served_page = dict(page_id=page.page_id, end_reason=None, end_ts=None,
                                   connection_id=page.connection_id,
-                                  start_ts=datetime.now(), pagename=page.basename)
+                                  start_ts=self.db.now(), pagename=page.basename)
         with self.db.tempEnv(connectionName='system'):
             self.insertOrUpdate(record_served_page)
             self.db.commit()
@@ -49,13 +48,13 @@ class Table(object):
         page = self.db.application.site.currentPage
         page_id = page_id or page.page_id
         with self.db.tempEnv(connectionName='system'):
-            self.batchUpdate(dict(end_ts=end_ts or datetime.now(), end_reason=end_reason),
+            self.batchUpdate(dict(end_ts=end_ts or self.db.now(), end_reason=end_reason),
                              where='$page_id=:page_id', page_id=page_id)
             self.db.commit()
 
     def closeOrphans(self):
         with self.db.tempEnv(connectionName='system'):
-            self.batchUpdate(dict(end_reason='expired', end_ts=datetime.now()),
+            self.batchUpdate(dict(end_reason='expired', end_ts=self.db.now()),
                              where='@connection_id.end_ts IS NOT NULL')
             self.db.commit()
 

@@ -1,6 +1,5 @@
 
 import os
-from datetime import datetime
 
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import getUuid
@@ -20,12 +19,12 @@ class WebApplicationCache(object):
         return item
 
     def setItem(self,key,value):
-        now = datetime.now()
+        now = self.application.db.now()
         self.cache[key] = (value,now)
 
     def updatedItem(self,key):
         with self.site.register.globalStore() as gs:
-            gs.setItem('CACHE_TS.%s' %key,datetime.now())
+            gs.setItem('CACHE_TS.%s' %key,self.application.db.now())
     
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))

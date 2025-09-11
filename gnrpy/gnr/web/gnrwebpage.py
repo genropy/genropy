@@ -510,8 +510,9 @@ class GnrWebPage(GnrBaseWebPage):
     
     @property
     def workdate_timestamp(self):
-        now = datetime.datetime.now()
-        return datetime.datetime(self.workdate.year, self.workdate.month, self.workdate.day, now.hour, now.minute, now.second)
+        now = self.db.now()
+        now.replace(microsecond=0)
+        return now
 
 
     @public_method
@@ -1016,7 +1017,7 @@ class GnrWebPage(GnrBaseWebPage):
 
     def clientDatetime(self,ts=None,serverTimeDelta=None):
         serverTimeDelta = serverTimeDelta or self.rootenv['serverTimeDelta']
-        ts = ts or datetime.datetime.now()
+        ts = ts or self.db.now()
         if serverTimeDelta:
             return ts-timedelta(milliseconds=serverTimeDelta)
         return ts
@@ -1211,7 +1212,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['filename'] = self.pagename
         arg_dict['pageMode'] = 'wsgi_10'
         arg_dict['baseUrl'] = self.site.home_uri
-        kwargs['servertime'] = datetime.datetime.now()
+        kwargs['servertime'] = self.db.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
@@ -2095,7 +2096,7 @@ class GnrWebPage(GnrBaseWebPage):
             if from_user!='SYSTEM':
                 users.setItem(from_user,None,user_name=from_user,user=from_user)
             users.setItem(user,None,user_name=user,user=user)
-        ts = self.toText(datetime.datetime.now(), format='HH:mm:ss')
+        ts = self.toText(self.db.now(), format='HH:mm:ss')
         with self.userStore(user) as store:
             if disconnect and (user == from_user):
                 store.drop_datachanges(path)

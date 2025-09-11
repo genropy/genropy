@@ -27,8 +27,7 @@ import re
 import threading
 
 
-from datetime import datetime, timedelta
-import pytz
+from datetime import timedelta
 from functools import wraps
 from collections import defaultdict,deque
 from gnr.core import gnrstring
@@ -398,13 +397,13 @@ class SqlTable(GnrObject):
     def user_config(self):
         uc = self._user_config
         if not uc:
-            self._user_config = {'ts':datetime.now(),'config':{}}
+            self._user_config = {'ts':self.db.now(),'config':{}}
         else:
             expirebag = self.db.currentEnv.get('_user_conf_expirebag')
             if expirebag:
                 exp_ts = expirebag[self.fullname] or expirebag['%s.*' %self.pkg.name] or expirebag['*']
                 if exp_ts and exp_ts> uc['ts']:
-                    self._user_config = {'ts':datetime.now(),'config':{}}
+                    self._user_config = {'ts':self.db.now(),'config':{}}
         return self._user_config['config']
 
 
@@ -1312,7 +1311,7 @@ class SqlTable(GnrObject):
                 old_record = dict(sourceRecord)
                 moved_relations.setItem('destPkey',sourceRecord[self.pkey])
                 moved_relations = moved_relations.toXml()
-                sourceRecord.update(__del_ts=datetime.now(),__moved_related=moved_relations)
+                sourceRecord.update(__del_ts=self.db.now(),__moved_related=moved_relations)
                 self.raw_update(sourceRecord,old_record=old_record)
             else:
                 self.delete(sourceRecord[self.pkey])
@@ -2389,8 +2388,7 @@ class SqlTable(GnrObject):
         return self.tableCachedData('guessedPkey',cb,identifier=identifier)
 
     def newUTCDatetime(self,delta_minutes=None):
-        utc_tz = pytz.timezone('UTC')
-        utc_dt = datetime.now(utc_tz)   
+        utc_dt = self.db.now()   
         if delta_minutes:
             utc_dt += timedelta(minutes=delta_minutes)
         return utc_dt

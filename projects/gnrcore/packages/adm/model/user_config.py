@@ -115,7 +115,7 @@ class Table(object):
                 else:
                     key = '*'
                     expirebag = Bag()
-                expirebag[key] = datetime.now()
+                expirebag[key] = self.db.now()
                 gs.setItem('tables_user_conf_expire_ts',expirebag)
 
     def trigger_onInserting(self,record):

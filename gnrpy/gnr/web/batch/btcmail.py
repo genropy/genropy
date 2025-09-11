@@ -8,7 +8,6 @@
 
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from datetime import datetime
 
 class BaseResourceMail(BaseResourceBatch):
     def __init__(self, *args, **kwargs):
@@ -39,7 +38,7 @@ class BaseResourceMail(BaseResourceBatch):
         mp = Bag(self.mail_handler.getDefaultMailAccount())
         mail_code = self.batch_parameters.get('mail_code')
         tbl = self.tblobj.fullname
-        now = datetime.now()
+        now = self.db.now()
         try:
             self.mail_handler.sendmail(to_address=to_address,
                                     body=body, subject=subject,

@@ -169,7 +169,7 @@ class Main(BaseResourceBatch):
 
     def post_process(self):     
         with self.tblobj.recordToUpdate(self.handbook_id) as record:
-            record['last_exp_ts'] = datetime.now()
+            record['last_exp_ts'] = self.db.now()
             if record['is_local_handbook']:
                 self.zipNode = self.handbookNode.child('%s.zip' % self.handbook_record['name'])
                 self.page.site.zipFiles([self.resultNode.fullpath], self.zipNode.internal_path)
@@ -202,7 +202,7 @@ class Main(BaseResourceBatch):
             if self.batch_parameters.get('send_notification'):
                 #DP202101 Send notification message via Telegram (gnrextra genrobot required)
                 notification_message = self.batch_parameters['notification_message'].format(handbook_title=self.handbook_record['title'], 
-                                            timestamp=datetime.now(), handbook_url=self.handbook_url)
+                                            timestamp=self.db.now(), handbook_url=self.handbook_url)
                 notification_bot = self.batch_parameters['bot_token']
                 self.sendNotification(notification_message=notification_message, notification_bot=notification_bot)
 

@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import datetime
 import warnings as warnings_module
 import os
-import pytz
 import mimetypes
 from collections import defaultdict
 
@@ -922,10 +920,7 @@ class TableBase(object):
         :param fldname: the field name"""
          
         if not getattr(record, '_notUserChange', None):
-            if self.column(fldname).dtype == 'DHZ':
-                record[fldname] = datetime.datetime.now(pytz.utc)
-            else:
-                record[fldname] = datetime.datetime.now()
+            record[fldname] = self.db.now()
             if '__full_mod_ts' in self.columns:
                 record['__full_mod_ts'] = record[fldname]
 

@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-from datetime import datetime
 
 class Table(object):
     def config_db(self, pkg):
@@ -27,7 +26,7 @@ class Table(object):
     
     def dropExpiredConnections(self):
         live_connections = list(self.db.application.site.register.connections().keys())
-        ts = datetime.now()
+        ts = self.db.now()
         with self.db.tempEnv(connectionName='system'):
             updatedKeys = self.batchUpdate(dict(end_ts=ts,end_reason='aborted'),
                             where="$id NOT IN :live_connections AND $end_ts IS NULL",
@@ -43,7 +42,7 @@ class Table(object):
         return self.query(where=where, userid=userid).fetch()
 
     def closePendingConnections(self, end_ts=None, end_reason=None):
-        end_ts = end_ts or datetime.now()
+        end_ts = end_ts or self.db.now()
         for conn in self.getPendingConnections():
             self.closeConnection(conn['id'], end_ts=end_ts, end_reason=end_reason)
 
@@ -59,7 +58,7 @@ class Table(object):
         if isinstance(connection_id,str):
             connection_id = connection_id.split(',')
         with self.db.tempEnv(connectionName='system'):
-            self.batchUpdate(dict(end_ts=end_ts or datetime.now(), end_reason=end_reason),
+            self.batchUpdate(dict(end_ts=end_ts or self.db.now(), end_reason=end_reason),
                              where='$id IN :connection_id', connection_id=connection_id)
             self.db.commit()
 
@@ -73,7 +72,7 @@ class Table(object):
             username = avatar.user
         new_connection_record = dict(id=page.connection_id, 
                                     username=username,userid=userid,
-                                    start_ts=datetime.now(),
+                                    start_ts=self.db.now(),
                                      ip=page.request.remote_addr,
                                      user_agent=page.request.get_header('User-Agent'))
         with self.db.tempEnv(connectionName='system'):

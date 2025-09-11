@@ -359,7 +359,7 @@ class MailService(GnrBaseService):
             msg.add_header(k,str(v))
         if ',' in to_address:
             to_address = to_address.split(',')
-        message_date = datetime.datetime.now()
+        message_date = self.parent.application.db.now()
         if isinstance(message_date,datetime.datetime) or isinstance(message_date,datetime.date):
             message_date = formatdate(time.mktime(message_date.timetuple()))
         msg['Date'] = message_date

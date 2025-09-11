@@ -23,7 +23,6 @@
 import time
 import os
 import base64
-from datetime import datetime
 from copy import deepcopy
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor,Future
@@ -502,7 +501,7 @@ class SharedObject(object):
                     n = 0
                 else:
                     n = int(list(record[backup_column].keys())[-1].split('_')[1])+1
-                record[backup_column].setItem('v_%s' % n, record[data_column], ts=datetime.now())
+                record[backup_column].setItem('v_%s' % n, record[data_column], ts=tblobj.db.now())
                 if len (record[backup_column]) > backup:
                     record[backup_column].popNode('#0')
             
@@ -969,7 +968,7 @@ class GnrAsyncServer(GnrBaseAsyncServer):
             wsgi_gnrsite=GnrWsgiSite(self.instance_name, tornado=True, websockets=True, **self.site_options)
             wsgi_gnrsite._local_mode=True
             with wsgi_gnrsite.register.globalStore() as gs:
-                gs.setItem('RESTART_TS',datetime.now())
+                gs.setItem('RESTART_TS',wsgi_gnrsite.application.db.now())
                 
             #wsgi_app = tornado.wsgi.WSGIContainer(wsgi_gnrsite)
             #self.addHandler(r".*",tornado.web.FallbackHandler, dict(fallback=wsgi_app))
