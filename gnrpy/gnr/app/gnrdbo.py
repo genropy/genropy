@@ -312,20 +312,19 @@ class TableBase(object):
             tbl.attributes['group_%s' % group] = group_name
         else:
             group = '_'
-        tsType = 'DHZ' if self.db.application.config['db?use_timezone'] else 'DH'
         if ins:
-            tbl.column('__ins_ts', dtype=tsType, name_long='!![en]Insert date', onInserting='setTSNow', group=group,_sysfield=True,indexed=True)
+            tbl.column('__ins_ts', dtype='DH', name_long='!![en]Insert date', onInserting='setTSNow', group=group,_sysfield=True,indexed=True)
         if ldel:
-            tbl.column('__del_ts', dtype=tsType, name_long='!![en]Logical delete date', group=group,_sysfield=True,indexed=True)
+            tbl.column('__del_ts', dtype='DH', name_long='!![en]Logical delete date', group=group,_sysfield=True,indexed=True)
             tbl.attributes['logicalDeletionField'] = '__del_ts'
         if upd:
-            tbl.column('__mod_ts', dtype=tsType, name_long='!![en]Update date', onUpdating='setTSNow', onInserting='setTSNow',
+            tbl.column('__mod_ts', dtype='DH', name_long='!![en]Update date', onUpdating='setTSNow', onInserting='setTSNow',
                        group=group,_sysfield=True,indexed=True)
             lastTS = tbl.attributes.get('lastTS')
             if not lastTS:
                 tbl.attributes['lastTS'] = '__mod_ts'
         if full_upd:
-            tbl.column('__full_mod_ts', dtype=tsType, name_long='!![en]Full Update TS', group=group, _sysfield=True, indexed=True)
+            tbl.column('__full_mod_ts', dtype='DH', name_long='!![en]Full Update TS', group=group, _sysfield=True, indexed=True)
 
         if md5:
             tbl.column('__rec_md5', name_long='!![en]Update date', onUpdating='setRecordMd5', onInserting='setRecordMd5',

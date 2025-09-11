@@ -1438,7 +1438,7 @@ function convertToText(value, params) {
         }
     }
     else if (isDate(value) || (dtype && (dtype =='D' || dtype=='DH' || dtype=='DHZ') )) {
-        var selectors = {'D':'date','H':'time','DH':null};
+        var selectors = {'D':'date','H':'time','DH':null,'DHZ':null};
         if (!dtype) {
             dtype = value._gnrdtype || (value.toString().indexOf('Thu Dec 31 1970') == 0 ? 'H' : 'D');
         }

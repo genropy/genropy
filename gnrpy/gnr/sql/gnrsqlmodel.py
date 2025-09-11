@@ -602,6 +602,9 @@ class DbModelSrc(GnrStructData):
             name, dtype = name.split('::')
         if not 'columns' in self:
             self.child('column_list', 'columns')
+        application = self.root._dbmodel.db.application
+        if dtype == 'DH' and application.config['db?use_timezone']:
+            dtype = 'DHZ'
         vc = self.getNode(f'virtual_columns.{name}')
         if vc:
             colattr = dict(dtype=dtype, name_short=name_short, 
@@ -621,9 +624,9 @@ class DbModelSrc(GnrStructData):
                           variant=variant,**kwargs)
         if ext_kwargs:
             for pkgExt,extKwargs in ext_kwargs.items():
-                if pkgExt not in self.root._dbmodel.db.application.packages:
+                if pkgExt not in application.packages:
                     continue
-                pkgobj = self.root._dbmodel.db.application.packages[pkgExt]
+                pkgobj = application.packages[pkgExt]
                 handler = getattr(pkgobj,'ext_config',None)
                 if handler:
                     extKwargs = extKwargs if isinstance(extKwargs,dict) else {pkgExt:extKwargs}

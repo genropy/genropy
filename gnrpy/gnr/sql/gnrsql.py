@@ -30,6 +30,8 @@ import locale
 from time import time
 from multiprocessing.pool import ThreadPool
 from functools import wraps
+from datetime import datetime
+from gnr.core.gnrdatetime import TZDateTime
 from gnr.sql import logger
 from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
@@ -128,7 +130,7 @@ class GnrSqlDb(GnrObject):
     def __init__(self, implementation='sqlite', dbname='mydb',
                  host=None, user=None, password=None, port=None,
                  main_schema=None, debugger=None, application=None,
-                 read_only=None, fixed_schema=None,**kwargs):
+                 read_only=None, fixed_schema=None,use_timezone=None,**kwargs):
         """
         This is the constructor method of the GnrSqlDb class.
         
@@ -152,6 +154,8 @@ class GnrSqlDb(GnrObject):
         self.user = self.dbpar(user)
         self.password = self.dbpar(password)
         self.fixed_schema = self.dbpar(fixed_schema)
+        self.use_timezone = self.dbpar(use_timezone)
+        self.now = TZDateTime.now if self.use_timezone else datetime.now
         self.read_only = read_only
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
