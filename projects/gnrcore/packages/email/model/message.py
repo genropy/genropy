@@ -5,7 +5,7 @@ import re
 import os
 import email
 import base64
-from datetime import datetime
+from datetime import date
 from smtplib import SMTPConnectError
 from mailparser import parse_from_bytes
 
@@ -182,7 +182,7 @@ class Table(object):
         new_mail['cc_address'] = fill_address(mail.cc)
         new_mail['bcc_address'] = fill_address(mail.bcc)
         new_mail['subject'] = mail.subject
-        new_mail['send_date'] = mail.date or datetime.today()
+        new_mail['send_date'] = mail.date or date.today()
 
 
     def parseAttachment(self, attachment, new_mail, atc_counter):
@@ -194,8 +194,8 @@ class Table(object):
         fname = fname.replace('.','_').replace('~','_').replace('#','_').replace(' ','').replace('/','_')
         fname = slugify(fname)
         filename = fname+ext
-        date = new_mail.get('send_date') or  datetime.datetime.today()
-        attachmentNode =  self.getAttachmentNode(date=date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
+        send_date = new_mail.get('send_date') or  date.today()
+        attachmentNode =  self.getAttachmentNode(date=send_date,filename=filename, new_mail=new_mail, atc_counter=atc_counter)
         new_attachment['path'] = attachmentNode.fullpath
         new_attachment['filename'] = attachmentNode.basename
         if binary:
@@ -308,7 +308,7 @@ class Table(object):
                                 ssl=mp['ssl'], tls=mp['tls'], html= message['html'], async_=False,
                                 scheduler=False,headers_kwargs=extra_headers.asDict(ascii=True))
 
-                message['send_date'] = datetime.now()
+                message['send_date'] = self.db.now()
                 message['bcc_address'] = bcc_address
             except SMTPConnectError as e:
                 message['connection_retry'] = (message['connection_retry'] or 0) + 1
@@ -317,7 +317,7 @@ class Table(object):
             
             except Exception as e:
                 error_msg = str(e)
-                ts = datetime.now()
+                ts = self.db.now()
                 message['error_ts'] = ts
                 message['error_msg'] = error_msg
                 message['sending_attempt'] = message['sending_attempt'] or  Bag()

@@ -86,7 +86,7 @@ class StoreTester(BaseComponent):
             user = v['user'] or v['user_ip'].replace('.', '_')
             pagename = v['pagename'].replace('.py', '')
             connection_id = v['connection_id']
-            delta = (datetime.datetime.now() - v['start_ts']).seconds
+            delta = (self.db.now() - v['start_ts']).seconds
             result.addItem('.'.join([user, '%s (%i)' % (pagename, delta)]), None,
                            connection_id=connection_id,
                            page_id=page_id, user_ip=v['user_ip'],

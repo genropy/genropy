@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from datetime import datetime
 
 class Table(object):
     def config_db(self,pkg):
@@ -22,7 +21,7 @@ class Table(object):
         
     def trigger_onUpdating(self,record,old_record):
         if record['checked']:
-            record['check_ts'] = datetime.now()
+            record['check_ts'] = self.db.now()
             record['check_user'] = self.db.currentEnv['user']
         else:
             record['check_ts'] = None

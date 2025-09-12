@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from datetime import datetime
 
 
 detach_dir = '.'
@@ -50,7 +49,7 @@ def send_pending(page=None, account=None):
     else:
         accounts=dict()
         accounts[account['id']]=account
-    messages=messages_table.query(where="$sent IS NOT TRUE AND $account_id in :account and date <=:now",now=datetime.now(),
+    messages=messages_table.query(where="$sent IS NOT TRUE AND $account_id in :account and date <=:now",now=db.now(),
                                             account=list(accounts.keys()),for_update=True).fetch()
     message_pkeys = [m['id'] for m in messages]
     attachments = attachments_table.query(where='$message_id IN :message_pkeys', message_pkeys=message_pkeys).fetchAsDict(key='message_id')

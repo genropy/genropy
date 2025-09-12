@@ -1,6 +1,5 @@
 import sys
 import time
-from datetime import datetime
 import os
 import atexit
 import re
@@ -418,7 +417,6 @@ class Server(object):
 
     def serve(self):
         port = int(self.options.port)
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')
         host = self.options.host
         site_name= f'{self.site_name}:{self.remote_db}' if self.remote_db else self.site_name
         if self.options.tornado:

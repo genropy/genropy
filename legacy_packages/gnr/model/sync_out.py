@@ -1,5 +1,4 @@
 # encoding: utf-8
-import datetime
 from gnr.core.gnrbag import Bag
 
 class Table(object):
@@ -16,7 +15,7 @@ class Table(object):
     def writeSync(self, sync_out, maintable, action, record_data, transaction_id=None, transaction_request=None, queue_id=None):
         syncdata = {}
         syncdata['transaction_id'] = transaction_id
-        syncdata['request'] = transaction_request or datetime.datetime.now()
+        syncdata['request'] = transaction_request or self.db.now()
         syncdata['action'] = action
         syncdata['maintable'] = maintable
         

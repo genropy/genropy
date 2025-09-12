@@ -93,7 +93,7 @@ class BaseServiceType(object):
         service.service_name = service_name
         service.service_type = self.service_type
         service.service_implementation = implementation
-        service._service_creation_ts = datetime.now()
+        service._service_creation_ts = self.site.db.now()
         self.service_instances[service_name] = service
         return service
 

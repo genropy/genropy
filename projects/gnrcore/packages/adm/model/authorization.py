@@ -2,7 +2,7 @@
 
 import random
 import string
-from datetime import datetime, date
+from datetime import date
 from gnr.core.gnrdecorator import public_method
 
 class Table(object):
@@ -46,7 +46,7 @@ class Table(object):
         if not record:
             raise self.exception('Authoriziation %s not found for scope %s' % (code, usage_scope))
         record= record[0]
-        record['use_ts'] = datetime.now()
+        record['use_ts'] = self.db.now()
         record['used_by'] = username or self.db.currentEnv.get('user')
         record['remaining_usages'] = record['remaining_usages'] - 1
         self.update(record)

@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-from datetime import datetime
 from gnr.core.gnrlang import GnrException,tracebackBag
 
 
@@ -34,7 +33,7 @@ class Table(object):
         try:
             transaction = transaction_class(data)
         except GnrException as e:
-            return {'validation_error':str(e),'description':description,'ts':datetime.now()}
+            return {'validation_error':str(e),'description':description,'ts':self.db.now()}
         transaction_record = self.newrecord(data=data,description=description,tbl=tbl,send_ts=send_ts)
         self.insert(transaction_record)
         return {'transaction_id':transaction_record['id'],'transaction_ts':transaction_record['__ins_ts']}
@@ -47,7 +46,7 @@ class Table(object):
         with self.recordToUpdate(transaction_id) as rec:
             try:
                 self.loadTransaction(rec).write()
-                rec['write_ts'] = datetime.now()
+                rec['write_ts'] = self.db.now()
             except Exception as e:
                 rec['errors'] = tracebackBag()
-                rec['errors_ts'] = datetime.now()
+                rec['errors_ts'] = self.db.now()

@@ -4,7 +4,6 @@
 
 
 
-import datetime
 from gnr.core.gnrbag import Bag, BagResolver
 
 class GnrCustomWebPage(object):
@@ -61,7 +60,7 @@ class ConnectionListResolver(BagResolver):
         connectionsDict = self._page.site.register_connection.connections()
         result = Bag()
         for connection_id, connection in list(connectionsDict.items()):
-            delta = (datetime.datetime.now() - connection['start_ts']).seconds
+            delta = (self.db.now() - connection['start_ts']).seconds
             user = connection['user'] or 'Anonymous'
             ip = connection['user_ip'].replace('.', '_')
             connection_name = connection['connection_name']
@@ -96,7 +95,7 @@ class PageListResolver(BagResolver):
         pagesDict = self._page.site.register_page.pages()
         result = Bag()
         for page_id, page in list(pagesDict.items()):
-            delta = (datetime.datetime.now() - page['start_ts']).seconds
+            delta = (self.db.now() - page['start_ts']).seconds
             pagename = page['pagename'].replace('.py', '')
             user = page['user'] or 'Anonymous'
             ip = page['user_ip'].replace('.', '_')

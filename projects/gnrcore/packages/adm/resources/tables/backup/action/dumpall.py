@@ -5,7 +5,6 @@
 # Copyright (c) 2011 Softwell. All rights reserved.
 from gnr.web.batch.btcbase import BaseResourceBatch
 from gnr.core.gnrbag import Bag
-from datetime import datetime
 import os
 
 caption = 'Dump all'
@@ -22,7 +21,7 @@ class Main(BaseResourceBatch):
 
     def pre_process(self):
         self.dumpfolder = self.page.getPreference(path='backups.backup_folder',pkg='adm') or 'maintenance:backups'        
-        self.ts_start = datetime.now()
+        self.ts_start = self.db.now()
         self.dump_name = self.batch_parameters.get('name') or '%s_%04i%02i%02i_%02i%02i' %(self.db.dbname,self.ts_start.year,self.ts_start.month,
                                                                                 self.ts_start.day,self.ts_start.hour,self.ts_start.minute)
         self.backupSn = self.db.application.site.storageNode(self.dumpfolder)
@@ -90,7 +89,7 @@ class Main(BaseResourceBatch):
         self.result_url = destSn.url()
 
         backup_rec = dict(self.dump_rec)
-        self.dump_rec['end_ts'] = datetime.now()
+        self.dump_rec['end_ts'] = self.db.now()
         self.dump_rec['file_url'] = destSn.internal_url()
         self.tblobj.update(self.dump_rec, backup_rec)
         self.db.commit()

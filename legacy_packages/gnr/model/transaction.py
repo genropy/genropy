@@ -4,7 +4,6 @@ import logging
 
 gnrlogger = logging.getLogger('gnr')
 from gnr.core.gnrlang import errorLog
-from datetime import datetime
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import metadata
 
@@ -42,7 +41,7 @@ class Table(object):
                         stoppedQueues=stoppedQueues,order_by="$request", limit=limit).fetch()
 
     def expandTransaction(self, transaction):
-        trargs = {'id': transaction['id'], 'execution_start': datetime.now()}
+        trargs = {'id': transaction['id'], 'execution_start': self.db.now()}
         
 
         try:
@@ -59,8 +58,8 @@ class Table(object):
             else:
                 raise "unknown mode: '%s' %s" % (str(mode), str(mode == 'import'))
 
-            trargs['execution_end'] = datetime.now()
-            #self.db.execute("UPDATE gnr.gnr_transaction SET execution_start=:ts_start, execution_end=:ts_end WHERE id=:id;", ts_end=datetime.now(), **trargs)
+            trargs['execution_end'] = self.db.now()
+            #self.db.execute("UPDATE gnr.gnr_transaction SET execution_start=:ts_start, execution_end=:ts_end WHERE id=:id;", ts_end=self.db.now(), **trargs)
             self.update(trargs,old_record=transaction)
            # self.db.commit() # actually commit only modification to the transaction. do_ methods commits by themself
             result = True
@@ -70,7 +69,7 @@ class Table(object):
             errtbl = self.db.table('gnr.error')
             errid = errtbl.newPkeyValue()
             trargs['error_id'] = errid
-            trargs['execution_end'] = datetime.now()
+            trargs['execution_end'] = self.db.now()
 
             #self.db.execute("UPDATE gnr.gnr_transaction SET error_id=:err_id, execution_start=:ts_start, execution_end=:ts_end WHERE id=:id;", err_id=err_id, ts_end=ts_end, **trargs)
             self.update(trargs,old_record=transaction)
