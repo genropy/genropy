@@ -156,6 +156,7 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
+        self.storetable = None #it may be set during createModel
         self.model = self.createModel()
         self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
         if main_schema is None:
@@ -217,20 +218,11 @@ class GnrSqlDb(GnrObject):
         self._tenant_table = tenant_table
         return self._tenant_table
 
-
     @property
     def reuse_relation_tree(self):
         if self.application:
             return boolean(self.application.config['db?reuse_relation_tree']) is not False
         
-    @property
-    def storetable(self):
-        if not self.application:
-            return
-        if not hasattr(self,'_storetable'):
-            self._storetable = self.application.config['db?storetable']
-        return self._storetable
-
     @property
     def auto_static_enabled(self):
         if self.application:

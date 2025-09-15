@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 import os
 import datetime
 
@@ -24,16 +21,16 @@ class Package(GnrDboPackage):
         pass
 
     def getStorePreference(self):
-        if not self.attributes.get('storetable'):
+        if not self.db.storetable:
             return Bag()
         storename = self.db.currentEnv.get('storename')
-        store_record = self.db.table(self.attributes['storetable']).record(dbstore=storename).output('record')
+        store_record = self.db.table(self.db.storetable).record(dbstore=storename).output('record')
         return store_record['preferences'] or Bag()
 
     def setStorePreference(self,pkg=None,value=None):
         storename = self.db.currentEnv.get('storename')
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
-            with self.db.table(self.attributes['storetable']).recordToUpdate(dbstore=storename) as rec:
+            with self.db.table(self.db.storetable).recordToUpdate(dbstore=storename) as rec:
                 rec['preferences'][pkg] = value
             self.db.commit()
 
