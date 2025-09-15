@@ -84,7 +84,7 @@ class TableHandler(BaseComponent):
         tableCode = table.replace('.','_')
         th_root = self._th_mangler(pane,table,nodeId=nodeId)
         if nodeId is None and th_root in pane.register_nodeId:
-            th_root = '{}_{}'.format(th_root,id(pane))
+            th_root = '{}_DUP_{}'.format(th_root,id(pane))
             datapath = datapath or '.{}'.format(th_root)
         viewCode='V_{}'.format(th_root)
         formCode='F_{}'.format(th_root)
