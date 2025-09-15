@@ -157,6 +157,7 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
+        self.storetable = None #it may be set during createModel
         self.model = self.createModel()
 
         if ':' in self.implementation:
@@ -225,16 +226,10 @@ class GnrSqlDb(GnrObject):
         self._tenant_table = tenant_table
         return self._tenant_table
 
-
     @property
     def reuse_relation_tree(self):
         if self.application:
             return boolean(self.application.config['db?reuse_relation_tree']) is not False
-        
-    @property
-    def storetable(self):
-        return
-
 
     @property
     def auto_static_enabled(self):
