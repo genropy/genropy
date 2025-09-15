@@ -42,7 +42,7 @@ class Public(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.package('multidb').attributes['storetable']
+        storetable = self.db.storetable
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,
@@ -55,7 +55,7 @@ class TableHandlerMain(BaseComponent):
     def public_publicRoot_multidb_selector(self,pane, **kwargs): 
         pane.parent.parent.parent.center.attributes['context_dbstore'] = '=current.context_dbstore'
         fb = pane.div(margin_top='2px').formbuilder(border_spacing='0',cols=1)
-        storetable = self.db.package('multidb').attributes['storetable']
+        storetable = self.db.storetable
         multidb_selector = self._getMultiDbSelector() 
         extra_kw = {} if multidb_selector is True else multidb_selector
         fb.dbSelect(value='^current.context_dbstore',_storename=False,dbtable=storetable,

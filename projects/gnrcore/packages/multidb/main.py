@@ -148,7 +148,8 @@ class Package(GnrDboPackage):
     def onAuthentication(self,avatar):
         """dbstore user check"""
         dbstorepage = self.db.application.site.currentPage.dbstore
-        if avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
+        user_record = getattr(avatar,'user_record',None)
+        if user_record and avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
             avatar.user_tags = ''
 
 class Table(GnrDboTable):
