@@ -19,25 +19,20 @@ class StoreTable(GnrDboTable):
     def multidb_removeStore(self,dbstore):
         pass
 
-    def multidb_addStore(self,dbstore):
-        pass
-
     def pyColumn_active_dbstore(self,record,**kwargs):
         if not record['dbstore']:
             return False
         return record["dbstore"] in self.db.dbstores
     
 
+    def multidb_fullSyncActivationWhitelist(self):
+        return
 
-    def activate_dbstore(self,dbstore):
-        dbname = None
-        record = self.recordAs(record)
+
+    def multidb_activateDbstore(self,dbstore):
+        if not self.checkDuplicate(dbstore=dbstore):
+            raise self.exception('business_logic',msg=f'Missing record with dbstore {dbstore}')
         dbname = '%s_%s' % (self.db.dbname, dbstore)
-
-        #    self.db.stores_handler.add_dbstore_config(
-        #        dbstore, dbname=dbname, save=True)
-        #    record = dict(dbstore=dbstore, denominazione=denominazione)
-        #    self.db.package('multidb').checkFullSyncTables(dbstores=[dbstore],
-        #                                                packages=['glbl', 'erpy_base', 'erpy_coge','erpy_fatt','erpy_ftel'])
-        #    self.db.table('erpy_studio.contabilita').insert(record)
-        #self.db.commit()
+        self.db.stores_handler.dbstore_align(dbstore, dbname=dbname, save=True)
+        self.db.package('multidb').checkFullSyncTables(dbstores=[dbstore],
+                                                    packages=self.multidb_fullSyncActivationWhitelist())
