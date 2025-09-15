@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-
+import os
 from multiprocessing import Process
 
 from gnr.core.cli import GnrCliArgParse
@@ -12,7 +12,8 @@ description = "Start the task worker service"
 def run_service(options):
     w = gnrtask.GnrTaskWorker(options.sitename,
                               host=options.host,
-                              port=options.port)
+                              port=options.port,
+                              queue_name=options.queue_name)
     w.start()    
 
 def main():
@@ -24,8 +25,11 @@ def main():
                         dest='port')
     parser.add_argument('-p', '--processes',
                         type=int,
-                        default=1,
+                        default=int(os.environ.get("GNR_WORKER_PROCESSES", 1)),
                         dest='processes')
+    parser.add_argument('-q', '--queue-name',
+                        default=None,
+                        dest='queue_name')
 
     processes = []
     options = parser.parse_args()

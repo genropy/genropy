@@ -28,6 +28,7 @@ import json
 import socket
 import uuid
 from datetime import datetime, timezone
+from collections import defaultdict
 
 from mako.template import Template
 import aiohttp
@@ -54,9 +55,9 @@ class GnrTaskSchedulerClient:
         self.url = url and url or GNR_SCHEDULER_URL
         self.page = page
         
-    def _call(self, uri):
+    def _call(self, uri, params=None):
         try:
-            return requests.get(f"{self.url}/{uri}")
+            return requests.get(f"{self.url}/{uri}", params=params)
         except Exception as e:
             if self.page:
                 self.page.clientPublish('floating_message',
@@ -72,35 +73,13 @@ class GnrTaskSchedulerClient:
         r = self.call("status")
         return r and r.json() or r.status_code
 
-# [id=KsHEQhCJOrCCSLDqcNA6Uw,
-#  __ins_ts=2025-06-03 14:24:35.509291,
-#  __del_ts=None,
-#  __mod_ts=2025-06-03 16:50:15.044202,
-#  __ins_user=cgabriel,
-#  table_name=fatt.prodotto,
-#  task_name=Task test,
-#  command=action/cambia_prezzi,
-#  month=None,
-#  day=None,
-#  weekday=None,
-#  hour=None,
-#  minute=None,
-#  frequency=1,
-#  last_scheduled_ts=2025-06-03 16:50:15.031971,
-#  last_execution_ts=None,
-#  last_error_ts=None,
-#  run_asap=None,
-#  max_workers=None,
-#  log_result=None,
-#  user_id=rwWx_Mw1O1OrkFfNY9VXMg,
-#  date_start=None,
-#  date_end=None,
-#  stopped=None,
-#  worker_code=None,
-#  saved_query_code=None,
-#  pkey=KsHEQhCJOrCCSLDqcNA6Uw]
-
+    def empty_queue(self, queue_name):
+        r = self.call("empty_queue", dict(queue_name=queue_name))
+        return r
     
+    def gen_fake(self, quantity):
+        r = self.call("gen_fake", dict(quantity=quantity))
+                                       
 class GnrTask(object):
     def __init__(self, record, db, table):
         self.record = record
@@ -109,6 +88,7 @@ class GnrTask(object):
         self.table = table
         self.task_id = record['id']
         self.payload = json.dumps(self.record.items(), default=str)
+        self.queue_name = record['worker_code'] or "general"
         
     def __str__(self):
         return self.record['task_name']
@@ -141,10 +121,10 @@ class GnrTask(object):
                 
         if self.record['run_asap']:
             return '*'
-        
+
         if self.record['frequency']:
             last_scheduled_ts = self.record['last_scheduled_ts']
-            if last_scheduled_ts is None or (timestamp - last_scheduled_ts).seconds/60. >= self.record['frequency']:
+            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).seconds/60. >= self.record['frequency']:
                 return '*'
             else:
                 return False
@@ -182,7 +162,11 @@ class GnrTaskScheduler:
         self.db = self.app.db
         self.tasktbl = self.db.table("sys.task")
         self.exectbl = self.db.table("sys.task_execution")
-        self.task_queue = asyncio.Queue()
+        self.startup_time = datetime.now(timezone.utc)
+        def async_queue_gen():
+            return asyncio.Queue()
+        
+        self.queues = defaultdict(async_queue_gen)
         
         self.pending_ack = {}
         self.failed_tasks = []
@@ -191,7 +175,6 @@ class GnrTaskScheduler:
         self.tasks = {}  # Loaded tasks from DB or mock
         self.dump_file_name = "gnr_scheduler_queue_dump.json"
 
-        
     async def load_configuration(self, triggered=False):
         if triggered:
             logger.info("Triggered scheduler configuration loading")
@@ -202,15 +185,19 @@ class GnrTaskScheduler:
         self.tasks = {x['id']: GnrTask(x, self.db, self.tasktbl) for x in all_tasks}
         
     async def complete_task(self, task_id):
-        logger.info("Task %s completed, saving", task_id)
         task = self.tasks.get(task_id)
         if task:
+            logger.info("Task %s completed, saving", task_id)
+            
             await task.completed()
-        
+        else:
+            logger.error("Task %s not found, can't complete", task_id)
+            
     async def start_service(self):
         await self.load_configuration()
         await self.load_queue_from_disk()
         logger.info(f"Starting scheduler on {self.host}:{self.port} - dashboard http://{self.host}:{self.port}")
+        
         asyncio.create_task(self.schedule_loop())
         asyncio.create_task(self.retry_monitor())
 
@@ -223,14 +210,16 @@ class GnrTaskScheduler:
     async def dump_queue_to_disk(self):
         try:
             items = []
-            while not self.task_queue.empty():
-                items.append(self.task_queue.get_nowait())
+            for queue_name, queue in self.queues.items():
+                while not queue.empty():
+                    items.append(queue.get_nowait())
             with open(self.dump_file_name, "w") as f:
                 json.dump(items, f)
             for item in items:
-                await self.task_queue.put(item)  # Restore after peeking
+                await self.queues[item.get("queue_name")].put(item)  # Restore after peeking
             logger.info(f"Dumped {len(items)} pending queued tasks to disk.")
         except Exception as e:
+            raise
             logger.error(f"Failed to dump queue: {e}")
 
     async def load_queue_from_disk(self):
@@ -239,7 +228,7 @@ class GnrTaskScheduler:
                 with open(self.dump_file_name) as f:
                     items = json.load(f)
                 for item in items:
-                    await self.task_queue.put(item)
+                    await self.queues[item['queue_name']].put(item)
                 logger.info(f"Loaded {len(items)} pending tasks from disk.")
                 os.remove(self.dump_file_name)
         except Exception as e:
@@ -250,10 +239,12 @@ class GnrTaskScheduler:
             now = datetime.now(timezone.utc)
             to_retry = []
             for task_id, (task, sent_time, retries) in list(self.pending_ack.items()):
+                print(task)
+                print(task_id)
                 if (now - sent_time).total_seconds() > ACK_TIMEOUT:
                     if retries < RETRY_LIMIT:
                         logger.info("Retrying task %s (%s)", task['task_id'], task['run_id'])
-                        await self.task_queue.put(task)
+                        await self.queues[task['queue_name']].put(task)
                         self.pending_ack[task_id] = (task, datetime.now(timezone.utc), retries + 1)
                     else:
                         logger.error("Task %s (%s) failed after %s retries", task['task_id'], task['run_id'], RETRY_LIMIT)
@@ -271,11 +262,13 @@ class GnrTaskScheduler:
                     task_instance = {
                         "run_id": str(uuid.uuid4()),
                         "task_id": task.task_id,
-                        "payload": task.payload
+                        "payload": task.payload,
+                        "queue_name": task.queue_name
+                        
                     }
                     logger.info("Scheduling task '%s' (%s - %s)",
                                 task, task_id, task_instance['run_id'])
-                    await self.task_queue.put(task_instance)
+                    await self.queues[task.queue_name].put(task_instance)
             await asyncio.sleep(1)
 
     async def worker_leave(self, request):
@@ -292,23 +285,25 @@ class GnrTaskScheduler:
         
     async def next_task(self, request):
         worker_id = request.query.get("worker_id")
+        queue_name = request.query.get("queue_name")
         if worker_id:
             if worker_id not in self.workers:
-                logger.info("Worker %s connected", worker_id)
+                logger.info("Worker %s (queue %s) connected", worker_id, queue_name)
                 self.workers[worker_id] = {"lastseen": str(datetime.now(timezone.utc)),
-                                           "worked_tasks": 1}
+                                           "worked_tasks": 1,
+                                           "queue_name": queue_name}
             else:
                 self.workers[worker_id]["lastseen"] = str(datetime.now(timezone.utc))
                 self.workers[worker_id]["worked_tasks"] += 1
                 
-        task = await self.task_queue.get()
+        task = await self.queues[queue_name].get()
         self.pending_ack[task["run_id"]] = (task, datetime.now(timezone.utc), 0)
-        #self.exectl.insert(self.exectbl.newrecord(task_id=task,
         return web.json_response(task)
 
     async def acknowledge(self, request):
         data = await request.json()
         run_id = data.get("run_id")
+        
         if run_id in self.pending_ack:
             logger.info("Task %s acknowledged", run_id)
             # update the task
@@ -326,21 +321,44 @@ class GnrTaskScheduler:
         <title>Gnr Scheduler Dashboard</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
         </head>
+        <script>
+        setInterval(function () {
+        location.reload();
+        }, 2000); 
+        </script>
         <body>
         <div class="container">
         <h1>Gnr Scheduler Dashboard</h1>
+        <p>Startup time: <span class="badge text-bg-secondary">${startup_time}</span></p>
+        <p>Current scheduler server time: <span class="badge text-bg-secondary">${scheduler_current_time}</span></p>
         <p>Total configured tasks: <span class="badge text-bg-secondary">${total_tasks}</span></p>
-        <p>Queue size: <span class="badge text-bg-secondary">${queue_size}</span></p>
-        <h2>Workers</h2>
+        <p>Total Queue size: <span class="badge text-bg-secondary">${total_queue_size}</span></p>
+        <h2>Queues</h2>
+        <table class="table"><thead><tr>
+        <th scope="col">Queue</th>
+        <th scope="col">Items</th>
+        </tr></thead><tbody>
+        % for w in queues_sizes.items():
+        <tr>
+        <td>${w[0]}</td>
+        <td>${w[1]}</td>
+        </tr>
+        % endfor
+        </tbody></table>
+        
+        <h2>Running workers</h2>
         % if workers:
         <table class="table"><thead><tr>
         <th scope="col">Worker ID</th>
+        <th scope="col">Queue</th>
         <th scope="col">Last seen</th>
         <th scope="col">Worked tasks</th>
         </tr></thead><tbody>
         % for w in workers.items():
         <tr>
-        <td>${w[0]}</td><td>${w[1]['lastseen']}</td>
+        <td>${w[0]}</td>
+        <td>${w[1]['queue_name']}</td>
+        <td>${w[1]['lastseen']}</td>
         <td>${w[1]['worked_tasks']}</td>
         </tr>
         % endfor
@@ -355,11 +373,13 @@ class GnrTaskScheduler:
         % if pending:
         <table class="table"
         <thead><tr>
+        <th scope="col">Queue</th>
         <th scope="col">Run ID</th>
         <th scope="col">Since</th>
         </tr></thead><tbody>
         % for k,v in pending.items():
         <tr>
+        <td>${v[0]['queue_name']}</td>
         <td>${k}</td><td>${v[1]}</td>
         </tr>
         % endfor
@@ -372,14 +392,15 @@ class GnrTaskScheduler:
         
         <h2>Failed tasks</h2>
         % if failed:
-        <table class="table>
+        <table class="table">
         <thead><tr>
+        <th scope="col">Queue</th>
         <th scope="col">Task Id</th>
-        <th scope="col">Task Name</th>
         <th scope="col">Run id</th>
         </tr></thead><tbody>
         % for a in failed:
-        <tr><td>${a['task_id']}</td><td>${a['task_name']}</td>
+        <tr><td>${a['queue_name']}</td>
+        <td>${a['task_id']}</td>
         <td>${a['run_id']}</td></tr>
         % endfor
         </tbody></table>
@@ -392,43 +413,58 @@ class GnrTaskScheduler:
         </body></html>
         """
         t = Template(template_content, strict_undefined=True)
-
+        
         payload = self._get_status()
-        return web.Response(text=t.render(**payload), content_type="text/html")
+        return web.Response(
+            text=t.render(**payload),
+            content_type="text/html"
+        )
 
     def _get_status(self):
         return {
             "total_tasks": len(self.tasks),
-            "queue_size": self.task_queue.qsize(),
+            "total_queue_size": sum([x.qsize() for x in self.queues.values()]),
+            "queues_sizes": {k: v.qsize() for k,v in self.queues.items()},
             "workers": self.workers,
             "workers_total": len(self.workers),
             "pending": self.pending_ack,
-            "failed": self.failed_tasks
+            "failed": self.failed_tasks,
+            "scheduler_current_time": datetime.now(timezone.utc),
+            "startup_time": self.startup_time
+
         }
     
-    async def metrics(self, request):
+    async def api_metrics(self, request):
         return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status().items() if k != 'workers'),
                             content_type="text/plain")
 
-    async def status(self, request):
+    async def api_status(self, request):
         return web.Response(text=json.dumps(self._get_status(), default=str),
                             content_type="application/json")
 
-    async def reload(self, request):
+    async def api_reload(self, request):
         await self.load_configuration(triggered=True)
         return web.json_response({"reload": "requested"})
+    
+    async def api_empty_queue(self, request):
+        pass
+
+    async def api_gen_fake(self, request):
+        pass
+    
+    
     
     def create_app(self):
         app = web.Application()
         app.on_shutdown.append(lambda app: self.shutdown_scheduler())
         app.add_routes([
-            web.get("/reload", self.reload),
+            web.get("/reload", self.api_reload),
             web.get("/next-task", self.next_task),
             web.get("/leave", self.worker_leave),
             web.post("/ack", self.acknowledge),
             web.get("/", self.dashboard),
-            web.get("/metrics", self.metrics),
-            web.get("/status", self.status),
+            web.get("/metrics", self.api_metrics),
+            web.get("/status", self.api_status),
         ])
         app.on_startup.append(lambda app: self.start_service())
         return app
@@ -438,11 +474,11 @@ class GnrTaskScheduler:
         web.run_app(self.create_app(), host=self.host, port=self.port)
 
 class GnrTaskWorker:
-    def __init__(self, sitename, host, port):
+    def __init__(self, sitename, host, port, queue_name=None):
         self.host = host and host or "127.0.0.1"
         self.port = port and port or random.randint(20000,30000)
         self.worker_id = os.environ.get("GNR_WORKER_ID", f"gnrworker-{socket.getfqdn()}-{os.getpid()}")
-
+        self.queue_name = queue_name or os.environ.get("GNR_WORKER_QUEUE_NAME", "general")
         self.sitename = sitename
         self.site = GnrWsgiSite(self.sitename)
         self.scheduler_url = GNR_SCHEDULER_URL
@@ -450,7 +486,6 @@ class GnrTaskWorker:
         self.app = GnrApp(self.sitename, enabled_packages=['gnrcore:sys'])
         self.db = self.app.db
         self.tasktbl = self.db.table("sys.task")
-        self.exectbl = self.db.table("sys.task_execution")
 
     async def start_service(self):
         asyncio.create_task(self.fetch_and_execute())
@@ -462,14 +497,16 @@ class GnrTaskWorker:
                 while True:
                     try:
                         logger.debug("Connecting to scheduler")
-                        async with session.get(f"{self.scheduler_url}/next-task", params={"worker_id": self.worker_id}) as resp:
+                        async with session.get(f"{self.scheduler_url}/next-task",
+                                               params={"worker_id": self.worker_id,
+                                                       "queue_name": self.queue_name}) as resp:
                             if resp.status == 200:
                                 logger.info("%s got new task: ", self.worker_id)
                                 task = await resp.json()
                                 await self.execute_task(task, session)
                     except Exception as e:
-                        raise
-                        logger.error("Request error: %s", e)
+                        logger.error(e)
+                        # wait before reconnect
                         await asyncio.sleep(5)
         except asyncio.CancelledError:
             raise
@@ -482,19 +519,23 @@ class GnrTaskWorker:
         page.db
         
         record = {x[0]:x[1] for x in json.loads(task['payload'])}
+        
         task_class = self.tasktbl.getBtcClass(table=record['table_name'],
                                               command=record['command'],
                                               page=page
                                               )
-        task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
-                              batch_selection_savedQuery=record['saved_query_code'])
-        task_params = record.get('parameters', {})
-        with self.db.tempEnv(connectionName="execution"):
-            logger.info("Executing task %s - %s",
-                        record['table_name'],
-                        record['command'])
-            task_obj(parameters=Bag(task_params),task_execution_record=record)
-
+        if task_class:
+            task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
+                                  batch_selection_savedQuery=record['saved_query_code'])
+            task_params = record.get('parameters', {})
+            with self.db.tempEnv(connectionName="execution"):
+                logger.info("Executing task %s - %s",
+                            record['table_name'],
+                            record['command'])
+                task_obj(parameters=Bag(task_params),task_execution_record=record)
+        else:
+            logger.error("Can't find task class for command %s", record['command'])
+            
         try:
             async with session.post(f"{self.scheduler_url}/ack", json={"run_id": task["run_id"]}) as resp:
                 logger.info("Acknowledged run %s, response %s", task['run_id'], await resp.text())
@@ -523,13 +564,13 @@ class GnrTaskWorker:
     def create_app(self):
         app = web.Application()
         app.on_shutdown.append(lambda app: self.shutdown_worker())
-
         app.on_startup.append(lambda app: asyncio.create_task(self.start_service()))
         return app
     
     def start(self):
-        logger.info("Starting Task Worker %s for site %s on http://%s:%s ",
+        logger.info("Starting Task Worker %s for site %s - queue %s on http://%s:%s ",
                     self.worker_id, self.sitename,
+                    self.queue_name,
                     self.host, self.port)
         web.run_app(self.create_app(), host=self.host, port=self.port)
                     

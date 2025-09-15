@@ -1647,7 +1647,7 @@ class GnrWsgiSite(object):
         if isinstance(file_list, str):
             file_list = file_list.split(',')
         with zipresult.open(mode='wb') as zipresult:
-            zip_archive = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED,allowZip64=True)
+            zip_archive = zipfile.ZipFile(zipresult, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True)
             for fpath in file_list:
                 newname = None
                 if isinstance(fpath,tuple):
@@ -1662,7 +1662,7 @@ class GnrWsgiSite(object):
                     zip_archive.write(local_path, newname)
             zip_archive.close()
 
-    def _zipDirectory(self,path, zip_archive):
+    def _zipDirectory(self, path, zip_archive):
         from gnr.lib.services.storage import StorageResolver
         def cb(n):
             if n.attr.get('file_ext')!='directory':

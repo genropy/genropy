@@ -25,7 +25,7 @@ class GnrCustomWebPage(object):
     REFRESH_INTERVAL = CACHE_AGE_SECONDS*2
     _status_cache_ts = time.time()-CACHE_AGE_SECONDS
     _status_cache = {"workers":{}, "workers_total": 0,
-                     "total_tasks": 0, "queue_size": 0,
+                     "total_tasks": 0, "total_queue_size": 0,
                      "pending": {}, "failed": {}}
 
     
@@ -58,6 +58,7 @@ class GnrCustomWebPage(object):
     def workersStruct(self, struct):
         r = struct.view().rows()
         r.cell('hostname', width='10em', name='Hostname')
+        r.cell('queue_name', width='10em', name='Queue')
         r.cell('pid', name='Pid', width='5em')
         r.cell('worked_tasks', name='Worked tasks', width='10em')
         r.cell('seen_ts', width='20em',
@@ -243,12 +244,16 @@ class GnrCustomWebPage(object):
         result = Bag()
         status,error = self._get_status_data()
         if status:
+            result.setItem("Scheduler startup", None, dict(key="Scheduler startup",
+                                                       value=status['startup_time']))
+            result.setItem("Scheduler current time", None, dict(key="Scheduler current time",
+                                                       value=status['scheduler_current_time']))
             result.setItem("Total workers", None, dict(key="Total workers",
                                                        value=status['workers_total']))
             result.setItem("Total tasks", None, dict(key="Total tasks",
                                                      value=status['total_tasks']))
-            result.setItem("Queue size", None, dict(key="Queue size",
-                                                    value=status['queue_size']))
+            result.setItem("Total Queue size", None, dict(key="Total Queue size",
+                                                    value=status['total_queue_size']))
             result.setItem("Total pending tasks", None, dict(key="Total pending tasks",
                                                              value=len(status['pending'])))
             result.setItem("Total failed tasks", None, dict(key="Total failed tasks",
