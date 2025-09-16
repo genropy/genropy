@@ -38,7 +38,7 @@ from gnr.core.gnrlang import GnrObject
 from gnr.core.gnrlang import importModule, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
-
+from gnr.sql.gnrsqlmigration import SqlMigrator
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable,GnrSqlException
 
 MAIN_CONNECTION_NAME = '_main_connection'
@@ -366,6 +366,16 @@ class GnrSqlDb(GnrObject):
         
         :param applyChanges: boolean. If ``True``, all the changes are executed and committed"""
         return self.model.check(applyChanges=applyChanges)
+    
+    def diffOrmToSql(self):
+        migrator = SqlMigrator(self)
+        return migrator.getChanges()
+
+    def syncOrmToSql(self):
+        migrator = SqlMigrator(self)
+        changes = migrator.getChanges()
+        if changes:
+            migrator.applyChanges()
         
     def closeConnection(self):
         """Close a connection"""
@@ -1203,7 +1213,8 @@ class DbStoresHandler(object):
 
     @property
     def dbstores(self):
-        return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
+        with self.db.tempEnv(storename=False):
+            return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
     def _calculate_multidbstores(self):
         result = {}
@@ -1245,6 +1256,10 @@ class DbStoresHandler(object):
                 return changes
             else: #not changes
                 return True
+            
+    def create_dbstore(self,storename):
+        self.db.createDb(f'{self.db.dbname}_{storename}')
+        self.db.application.cache.updatedItem('MULTI_DBSTORES')
                 
     def dbstore_align(self, storename, changes=None):
         """TODO
@@ -1252,9 +1267,7 @@ class DbStoresHandler(object):
         :param storename: TODO
         :param changes: TODO. """
         with self.db.tempEnv(storename=storename):
-            changes = changes or self.db.model.check()
-            if changes:
-                self.db.model.applyModelChanges()
+            self.db.syncOrmToSql()
 
 class DbLocalizer(object):
     def translate(self,v):
