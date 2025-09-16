@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import pytest
-
 from datetime import timezone
 import pytz
 
