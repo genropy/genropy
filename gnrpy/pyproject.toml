@@ -45,7 +45,6 @@ dependencies = [
 	     "pyro4",
 	     "python-dateutil",
 	     "pytz",
-		 "backports.zoneinfo",
 	     "pyyaml",
 	     "redbaron",
 	     "reportlab",
