@@ -34,7 +34,10 @@ class Public(BaseComponent):
         default_multidb_selector = None
         multidb_switch = self.getPreference('multidb_switch',pkg='multidb')
         multidb_switch_tag = self.getPreference('multidb_switch_tag',pkg='multidb') or 'user'
-        if self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
+        use_dbstores = None
+        if self.tblobj:
+            use_dbstores = self.tblobj.use_dbstores()
+        if use_dbstores is not False and self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
             default_multidb_selector = self.application.checkResourcePermission(multidb_switch_tag,self.userTags)
         return default_multidb_selector
 

@@ -9,6 +9,7 @@ def getSyncTables(db,filterstring=None,multidbMode=None):
     result = Bag()
     for pkgobj in list(db.packages.values()):
         for tableobj in list(pkgobj.tables.values()):
+            print('tableobj',tableobj.fullname)
             tblattr = tableobj.attributes
             tablename = tableobj.fullname
             if tblattr.get('multidb') and filterstring in tablename:

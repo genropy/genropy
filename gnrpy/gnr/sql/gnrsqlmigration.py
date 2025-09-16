@@ -5,7 +5,6 @@ import json
 import dictdiffer
 from collections import defaultdict
 
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure
@@ -560,6 +559,7 @@ class SqlMigrator():
                  removeDisabled=True):
         self.db = db
         self.extensions = extensions.split(',') if extensions else []
+        self.commands = {}
         self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
         self.dbExtractor = DbExtractor(migrator=self)
         self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
@@ -625,7 +625,6 @@ class SqlMigrator():
     def prepareMigrationCommands(self):
         self.prepareStructures()
         self.commands = nested_defaultdict()
-
         for evt,kw in self.dictDifferChanges():
             if evt=='removed' and self.removeDisabled:
                 continue
@@ -1046,6 +1045,8 @@ class SqlMigrator():
 
         The resulting SQL commands are stored in `self.sql_commands` and returned as a single concatenated string.
         """
+        if 'db' not in self.commands:
+            self.prepareMigrationCommands()
         commands = self.commands
         dbitem = commands['db']
         sql_command = dbitem.get('command')
@@ -1123,43 +1124,44 @@ class SqlMigrator():
 
     #jsonorm = OrmExtractor(GnrApp('dbsetup_tester').db).get_json_struct()
     
-def dbsetupComparison():
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-
-    with open('testsqlextractor.json','w') as f:
-        f.write(json.dumps(mig.sqlStructure))
-
-    with open('testormextractor.json','w') as f:
-        f.write(json.dumps(mig.ormStructure))
-    with open('sandbox_migration.sql','w') as f:
-        f.write(mig.getChanges())
-
-    app.db.model.check()
-
-    with open('sandbox_modelchecker.sql','w') as f:
-        f.write('\n'.join(app.db.model.modelChanges))
-
-def multiTenantTester():
-    app = GnrApp('mtx_tester')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    with open('ts2_multi_tenant_orm.json','w') as f:
-        f.write(json.dumps(mig.ormStructure))
-
-    with open('ts2_multi_tenant_sql.json','w') as f:
-        f.write(json.dumps(mig.sqlStructure))
-
-def testTree():
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    res = mig.jsonModelWithoutMeta()
-    
-if __name__ == '__main__':
-    app = GnrApp('sandboxpg')
-    mig = SqlMigrator(app.db)
-    mig.prepareMigrationCommands()
-    #testTree()
-    #multiTenantTester()
+#def dbsetupComparison():
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#
+#    with open('testsqlextractor.json','w') as f:
+#        f.write(json.dumps(mig.sqlStructure))
+#
+#    with open('testormextractor.json','w') as f:
+#        f.write(json.dumps(mig.ormStructure))
+#    with open('sandbox_migration.sql','w') as f:
+#        f.write(mig.getChanges())
+#
+#    app.db.model.check()
+#
+#    with open('sandbox_modelchecker.sql','w') as f:
+#        f.write('\n'.join(app.db.model.modelChanges))
+#
+#def multiTenantTester():
+#    app = GnrApp('mtx_tester')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    with open('ts2_multi_tenant_orm.json','w') as f:
+#        f.write(json.dumps(mig.ormStructure))
+#
+#    with open('ts2_multi_tenant_sql.json','w') as f:
+#        f.write(json.dumps(mig.sqlStructure))
+#
+#def testTree():
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    res = mig.jsonModelWithoutMeta()
+#    
+#if __name__ == '__main__':
+#    app = GnrApp('sandboxpg')
+#    mig = SqlMigrator(app.db)
+#    mig.prepareMigrationCommands()
+#    #testTree()
+#    #multiTenantTester()
+#
