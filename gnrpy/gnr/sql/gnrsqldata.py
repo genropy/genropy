@@ -624,7 +624,7 @@ class SqlQueryCompiler(object):
             for condition in list(env_conditions.values()):
                 wherelist.append('( %s )' %condition)
         wherelist.append(self.tblobj.dbtable.getPartitionCondition(ignorePartition=ignorePartition))
-        if subtable and subtable!='*':
+        if subtable and subtable != '*':
             subtable_list = re.split(r'[&|]', subtable)
             st_condition = subtable.replace('&',' AND ').replace('|',' OR ').replace('!',' NOT ')
             for s in subtable_list:
