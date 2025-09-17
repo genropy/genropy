@@ -18,7 +18,13 @@ Enhancements
 * Introduce new 'sys maintanance' instance cli command to
   enable/disable maintenance mode
   
-  
+
+Version 25.09.17
+================
+
+Bug fixing release, properly handle database connection close on raw
+database executions.
+
 Version 25.08.12
 ================
 
