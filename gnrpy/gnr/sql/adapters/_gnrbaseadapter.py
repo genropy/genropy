@@ -289,6 +289,7 @@ class SqlDbAdapter(object):
         specific adapters
         """
         raise AdapterMethodNotImplemented()
+    
 
     def listElements(self, elType, **kwargs):
         """-- IMPLEMENT THIS --
@@ -646,10 +647,14 @@ class SqlDbAdapter(object):
 
         Returns None
         """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql,sqlargs)
+        connection.close()
+
         
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
         """
@@ -659,11 +664,14 @@ class SqlDbAdapter(object):
 
         Returns all records returned by the SQL statement.
         """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql, sqlargs)
-            return cursor.fetchall()
+            result = cursor.fetchall()
+        connection.close()
+        return result
                 
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db

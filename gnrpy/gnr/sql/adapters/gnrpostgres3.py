@@ -96,37 +96,6 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
 
         return sql
 
-    def execute(self, sql, sqlargs=None, manager=False, autoCommit=False):
-        """
-        Execute a sql statement on a new cursor from the connection of the selected
-        connection manager if provided, otherwise through a new connection.
-        sqlargs will be used for query params substitutions.
-
-        Returns None
-        """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql,sqlargs)
-        connection.close()
-
-    def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
-        """
-        Execute a sql statement on a new cursor from the connection of the selected
-        connection manager if provided, otherwise through a new connection.
-        sqlargs will be used for query params substitutions.
-
-        Returns all records returned by the SQL statement.
-        """
-        
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, sqlargs)
-            r = cursor.fetchall()
-            connection.close()
-            return r
-
-    
     def prepareSqlText(self, sqltext, kwargs):
         """Change the format of named arguments in the query from ':argname' to '%(argname)s'.
         Replace the 'REGEXP' operator with '~*'
@@ -134,15 +103,14 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :param sql: the sql string to execute
         :param kwargs: the params dict
         :returns: tuple (sql, kwargs)"""
+
         sqlargs = {}
         sqltext = self.adaptTupleListSet(sqltext,kwargs)
         sqltext = sqltext.replace('{',chr(2)).replace('}',chr(3))
         def subArgs(m):
             key = m.group(1)
             sqlargs[key]=kwargs[key]
-            #sqlargs.append(kwargs[key])
             return f'{{{key}}}{m.group(2)} '
-        #sql = RE_SQL_PARAMS.sub(r'%(\1)s\2', sql).replace('REGEXP', '~*')
         sqltext = RE_SQL_PARAMS.sub(subArgs, sqltext)
         sqltext= sqltext.replace('REGEXP', '~*')
         
@@ -234,7 +202,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.dbroot.execute(query, kwargs).fetchall()
+            result = self.raw_fetch(query, sqlargs=kwargs)
         except psycopg.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         return [r[0] for r in result]
@@ -289,10 +257,11 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         filtercol = ""
         if column:
             filtercol = "AND column_name=:column"
-        columns = self.dbroot.execute(sql % filtercol,
-                                      dict(schema=schema,
-                                           table=table,
-                                           column=column)).fetchall()
+        columns = self.raw_fetch(sql % filtercol,
+                                 dict(schema=schema,
+                                      table=table,
+                                      column=column)
+                                 )
         result = []
         for col in columns:
             col = dict(col)
