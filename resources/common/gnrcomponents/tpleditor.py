@@ -417,16 +417,30 @@ class TemplateEditor(TemplateEditorBase):
         r.cell('resource',name='!![en]Resource',width='15em',edit=True)
         r.cell('condition',name='!![en]Condition',width='15em',edit=True)
 
-    def _te_emailParsFull(self,bc):
-        metadatapane = bc.roundedGroup(region='left',title='!![en]Email metadata',width='500px',datapath='.data.metadata.email')
-        fb = metadatapane.div(margin_right='10px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',tdl_width='8em')
-        fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
-        fb.textbox(value='^.to_address', lbl='!!To',dropTypes = 'text/plain')
-        fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
-        fb.textbox(value='^.cc_address', lbl='!!CC',dropTypes = 'text/plain')
-        fb.textbox(value='^.bcc_address', lbl='!!BCC',dropTypes = 'text/plain')
-        fb.simpleTextArea(value='^.attachments', lbl='!!Attachments',dropTypes = 'text/html')
-        self._te_attachedReports(bc.contentPane(region='center'))
+
+    def _te_emailFields(self,pane,emailFields=None):
+        if emailFields is None:
+            emailFields = '*'
+        if emailFields is True:
+            emailFields = 'subject,from_address'
+        elif emailFields == '*':
+            emailFields = 'subject,from_address,to_address,cc_address,bcc_address,attachments'
+        emailFields = emailFields.split(',')
+    
+        fb = pane.div(padding_right='30px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',
+                              tdl_width='8em',colswidth='auto',datapath='.data.metadata.email')
+        if 'subject' in emailFields:
+            fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
+        if 'to_address' in emailFields:
+            fb.textbox(value='^.to_address', lbl='!!To',dropTypes = 'text/plain')
+        if 'from_address' in emailFields:
+            fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
+        if 'cc_address' in emailFields:
+            fb.textbox(value='^.cc_address', lbl='!!CC',dropTypes = 'text/plain')
+        if 'bcc_address' in emailFields:
+            fb.textbox(value='^.bcc_address', lbl='!!BCC',dropTypes = 'text/plain')
+        if 'attachments' in emailFields:
+            fb.simpleTextArea(value='^.attachments', lbl='!!Attachments',dropTypes = 'text/html')
         
 
     def _te_frameEdit(self,frame,editorConstrain=None,plainText=None,emailChunk=None):
@@ -434,17 +448,13 @@ class TemplateEditor(TemplateEditorBase):
         bc = frame.center.borderContainer(design='sidebar')
         self._te_pickers(frame.tabContainer(region='left',width='200px',splitter=True))                
         frame.dataController("bc.setRegionVisible('top',mail)",bc=bc.js_widget,mail='^.data.metadata.is_mail',_if='mail!==null')
-        
+
         if emailChunk:
-            if emailChunk=='*':
-                self._te_emailParsFull(bc.borderContainer(region='top',height='180px'))
-            else:
-                fb = bc.contentPane(region='top').div(margin_right='20px').formbuilder(cols=1, border_spacing='2px',width='100%',fld_width='100%',
-                                                            datapath='.data.metadata.email',colswidth='auto')
-                fb.textbox(value='^.subject', lbl='!!Subject',dropTypes = 'text/plain')
-                fb.textbox(value='^.from_address', lbl='!!From',dropTypes = 'text/plain')
+            self._te_emailFields(bc.contentPane(region='top').div(margin_right='20px'),emailFields=emailChunk)
         else:
-            self._te_emailParsFull(bc.borderContainer(region='top',height='180px',hidden=True))
+            topbc = bc.borderContainer(region='top',height='180px',hidden=True)
+            self._te_emailFields(topbc.roundedGroup(region='center',title='!![en]Email metadata'))
+            self._te_attachedReports(topbc.contentPane(region='right',width='450px',closable='close'))
 
         editorConstrain = editorConstrain or dict()
         constrain_height = editorConstrain.pop('constrain_height',False)
