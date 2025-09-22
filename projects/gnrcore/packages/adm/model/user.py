@@ -6,6 +6,7 @@ import re
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrlang import getUuid
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import boolean
 
 class Table(object):
     def config_db(self, pkg):
@@ -297,3 +298,7 @@ class Table(object):
                          url=None,expiry_date=None,
                          sender=None,**kwargs):
         raise self.exception('business_logic',msg='Missing Webpush notification package')
+
+
+    def use_dbstores(self,forced_dbstore=None, env_forced_dbstore=None,**kwargs):
+        return boolean(self.pkg.attributes('multidomain'))

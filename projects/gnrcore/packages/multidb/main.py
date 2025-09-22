@@ -3,6 +3,8 @@ import datetime
 
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import boolean
+
 from gnr.core.gnrlang import instanceMixin
 #from gnrpkg.multidb.multidbtable import MultidbTable
 from gnr.sql.gnrsql import GnrSqlException
@@ -151,6 +153,16 @@ class Package(GnrDboPackage):
         user_record = getattr(avatar,'user_record',None)
         if user_record and avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
             avatar.user_tags = ''
+
+    def onSiteInited(self):
+        if not self.multidomain:
+            return
+        site = self.db.application.site
+        for dbstore in self.db.dbstores.keys():
+            site.setDomain(dbstore)
+
+    def multidomain(self):
+        return boolean(self.attributes.get('multidomain'))
 
 class Table(GnrDboTable):
     def use_dbstores(self,**kwargs):

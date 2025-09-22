@@ -143,14 +143,6 @@ class UrlInfo(object):
         self.basepath = mobilepath or self.basepath
         self.request_args = path_list
 
-
-class GnrDomainProxy(object):
-    def __init__(self,domain=None,**kwargs):
-        self.domain = None
-        self.register = None
-        self.attributes = kwargs            
-
-
 class GnrWsgiSite(object):
     """TODO"""
 
@@ -166,12 +158,12 @@ class GnrWsgiSite(object):
         self._currentAuxInstanceNames = {}
         self._currentPages = {}
         self._currentDomains = {}
+
         self._currentRequests = {}
         self._currentMaintenances = {}
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
-        self.domains = {}
-
+        self.registers = {}
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
         
@@ -236,11 +228,12 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
+        self.multi_domain = boolean(self.gnrapp.config.getAttr('instance','multi_domain'))
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
         logger.debug("Debugpy active: %s", self.debugpy)
-        #self.dbstores = self.db.dbstores to remove
+        self.dbstores = self.db.dbstores
         self.resource_loader = ResourceLoader(self)
         self.pwa_handler = PWAHandler(self)
         self.auth_token_generator = AuthTokenGenerator(self.external_secret)
@@ -255,7 +248,7 @@ class GnrWsgiSite(object):
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
         # and it initialze the register itself.
-        self.register
+        #self.register
         
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
@@ -264,16 +257,26 @@ class GnrWsgiSite(object):
             self.gnrapp.importFromSourceInstance(options.source_instance)
             self.db.commit()
             logger.info('End of import')
-
-        cleanup = self.custom_config.getAttr('cleanup') or dict()
-        self.cleanup_interval = int(cleanup.get('interval') or 120)
-        self.page_max_age = int(cleanup.get('page_max_age') or 120)
-        self.connection_max_age = int(cleanup.get('connection_max_age')or 600)
+       
         self.db.closeConnection()
 
-    def setDomain(self,domain,**kwargs):
-        self.domains[domain] = GnrDomainProxy(domain)
 
+
+    @property
+    def cleanup_interval(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('interval') or 120)
+
+    @property
+    def page_max_age(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('page_max_age') or 120)
+
+    @property
+    def connection_max_age(self):
+        cleanup = self.custom_config.getAttr('cleanup') or dict()
+        return int(cleanup.get('connection_max_age') or 600)
+    
 
     @property
     def guest_counter(self):
@@ -356,19 +359,18 @@ class GnrWsgiSite(object):
                 return
         return self._wsk
 
-    
+
     @property
     def register(self):
-        register = self.domains[self.currentDomain].register
+        register = self.registers.get(self.currentDomain) 
         if not register:
             register  = SiteRegisterClient(self)
-            self.domains[self.currentDomain].register = register
+            self.registers[self.currentDomain] = register
             self.checkPendingConnection()
         return register
 
-
     def getSubscribedTables(self,tables):
-        if self.domains[self.currentDomain].register:
+        if self.registers.get(self.currentDomain) is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
 
     @property
@@ -784,33 +786,11 @@ class GnrWsgiSite(object):
             path_info = self.indexpage
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
-        return path_list
-
-    def _get_currentDomain(self):
-        """property currentDomain it returns the page currently used in this thread"""
-        return self._currentDomains.get(_thread.get_ident())
-
-    def _set_currentDomain(self, domain):
-        """set currentDomain for this thread"""
-        self._currentDomains[_thread.get_ident()] = domain
-
-    currentDomain = property(_get_currentDomain, _set_currentDomain)
-
-    def get_path_list(self, path_info):
-        """TODO
-
-        :param path_info: TODO"""
-        # No path -> indexpage is served
-        if path_info == '/' or path_info == '':
-            path_info = self.indexpage
-        path_list = path_info.strip('/').split('/')
-        path_list = [p for p in path_list if p]
         first_segment = path_list[0]
-        if first_segment in self.domains:
+        if first_segment in ('alfa','beta'):
             self.currentDomain =  path_list.pop(0) if self.multi_domain else self.site_name
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list
-    
 
     def _get_home_uri(self):
         if self.currentPage and self.currentPage.dbstore:
@@ -885,7 +865,7 @@ class GnrWsgiSite(object):
                 return self._dispatcher(environ, start_response)
             except self.register.errors.ConnectionClosedError:
                 self.currentMaintenance = 'register_error'
-                self.domains[self.currentDomain].register = None
+                self.registers[self.currentDomain] = None
                 return self.maintenanceDispatcher(environ, start_response)
             except Exception as e:
                 page = self.currentPage
@@ -1130,7 +1110,7 @@ class GnrWsgiSite(object):
             else:
                 request_kwargs['_subdomain'] = request_kwargs.get('_subdomain') or first
         else:
-            if self.db.get_store_parameters(first):
+            if self.db.stores_handler.get_dbstore(first):
                 request_kwargs['base_dbstore'] = path_list.pop(0)
         if request_kwargs.get('_subdomain'):
             self.gnrapp.pkgBroadcast('handleSubdomain',path_list,request_kwargs=request_kwargs)
@@ -1143,7 +1123,7 @@ class GnrWsgiSite(object):
         auxapp = self.gnrapp.getAuxInstance(instance_name)
         if not auxapp:
             raise Exception('not existing aux instance %s' %instance_name)
-        if self.db.get_store_parameters(storename):
+        if self.db.stores_handler.get_dbstore(storename):
             return
         dbattr = auxapp.config.getAttr('db')
         if auxapp.remote_db:
@@ -1157,7 +1137,7 @@ class GnrWsgiSite(object):
                     dbattr['remote_host'] = host
                     dbattr['remote_port'] = port
                 dbattr.update(remote_db_attr)
-        self.db.stores_handler.add_auxstore(storename,dbattr=dbattr)
+        self.db.stores_handler.add_store(storename,dbattr=dbattr)
 
 
     @extract_kwargs(info=True)
@@ -1498,6 +1478,17 @@ class GnrWsgiSite(object):
         self._currentPages[_thread.get_ident()] = page
 
     currentPage = property(_get_currentPage, _set_currentPage)
+
+    
+    def _get_currentDomain(self):
+        """property currentDomain it returns the page currently used in this thread"""
+        return self._currentDomains.get(_thread.get_ident())
+
+    def _set_currentDomain(self, domain):
+        """set currentDomain for this thread"""
+        self._currentDomains[_thread.get_ident()] = domain
+
+    currentDomain = property(_get_currentDomain, _set_currentDomain)
 
     def _get_currentAuxInstanceName(self):
         """property currentAuxInstanceName it returns the page currently used in this thread"""

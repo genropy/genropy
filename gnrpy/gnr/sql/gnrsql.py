@@ -28,6 +28,7 @@ import re
 import _thread
 import locale
 from time import time
+from functools import cached_property
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 from gnr.sql import logger
@@ -156,7 +157,6 @@ class GnrSqlDb(GnrObject):
         self.typeConverter = GnrClassCatalog()
         self.debugger = debugger
         self.application = application
-        self.storetable = None #it may be set during createModel
         self.model = self.createModel()
         self.adapters[implementation] = importModule(f'gnr.sql.adapters.gnr{self.implementation}').SqlDbAdapter(self)
         if main_schema is None:
@@ -208,15 +208,21 @@ class GnrSqlDb(GnrObject):
         """TODO"""
         return self.stores_handler.auxstores
     
-    @property
+    @cached_property
     def tenant_table(self):
-        if hasattr(self,'_tenant_table'):
-            return self._tenant_table
         tenant_table = None
         for pkg in self.packages.values():
             tenant_table = pkg.attributes.get('tenant_table') or tenant_table
-        self._tenant_table = tenant_table
-        return self._tenant_table
+        return tenant_table
+
+
+    @cached_property
+    def storetable(self):
+        storetable = None
+        for pkg in self.packages.values():
+            storetable = pkg.attributes.get('storetable') or storetable
+        return storetable
+    
 
     @property
     def reuse_relation_tree(self):
