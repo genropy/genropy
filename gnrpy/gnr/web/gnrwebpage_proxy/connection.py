@@ -110,9 +110,11 @@ class GnrWebConnection(GnrBaseProxy):
                                                                     'locale': None}, 
                                                                     secret=self.secret)
         self.cookie.expires = expires
-        self.cookie.path = self.page.site.default_uri
+        self.cookie.path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
         cookieattrs = self.page.site.config.getAttr('cookies') or {}
+        print('adding cookie',self.cookie.path,self.page.site.multidomain,self.page.pagename)
         self.page.add_cookie(self.cookie, **cookieattrs)
+        print('added cookie')
 
     @property
     def loggedUser(self):

@@ -300,5 +300,3 @@ class Table(object):
         raise self.exception('business_logic',msg='Missing Webpush notification package')
 
 
-    def use_dbstores(self,forced_dbstore=None, env_forced_dbstore=None,**kwargs):
-        return boolean(self.pkg.attributes('multidomain'))

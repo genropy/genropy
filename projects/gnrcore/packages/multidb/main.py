@@ -151,7 +151,7 @@ class Package(GnrDboPackage):
         """dbstore user check"""
         dbstorepage = self.db.application.site.currentPage.dbstore
         user_record = getattr(avatar,'user_record',None)
-        if user_record and avatar.user_record['dbstore'] and dbstorepage!=avatar.user_record['dbstore']:
+        if user_record and avatar.user_record.get('dbstore') and dbstorepage!=avatar.user_record.get('dbstore'):
             avatar.user_tags = ''
 
     def onSiteInited(self):

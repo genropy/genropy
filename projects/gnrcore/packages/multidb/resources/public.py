@@ -29,6 +29,8 @@ class Public(BaseComponent):
                 bar.replaceSlots('avatar','multidb_selector,10,avatar')
 
     def _getMultiDbSelector(self):
+        if self.db.multidomain:
+            return
         if hasattr(self,'public_multidbSelector'):
             return self.public_multidbSelector
         default_multidb_selector = None
@@ -36,7 +38,7 @@ class Public(BaseComponent):
         multidb_switch_tag = self.getPreference('multidb_switch_tag',pkg='multidb') or 'user'
         use_dbstores = None
         if self.tblobj:
-            use_dbstores = self.tblobj.use_dbstores()
+            use_dbstores = self.tblobj.use_dbstores() or self.db.multidomain
         if use_dbstores is not False and self.maintable and not self.tblobj.attributes.get('multidb') and multidb_switch_tag:
             default_multidb_selector = self.application.checkResourcePermission(multidb_switch_tag,self.userTags)
         return default_multidb_selector

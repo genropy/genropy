@@ -1169,7 +1169,7 @@ class SqlTable(GnrObject):
             return self.db.whereTranslator
 
     def cachedKey(self,topic):
-        if self.multidb=='*' or not self.use_dbstores() is False:
+        if self.multidb=='*' or not (self.use_dbstores() or self.db.multidomain) is False:
             storename = self.db.rootstore
         else:
             storename = self.db.currentStorename
@@ -1369,7 +1369,7 @@ class SqlTable(GnrObject):
                 mpkg, mtbl, mfld = rel.attr['many_relation'].split('.')
                 opkg, otbl, ofld = rel.attr['one_relation'].split('.')
                 relatedTable = self.db.table(mtbl, pkg=mpkg)
-                if not usingRootstore and relatedTable.use_dbstores() is False:
+                if not usingRootstore and (relatedTable.use_dbstores() is False or self.db.multidomain):
                     continue
                 if relatedTable.logicalDeletionField:
                     updater = {relatedTable.logicalDeletionField:archive_ts}

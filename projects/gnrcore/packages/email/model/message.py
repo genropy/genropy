@@ -230,7 +230,7 @@ class Table(object):
         if weak_attachments and isinstance(weak_attachments,list):
             site = self.db.application.site
             weak_attachments = ','.join([site.storageNode(p).fullpath for p in weak_attachments])
-        use_dbstores = self.use_dbstores()
+        use_dbstores = self.use_dbstores() or self.db.multidomain
         dbstore = self.db.currentEnv.get('storename')
         envkw = {}
         if dbstore and self.multidb and use_dbstores:

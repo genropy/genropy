@@ -86,6 +86,7 @@ class UrlInfo(object):
         self.basepath = ''
         self.plugin = None
         path_list = list(url_list)
+        print('UrlInfo path_list',path_list)
         if path_list[0]=='webpages':
             self.pkg = self.site.mainpackage
             self.basepath =  self.site.site_static_dir
@@ -275,6 +276,7 @@ class GnrWsgiSite(object):
 
     def setDomain(self,domain,**kwargs):
         self.domains[domain] = GnrDomainProxy(domain)
+
 
 
     @property
@@ -814,12 +816,11 @@ class GnrWsgiSite(object):
         self.currentDomain = self.site_name
         if self.multidomain:
             if first_segment in self.domains:
-                self.currentDomain =  path_list.pop(0) 
+                self.currentDomain =  first_segment
             else:
                 logger.warning('Multidomain site with first segment without domain')
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list
-    
 
     def _get_home_uri(self):
         if self.multidomain:
@@ -1073,7 +1074,9 @@ class GnrWsgiSite(object):
         else:
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='RESOURCE')
             try:
+                print('building page')
                 page = self.resource_loader(path_list, request, response, environ=environ,request_kwargs=request_kwargs)
+                print('instanziata page')
                 if page:
                     page.download_name = download_name
             except WSGIHTTPException as exc:
@@ -1088,7 +1091,9 @@ class GnrWsgiSite(object):
             self.currentPage = page
             self.onServingPage(page)
             try:
+                print('calling page')
                 result = page()
+                print('called page')
                 if page.download_name:
                     download_name = str(page.download_name)
                     content_type = getattr(page,'forced_mimetype',None) or mimetypes.guess_type(download_name)[0]

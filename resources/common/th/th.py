@@ -879,7 +879,7 @@ class ThLinker(BaseComponent):
                 _customclasscol = """(CASE WHEN @%s.%s IS NOT NUll THEN 'linked_row' ELSE '' END) AS _customclasses_existing""" %(manyrelfld,tblobj.pkey)
                 hiddenColumns = _customclasscol if not hiddenColumns else '%s,%s' %hiddenColumns
         linkerpath = '#FORM.linker_%s' %field
-        forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.dbtable.use_dbstores() is False)
+        forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or (related_tblobj.dbtable.use_dbstores() or self.db.multidomain) is False)
         linker = pane.div(_class='th_linker',childname='linker',datapath=linkerpath,
                          rounded=8,tip='!!Select %s' %self._(related_tblobj.name_long),
                          onCreated='this.linkerManager = new gnr.LinkerManager(this);',
@@ -953,7 +953,8 @@ class ThLinker(BaseComponent):
                                       visible=currpkey,margin='4px',
                                       **template_kwargs)
         
-        forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
+        forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or (related_tblobj.use_dbstores() or self.db.multidomain) is False)
+        
         if editEnabled and formResource or formUrl:
             footer = frame.bottom.slotBar('*,linker_edit',height='20px')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',

@@ -223,6 +223,12 @@ class GnrSqlDb(GnrObject):
             storetable = pkg.attributes.get('storetable') or storetable
         return storetable
     
+    @cached_property
+    def multidomain(self):
+        multidomain = None
+        for pkg in self.packages.values():
+            multidomain = boolean(pkg.attributes.get('multidomain')) or multidomain
+        return multidomain
 
     @property
     def reuse_relation_tree(self):
@@ -574,7 +580,7 @@ class GnrSqlDb(GnrObject):
                     sqlargs[k] = v[1:]
 
         # FIXME: we'll need an external package  table to test this
-        if dbtable and self.table(dbtable).use_dbstores(**sqlargs) is False: # pragma: no cover
+        if dbtable and (self.table(dbtable).use_dbstores(**sqlargs) or self.multidomain) is False: # pragma: no cover
             storename = self.rootstore
         with self.tempEnv(storename=storename):
             sql = f'-- {sql_comment}\n{sql}'
