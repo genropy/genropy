@@ -200,7 +200,7 @@ def set_gnr_log_global_level(level):
     """
 
     root_logger = logging.getLogger('gnr')
-    root_logger.debug("Settings global GNR logger configuration to %s", level)
+    root_logger.debug("Setting global GNR logger configuration to %s", level)
     root_logger.setLevel(level)
     for k, v in root_logger.manager.loggerDict.items():
         if not k.startswith("gnr."):
