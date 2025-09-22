@@ -155,14 +155,14 @@ class Package(GnrDboPackage):
             avatar.user_tags = ''
 
     def onSiteInited(self):
-        if not self.multidomain:
+        multidomain = boolean(self.attributes.get('multidomain'))
+        if not multidomain:
             return
         site = self.db.application.site
+        site.multidomain = multidomain
         for dbstore in self.db.dbstores.keys():
             site.setDomain(dbstore)
 
-    def multidomain(self):
-        return boolean(self.attributes.get('multidomain'))
 
 class Table(GnrDboTable):
     def use_dbstores(self,**kwargs):

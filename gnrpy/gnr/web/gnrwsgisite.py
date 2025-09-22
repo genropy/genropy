@@ -171,6 +171,7 @@ class GnrWsgiSite(object):
         abs_script_path = os.path.abspath(script_path)
         self.remote_db = ''
         self.domains = {}
+        self.multidomain = False
 
         if site_name and ':' in site_name:
             _,self.remote_db = site_name.split(':',1)
@@ -199,6 +200,7 @@ class GnrWsgiSite(object):
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
+        self.setDomain(self.site_name)
 
         # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
@@ -255,7 +257,7 @@ class GnrWsgiSite(object):
         # this is needed, don't remove - if removed, the register
         # is not initialized, since self.register is a property
         # and it initialze the register itself.
-        self.register
+        #self.register
         
         if counter == 0 and self.debug:
             self.onInited(clean=not noclean)
@@ -775,17 +777,6 @@ class GnrWsgiSite(object):
         :param *path: TODO"""
         return self.resource_loader.loadResource(*path, pkg=pkg)
 
-    def get_path_list(self, path_info):
-        """TODO
-
-        :param path_info: TODO"""
-        # No path -> indexpage is served
-        if path_info == '/' or path_info == '':
-            path_info = self.indexpage
-        path_list = path_info.strip('/').split('/')
-        path_list = [p for p in path_list if p]
-        return path_list
-
     def _get_currentDomain(self):
         """property currentDomain it returns the page currently used in this thread"""
         return self._currentDomains.get(_thread.get_ident())
@@ -795,6 +786,20 @@ class GnrWsgiSite(object):
         self._currentDomains[_thread.get_ident()] = domain
 
     currentDomain = property(_get_currentDomain, _set_currentDomain)
+
+
+
+    #def get_path_list(self, path_info):
+    #    """TODO
+#
+    #    :param path_info: TODO"""
+    #    # No path -> indexpage is served
+    #    if path_info == '/' or path_info == '':
+    #        path_info = self.indexpage
+    #    path_list = path_info.strip('/').split('/')
+    #    path_list = [p for p in path_list if p]
+    #    return path_list
+
 
     def get_path_list(self, path_info):
         """TODO
@@ -806,15 +811,21 @@ class GnrWsgiSite(object):
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
         first_segment = path_list[0]
-        if first_segment in self.domains:
-            self.currentDomain =  path_list.pop(0) if self.multi_domain else self.site_name
+        self.currentDomain = self.site_name
+        if self.multidomain:
+            if first_segment in self.domains:
+                self.currentDomain =  path_list.pop(0) 
+            else:
+                logger.warning('Multidomain site with first segment without domain')
         self.db.currentEnv['domainName'] = self.currentDomain
         return path_list
     
 
     def _get_home_uri(self):
+        if self.multidomain:
+            return f'{self.default_uri}{self.currentDomain}/'
         if self.currentPage and self.currentPage.dbstore:
-            return '%s%s/' % (self.default_uri, self.currentPage.dbstore)
+            return f'{self.default_uri}{self.currentPage.dbstore}/'
         else:
             return self.default_uri
 
