@@ -647,8 +647,12 @@ class SqlDbAdapter(object):
 
         Returns None
         """
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
+
+        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
+                                                                            storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql,sqlargs)
         connection.close()
 
@@ -663,6 +667,8 @@ class SqlDbAdapter(object):
         """
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
         with connection.cursor() as cursor:
+            if isinstance(sqlargs,dict):
+                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
             cursor.execute(sql, sqlargs)
             result = cursor.fetchall()
         connection.close()
