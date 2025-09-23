@@ -86,12 +86,12 @@ class UrlInfo(object):
         self.basepath = ''
         self.plugin = None
         path_list = list(url_list)
-        print('UrlInfo path_list',path_list)
-        if path_list[0]=='webpages':
+        first_chunk = path_list[0]
+        if first_chunk=='webpages':
             self.pkg = self.site.mainpackage
             self.basepath =  self.site.site_static_dir
         else:
-            pkg_obj = self.site.gnrapp.packages[path_list[0]]
+            pkg_obj = self.site.gnrapp.packages[first_chunk]
             if pkg_obj:
                 path_list.pop(0)
             else:
@@ -363,7 +363,11 @@ class GnrWsgiSite(object):
     
     @property
     def register(self):
-        register = self.domains[self.currentDomain].register
+        if self.currentDomain in self.domains:
+            register = self.domains[self.currentDomain].register
+        else:
+            register = None
+            print('wrong domain',self.currentDomain)
         if not register:
             register  = SiteRegisterClient(self)
             self.domains[self.currentDomain].register = register
@@ -791,7 +795,7 @@ class GnrWsgiSite(object):
 
 
 
-    #def get_path_list(self, path_info):
+    #def handle_path_list(self, path_info):
     #    """TODO
 #
     #    :param path_info: TODO"""
@@ -803,7 +807,7 @@ class GnrWsgiSite(object):
     #    return path_list
 
 
-    def get_path_list(self, path_info):
+    def handle_path_list(self, path_info):
         """TODO
 
         :param path_info: TODO"""
@@ -813,14 +817,17 @@ class GnrWsgiSite(object):
         path_list = path_info.strip('/').split('/')
         path_list = [p for p in path_list if p]
         first_segment = path_list[0]
-        self.currentDomain = self.site_name
+        redirect_to = None
         if self.multidomain:
             if first_segment in self.domains:
                 self.currentDomain =  first_segment
+                if path_list[-1]==first_segment and not path_info.endswith('/'):
+                    redirect_to = f'{path_info}/'
             else:
                 logger.warning('Multidomain site with first segment without domain')
+                print('first_segment',first_segment)
         self.db.currentEnv['domainName'] = self.currentDomain
-        return path_list
+        return path_list,redirect_to
 
     def _get_home_uri(self):
         if self.multidomain:
@@ -873,7 +880,7 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path)
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -890,6 +897,7 @@ class GnrWsgiSite(object):
 
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
+        self.currentDomain = self.site_name
         if self.isInMaintenance:
             return self.maintenanceDispatcher(environ, start_response)
         else:
@@ -915,7 +923,7 @@ class GnrWsgiSite(object):
         response = Response()
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list = self.get_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path)
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
@@ -969,7 +977,9 @@ class GnrWsgiSite(object):
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         
         # Url parsing start
-        path_list = self.get_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path)
+        if redirect_to:
+            self.redirect(environ,start_response,location=redirect_to)
         # path_list is never empty
         expiredConnections = self.register.cleanup()
         if expiredConnections:
@@ -1074,9 +1084,7 @@ class GnrWsgiSite(object):
         else:
             self.log_print('%s : kwargs: %s' % (path_list, str(request_kwargs)), code='RESOURCE')
             try:
-                print('building page')
                 page = self.resource_loader(path_list, request, response, environ=environ,request_kwargs=request_kwargs)
-                print('instanziata page')
                 if page:
                     page.download_name = download_name
             except WSGIHTTPException as exc:
@@ -1091,9 +1099,7 @@ class GnrWsgiSite(object):
             self.currentPage = page
             self.onServingPage(page)
             try:
-                print('calling page')
                 result = page()
-                print('called page')
                 if page.download_name:
                     download_name = str(page.download_name)
                     content_type = getattr(page,'forced_mimetype',None) or mimetypes.guess_type(download_name)[0]

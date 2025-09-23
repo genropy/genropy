@@ -149,6 +149,8 @@ class Package(GnrDboPackage):
 
     def onAuthentication(self,avatar):
         """dbstore user check"""
+        if boolean(self.attributes.get('multidomain')):
+            return 
         dbstorepage = self.db.application.site.currentPage.dbstore
         user_record = getattr(avatar,'user_record',None)
         if user_record and avatar.user_record.get('dbstore') and dbstorepage!=avatar.user_record.get('dbstore'):
