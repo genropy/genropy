@@ -360,20 +360,24 @@ class GnrWsgiSite(object):
                 return
         return self._wsk
 
+    @property
+    def mainregister(self):
+        return self.get_register(self.site_name)
     
     @property
     def register(self):
-        if self.currentDomain in self.domains:
-            register = self.domains[self.currentDomain].register
+        return self.get_register(self.currentDomain)
+
+    def get_register(self,domain):
+        if domain in self.domains:
+            register = self.domains[domain].register
         else:
             register = None
-            print('wrong domain',self.currentDomain)
         if not register:
             register  = SiteRegisterClient(self)
-            self.domains[self.currentDomain].register = register
+            self.domains[domain].register = register
             self.checkPendingConnection()
         return register
-
 
     def getSubscribedTables(self,tables):
         if self.domains[self.currentDomain].register:
@@ -877,6 +881,13 @@ class GnrWsgiSite(object):
         return page
 
     @property
+    def currentDomainIdentifier(self):
+        return self.get_domainIdentifier(self.currentDomain)
+    
+    def get_domainIdentifier(self,domain):
+        return self.site_name if not self.multidomain else f'{self.site_name}_{domain}'
+
+    @property
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
@@ -891,7 +902,7 @@ class GnrWsgiSite(object):
             return True
         else:
             r = GnrWebRequest(request)
-            c = r.get_cookie(self.site_name,'marshal', secret=self.config['secret'])
+            c = r.get_cookie(self.currentDomainIdentifier,'marshal', secret=self.config['secret'])
             user = c.get('user') if c else None
             return self.register.isInMaintenance(user)
 

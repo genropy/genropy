@@ -1060,7 +1060,7 @@ class SiteRegisterClient(object):
 
     def checkSiteRegisterServerUri(self,daemonProxy):
         if not self.siteregisterserver_uri:
-            info = daemonProxy.getSite(self.site.currentDomain,create=True,storage_path=self.storage_path,autorestore=True)
+            info = daemonProxy.getSite(self.site.currentDomainIdentifier,create=True,storage_path=self.storage_path,autorestore=True)
             self.siteregisterserver_uri = info.get('server_uri',False)
             if not self.siteregisterserver_uri:
                 time.sleep(1)

@@ -36,7 +36,6 @@ class GnrWebConnection(GnrBaseProxy):
         self.ip = self.page.user_ip or '0.0.0.0'
         self.connection_name = '%s_%s' % (self.ip.replace('.', '_'), self.browser_name)
         self.secret = page.site.config['secret'] or self.page.siteName
-        self.cookie_name = self.page.siteName
         self.electron_static = electron_static
         self.connection_id = None
         self.user = None
@@ -99,22 +98,26 @@ class GnrWebConnection(GnrBaseProxy):
     def upd_registration(self, user):
         pass
 
+    @property
+    def cookie_name(self):
+        return self.page.site.currentDomainIdentifier
+    
     def read_cookie(self):
+        print('reading cookie')
         return self.page.get_cookie(self.cookie_name, 'marshal', secret=self.secret)
 
     def write_cookie(self):
         expires = time.time() + CONNECTION_TIMEOUT*24
+        cookie_path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
                                                                     'locale': None}, 
                                                                     secret=self.secret)
         self.cookie.expires = expires
-        self.cookie.path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
+        self.cookie.path = cookie_path
         cookieattrs = self.page.site.config.getAttr('cookies') or {}
-        print('adding cookie',self.cookie.path,self.page.site.multidomain,self.page.pagename)
         self.page.add_cookie(self.cookie, **cookieattrs)
-        print('added cookie')
 
     @property
     def loggedUser(self):
@@ -163,7 +166,7 @@ class GnrWebConnection(GnrBaseProxy):
         self.user_id = avatar_dict.get('user_id')
         if avatar:
             self.avatar_extra = avatar.extra_kwargs
-
+        print('calling change_connection_user',self.user,self.user_tags,self.user_id)
         self.page.site.register.change_connection_user(self.connection_id, user=self.user,
                                                        user_tags=self.user_tags, user_id=self.user_id,
                                                        user_name=self.user_name, avatar_extra=self.avatar_extra)
