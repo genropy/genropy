@@ -2,6 +2,7 @@
 tutorial/projects/devlang/sites/devlang/data/
 docs/genro/genrotit.sql
 projects/showcase/sites/showcase/data/
+gnr_scheduler_queue_dump.json
 build
 gnrpy/build/
 logs.log
