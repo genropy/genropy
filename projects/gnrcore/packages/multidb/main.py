@@ -22,7 +22,7 @@ class Package(GnrDboPackage):
     def copyTableToStore(self):
         pass
 
-    def getStorePreference(self):
+    def getStoretablePreference(self):
         if not self.db.storetable:
             return Bag()
         storename = self.db.currentEnv.get('storename')

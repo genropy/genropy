@@ -34,8 +34,10 @@ class Table(object):
             preference = self.db.application.cache.getItem(pref_cache_key)
         if not preference:
             preference = self.getMainStorePreference()
-            store_preference =  self.db.package('multidb').getStorePreference()
-
+            if self.db.application.site.multidomain:
+                store_preference = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
+            else:
+                store_preference =  self.db.package('multidb').getStoretablePreference()
             for pkgid,pkgobj in self.db.application.packages.items():
                 multidb_pref = pkgobj.attributes.get('multidb_pref') or self.db.application.site.multidomain
                 if multidb_pref:
