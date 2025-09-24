@@ -1232,11 +1232,12 @@ class DbStoresHandler(object):
         with self.db.tempEnv(storename=False):
             return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
+    
     def _calculate_multidbstores(self):
         result = {}
         if self.db.storetable:    
             prefixname = f'{self.db.dbname}_'
-            databases = {dbname[len(prefixname):]:dbname for dbname in self.db.adapter.listElements('databases') if dbname.startswith(prefixname)}
+            databases = {dbname[len(prefixname):] if dbname.startswith(prefixname) else dbname:dbname for dbname in self.db.adapter.listElements('databases')}
             dbstores = self.db.table(self.db.storetable).query(
                 where='$dbstore IN :databases',
                 databases=list(databases.keys()),columns="$dbstore").fetch()
