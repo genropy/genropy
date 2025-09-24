@@ -211,23 +211,23 @@ class GnrSqlDb(GnrObject):
     @cached_property
     def tenant_table(self):
         tenant_table = None
-        for pkg in self.packages.values():
-            tenant_table = pkg.attributes.get('tenant_table') or tenant_table
+        for pkgNode in self.application.config['packages']:
+            tenant_table = pkgNode.attr.get('tenant_table') or tenant_table
         return tenant_table
 
 
     @cached_property
     def storetable(self):
         storetable = None
-        for pkg in self.packages.values():
-            storetable = pkg.attributes.get('storetable') or storetable
+        for pkgNode in self.application.config['packages']:
+            storetable = pkgNode.attr.get('storetable') or storetable
         return storetable
     
     @cached_property
     def multidomain(self):
         multidomain = None
-        for pkg in self.packages.values():
-            multidomain = boolean(pkg.attributes.get('multidomain')) or multidomain
+        for pkgNode in self.application.config['packages']:
+            multidomain = boolean(pkgNode.attr.get('multidomain')) or multidomain
         return multidomain
 
     @property
@@ -1236,7 +1236,7 @@ class DbStoresHandler(object):
     def raw_multdb_dbstores(self):
         result = {}
         if self.db.storetable:    
-            existing_databases = self.db.adapter.listElements('databases')
+            existing_databases = self.db.adapter.listElements('databases',manager=True)
             if self.db.dbname not in existing_databases:
                 return result
             prefixname = f'{self.db.dbname}_'
