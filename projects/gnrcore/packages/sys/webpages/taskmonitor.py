@@ -37,14 +37,15 @@ class GnrCustomWebPage(object):
         bc = root.borderContainer(datapath='main')
 
         top = bc.borderContainer(region='top', height='250px')
-        self.workersFrame(top.contentPane(region='center'))
+        self.statusFrame(top.contentPane(region='left', width="50%"))
+        self.queuesizeFrame(top.contentPane(region='right', width="50%"))
 
         center = bc.borderContainer(region='center')
         self.pendingfailedFrame(center.contentPane(region='center'))
 
         bottom = bc.borderContainer(region='bottom', height='250px')
-        self.statusFrame(bottom.contentPane(region='center'))
-
+        self.workersFrame(bottom.contentPane(region='center'))
+        
     def _get_status_data(self):
         try:
             if (time.time() - self._status_cache_ts) > self.CACHE_AGE_SECONDS:
@@ -115,6 +116,63 @@ class GnrCustomWebPage(object):
                 v['seen_ts'] = v['lastseen']
                 result_data.setItem(i, None, **v)
         return Bag(data=result_data, error=error)
+
+    # QUEUE STATUS
+
+    def queuesizeStruct(self, struct):
+        r = struct.view().rows()
+        r.cell('queue_name', width='20em', name='Queue')
+        r.cell('counter', width='20em', name='Total tasks')
+        
+    def queuesizeFrame(self, pane):
+        frame = pane.frameGrid(frameCode='queuesizeStatus', datapath='queuesizeStatus',
+                               struct=self.queuesizeStruct, _class='pbl_roundedGroup',
+                               margin='2px')
+        frame.grid.bagStore(storepath='queuesizeStatus.store', storeType='AttributesBagRows',
+                            sortedBy='=.grid.sorted',
+                            data='^queuesizeStatus.loaded_data', selfUpdate=True)
+
+        pane.dataFormula(".queuesize_refresh_timer", "dflt",
+                         _onStart=True,
+                         dflt=self.REFRESH_INTERVAL,
+                         _fire_reset='^.queuesize_refresh_reset')
+        
+        pane.dataController(
+            """
+            if(result.getItem('error')) {
+              genro.publish("floating_message",
+                            {message:result.getItem('error'),
+                             messageType:'error'}
+             );
+              SET .queuesize_refresh_timer = current*2;
+            } else {
+              FIRE .queuesize_refresh_reset;
+              SET queuesizeStatus.loaded_data =result.getItem('data');
+            }
+            """,
+            current='=.queuesize_refresh_timer',
+            result='^.queuesize_result')
+
+        pane.dataRpc(self.queuesizeStatus,
+                     _onStart=True,
+                     _onResult='FIRE .queuesize_result =result;',
+                     _timing='^.queuesize_refresh_timer')
+        frame.top.slotBar('2,vtitle,*',vtitle='Queues',_class='pbl_roundedGroupLabel')
+
+    @public_method
+    def queuesizeStatus(self):
+        '''
+        prepare data for enqueued tasks obtained
+        from the scheduler status API endpoint
+        '''
+        result = Bag()
+        status,error = self._get_status_data()
+        if status:
+            for i, (k, v) in enumerate(status.get("queues_sizes", {}).items()):
+                desc = dict(queue_name=k,
+                            counter=v)
+                result.setItem(i, None, **desc)
+        return Bag(data=result,error=error)
     
     # PENDING/FAILED
     
@@ -128,7 +186,7 @@ class GnrCustomWebPage(object):
         r.cell('table_name', name='Table name', width='15em')
         r.cell('run_id', name='Run ID', width='30em')
 
-    def pendingfailedFrame(self,pane):
+    def pendingfailedFrame(self, pane):
         frame = pane.frameGrid(frameCode='pendingfailedStatus', datapath='pendingfailedStatus',
                                struct=self.pendingfailedStruct, _class='pbl_roundedGroup',
                                margin='2px')
@@ -200,8 +258,8 @@ class GnrCustomWebPage(object):
     # SCHEDULER STATUS
     def statusStruct(self, struct):
         r = struct.view().rows()
-        r.cell('key', width='15em', name='Attribute')
-        r.cell('value', name='Value', width='40em')
+        r.cell('key', name='Attribute', width='auto')
+        r.cell('value', name='Value', width='auto')
         
     def statusFrame(self,pane):
         frame = pane.frameGrid(frameCode='schedulerStatus', datapath='schedulerStatus',
