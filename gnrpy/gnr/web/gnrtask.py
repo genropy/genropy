@@ -625,16 +625,20 @@ class GnrTaskWorker:
 
     async def poll(self):
         while not self.stop_evt.is_set():
-            async with aiohttp.ClientSession() as session:
+            session_timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=session_timeout) as session:
                 logger.debug("Connecting to scheduler")
-                async with session.get(f"{self.scheduler_url}/next-task",
-                                       params={"worker_id": self.worker_id,
-                                               "queue_name": self.queue_name}) as resp:
-                    if resp.status == 200:
-                        task = await resp.json()
-                        logger.info("%s got new task: %s", self.worker_id, task)
-                        await self.tasks_q.put(task)
-                        logger.info("Hello")
+                try:
+                    async with session.get(f"{self.scheduler_url}/next-task",
+                                           params={"worker_id": self.worker_id,
+                                                   "queue_name": self.queue_name}) as resp:
+                        if resp.status == 200:
+                            task = await resp.json()
+                            logger.info("%s got new task: %s", self.worker_id, task)
+                            await self.tasks_q.put(task)
+                            logger.info("Hello")
+                except Exception:
+                    await asyncio.sleep(5)
                     
     async def executor(self, name):
         while not self.stop_evt.is_set():
