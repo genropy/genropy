@@ -37,7 +37,7 @@ class Table(object):
             store_preference =  self.db.package('multidb').getStorePreference()
 
             for pkgid,pkgobj in self.db.application.packages.items():
-                multidb_pref = pkgobj.attributes.get('multidb_pref')
+                multidb_pref = pkgobj.attributes.get('multidb_pref') or self.db.application.site.multidomain
                 if multidb_pref:
                     pkgstorepref = store_preference[pkgid] or Bag()
                     if multidb_pref is True:

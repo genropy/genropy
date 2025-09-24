@@ -37,9 +37,13 @@ class Package(GnrDboPackage):
             self.db.commit()
 
     def onApplicationInited(self):
+        if boolean(self.application.db.packages['multidb'].get('readOnly')):
+            return
         self.mixinMultidbMethods()
 
     def mixinMultidbMethods(self):
+        if boolean(self.attributes.get('readOnly')):
+            return
         db = self.application.db
         for pkg,pkgobj in db.packages.items():
             for tbl,tblobj in pkgobj.tables.items():
@@ -69,6 +73,8 @@ class Package(GnrDboPackage):
         return ','.join(multidb_fkeys)
 
     def onBuildingDbobj(self):
+        if boolean(boolean(self.db.model.src['packages']['multidb'].attributes.get('readOnly'))):
+            return
         for pkgNode in self.db.model.src['packages']:
             if not pkgNode.value:
                 continue
@@ -146,10 +152,9 @@ class Package(GnrDboPackage):
                 else:
                     os.remove(p)
 
-
     def onAuthentication(self,avatar):
         """dbstore user check"""
-        if boolean(self.attributes.get('multidomain')):
+        if boolean(self.attributes.get('multidomain')) or boolean(self.attributes.get('readOnly')):
             return 
         dbstorepage = self.db.application.site.currentPage.dbstore
         user_record = getattr(avatar,'user_record',None)
@@ -157,6 +162,8 @@ class Package(GnrDboPackage):
             avatar.user_tags = ''
 
     def onSiteInited(self):
+        if boolean(self.attributes.get('readOnly')):
+            return
         multidomain = boolean(self.attributes.get('multidomain'))
         if not multidomain:
             return

@@ -32,6 +32,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         genro.ping_classes = true;
         this.stackSourceNode = stackSourceNode;
         this.dbstore =  genro.getData('gnr.dbstore');
+        this.multidomain =  genro.getData('gnr.multidomain');
+        this.currentDomain =  genro.getData('gnr.currentDomain');
+
         this.default_uri =  genro.getData('gnr.defaultUrl')||'/';
         genro.externalWindowsObjects = {};
         var that = this;
@@ -374,9 +377,13 @@ dojo.declare("gnr.FramedIndexManager", null, {
         let urlkw = objectExtract(kw,'url_*',true);
         objectExtract(urlkw,'level_offset');
         let baseurl = kw.webpage || kw.file || kw.filepath;
-        if(this.dbstore && !kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
-            if(baseurl.slice(1).split('/')[0]!=this.dbstore){
-                baseurl = `/${this.dbstore}${baseurl}`;
+        if(!kw.aux_instance && baseurl && baseurl.indexOf('/')===0){
+            const firstchunk = baseurl.slice(1).split('/')[0];
+            if(this.multidomain &&  firstchunk!= this.currentDomain){
+                baseurl = `/${this.currentDomain}${baseurl}`;
+            }
+            else if(this.dbstore && firstchunk!=this.dbstore){
+                    baseurl = `/${this.dbstore}${baseurl}`;
             }
         }
         if(kw.unique){

@@ -17,6 +17,8 @@ from gnr.web.gnrwebstruct import struct_method
 class Public(BaseComponent):
     @oncalled
     def public_applyOnRoot(self,frame,**kwargs):
+        if self.db.package('multidb').attributes.get('readOnly'):
+            return
         if self.dbstore or self.site.currentAuxInstanceName:
             return
         if self._getMultiDbSelector():
@@ -29,6 +31,8 @@ class Public(BaseComponent):
                 bar.replaceSlots('avatar','multidb_selector,10,avatar')
 
     def _getMultiDbSelector(self):
+        if self.db.package('multidb').attributes.get('readOnly'):
+            return
         if self.db.multidomain:
             return
         if hasattr(self,'public_multidbSelector'):
@@ -72,6 +76,8 @@ class TableHandlerMain(BaseComponent):
                             _if='runned',_fired='^current.context_dbstore')
 
     def onMain_multidb_addOn(self):
+        if self.db.package('multidb').attributes.get('readOnly'):
+            return
         if not self.tblobj.multidb:
             return
         th = getattr(self,'root_tablehandler',None)

@@ -2185,6 +2185,8 @@ class GnrWebPage(GnrBaseWebPage):
         page.data('gnr.locale', self.locale)
         page.data('gnr.pagename', self.pagename)
         page.data('gnr.remote_db',self.site.remote_db)
+        page.data('gnr.multidomain',self.site.multidomain)
+        page.data('gnr.currentDomain',self.site.currentDomain)
         if self.dbstore:
             page.data('gnr.dbstore',self.dbstore)
         if has_adm and not self.isGuest:

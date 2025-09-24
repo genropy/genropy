@@ -1240,7 +1240,7 @@ class DbStoresHandler(object):
             if self.db.dbname not in existing_databases:
                 return result
             prefixname = f'{self.db.dbname}_'
-            databases = {dbname[len(prefixname):]:dbname for dbname in existing_databases if dbname.startswith(prefixname)}
+            databases = {dbname[len(prefixname):] if dbname.startswith(prefixname) else dbname:dbname for dbname in existing_databases}
             pkgname,tblname = self.db.storetable.split('.')
             pkgattr = self.db.application.packages[pkgname].attributes
             sqlschema = pkgattr.get('sqlschema') or pkgname

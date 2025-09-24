@@ -497,12 +497,15 @@ class MenuResolver(BagResolver):
     def nodeType_thpage(self,node):
         attributes = dict(node.attr)
         table = attributes['table']
+
+        aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
+        application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
+
         attributes['webpage'] = f'/sys/thpage/{table.replace(".","/")}'
         for k in ('pkey','pageResource','formResource','viewResource','subtable'):
             v = attributes.pop(k,None)
             if v is not None:
                 attributes[f'url_th_{k}'] = v
-        aux_instance = attributes.pop('aux_instance',None) or self.aux_instance
         attributes['url_aux_instance'] = aux_instance
         attributes['url_th_from_package'] = attributes.get('pkg_menu')
         self.checkContextParameters(attributes)
@@ -515,9 +518,8 @@ class MenuResolver(BagResolver):
             attributes.setdefault('url_th_public',True)
         else:
             attributes.setdefault('multipage',True)
-        tableattr = self._page.db.table(table).attributes
+        tableattr = application.db.table(table).attributes
         attributes['label'] =  attributes.get('label') or tableattr.get('name_long')
-        application = self.app.getAuxInstance(aux_instance) if aux_instance else self.app
         if not application.allowedByPreference(**tableattr):
             raise NotAllowedException('Not allowed by preference')
         return None,attributes

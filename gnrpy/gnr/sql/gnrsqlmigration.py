@@ -4,7 +4,7 @@ import hashlib
 import json
 import dictdiffer
 from collections import defaultdict
-
+from gnr.core.gnrstring import boolean
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.dev.decorator import time_measure
@@ -204,6 +204,7 @@ class OrmExtractor:
 
     def __init__(self,migrator=None, db=None,extensions=None):
         self.migrator = migrator
+        self.excludeReadOnly =  migrator and migrator.excludeReadOnly
         self.db = db or self.migrator.db
         self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
@@ -385,6 +386,8 @@ class OrmExtractor:
     def get_json_struct(self):
         """Generates the JSON structure of the database."""
         for pkg in self.db.packages.values():
+            if self.excludeReadOnly and boolean(pkg.attributes.get('readOnly')):
+                continue
             self.fill_json_package(pkg)
         self.add_tenant_schemas()
         for deferred_index_kw in self.deferred_indexes:
@@ -561,12 +564,12 @@ class SqlMigrator():
         self.extensions = extensions.split(',') if extensions else []
         self.commands = {}
         self.sql_commands = {'db_creation':None,'build_commands':None,'extensions_commands':None}
-        self.dbExtractor = DbExtractor(migrator=self)
-        self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
         self.excludeReadOnly = excludeReadOnly
         self.removeDisabled = removeDisabled
         self.ignore_constraint_name = ignore_constraint_name
-    
+        self.dbExtractor = DbExtractor(migrator=self)
+        self.ormExtractor = OrmExtractor(migrator=self,extensions=self.extensions)
+
     @property
     def diff(self):
         return dictdiffer.diff(self.sqlStructure or {'root':{}},self.ormStructure)

@@ -441,6 +441,8 @@ class GnrPackage(object):
         modelFolder = os.path.join(self.packageFolder, 'model')
         self.loadTableMixinDict(self.main_module, modelFolder)
         for pkgid, apppkg in list(self.application.packages.items()):
+            if apppkg.attributes.get('readOnly'):
+                continue
             externalPkgModelFolder = os.path.join(apppkg.packageFolder,'model','_packages',self.id)
             self.loadTableMixinDict(self.main_module, externalPkgModelFolder, fromPkg=pkgid)
         for plugin in self.getPlugins():
@@ -856,8 +858,9 @@ class GnrApp(object):
             attrs['path'] = self.realPath(attrs['path'])
         apppkg = GnrPackage(pkgid, self, **attrs)
         apppkg.content = pkgcontent or Bag()
+        readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else None
         for reqpkgid in apppkg.required_packages():
-            self.addPackage(reqpkgid)
+            self.addPackage(reqpkgid,pkgattrs=readOnlyAttrs)
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
 

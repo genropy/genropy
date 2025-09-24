@@ -201,7 +201,8 @@ class GnrWsgiSite(object):
         self.config = self.load_site_config()
         self.cache_max_age = int(self.config['wsgi?cache_max_age'] or 5356800)
         self.default_uri = self.config['wsgi?home_uri'] or '/'
-        self.setDomain(self.site_name)
+        self.rootDomain = '_main_'
+        self.setDomain(self.rootDomain)
 
         # FIXME: ???
         if boolean(self.config['wsgi?static_import_psycopg']):
@@ -811,7 +812,7 @@ class GnrWsgiSite(object):
     #    return path_list
 
 
-    def handle_path_list(self, path_info):
+    def handle_path_list(self, path_info,request_kwargs=None):
         """TODO
 
         :param path_info: TODO"""
@@ -823,10 +824,16 @@ class GnrWsgiSite(object):
         first_segment = path_list[0]
         redirect_to = None
         if self.multidomain:
+            #devo settare il domain corrente per cookie connessioni etc
+            #se il first segment è _main_ allora dico che corrisponde allo store primario
+            #altrimenti lo store lo deduco 
             if first_segment in self.domains:
-                self.currentDomain =  first_segment
                 if path_list[-1]==first_segment and not path_info.endswith('/'):
                     redirect_to = f'{path_info}/'
+                else:
+                    self.currentDomain =  first_segment
+                    request_kwargs['base_dbstore'] = first_segment if first_segment!=self.rootDomain else self.db.rootstore
+                    path_list.pop(0)
             else:
                 logger.warning('Multidomain site with first segment without domain')
                 print('first_segment',first_segment)
@@ -891,7 +898,7 @@ class GnrWsgiSite(object):
     def isInMaintenance(self):
         request = self.currentRequest
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         first_segment = path_list[0] if path_list else ''
         if request_kwargs.get('forcedlogin') or (first_segment.startswith('_') and first_segment!='_ping'):
             return False
@@ -905,10 +912,11 @@ class GnrWsgiSite(object):
             c = r.get_cookie(self.currentDomainIdentifier,'marshal', secret=self.config['secret'])
             user = c.get('user') if c else None
             return self.register.isInMaintenance(user)
+        
 
     def dispatcher(self, environ, start_response):
         self.currentRequest = Request(environ)
-        self.currentDomain = self.site_name
+        self.currentDomain = self.rootDomain
         if self.isInMaintenance:
             return self.maintenanceDispatcher(environ, start_response)
         else:
@@ -934,7 +942,7 @@ class GnrWsgiSite(object):
         response = Response()
         response.mimetype = 'text/html'
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
-        path_list,redirect_to = self.handle_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if (path_list and path_list[0].startswith('_')) or ('method' in request_kwargs or 'rpc' in request_kwargs or '_plugin' in request_kwargs):
             response = self.setResultInResponse('maintenance', response, info_GnrSiteMaintenance=self.currentMaintenance)
             return response(environ, start_response)
@@ -988,7 +996,7 @@ class GnrWsgiSite(object):
         request_kwargs = self.parse_kwargs(self.parse_request_params(request))
         
         # Url parsing start
-        path_list,redirect_to = self.handle_path_list(request.path)
+        path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if redirect_to:
             self.redirect(environ,start_response,location=redirect_to)
         # path_list is never empty
@@ -1020,12 +1028,9 @@ class GnrWsgiSite(object):
         request_kwargs.pop('_no_cache_', None)
         download_name = request_kwargs.pop('_download_name_', None)
         #print 'site dispatcher: ',path_list
-        if path_list:
+        if path_list and not self.multidomain:
             self._checkFirstSegment(path_list,request_kwargs)
-
-        self.checkForDbStore(request_kwargs)
-       #if path_list and (path_list[0] in self.dbstores):
-       #    request_kwargs.setdefault('temp_dbstore',path_list.pop(0))
+            self.checkForDbStore(request_kwargs)
         path_list = path_list or ['index']
         first_segment = path_list[0]
         last_segment = path_list[-1]

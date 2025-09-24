@@ -103,12 +103,13 @@ class GnrWebConnection(GnrBaseProxy):
         return self.page.site.currentDomainIdentifier
     
     def read_cookie(self):
-        print('reading cookie')
+        print('reading cookie',self.cookie_name)
         return self.page.get_cookie(self.cookie_name, 'marshal', secret=self.secret)
 
     def write_cookie(self):
         expires = time.time() + CONNECTION_TIMEOUT*24
         cookie_path = self.page.site.home_uri if self.page.site.multidomain else self.page.site.default_uri
+        print('cookie_path',cookie_path,'cookie_name',self.cookie_name)
         self.cookie = self.page.newMarshalCookie(self.cookie_name, {'user': self.user,
                                                                     'connection_id': self.connection_id,
                                                                     'data': self.cookie_data,
