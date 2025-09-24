@@ -1292,7 +1292,7 @@ class TableBase(object):
         # Fetch all rows from source table
         # including logically deleted and draft records
         logger.debug('Fetching source records')
-        source_rows = source_tbl.query(addPkeyColumn=False,
+        source_rows = source_tbl.query(addPkeyColumn=False,columns=source_tbl.real_columns,
                                        excludeLogicalDeleted=False,
                                        excludeDraft=False,
                                        **kwargs

@@ -40,6 +40,13 @@ class StoreTable(GnrDboTable):
             raise self.exception('business_logic',msg=f'dbstore in record {record[self.pkey]}')
         self.db.stores_handler.create_dbstore(dbstore)
         self.db.stores_handler.dbstore_align(dbstore)
-        self.db.package('multidb').checkFullSyncTables(dbstores=[dbstore],
-                                                    packages=self.multidb_fullSyncActivationWhitelist())
-        self.touchRecords(_pkeys=[record[self.pkey]])
+        master_index = self.db.tableMasterIndex()['_index_']
+        for tbl in master_index.digest('#a.tbl'):
+            tbl = self.db.table(tbl)
+            startupData = tbl.multidb=='*' or tbl.attributes.get('startupData')
+            if not startupData:
+                continue
+            main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
+                                ignorePartition=True,excludeDraft=False).fetch()
+            with self.db.tempEnv(storename=dbstore):
+                tbl.insertMany(main_f)
