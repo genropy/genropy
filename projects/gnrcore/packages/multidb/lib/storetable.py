@@ -37,12 +37,15 @@ class StoreTable(GnrDboTable):
         dbstore = record['dbstore']
         if not dbstore:
             raise self.exception('business_logic',msg=f'dbstore in record {record[self.pkey]}')
+        if self.db.application.site.multidomain:
+            self.db.application.site.setDomain(dbstore)
         if dbstore in self.db.stores_handler.get_dbdict():
             self.db.stores_handler.refresh_dbstores()
         else:
             self.db.stores_handler.create_dbstore(dbstore)
             self.db.stores_handler.dbstore_align(dbstore)
-            master_index = self.db.tableMasterIndex()['_index_']
+            master_index = self.db.tablesMasterIndex()['_index_']
+
             for tbl in master_index.digest('#a.tbl'):
                 tbl = self.db.table(tbl)
                 startupData = tbl.multidb=='*' or tbl.attributes.get('startupData')
@@ -50,5 +53,13 @@ class StoreTable(GnrDboTable):
                     continue
                 main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
                                     ignorePartition=True,excludeDraft=False).fetch()
+                if not main_f:
+                    continue
                 with self.db.tempEnv(storename=dbstore):
                     tbl.insertMany(main_f)
+
+
+    def trigger_onDeleted_multidb(self,record):
+        if record['dbstore']:
+            self.db.stores_handler.refresh_dbstores()
+            self.db.application.site.domains.pop(record['dbstore'],None)

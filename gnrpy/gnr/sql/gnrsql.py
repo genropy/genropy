@@ -1307,7 +1307,7 @@ class DbStoresHandler(object):
     def refresh_dbstores(self):
         self.db.application.cache.updatedItem('MULTI_DBSTORES')
 
-                
+
     def dbstore_align(self, storename, changes=None):
         """TODO
         
