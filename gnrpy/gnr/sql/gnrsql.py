@@ -31,7 +31,6 @@ from time import time
 from functools import cached_property
 from multiprocessing.pool import ThreadPool
 from functools import wraps
-from collections import deque
 from gnr.sql import logger
 from gnr.sql import sqlauditlogger
 from gnr.core.gnrstring import boolean
@@ -889,100 +888,88 @@ class GnrSqlDb(GnrObject):
             
     packages = property(_get_packages)
 
-
-    def _tablesMasterGraph(self, hard=False, filterCb=None, filterPackages=None):
-        packages = list(self.packages.keys())
-        filterPackages = list(filterPackages or packages)
-        filter_set = set(filterPackages)
-        package_positions = {pkg: idx for idx, pkg in enumerate(packages)}
-        dependencies = {}
-        dependents = {}
-        import_order = []
-
-        for pkg_index, pkg in enumerate(packages):
-            if pkg not in filter_set:
+    def tablesMasterIndex(self,hard=False,filterCb=None,filterPackages=None):
+        packages = self.packages.keys()
+        filterPackages = filterPackages or packages
+        toImport = []
+        dependencies = dict()
+        for k,pkg in enumerate(packages):
+            if pkg not in filterPackages:
                 continue
             pkgobj = self.package(pkg)
             tables = list(pkgobj.tables.values())
             if filterCb:
-                tables = list(filter(filterCb, tables))
+                tables = list(filter(filterCb,tables))
+            toImport.extend(tables)
             for tbl in tables:
-                fullname = tbl.fullname
-                if fullname in dependencies:
-                    continue
-                depset = set()
-                for dependency, is_deferred in getattr(tbl, 'dependencies', []):
-                    dep_pkg = dependency.split('.')[0]
-                    if dep_pkg not in filter_set:
+                dset = set()
+                for d,isdeferred in tbl.dependencies:
+                    dpkg = d.split('.')[0]
+                    if dpkg not in filterPackages:
                         continue
-                    if is_deferred and not hard:
-                        continue
-                    dep_position = package_positions.get(dep_pkg)
-                    if not hard and dep_position is not None and dep_position > pkg_index:
-                        continue
-                    depset.add(dependency)
-                    dependents.setdefault(dependency, set()).add(fullname)
-                dependencies[fullname] = depset
-                dependents.setdefault(fullname, set())
-                import_order.append(fullname)
-
-        return dependencies, dependents, import_order
-
-
-    def tablesMasterIndex(self, hard=False, filterCb=None, filterPackages=None):
-        """Return the tables master index resolved with Kahn's algorithm."""
-        dependencies, dependents, import_order = self._tablesMasterGraph(hard=hard,
-                                                                        filterCb=filterCb,
-                                                                        filterPackages=filterPackages)
-        if not import_order:
-            return Bag()
-
-        missing = {}
-        for node, deps in dependencies.items():
-            external = {dep for dep in deps if dep not in dependencies}
-            if external:
-                missing[node] = external
-        if missing:
-            for tbl_name, blockers in missing.items():
-                logger.info("Table %s blocked by missing %s", tbl_name, blockers)
-            raise GnrSqlException(description='Blocked dependencies')
-
+                    if not isdeferred and (packages.index(dpkg)<=k or hard):
+                        dset.add(d)
+                dependencies[tbl.fullname] = dset
         imported = set()
+        deferred = dict()
+        blocking = dict()
         result = Bag()
-        queue = deque()
-        queued = set()
-
-        for fullname in import_order:
-            if not dependencies.get(fullname):
-                queue.append(fullname)
-                queued.add(fullname)
-
-        while queue:
-            current = queue.popleft()
-            if current in imported:
-                continue
-            imported.add(current)
-            result.setItem(current, None)
-            result.setItem('_index_.%s' % current.replace('.', '/'), None, tbl=current)
-            for dependent in dependents.get(current, ()):
-                remaining = dependencies.get(dependent)
-                if remaining is None:
-                    continue
-                if current in remaining:
-                    remaining.remove(current)
-                if not remaining and dependent not in imported and dependent not in queued:
-                    queue.append(dependent)
-                    queued.add(dependent)
-
-        blocked = {name: deps for name, deps in dependencies.items() if deps and name not in imported}
-        if not blocked:
+        self._tablesMasterIndex_step(toImport=toImport,imported=imported,dependencies=dependencies,result=result,deferred=deferred,blocking=blocking)
+        if len(deferred)==0:
             return result
-
-        for tbl_name, blockers in blocked.items():
-            logger.info("Table %s blocked by %s", tbl_name, blockers)
+        for k,v in list(deferred.items()):
+            logger.info("Table %s blocked by %s", k, v)
         raise GnrSqlException(description='Blocked dependencies')
 
 
+    def _tablesMasterIndex_step(self,toImport=None,imported=None,dependencies=None,result=None,deferred=None,blocking=None):
+        while toImport:
+            tbl = toImport.pop(0)
+            tblname = tbl.fullname
+            depset = dependencies[tblname]
+            if depset.issubset(imported):  
+                imported.add(tblname)
+                result.setItem(tblname,None)
+                result.setItem('_index_.%s' %tblname.replace('.','/'),None,tbl=tblname)
+                blocked_tables = blocking.pop(tblname,None)
+                if blocked_tables:
+                    for k in blocked_tables:
+                        deferred[k].remove(tblname)
+                        if not deferred[k]:
+                            deferred.pop(k)
+                        m = self.table(k).model
+                        if not m in toImport:
+                            toImport.append(m)
+            else:
+                deltatbl = depset - imported
+                deferred[tblname] = deltatbl
+                for k in deltatbl:
+                    blocking.setdefault(k,set()).add(tblname)
+
+    def tableTreeBag(self, packages=None, omit=None, tabletype=None):
+        """TODO
+        
+        :param packages: TODO
+        :param omit: TODO
+        :param tabletype: TODO"""
+        result = Bag()
+        packages = list(self.packages.keys()) if packages == '*' else packages
+        for pkg, pkgobj in list(self.packages.items()):
+            if (pkg in packages and omit) or (not pkg in packages and not omit):
+                continue
+            pkgattr = dict(pkgobj.attributes)
+            pkgattr['caption'] = pkgobj.attributes.get('name_long', pkg)
+            result.setItem(pkg, Bag(), **pkgattr)
+            for tbl, tblobj in list(pkgobj.tables.items()):
+                tblattr = dict(tblobj.attributes)
+                if tabletype and tblattr.get('tabletype') != tabletype:
+                    continue
+                tblattr['caption'] = tblobj.attributes.get('name_long', pkg)
+                result[pkg].setItem(tbl, None, **tblattr)
+            if len(result[pkg]) == 0:
+                result.pop(pkg)
+        return result
+    
     @property
     def tables(self):
         for pkgobj in self.packages.values():
@@ -1232,7 +1219,6 @@ class DbStoresHandler(object):
         with self.db.tempEnv(storename=False):
             return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
-    
     def _calculate_multidbstores(self):
         result = {}
         if self.db.storetable:    
@@ -1314,3 +1300,4 @@ class DbStoresHandler(object):
 class DbLocalizer(object):
     def translate(self,v):
         return v
+
