@@ -998,7 +998,7 @@ class GnrWsgiSite(object):
         # Url parsing start
         path_list,redirect_to = self.handle_path_list(request.path,request_kwargs=request_kwargs)
         if redirect_to:
-            self.redirect(environ,start_response,location=redirect_to)
+            return self.redirect(environ,start_response,location=redirect_to)
         # path_list is never empty
         expiredConnections = self.register.cleanup()
         if expiredConnections:

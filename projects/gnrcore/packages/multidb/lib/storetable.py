@@ -33,6 +33,7 @@ class StoreTable(GnrDboTable):
 
 
     def multidb_activateDbstore(self,record):
+
         record = self.recordAs(record,'dict')
         dbstore = record['dbstore']
         if not dbstore:
@@ -45,19 +46,17 @@ class StoreTable(GnrDboTable):
             self.db.stores_handler.create_dbstore(dbstore)
             self.db.stores_handler.dbstore_align(dbstore)
             master_index = self.db.tablesMasterIndex()['_index_']
-
             for tbl in master_index.digest('#a.tbl'):
                 tbl = self.db.table(tbl)
-                startupData = tbl.multidb=='*' or tbl.attributes.get('startupData')
+                startupData = tbl.multidb=='*' or tbl.isInStartupData() or tbl.pkg.name in ('sys','adm')
                 if not startupData:
                     continue
                 main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
                                     ignorePartition=True,excludeDraft=False).fetch()
                 if not main_f:
                     continue
-                with self.db.tempEnv(storename=dbstore):
-                    tbl.insertMany(main_f)
-
+            with self.db.tempEnv(storename=dbstore):
+                self.db.commit()
 
     def trigger_onDeleted_multidb(self,record):
         if record['dbstore']:
