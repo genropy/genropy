@@ -48,13 +48,16 @@ class StoreTable(GnrDboTable):
             master_index = self.db.tablesMasterIndex()['_index_']
             for tbl in master_index.digest('#a.tbl'):
                 tbl = self.db.table(tbl)
-                startupData = tbl.multidb=='*' or tbl.isInStartupData() or tbl.pkg.name in ('sys','adm')
+                startupData = tbl.multidb=='*' or tbl.isInStartupData()
                 if not startupData:
                     continue
                 main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
                                     ignorePartition=True,excludeDraft=False).fetch()
                 if not main_f:
                     continue
+                print('insert for table',tbl.fullname)
+                with self.db.tempEnv(storename=dbstore):
+                    tbl.insertMany(main_f)
             with self.db.tempEnv(storename=dbstore):
                 self.db.commit()
 
