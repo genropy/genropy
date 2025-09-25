@@ -363,7 +363,7 @@ class GnrWsgiSite(object):
 
     @property
     def mainregister(self):
-        return self.get_register(self.site_name)
+        return self.get_register(self.rootDomain)
     
     @property
     def register(self):

@@ -14,7 +14,7 @@ class WebApplicationCache(object):
     def getItem(self,key,defaultFactory=None):
         item,ts = self.cache.get(key,(None,None))
         if item is not None:
-            last_change_ts = self.site.register.globalStore().getItem('CACHE_TS.%s' %key)
+            last_change_ts = self.site.mainregister.globalStore().getItem('CACHE_TS.%s' %key)
             if last_change_ts and ts<last_change_ts:
                 item = None 
         if item is None and defaultFactory:
@@ -27,14 +27,14 @@ class WebApplicationCache(object):
         self.cache[key] = (value,now)
 
     def updatedItem(self,key):
-        with self.site.register.globalStore() as gs:
+        with self.site.mainregister.globalStore() as gs:
             gs.setItem('CACHE_TS.%s' %key,datetime.now())
     
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))
         if item is None:
             return True
-        last_cache_ts = self.site.register.globalStore().getItem('CACHE_TS.%s' %key)
+        last_cache_ts = self.site.mainregister.globalStore().getItem('CACHE_TS.%s' %key)
         return last_cache_ts and ts<last_cache_ts
 
 class GnrWsgiWebApp(GnrApp):

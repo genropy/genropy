@@ -217,18 +217,30 @@ class GnrSqlDb(GnrObject):
 
 
     @cached_property
+    def multidb_config(self):
+        result = {}
+        for n in self.application.config['packages']:
+            if n.attr.get('storetable'):
+                return n.attr
+        return result
+
+
+    @cached_property
     def storetable(self):
-        storetable = None
-        for pkgNode in self.application.config['packages']:
-            storetable = pkgNode.attr.get('storetable') or storetable
-        return storetable
+        return self.multidb_config.get('storetable')
     
+
+    @cached_property
+    def multidb_prefix(self):
+        prefix = self.multidb_config.get('prefix')
+        return f'{prefix}_' if prefix else ''
+    
+
+
     @cached_property
     def multidomain(self):
-        multidomain = None
-        for pkgNode in self.application.config['packages']:
-            multidomain = boolean(pkgNode.attr.get('multidomain')) or multidomain
-        return multidomain
+        return self.multidb_config.get('multidomain')
+
 
     @property
     def reuse_relation_tree(self):
@@ -1222,25 +1234,28 @@ class DbStoresHandler(object):
     def _calculate_multidbstores(self):
         result = {}
         if self.db.storetable:    
-            prefixname = f'{self.db.dbname}_'
-            databases = {dbname[len(prefixname):] if dbname.startswith(prefixname) else dbname:dbname for dbname in self.db.adapter.listElements('databases')}
+            dbdict = self.get_dbdict()
             dbstores = self.db.table(self.db.storetable).query(
                 where='$dbstore IN :databases',
-                databases=list(databases.keys()),columns="$dbstore").fetch()
+                databases=list(dbdict.keys()),columns="$dbstore").fetch()
             for r in dbstores:
                 storename = r['dbstore']
-                result[storename] = dict(database=databases[storename])
+                result[storename] = dict(database=dbdict[storename])
         return result
-
+    
+    def get_dbdict(self):
+        existing_databases = self.db.adapter.listElements('databases',manager=True)
+        if self.db.dbname not in existing_databases:
+            return {}
+        multidb_prefix = self.db.multidb_prefix
+        return {dbname[len(multidb_prefix):]:dbname for dbname in existing_databases if dbname.startswith(multidb_prefix)}
             
     def raw_multdb_dbstores(self):
         result = {}
         if self.db.storetable:    
-            existing_databases = self.db.adapter.listElements('databases',manager=True)
-            if self.db.dbname not in existing_databases:
+            dbdict = self.get_dbdict()
+            if not dbdict:
                 return result
-            prefixname = f'{self.db.dbname}_'
-            databases = {dbname[len(prefixname):] if dbname.startswith(prefixname) else dbname:dbname for dbname in existing_databases}
             pkgname,tblname = self.db.storetable.split('.')
             pkgattr = self.db.application.packages[pkgname].attributes
             sqlschema = pkgattr.get('sqlschema') or pkgname
@@ -1253,8 +1268,8 @@ class DbStoresHandler(object):
             """)
             for r in dbstores:
                 storename = r['dbstore']
-                if storename in databases:
-                    result[storename] = dict(database=databases[storename])
+                if storename in dbdict:
+                    result[storename] = dict(database=dbdict[storename])
         return result
 
 
@@ -1286,8 +1301,12 @@ class DbStoresHandler(object):
                 return True
             
     def create_dbstore(self,storename):
-        self.db.createDb(f'{self.db.dbname}_{storename}')
+        self.db.createDb(f'{self.db.multidb_prefix}{storename}')
+        self.refresh_dbstores()
+
+    def refresh_dbstores(self):
         self.db.application.cache.updatedItem('MULTI_DBSTORES')
+
                 
     def dbstore_align(self, storename, changes=None):
         """TODO

@@ -17,14 +17,13 @@ class StoreTable(GnrDboTable):
     def pyColumn_active_dbstore(self,record,**kwargs):
         if not record['dbstore']:
             return False
+        print('self.db.dbstores',self.db.dbstores)
         return record["dbstore"] in self.db.dbstores
     
 
 
     def multidb_getForcedStore(self,record):
         return record['dbstore']
-
-
 
     def multidb_removeStore(self,dbstore):
         pass
@@ -38,15 +37,18 @@ class StoreTable(GnrDboTable):
         dbstore = record['dbstore']
         if not dbstore:
             raise self.exception('business_logic',msg=f'dbstore in record {record[self.pkey]}')
-        self.db.stores_handler.create_dbstore(dbstore)
-        self.db.stores_handler.dbstore_align(dbstore)
-        master_index = self.db.tableMasterIndex()['_index_']
-        for tbl in master_index.digest('#a.tbl'):
-            tbl = self.db.table(tbl)
-            startupData = tbl.multidb=='*' or tbl.attributes.get('startupData')
-            if not startupData:
-                continue
-            main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
-                                ignorePartition=True,excludeDraft=False).fetch()
-            with self.db.tempEnv(storename=dbstore):
-                tbl.insertMany(main_f)
+        if dbstore in self.db.stores_handler.get_dbdict():
+            self.db.stores_handler.refresh_dbstores()
+        else:
+            self.db.stores_handler.create_dbstore(dbstore)
+            self.db.stores_handler.dbstore_align(dbstore)
+            master_index = self.db.tableMasterIndex()['_index_']
+            for tbl in master_index.digest('#a.tbl'):
+                tbl = self.db.table(tbl)
+                startupData = tbl.multidb=='*' or tbl.attributes.get('startupData')
+                if not startupData:
+                    continue
+                main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',columns=tbl.real_columns,
+                                    ignorePartition=True,excludeDraft=False).fetch()
+                with self.db.tempEnv(storename=dbstore):
+                    tbl.insertMany(main_f)
