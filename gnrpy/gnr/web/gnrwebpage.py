@@ -1371,6 +1371,8 @@ class GnrWebPage(GnrBaseWebPage):
     @property
     def external_host(self):
         external_host = self.request.host_url if hasattr(self, 'request') else self.site.configurationItem('wsgi?external_host',mandatory=True) 
+        if self.site.multidomain:
+            external_host = f'{external_host}/{self.site.multidomain}/'
         return external_host
 
     def externalUrl(self, path, **kwargs):
