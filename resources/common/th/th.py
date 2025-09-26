@@ -497,7 +497,7 @@ class TableHandler(BaseComponent):
         
         
     @struct_method
-    def th_thIframe(self,pane,method=None,src=None,virtual_columns=None,**kwargs):
+    def th_thIframe(self,pane,method=None,src=None,dbstore=None,virtual_columns=None,**kwargs):
         pane.attributes.update(dict(overflow='hidden',_lazyBuild=True))
         #pane = pane.contentPane(detachable=True,height='100%',_class='detachablePane')
         #box = pane.div(_class='detacher',z_index=30)
@@ -506,6 +506,7 @@ class TableHandler(BaseComponent):
                             main_table=pane.getInheritedAttributes().get('table'),
                             main_currentFormId=pane.getInheritedAttributes().get('formId'),
                             main_pkey='=#FORM.pkey',main_virtual_columns=virtual_columns,
+                            main_dbstore=dbstore,
                             src=src,**kwargs)
         pane.dataController('genro.publish({iframe:"*",topic:"frame_onChangedPkey"},{pkey:pkey})',pkey='^#FORM.pkey')
         return iframe
@@ -548,13 +549,15 @@ class TableHandler(BaseComponent):
         return iframe
         
     @public_method
-    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,virtual_columns=None,**kwargs):
+    def th_iframedispatcher(self,root,methodname=None,pkey=None,table=None,correntFormId=None,virtual_columns=None,dbstore=None,**kwargs):
         rootattr = root.attributes
         rootattr['formId'] = correntFormId
         rootattr['datapath'] = 'main'
         rootattr['overflow'] = 'hidden'
         rootattr['_fakeform'] = True
         rootattr['table'] = table
+        if dbstore:
+            rootattr['context_dbstore'] = dbstore
         rootattr['subscribe_frame_onChangedPkey'] = 'SET .pkey=$1.pkey; FIRE .controller.loaded = $1.pkey;'
         if pkey:
             root.dataController('SET .pkey = pkey; FIRE .controller.loaded=pkey;',pkey=pkey,_onStart=True)

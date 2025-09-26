@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime
+from gnr.app import logger
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -52,8 +53,11 @@ class Table(object):
     def initializeTableSequences(self,tblobj,thermo_wrapper=None):
         counter_fields = thermo_wrapper(tblobj.counterColumns(),message=lambda f,n,m: 'Sequences for field %s' %f,line_code='field') if thermo_wrapper else tblobj.counterColumns()
         for field in counter_fields:
-            sequences = self.getFieldSequences(tblobj,field=field)
-            self.alignSequences(tblobj,field=field,to_align=sequences,thermo_wrapper=thermo_wrapper)
+            try:
+                sequences = self.getFieldSequences(tblobj,field=field)
+                self.alignSequences(tblobj,field=field,to_align=sequences,thermo_wrapper=thermo_wrapper)
+            except Exception as e:
+                logger.error(str(e))
 
     def alignSequences(self,tblobj,field=None,to_align=None,fix_duplicate=None,thermo_wrapper=None):
         if isinstance(to_align,str):
