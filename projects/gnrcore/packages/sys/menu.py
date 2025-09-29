@@ -8,6 +8,7 @@ class Menu(object):
         system.thpage("Upgrades", table="sys.upgrade", tags="")
         system.thpage("Services", table="sys.service", tags="")
         system.thpage("Tasks", table="sys.task", tags="_DEV_")
+        system.thpage("Task Executions", table="sys.task_execution", tags="_DEV_")
         system.thpage("Task Monitor", tags="_DEV_", filepath="/sys/taskmonitor")
         
         system.webpage(u"Mobile App Check", filepath="/sys/mobileappcheck", tags="_DEV_,sysadmin,superadmin")
