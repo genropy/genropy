@@ -152,13 +152,13 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var readyState = xhr.readyState;
         var responseText = xhr.responseText;
         if (status == 400) {
-            genro.dlg.alert('Client HTTP error','Error',null,null,{confirmCb:genro.pageReload});
+            genro.dlg.alert('Client HTTP error:400','Error',null,null,{confirmCb:genro.pageReload});
             return;
         }
         else if (status == 412) {
             var mainGenroWindow = genro.mainGenroWindow.genro;
             mainGenroWindow.polling_enabled = false;
-            mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
+            mainGenroWindow.dlg.alert('No longer existing page:412','Error',null,null,{confirmCb:genro.pageReload});
             return;
         } else if (status === 0) {
             //genro.dlg.alert('Site temporary un available. Retry later');

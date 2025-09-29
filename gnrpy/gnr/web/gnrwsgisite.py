@@ -1628,9 +1628,10 @@ class GnrWsgiSite(object):
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"
+        currentDomain = self.currentDomain
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
         if result is False:
-            return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
+            return self.failed_exception('no longer existing page %s in domain %s' % (page_id,currentDomain), environ, start_response)
         else:
             return result.toXml(unresolved=True, omitUnknownTypes=True)
 
