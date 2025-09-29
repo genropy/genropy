@@ -38,10 +38,9 @@ def main():
     execute = subparsers.add_parser("execute", help="Insert a task in queue")
     execute.add_argument("table")
     execute.add_argument("action")
-    execute.add_argument("--action_parameters", default=None)
+    execute.add_argument("--parameters", default=None)
     execute.add_argument("user")
     execute.add_argument("domains")
-    execute.add_argument("page_id")
     execute.add_argument("worker_code")
     execute.add_argument("--attime",
                          default=None)
@@ -51,37 +50,52 @@ def main():
     client = gnrtask.GnrTaskSchedulerClient(url=options.url)
     
     if options.command == 'reload':
-        client.reload()
-        if r:
-            print(f"Reload completed: {r.ok}")
-
+        try:
+            client.reload()
+            if r:
+                print(f"Reload completed: {r.ok}")
+        except Exception as e:
+            print(f"Error: {e}")
     elif options.command == 'status':
-        r = getattr(client, options.command)()
-        print("Status:")
-        print(r)
+        try:
+            r = client.status()
+            print(r)
+        except Exception as e:
+            print(f"Error: {e}")
 
     elif options.command == 'genfake':
-        r = client.gen_fake(options.fake_number)
-        print(f"Completed: {r.ok}")
+        try:            
+            r = client.gen_fake(options.fake_number)
+            print(f"Completed: {r.ok}")
+        except Exception as e:
+            print(f"Error: {e}")
 
     elif options.command == 'empty_queue':
-        r = client.empty_queue(options.queue_name)
-        print(f"Completed: {r.ok}")
+        try:
+            r = client.empty_queue(options.queue_name)
+            print(f"Completed: {r.ok}")
+        except Exception as e:
+            print(f"Error: {e}")
 
     elif options.command == 'stop_run':
-        r = client.stop_run(options.run_id)
-        print(f"Completed: {r.ok}")
-        
+        try:
+            r = client.stop_run(options.run_id)
+            print(f"Completed: {r.ok}")
+        except Exception as e:
+            print(f"Error: {e}")
+
     elif options.command == 'execute':
-        r = client.execute(options.table,
-                           options.action,
-                           options.action_parameters,
-                           options.user,
-                           options.domains,
-                           options.page_id,
-                           options.worker_code,
-                           options.attime)
-        print(f"Completed: {r.ok}")
+        try:
+            r = client.execute(options.table,
+                               options.action,
+                               options.parameters,
+                               options.user,
+                               options.domains,
+                               options.worker_code,
+                               options.attime)
+            print(f"Completed: {r.ok}")
+        except Exception as e:
+            print(f"Error: {e}")
         
 if __name__=="__main__":
     main()

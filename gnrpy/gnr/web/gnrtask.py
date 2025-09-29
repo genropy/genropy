@@ -22,14 +22,17 @@
 
 import os
 import copy
+import uuid
 import requests
 import json
 import socket
 import signal
 import threading
 import contextlib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from collections import defaultdict
+from typing import Any
 
 from mako.template import Template
 import aiohttp
@@ -46,6 +49,8 @@ GNR_SCHEDULER_PORT=int(os.environ.get("GNR_SCHEDULER_PORT", "14951"))
 GNR_SCHEDULER_HOST=os.environ.get("GNR_SCHEDULER_HOST", "127.0.0.1")
 GNR_SCHEDULER_URL=os.environ.get("GNR_SCHEDULER_URL", f"http://{GNR_SCHEDULER_HOST}:{GNR_SCHEDULER_PORT}")
 
+
+SCHEDULER_RUN_INTERVAL = 1
 RETRY_LIMIT = 3 # amount of attempt in execution retries
 NOTIFY_ALIVE_INTERVAL = 2
 ACK_TIMEOUT = NOTIFY_ALIVE_INTERVAL * 3 # general timeout from worker
@@ -57,68 +62,109 @@ class GnrTaskSchedulerClient:
     useful for UI/cli interaction without implementing
     the current communication protocol
     """
-    def __init__(self, url=None, page=None):
+    def __init__(self, url=None):
         self.url = url and url or GNR_SCHEDULER_URL
-        self.page = page
-        
+
     def _call(self, uri, params=None):
         try:
-            return requests.get(f"{self.url}/{uri}", params=params)
+            r = requests.get(f"{self.url}/{uri}", params=params)
+            if not r.ok:
+                raise Exception(f"Scheduler request error on URI /{uri}: {r.reason}")
+            return r
         except Exception as e:
-            if self.page:
-                self.page.clientPublish('floating_message',
-                                        message='Unable to contact scheduler',
-                                        messageType='warning')
-            logger.error("Unable to contact scheduler: %s", e)
-            
+            logger.error("Error contacting scheduler: %s", e)
+            raise
+
+    def stop_run(self, run_id):
+        """
+        Request stop for task execution with run_id
+        """
+        return self._call("stop_run", dict(run_id=run_id))
+    
+    def execute(self, table, action,
+                parameters,
+                user, domains,
+                worker_code=None,
+                attime=None):
+        """
+        Insert in scheduler queue a single manual
+        task execution, without using the Task table.
+        """
+        return self._call("execute", dict(table=table,
+                                          action=action,
+                                          parameters=parameters,
+                                          user=user,
+                                          domains=domains,
+                                          worker_code=None,
+                                          attime=None)
+                          )
+                          
+    def update_task(self, record):
+        """
+        Manually update a task in the scheduler
+        configuration
+        """
+        return self._call("update_task", dict(record=record))
+    
     def reload(self):
-        r = self._call("reload")
-        return r 
+        """
+        Reload the whole task configuration
+        """
+        return self._call("reload")
 
     def status(self):
+        """
+        Retrieve the current status of queue, scheduler, workers etc
+        """
         r = self._call("status")
-        if r:
-            return r.json() or r.status_code
+        if r.ok:
+            return r.json() or r.reason
 
     def empty_queue(self, queue_name):
-        r = self._call("empty_queue", dict(queue_name=queue_name))
-        return r
+        """
+        Empty the named queue
+        """
+        return self._call("empty_queue", dict(queue_name=queue_name))
     
     def gen_fake(self, quantity):
-        r = self._call("gen_fake", dict(quantity=quantity))
-        return r
-    
-class GnrTask(object):
-    def __init__(self, record, db, table):
-        self.record = record
-        self.old_record = copy.deepcopy(self.record)
-        self.db = db
-        self.table = table
-        self.task_id = record['id']
-        self.payload = json.dumps(self.record.items(), default=str)
-        self.queue_name = record['worker_code'] or "general"
-        
-    def __str__(self):
-        return self.record['task_name']
-    
-    def __repr__(self):
-        return str(self)
-
-    async def completed(self):
         """
-        The task has been executed and acknowledged, update
-        the last execution timestamp accordingly
+        Generate a :quantity items in the queue
         """
-        self.record['last_execution_ts'] = datetime.now(timezone.utc)
-        await self.update_record()
-        
-    async def update_record(self):
-        self.table.update(self.record, self.old_record)
-        self.old_record = copy.deepcopy(self.record)
-        logger.debug("Committing record change")
-        self.db.commit()
+        return self._call("gen_fake", dict(quantity=quantity))
 
-    def is_due(self, timestamp=None):
+@dataclass
+class GnrTask:
+    name: str
+    action: str
+    db: Any 
+    table: Any
+    schedule: dict
+    task_id: str = None
+    user: str = None
+    domains: str = None
+    parameters: Any = None
+
+    payload: Any = None
+    queue_name: str = None
+    
+    def __post_init__(self):
+        self.queue_name = self.queue_name if self.queue_name else "general"
+
+    # async def completed(self):
+    #     """
+    #     The task has been executed and acknowledged, update
+    #     the last execution timestamp accordingly
+    #     """
+    #     self.record['last_execution_ts'] = datetime.now(timezone.utc)
+    #     await self.update_record()
+        
+    # async def update_record(self):
+    #     self.table.update(self.record, self.old_record)
+    #     self.old_record = copy.deepcopy(self.record)
+    #     logger.debug("Committing record change")
+    #     self.db.commit()
+
+    def is_due(self, timestamp=None, last_scheduled_ts=None):
         """
         Compute if the task is to be executed
         """
@@ -127,23 +173,23 @@ class GnrTask(object):
 
         result = []
                 
-        if self.record['run_asap']:
+        if self.schedule.get("run_asap"):
             return '*'
 
-        if self.record['frequency']:
-            last_scheduled_ts = self.record['last_scheduled_ts']
-            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).seconds/60. >= self.record['frequency']:
+        if self.schedule.get("frequency", None):
+            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).seconds/60. >= self.schedule.get('frequency'):
                 return '*'
             else:
                 return False
             
-        if not self.record['minute']:
+        if not self.schedule.get("minute"):
             return False
-        
-        months =  [int(x.strip()) for x in self.record['month'].split(',')] if self.record['month'] else range(1,13)
-        days = [int(x.strip()) for x in self.record['day'].split(',')] if self.record['day'] else range(1,32)
-        hours = [int(x.strip()) for x in self.record['hour'].split(',')] if self.record['hour'] else range(0,24)
-        minutes = [int(x.strip()) for x in self.record['minute'].split(',')]
+
+        months =  list(map(int, self.schedule.get('month').split(','))) if self.schedule.get('month') else range(1,13)
+        days = list(map(int, self.schedule.get('day').split(','))) if self.schedule.get('day') else range(1,32)
+        hours = list(map(int, self.schedule.get('hour').split(','))) if self.schedule.get('hour') else range(0,24)
+        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minutes') else range(0,60)
+
         hm = []
         for h in hours:
             for m in minutes:
@@ -159,6 +205,37 @@ class GnrTask(object):
         key_hm = max(hmlist)
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
+
+# class GnrTaskOld(object):
+#     def __init__(self, record, db, table):
+#         self.record = record
+#         self.old_record = copy.deepcopy(self.record)
+#         self.db = db
+#         self.table = table
+#         self.task_id = record['id']
+#         self.payload = json.dumps(self.record.items(), default=str)
+#         self.queue_name = record['worker_code'] or "general"
+        
+#     def __str__(self):
+#         return self.record['task_name']
+    
+#     def __repr__(self):
+#         return str(self)
+
+#     async def completed(self):
+#         """
+#         The task has been executed and acknowledged, update
+#         the last execution timestamp accordingly
+#         """
+#         self.record['last_execution_ts'] = datetime.now(timezone.utc)
+#         await self.update_record()
+        
+#     async def update_record(self):
+#         self.table.update(self.record, self.old_record)
+#         self.old_record = copy.deepcopy(self.record)
+#         logger.debug("Committing record change")
+#         self.db.commit()
+
     
 class GnrTaskScheduler:
     """
@@ -198,8 +275,22 @@ class GnrTaskScheduler:
 
         logger.info("Loading scheduler configuration")
 
+        # FIXME: should be loop over a list of databases to load the tasks?
         all_tasks = self.tasktbl.query("*,parameters", where='$stopped IS NOT TRUE').fetch()
-        self.tasks = {x['id']: GnrTask(x, self.db, self.tasktbl) for x in all_tasks}
+        # FIXME: the db can be provided by the task table when
+        # running in a multi-workspace environment
+        schedule_keys = ['run_asap','month','day','hour','minute','frequency']
+        self.tasks = {}
+        for x in all_tasks:
+            schedule = {k: x.get(k, None) for k in schedule_keys}
+            self.tasks[x['id']] = [GnrTask(name=x['task_name'],
+                                           action=x['command'],
+                                           db=self.db,
+                                           table=self.tasktbl,
+                                           schedule=schedule,
+                                           task_id=x['id'],
+                                           parameters=x['parameters']),
+                                   x['last_scheduled_ts']]
         
     async def complete_task(self, task_id):
         task = self.tasks.get(task_id)
@@ -265,7 +356,7 @@ class GnrTaskScheduler:
                         logger.error("Task %s (%s) failed after %s retries", task['task_id'], task['run_id'], RETRY_LIMIT)
                         self.failed_tasks.append(task)
                         del self.pending_ack[task_id]
-            await asyncio.sleep(5)
+            await asyncio.sleep(SCHEDULER_RUN_INTERVAL*2)
             
     async def empty_queue(self, queue_name):
         # safer way to empty the queue is to just replace
@@ -277,9 +368,9 @@ class GnrTaskScheduler:
 
     async def put_task_in_queue(self, task_id, task):
         now = datetime.now(timezone.utc)
-        task.record['last_scheduled_ts'] = now
+        self.tasks[task_id][1] = now
         exec_record = {
-            "task_id": task.task_id,
+            "task_id": task_id,
             "start_ts": now,
         }
         exec_q = self.exectbl.insert(exec_record)
@@ -287,7 +378,7 @@ class GnrTaskScheduler:
         
         task_instance = {
             "run_id": exec_q['id'],
-            "task_id": task.task_id,
+            "task_id": task_id,
             "payload": task.payload,
             "queue_name": task.queue_name
         }
@@ -300,9 +391,9 @@ class GnrTaskScheduler:
         while True:
             logger.debug("Checking for next schedule...")
             for task_id, task in self.tasks.items():
-                if task.is_due():
-                    await self.put_task_in_queue(task_id, task)
-            await asyncio.sleep(1)
+                if task[0].is_due(last_scheduled_ts=task[1]):
+                    await self.put_task_in_queue(task_id, task[0])
+            await asyncio.sleep(SCHEDULER_RUN_INTERVAL)
 
     def worker_alive(self, worker_id, queue_name):
         if worker_id not in self.workers:
@@ -312,27 +403,8 @@ class GnrTaskScheduler:
         else:
             self.workers[worker_id]["lastseen"] = datetime.now(timezone.utc)
         
-    async def api_worker_alive(self, request):
-        worker_id = request.query.get("worker_id")
-        queue_name = request.query.get("queue_name")
-        logger.debug(f"Worker %s/%s is alive", worker_id, queue_name)
-        self.worker_alive(worker_id, queue_name)
-        return web.json_response(dict(status="ack"))
-    
-    async def api_worker_leave(self, request):
-        """
-        Endpoint for workers telling us they're quitting the job.
-
-        It just remove the worker from the monitoring list.
-        """
-        worker_id = request.query.get("worker_id")
-        if worker_id and worker_id in self.workers:
-            logger.info("Worker %s disconnected", worker_id)
-            self.workers.pop(worker_id)
-        return web.json_response(dict(status="bye"))
         
     async def next_task(self, request):
-
         worker_id = request.query.get("worker_id")
         queue_name = request.query.get("queue_name")
         if worker_id:
@@ -355,6 +427,27 @@ class GnrTaskScheduler:
             return web.json_response({"status": "acknowledged"})
         return web.json_response({"status": "unknown task"}, status=400)
 
+    async def schedule_single_execution(self, task_def):
+        task_name = task_def.get("task_name", f"Manual exec on {task_def.get('table')}")
+        task = GnrTask(
+            name=task_name,
+            db=task_def.get('domains'),
+            action=task_def.get('action'),
+            table=task_def.get('table'),
+            schedule={},
+            parameters=task_def.get('parameters'),
+            queue_name=task_def.get('worker_code')
+        )
+        logger.info("New manually scheduled task: %s", task)
+        task_id = str(uuid.uuid4())
+        self.tasks[None] = [task, None]
+        await self.put_task_in_queue(None, task)
+
+        #new_task = GnrTask(db=self.db,
+        #                   table=self.tasktbl, task_id=None)
+        #    self.put_task_in_queue(task_id, task)
+        return "ok"
+    
     async def dashboard(self, request):
         template_content = """
         <html lang="en">
@@ -484,7 +577,39 @@ class GnrTaskScheduler:
             "server_uptime": now - self.startup_time
 
         }
+
+
+
+    async def api_worker_alive(self, request):
+        worker_id = request.query.get("worker_id")
+        queue_name = request.query.get("queue_name")
+        logger.debug(f"Worker %s/%s is alive", worker_id, queue_name)
+        self.worker_alive(worker_id, queue_name)
+        return web.json_response(dict(status="ack"))
     
+    async def api_worker_leave(self, request):
+        """
+        Endpoint for workers telling us they're quitting the job.
+
+        It just remove the worker from the monitoring list.
+        """
+        worker_id = request.query.get("worker_id")
+        if worker_id and worker_id in self.workers:
+            logger.info("Worker %s disconnected", worker_id)
+            self.workers.pop(worker_id)
+        return web.json_response(dict(status="bye"))
+
+    async def api_execute(self, request):
+        # immediately execute a task
+        r = await self.schedule_single_execution(request.query)
+        return web.Response(text=r,
+                            content_type="text/plain")
+    
+    async def api_stop_run(self, request):
+        # TBD
+        return web.Response(text="ok",
+                            content_type="text/plain")
+        
     async def api_metrics(self, request):
         return web.Response(text="\n".join(f"{k} {v}" for k, v in self._get_status().items() if k != 'workers'),
                             content_type="text/plain")
@@ -493,6 +618,12 @@ class GnrTaskScheduler:
         return web.Response(text=json.dumps(self._get_status(), default=str),
                             content_type="application/json")
 
+    async def api_update_task(self, request):
+        """
+        Receive a new task definition when a task is updated/inserted
+        """
+        pass
+    
     async def api_reload(self, request):
         await self.load_configuration(triggered=True)
         return web.json_response({"reload": "requested"})
@@ -515,6 +646,8 @@ class GnrTaskScheduler:
         app = web.Application()
         app.on_shutdown.append(lambda app: self.shutdown_scheduler())
         app.add_routes([
+            web.get("/execute", self.api_execute),
+            web.get("/stop_run", self.api_stop_run),
             web.get("/reload", self.api_reload),
             web.get("/empty_queue", self.api_empty_queue),
             web.get("/gen_fake", self.api_gen_fake),
