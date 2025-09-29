@@ -21,7 +21,6 @@
 # Copyright (c) 2025 Softwell.
 
 import os
-import copy
 import uuid
 import requests
 import json
@@ -29,7 +28,7 @@ import socket
 import signal
 import threading
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from collections import defaultdict
 from typing import Any
@@ -143,8 +142,6 @@ class GnrTask:
     user: str = None
     domains: str = None
     parameters: Any = None
-
-    payload: Any = None
     queue_name: str = None
     
     def __post_init__(self):
@@ -379,7 +376,7 @@ class GnrTaskScheduler:
         task_instance = {
             "run_id": exec_q['id'],
             "task_id": task_id,
-            "payload": task.payload,
+            "payload": asdict(task),
             "queue_name": task.queue_name
         }
         logger.info("Scheduling task '%s' (%s - %s)",
@@ -785,6 +782,7 @@ class GnrTaskWorker:
                 res = await self.loop.run_in_executor(self.process_pool, execute_task, self.sitename, task)
             except Exception as e:
                 logger.error("Executor %s error: %s", name, e)
+                logger.exception(e)
             finally:
                 self.tasks_q.task_done()
               

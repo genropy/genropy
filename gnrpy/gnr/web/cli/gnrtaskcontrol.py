@@ -51,7 +51,7 @@ def main():
     
     if options.command == 'reload':
         try:
-            client.reload()
+            r = client.reload()
             if r:
                 print(f"Reload completed: {r.ok}")
         except Exception as e:
