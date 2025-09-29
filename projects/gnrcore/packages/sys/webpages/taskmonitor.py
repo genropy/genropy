@@ -179,7 +179,8 @@ class GnrCustomWebPage(object):
     def pendingfailedStruct(self, struct):
         r = struct.view().rows()
         r.cell('status', width='10em', name='Status')
-        r.cell('task_id', name='Task ID', width='15em')
+        r.cell('task_id', name='Task ID', width='15em', zoom=True,
+               zoom_table='sys.task', zoom_pkey='task_id')
         r.cell('task_name', name='Task Name', width='15em')
         r.cell('command', name='Command', width='15em')
         r.cell('last_scheduled_ts', name='Last Scheduled', width='15em')
@@ -187,12 +188,16 @@ class GnrCustomWebPage(object):
         r.cell('run_id', name='Run ID', width='30em')
 
     def pendingfailedFrame(self, pane):
-        frame = pane.frameGrid(frameCode='pendingfailedStatus', datapath='pendingfailedStatus',
-                               struct=self.pendingfailedStruct, _class='pbl_roundedGroup',
+        frame = pane.frameGrid(frameCode='pendingfailedStatus',
+                               datapath='pendingfailedStatus',
+                               struct=self.pendingfailedStruct,
+                               _class='pbl_roundedGroup',
                                margin='2px')
-        frame.grid.bagStore(storepath='pendingfailedStatus.store', storeType='AttributesBagRows',
+        frame.grid.bagStore(storepath='pendingfailedStatus.store',
+                            storeType='AttributesBagRows',
                             sortedBy='=.grid.sorted',
-                            data='^pendingfailedStatus.loaded_data', selfUpdate=True)
+                            data='^pendingfailedStatus.loaded_data',
+                            selfUpdate=True)
 
         pane.dataFormula(".pendingfailed_refresh_timer", "dflt",
                          _onStart=True,
