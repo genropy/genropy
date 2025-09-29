@@ -32,11 +32,12 @@ class Table(object):
         tbl.column('user_id', size='22', group='_', name_long='User id').relation('adm.user.id',
                                                                                   mode='foreignkey',
                                                                                   onDelete='raise')
-        tbl.column('date_start','D',name_long='!!Start Date')
-        tbl.column('date_end','D',name_long='!!End Date')
-        tbl.column('stopped','B',name_long='!!Stopped')
-        tbl.column('worker_code',size=':10',name_long="Worker code",indexed=True)
-        tbl.column('saved_query_code',size=':40',name_long="!![en]Query")
+        tbl.column('date_start','D', name_long='!!Start Date')
+        tbl.column('date_end','D', name_long='!!End Date')
+        tbl.column('stopped','B', name_long='!!Stopped')
+        tbl.column('worker_code', size=':10', name_long="Worker code",
+                   indexed=True)
+        tbl.column('saved_query_code', size=':40', name_long="!![en]Query")
         tbl.formulaColumn('active_workers',
                           select=dict(table='sys.task_execution',
                                       where="$task_id=#THIS.id AND $start_ts IS NOT NULL AND $end_ts IS NULL",
@@ -45,7 +46,8 @@ class Table(object):
                           dtype='N', name_long='N.Active workers')
         tbl.formulaColumn('last_result_ts',
             select=dict(table='sys.task_result',
-            columns='MAX($start_time)', where='$task_id = #THIS.id'),
+            columns='MAX($start_time)',
+            where='$task_id = #THIS.id'),
             name_long='!!Last Execution')
 
         tbl.formulaColumn('last_completed', dtype='DH',
@@ -53,20 +55,28 @@ class Table(object):
                           select=dict(
                               table='sys.task_execution',
                               where='$task_id=#THIS.id AND $end_ts IS NOT NULL',
-                              order_by='$end_ts DESC', limit=1, columns='$end_ts')
+                              order_by='$end_ts DESC', limit=1,
+                              columns='$end_ts')
                           )
         tbl.formulaColumn('last_error', dtype='DH',
                           name_long='!![en]Last error',
                           select=dict(
-                              table='sys.task_execution', where='$task_id=#THIS.id AND $is_error IS TRUE',
-                              order_by='$start_ts DESC', limit=1, columns='$start_ts')
+                              table='sys.task_execution',
+                              where='$task_id=#THIS.id AND $is_error IS TRUE',
+                              order_by='$start_ts DESC', limit=1,
+                              columns='$start_ts')
                           )
 
-
-
+    def scheduler(self):
+        return GnrTaskSchedulerClient()
+    
+    def zoomUrl(self):
+        return 'sys/task'
+    
     def _invoke_scheduler_reload(self):
-        scheduler_client = GnrTaskSchedulerClient(page=self.db.currentPage)
-        self.db.deferAfterCommit(scheduler_client.reload)
+        # FIXME: the user should be informed
+        # if there are issues with the scheduler reload/update
+        self.db.deferAfterCommit(self.scheduler().reload)
         
     def trigger_onUpdating(self, record=None,old_record=None):
         if not self.fieldsChanged('last_scheduled_ts,last_execution_ts',
