@@ -194,7 +194,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
             self.dbroot.commit()
 
             
-    def listElements(self, elType, **kwargs):
+    def listElements(self, elType,manager=None, **kwargs):
         """Get a list of element names
         
         :param elType: one of the following: schemata, tables, columns, views.
@@ -202,7 +202,7 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.raw_fetch(query, sqlargs=kwargs)
+            result = self.raw_fetch(query, sqlargs=kwargs,manager=manager)
         except psycopg.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         return [r[0] for r in result]
