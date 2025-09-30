@@ -312,7 +312,11 @@ class GnrSqlDb(GnrObject):
             stores[dbname] = os.path.join(extractpath,f)
         dbstoreconfig = Bag(stores.pop('_dbstores'))
         mainfilepath = stores.pop('mainstore',None)
-        for storeconf in self.stores_handler.raw_multdb_dbstores().values():
+        try:
+            storeconfs = self.stores_handler.raw_multdb_dbstores().values()
+        except Exception:
+            storeconfs = {}
+        for storeconf in storeconfs:
             self.dropDb(storeconf['database'])
         if mainfilepath:
             self._autoRestore_one(dbname=self.dbname,filepath=mainfilepath,sqltextCb=sqltextCb,onRestored=onRestored)
