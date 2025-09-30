@@ -17,7 +17,7 @@ class GnrCustomWebPage(object):
 
     def main(self, root, **kwargs):
         """APPLICATION PREFERENCE BUILDER"""
-        form = root.appPreferencesForm(**kwargs)
+        form = root.appPreferencesForm(datapath='main',**kwargs)
         form.dataController("""this.form.load({destPkey:'_mainpref_',discardChange:true});""",
                             subscribe_changedStartArgs=True,
                             subscribe_modal_page_open=True)

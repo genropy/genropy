@@ -5,7 +5,7 @@ class StoreTable(GnrDboTable):
 
     def config_db_multidb(self,pkg):
         tblname = self._tblname
-        tbl = pkg.table(tblname,storetable=True,multidb='one')
+        tbl = pkg.table(tblname,storetable=True,multidb='one',inStartupData=False)
         tbl.column('dbstore',size=':30',name_long='!![en]DbStore',unique=True,indexed=True,validate_case='l',
                                                                 validate_regex='![^A-Za-z0-9_]', 
                                                                 validate_regex_error='!![en]Invalid characters')

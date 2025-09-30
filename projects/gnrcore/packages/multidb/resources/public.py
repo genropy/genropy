@@ -131,7 +131,7 @@ class TableHandlerMain(BaseComponent):
                 palette = bar.subscribepalette.palettePane(paletteCode='mainstore',title='!!Mainstore',
                                             dockButton_iconClass='iconbox add_row',width='900px',
                                             height='400px',_lazyBuild=True,overflow='hidden',dockButton_disabled='^.disabledButton')
-                urlist = self.site.get_path_list(self.request.path_info)
+                urlist,redirect = self.site.handle_path_list(self.request.path_info)
                 urlist.pop(0)
                 palette.iframe(src='/%s' %'/'.join(urlist),height='100%',width='100%',border=0,
                               main_th_public=False,main_env_target_store=self.dbstore,

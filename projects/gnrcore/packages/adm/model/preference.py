@@ -22,7 +22,8 @@ class Table(object):
     def getMainStorePreference(self):
         result = self.db.application.cache.getItem(MAIN_PREFERENCE)
         if not result:
-            result = self.loadPreference()['data']
+            with self.db.tempEnv(storename=self.db.rootstore):
+                result = self.loadPreference()['data']
             self.db.application.cache.setItem(MAIN_PREFERENCE, result)
         return result.deepcopy()
     
@@ -90,8 +91,14 @@ class Table(object):
         else:
             self.db.package('multidb').setStorePreference(pkg=pkg,value=pkgpref)
 
+    def get_storeargs(self):
+        storeargs = {}
+        if not self.db.application.site.multidomain:
+            storeargs = {'storename':self.db.rootstore}
+        return storeargs
+
     def setPreference(self, path=None, value=None, pkg='',_attributes=None,**kwargs):
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+        with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             with self.recordToUpdate(MAIN_PREFERENCE) as record:
                 l = ['data',pkg]
                 if path:
@@ -100,7 +107,7 @@ class Table(object):
             self.db.commit()
 
     def loadPreference(self, pkey=MAIN_PREFERENCE, for_update=False):
-        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+        with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             try:
                 record = self.record(pkey=pkey, for_update=for_update).output('bag')
             except RecordNotExistingError:

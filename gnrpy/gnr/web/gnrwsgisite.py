@@ -367,9 +367,9 @@ class GnrWsgiSite(object):
     
     @property
     def register(self):
-        currentDomain = self.currentDomain
-        if not currentDomain:
-
+        if not self.currentDomain:
+            logger.error('missing domain')
+            self.currentDomain = '_main_'
         return self.get_register(self.currentDomain)
 
     def get_register(self,domain):
@@ -667,6 +667,7 @@ class GnrWsgiSite(object):
         #self.register.on_reloader_restart()
         #self.shared_data.dump()
         pass
+    
     def on_site_stop(self):
         """TODO"""
         #self.register.on_site_stop()
@@ -1026,6 +1027,9 @@ class GnrWsgiSite(object):
         if path_list == ['_pwa_worker.js']:
             path_list = ['_rsrc','common', 'pwa','worker.js']
             # return response(environ, start_response)
+
+        if path_list and path_list[0]=='.well-known': #escludendo uno dei path strani funziona
+            return
         
 
         self.currentAuxInstanceName = request_kwargs.get('aux_instance')

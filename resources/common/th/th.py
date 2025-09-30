@@ -558,6 +558,8 @@ class TableHandler(BaseComponent):
         rootattr['table'] = table
         if dbstore:
             rootattr['context_dbstore'] = dbstore
+            #self.dbstore = dbstore
+            self.db.currentEnv['storename'] = dbstore
         rootattr['subscribe_frame_onChangedPkey'] = 'SET .pkey=$1.pkey; FIRE .controller.loaded = $1.pkey;'
         if pkey:
             root.dataController('SET .pkey = pkey; FIRE .controller.loaded=pkey;',pkey=pkey,_onStart=True)

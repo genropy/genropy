@@ -1192,6 +1192,11 @@ class SiteRegisterClient(object):
             logger.info('UNABLE TO LOAD REGISTER %s' % self.site.site_name)
 
     def __getattr__(self,name):
+        #review this method:
+        # -name could be wrong--> h is None
+        #     -check the case if name is not in the register
+        # if the daemon crashed we have a ConnectionRefusedError
+        #     -we should consider this case and maybe restart the daemon itself
         h = getattr(self.siteregister,name)
         if not callable(h):
             return h

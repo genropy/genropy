@@ -1081,9 +1081,9 @@ class GnrApp(object):
             found_locale = locale.getlocale(locale.LC_MESSAGES)[0]
         return (found_locale or 'en-US').replace('_','-')
 
-    def setPreference(self, path, data, pkg):
+    def setPreference(self, path, data, pkg,**kwargs):
         if self.db.package('adm'):
-            self.db.table('adm.preference').setPreference(path, data, pkg=pkg)
+            self.db.table('adm.preference').setPreference(path, data, pkg=pkg,**kwargs)
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         if self.db.package('adm'):
