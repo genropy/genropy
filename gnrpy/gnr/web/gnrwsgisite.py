@@ -367,6 +367,9 @@ class GnrWsgiSite(object):
     
     @property
     def register(self):
+        currentDomain = self.currentDomain
+        if not currentDomain:
+
         return self.get_register(self.currentDomain)
 
     def get_register(self,domain):
@@ -659,12 +662,17 @@ class GnrWsgiSite(object):
 
     def on_reloader_restart(self):
         """TODO"""
-        self.register.on_reloader_restart()
+        #there is no reason to inform siteregister that a process is restarted
+        # it seems nobody calls it
+        #self.register.on_reloader_restart()
         #self.shared_data.dump()
-
+        pass
     def on_site_stop(self):
         """TODO"""
-        self.register.on_site_stop()
+        #self.register.on_site_stop()
+        #there is no reason to inform siteregister that a process is stopped
+        pass
+        
 
 
     def initializePackages(self):

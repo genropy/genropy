@@ -1202,6 +1202,7 @@ class SiteRegisterClient(object):
                     r = h(*args,**kwargs)
                     break
                 except Exception as e:
+                    print('Exception ',str(e))
                     attempt += 1
             return r
         return decore
